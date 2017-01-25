@@ -494,6 +494,8 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 
 	err = arch_dup_task_struct(tsk, orig);
 
+	tsk->flags &= ~PF_SU;
+
 	/*
 	 * arch_dup_task_struct() clobbers the stack-related fields.  Make
 	 * sure they're properly initialized before using any stack-related
