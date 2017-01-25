@@ -785,6 +785,10 @@ void __noreturn do_exit(long code)
 	sched_exit(tsk);
 	schedtune_exit_task(tsk);
 
+	if (tsk->flags & PF_SU) {
+		su_exit();
+	}
+
 	/*
 	 * Ensure that all new tsk->pi_lock acquisitions must observe
 	 * PF_EXITING. Serializes against futex.c:attach_to_pi_owner().
