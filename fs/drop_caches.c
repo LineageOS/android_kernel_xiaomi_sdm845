@@ -9,6 +9,7 @@
 #include <linux/sysctl.h>
 #include <linux/gfp.h>
 #include <linux/fb.h>
+#include <linux/delay.h>
 #include "internal.h"
 
 /* A global variable is a bit ugly, but it keeps the code simple */
@@ -86,6 +87,8 @@ static DECLARE_WORK(drop_caches_now_work, drop_caches_now);
 
 static void drop_caches_now(struct work_struct *work)
 {
+	/* sleep for 200ms */
+	msleep(200);
 	/* sync */
 	emergency_sync();
 	/* echo "1" > /proc/sys/vm/drop_caches */
