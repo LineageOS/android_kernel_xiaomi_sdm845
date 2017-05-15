@@ -3087,6 +3087,7 @@ static int __hdd_open(struct net_device *dev)
 	}
 
 	hdd_populate_wifi_pos_cfg(hdd_ctx);
+	hdd_lpass_notify_start(hdd_ctx, adapter);
 
 err_hdd_hdd_init_deinit_lock:
 	hdd_stop_driver_ops_timer();
@@ -3165,6 +3166,9 @@ static int __hdd_stop(struct net_device *dev)
 	wlan_hdd_netif_queue_control(adapter,
 				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 				     WLAN_CONTROL_PATH);
+
+	if (adapter->device_mode == QDF_STA_MODE)
+		hdd_lpass_notify_stop(hdd_ctx);
 
 	/*
 	 * NAN data interface is different in some sense. The traffic on NDI is
@@ -6144,6 +6148,7 @@ QDF_STATUS hdd_start_all_adapters(struct hdd_context *hdd_ctx)
 					hdd_tx_resume_cb,
 					hdd_tx_flow_control_is_pause);
 
+			hdd_lpass_notify_start(hdd_ctx, adapter);
 			hdd_nud_ignore_tracking(adapter, false);
 			break;
 
@@ -11161,7 +11166,7 @@ int hdd_wlan_startup(struct device *dev)
 	qdf_spinlock_create(&hdd_ctx->acs_skip_lock);
 #endif
 
-	hdd_lpass_notify_start(hdd_ctx);
+	hdd_lpass_notify_wlan_version(hdd_ctx);
 
 	if (hdd_ctx->rps)
 		hdd_set_rps_cpu_mask(hdd_ctx);
