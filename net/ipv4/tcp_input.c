@@ -3494,7 +3494,7 @@ static bool __tcp_oow_rate_limited(struct net *net, int mib_idx,
 				   u32 *last_oow_ack_time)
 {
 	if (*last_oow_ack_time) {
-		s32 elapsed = (s32)(tcp_time_stamp - *last_oow_ack_time);
+		s32 elapsed = (s32)(tcp_jiffies32 - *last_oow_ack_time);
 
 		if (0 <= elapsed && elapsed < sysctl_tcp_invalid_ratelimit) {
 			NET_INC_STATS(net, mib_idx);
@@ -3502,7 +3502,7 @@ static bool __tcp_oow_rate_limited(struct net *net, int mib_idx,
 		}
 	}
 
-	*last_oow_ack_time = tcp_time_stamp;
+	*last_oow_ack_time = tcp_jiffies32;
 
 	return false;	/* not rate-limited: go ahead, send dupack now! */
 }
