@@ -471,7 +471,7 @@ void tcp_init_buffer_space(struct sock *sk)
 		tp->window_clamp = max(2 * tp->advmss, maxwin - tp->advmss);
 
 	tp->rcv_ssthresh = min(tp->rcv_ssthresh, tp->window_clamp);
-	tp->snd_cwnd_stamp = tcp_time_stamp;
+	tp->snd_cwnd_stamp = tcp_jiffies32;
 }
 
 /* 5. Recalculate window clamp after socket hit its memory bounds. */
@@ -1984,7 +1984,7 @@ void tcp_enter_loss(struct sock *sk)
 	}
 	tp->snd_cwnd	   = 1;
 	tp->snd_cwnd_cnt   = 0;
-	tp->snd_cwnd_stamp = tcp_time_stamp;
+	tp->snd_cwnd_stamp = tcp_jiffies32;
 
 	tp->retrans_out = 0;
 	tp->lost_out = 0;
@@ -2457,7 +2457,7 @@ static void tcp_undo_cwnd_reduction(struct sock *sk, bool unmark_loss)
 			tcp_ecn_withdraw_cwr(tp);
 		}
 	}
-	tp->snd_cwnd_stamp = tcp_time_stamp;
+	tp->snd_cwnd_stamp = tcp_jiffies32;
 	tp->undo_marker = 0;
 }
 
@@ -2609,7 +2609,7 @@ static inline void tcp_end_cwnd_reduction(struct sock *sk)
 	if (tp->snd_ssthresh < TCP_INFINITE_SSTHRESH &&
 	    (inet_csk(sk)->icsk_ca_state == TCP_CA_CWR || tp->undo_marker)) {
 		tp->snd_cwnd = tp->snd_ssthresh;
-		tp->snd_cwnd_stamp = tcp_time_stamp;
+		tp->snd_cwnd_stamp = tcp_jiffies32;
 	}
 	tcp_ca_event(sk, CA_EVENT_COMPLETE_CWR);
 }
@@ -2682,7 +2682,7 @@ static void tcp_mtup_probe_success(struct sock *sk)
 	tp->snd_cwnd = max_t(u32, 1U, val);
 
 	tp->snd_cwnd_cnt = 0;
-	tp->snd_cwnd_stamp = tcp_time_stamp;
+	tp->snd_cwnd_stamp = tcp_jiffies32;
 	tp->snd_ssthresh = tcp_current_ssthresh(sk);
 
 	icsk->icsk_mtup.search_low = icsk->icsk_mtup.probe_size;
@@ -3054,7 +3054,7 @@ static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 
 	icsk->icsk_ca_ops->cong_avoid(sk, ack, acked);
-	tcp_sk(sk)->snd_cwnd_stamp = tcp_time_stamp;
+	tcp_sk(sk)->snd_cwnd_stamp = tcp_jiffies32;
 }
 
 /* Restart timer after forward progress on connection.
@@ -5165,7 +5165,7 @@ static void tcp_new_space(struct sock *sk)
 
 	if (tcp_should_expand_sndbuf(sk)) {
 		tcp_sndbuf_expand(sk);
-		tp->snd_cwnd_stamp = tcp_time_stamp;
+		tp->snd_cwnd_stamp = tcp_jiffies32;
 	}
 
 	sk->sk_write_space(sk);
