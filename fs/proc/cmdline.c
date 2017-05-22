@@ -24,30 +24,37 @@ static const struct file_operations cmdline_proc_fops = {
 	.release	= single_release,
 };
 
+static void remove_flag(char *cmd, const char *flag)
+{
+	char *start_addr, *end_addr;
+
+	/* Ensure all instances of a flag are removed */
+	while ((start_addr = strstr(cmd, flag))) {
+		end_addr = strchr(start_addr, ' ');
+		if (end_addr)
+			memmove(start_addr, end_addr + 1, strlen(end_addr));
+		else
+			*(start_addr - 1) = '\0';
+	}
+}
+
+static void remove_safetynet_flags(char *cmd)
+{
+	remove_flag(cmd, "androidboot.enable_dm_verity=");
+	remove_flag(cmd, "androidboot.secboot=");
+	remove_flag(cmd, "androidboot.verifiedbootstate=");
+	remove_flag(cmd, "androidboot.veritymode=");
+}
+
 static int __init proc_cmdline_init(void)
 {
-	char *offset_addr, *cmd = new_command_line;
-
-	strcpy(cmd, saved_command_line);
+	strcpy(new_command_line, saved_command_line);
 
 	/*
-	 * Remove 'androidboot.verifiedbootstate' flag from command line seen
-	 * by userspace in order to pass SafetyNet CTS check.
+	 * Remove various flags from command line seen by userspace in order to
+	 * pass SafetyNet CTS check.
 	 */
-	offset_addr = strstr(cmd, "androidboot.verifiedbootstate=");
-	if (offset_addr) {
-		size_t i, len, offset;
-
-		len = strlen(cmd);
-		offset = offset_addr - cmd;
-
-		for (i = 1; i < (len - offset); i++) {
-			if (cmd[offset + i] == ' ')
-				break;
-		}
-
-		memmove(offset_addr, &cmd[offset + i + 1], len - i - offset);
-	}
+	remove_safetynet_flags(new_command_line);
 
 	proc_create("cmdline", 0, NULL, &cmdline_proc_fops);
 	return 0;
