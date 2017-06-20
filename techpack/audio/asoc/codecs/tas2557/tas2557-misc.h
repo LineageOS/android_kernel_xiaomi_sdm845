@@ -40,17 +40,6 @@
 #define	TIAUDIO_CMD_SPEAKER				11
 #define	TIAUDIO_CMD_FW_RELOAD			12
 
-#define	TAS2557_MAGIC_NUMBER	0x32353537	/* '2557' */
-
-#define	SMARTPA_SPK_DAC_VOLUME				_IOWR(TAS2557_MAGIC_NUMBER, 1, unsigned long)
-#define	SMARTPA_SPK_POWER_ON				_IOWR(TAS2557_MAGIC_NUMBER, 2, unsigned long)
-#define	SMARTPA_SPK_POWER_OFF				_IOWR(TAS2557_MAGIC_NUMBER, 3, unsigned long)
-#define	SMARTPA_SPK_SWITCH_PROGRAM			_IOWR(TAS2557_MAGIC_NUMBER, 4, unsigned long)
-#define	SMARTPA_SPK_SWITCH_CONFIGURATION	_IOWR(TAS2557_MAGIC_NUMBER, 5, unsigned long)
-#define	SMARTPA_SPK_SWITCH_CALIBRATION		_IOWR(TAS2557_MAGIC_NUMBER, 6, unsigned long)
-#define	SMARTPA_SPK_SET_SAMPLERATE			_IOWR(TAS2557_MAGIC_NUMBER, 7, unsigned long)
-#define	SMARTPA_SPK_SET_BITRATE				_IOWR(TAS2557_MAGIC_NUMBER, 8, unsigned long)
-
 int tas2557_register_misc(struct tas2557_priv *pTAS2557);
 int tas2557_deregister_misc(struct tas2557_priv *pTAS2557);
 
