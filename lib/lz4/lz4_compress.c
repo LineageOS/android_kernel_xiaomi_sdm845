@@ -942,7 +942,7 @@ EXPORT_SYMBOL(LZ4_compress_fast_continue);
 int lz4_compress(const unsigned char *src, size_t src_len, unsigned char *dst,
 	size_t *dst_len, void *wrkmem) {
 	*dst_len = LZ4_compress_default(src, dst, src_len,
-		*dst_len, wrkmem);
+		LZ4_COMPRESSBOUND(src_len), wrkmem);
 
 	/*
 	 * Prior lz4_compress will return -1 in case of error
