@@ -2856,7 +2856,8 @@ exit:
 static int q6afe_send_enc_config(u16 port_id,
 				 union afe_enc_config_data *cfg, u32 format,
 				 union afe_port_config afe_config,
-				 u16 afe_in_channels, u16 afe_in_bit_width)
+				 u16 afe_in_channels, u16 afe_in_bit_width,
+				 u32 scrambler_mode)
 {
 	struct afe_audioif_config_command config;
 	int index;
@@ -2954,6 +2955,20 @@ static int q6afe_send_enc_config(u16 port_id,
 	}
 
 	config.param.payload_size =
+		payload_size + sizeof(config.port.enc_set_scrambler_param);
+	pr_debug("%s:sending AFE_ENCODER_PARAM_ID_ENABLE_SCRAMBLING mode= %d to DSP payload = %d\n",
+		  __func__, scrambler_mode, config.param.payload_size);
+	config.pdata.param_id = AFE_ENCODER_PARAM_ID_ENABLE_SCRAMBLING;
+	config.pdata.param_size = sizeof(config.port.enc_set_scrambler_param);
+	config.port.enc_set_scrambler_param.enable_scrambler = scrambler_mode;
+	ret = afe_apr_send_pkt(&config, &this_afe.wait[index]);
+	if (ret) {
+		pr_err("%s: AFE_ENCODER_PARAM_ID_ENABLE_SCRAMBLING for port 0x%x failed %d\n",
+			__func__, port_id, ret);
+		goto exit;
+	}
+
+	config.param.payload_size =
 			payload_size + sizeof(config.port.media_type);
 	config.pdata.param_size = sizeof(config.port.media_type);
 
@@ -2989,7 +3004,8 @@ exit:
 
 static int __afe_port_start(u16 port_id, union afe_port_config *afe_config,
 			    u32 rate, u16 afe_in_channels, u16 afe_in_bit_width,
-			    union afe_enc_config_data *cfg, u32 enc_format)
+			    union afe_enc_config_data *cfg, u32 enc_format,
+			    u32 scrambler_mode)
 {
 	struct afe_audioif_config_command config;
 	int ret = 0;
@@ -3252,7 +3268,8 @@ static int __afe_port_start(u16 port_id, union afe_port_config *afe_config,
 					__func__, enc_format);
 		ret = q6afe_send_enc_config(port_id, cfg, enc_format,
 					    *afe_config, afe_in_channels,
-					    afe_in_bit_width);
+					    afe_in_bit_width,
+					    scrambler_mode);
 		if (ret) {
 			pr_err("%s: AFE encoder config for port 0x%x failed %d\n",
 				__func__, port_id, ret);
@@ -3305,7 +3322,7 @@ int afe_port_start(u16 port_id, union afe_port_config *afe_config,
 		   u32 rate)
 {
 	return __afe_port_start(port_id, afe_config, rate,
-				0, 0, NULL, ASM_MEDIA_FMT_NONE);
+				0, 0, NULL, ASM_MEDIA_FMT_NONE, 0);
 }
 EXPORT_SYMBOL(afe_port_start);
 
@@ -3328,7 +3345,8 @@ int afe_port_start_v2(u16 port_id, union afe_port_config *afe_config,
 {
 	return __afe_port_start(port_id, afe_config, rate,
 				afe_in_channels, afe_in_bit_width,
-				&enc_cfg->data, enc_cfg->format);
+				&enc_cfg->data, enc_cfg->format,
+				enc_cfg->scrambler_mode);
 }
 EXPORT_SYMBOL(afe_port_start_v2);
 
