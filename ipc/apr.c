@@ -735,6 +735,88 @@ static void apr_reset_deregister(struct work_struct *work)
 	kfree(apr_reset);
 }
 
+int apr_start_rx_rt(void *handle)
+{
+	int rc = 0;
+	struct apr_svc *svc = handle;
+	uint16_t dest_id = 0;
+	uint16_t client_id = 0;
+
+	if (!svc) {
+		pr_err("%s: Invalid APR handle\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&svc->m_lock);
+	dest_id = svc->dest_id;
+	client_id = svc->client_id;
+
+	if ((client_id >= APR_CLIENT_MAX) || (dest_id >= APR_DEST_MAX)) {
+		pr_err("%s: %s invalid. client_id = %u, dest_id = %u\n",
+		       __func__,
+		       client_id >= APR_CLIENT_MAX ? "Client ID" : "Dest ID",
+		       client_id, dest_id);
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	if (!client[dest_id][client_id].handle) {
+		pr_err("%s: Client handle is NULL\n", __func__);
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	rc = apr_tal_start_rx_rt(client[dest_id][client_id].handle);
+	if (rc)
+		pr_err("%s: failed to set RT thread priority for APR RX. rc = %d\n",
+			__func__, rc);
+
+exit:
+	mutex_unlock(&svc->m_lock);
+	return rc;
+}
+
+int apr_end_rx_rt(void *handle)
+{
+	int rc = 0;
+	struct apr_svc *svc = handle;
+	uint16_t dest_id = 0;
+	uint16_t client_id = 0;
+
+	if (!svc) {
+		pr_err("%s: Invalid APR handle\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&svc->m_lock);
+	dest_id = svc->dest_id;
+	client_id = svc->client_id;
+
+	if ((client_id >= APR_CLIENT_MAX) || (dest_id >= APR_DEST_MAX)) {
+		pr_err("%s: %s invalid. client_id = %u, dest_id = %u\n",
+		       __func__,
+		       client_id >= APR_CLIENT_MAX ? "Client ID" : "Dest ID",
+		       client_id, dest_id);
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	if (!client[dest_id][client_id].handle) {
+		pr_err("%s: Client handle is NULL\n", __func__);
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	rc = apr_tal_end_rx_rt(client[dest_id][client_id].handle);
+	if (rc)
+		pr_err("%s: failed to reset RT thread priority for APR RX. rc = %d\n",
+			__func__, rc);
+
+exit:
+	mutex_unlock(&svc->m_lock);
+	return rc;
+}
+
 int apr_deregister(void *handle)
 {
 	struct apr_svc *svc = handle;
