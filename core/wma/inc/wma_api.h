@@ -489,4 +489,18 @@ static inline void wma_spectral_scan_config(WMA_HANDLE wma_handle,
 
 QDF_STATUS wma_crash_inject(WMA_HANDLE wma_handle, uint32_t type,
 			    uint32_t delay_time_ms);
+
+/**
+ * wma_wow_set_wake_time() - set timer pattern tlv, so that firmware will wake
+ * up host after specified time is elapsed
+ * @wma_handle: wma handle
+ * @vdev_id: vdev id
+ * @cookie: value to identify reason why host set up wake call.
+ * @time: time in ms
+ *
+ * Return: QDF status
+ */
+QDF_STATUS wma_wow_set_wake_time(WMA_HANDLE wma_handle, uint8_t vdev_id,
+				 uint32_t cookie, uint32_t time);
+
 #endif
