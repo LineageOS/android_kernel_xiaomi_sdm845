@@ -441,6 +441,9 @@ success:
 	return pdev;
 
 htt_htc_attach_fail:
+	HTT_TX_MUTEX_DESTROY(&pdev->credit_mutex);
+	HTT_TX_MUTEX_DESTROY(&pdev->htt_tx_mutex);
+	HTT_TX_NBUF_QUEUE_MUTEX_DESTROY(pdev);
 	qdf_mem_free(pdev);
 
 fail1:
