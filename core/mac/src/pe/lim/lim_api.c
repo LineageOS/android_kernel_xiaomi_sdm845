@@ -826,21 +826,17 @@ tSirRetStatus pe_close(tpAniSirGlobal pMac)
 {
 	uint8_t i;
 	qdf_list_node_t *lst_node;
-	struct mgmt_frm_reg_info *lim_mgmt_registration;
 
 	if (ANI_DRIVER_TYPE(pMac) == QDF_DRIVER_TYPE_MFG)
 		return eSIR_SUCCESS;
-
 	/*
 	 * Before destroying the list making sure all the nodes have been
 	 * deleted
 	 */
-	while (qdf_list_peek_front(
+	while (qdf_list_remove_front(
 			&pMac->lim.gLimMgmtFrameRegistratinQueue,
 			&lst_node) == QDF_STATUS_SUCCESS) {
-		lim_mgmt_registration = qdf_container_of(lst_node,
-					struct mgmt_frm_reg_info, node);
-		qdf_mem_free(lim_mgmt_registration);
+		qdf_mem_free(lst_node);
 	}
 	qdf_list_destroy(&pMac->lim.gLimMgmtFrameRegistratinQueue);
 	qdf_mutex_destroy(&pMac->lim.lim_frame_register_lock);
