@@ -1888,7 +1888,7 @@ void lim_process_ap_mlm_del_sta_rsp(tpAniSirGlobal mac_ctx,
 				sta_ds->mlmStaContext.subType, true,
 				sta_ds->mlmStaContext.authType, sta_ds->assocId,
 				true,
-				(tSirResultCodes)eSIR_MAC_UNSPEC_FAILURE_STATUS,
+				eSIR_MAC_UNSPEC_FAILURE_STATUS,
 				session_entry);
 		}
 		return;
@@ -1996,7 +1996,6 @@ void lim_process_ap_mlm_add_sta_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,
 				       pStaDs->mlmStaContext.subType,
 				       true, pStaDs->mlmStaContext.authType,
 				       pStaDs->assocId, true,
-				       (tSirResultCodes)
 				       eSIR_MAC_UNSPEC_FAILURE_STATUS,
 				       psessionEntry);
 		goto end;
