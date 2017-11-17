@@ -9855,6 +9855,9 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 
 	hdd_info("Present Driver Status: %d", hdd_ctx->driver_status);
 
+	/* free user wowl patterns */
+	hdd_free_user_wowl_ptrns();
+
 	switch (hdd_ctx->driver_status) {
 	case DRIVER_MODULES_UNINITIALIZED:
 		hdd_info("Modules not initialized just return");
@@ -11387,7 +11390,6 @@ err_out:
  */
 void hdd_deinit(void)
 {
-	hdd_deinit_wowl();
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
 	wlan_logging_sock_deinit_svc();
