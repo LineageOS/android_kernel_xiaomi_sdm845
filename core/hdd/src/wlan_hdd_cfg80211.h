@@ -506,7 +506,7 @@ int wlan_hdd_disable_dfs_chan_scan(hdd_context_t *hdd_ctx,
 				   uint32_t no_dfs_flag);
 
 int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy,
-				  eCsrBand eBand);
+				  tSirRFBand eBand);
 
 void hdd_get_bpf_offload_cb(void *hdd_context,
 			    struct sir_bpf_get_offload *data);

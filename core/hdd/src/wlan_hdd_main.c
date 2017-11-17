@@ -989,10 +989,10 @@ static void hdd_update_vdev_nss(hdd_context_t *hdd_ctx)
 		max_supp_nss = 2;
 
 	sme_update_vdev_type_nss(hdd_ctx->hHal, max_supp_nss,
-			cfg_ini->vdev_type_nss_2g, eCSR_BAND_24);
+			cfg_ini->vdev_type_nss_2g, SIR_BAND_2_4_GHZ);
 
 	sme_update_vdev_type_nss(hdd_ctx->hHal, max_supp_nss,
-			cfg_ini->vdev_type_nss_5g, eCSR_BAND_5G);
+			cfg_ini->vdev_type_nss_5g, SIR_BAND_5_GHZ);
 }
 
 /**
@@ -1595,11 +1595,11 @@ void hdd_update_tgt_cfg(void *context, void *param)
 	 * setting if INI setting is a subset
 	 */
 
-	if ((hdd_ctx->config->nBandCapability == eCSR_BAND_ALL) &&
-	    (temp_band_cap != eCSR_BAND_ALL))
+	if ((hdd_ctx->config->nBandCapability == SIR_BAND_ALL) &&
+	    (temp_band_cap != SIR_BAND_ALL))
 		hdd_ctx->config->nBandCapability = temp_band_cap;
-	else if ((hdd_ctx->config->nBandCapability != eCSR_BAND_ALL) &&
-		 (temp_band_cap != eCSR_BAND_ALL) &&
+	else if ((hdd_ctx->config->nBandCapability != SIR_BAND_ALL) &&
+		 (temp_band_cap != SIR_BAND_ALL) &&
 		 (hdd_ctx->config->nBandCapability != temp_band_cap)) {
 		hdd_warn("ini BandCapability not supported by the target");
 	}
@@ -6315,7 +6315,7 @@ bool hdd_is_5g_supported(hdd_context_t *hdd_ctx)
 	if (!hdd_ctx || !hdd_ctx->config)
 		return true;
 
-	if (hdd_ctx->curr_band != eCSR_BAND_24)
+	if (hdd_ctx->curr_band != SIR_BAND_2_4_GHZ)
 		return true;
 	else
 		return false;

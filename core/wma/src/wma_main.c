@@ -1540,9 +1540,9 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 		case WMI_PDEV_PARAM_TXPOWER_LIMIT2G:
 			wma->pdevconfig.txpow2g = privcmd->param_value;
 			if ((pMac->roam.configParam.bandCapability ==
-			     eCSR_BAND_ALL) ||
+			     SIR_BAND_ALL) ||
 			    (pMac->roam.configParam.bandCapability ==
-			     eCSR_BAND_24)) {
+			     SIR_BAND_2_4_GHZ)) {
 				if (cfg_set_int(pMac,
 						WNI_CFG_CURRENT_TX_POWER_LEVEL,
 						privcmd->param_value) !=
@@ -1556,9 +1556,9 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 		case WMI_PDEV_PARAM_TXPOWER_LIMIT5G:
 			wma->pdevconfig.txpow5g = privcmd->param_value;
 			if ((pMac->roam.configParam.bandCapability ==
-			     eCSR_BAND_ALL) ||
+			     SIR_BAND_ALL) ||
 			    (pMac->roam.configParam.bandCapability ==
-			     eCSR_BAND_5G)) {
+			     SIR_BAND_5_GHZ)) {
 				if (cfg_set_int(pMac,
 						WNI_CFG_CURRENT_TX_POWER_LEVEL,
 						privcmd->param_value) !=
@@ -4735,17 +4735,17 @@ static void wma_update_hdd_cfg(tp_wma_handle wma_handle)
 	switch (wma_handle->phy_capability) {
 	case WMI_11G_CAPABILITY:
 	case WMI_11NG_CAPABILITY:
-		tgt_cfg.band_cap = eCSR_BAND_24;
+		tgt_cfg.band_cap = SIR_BAND_2_4_GHZ;
 		break;
 	case WMI_11A_CAPABILITY:
 	case WMI_11NA_CAPABILITY:
 	case WMI_11AC_CAPABILITY:
-		tgt_cfg.band_cap = eCSR_BAND_5G;
+		tgt_cfg.band_cap = SIR_BAND_5_GHZ;
 		break;
 	case WMI_11AG_CAPABILITY:
 	case WMI_11NAG_CAPABILITY:
 	default:
-		tgt_cfg.band_cap = eCSR_BAND_ALL;
+		tgt_cfg.band_cap = SIR_BAND_ALL;
 	}
 
 	tgt_cfg.max_intf_count = wma_handle->wlan_resource_config.num_vdevs;
@@ -8249,7 +8249,7 @@ QDF_STATUS wma_send_pdev_set_pcl_cmd(tp_wma_handle wma_handle,
 		msg->weighed_valid_list[i] =
 			wma_map_pcl_weights(msg->weighed_valid_list[i]);
 		/* Dont allow roaming on 2G when 5G_ONLY configured */
-		if ((wma_handle->bandcapability == eCSR_BAND_5G) &&
+		if ((wma_handle->bandcapability == SIR_BAND_5_GHZ) &&
 			(msg->saved_chan_list[i] <= MAX_24GHZ_CHANNEL)) {
 			msg->weighed_valid_list[i] =
 				WEIGHT_OF_DISALLOWED_CHANNELS;

@@ -252,10 +252,10 @@ bool hdd_conn_is_connected(hdd_station_ctx_t *pHddStaCtx)
  * hdd_conn_get_connected_band() - get current connection radio band
  * @pHddStaCtx:    pointer to global HDD Station context
  *
- * Return: eCSR_BAND_24 or eCSR_BAND_5G based on current AP connection
- *	eCSR_BAND_ALL if not connected
+ * Return: SIR_BAND_2_4_GHZ or SIR_BAND_5_GHZ based on current AP connection
+ *      SIR_BAND_ALL if not connected
  */
-eCsrBand hdd_conn_get_connected_band(hdd_station_ctx_t *pHddStaCtx)
+tSirRFBand hdd_conn_get_connected_band(hdd_station_ctx_t *pHddStaCtx)
 {
 	uint8_t staChannel = 0;
 
@@ -263,11 +263,11 @@ eCsrBand hdd_conn_get_connected_band(hdd_station_ctx_t *pHddStaCtx)
 		staChannel = pHddStaCtx->conn_info.operationChannel;
 
 	if (staChannel > 0 && staChannel < 14)
-		return eCSR_BAND_24;
+		return SIR_BAND_2_4_GHZ;
 	else if (staChannel >= 36 && staChannel <= 184)
-		return eCSR_BAND_5G;
-	else   /* If station is not connected return as eCSR_BAND_ALL */
-		return eCSR_BAND_ALL;
+		return SIR_BAND_5_GHZ;
+	else   /* If station is not connected return as SIR_BAND_ALL */
+		return SIR_BAND_ALL;
 }
 
 /**

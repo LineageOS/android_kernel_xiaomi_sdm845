@@ -8069,7 +8069,8 @@ bool sme_is_channel_valid(tHalHandle hHal, uint8_t channel)
  *
  * Return QDF_STATUS
  */
-QDF_STATUS sme_set_freq_band(tHalHandle hHal, uint8_t sessionId, eCsrBand eBand)
+QDF_STATUS sme_set_freq_band(tHalHandle hHal, uint8_t sessionId,
+			     tSirRFBand eBand)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -8090,7 +8091,7 @@ QDF_STATUS sme_set_freq_band(tHalHandle hHal, uint8_t sessionId, eCsrBand eBand)
  *
  * Return QDF_STATUS
  */
-QDF_STATUS sme_get_freq_band(tHalHandle hHal, eCsrBand *pBand)
+QDF_STATUS sme_get_freq_band(tHalHandle hHal, tSirRFBand *pBand)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -8113,7 +8114,7 @@ QDF_STATUS sme_get_freq_band(tHalHandle hHal, eCsrBand *pBand)
  *
  * Return QDF_STATUS
  */
-QDF_STATUS sme_set_max_tx_power_per_band(eCsrBand band, int8_t dB)
+QDF_STATUS sme_set_max_tx_power_per_band(tSirRFBand band, int8_t dB)
 {
 	cds_msg_t msg;
 	tpMaxTxPowerPerBandParams pMaxTxPowerPerBandParams = NULL;
@@ -16964,12 +16965,12 @@ void sme_set_pdev_ht_vht_ies(tHalHandle hal, bool enable2x2)
  * Return: None
  */
 void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
-		uint32_t vdev_type_nss, eCsrBand band)
+		uint32_t vdev_type_nss, tSirRFBand band)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	struct vdev_type_nss *vdev_nss;
 
-	if (eCSR_BAND_5G == band)
+	if (SIR_BAND_5_GHZ == band)
 		vdev_nss = &mac_ctx->vdev_type_nss_5g;
 	else
 		vdev_nss = &mac_ctx->vdev_type_nss_2g;

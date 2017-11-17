@@ -1136,7 +1136,7 @@ typedef struct sMaxTxPowerParams {
  * @power: power in dbm
  */
 typedef struct sMaxTxPowerPerBandParams {
-	eCsrBand bandInfo;
+	tSirRFBand bandInfo;
 	int8_t power;
 } tMaxTxPowerPerBandParams, *tpMaxTxPowerPerBandParams;
 

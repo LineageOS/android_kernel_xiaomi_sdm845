@@ -617,8 +617,8 @@ QDF_STATUS sme_receive_filter_clear_filter(tHalHandle hHal,
 #endif /* WLAN_FEATURE_PACKET_FILTERING */
 bool sme_is_channel_valid(tHalHandle hHal, uint8_t channel);
 QDF_STATUS sme_set_freq_band(tHalHandle hHal, uint8_t sessionId,
-		eCsrBand eBand);
-QDF_STATUS sme_get_freq_band(tHalHandle hHal, eCsrBand *pBand);
+		tSirRFBand eBand);
+QDF_STATUS sme_get_freq_band(tHalHandle hHal, tSirRFBand *pBand);
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
 QDF_STATUS sme_set_gtk_offload(tHalHandle hal_ctx,
 		tpSirGtkOffloadParams request,
@@ -631,7 +631,7 @@ uint16_t sme_chn_to_freq(uint8_t chanNum);
 bool sme_is_channel_valid(tHalHandle hHal, uint8_t channel);
 QDF_STATUS sme_set_max_tx_power(tHalHandle hHal, struct qdf_mac_addr pBssid,
 		struct qdf_mac_addr pSelfMacAddress, int8_t dB);
-QDF_STATUS sme_set_max_tx_power_per_band(eCsrBand band, int8_t db);
+QDF_STATUS sme_set_max_tx_power_per_band(tSirRFBand band, int8_t db);
 QDF_STATUS sme_set_tx_power(tHalHandle hHal, uint8_t sessionId,
 		struct qdf_mac_addr bssid,
 		enum tQDF_ADAPTER_MODE dev_mode, int power);
@@ -1340,7 +1340,7 @@ QDF_STATUS sme_issue_same_ap_reassoc_cmd(uint8_t session_id);
 void sme_set_pdev_ht_vht_ies(tHalHandle hHal, bool enable2x2);
 
 void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
-		uint32_t vdev_type_nss, eCsrBand band);
+		uint32_t vdev_type_nss, tSirRFBand band);
 void sme_update_hw_dbs_capable(tHalHandle hal, uint8_t hw_dbs_capable);
 void sme_register_p2p_lo_event(tHalHandle hHal, void *context,
 					p2p_lo_callback callback);

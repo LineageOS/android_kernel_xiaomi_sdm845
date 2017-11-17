@@ -9185,11 +9185,11 @@ uint8_t hdd_get_sap_operating_band(hdd_context_t *hdd_ctx)
 		}
 		operating_channel = adapter->sessionCtx.ap.operatingChannel;
 		if (IS_24G_CH(operating_channel))
-			sap_operating_band = eCSR_BAND_24;
+			sap_operating_band = SIR_BAND_2_4_GHZ;
 		else if (IS_5G_CH(operating_channel))
-			sap_operating_band = eCSR_BAND_5G;
+			sap_operating_band = SIR_BAND_5_GHZ;
 		else
-			sap_operating_band = eCSR_BAND_ALL;
+			sap_operating_band = SIR_BAND_ALL;
 		status = hdd_get_next_adapter(hdd_ctx, adapter_node,
 				&next);
 		adapter_node = next;
@@ -12253,7 +12253,7 @@ hdd_context_t *hdd_cfg80211_wiphy_alloc(int priv_size)
  * This function is called from the supplicant through a
  * private ioctl to change the band value
  */
-int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
+int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, tSirRFBand eBand)
 {
 	int i, j;
 	enum channel_state channelEnabledState;
@@ -12273,7 +12273,7 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
 								 hw_value);
 
 			if (HDD_NL80211_BAND_2GHZ == i &&
-				eCSR_BAND_5G == eBand) {
+				SIR_BAND_5_GHZ == eBand) {
 				/* 5G only */
 #ifdef WLAN_ENABLE_SOCIAL_CHANNELS_5G_ONLY
 				/* Enable Social channels for P2P */
@@ -12289,7 +12289,7 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
 					IEEE80211_CHAN_DISABLED;
 				continue;
 			} else if (HDD_NL80211_BAND_5GHZ == i &&
-					eCSR_BAND_24 == eBand) {
+					SIR_BAND_2_4_GHZ == eBand) {
 				/* 2G only */
 				band->channels[j].flags |=
 					IEEE80211_CHAN_DISABLED;
@@ -12569,7 +12569,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 			struct ieee80211_supported_band *band = wiphy->bands[i];
 
 			if (HDD_NL80211_BAND_2GHZ == i &&
-				eCSR_BAND_5G == pCfg->nBandCapability) {
+				SIR_BAND_5_GHZ == pCfg->nBandCapability) {
 				/* 5G only */
 #ifdef WLAN_ENABLE_SOCIAL_CHANNELS_5G_ONLY
 				/* Enable social channels for P2P */
@@ -12583,7 +12583,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 					IEEE80211_CHAN_DISABLED;
 				continue;
 			} else if (HDD_NL80211_BAND_5GHZ == i &&
-					eCSR_BAND_24 == pCfg->nBandCapability) {
+				   SIR_BAND_2_4_GHZ == pCfg->nBandCapability) {
 				/* 2G only */
 				band->channels[j].flags |=
 					IEEE80211_CHAN_DISABLED;

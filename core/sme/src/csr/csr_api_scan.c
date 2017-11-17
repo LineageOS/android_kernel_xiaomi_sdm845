@@ -6266,13 +6266,13 @@ static void csr_scan_copy_request_valid_channels_only(tpAniSirGlobal mac_ctx,
 						ChannelList[index]) &&
 					mac_ctx->roam.configParam.
 					sta_roam_policy.sap_operating_band ==
-						eCSR_BAND_24) ||
+						SIR_BAND_2_4_GHZ) ||
 						(CDS_IS_CHANNEL_5GHZ(
 							src_req->ChannelInfo.
 							ChannelList[index]) &&
 					mac_ctx->roam.configParam.
 					sta_roam_policy.sap_operating_band ==
-						eCSR_BAND_5G))) {
+						SIR_BAND_5_GHZ))) {
 					QDF_TRACE(QDF_MODULE_ID_SME,
 						QDF_TRACE_LEVEL_DEBUG,
 					      FL("ignoring unsafe channel %d"),
@@ -7834,10 +7834,12 @@ QDF_STATUS csr_scan_save_preferred_network_found(tpAniSirGlobal pMac,
 		 * a part of PNO is updated to the supplicant. Specially
 		 * applicable in case of AP configured in 11A only mode.
 		 */
-		if ((pMac->roam.configParam.bandCapability == eCSR_BAND_ALL) ||
-			(pMac->roam.configParam.bandCapability == eCSR_BAND_24))
+		if ((pMac->roam.configParam.bandCapability == SIR_BAND_ALL) ||
+			(pMac->roam.configParam.bandCapability ==
+			 SIR_BAND_2_4_GHZ))
 			pBssDescr->channelId = 1;
-		else if (pMac->roam.configParam.bandCapability == eCSR_BAND_5G)
+		else if (pMac->roam.configParam.bandCapability ==
+			 SIR_BAND_5_GHZ)
 			pBssDescr->channelId = 36;
 	}
 	if ((pBssDescr->channelId > 0) && (pBssDescr->channelId < 15)) {

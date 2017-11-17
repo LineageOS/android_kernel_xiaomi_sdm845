@@ -419,8 +419,10 @@ typedef struct sSirSupportedRates {
 
 typedef enum eSirRFBand {
 	SIR_BAND_UNKNOWN,
+	SIR_BAND_ALL,
 	SIR_BAND_2_4_GHZ,
 	SIR_BAND_5_GHZ,
+	SIR_BAND_MAX
 } tSirRFBand;
 
 typedef struct sSirRemainOnChnReq {

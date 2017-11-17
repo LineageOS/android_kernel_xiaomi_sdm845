@@ -811,13 +811,6 @@ typedef enum {
 } eCsrSetKeyAction;
 
 typedef enum {
-	eCSR_BAND_ALL,
-	eCSR_BAND_24,
-	eCSR_BAND_5G,
-	eCSR_BAND_MAX,
-} eCsrBand;
-
-typedef enum {
 	/*
 	 * Roaming because HDD requested for reassoc by changing one of the
 	 * fields in tCsrRoamModifyProfileFields. OR Roaming because SME
@@ -1137,12 +1130,12 @@ typedef struct tagCsrConfigParam {
 	uint32_t channelBondingMode24GHz;
 	uint32_t channelBondingMode5GHz;
 	eCsrPhyMode phyMode;
-	eCsrBand eBand;
+	tSirRFBand eBand;
 	uint32_t RTSThreshold;
 	uint32_t HeartbeatThresh50;
 	uint32_t HeartbeatThresh24;
 	eCsrCBChoice cbChoice;
-	eCsrBand bandCapability;     /* indicate hw capability */
+	tSirRFBand bandCapability;
 	uint16_t TxRate;
 	eCsrRoamWmmUserModeType WMMSupportMode;
 	bool Is11eSupportEnabled;
@@ -1777,7 +1770,7 @@ QDF_STATUS csr_set_reg_info(tHalHandle hHal, uint8_t *apCntryCode);
 /* enum to string conversion for debug output */
 const char *get_e_roam_cmd_status_str(eRoamCmdStatus val);
 const char *get_e_csr_roam_result_str(eCsrRoamResult val);
-QDF_STATUS csr_set_phy_mode(tHalHandle hHal, uint32_t phyMode, eCsrBand eBand,
+QDF_STATUS csr_set_phy_mode(tHalHandle hHal, uint32_t phyMode, tSirRFBand eBand,
 			    bool *pfRestartNeeded);
 typedef void (*csr_roamLinkQualityIndCallback)
 	(eCsrRoamLinkQualityInd ind, void *pContext);
@@ -1799,8 +1792,8 @@ static inline QDF_STATUS csr_roam_issue_ft_preauth_req(tHalHandle hHal,
 	return QDF_STATUS_E_NOSUPPORT;
 }
 #endif
-QDF_STATUS csr_set_band(tHalHandle hHal, uint8_t sessionId, eCsrBand eBand);
-eCsrBand csr_get_current_band(tHalHandle hHal);
+QDF_STATUS csr_set_band(tHalHandle hHal, uint8_t sessionId, tSirRFBand eBand);
+tSirRFBand csr_get_current_band(tHalHandle hHal);
 typedef void (*csr_readyToSuspendCallback)(void *pContext, bool suspended);
 #ifdef WLAN_FEATURE_EXTWOW_SUPPORT
 typedef void (*csr_readyToExtWoWCallback)(void *pContext, bool status);

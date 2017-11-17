@@ -4600,7 +4600,7 @@ static int __iw_get_channel_list(struct net_device *dev,
 	tHalHandle hal = WLAN_HDD_GET_HAL_CTX(hostapd_adapter);
 	struct channel_list_info *channel_list =
 					(struct channel_list_info *) extra;
-	eCsrBand cur_band = eCSR_BAND_ALL;
+	tSirRFBand cur_band = SIR_BAND_ALL;
 	hdd_context_t *hdd_ctx;
 	int ret;
 	bool is_dfs_mode_enabled = false;
@@ -4618,14 +4618,14 @@ static int __iw_get_channel_list(struct net_device *dev,
 	}
 	wrqu->data.length = sizeof(struct channel_list_info);
 
-	if (eCSR_BAND_24 == cur_band) {
+	if (SIR_BAND_2_4_GHZ == cur_band) {
 		band_start_channel = CHAN_ENUM_1;
 		band_end_channel = CHAN_ENUM_14;
-	} else if (eCSR_BAND_5G == cur_band) {
+	} else if (SIR_BAND_5_GHZ == cur_band) {
 		band_start_channel = CHAN_ENUM_36;
 		band_end_channel = CHAN_ENUM_184;
 	}
-	if (cur_band != eCSR_BAND_24) {
+	if (cur_band != SIR_BAND_2_4_GHZ) {
 		if (hdd_ctx->config->dot11p_mode)
 			band_end_channel = CHAN_ENUM_184;
 		else
