@@ -1741,8 +1741,13 @@ CDEFINES += -DFEATURE_WLAN_D0WOW
 endif
 endif
 
-#Flag to enable SMMU S1 support
+#Flag to enable SMMU S1 support for SDM845
 ifeq ($(CONFIG_ARCH_SDM845), y)
+CDEFINES += -DENABLE_SMMU_S1_TRANSLATION
+endif
+
+#Flag to enable SMMU S1 support for SDM670
+ifeq ($(CONFIG_ARCH_SDM670), y)
 CDEFINES += -DENABLE_SMMU_S1_TRANSLATION
 endif
 
