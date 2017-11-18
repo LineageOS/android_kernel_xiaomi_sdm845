@@ -184,9 +184,9 @@ static bool hdd_is_world_regdomain(uint32_t reg_domain)
  * hdd_update_regulatory_info() - update regulatory info
  * @hdd_ctx: hdd context
  *
- * Return: void
+ * Return: Error Code
  */
-static void hdd_update_regulatory_info(hdd_context_t *hdd_ctx)
+static int hdd_update_regulatory_info(hdd_context_t *hdd_ctx)
 {
 	uint32_t country_code;
 
@@ -195,7 +195,7 @@ static void hdd_update_regulatory_info(hdd_context_t *hdd_ctx)
 	hdd_ctx->reg.reg_domain = CTRY_FLAG;
 	hdd_ctx->reg.reg_domain |= country_code;
 
-	cds_fill_some_regulatory_info(&hdd_ctx->reg);
+	return cds_fill_some_regulatory_info(&hdd_ctx->reg);
 
 }
 
@@ -700,15 +700,19 @@ static void hdd_restore_reg_flags(struct wiphy *wiphy, uint32_t flags)
 }
 #endif
 
-void hdd_apply_cached_country_info(hdd_context_t *hdd_ctx)
+int hdd_apply_cached_country_info(hdd_context_t *hdd_ctx)
 {
+	int ret_val = 0;
 
-	hdd_update_regulatory_info(hdd_ctx);
+	ret_val = hdd_update_regulatory_info(hdd_ctx);
+	if (ret_val)
+		return ret_val;
 
 	hdd_process_regulatory_data(hdd_ctx, hdd_ctx->wiphy,
 				    hdd_ctx->reg.reset);
 
 	sme_set_cc_src(hdd_ctx->hHal, hdd_ctx->reg.cc_src);
+	return ret_val;
 }
 
 /**
@@ -724,6 +728,7 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
 	bool reset = false;
 	enum dfs_region dfs_reg;
+	int32_t ret_val;
 
 	hdd_debug("country: %c%c, initiator %d, dfs_region: %d",
 		  request->alpha2[0],
@@ -822,8 +827,12 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 			return;
 		}
 
-		hdd_apply_cached_country_info(hdd_ctx);
+		ret_val = hdd_apply_cached_country_info(hdd_ctx);
 
+		if (ret_val) {
+			hdd_err("invalid reg info, do not process");
+			return;
+		}
 		sme_generic_change_country_code(hdd_ctx->hHal,
 						hdd_ctx->reg.alpha2);
 

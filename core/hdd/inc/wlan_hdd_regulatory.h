@@ -76,8 +76,8 @@ void hdd_modify_indoor_channel_state_flags(
  * hdd_apply_cached_country_info() - apply cached ctry info
  * @hdd_ctx: hdd context
  *
- * Return: void
+ * Return: Error code
  */
-void hdd_apply_cached_country_info(hdd_context_t *hdd_ctx);
+int hdd_apply_cached_country_info(hdd_context_t *hdd_ctx);
 
 #endif
