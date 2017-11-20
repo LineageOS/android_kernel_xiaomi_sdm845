@@ -131,7 +131,7 @@ static u32 aes_sub(u32 input)
 	__asm__("dup	v1.4s, %w[in]		;"
 		"movi	v0.16b, #0		;"
 		"aese	v0.16b, v1.16b		;"
-		"umov	%w[out], v0.4s[0]	;"
+		"umov	%w[out], v0.s[0]	;"
 
 	:	[out]	"=r"(ret)
 	:	[in]	"r"(input)
