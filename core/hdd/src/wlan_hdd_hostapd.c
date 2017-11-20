@@ -7895,6 +7895,10 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 	pConfig->chan_switch_hostapd_rate_enabled =
 			iniConfig->chan_switch_hostapd_rate_enabled;
+	if (iniConfig->WlanMccToSccSwitchMode !=
+			QDF_MCC_TO_SCC_SWITCH_DISABLE) {
+		pConfig->chan_switch_hostapd_rate_enabled = false;
+	}
 
 	pConfig->enOverLapCh = iniConfig->gEnableOverLapCh;
 	pConfig->dtim_period = pBeacon->dtim_period;

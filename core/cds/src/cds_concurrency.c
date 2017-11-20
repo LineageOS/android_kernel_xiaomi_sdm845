@@ -7896,7 +7896,8 @@ static void cds_check_sta_ap_concurrent_ch_intf(void *data)
 
 static bool cds_valid_sta_channel_check(uint8_t sta_channel)
 {
-	if (CDS_IS_DFS_CH(sta_channel) ||
+	if ((CDS_IS_DFS_CH(sta_channel) &&
+			(!cds_is_sta_sap_scc_allowed_on_dfs_channel())) ||
 		CDS_IS_PASSIVE_OR_DISABLE_CH(sta_channel) ||
 		!cds_is_safe_channel(sta_channel))
 		if (wma_is_hw_dbs_capable())
