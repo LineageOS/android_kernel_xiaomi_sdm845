@@ -2618,6 +2618,10 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 					   eCSR_DISCONNECT_REASON_UNSPECIFIED);
 				}
 				return QDF_STATUS_E_FAILURE;
+			} else {
+				cfg80211_put_bss(
+					pHddCtx->wiphy,
+					bss);
 			}
 			if (pRoamInfo->u.pConnectedProfile->AuthType ==
 			    eCSR_AUTH_TYPE_FT_RSN
@@ -2833,10 +2837,6 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 				}
 			}
 			if (!hddDisconInProgress) {
-				cfg80211_put_bss(
-					pHddCtx->wiphy,
-					bss);
-
 				/*
 				 * Perform any WMM-related association
 				 * processing.
