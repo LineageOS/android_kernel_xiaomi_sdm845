@@ -45,6 +45,7 @@
 #include <linux/interrupt.h>
 #include <linux/export.h>
 #include <linux/stacktrace.h>
+#include <qdf_defer.h>
 
 /* Function declarations and documenation */
 
@@ -135,3 +136,8 @@ void qdf_print_thread_trace(qdf_thread_t *thread) { }
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
 qdf_export_symbol(qdf_print_thread_trace);
 
+qdf_thread_t *qdf_get_current_task(void)
+{
+	return current;
+}
+EXPORT_SYMBOL(qdf_get_current_task);

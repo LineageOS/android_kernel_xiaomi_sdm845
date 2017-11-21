@@ -54,4 +54,10 @@ void qdf_busy_wait(uint32_t us_interval);
  */
 void qdf_print_thread_trace(qdf_thread_t *thread);
 
+/**
+ * qdf_get_current_task() - get current task struct
+ *
+ * Return: pointer to task struct
+ */
+qdf_thread_t *qdf_get_current_task(void);
 #endif /* __QDF_THREADS_H */
