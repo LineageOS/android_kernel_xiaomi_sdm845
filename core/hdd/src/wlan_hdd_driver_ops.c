@@ -1335,7 +1335,6 @@ static void hdd_cleanup_on_fw_down(void)
 	ENTER();
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
-	cds_set_fw_state(CDS_FW_STATE_DOWN);
 	qdf_complete_wait_events();
 	cds_set_target_ready(false);
 	if (hdd_ctx != NULL)
@@ -1343,7 +1342,27 @@ static void hdd_cleanup_on_fw_down(void)
 	wlan_hdd_purge_notifier();
 
 	EXIT();
+}
 
+/**
+ * wlan_hdd_set_the_pld_uevent() - set the pld event
+ * @uevent: uevent status
+ *
+ * Return: void
+ */
+static void wlan_hdd_set_the_pld_uevent(struct pld_uevent_data *uevent)
+{
+	switch (uevent->uevent) {
+	case PLD_RECOVERY:
+		cds_set_recovery_in_progress(true);
+		break;
+	case PLD_FW_DOWN:
+		cds_set_fw_state(CDS_FW_STATE_DOWN);
+		break;
+	case PLD_FW_READY:
+		cds_set_target_ready(true);
+		break;
+	}
 }
 
 /**
@@ -1356,12 +1375,26 @@ static void hdd_cleanup_on_fw_down(void)
 static void wlan_hdd_pld_uevent(struct device *dev,
 				struct pld_uevent_data *uevent)
 {
+	enum cds_driver_state driver_state;
+
 	ENTER();
 
+	mutex_lock(&hdd_init_deinit_lock);
+
 	hdd_info("pld event %d", uevent->uevent);
+
+	driver_state = cds_get_driver_state();
+
+	if (driver_state == CDS_DRIVER_STATE_UNINITIALIZED ||
+	    cds_is_driver_loading()) {
+		wlan_hdd_set_the_pld_uevent(uevent);
+		goto uevent_not_allowed;
+	}
+
+	wlan_hdd_set_the_pld_uevent(uevent);
+
 	switch (uevent->uevent) {
 	case PLD_RECOVERY:
-		cds_set_recovery_in_progress(true);
 		hdd_pld_ipa_uc_shutdown_pipes();
 		wlan_hdd_purge_notifier();
 		break;
@@ -1369,9 +1402,10 @@ static void wlan_hdd_pld_uevent(struct device *dev,
 		hdd_cleanup_on_fw_down();
 		break;
 	case PLD_FW_READY:
-		cds_set_target_ready(true);
 		break;
 	}
+uevent_not_allowed:
+	mutex_unlock(&hdd_init_deinit_lock);
 
 	EXIT();
 	return;
