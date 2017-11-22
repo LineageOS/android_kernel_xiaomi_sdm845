@@ -211,44 +211,12 @@ void qdf_mem_move(void *dst_addr, const void *src_addr, uint32_t num_bytes);
 
 void qdf_mem_free_outline(void *buf);
 
-/**
- * __qdf_mem_alloc_consistent() - allocates consistent qdf memory
- * @osdev: OS device handle
- * @dev: Pointer to device handle
- * @size: Size to be allocated
- * @paddr: Physical address
- * @file: file name of the call site
- * @line: line numbe rof the call site
- *
- * Return: pointer of allocated memory or null if memory alloc fails
- */
-void *__qdf_mem_alloc_consistent(qdf_device_t osdev, void *dev,
-				 qdf_size_t size, qdf_dma_addr_t *paddr,
-				 const char *file, uint32_t line);
+void *qdf_mem_alloc_consistent(qdf_device_t osdev, void *dev, qdf_size_t size,
+			       qdf_dma_addr_t *paddr);
 
-#define qdf_mem_alloc_consistent(osdev, dev, size, paddr) \
-	__qdf_mem_alloc_consistent(osdev, dev, size, paddr, __FILE__, __LINE__)
-
-/**
- * __qdf_mem_free_consistent() - free consistent qdf memory
- * @osdev: OS device handle
- * @size: Size to be allocated
- * @vaddr: virtual address
- * @paddr: Physical address
- * @memctx: Pointer to DMA context
- * @file: file name of the call site
- * @line: line numbe rof the call site
- *
- * Return: none
- */
-void __qdf_mem_free_consistent(qdf_device_t osdev, void *dev,
-			       qdf_size_t size, void *vaddr,
-			       qdf_dma_addr_t paddr, qdf_dma_context_t memctx,
-			       const char *file, uint32_t line);
-
-#define qdf_mem_free_consistent(osdev, dev, size, vaddr, paddr, memctx) \
-	__qdf_mem_free_consistent(osdev, dev, size, vaddr, paddr, memctx, \
-				  __FILE__, __LINE__)
+void qdf_mem_free_consistent(qdf_device_t osdev, void *dev, qdf_size_t size,
+			     void *vaddr, qdf_dma_addr_t paddr,
+			     qdf_dma_context_t memctx);
 
 void qdf_mem_zero_outline(void *buf, qdf_size_t size);
 
