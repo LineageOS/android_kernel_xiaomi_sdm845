@@ -7911,6 +7911,8 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 		pConfig->acs_dfs_mode = wlan_hdd_get_dfs_mode(mode);
 	}
 
+	pConfig->user_config_channel = pConfig->channel;
+
 	hdd_debug("pConfig->channel %d, pConfig->acs_dfs_mode %d",
 		pConfig->channel, pConfig->acs_dfs_mode);
 

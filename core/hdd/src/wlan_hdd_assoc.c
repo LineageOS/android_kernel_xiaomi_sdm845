@@ -1718,6 +1718,9 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 
 	pAdapter->hdd_stats.hddTxRxStats.cont_txtimeout_cnt = 0;
 
+	hdd_debug("check for SAP restart");
+	cds_check_concurrent_intf_and_restart_sap(pAdapter);
+
 	/* Unblock anyone waiting for disconnect to complete */
 	complete(&pAdapter->disconnect_comp_var);
 
