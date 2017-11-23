@@ -4113,6 +4113,7 @@ static void hdd_wait_for_sme_close_sesion(hdd_context_t *hdd_ctx,
 			hdd_err("failure waiting for session_close_comp_var");
 			if (adapter->device_mode == QDF_NDI_MODE)
 				hdd_ndp_session_end_handler(adapter);
+			sme_print_commands(hdd_ctx->hHal);
 			clear_bit(SME_SESSION_OPENED, &adapter->event_flags);
 			return;
 		}

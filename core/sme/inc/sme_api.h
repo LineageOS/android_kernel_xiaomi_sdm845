@@ -269,6 +269,13 @@ QDF_STATUS sme_close_session(tHalHandle hHal, uint8_t sessionId,
 		bool flush_all_sme_cmds,
 		csr_roamSessionCloseCallback callback,
 		void *pContext);
+/**
+ * sme_print_commands(): Print active, pending sme and scan commands
+ * @hal_handle: The handle returned by mac_open
+ *
+ * Return: None
+ */
+void sme_print_commands(tHalHandle hal_handle);
 QDF_STATUS sme_update_roam_params(tHalHandle hHal, uint8_t session_id,
 		struct roam_ext_params *roam_params_src, int update_param);
 #ifdef FEATURE_WLAN_SCAN_PNO

@@ -6132,6 +6132,53 @@ QDF_STATUS sme_close_session(tHalHandle hHal, uint8_t sessionId,
 	return status;
 }
 
+void sme_print_commands(tHalHandle hal_handle)
+{
+	QDF_STATUS status;
+	tpAniSirGlobal pMac = PMAC_STRUCT(hal_handle);
+	tListElem *entry;
+	tSmeCmd *command;
+
+	status = sme_acquire_global_lock(&pMac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		sme_err("Active sme commands:");
+		csr_ll_lock(&pMac->sme.smeCmdActiveList);
+		if (!csr_ll_is_list_empty(&pMac->sme.smeCmdActiveList,
+		    LL_ACCESS_NOLOCK)) {
+			entry = csr_ll_peek_head(&pMac->sme.smeCmdActiveList,
+						 false);
+			while (entry) {
+				command = GET_BASE_ADDR(entry, tSmeCmd, Link);
+				dump_csr_command_info(pMac, command);
+				entry = csr_ll_next(&pMac->sme.smeCmdActiveList,
+						    entry, LL_ACCESS_NOLOCK);
+			}
+		}
+		csr_ll_unlock(&pMac->sme.smeCmdActiveList);
+		sme_err("Pending sme commands:");
+		csr_ll_lock(&pMac->sme.smeCmdPendingList);
+		if (!csr_ll_is_list_empty(&pMac->sme.smeCmdPendingList,
+		    LL_ACCESS_NOLOCK)) {
+			entry = csr_ll_peek_head(&pMac->sme.smeCmdPendingList,
+						 false);
+			while (entry) {
+				command = GET_BASE_ADDR(entry, tSmeCmd, Link);
+				dump_csr_command_info(pMac, command);
+				entry = csr_ll_next(&pMac->sme.
+						    smeCmdPendingList,
+						    entry, LL_ACCESS_NOLOCK);
+			}
+		}
+		csr_ll_unlock(&pMac->sme.smeCmdPendingList);
+		sme_err("active scan commands:%d pending scan commands:%d",
+			csr_ll_count(&pMac->sme.smeScanCmdActiveList),
+			csr_ll_count(&pMac->sme.smeScanCmdPendingList));
+
+		sme_release_global_lock(&pMac->sme);
+	}
+
+}
+
 /**
  * sme_roam_update_apwpsie() - To update AP's WPS IE. This function should be
  * called after SME AP session is created
