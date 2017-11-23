@@ -5956,6 +5956,9 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 
 	unregister_netdevice_notifier(&hdd_netdev_notifier);
 
+	/* Free up RoC request queue and flush workqueue */
+	cds_flush_work(&hdd_ctx->roc_req_work);
+
 	hdd_wlan_stop_modules(hdd_ctx, false);
 
 	hdd_driver_memdump_deinit();
@@ -5993,8 +5996,6 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	hdd_close_all_adapters(hdd_ctx, false);
 	hdd_ipa_cleanup(hdd_ctx);
 
-	/* Free up RoC request queue and flush workqueue */
-	cds_flush_work(&hdd_ctx->roc_req_work);
 
 	wlansap_global_deinit();
 	/*
