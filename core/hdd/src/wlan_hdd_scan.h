@@ -48,10 +48,10 @@
 /* Minimum number of channels for enabling DBS Scan */
 #define HDD_MIN_CHAN_DBS_SCAN_THRESHOLD         8
 
-/* HDD Scan inactivity timeout set to 10 seconds
- * more than the CSR CMD Timeout */
+/* HDD Scan inactivity timeout set to double
+ * of the CSR CMD Timeout */
 #define HDD_SCAN_INACTIVITY_TIMEOUT \
-	(CSR_ACTIVE_SCAN_LIST_CMD_TIMEOUT + (10*1000))
+	(CSR_ACTIVE_SCAN_LIST_CMD_TIMEOUT * 2)
 /*
  * enum scan_source - scan request source
  *
