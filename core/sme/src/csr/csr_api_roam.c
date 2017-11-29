@@ -19951,7 +19951,20 @@ QDF_STATUS csr_queue_sme_command(tpAniSirGlobal pMac, tSmeCmd *pCommand,
 		    pMac->scan.max_scan_count) {
 			sme_err("scan pending list count %d",
 				pMac->sme.smeScanCmdPendingList.Count);
-			csr_scan_call_callback(pMac, pCommand, eCSR_SCAN_ABORT);
+			if (pCommand->command == eSmeCommandScan) {
+				csr_scan_call_callback(pMac, pCommand,
+						       eCSR_SCAN_ABORT);
+			} else {
+				remainOnChanCallback callback =
+					     pCommand->u.remainChlCmd.callback;
+				if (callback) {
+					callback(pMac,
+					  pCommand->u.remainChlCmd.callbackCtx,
+					  QDF_STATUS_E_FAILURE,
+					  pCommand->u.remainChlCmd.scan_id);
+				}
+			}
+
 			return QDF_STATUS_E_FAILURE;
 		}
 		sme_debug(
