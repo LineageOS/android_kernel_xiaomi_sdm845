@@ -7929,6 +7929,12 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 						     pBeacon->tail_len,
 						     WLAN_EID_COUNTRY);
 		if (pIe) {
+			if (pIe[1] < IEEE80211_COUNTRY_IE_MIN_LEN) {
+				hdd_err("Invalid Country IE len: %d", pIe[1]);
+				ret = -EINVAL;
+				goto error;
+			}
+
 			pConfig->ieee80211d = 1;
 			qdf_mem_copy(pConfig->countryCode, &pIe[2], 3);
 			sme_set_reg_info(hHal, pConfig->countryCode);
