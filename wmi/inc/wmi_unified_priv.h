@@ -460,6 +460,9 @@ QDF_STATUS (*send_csa_offload_enable_cmd)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*send_pno_stop_cmd)(wmi_unified_t wmi_handle, uint8_t vdev_id);
 
+QDF_STATUS (*send_wlm_latency_level_cmd)(wmi_unified_t wmi_handle,
+					struct wlm_latency_level_param *param);
+
 #ifdef FEATURE_WLAN_SCAN_PNO
 QDF_STATUS (*send_pno_start_cmd)(wmi_unified_t wmi_handle,
 		   struct pno_scan_req_params *pno,
