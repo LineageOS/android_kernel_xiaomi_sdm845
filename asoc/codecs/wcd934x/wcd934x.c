@@ -4124,7 +4124,7 @@ static int tavil_codec_find_amic_input(struct snd_soc_codec *codec,
 
 	if (adc_mux_n < 3) {
 		adc_mux_in_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX0_CFG1 +
-				 adc_mux_n;
+				 2 * adc_mux_n;
 		mask = 0x03;
 		shift = 0;
 		amic_mux_sel_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX0_CFG0 +
@@ -4137,7 +4137,7 @@ static int tavil_codec_find_amic_input(struct snd_soc_codec *codec,
 				   2 * adc_mux_n;
 	} else if (adc_mux_n < 7) {
 		adc_mux_in_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX0_CFG1 +
-				 (adc_mux_n - 4);
+				 2 * (adc_mux_n - 4);
 		mask = 0x0C;
 		shift = 2;
 		amic_mux_sel_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX4_CFG0 +
@@ -4150,24 +4150,25 @@ static int tavil_codec_find_amic_input(struct snd_soc_codec *codec,
 				   adc_mux_n - 4;
 	} else if (adc_mux_n < 12) {
 		adc_mux_in_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX0_CFG1 +
-				 ((adc_mux_n == 8) ? (adc_mux_n - 8) :
-				  (adc_mux_n - 9));
+				 2 * (((adc_mux_n == 8) ? (adc_mux_n - 8) :
+				  (adc_mux_n - 9)));
 		mask = 0x30;
 		shift = 4;
-		amic_mux_sel_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX4_CFG0 +
-				   adc_mux_n - 4;
+		amic_mux_sel_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX8_CFG0 +
+				   ((adc_mux_n == 8) ? (adc_mux_n - 8) :
+					(adc_mux_n - 9));
 	} else if (adc_mux_n < 13) {
 		adc_mux_in_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX3_CFG1;
 		mask = 0x30;
 		shift = 4;
 		amic_mux_sel_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX4_CFG0 +
-				   adc_mux_n - 4;
+				   adc_mux_n - 5;
 	} else {
 		adc_mux_in_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX0_CFG1;
 		mask = 0xC0;
 		shift = 6;
 		amic_mux_sel_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX4_CFG0 +
-				   adc_mux_n - 4;
+				   adc_mux_n - 5;
 	}
 
 	is_amic = (((snd_soc_read(codec, adc_mux_in_reg) & mask) >> shift)
