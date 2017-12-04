@@ -2715,6 +2715,12 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 	if (status)
 		return;
 
+	if (hdd_ctx->driver_status == DRIVER_MODULES_CLOSED) {
+		hdd_err("Driver Modules are closed, cannot set mc addr list");
+		return;
+	}
+
+
 	if (!hdd_ctx->config->fEnableMCAddrList) {
 		hdd_debug("gMCAddrListEnable ini param not enabled");
 		adapter->mc_addr_list.mc_cnt = 0;
