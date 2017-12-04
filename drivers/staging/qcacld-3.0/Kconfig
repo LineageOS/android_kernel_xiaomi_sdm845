@@ -13,10 +13,6 @@ config QCACLD_WLAN_LFR3
 	bool "Enable the WLAN Legacy Fast Roaming feature Version 3"
 	default n
 
-config PRIMA_WLAN_OKC
-	bool "Enable the Prima WLAN Opportunistic Key Caching feature"
-	default n
-
 config PRIMA_WLAN_11AC_HIGH_TP
 	bool "Enable the Prima WLAN 802.11ac High Throughput option (depends upon kernel support)"
 	default n
@@ -124,19 +120,47 @@ config WLAN_FEATURE_DISA
 	bool "Enable DISA certification feature"
 	default n
 
-config WLAN_SPECTRAL_SCAN
-	bool "Enable Spectral Scan feature"
-	default n
-
 config ICMP_DISABLE_PS
 	bool "Enable ICMP packet disable powersave feature"
 	default n
 
-config CONFIG_BUILD_TIMESTAMP
+config BUILD_TIMESTAMP
 	bool "Embed timestamp in wlan version"
 	default n
 
 config WLAN_FEATURE_SARV1_TO_SARV2
 	bool "Enable conversion of SAR v1 to v2 feature"
 	default n
+
+config WLAN_FEATURE_FILS
+	bool "Enable FILS Feature (11ai)"
+	default n
+
+config WLAN_FEATURE_OWE
+	bool "Enable OWE feature"
+	default n
+
+config WLAN_FEATURE_GMAC
+	bool "Enable GMAC feature"
+	default n
+
+config WLAN_FEATURE_SAE
+	bool "Enable SAE feature"
+	default n
+
+config QCACLD_FEATURE_METERING
+	bool "Stats & Quota Metering feature"
+	default n
+
+config FEATURE_PKTLOG
+	bool "Packet log"
+	default n
+	depends on SLUB_DEBUG
+	depends on SLUB_DEBUG_ON
+	depends on PAGE_POISONING
+
+config QCA_CLD_DEBUG
+	bool "Debug Qualcomm Atheros CLD WLAN module"
+	default n
+
 endif # QCA_CLD_WLAN
