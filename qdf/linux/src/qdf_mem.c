@@ -98,6 +98,9 @@ const uint8_t *qdf_mem_domain_name(enum qdf_mem_domain domain)
 static qdf_list_t qdf_mem_domains[QDF_MEM_DOMAIN_MAX_COUNT];
 static qdf_spinlock_t qdf_mem_list_lock;
 
+static qdf_list_t qdf_mem_dma_domains[QDF_MEM_DOMAIN_MAX_COUNT];
+static qdf_spinlock_t qdf_mem_dma_list_lock;
+
 static uint64_t WLAN_MEM_HEADER = 0x6162636465666768;
 static uint64_t WLAN_MEM_TRAILER = 0x8081828384858687;
 
@@ -109,9 +112,22 @@ static inline qdf_list_t *qdf_mem_list(enum qdf_mem_domain domain)
 	return &qdf_mem_domains[domain];
 }
 
+static inline qdf_list_t *qdf_mem_dma_list(enum qdf_mem_domain domain)
+{
+	if (domain < QDF_MEM_DOMAIN_INIT || domain >= QDF_MEM_DOMAIN_MAX_COUNT)
+		return NULL;
+
+	return &qdf_mem_dma_domains[domain];
+}
+
 static inline qdf_list_t *qdf_mem_active_list(void)
 {
 	return &qdf_mem_domains[qdf_mem_get_domain()];
+}
+
+static inline qdf_list_t *qdf_mem_dma_active_list(void)
+{
+	return &qdf_mem_dma_domains[qdf_mem_get_domain()];
 }
 
 /**
@@ -140,6 +156,12 @@ static inline struct qdf_mem_header *qdf_mem_get_header(void *ptr)
 	return (struct qdf_mem_header *)ptr - 1;
 }
 
+static inline struct qdf_mem_header *qdf_mem_dma_get_header(void *ptr,
+							    qdf_size_t size)
+{
+	return (struct qdf_mem_header *) ((uint8_t *) ptr + size);
+}
+
 static inline uint64_t *qdf_mem_get_trailer(struct qdf_mem_header *header)
 {
 	return (uint64_t *)((void *)(header + 1) + header->size);
@@ -154,6 +176,18 @@ static inline void *qdf_mem_get_ptr(struct qdf_mem_header *header)
 #define QDF_MEM_DEBUG_SIZE \
 	(sizeof(struct qdf_mem_header) + sizeof(WLAN_MEM_TRAILER))
 
+/* number of bytes needed for the qdf dma memory debug information */
+#define QDF_DMA_MEM_DEBUG_SIZE \
+	(sizeof(struct qdf_mem_header))
+
+static void qdf_mem_trailer_init(struct qdf_mem_header *header)
+{
+	QDF_BUG(header);
+	if (!header)
+		return;
+	*qdf_mem_get_trailer(header) = WLAN_MEM_TRAILER;
+}
+
 static void qdf_mem_header_init(struct qdf_mem_header *header, qdf_size_t size,
 				const char *file, uint32_t line)
 {
@@ -167,7 +201,6 @@ static void qdf_mem_header_init(struct qdf_mem_header *header, qdf_size_t size,
 	header->line = line;
 	header->size = size;
 	header->header = WLAN_MEM_HEADER;
-	*qdf_mem_get_trailer(header) = WLAN_MEM_TRAILER;
 }
 
 enum qdf_mem_validation_bitmap {
@@ -208,6 +241,17 @@ static bool qdf_mem_validate_list_node(qdf_list_node_t *qdf_node)
 }
 
 static enum qdf_mem_validation_bitmap
+qdf_mem_trailer_validate(struct qdf_mem_header *header,
+			enum qdf_mem_domain domain)
+{
+	enum qdf_mem_validation_bitmap error_bitmap = 0;
+
+	if (*qdf_mem_get_trailer(header) != WLAN_MEM_TRAILER)
+			error_bitmap |= QDF_MEM_BAD_TRAILER;
+	return error_bitmap;
+}
+
+static enum qdf_mem_validation_bitmap
 qdf_mem_header_validate(struct qdf_mem_header *header,
 			enum qdf_mem_domain domain)
 {
@@ -218,8 +262,6 @@ qdf_mem_header_validate(struct qdf_mem_header *header,
 
 	if (header->size > QDF_MEM_MAX_MALLOC)
 		error_bitmap |= QDF_MEM_BAD_SIZE;
-	else if (*qdf_mem_get_trailer(header) != WLAN_MEM_TRAILER)
-		error_bitmap |= QDF_MEM_BAD_TRAILER;
 
 	if (header->freed == true)
 		error_bitmap |= QDF_MEM_DOUBLE_FREE;
@@ -976,78 +1018,46 @@ static void qdf_mem_debug_init(void)
 {
 	int i;
 
-	/* Initalizing the list with maximum size of 60000 */
 	qdf_mem_current_domain = QDF_MEM_DOMAIN_INIT;
+
+	/* mem */
 	for (i = 0; i < QDF_MEM_DOMAIN_MAX_COUNT; ++i)
 		qdf_list_create(&qdf_mem_domains[i], 60000);
 	qdf_spinlock_create(&qdf_mem_list_lock);
+
+	/* dma */
+	for (i = 0; i < QDF_MEM_DOMAIN_MAX_COUNT; ++i)
+		qdf_list_create(&qdf_mem_dma_domains[i], 0);
+	qdf_spinlock_create(&qdf_mem_dma_list_lock);
+
+	/* skb */
 	qdf_net_buf_debug_init();
 }
 
-#ifdef CONFIG_HALT_KMEMLEAK
-/*
- * There are two scenarios for handling memory leaks. We want to either:
- *	1) Crash and not release memory for offline debugging (internal testing)
- *	2) Clean up any leaks and continue (production devices)
- */
-
-static inline void qdf_mem_leak_panic(void)
+static uint32_t
+qdf_mem_domain_check_for_leaks(enum qdf_mem_domain domain, qdf_list_t *mem_list)
 {
-	QDF_BUG(0);
+	if (qdf_list_empty(mem_list))
+		return 0;
+
+	qdf_err("Memory leaks detected in %s domain!",
+		qdf_mem_domain_name(domain));
+	qdf_mem_domain_print(mem_list, qdf_err_printer, NULL);
+
+	return mem_list->count;
 }
 
-static inline void qdf_mem_free_leaked_memory(qdf_list_t *domain) { }
-#else
-static inline void qdf_mem_leak_panic(void) { }
-
-static void qdf_mem_free_leaked_memory(qdf_list_t *domain)
+static void qdf_mem_domain_set_check_for_leaks(qdf_list_t *domains)
 {
-	QDF_STATUS status;
-	qdf_list_node_t *node;
-
-	qdf_spin_lock(&qdf_mem_list_lock);
-	status = qdf_list_remove_front(domain, &node);
-	while (QDF_IS_STATUS_SUCCESS(status)) {
-		kfree(node);
-		status = qdf_list_remove_front(domain, &node);
-	}
-	qdf_spin_unlock(&qdf_mem_list_lock);
-}
-#endif
-
-/**
- * qdf_mem_debug_clean() - display memory leak debug info and free leaked
- * pointers
- *
- * Return: none
- */
-static void qdf_mem_debug_clean(void)
-{
-	bool leaks_detected = false;
+	uint32_t leak_count = 0;
 	int i;
 
 	/* detect and print leaks */
-	for (i = 0; i < QDF_MEM_DOMAIN_MAX_COUNT; ++i) {
-		qdf_list_t *domain = &qdf_mem_domains[i];
+	for (i = 0; i < QDF_MEM_DOMAIN_MAX_COUNT; ++i)
+		leak_count += qdf_mem_domain_check_for_leaks(i, domains + i);
 
-		if (qdf_list_empty(domain))
-			continue;
-
-		leaks_detected = true;
-
-		qdf_err("\nMemory leaks detected in the %s (Id %d) domain!\n\n",
-			qdf_mem_domain_name(i), i);
-		qdf_mem_domain_print(domain, qdf_err_printer, NULL);
-	}
-
-	if (leaks_detected) {
-		/* panic, if enabled */
-		qdf_mem_leak_panic();
-
-		/* if we didn't crash, release the leaked memory */
-		for (i = 0; i < QDF_MEM_DOMAIN_MAX_COUNT; ++i)
-			qdf_mem_free_leaked_memory(&qdf_mem_domains[i]);
-	}
+	if (leak_count)
+		panic("%u fatal memory leaks detected!", leak_count);
 }
 
 /**
@@ -1059,13 +1069,20 @@ static void qdf_mem_debug_exit(void)
 {
 	int i;
 
+	/* skb */
 	qdf_net_buf_debug_exit();
-	qdf_mem_debug_clean();
 
+	/* mem */
+	qdf_mem_domain_set_check_for_leaks(qdf_mem_domains);
 	for (i = 0; i < QDF_MEM_DOMAIN_MAX_COUNT; ++i)
 		qdf_list_destroy(&qdf_mem_domains[i]);
-
 	qdf_spinlock_destroy(&qdf_mem_list_lock);
+
+	/* dma */
+	qdf_mem_domain_set_check_for_leaks(qdf_mem_dma_domains);
+	for (i = 0; i < QDF_MEM_DOMAIN_MAX_COUNT; ++i)
+		qdf_list_destroy(&qdf_mem_dma_domains[i]);
+	qdf_spinlock_destroy(&qdf_mem_dma_list_lock);
 }
 
 void *qdf_mem_malloc_debug(size_t size, const char *file, uint32_t line)
@@ -1093,10 +1110,13 @@ void *qdf_mem_malloc_debug(size_t size, const char *file, uint32_t line)
 		qdf_warn("Malloc slept; %lums, %zuB @ %s:%d",
 			 duration, size, file, line);
 
-	if (!header)
+	if (!header) {
+		qdf_warn("Failed to malloc %zuB @ %s:%d", size, file, line);
 		return NULL;
+	}
 
 	qdf_mem_header_init(header, size, file, line);
+	qdf_mem_trailer_init(header);
 	ptr = qdf_mem_get_ptr(header);
 
 	qdf_spin_lock_irqsave(&qdf_mem_list_lock);
@@ -1139,6 +1159,7 @@ void qdf_mem_free_debug(void *ptr, const char *file, uint32_t line)
 	qdf_spin_lock_irqsave(&qdf_mem_list_lock);
 	header = qdf_mem_get_header(ptr);
 	error_bitmap = qdf_mem_header_validate(header, domain);
+	error_bitmap |= qdf_mem_trailer_validate(header, domain);
 	if (!error_bitmap) {
 		header->freed = true;
 		list_del_init(&header->node);
@@ -1157,14 +1178,14 @@ void qdf_mem_check_for_leaks(void)
 {
 	enum qdf_mem_domain domain = qdf_mem_current_domain;
 	qdf_list_t *mem_list = &qdf_mem_domains[domain];
+	qdf_list_t *dma_list = &qdf_mem_dma_domains[domain];
+	uint32_t leaks_count = 0;
 
-	if (qdf_list_empty(mem_list))
-		return;
+	leaks_count += qdf_mem_domain_check_for_leaks(domain, mem_list);
+	leaks_count += qdf_mem_domain_check_for_leaks(domain, dma_list);
 
-	qdf_err("Memory leaks detected in %s domain!",
-		qdf_mem_domain_name(domain));
-	qdf_mem_domain_print(mem_list, qdf_err_printer, NULL);
-	qdf_mem_leak_panic();
+	if (leaks_count)
+		panic("%u fatal memory leaks detected!", leaks_count);
 }
 #else
 static void qdf_mem_debug_init(void) {}
@@ -1480,7 +1501,7 @@ qdf_export_symbol(qdf_mem_move);
 
 #if defined(A_SIMOS_DEVHOST) || defined(HIF_SDIO) || defined(HIF_USB)
 /**
- * qdf_mem_alloc_consistent() - allocates consistent qdf memory
+ * qdf_mem_dma_alloc() - allocates memory for dma
  * @osdev: OS device handle
  * @dev: Pointer to device handle
  * @size: Size to be allocated
@@ -1488,8 +1509,9 @@ qdf_export_symbol(qdf_mem_move);
  *
  * Return: pointer of allocated memory or null if memory alloc fails
  */
-void *qdf_mem_alloc_consistent(qdf_device_t osdev, void *dev, qdf_size_t size,
-			       qdf_dma_addr_t *phy_addr)
+static inline void *qdf_mem_dma_alloc(qdf_device_t osdev, void *dev,
+				      qdf_size_t size,
+				      qdf_dma_addr_t *phy_addr)
 {
 	void *vaddr;
 
@@ -1499,65 +1521,130 @@ void *qdf_mem_alloc_consistent(qdf_device_t osdev, void *dev, qdf_size_t size,
 	 * of different size" warning on some platforms
 	 */
 	BUILD_BUG_ON(sizeof(*phy_addr) < sizeof(vaddr));
-	if (vaddr)
-		qdf_mem_dma_inc(ksize(vaddr));
 	return vaddr;
 }
 
-#else
-void *qdf_mem_alloc_consistent(qdf_device_t osdev, void *dev, qdf_size_t size,
-			       qdf_dma_addr_t *phy_addr)
+inline void
+qdf_mem_dma_free(void *dev, qdf_size_t size, void *vaddr, qdf_dma_addr_t paddr)
 {
-	void *ptr;
-
-	ptr = dma_alloc_coherent(dev, size, phy_addr, qdf_mem_malloc_flags());
-	if (!ptr) {
-		qdf_warn("Warning: unable to alloc consistent memory of size %zu!\n",
-			 size);
-		return NULL;
-	}
-
-	qdf_mem_dma_inc(size);
-
-	return ptr;
-}
-
-#endif
-qdf_export_symbol(qdf_mem_alloc_consistent);
-
-#if defined(A_SIMOS_DEVHOST) ||  defined(HIF_SDIO) || defined(HIF_USB)
-/**
- * qdf_mem_free_consistent() - free consistent qdf memory
- * @osdev: OS device handle
- * @size: Size to be allocated
- * @vaddr: virtual address
- * @phy_addr: Physical address
- * @mctx: Pointer to DMA context
- *
- * Return: none
- */
-inline void qdf_mem_free_consistent(qdf_device_t osdev, void *dev,
-				    qdf_size_t size, void *vaddr,
-				    qdf_dma_addr_t phy_addr,
-				    qdf_dma_context_t memctx)
-{
-	qdf_mem_dma_dec(ksize(vaddr));
 	qdf_mem_free(vaddr);
 	return;
 }
-
 #else
-inline void qdf_mem_free_consistent(qdf_device_t osdev, void *dev,
-				    qdf_size_t size, void *vaddr,
-				    qdf_dma_addr_t phy_addr,
-				    qdf_dma_context_t memctx)
+static inline void *qdf_mem_dma_alloc(qdf_device_t osdev, void *dev,
+					 qdf_size_t size, qdf_dma_addr_t *paddr)
 {
-	dma_free_coherent(dev, size, vaddr, phy_addr);
-	qdf_mem_dma_dec(size);
+	return dma_alloc_coherent(dev, size, paddr, qdf_mem_malloc_flags());
 }
 
+inline void
+qdf_mem_dma_free(void *dev, qdf_size_t size, void *vaddr, qdf_dma_addr_t paddr)
+{
+	dma_free_coherent(dev, size, vaddr, paddr);
+}
 #endif
-qdf_export_symbol(qdf_mem_free_consistent);
+
+#ifdef MEMORY_DEBUG
+void *qdf_mem_alloc_consistent_debug(qdf_device_t osdev, void *dev,
+				 qdf_size_t size, qdf_dma_addr_t *paddr,
+				 const char *file, uint32_t line)
+{
+	QDF_STATUS status;
+	qdf_list_t *mem_list = qdf_mem_dma_active_list();
+	struct qdf_mem_header *header;
+	void *vaddr;
+
+	if (!size || size > QDF_MEM_MAX_MALLOC) {
+		qdf_err("Cannot malloc %zu bytes @ %s:%d", size, file, line);
+		return NULL;
+	}
+
+	vaddr = qdf_mem_dma_alloc(osdev, dev, size + QDF_DMA_MEM_DEBUG_SIZE,
+				   paddr);
+
+	if (!vaddr) {
+		qdf_warn("Failed to malloc %zuB @ %s:%d", size, file, line);
+		return NULL;
+	}
+
+	header = qdf_mem_dma_get_header(vaddr, size);
+	/* For DMA buffers we only add trailers, this function will init
+	 * the header structure at the tail
+	 * Prefix the header into DMA buffer causes SMMU faults, so
+	 * do not prefix header into the DMA buffers
+	 */
+	qdf_mem_header_init(header, size, file, line);
+
+	qdf_spin_lock_irqsave(&qdf_mem_dma_list_lock);
+	status = qdf_list_insert_front(mem_list, &header->node);
+	qdf_spin_unlock_irqrestore(&qdf_mem_dma_list_lock);
+	if (QDF_IS_STATUS_ERROR(status))
+		qdf_err("Failed to insert memory header; status %d", status);
+
+	qdf_mem_dma_inc(size);
+
+	return vaddr;
+}
+
+void qdf_mem_free_consistent_debug(qdf_device_t osdev, void *dev,
+			       qdf_size_t size, void *vaddr,
+			       qdf_dma_addr_t paddr, qdf_dma_context_t memctx,
+			       const char *file, uint32_t line)
+{
+	enum qdf_mem_domain domain = qdf_mem_get_domain();
+	struct qdf_mem_header *header;
+	enum qdf_mem_validation_bitmap error_bitmap;
+
+	/* freeing a null pointer is valid */
+	if (qdf_unlikely(!vaddr))
+		return;
+
+	qdf_spin_lock_irqsave(&qdf_mem_dma_list_lock);
+	/* For DMA buffers we only add trailers, this function will retrive
+	 * the header structure at the tail
+	 * Prefix the header into DMA buffer causes SMMU faults, so
+	 * do not prefix header into the DMA buffers
+	 */
+	header = qdf_mem_dma_get_header(vaddr, size);
+	error_bitmap = qdf_mem_header_validate(header, domain);
+	if (!error_bitmap) {
+		header->freed = true;
+		list_del_init(&header->node);
+		qdf_mem_dma_list(header->domain)->count--;
+	}
+	qdf_spin_unlock_irqrestore(&qdf_mem_dma_list_lock);
+
+	qdf_mem_header_assert_valid(header, domain, error_bitmap, file, line);
+
+	qdf_mem_dma_dec(header->size);
+	qdf_mem_dma_free(dev, size + QDF_DMA_MEM_DEBUG_SIZE, vaddr, paddr);
+}
+
+#else
+
+void *qdf_mem_alloc_consistent_debug(qdf_device_t osdev, void *dev,
+				 qdf_size_t size, qdf_dma_addr_t *paddr,
+				 const char *file, uint32_t line)
+{
+	void *vaddr = qdf_mem_dma_alloc(osdev, dev, size, paddr);
+
+	if (vaddr)
+		qdf_mem_dma_inc(size);
+
+	return vaddr;
+}
+
+void qdf_mem_free_consistent_debug(qdf_device_t osdev, void *dev,
+			       qdf_size_t size, void *vaddr,
+			       qdf_dma_addr_t paddr, qdf_dma_context_t memctx,
+			       const char *file, uint32_t line)
+{
+	qdf_mem_dma_dec(size);
+	qdf_mem_dma_free(dev, size, vaddr, paddr);
+}
+#endif /* MEMORY_DEBUG */
+qdf_export_symbol(qdf_mem_alloc_consistent_debug);
+qdf_export_symbol(qdf_mem_free_consistent_debug);
 
 /**
  * qdf_mem_dma_sync_single_for_device() - assign memory to device
