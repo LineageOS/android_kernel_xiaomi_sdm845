@@ -159,7 +159,7 @@ enum hdd_wlan_get_peer_rssi_source {
 };
 
 /** Maximum Length of WPA/RSN IE */
-#define MAX_WPA_RSN_IE_LEN 40
+#define MAX_WPA_RSN_IE_LEN 255
 
 /** Enable 11d */
 #define ENABLE_11D  1
