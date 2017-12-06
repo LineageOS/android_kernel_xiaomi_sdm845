@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1710,7 +1710,7 @@ end:
 
 }
 
-#define WMI_WQ_WD_TIMEOUT (10 * 1000) /* 10s */
+#define WMI_WQ_WD_TIMEOUT (30 * 1000) /* 30s */
 
 static inline void wmi_workqueue_watchdog_warn(uint32_t msg_type_id)
 {
