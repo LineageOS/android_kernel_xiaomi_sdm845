@@ -23,6 +23,10 @@ obj-$(CONFIG_SND_SOC_SDM670) += snd-soc-sdm670.o
 snd-soc-sdm845-objs := sdm845.o
 obj-$(CONFIG_SND_SOC_MACHINE_SDM845) += snd-soc-sdm845.o
 
+# for SDXPOORWILLS sound card driver
+snd-soc-sdxpoorwills-objs := sdxpoorwills.o
+obj-$(CONFIG_SND_SOC_MACHINE_SDXPOORWILLS) += snd-soc-sdxpoorwills.o
+
 snd-soc-qdsp6v2-objs += msm-dai-q6-v2.o msm-pcm-q6-v2.o \
 			msm-pcm-routing-v2.o msm-compress-q6-v2.o \
 			msm-pcm-afe-v2.o msm-pcm-voip-v2.o \
