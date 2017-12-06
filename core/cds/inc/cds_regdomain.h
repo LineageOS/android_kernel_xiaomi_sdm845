@@ -444,7 +444,7 @@ enum reg_domain {
 	MKKA = 0x0A40,
 	MKKC = 0x0A50,
 	ETSIC = 0x0C30,
-
+	ETSID = 0x0F30,
 };
 
 /**
