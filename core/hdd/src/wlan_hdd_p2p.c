@@ -2100,6 +2100,8 @@ static int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			(QDF_TIMER_STATE_RUNNING !=
 			 qdf_mc_timer_get_current_state(
 				 &pRemainChanCtx->hdd_remain_on_chan_timer))) {
+				 mutex_unlock(
+				 &cfgState->remain_on_chan_ctx_lock);
 			hdd_debug("remain_on_chan_ctx exists but RoC timer not running. wait for ready on channel");
 			rc = wait_for_completion_timeout(&pAdapter->
 					rem_on_chan_ready_event,
@@ -2107,6 +2109,9 @@ static int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 					(WAIT_REM_CHAN_READY));
 			if (!rc)
 				hdd_err("timeout waiting for remain on channel ready indication");
+
+			mutex_lock(&cfgState->remain_on_chan_ctx_lock);
+			pRemainChanCtx = cfgState->remain_on_chan_ctx;
 		}
 
 		if ((pRemainChanCtx != NULL) &&
