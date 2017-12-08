@@ -2021,6 +2021,7 @@ static void hdd_update_hw_sw_info(hdd_context_t *hdd_ctx)
 static void hdd_check_for_leaks(void)
 {
 	qdf_mc_timer_check_for_leaks();
+	qdf_nbuf_map_check_for_leaks();
 	qdf_mem_check_for_leaks();
 }
 
