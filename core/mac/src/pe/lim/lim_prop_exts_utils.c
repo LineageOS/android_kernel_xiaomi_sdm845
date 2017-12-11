@@ -275,6 +275,43 @@ lim_check_for_vendor_ap_capabilities(struct wmi_action_oui_extension *extension,
 	return true;
 }
 
+/**
+ * lim_dump_vendor_ies() - Dumps all the vendor IEs
+ * @ie:         ie buffer
+ * @ie_len:     length of ie buffer
+ *
+ * This function dumps the vendor IEs present in the AP's IE buffer
+ *
+ * Return: none
+ */
+static
+void lim_dump_vendor_ies(uint8_t *ie, uint16_t ie_len)
+{
+	int32_t left = ie_len;
+	uint8_t *ptr = ie;
+	uint8_t elem_id, elem_len;
+
+	while (left >= 2) {
+		elem_id  = ptr[0];
+		elem_len = ptr[1];
+		left -= 2;
+		if (elem_len > left) {
+			pe_err("Invalid IEs eid: %d elem_len: %d left: %d",
+				elem_id, elem_len, left);
+			return;
+		}
+		if (SIR_MAC_EID_VENDOR == elem_id) {
+			pe_debug("Dumping Vendor IE of len %d", elem_len);
+			QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE,
+					   QDF_TRACE_LEVEL_DEBUG,
+					   &ptr[2], elem_len);
+		}
+
+		left -= elem_len;
+		ptr += (elem_len + 2);
+	}
+}
+
 bool
 lim_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 			    tSirProbeRespBeacon *beacon_struct,
@@ -315,6 +352,8 @@ lim_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 		return false;
 	}
 
+	lim_dump_vendor_ies(ie, ie_len);
+
 	qdf_list_peek_front(oui_ext_list, &node);
 	while (node) {
 		sme_ext = qdf_container_of(node,
@@ -330,21 +369,39 @@ lim_check_vendor_ap_present(tpAniSirGlobal mac_ctx,
 							 extension->oui,
 							 extension->oui_length,
 							 ie, ie_len);
-		if (!oui_ptr)
+		if (!oui_ptr) {
+			pe_debug("No matching IE found for OUI");
+			QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE,
+					   QDF_TRACE_LEVEL_DEBUG,
+					   extension->oui,
+					   extension->oui_length);
 			goto next;
+		}
+
+		pe_debug("IE found for OUI");
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE,
+				   QDF_TRACE_LEVEL_DEBUG,
+				   extension->oui,
+				   extension->oui_length);
 
 		if (extension->data_length && extension->data &&
-		    !lim_check_for_vendor_oui_data(extension, oui_ptr))
+		    !lim_check_for_vendor_oui_data(extension, oui_ptr)) {
+			pe_debug("Vendor IE Data mismatch");
 			goto next;
+		}
 
 		if ((extension->info_mask & WMI_ACTION_OUI_INFO_MAC_ADDRESS) &&
-		    !lim_check_for_vendor_ap_mac(extension, session->bssId))
+		    !lim_check_for_vendor_ap_mac(extension, session->bssId)) {
+			pe_debug("Vendor IE MAC Mismatch");
 			goto next;
+		}
 
 		if (!lim_check_for_vendor_ap_capabilities(extension,
 							  beacon_struct,
-							  session))
+							  session)) {
+			pe_debug("Vendor IE capabilties mismatch");
 			goto next;
+		}
 
 		pe_debug("Vendor AP found for OUI");
 		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
