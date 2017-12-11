@@ -185,7 +185,7 @@ int hif_napi_create(struct hif_opaque_softc   *hif_ctx,
 		NAPI_DEBUG("adding napi=%pK to netdev=%pK (poll=%pK, bdgt=%d)",
 			   &(napii->napi), &(napii->netdev), poll, budget);
 		netif_napi_add(&(napii->netdev), &(napii->napi), poll, budget);
-		napii->offld_ctx = &(napii->napi);
+		napii->offld_ctx = NULL;
 
 		NAPI_DEBUG("after napi_add");
 		NAPI_DEBUG("napi=0x%pK, netdev=0x%pK",
@@ -884,9 +884,10 @@ int hif_napi_poll(struct hif_opaque_softc *hif_ctx,
 			normalized++;
 		bucket = normalized / (QCA_NAPI_BUDGET / QCA_NAPI_NUM_BUCKETS);
 		if (bucket >= QCA_NAPI_NUM_BUCKETS) {
+			HIF_ERROR("Bad bucket#(%d) > QCA_NAPI_NUM_BUCKETS(%d)"
+				  " (rc=%d/normalized=%d- corrected",
+				  bucket, QCA_NAPI_NUM_BUCKETS, rc, normalized);
 			bucket = QCA_NAPI_NUM_BUCKETS - 1;
-			HIF_ERROR("Bad bucket#(%d) > QCA_NAPI_NUM_BUCKETS(%d)",
-				bucket, QCA_NAPI_NUM_BUCKETS);
 		}
 		napi_info->stats[cpu].napi_budget_uses[bucket]++;
 	} else {
