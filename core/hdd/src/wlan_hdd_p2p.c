@@ -2659,6 +2659,53 @@ static uint8_t wlan_hdd_get_session_type(enum nl80211_iftype type)
 }
 
 /**
+ * wlan_hdd_allow_sap_add() - check to add new sap interface
+ * @hdd_ctx: pointer to hdd context
+ * @name: name of the new interface
+ * @sap_dev: output pointer to hold existing interface
+ *
+ * Return: If able to add interface return true else false
+ */
+static bool
+wlan_hdd_allow_sap_add(hdd_context_t *hdd_ctx,
+		       const char *name,
+		       struct wireless_dev **sap_dev)
+{
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	QDF_STATUS status;
+	hdd_adapter_t *adapter;
+
+	*sap_dev = NULL;
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+	while (adapter_node && QDF_IS_STATUS_SUCCESS(status)) {
+		adapter = adapter_node->pAdapter;
+		if (adapter && adapter->device_mode == QDF_SAP_MODE &&
+		    test_bit(NET_DEVICE_REGISTERED, &adapter->event_flags) &&
+		    !strncmp(adapter->dev->name, name, IFNAMSIZ)) {
+			beacon_data_t *beacon = adapter->sessionCtx.ap.beacon;
+
+			hdd_debug("iface already registered");
+			if (beacon) {
+				adapter->sessionCtx.ap.beacon = NULL;
+				qdf_mem_free(beacon);
+			}
+			if (adapter->dev && adapter->dev->ieee80211_ptr) {
+				*sap_dev = adapter->dev->ieee80211_ptr;
+				return false;
+			}
+
+			hdd_err("ieee80211_ptr points to NULL");
+			return false;
+		}
+
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+
+	return true;
+}
+
+/**
  * __wlan_hdd_add_virtual_intf() - Add virtual interface
  * @wiphy: wiphy pointer
  * @name: User-visible name of the interface
@@ -2725,18 +2772,13 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 	}
 
 	if (session_type == QDF_SAP_MODE) {
-		pAdapter = hdd_get_adapter(pHddCtx, QDF_SAP_MODE);
-		if (pAdapter && test_bit(NET_DEVICE_REGISTERED,
-					 &pAdapter->event_flags)) {
-			hdd_debug("iface already registered");
-			if (pAdapter->sessionCtx.ap.beacon) {
-				qdf_mem_free(pAdapter->sessionCtx.ap.beacon);
-				pAdapter->sessionCtx.ap.beacon = NULL;
-			}
-			if (pAdapter->dev && pAdapter->dev->ieee80211_ptr)
-				return pAdapter->dev->ieee80211_ptr;
+		struct wireless_dev *sap_dev;
+		bool allow_add_sap = wlan_hdd_allow_sap_add(pHddCtx, name,
+							    &sap_dev);
+		if (!allow_add_sap) {
+			if (sap_dev)
+				return sap_dev;
 
-			hdd_err("ieee80211_ptr points to NULL");
 			return ERR_PTR(-EINVAL);
 		}
 	}
