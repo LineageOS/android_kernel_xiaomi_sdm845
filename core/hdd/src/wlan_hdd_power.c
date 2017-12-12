@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1534,7 +1534,8 @@ static void hdd_send_default_scan_ies(hdd_context_t *hdd_ctx)
 		adapter = adapter_node->pAdapter;
 		if (hdd_is_interface_up(adapter) &&
 		    (adapter->device_mode == QDF_STA_MODE ||
-		    adapter->device_mode == QDF_P2P_DEVICE_MODE)) {
+		    adapter->device_mode == QDF_P2P_DEVICE_MODE) &&
+		    adapter->scan_info.default_scan_ies) {
 			sme_set_default_scan_ie(hdd_ctx->hHal,
 				      adapter->sessionId,
 				      adapter->scan_info.default_scan_ies,
