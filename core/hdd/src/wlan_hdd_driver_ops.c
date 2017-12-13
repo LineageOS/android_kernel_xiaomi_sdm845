@@ -405,6 +405,7 @@ static int wlan_hdd_probe(struct device *dev, void *bdev, const struct hif_bus_i
 	} else {
 		cds_set_load_in_progress(false);
 		cds_set_driver_loaded(true);
+		hdd_start_complete(0);
 	}
 
 	hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_DRIVER_INIT);

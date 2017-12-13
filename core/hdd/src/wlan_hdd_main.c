@@ -10378,7 +10378,6 @@ int hdd_wlan_startup(struct device *dev)
 		hdd_ctx->config->iface_change_wait_time,
 		WIFI_POWER_EVENT_WAKELOCK_IFACE_CHANGE_TIMER);
 
-	hdd_start_complete(0);
 	goto success;
 
 err_close_adapters:
@@ -11548,6 +11547,10 @@ static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 		goto exit;
 	}
 
+	if (strncmp(buf, wlan_on_str, strlen(wlan_on_str)) == 0) {
+		pr_info("Wifi Turning On from UI\n");
+	}
+
 	if (strncmp(buf, wlan_on_str, strlen(wlan_on_str)) != 0) {
 		pr_err("Invalid value received from framework");
 		goto exit;
@@ -11560,7 +11563,6 @@ static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 		if (!rc) {
 			hdd_alert("Timed-out waiting in wlan_hdd_state_ctrl_param_write");
 			ret = -EINVAL;
-			hdd_start_complete(ret);
 			return ret;
 		}
 
@@ -11675,12 +11677,6 @@ static int __hdd_module_init(void)
 	       g_wlan_driver_version,
 	       TIMER_MANAGER_STR MEMORY_DEBUG_STR PANIC_ON_BUG_STR);
 
-	ret = wlan_hdd_state_ctrl_param_create();
-	if (ret) {
-		pr_err("wlan_hdd_state_create:%x\n", ret);
-		goto err_dev_state;
-	}
-
 	pld_init();
 
 	ret = hdd_init();
@@ -11706,6 +11702,12 @@ static int __hdd_module_init(void)
 		goto out;
 	}
 
+	ret = wlan_hdd_state_ctrl_param_create();
+	if (ret) {
+		pr_err("wlan_hdd_state_create:%x\n", ret);
+		goto out;
+	}
+
 	pr_info("%s: driver loaded\n", WLAN_MODULE_NAME);
 
 	return 0;
@@ -11714,8 +11716,6 @@ out:
 	hdd_deinit();
 err_hdd_init:
 	pld_deinit();
-	wlan_hdd_state_ctrl_param_destroy();
-err_dev_state:
 	return ret;
 }
 
