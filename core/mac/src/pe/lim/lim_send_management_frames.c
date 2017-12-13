@@ -3467,6 +3467,7 @@ lim_send_extended_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
 		uint8_t new_channel, uint8_t count, tpPESession session_entry)
 {
 	tDot11fext_channel_switch_action_frame frm;
+	tLimWiderBWChannelSwitchInfo *wide_bw_ie;
 	uint8_t                  *frame;
 	tpSirMacMgmtHdr          mac_hdr;
 	uint32_t                 num_bytes, n_payload, status;
@@ -3474,6 +3475,7 @@ lim_send_extended_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
 	QDF_STATUS               qdf_status;
 	uint8_t                  txFlag = 0;
 	uint8_t                  sme_session_id = 0;
+	uint8_t                  ch_spacing;
 
 	if (session_entry == NULL) {
 		pe_err("Session entry is NULL!!!");
@@ -3492,6 +3494,25 @@ lim_send_extended_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
 	frm.ext_chan_switch_ann_action.new_channel = new_channel;
 	frm.ext_chan_switch_ann_action.switch_count = count;
 
+	ch_spacing = cds_reg_dmn_get_chanwidth_from_opclass(
+			mac_ctx->scan.countryCodeCurrent, new_channel,
+			new_op_class);
+	pe_debug("wrapper: ch_spacing %hu", ch_spacing);
+
+	if ((ch_spacing == 80) || (ch_spacing == 160)) {
+		wide_bw_ie = &session_entry->gLimWiderBWChannelSwitch;
+		frm.WiderBWChanSwitchAnn.newChanWidth =
+			wide_bw_ie->newChanWidth;
+		frm.WiderBWChanSwitchAnn.newCenterChanFreq0 =
+			wide_bw_ie->newCenterChanFreq0;
+		frm.WiderBWChanSwitchAnn.newCenterChanFreq1 =
+			wide_bw_ie->newCenterChanFreq1;
+		frm.WiderBWChanSwitchAnn.present = 1;
+		pe_debug("wrapper: width:%d f0:%d f1:%d",
+			 frm.WiderBWChanSwitchAnn.newChanWidth,
+			 frm.WiderBWChanSwitchAnn.newCenterChanFreq0,
+			 frm.WiderBWChanSwitchAnn.newCenterChanFreq1);
+	}
 
 	status = dot11f_get_packed_ext_channel_switch_action_frame_size(mac_ctx,
 							    &frm, &n_payload);
