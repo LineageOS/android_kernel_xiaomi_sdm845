@@ -306,6 +306,7 @@ static int hdd_add_scan_event_from_ies(struct hdd_scan_info *scanInfo,
 					tCsrScanResultInfo *scan_result,
 					char *current_event, char *last_event)
 {
+	int ret;
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(scanInfo->dev);
 	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 	tSirBssDescription *descriptor = &scan_result->BssDescriptor;
@@ -335,9 +336,13 @@ static int hdd_add_scan_event_from_ies(struct hdd_scan_info *scanInfo,
 	if (ie_length <= 0)
 		return 0;
 
-	dot11f_unpack_beacon_i_es((tpAniSirGlobal)
+	ret = dot11f_unpack_beacon_i_es((tpAniSirGlobal)
 				  hHal, (uint8_t *) descriptor->ieFields,
 				  ie_length, &dot11BeaconIEs, false);
+	if (DOT11F_FAILED(ret)) {
+		hdd_err("unpack failed, ret: 0x%x", ret);
+		return -EINVAL;
+	}
 
 	pDot11SSID = &dot11BeaconIEs.SSID;
 
