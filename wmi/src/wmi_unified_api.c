@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -6347,6 +6347,30 @@ QDF_STATUS wmi_unified_send_sar_limit_cmd(void *wmi_hdl,
 		return wmi_handle->ops->send_sar_limit_cmd(
 						wmi_handle,
 						params);
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS wmi_unified_get_sar_limit_cmd(void *wmi_hdl)
+{
+	wmi_unified_t wmi_handle = wmi_hdl;
+
+	if (wmi_handle->ops->get_sar_limit_cmd)
+		return wmi_handle->ops->get_sar_limit_cmd(wmi_handle);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS wmi_unified_extract_sar_limit_event(void *wmi_hdl,
+					       uint8_t *evt_buf,
+					       struct sar_limit_event *event)
+{
+	wmi_unified_t wmi_handle = wmi_hdl;
+
+	if (wmi_handle->ops->extract_sar_limit_event)
+		return wmi_handle->ops->extract_sar_limit_event(wmi_handle,
+								evt_buf,
+								event);
+
 	return QDF_STATUS_E_FAILURE;
 }
 
