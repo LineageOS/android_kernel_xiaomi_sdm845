@@ -690,8 +690,10 @@ tListElem *csr_get_cmd_to_process(tpAniSirGlobal pMac, tDblLinkList *pList,
 	pCurEntry = csr_ll_peek_head(pList, LL_ACCESS_LOCK);
 	while (pCurEntry) {
 		pCommand = GET_BASE_ADDR(pCurEntry, tSmeCmd, Link);
-		if (pCommand->sessionId != sessionId) {
-			sme_debug("selected the command with different sessionId");
+
+		if (pCommand->sessionId != sessionId ||
+		    pCommand->command ==  eSmeCommandSetKey) {
+			sme_debug("selected the command with different sessionId or setkey");
 			return pCurEntry;
 		}
 
