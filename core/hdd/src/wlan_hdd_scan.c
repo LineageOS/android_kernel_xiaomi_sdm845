@@ -1433,14 +1433,12 @@ static QDF_STATUS hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
 	struct cfg80211_scan_request *req = NULL;
 	bool aborted = false;
 	hdd_context_t *hddctx = WLAN_HDD_GET_CTX(pAdapter);
-	int ret = 0;
 	unsigned int current_timestamp, time_elapsed;
 	uint8_t source;
 	uint32_t scan_time;
 	uint32_t size = 0;
 
-	ret = wlan_hdd_validate_context(hddctx);
-	if (ret) {
+	if (hddctx == NULL) {
 		hdd_err("Invalid hdd_ctx; Drop results for scanId %d", scanId);
 		return QDF_STATUS_E_INVAL;
 	}
@@ -1924,6 +1922,11 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 
 	if (0 != status)
 		return status;
+
+	if (cds_is_fw_down()) {
+		hdd_err("firmware is down, scan cmd cannot be processed");
+		return -EINVAL;
+	}
 
 	if ((eConnectionState_Associated ==
 			WLAN_HDD_GET_STATION_CTX_PTR(pAdapter)->
