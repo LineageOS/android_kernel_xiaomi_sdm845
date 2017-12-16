@@ -1256,6 +1256,7 @@ static inline QDF_STATUS hdd_gro_rx(hdd_adapter_t *adapter,
 {
 	struct qca_napi_info *qca_napii;
 	void *napid;
+	struct napi_struct *napi_to_use;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 	/* Only enabling it for STA mode like LRO today */
@@ -1274,8 +1275,12 @@ static inline QDF_STATUS hdd_gro_rx(hdd_adapter_t *adapter,
 			PKT_HASH_TYPE_L4);
 
 	local_bh_disable();
+	if (((hdd_context_t *)(adapter->pHddCtx))->enableRxThread)
+		napi_to_use =  (struct napi_struct *)qca_napii->offld_ctx;
+	else
+		napi_to_use = &(qca_napii->napi);
 	/* No need to check return value as it frees the skb */
-	napi_gro_receive((struct napi_struct *)qca_napii->offld_ctx, skb);
+	napi_gro_receive(napi_to_use, skb);
 	local_bh_enable();
 
 	status = QDF_STATUS_SUCCESS;
