@@ -2457,6 +2457,11 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 
 		scan_request.requestType =
 			eCSR_SCAN_SOFTAP_CHANNEL_RANGE;
+		if (sap_context->channelList) {
+			qdf_mem_free(sap_context->channelList);
+			sap_context->channelList = NULL;
+			sap_context->num_of_channel = 0;
+		}
 
 		sap_context->channelList = channel_list;
 		sap_context->num_of_channel = num_of_channels;
