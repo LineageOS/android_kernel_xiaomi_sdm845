@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -967,6 +967,18 @@ wma_process_ftm_command(tp_wma_handle wma_handle,
 /*
  * wma_features.c functions declarations
  */
+
+/**
+ * wma_sar_register_event_handlers() - Register SAR event handlers
+ * @handle: WMA Handle
+ *
+ * Function to be called during WMA initialization to register SAR
+ * event handlers with WMI
+ *
+ * Return: QDF_STATUS_SUCCESS if registration is successful, otherwise
+ *         an error enumeration
+ */
+QDF_STATUS wma_sar_register_event_handlers(WMA_HANDLE handle);
 
 void wma_process_link_status_req(tp_wma_handle wma,
 				 tAniGetLinkStatus *pGetLinkStatus);

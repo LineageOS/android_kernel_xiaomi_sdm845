@@ -3568,6 +3568,13 @@ QDF_STATUS wma_start(void *cds_ctx)
 		goto end;
 	}
 
+	status = wma_sar_register_event_handlers(wma_handle);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		WMA_LOGE("Failed to register SAR event handlers");
+		qdf_status = QDF_STATUS_E_FAILURE;
+		goto end;
+	}
+
 	/* Initialize the get temperature event handler */
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
 					WMI_PDEV_TEMPERATURE_EVENTID,
