@@ -4138,6 +4138,54 @@ static void hdd_wait_for_sme_close_sesion(hdd_context_t *hdd_ctx,
 	}
 }
 
+/**
+ * hdd_roc_req_q_flush() - Flush the RoC request queue for a given adapter
+ * @hdd_ctx: the global HDD context
+ * @adapter: the adapter for whose RoC requests should be flushed
+ *
+ * Pop each RoC request from the queue. If the request's adapter matches the
+ * given adapter, free the request. Otherwise, requeue the request at the back
+ * of the queue. Continue until queue size number of requests have been
+ * processed.
+ *
+ * Return: None
+ */
+static void hdd_roc_req_q_flush(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
+{
+	qdf_list_t *req_q = &hdd_ctx->hdd_roc_req_q;
+	qdf_list_node_t *node;
+	hdd_roc_req_t *req;
+	uint32_t count;
+
+	hdd_debug("Flushing RoC queue for adapter %u", adapter->sessionId);
+
+	flush_delayed_work(&hdd_ctx->roc_req_work);
+
+	qdf_spin_lock(&hdd_ctx->hdd_roc_req_q_lock);
+	for (count = qdf_list_size(req_q); count > 0; count--) {
+		if (QDF_IS_STATUS_ERROR(qdf_list_remove_front(req_q, &node))) {
+			qdf_spin_unlock(&hdd_ctx->hdd_roc_req_q_lock);
+
+			hdd_err("Unexpected number of requests in RoC queue");
+			QDF_BUG(0);
+
+			return;
+		}
+
+		req = qdf_container_of(node, hdd_roc_req_t, node);
+		if (req->pAdapter != adapter) {
+			qdf_list_insert_back(req_q, node);
+			continue;
+		}
+
+		if (req->pRemainChanCtx)
+			qdf_mem_free(req->pRemainChanCtx);
+
+		qdf_mem_free(req);
+	}
+	qdf_spin_unlock(&hdd_ctx->hdd_roc_req_q_lock);
+}
+
 QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			    const bool bCloseSession)
 {
@@ -4372,6 +4420,8 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		qdf_mem_free(adapter->scan_info.default_scan_ies);
 		adapter->scan_info.default_scan_ies = NULL;
 	}
+
+	hdd_roc_req_q_flush(hdd_ctx, adapter);
 
 	EXIT();
 	return QDF_STATUS_SUCCESS;
@@ -5778,52 +5828,16 @@ static int hdd_roc_context_init(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_destroy_roc_req_q() - Free allocations in ROC Req Queue
- * @hdd_ctx: HDD context.
- *
- * Free memory allocations made in ROC Req Queue nodes.
- *
- * Return: None.
- */
-static void hdd_destroy_roc_req_q(hdd_context_t *hdd_ctx)
-{
-	hdd_roc_req_t *hdd_roc_req;
-	QDF_STATUS status;
-
-	qdf_spin_lock(&hdd_ctx->hdd_roc_req_q_lock);
-
-	while (!qdf_list_empty(&hdd_ctx->hdd_roc_req_q)) {
-		status = qdf_list_remove_front(&hdd_ctx->hdd_roc_req_q,
-				(qdf_list_node_t **) &hdd_roc_req);
-
-		if (QDF_STATUS_SUCCESS != status) {
-			qdf_spin_unlock(&hdd_ctx->hdd_roc_req_q_lock);
-			hdd_debug("unable to remove roc element from list");
-			QDF_ASSERT(0);
-			return;
-		}
-
-		if (hdd_roc_req->pRemainChanCtx)
-			qdf_mem_free(hdd_roc_req->pRemainChanCtx);
-
-		qdf_mem_free(hdd_roc_req);
-	}
-
-	qdf_spin_unlock(&hdd_ctx->hdd_roc_req_q_lock);
-}
-
-/**
  * hdd_roc_context_destroy() - Destroy ROC context
  * @hdd_ctx:	HDD context.
  *
- * Destroy roc list and flush the pending roc work.
+ * Destroy roc list and spinlock.
  *
  * Return: None.
  */
 static void hdd_roc_context_destroy(hdd_context_t *hdd_ctx)
 {
-	flush_delayed_work(&hdd_ctx->roc_req_work);
-	hdd_destroy_roc_req_q(hdd_ctx);
+	qdf_list_destroy(&hdd_ctx->hdd_roc_req_q);
 	qdf_spinlock_destroy(&hdd_ctx->hdd_roc_req_q_lock);
 }
 
