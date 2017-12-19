@@ -8913,6 +8913,11 @@ int hdd_pktlog_enable_disable(hdd_context_t *hdd_ctx, bool enable,
 		return -EINVAL;
 	}
 
+	if (enable == true)
+		hdd_ctx->is_pktlog_enabled = 1;
+	else
+		hdd_ctx->is_pktlog_enabled = 0;
+
 	return 0;
 }
 #endif /* REMOVE_PKT_LOG */
@@ -9607,7 +9612,15 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 		goto deregister_frames;
 	}
 
-	if (cds_is_packet_log_enabled())
+	/**
+	 * In case of SSR/PDR, if pktlog was enabled manually before
+	 * SSR/PDR, Then enabled it again automatically after Wlan
+	 * device up.
+	 */
+	if (cds_is_driver_recovering()) {
+		if (hdd_ctx->is_pktlog_enabled)
+			hdd_pktlog_enable_disable(hdd_ctx, true, 0, 0);
+	} else if (cds_is_packet_log_enabled())
 		hdd_pktlog_enable_disable(hdd_ctx, true, 0, 0);
 
 	hddtxlimit.txPower2g = hdd_ctx->config->TxPower2g;
