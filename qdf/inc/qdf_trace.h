@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -558,29 +558,44 @@ void __printf(3, 4) qdf_snprintf(char *str_buffer, unsigned int size,
 #define QDF_SNPRINTF qdf_snprintf
 
 #ifdef TSOSEG_DEBUG
-static inline
-int qdf_tso_seg_dbg_record(struct qdf_tso_seg_elem_t *tsoseg,
-			   uint16_t caller)
-{
-	int rc = -1;
 
-	if (tsoseg != NULL) {
-		tsoseg->dbg.cur++;  tsoseg->dbg.cur &= 0x0f;
-		tsoseg->dbg.history[tsoseg->dbg.cur] = caller;
-		rc = tsoseg->dbg.cur;
-	}
-	return rc;
-};
 static inline void qdf_tso_seg_dbg_bug(char *msg)
 {
 	qdf_print(msg);
 	QDF_BUG(0);
 };
 
+static inline
+int qdf_tso_seg_dbg_record(struct qdf_tso_seg_elem_t *tsoseg, short id)
+{
+	int rc = -1;
+	unsigned int c;
+
+	qdf_assert(tsoseg);
+
+	if (id == TSOSEG_LOC_ALLOC) {
+		c = qdf_atomic_read(&(tsoseg->dbg.cur));
+		/* dont crash on the very first alloc on the segment */
+		c &= 0x0f;
+		/* allow only INIT and FREE ops before ALLOC */
+		if (tsoseg->dbg.h[c].id >= id)
+			qdf_tso_seg_dbg_bug("Rogue TSO seg alloc");
+	}
+	c = qdf_atomic_inc_return(&(tsoseg->dbg.cur));
+
+	c &= 0x0f;
+	tsoseg->dbg.h[c].ts = qdf_get_log_timestamp();
+	tsoseg->dbg.h[c].id = id;
+	rc = c;
+
+	return rc;
+};
+
 static inline void
 qdf_tso_seg_dbg_setowner(struct qdf_tso_seg_elem_t *tsoseg, void *owner)
 {
-	tsoseg->dbg.txdesc = owner;
+	if (tsoseg != NULL)
+		tsoseg->dbg.txdesc = owner;
 };
 
 static inline void
@@ -592,8 +607,7 @@ qdf_tso_seg_dbg_zero(struct qdf_tso_seg_elem_t *tsoseg)
 
 #else
 static inline
-int qdf_tso_seg_dbg_record(struct qdf_tso_seg_elem_t *tsoseg,
-			   uint16_t caller)
+int qdf_tso_seg_dbg_record(struct qdf_tso_seg_elem_t *tsoseg, short id)
 {
 	return 0;
 };
