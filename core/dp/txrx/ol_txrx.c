@@ -5380,8 +5380,10 @@ static void ol_txrx_offld_flush(void *data)
 	} else {
 		pkt = cds_alloc_ol_rx_pkt(sched_ctx);
 		if (qdf_unlikely(!pkt)) {
-			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				  "%s: Not able to allocate context", __func__);
+			QDF_TRACE_RATE_LIMITED(128, QDF_MODULE_ID_TXRX,
+				QDF_TRACE_LEVEL_ERROR,
+				"%s: Not able to allocate context", __func__);
+			cds_wakeup_rx_thread(sched_ctx);
 			return;
 		}
 
