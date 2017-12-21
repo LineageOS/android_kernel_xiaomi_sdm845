@@ -2215,7 +2215,8 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 
 	if (session_entry->vhtCapability &&
 			session_entry->htSupportedChannelWidthSet) {
-		if (csa_params->ies_present_flag & lim_wbw_ie_present) {
+		if (csa_params->ies_present_flag & lim_wbw_ie_present &&
+				csa_params->new_ch_width) {
 			lim_process_csa_wbw_ie(mac_ctx, csa_params,
 					chnl_switch_info, session_entry);
 			lim_ch_switch->sec_ch_offset =
@@ -2270,6 +2271,18 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 			lim_ch_switch->sec_ch_offset =
 				ch_params.sec_ch_offset;
 
+		} else {
+			lim_ch_switch->state =
+				eLIM_CHANNEL_SWITCH_PRIMARY_AND_SECONDARY;
+			ch_params.ch_width = CH_WIDTH_40MHZ;
+			cds_set_channel_params(csa_params->channel,
+					0, &ch_params);
+			lim_ch_switch->sec_ch_offset =
+				ch_params.sec_ch_offset;
+			chnl_switch_info->newChanWidth = CH_WIDTH_40MHZ;
+			chnl_switch_info->newCenterChanFreq0 =
+				ch_params.center_freq_seg0;
+			chnl_switch_info->newCenterChanFreq1 = 0;
 		}
 		session_entry->gLimChannelSwitch.ch_center_freq_seg0 =
 			chnl_switch_info->newCenterChanFreq0;
