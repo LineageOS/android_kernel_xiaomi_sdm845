@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1516,7 +1516,6 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 	},
@@ -1684,7 +1683,6 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 	},
@@ -1715,7 +1713,6 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 	},
@@ -1746,7 +1743,6 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 	},
@@ -1786,6 +1782,7 @@ static struct snd_soc_dai_link sdx_common_be_dai_links[] = {
 		.dpcm_playback = 1,
 		.id = MSM_BACKEND_DAI_AFE_PCM_RX,
 		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
 	},
 	{
 		.name = LPASS_BE_AFE_PCM_TX,
@@ -1840,6 +1837,7 @@ static struct snd_soc_dai_link sdx_common_be_dai_links[] = {
 		.id = MSM_BACKEND_DAI_VOICE_PLAYBACK_TX,
 		.be_hw_params_fixup = sdx_be_hw_params_fixup,
 		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
 	},
 };
 
@@ -1872,7 +1870,6 @@ static struct snd_soc_dai_link sdx_mi2s_be_dai_links[] = {
 		.id = MSM_BACKEND_DAI_PRI_MI2S_TX,
 		.be_hw_params_fixup = &sdx_mi2s_tx_be_hw_params_fixup,
 		.ops = &sdx_mi2s_be_ops,
-		.ignore_pmdown_time = 1,
 		.ignore_suspend = 1,
 	},
 	{
@@ -1902,7 +1899,6 @@ static struct snd_soc_dai_link sdx_mi2s_be_dai_links[] = {
 		.id = MSM_BACKEND_DAI_SECONDARY_MI2S_TX,
 		.be_hw_params_fixup = &sdx_sec_mi2s_tx_be_hw_params_fixup,
 		.ops = &sdx_sec_mi2s_be_ops,
-		.ignore_pmdown_time = 1,
 		.ignore_suspend = 1,
 	},
 };
