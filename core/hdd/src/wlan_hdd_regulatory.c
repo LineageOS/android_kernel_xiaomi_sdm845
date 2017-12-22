@@ -816,13 +816,13 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 
 		hdd_ctx->reg.alpha2[0] = request->alpha2[0];
 		hdd_ctx->reg.alpha2[1] = request->alpha2[1];
+		hdd_ctx->reg.reset = reset;
 
 		hdd_set_dfs_region(hdd_ctx,
 				   (enum dfs_region) request->dfs_region);
 
 
 		if (hdd_ctx->driver_status == DRIVER_MODULES_CLOSED) {
-			hdd_ctx->reg.reset = reset;
 			hdd_debug("Driver module is closed, apply it later");
 			return;
 		}
