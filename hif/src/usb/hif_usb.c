@@ -132,15 +132,23 @@ static QDF_STATUS hif_send_internal(HIF_DEVICE_USB *hif_usb_device,
 	int usb_status;
 	int i;
 	struct hif_usb_send_context *send_context;
-	int frag_count = 0, head_data_len, tmp_frag_count = 0;
+	uint8_t frag_count;
+	uint32_t head_data_len, tmp_frag_count = 0;
 	unsigned char *data_ptr;
 
 	HIF_DBG("+%s pipe : %d, buf:0x%pK nbytes %u",
 		__func__, pipe_id, buf, nbytes);
 
 	frag_count = qdf_nbuf_get_num_frags(buf);
-	if (frag_count > 1) {	/* means have extra fragment buf in skb */
-		/* header data length should be total sending length substract
+	if (frag_count == 1) {
+		/*
+		 * | hif_usb_send_context | netbuf->data
+		 */
+		head_data_len = sizeof(struct hif_usb_send_context);
+	} else if ((frag_count - 1) <= QDF_NBUF_CB_TX_MAX_EXTRA_FRAGS) {
+		/*
+		 * means have extra fragment buf in skb
+		 * header data length should be total sending length substract
 		 * internal data length of netbuf
 		 * | hif_usb_send_context | fragments except internal buffer |
 		 * netbuf->data
@@ -148,15 +156,16 @@ static QDF_STATUS hif_send_internal(HIF_DEVICE_USB *hif_usb_device,
 		head_data_len = sizeof(struct hif_usb_send_context);
 		while (tmp_frag_count < (frag_count - 1)) {
 			head_data_len =
-			    head_data_len +
-			    qdf_nbuf_get_frag_len(buf, tmp_frag_count);
+				head_data_len + qdf_nbuf_get_frag_len(buf,
+						tmp_frag_count);
 			tmp_frag_count = tmp_frag_count + 1;
 		}
 	} else {
-		/*
-		 * | hif_usb_send_context | netbuf->data
-		 */
-		head_data_len = sizeof(struct hif_usb_send_context);
+		/* Extra fragments overflow */
+		HIF_ERROR("%s Extra fragments count overflow : %d\n",
+			  __func__, frag_count);
+		status = QDF_STATUS_E_RESOURCES;
+		goto err;
 	}
 
 	/* Check whether head room is enough to save extra head data */
