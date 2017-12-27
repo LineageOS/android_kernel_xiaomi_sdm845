@@ -5333,9 +5333,6 @@ hdd_adapter_t *hdd_get_adapter_by_vdev(hdd_context_t *hdd_ctx,
 		adapterNode = pNext;
 	}
 
-	hdd_err_ratelimited(RATE_LIMIT_ERROR_LOG,
-		"vdev_id %d does not exist with host", vdev_id);
-
 	return NULL;
 }
 
