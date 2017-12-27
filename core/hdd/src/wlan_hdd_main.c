@@ -164,6 +164,7 @@ static struct attribute *attrs[] = {
 
 #define HDD_OPS_INACTIVITY_TIMEOUT (120000)
 #define MAX_OPS_NAME_STRING_SIZE 20
+#define RATE_LIMIT_ERROR_LOG (256)
 
 static qdf_timer_t hdd_drv_ops_inactivity_timer;
 static struct task_struct *hdd_drv_ops_task;
@@ -5332,7 +5333,8 @@ hdd_adapter_t *hdd_get_adapter_by_vdev(hdd_context_t *hdd_ctx,
 		adapterNode = pNext;
 	}
 
-	hdd_err("vdev_id %d does not exist with host", vdev_id);
+	hdd_err_ratelimited(RATE_LIMIT_ERROR_LOG,
+		"vdev_id %d does not exist with host", vdev_id);
 
 	return NULL;
 }
