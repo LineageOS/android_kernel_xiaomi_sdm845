@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1833,7 +1833,6 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 	},
@@ -1882,7 +1881,6 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 			    SND_SOC_DPCM_TRIGGER_POST },
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.id = MSM_FRONTEND_DAI_LSM1,
@@ -1980,7 +1978,6 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 				SND_SOC_DPCM_TRIGGER_POST },
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.id = MSM_FRONTEND_DAI_LSM2,
@@ -1996,7 +1993,6 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 				SND_SOC_DPCM_TRIGGER_POST },
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.id = MSM_FRONTEND_DAI_LSM3,
@@ -2012,7 +2008,6 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 				SND_SOC_DPCM_TRIGGER_POST },
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.id = MSM_FRONTEND_DAI_LSM4,
@@ -2028,7 +2023,6 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 				SND_SOC_DPCM_TRIGGER_POST },
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.id = MSM_FRONTEND_DAI_LSM5,
@@ -2044,7 +2038,6 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 				SND_SOC_DPCM_TRIGGER_POST },
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.id = MSM_FRONTEND_DAI_LSM6
@@ -2060,7 +2053,6 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 				SND_SOC_DPCM_TRIGGER_POST },
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.id = MSM_FRONTEND_DAI_LSM7,
@@ -2076,7 +2068,6 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 				SND_SOC_DPCM_TRIGGER_POST },
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.id = MSM_FRONTEND_DAI_LSM8,
@@ -2211,7 +2202,6 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 	},
@@ -2317,7 +2307,6 @@ static struct snd_soc_dai_link msm_int_wsa_dai[] = {
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
 		.dpcm_capture = 1,
-		.ignore_pmdown_time = 1,
 	},
 };
 
@@ -2441,6 +2430,7 @@ static struct snd_soc_dai_link msm_int_be_dai[] = {
 		.id = MSM_BACKEND_DAI_VOICE_PLAYBACK_TX,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
 	},
 	/* Incall Music 2 BACK END DAI Link */
 	{
@@ -2455,6 +2445,7 @@ static struct snd_soc_dai_link msm_int_be_dai[] = {
 		.id = MSM_BACKEND_DAI_VOICE2_PLAYBACK_TX,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
 	},
 	{
 		.name = LPASS_BE_USB_AUDIO_RX,
@@ -2496,6 +2487,7 @@ static struct snd_soc_dai_link msm_int_be_dai[] = {
 		.be_hw_params_fixup = msm_common_be_hw_params_fixup,
 		.ops = &msm_tdm_be_ops,
 		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
 	},
 	{
 		.name = LPASS_BE_PRI_TDM_TX_0,
@@ -2524,6 +2516,7 @@ static struct snd_soc_dai_link msm_int_be_dai[] = {
 		.be_hw_params_fixup = msm_common_be_hw_params_fixup,
 		.ops = &msm_tdm_be_ops,
 		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
 	},
 	{
 		.name = LPASS_BE_SEC_TDM_TX_0,
@@ -2552,6 +2545,7 @@ static struct snd_soc_dai_link msm_int_be_dai[] = {
 		.be_hw_params_fixup = msm_common_be_hw_params_fixup,
 		.ops = &msm_tdm_be_ops,
 		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
 	},
 	{
 		.name = LPASS_BE_TERT_TDM_TX_0,
@@ -2580,6 +2574,7 @@ static struct snd_soc_dai_link msm_int_be_dai[] = {
 		.be_hw_params_fixup = msm_common_be_hw_params_fixup,
 		.ops = &msm_tdm_be_ops,
 		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
 	},
 	{
 		.name = LPASS_BE_QUAT_TDM_TX_0,
@@ -2608,6 +2603,7 @@ static struct snd_soc_dai_link msm_int_be_dai[] = {
 		.be_hw_params_fixup = msm_common_be_hw_params_fixup,
 		.ops = &msm_tdm_be_ops,
 		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
 	},
 	{
 		.name = LPASS_BE_QUIN_TDM_TX_0,
@@ -2801,7 +2797,6 @@ static struct snd_soc_dai_link msm_auxpcm_be_dai_links[] = {
 		.dpcm_capture = 1,
 		.id = MSM_BACKEND_DAI_AUXPCM_TX,
 		.be_hw_params_fixup = msm_common_be_hw_params_fixup,
-		.ignore_pmdown_time = 1,
 		.ignore_suspend = 1,
 		.ops = &msm_aux_pcm_be_ops,
 	},
@@ -2833,7 +2828,6 @@ static struct snd_soc_dai_link msm_auxpcm_be_dai_links[] = {
 		.id = MSM_BACKEND_DAI_SEC_AUXPCM_TX,
 		.be_hw_params_fixup = msm_common_be_hw_params_fixup,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.ops = &msm_aux_pcm_be_ops,
 	},
 	/* Tertiary AUX PCM Backend DAI Links */
@@ -2864,7 +2858,6 @@ static struct snd_soc_dai_link msm_auxpcm_be_dai_links[] = {
 		.id = MSM_BACKEND_DAI_TERT_AUXPCM_TX,
 		.be_hw_params_fixup = msm_common_be_hw_params_fixup,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.ops = &msm_aux_pcm_be_ops,
 	},
 	/* Quaternary AUX PCM Backend DAI Links */
@@ -2895,7 +2888,6 @@ static struct snd_soc_dai_link msm_auxpcm_be_dai_links[] = {
 		.id = MSM_BACKEND_DAI_QUAT_AUXPCM_TX,
 		.be_hw_params_fixup = msm_common_be_hw_params_fixup,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.ops = &msm_aux_pcm_be_ops,
 	},
 	/* Quinary AUX PCM Backend DAI Links */
@@ -2926,7 +2918,6 @@ static struct snd_soc_dai_link msm_auxpcm_be_dai_links[] = {
 		.id = MSM_BACKEND_DAI_QUIN_AUXPCM_TX,
 		.be_hw_params_fixup = msm_common_be_hw_params_fixup,
 		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
 		.ops = &msm_aux_pcm_be_ops,
 	},
 };
