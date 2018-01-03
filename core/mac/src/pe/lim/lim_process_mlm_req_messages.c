@@ -1911,6 +1911,10 @@ lim_process_mlm_set_keys_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	}
 
 	mlm_set_keys_req = (tLimMlmSetKeysReq *) msg_buf;
+	if (mac_ctx->lim.gpLimMlmSetKeysReq != NULL) {
+		qdf_mem_free(mac_ctx->lim.gpLimMlmSetKeysReq);
+		mac_ctx->lim.gpLimMlmSetKeysReq = NULL;
+	}
 	/* Hold onto the SetKeys request parameters */
 	mac_ctx->lim.gpLimMlmSetKeysReq = (void *)mlm_set_keys_req;
 	session = pe_find_session_by_session_id(mac_ctx,
