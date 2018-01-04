@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -5360,10 +5360,14 @@ static bool csr_scan_validate_scan_result(tpAniSirGlobal pMac,
 			return false;
 
 		valid = csr_scan_is_bss_allowed(pMac, pBssDesc, pIes);
-		if (valid)
+		if (valid) {
 			*ppIes = pIes;
-		else
+		} else {
 			qdf_mem_free(pIes);
+			sme_debug("Scan result invalid due to dot11 mode mismatch");
+		}
+	} else {
+		sme_debug("Scan result invalid");
 	}
 	return valid;
 }

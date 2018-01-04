@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1373,6 +1373,7 @@ QDF_STATUS csr_get_parsed_bss_description_ies(tHalHandle hHal,
 			if (!QDF_IS_STATUS_SUCCESS(status)) {
 				qdf_mem_free(*ppIEStruct);
 				*ppIEStruct = NULL;
+				sme_debug("parse bss description ies failed");
 			}
 		} else {
 			sme_err("failed to allocate memory");
