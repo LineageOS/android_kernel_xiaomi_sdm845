@@ -5436,6 +5436,35 @@ hdd_adapter_t *hdd_get_adapter(hdd_context_t *hdd_ctx,
 }
 
 /**
+ * hdd_is_adapter_valid() - Check if adapter is valid
+ * @hdd_ctx: hdd context
+ * @adapter: pointer to adapter
+ *
+ * Return: true if adapter address is valid or false otherwise
+ */
+bool hdd_is_adapter_valid(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
+{
+	hdd_adapter_list_node_t *adapter_node = NULL, *p_next = NULL;
+	hdd_adapter_t *p_adapter;
+	QDF_STATUS status;
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		p_adapter = adapter_node->pAdapter;
+
+		if (p_adapter && (p_adapter == adapter))
+			return true;
+
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &p_next);
+		adapter_node = p_next;
+	}
+
+	return false;
+
+}
+
+/**
  * hdd_get_operating_channel() - return operating channel of the device mode
  * @hdd_ctx:	Pointer to the HDD context.
  * @mode:	Device mode for which operating channel is required.
