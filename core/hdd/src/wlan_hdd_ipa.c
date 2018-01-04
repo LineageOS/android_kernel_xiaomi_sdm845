@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1610,7 +1610,6 @@ void hdd_ipa_uc_sharing_stats_request(hdd_adapter_t *adapter,
 		return;
 	}
 
-	HDD_IPA_LOG(LOG1, "SHARING_STATS: reset_stats=%d", reset_stats);
 	qdf_mutex_acquire(&hdd_ipa->ipa_lock);
 	if (false == hdd_ipa->resource_loading) {
 		qdf_mutex_release(&hdd_ipa->ipa_lock);

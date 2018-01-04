@@ -777,9 +777,6 @@ static int32_t wma_set_priv_cfg(tp_wma_handle wma_handle,
 		ol_txrx_pdev_handle pdev;
 		uint8_t reset_stats = privcmd->param_value;
 
-		WMA_LOGE("%s: reset_stats=%d",
-			 "WMA_VDEV_TXRX_GET_IPA_UC_SHARING_STATS_CMDID",
-			 reset_stats);
 		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 		if (!pdev) {
 			WMA_LOGE("pdev NULL for uc stat");
