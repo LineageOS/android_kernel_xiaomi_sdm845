@@ -12117,9 +12117,6 @@ static int __con_mode_handler(const char *kmessage, struct kernel_param *kp,
 
 	hdd_info("Mode successfully changed to %s", kmessage);
 	ret = 0;
-	mutex_unlock(&hdd_init_deinit_lock);
-	qdf_atomic_set(&hdd_ctx->con_mode_flag, 0);
-	return ret;
 
 reset_flags:
 	cds_set_load_in_progress(false);
