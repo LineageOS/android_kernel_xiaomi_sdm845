@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -847,10 +847,8 @@ static QDF_STATUS wlan_hdd_init_power_stats_debugfs(hdd_adapter_t *adapter)
 		return QDF_STATUS_E_FAILURE;
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	if (wlan_hdd_validate_context(hdd_ctx))
-		return QDF_STATUS_E_FAILURE;
-
-	mutex_init(&hdd_ctx->power_stats_lock);
+	if (hdd_ctx)
+		mutex_init(&hdd_ctx->power_stats_lock);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -866,10 +864,8 @@ static void wlan_hdd_deinit_power_stats_debugfs(hdd_adapter_t *adapter)
 	hdd_context_t *hdd_ctx;
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	if (wlan_hdd_validate_context(hdd_ctx))
-		return;
-
-	mutex_destroy(&hdd_ctx->power_stats_lock);
+	if (hdd_ctx)
+		mutex_destroy(&hdd_ctx->power_stats_lock);
 }
 #else
 static QDF_STATUS wlan_hdd_init_power_stats_debugfs(hdd_adapter_t *adapter)
