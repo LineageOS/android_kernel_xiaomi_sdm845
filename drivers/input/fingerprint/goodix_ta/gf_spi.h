@@ -143,6 +143,7 @@ struct gf_dev {
 #ifdef CONFIG_FINGERPRINT_FP_VREG_CONTROL
 	struct regulator *vreg;
 #endif
+	int proximity_state; /* 0:far 1:near */
 };
 
 int gf_parse_dts(struct gf_dev *gf_dev);
