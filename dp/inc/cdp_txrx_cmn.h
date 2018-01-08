@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -128,6 +128,28 @@ enum wlan_op_mode {
 };
 
 /**
+ * connectivity_stats_pkt_status - data pkt type
+ * @PKT_TYPE_REQ: Request packet
+ * @PKT_TYPE_RSP: Response packet
+ * @PKT_TYPE_TX_DROPPED: TX packet dropped
+ * @PKT_TYPE_RX_DROPPED: RX packet dropped
+ * @PKT_TYPE_RX_DELIVERED: RX packet delivered
+ * @PKT_TYPE_RX_REFUSED: RX packet refused
+ * @PKT_TYPE_TX_HOST_FW_SENT: TX packet FW sent
+ * @PKT_TYPE_TX_ACK_CNT:TC packet acked
+ */
+enum connectivity_stats_pkt_status {
+	PKT_TYPE_REQ,
+	PKT_TYPE_RSP,
+	PKT_TYPE_TX_DROPPED,
+	PKT_TYPE_RX_DROPPED,
+	PKT_TYPE_RX_DELIVERED,
+	PKT_TYPE_RX_REFUSED,
+	PKT_TYPE_TX_HOST_FW_SENT,
+	PKT_TYPE_TX_ACK_CNT,
+};
+
+/**
  * ol_txrx_tx_fp - top-level transmit function
  * @data_vdev - handle to the virtual device object
  * @msdu_list - list of network buffers
@@ -158,6 +180,18 @@ typedef bool (*ol_txrx_tx_flow_control_is_pause_fp)(void *osif_dev);
  * @msdu_list - list of network buffers
  */
 typedef QDF_STATUS (*ol_txrx_rx_fp)(void *osif_dev, qdf_nbuf_t msdu_list);
+
+/**
+ * ol_txrx_stats_rx_fp - receive function to hand batches of data
+ * frames from txrx to OS shim
+ * @skb: skb data
+ * @osif_dev: the virtual device's OS shim object
+ * @action: data packet type
+ * @pkt_type: packet data type
+ */
+typedef void (*ol_txrx_stats_rx_fp)(struct sk_buff *skb,
+		void *osif_dev, enum connectivity_stats_pkt_status action,
+		uint8_t *pkt_type);
 
 /**
  * ol_txrx_rx_check_wai_fp - OSIF WAPI receive function
@@ -245,6 +279,7 @@ struct ol_txrx_ops {
 		ol_txrx_rx_fp           rx;
 		ol_txrx_rx_check_wai_fp wai_check;
 		ol_txrx_rx_mon_fp       mon;
+		ol_txrx_stats_rx_fp           stats_rx;
 	} rx;
 
 	/* proxy arp function pointer - specified by OS shim, stored by txrx */
