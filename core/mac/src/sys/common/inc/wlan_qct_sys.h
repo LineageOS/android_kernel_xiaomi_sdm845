@@ -53,22 +53,16 @@
    Type declarations
    -------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------
-
-   \brief sysResponseCback() - SYS async resonse callback
-
-   This is a protype for the callback function that SYS makes to various
-   modules in the system.
-
-   \param  pUserData - user data that is passed to the Callback function
-   when it is invoked.
-
-   \return Nothing
-
-   \sa sysMcStart(), sysMcThreadProbe(), sysTxThreadProbe()
-
-   --------------------------------------------------------------------------*/
-typedef void (*sysResponseCback)(void *pUserData);
+/**
+ * sys_rsp_cb() - SYS async resonse callback
+ * @user_data: context data for callback
+ *
+ * This is a protype for the callback function that SYS makes to various
+ * modules in the system.
+ *
+ * Return: None
+ */
+typedef void (*sys_rsp_cb)(void *user_data);
 
 typedef enum {
 	SYS_MSG_ID_MC_START,
@@ -114,50 +108,13 @@ typedef enum {
    --------------------------------------------------------------------------*/
 QDF_STATUS sys_build_message_header(SYS_MSG_ID sysMsgId, cds_msg_t *pMsg);
 
-/*----------------------------------------------------------------------------
-
-   \brief sysMcStart() - start the system Main Controller thread.
-
-   This function starts the SYS (Main Controller) module.  Starting this
-   module triggers the CFG download to the 'legacy' MAC software.
-
-   \param p_cds_context - pointer to the CDS Context
-
-   \param userCallback - this is a callback that is called when the SYS
-   has completed the 'start' funciton.
-
-   \param pUserData - pointer to some user data entity that is passed to
-   the callback function as a parameter when invoked.
-
-   \return QDF_STATUS_SUCCESS -
-
-   \todo:  We have not 'status' on the callback.  How do we notify the
-   callback that there is a failure ?
-
-   \sa
-
-   --------------------------------------------------------------------------*/
-QDF_STATUS sysMcStart(v_CONTEXT_t p_cds_context, sysResponseCback userCallback,
-		      void *pUserData);
-
-/*----------------------------------------------------------------------------
-
-   \brief sys_stop() - Stop the SYS module.
-
-   This function stops the SYS module.
-
-   \todo: What else do we need to do on sys_stop()?
-
-   \param p_cds_context - pointer to the CDS Context
-
-   \return QDF_STATUS_SUCCESS - the SYS module is stopped.
-
-   QDF_STATUS_E_FAILURE - the SYS module open failed to stop.
-
-   \sa
-
-   --------------------------------------------------------------------------*/
-QDF_STATUS sys_stop(v_CONTEXT_t p_cds_context);
+/**
+ * umac_stop() - send schedule message to mc thread to stop umac (sme and mac)
+ * @p_cds_context: cds context
+ *
+ * Return: status of operation
+ */
+QDF_STATUS umac_stop(v_CONTEXT_t p_cds_context);
 
 /*----------------------------------------------------------------------------
 
