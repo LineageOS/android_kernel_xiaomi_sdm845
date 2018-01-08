@@ -2761,22 +2761,18 @@ QDF_STATUS cds_deregister_dp_cb(void)
 	return QDF_STATUS_SUCCESS;
 }
 
-/**
- * cds_get_arp_stats_gw_ip() - get arp stats track IP
- *
- * Return: ARP stats IP to track
- */
-uint32_t cds_get_arp_stats_gw_ip(void)
+uint32_t cds_get_arp_stats_gw_ip(void *context)
 {
-	hdd_context_t *hdd_ctx;
+	hdd_adapter_t *adapter = (hdd_adapter_t *)context;
 
-	hdd_ctx = (hdd_context_t *) (gp_cds_context->pHDDContext);
-	if (!hdd_ctx) {
-		cds_err("Hdd Context is Null");
+	if (unlikely(adapter->magic != WLAN_HDD_ADAPTER_MAGIC)) {
+		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
+			  "Magic cookie(%x) for adapter sanity verification is invalid",
+			  adapter->magic);
 		return 0;
 	}
 
-	return hdd_ctx->track_arp_ip;
+	return adapter->track_arp_ip;
 }
 
 /**

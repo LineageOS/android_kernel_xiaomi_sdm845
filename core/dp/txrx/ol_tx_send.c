@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -545,15 +545,21 @@ void ol_tx_credit_completion_handler(ol_txrx_pdev_handle pdev, int credits)
 
 /**
  * ol_tx_update_arp_stats() - update ARP packet TX stats
+ * @tx_desc: tx desc
  * @netbuf:  buffer
+ * @status: htt status
  *
  *
  * Return: none
  */
-static void ol_tx_update_arp_stats(qdf_nbuf_t netbuf,
-					enum htt_tx_status status)
+static void ol_tx_update_arp_stats(struct ol_tx_desc_t *tx_desc,
+				   qdf_nbuf_t netbuf,
+				   enum htt_tx_status status)
 {
-	uint32_t tgt_ip = cds_get_arp_stats_gw_ip();
+	uint32_t tgt_ip;
+
+	qdf_assert(tx_desc);
+	tgt_ip = cds_get_arp_stats_gw_ip(tx_desc->vdev->osif_dev);
 
 	if (tgt_ip == qdf_nbuf_get_arp_tgt_ip(netbuf)) {
 		if (status != htt_tx_status_download_fail)
@@ -677,7 +683,7 @@ ol_tx_completion_handler(ol_txrx_pdev_handle pdev,
 		if (QDF_NBUF_CB_GET_PACKET_TYPE(netbuf) ==
 		    QDF_NBUF_CB_PACKET_TYPE_ARP) {
 			if (qdf_nbuf_data_is_arp_req(netbuf))
-				ol_tx_update_arp_stats(netbuf, status);
+				ol_tx_update_arp_stats(tx_desc, netbuf, status);
 		}
 
 		if (tx_desc->pkt_type != OL_TX_FRM_TSO) {

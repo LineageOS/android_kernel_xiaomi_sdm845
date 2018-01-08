@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -511,7 +511,13 @@ void cds_pkt_stats_to_logger_thread(void *pl_hdr, void *pkt_dump, void *data);
 QDF_STATUS cds_register_dp_cb(struct cds_dp_cbacks *dp_cbs);
 QDF_STATUS cds_deregister_dp_cb(void);
 
-uint32_t cds_get_arp_stats_gw_ip(void);
+/**
+ * cds_get_arp_stats_gw_ip() - get arp stats track IP
+ * @context: osif dev
+ *
+ * Return: ARP stats IP to track.
+ */
+uint32_t cds_get_arp_stats_gw_ip(void *context);
 void cds_incr_arp_stats_tx_tgt_delivered(void);
 void cds_incr_arp_stats_tx_tgt_acked(void);
 
