@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -419,12 +419,20 @@ typedef struct sSirSupportedRates {
 	uint16_t vhtTxHighestDataRate;
 } tSirSupportedRates, *tpSirSupportedRates;
 
+/**
+ * enum eSirRFBand
+ * @SIR_BAND_ALL:all bands
+ * @SIR_BAND_2_4_GHZ: 2G band
+ * @SIR_BAND_5_GHZ: 5G band
+ * @SIR_BAND_UNKNOWN: Unsupported band
+ * @SIR_BAND_MAX: Max number of band
+ */
 typedef enum eSirRFBand {
-	SIR_BAND_UNKNOWN,
 	SIR_BAND_ALL,
 	SIR_BAND_2_4_GHZ,
 	SIR_BAND_5_GHZ,
-	SIR_BAND_MAX
+	SIR_BAND_UNKNOWN,
+	SIR_BAND_MAX = SIR_BAND_UNKNOWN,
 } tSirRFBand;
 
 typedef struct sSirRemainOnChnReq {
