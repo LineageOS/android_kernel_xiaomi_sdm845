@@ -8216,8 +8216,8 @@ err_free_config:
 
 err_free_hdd_context:
 	hdd_free_probe_req_ouis(hdd_ctx);
-	wiphy_free(hdd_ctx->wiphy);
 	mutex_destroy(&hdd_ctx->iface_change_lock);
+	wiphy_free(hdd_ctx->wiphy);
 
 err_out:
 	return ERR_PTR(ret);
