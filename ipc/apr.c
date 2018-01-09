@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2014, 2016-2017 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2014, 2016-2018 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -334,7 +334,7 @@ int apr_send_pkt(void *handle, uint32_t *buf)
 		return -EINVAL;
 	}
 	if (svc->need_reset) {
-		pr_err("apr: send_pkt service need reset\n");
+		pr_err_ratelimited("apr: send_pkt service need reset\n");
 		return -ENETRESET;
 	}
 
