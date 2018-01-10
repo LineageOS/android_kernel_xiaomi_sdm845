@@ -44,6 +44,6 @@
 #define QWLAN_VERSION_EXTRA            "B"
 #define QWLAN_VERSION_BUILD            42
 
-#define QWLAN_VERSIONSTR               "5.1.1.42B"
+#define QWLAN_VERSIONSTR               "5.1.1.42V"
 
 #endif /* QWLAN_VERSION_H */
