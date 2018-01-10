@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -429,7 +429,7 @@ static struct qdf_nbuf_map_metadata *qdf_nbuf_meta_get(qdf_nbuf_t nbuf)
 	return NULL;
 }
 
-static void
+static QDF_STATUS
 qdf_nbuf_track_map(qdf_nbuf_t nbuf, const char *file, uint32_t line)
 {
 	struct qdf_nbuf_map_metadata *meta;
@@ -437,7 +437,7 @@ qdf_nbuf_track_map(qdf_nbuf_t nbuf, const char *file, uint32_t line)
 	QDF_BUG(nbuf);
 	if (!nbuf) {
 		qdf_err("Cannot map null nbuf");
-		return;
+		return QDF_STATUS_E_INVAL;
 	}
 
 	qdf_spin_lock_irqsave(&qdf_nbuf_map_lock);
@@ -450,7 +450,7 @@ qdf_nbuf_track_map(qdf_nbuf_t nbuf, const char *file, uint32_t line)
 	meta = qdf_mem_malloc(sizeof(*meta));
 	if (!meta) {
 		qdf_err("Failed to allocate nbuf map tracking metadata");
-		return;
+		return QDF_STATUS_E_NOMEM;
 	}
 
 	meta->nbuf = nbuf;
@@ -460,6 +460,8 @@ qdf_nbuf_track_map(qdf_nbuf_t nbuf, const char *file, uint32_t line)
 	qdf_spin_lock_irqsave(&qdf_nbuf_map_lock);
 	hash_add(qdf_nbuf_map_ht, &meta->node, (size_t)nbuf);
 	qdf_spin_unlock_irqrestore(&qdf_nbuf_map_lock);
+
+	return QDF_STATUS_SUCCESS;
 }
 
 static void
@@ -492,7 +494,11 @@ QDF_STATUS qdf_nbuf_map_debug(qdf_device_t osdev,
 			      const char *file,
 			      uint32_t line)
 {
-	qdf_nbuf_track_map(buf, file, line);
+	QDF_STATUS status;
+
+	status = qdf_nbuf_track_map(buf, file, line);
+	if (QDF_IS_STATUS_ERROR(status))
+		return status;
 
 	return __qdf_nbuf_map(osdev, buf, dir);
 }
@@ -513,7 +519,11 @@ QDF_STATUS qdf_nbuf_map_single_debug(qdf_device_t osdev,
 				     const char *file,
 				     uint32_t line)
 {
-	qdf_nbuf_track_map(buf, file, line);
+	QDF_STATUS status;
+
+	status = qdf_nbuf_track_map(buf, file, line);
+	if (QDF_IS_STATUS_ERROR(status))
+		return status;
 
 	return __qdf_nbuf_map_single(osdev, buf, dir);
 }
@@ -535,7 +545,11 @@ QDF_STATUS qdf_nbuf_map_nbytes_debug(qdf_device_t osdev,
 				     const char *file,
 				     uint32_t line)
 {
-	qdf_nbuf_track_map(buf, file, line);
+	QDF_STATUS status;
+
+	status = qdf_nbuf_track_map(buf, file, line);
+	if (QDF_IS_STATUS_ERROR(status))
+		return status;
 
 	return __qdf_nbuf_map_nbytes(osdev, buf, dir, nbytes);
 }
@@ -558,7 +572,11 @@ QDF_STATUS qdf_nbuf_map_nbytes_single_debug(qdf_device_t osdev,
 					    const char *file,
 					    uint32_t line)
 {
-	qdf_nbuf_track_map(buf, file, line);
+	QDF_STATUS status;
+
+	status = qdf_nbuf_track_map(buf, file, line);
+	if (QDF_IS_STATUS_ERROR(status))
+		return status;
 
 	return __qdf_nbuf_map_nbytes_single(osdev, buf, dir, nbytes);
 }
