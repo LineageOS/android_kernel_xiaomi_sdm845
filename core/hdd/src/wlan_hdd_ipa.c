@@ -3058,7 +3058,7 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 	qdf_device_t osdev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 	uint32_t tx_comp_db_dmaaddr = 0, rx_rdy_db_dmaaddr = 0;
 
-	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "enter");
+	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "enter");
 
 	if (!hdd_ipa_uc_is_enabled(hdd_ctx))
 		return stat;
@@ -3317,7 +3317,7 @@ QDF_STATUS hdd_ipa_uc_ol_init(hdd_context_t *hdd_ctx)
 	     (unsigned int)pdev->htt_pdev->ipa_uc_rx_rsc.rx_rdy_idx_paddr);
 
 fail_return:
-	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "exit: stat=%d", stat);
+	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "exit: stat=%d", stat);
 	return stat;
 }
 #else
@@ -6674,7 +6674,7 @@ static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 	struct ol_txrx_pdev_t *pdev = NULL;
 	struct ipa_rm_perf_profile profile;
 
-	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "enter");
+	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "enter");
 
 	if (!hdd_ipa_is_enabled(hdd_ctx))
 		return QDF_STATUS_SUCCESS;
@@ -6773,7 +6773,7 @@ static QDF_STATUS __hdd_ipa_init(hdd_context_t *hdd_ctx)
 
 	init_completion(&hdd_ipa->ipa_resource_comp);
 
-	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "exit: success");
+	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "exit: success");
 	return QDF_STATUS_SUCCESS;
 
 fail_create_sys_pipe:

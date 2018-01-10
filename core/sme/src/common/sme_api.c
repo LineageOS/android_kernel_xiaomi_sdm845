@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2475,7 +2475,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 		return status;
 	}
 	if (!SME_IS_START(pMac)) {
-		sme_warn("message type %d in stop state ignored", pMsg->type);
+		sme_debug("message type %d in stop state ignored", pMsg->type);
 		if (pMsg->bodyptr)
 			qdf_mem_free(pMsg->bodyptr);
 		goto release_lock;

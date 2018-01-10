@@ -10192,7 +10192,7 @@ void hdd_dp_trace_init(struct hdd_config *config)
 		live_mode = config_params[0];
 		/* fall through */
 	default:
-		hdd_info("live_mode %u thresh %u time_limit %u verbosity %u bitmap 0x%x",
+		hdd_debug("live_mode %u thresh %u time_limit %u verbosity %u bitmap 0x%x",
 			live_mode, thresh, thresh_time_limit,
 			verbosity, proto_bitmap);
 		break;
