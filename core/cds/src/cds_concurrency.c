@@ -7928,6 +7928,10 @@ void cds_check_concurrent_intf_and_restart_sap(hdd_adapter_t *adapter)
 		return;
 	}
 
+	/* don't restart sap if driver is loading/unloading/recovering */
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return;
+
 	if (cds_get_connection_count() == 1) {
 		/*
 		 * If STA+SAP sessions are on DFS channel and STA+SAP SCC is
