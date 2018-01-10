@@ -6934,7 +6934,8 @@ QDF_STATUS hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 
 int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
 {
-	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "Map: %d Num_buf: %d", map, num_buf);
+	HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG, "Map: %d Num_buf: %d",
+		       map, num_buf);
 
 	if (!num_buf) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "No buffers to map/unmap");
