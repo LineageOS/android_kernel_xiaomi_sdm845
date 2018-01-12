@@ -104,6 +104,11 @@
 #define OL_TXRX_PEER_DEC_REF_CNT_SILENT(peer) \
 	qdf_atomic_dec(&peer->ref_cnt)
 
+ol_txrx_peer_handle
+ol_txrx_peer_find_by_local_id_inc_ref(struct ol_txrx_pdev_t *pdev,
+			      uint8_t local_peer_id);
+static void ol_txrx_peer_dec_ref_cnt(struct ol_txrx_peer_t *peer);
+
 #if defined(CONFIG_HL_SUPPORT) && defined(FEATURE_WLAN_TDLS)
 
 /**
@@ -323,6 +328,7 @@ void *ol_txrx_get_vdev_by_sta_id(uint8_t sta_id)
 {
 	struct ol_txrx_peer_t *peer = NULL;
 	ol_txrx_pdev_handle pdev = NULL;
+	ol_txrx_vdev_handle vdev;
 
 	if (sta_id >= WLAN_MAX_STA_COUNT) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
@@ -337,14 +343,17 @@ void *ol_txrx_get_vdev_by_sta_id(uint8_t sta_id)
 		return NULL;
 	}
 
-	peer = ol_txrx_peer_find_by_local_id(pdev, sta_id);
+	peer = ol_txrx_peer_find_by_local_id_inc_ref(pdev, sta_id);
 	if (!peer) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
 			  "PEER [%d] not found", sta_id);
 		return NULL;
 	}
 
-	return peer->vdev;
+	vdev = peer->vdev;
+	ol_txrx_peer_dec_ref_cnt(peer);
+
+	return vdev;
 }
 
 /**
