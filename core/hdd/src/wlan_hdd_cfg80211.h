@@ -609,6 +609,17 @@ void hdd_process_defer_disconnect(hdd_adapter_t *adapter);
 int wlan_hdd_try_disconnect(hdd_adapter_t *adapter);
 
 /**
+ * wlan_hdd_disconnect() - hdd disconnect api
+ * @pAdapter: Pointer to adapter
+ * @reason: Disconnect reason code
+ *
+ * This function is used to issue a disconnect request to SME
+ *
+ * Return: 0 for success, non-zero for failure
+ */
+int wlan_hdd_disconnect(hdd_adapter_t *pAdapter, u16 reason);
+
+/**
  * hdd_bt_activity_cb() - callback function to receive bt activity
  * @context: HDD context
  * @bt_activity: specifies the kind of bt activity
