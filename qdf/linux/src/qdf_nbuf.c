@@ -550,7 +550,11 @@ QDF_STATUS qdf_nbuf_map_debug(qdf_device_t osdev,
 	if (QDF_IS_STATUS_ERROR(status))
 		return status;
 
-	return __qdf_nbuf_map(osdev, buf, dir);
+	status = __qdf_nbuf_map(osdev, buf, dir);
+	if (QDF_IS_STATUS_ERROR(status))
+		qdf_nbuf_untrack_map(buf, file, line);
+
+	return status;
 }
 
 void qdf_nbuf_unmap_debug(qdf_device_t osdev,
@@ -575,7 +579,11 @@ QDF_STATUS qdf_nbuf_map_single_debug(qdf_device_t osdev,
 	if (QDF_IS_STATUS_ERROR(status))
 		return status;
 
-	return __qdf_nbuf_map_single(osdev, buf, dir);
+	status = __qdf_nbuf_map_single(osdev, buf, dir);
+	if (QDF_IS_STATUS_ERROR(status))
+		qdf_nbuf_untrack_map(buf, file, line);
+
+	return status;
 }
 
 void qdf_nbuf_unmap_single_debug(qdf_device_t osdev,
@@ -601,7 +609,11 @@ QDF_STATUS qdf_nbuf_map_nbytes_debug(qdf_device_t osdev,
 	if (QDF_IS_STATUS_ERROR(status))
 		return status;
 
-	return __qdf_nbuf_map_nbytes(osdev, buf, dir, nbytes);
+	status = __qdf_nbuf_map_nbytes(osdev, buf, dir, nbytes);
+	if (QDF_IS_STATUS_ERROR(status))
+		qdf_nbuf_untrack_map(buf, file, line);
+
+	return status;
 }
 
 void qdf_nbuf_unmap_nbytes_debug(qdf_device_t osdev,
@@ -628,7 +640,11 @@ QDF_STATUS qdf_nbuf_map_nbytes_single_debug(qdf_device_t osdev,
 	if (QDF_IS_STATUS_ERROR(status))
 		return status;
 
-	return __qdf_nbuf_map_nbytes_single(osdev, buf, dir, nbytes);
+	status = __qdf_nbuf_map_nbytes_single(osdev, buf, dir, nbytes);
+	if (QDF_IS_STATUS_ERROR(status))
+		qdf_nbuf_untrack_map(buf, file, line);
+
+	return status;
 }
 
 void qdf_nbuf_unmap_nbytes_single_debug(qdf_device_t osdev,
