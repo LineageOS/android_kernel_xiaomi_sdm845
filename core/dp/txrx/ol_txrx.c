@@ -497,7 +497,7 @@ ol_txrx_peer_find_by_local_id_inc_ref(struct ol_txrx_pdev_t *pdev,
 	qdf_spin_lock_bh(&pdev->local_peer_ids.lock);
 	peer = pdev->local_peer_ids.map[local_peer_id];
 	qdf_spin_unlock_bh(&pdev->local_peer_ids.lock);
-	if (peer->valid)
+	if (peer && peer->valid)
 		OL_TXRX_PEER_INC_REF_CNT_SILENT(peer);
 	qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 
