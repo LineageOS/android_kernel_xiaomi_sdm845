@@ -3690,10 +3690,7 @@ QDF_STATUS hdd_roam_deregister_tdlssta(hdd_adapter_t *pAdapter, uint8_t staId)
 	QDF_STATUS qdf_status;
 
 	qdf_status = ol_txrx_clear_peer(staId);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		hdd_err("ol_txrx_clear_peer() failed staID: %d status: %d [0x%08X]",
-			 staId, qdf_status, qdf_status);
-	}
+
 	return qdf_status;
 }
 
