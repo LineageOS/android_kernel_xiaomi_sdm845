@@ -161,6 +161,26 @@ static bool hdd_p2p_is_action_type_rsp(const u8 *buf, uint32_t len)
 }
 
 /**
+ * hdd_is_p2p_go_cnf_frame() - function to if the frame type is go neg cnf
+ * @buf: pointer to frame
+ * @len: frame length
+ *
+ * This function is used to check if the given frame is GO negotiation
+ * confirmation frame.
+ *
+ * Return: true if the frame is go negotiation confirmation otherwise false
+ */
+static bool hdd_is_p2p_go_cnf_frame(const u8 *buf, uint32_t len)
+{
+	if (wlan_hdd_is_type_p2p_action(buf, len) &&
+			buf[WLAN_HDD_PUBLIC_ACTION_FRAME_SUB_TYPE_OFFSET] ==
+			WLAN_HDD_GO_NEG_CNF)
+		return true;
+	else
+		return false;
+}
+
+/**
  * hdd_random_mac_callback() - Callback invoked from wmi layer
  * @set_random_addr: Status of random mac filter set operation
  * @context: Context passed while registring callback
@@ -2068,7 +2088,13 @@ static int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (NULL != cfgState->buf) {
 		if (!noack) {
 			hdd_warn("Previous P2P Action frame packet pending");
-			hdd_cleanup_actionframe(pAdapter->pHddCtx, pAdapter);
+			if (!hdd_is_p2p_go_cnf_frame(buf, len))
+				hdd_cleanup_actionframe(pAdapter->pHddCtx,
+						pAdapter);
+			else {
+				hdd_cleanup_actionframe_no_wait(
+						pAdapter->pHddCtx, pAdapter);
+			}
 		} else {
 			hdd_err("Pending Action frame packet return EBUSY");
 			return -EBUSY;

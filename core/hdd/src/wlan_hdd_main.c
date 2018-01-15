@@ -3316,6 +3316,7 @@ void hdd_cleanup_actionframe(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	if (NULL != cfgState->buf) {
 		unsigned long rc;
 
+		hdd_debug("Wait for ack for the previous action frame");
 		rc = wait_for_completion_timeout(
 			&adapter->tx_action_cnf_event,
 			msecs_to_jiffies(ACTION_FRAME_TX_TIMEOUT));
@@ -3326,7 +3327,35 @@ void hdd_cleanup_actionframe(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 			 * cfgState->buf
 			 */
 			 hdd_send_action_cnf(adapter, false);
-		}
+		} else
+			hdd_debug("Wait complete");
+	}
+}
+
+/**
+ * hdd_cleanup_actionframe_no_wait() - Clean up pending action frame
+ * @hdd_ctx: global hdd context
+ * @adapter: pointer to adapter
+ *
+ * This function used to cancel the pending action frame without waiting for
+ * ack.
+ *
+ * Return: None.
+ */
+void hdd_cleanup_actionframe_no_wait(hdd_context_t *hdd_ctx,
+		hdd_adapter_t *adapter)
+{
+	hdd_cfg80211_state_t *cfgState;
+
+	cfgState = WLAN_HDD_GET_CFG_STATE_PTR(adapter);
+
+	if (cfgState->buf) {
+		/*
+		 * Inform tx status as FAILURE to upper layer and free
+		 * cfgState->buf
+		 */
+		hdd_debug("Cleanup previous action frame without waiting for the ack");
+		hdd_send_action_cnf(adapter, false);
 	}
 }
 
