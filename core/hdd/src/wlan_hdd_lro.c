@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -498,11 +498,6 @@ int hdd_lro_enable(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 
 	adapter->dev->features |= NETIF_F_LRO;
 
-	if (hdd_ctx->config->enable_tcp_delack) {
-		hdd_ctx->config->enable_tcp_delack = 0;
-		hdd_reset_tcp_delack(hdd_ctx);
-	}
-
 	hdd_debug("LRO Enabled");
 
 	return 0;
@@ -670,7 +665,7 @@ hdd_lro_set_reset(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		adapter->dev->features &= ~NETIF_F_LRO;
 		hdd_debug("LRO Disabled");
 
-		if (!hdd_ctx->config->enable_tcp_delack) {
+		if (hdd_ctx->config->enable_tcp_delack) {
 			struct wlan_rx_tp_data rx_tp_data;
 
 			hdd_debug("Enable TCP delack as LRO is disabled.");
@@ -679,7 +674,7 @@ hdd_lro_set_reset(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 			wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
 				WLAN_SVC_WLAN_TP_IND, &rx_tp_data,
 				sizeof(rx_tp_data));
-			hdd_ctx->config->enable_tcp_delack = 1;
+			hdd_ctx->tcp_delack_on = 1;
 		}
 	}
 	return 0;

@@ -1980,6 +1980,7 @@ struct hdd_context_s {
 	bool hbw_requested;
 	uint32_t last_nil_scan_bug_report_timestamp;
 	uint32_t ol_enable;
+	uint32_t tcp_delack_on;
 #ifdef WLAN_FEATURE_NAN_DATAPATH
 	bool nan_datapath_enabled;
 #endif

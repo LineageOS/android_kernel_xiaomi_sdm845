@@ -6560,7 +6560,7 @@ static void hdd_pld_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 		 * to default delayed ack. Note that this will disable the
 		 * dynamic delayed ack mechanism across the system
 		 */
-		if (hdd_ctx->config->enable_tcp_delack)
+		if (hdd_ctx->tcp_delack_on)
 			rx_tp_data.rx_tp_flags |= TCP_DEL_ACK_IND;
 
 		if (hdd_ctx->config->enable_tcp_adv_win_scale)
@@ -6851,7 +6851,7 @@ void wlan_hdd_display_tx_rx_histogram(hdd_context_t *hdd_ctx)
 		hdd_ctx->config->busBandwidthMediumThreshold,
 		hdd_ctx->config->busBandwidthLowThreshold);
 	hdd_debug("Enable TCP DEL ACK: %d",
-		hdd_ctx->config->enable_tcp_delack);
+		hdd_ctx->tcp_delack_on);
 	hdd_debug("TCP DEL High TH: %d TCP DEL Low TH: %d",
 		hdd_ctx->config->tcpDelackThresholdHigh,
 		hdd_ctx->config->tcpDelackThresholdLow);
