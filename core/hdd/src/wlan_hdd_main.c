@@ -5600,9 +5600,7 @@ QDF_STATUS hdd_abort_mac_scan_all_adapters(hdd_context_t *hdd_ctx)
 		    (adapter->device_mode == QDF_P2P_DEVICE_MODE) ||
 		    (adapter->device_mode == QDF_SAP_MODE) ||
 		    (adapter->device_mode == QDF_P2P_GO_MODE)) {
-			hdd_abort_mac_scan(hdd_ctx, adapter->sessionId,
-					   INVALID_SCAN_ID,
-					   eCSR_SCAN_ABORT_DEFAULT);
+			wlan_hdd_scan_abort(adapter);
 		}
 		status = hdd_get_next_adapter(hdd_ctx, adapterNode, &pNext);
 		adapterNode = pNext;
