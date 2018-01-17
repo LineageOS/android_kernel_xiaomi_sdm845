@@ -12003,7 +12003,7 @@ void hdd_populate_random_mac_addr(struct hdd_context *hdd_ctx, uint32_t num)
 	}
 }
 
-static int randomize_mac = 0;
+static int randomize_mac = 1;
 
 static struct ctl_table randomize_mac_table[] =
 {
