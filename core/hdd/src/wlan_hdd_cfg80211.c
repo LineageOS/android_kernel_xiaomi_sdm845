@@ -175,6 +175,11 @@
  */
 #define WLAN_DEAUTH_DPTRACE_DUMP_COUNT 100
 
+static const u32 hdd_gcmp_cipher_suits[] = {
+	WLAN_CIPHER_SUITE_GCMP,
+	WLAN_CIPHER_SUITE_GCMP_256,
+};
+
 static const u32 hdd_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP40,
 	WLAN_CIPHER_SUITE_WEP104,
@@ -194,8 +199,6 @@ static const u32 hdd_cipher_suites[] = {
 #ifdef WLAN_FEATURE_11W
 	WLAN_CIPHER_SUITE_AES_CMAC,
 #endif
-	WLAN_CIPHER_SUITE_GCMP,
-	WLAN_CIPHER_SUITE_GCMP_256,
 };
 
 static const struct ieee80211_channel hdd_channels_2_4_ghz[] = {
@@ -12746,6 +12749,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 	int i, j;
 	hdd_context_t *pHddCtx = wiphy_priv(wiphy);
 	int len = 0;
+	uint32_t *cipher_suites;
 
 	ENTER();
 
@@ -12958,9 +12962,32 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 		}
 	}
 	/*Initialise the supported cipher suite details */
-	wiphy->cipher_suites = hdd_cipher_suites;
-	wiphy->n_cipher_suites = ARRAY_SIZE(hdd_cipher_suites);
-
+	if (pCfg->gcmp_enabled) {
+		cipher_suites = qdf_mem_malloc(sizeof(hdd_cipher_suites) +
+					       sizeof(hdd_gcmp_cipher_suits));
+		if (cipher_suites == NULL) {
+			hdd_err("Not enough memory for cipher suites");
+			return -ENOMEM;
+		}
+		wiphy->n_cipher_suites = QDF_ARRAY_SIZE(hdd_cipher_suites) +
+			 QDF_ARRAY_SIZE(hdd_gcmp_cipher_suits);
+		qdf_mem_copy(cipher_suites, &hdd_cipher_suites,
+			     sizeof(hdd_cipher_suites));
+		qdf_mem_copy(cipher_suites + QDF_ARRAY_SIZE(hdd_cipher_suites),
+			     &hdd_gcmp_cipher_suits,
+			     sizeof(hdd_gcmp_cipher_suits));
+	} else {
+		cipher_suites = qdf_mem_malloc(sizeof(hdd_cipher_suites));
+		if (cipher_suites == NULL) {
+			hdd_err("Not enough memory for cipher suites");
+			return -ENOMEM;
+		}
+		wiphy->n_cipher_suites = QDF_ARRAY_SIZE(hdd_cipher_suites);
+		qdf_mem_copy(cipher_suites, &hdd_cipher_suites,
+			     sizeof(hdd_cipher_suites));
+	}
+	wiphy->cipher_suites = cipher_suites;
+	cipher_suites = NULL;
 	/*signal strength in mBm (100*dBm) */
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	wiphy->max_remain_on_channel_duration = MAX_REMAIN_ON_CHANNEL_DURATION;
@@ -13022,6 +13049,7 @@ mem_fail:
 void wlan_hdd_cfg80211_deinit(struct wiphy *wiphy)
 {
 	int i;
+	const uint32_t *cipher_suites;
 
 	for (i = 0; i < HDD_NUM_NL80211_BANDS; i++) {
 		if (NULL != wiphy->bands[i] &&
@@ -13030,6 +13058,11 @@ void wlan_hdd_cfg80211_deinit(struct wiphy *wiphy)
 			wiphy->bands[i]->channels = NULL;
 		}
 	}
+	cipher_suites = wiphy->cipher_suites;
+	wiphy->cipher_suites = NULL;
+	wiphy->n_cipher_suites = 0;
+	qdf_mem_free((uint32_t *)cipher_suites);
+	cipher_suites = NULL;
 	hdd_reset_global_reg_params();
 }
 

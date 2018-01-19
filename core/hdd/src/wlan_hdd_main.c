@@ -9818,6 +9818,8 @@ int hdd_configure_cds(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	if (hdd_ctx->config->enable_phy_reg_retention)
 		sme_cli_set_command(0, WMI_PDEV_PARAM_FAST_PWR_TRANSITION,
 			hdd_ctx->config->enable_phy_reg_retention, PDEV_CMD);
+	sme_cli_set_command(0, WMI_PDEV_PARAM_GCMP_SUPPORT_ENABLE,
+			    hdd_ctx->config->gcmp_enabled, PDEV_CMD);
 
 	sme_cli_set_command(0, (int)WMI_PDEV_AUTO_DETECT_POWER_FAILURE,
 			    hdd_ctx->config->auto_pwr_save_fail_mode, PDEV_CMD);
