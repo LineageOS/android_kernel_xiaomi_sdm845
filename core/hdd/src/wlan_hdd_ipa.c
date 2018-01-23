@@ -5840,7 +5840,7 @@ static void hdd_ipa_cleanup_iface(struct hdd_ipa_iface_context *iface_context)
 {
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "enter");
 
-	if (iface_context == NULL)
+	if (iface_context == NULL || iface_context->adapter == NULL)
 		return;
 	if (iface_context->adapter->magic != WLAN_HDD_ADAPTER_MAGIC) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG,
@@ -6948,4 +6948,11 @@ int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
 			   (struct ipa_wdi_buffer_info *)buf_arr);
 }
 
+void hdd_ipa_clean_adapter_iface(hdd_adapter_t *adapter)
+{
+	struct hdd_ipa_iface_context *iface_ctx = adapter->ipa_context;
+
+	if (iface_ctx)
+		hdd_ipa_cleanup_iface(iface_ctx);
+}
 #endif /* IPA_OFFLOAD */

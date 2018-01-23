@@ -8629,6 +8629,10 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 
 			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 				hdd_err("qdf wait for single_event failed!!");
+
+				if (hdd_ipa_uc_is_enabled(pHddCtx))
+					hdd_ipa_clean_adapter_iface(pAdapter);
+
 				QDF_ASSERT(0);
 			}
 		}
