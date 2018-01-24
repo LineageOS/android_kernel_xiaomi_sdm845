@@ -10406,7 +10406,7 @@ QDF_STATUS wma_sar_register_event_handlers(WMA_HANDLE handle)
 	}
 
 	return wmi_unified_register_event_handler(wmi_handle,
-						  wmi_sar_get_limits_event_id,
+						  WMI_SAR_GET_LIMITS_EVENTID,
 						  wma_sar_event_handler,
 						  WMA_RX_WORK_CTX);
 }
