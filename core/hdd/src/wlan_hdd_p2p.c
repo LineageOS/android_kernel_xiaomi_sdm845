@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1354,6 +1354,89 @@ void wlan_hdd_roc_request_dequeue(struct work_struct *work)
 	qdf_mem_free(hdd_roc_req);
 }
 
+/**
+ * wlan_hdd_is_roc_in_progress_for_other_adapters() - Check if roc is in
+ *	progress for another adapter
+ * @hdd_ctx: HDD context
+ * @cur_adapter: current adapter
+ *
+ * Roc requests are serialized per adapter. This means that simultaneous
+ * roc requests on multiple adapters are not supported. This function checks
+ * and returns if there is an roc being executed on another adapter.
+ *
+ * Return: true if roc is ongoing for another adapter, false otherwise.
+ */
+static bool
+wlan_hdd_is_roc_in_progress_for_other_adapters(hdd_context_t *hdd_ctx,
+						hdd_adapter_t *cur_adapter)
+{
+	hdd_adapter_list_node_t *adapter_node = NULL, *next = NULL;
+	hdd_adapter_t *adapter;
+	QDF_STATUS qdf_status;
+
+	qdf_status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+
+	while ((NULL != adapter_node) && (QDF_STATUS_SUCCESS == qdf_status)) {
+		adapter = adapter_node->pAdapter;
+		if (cur_adapter != adapter) {
+			if (adapter->is_roc_inprogress)
+				return true;
+		}
+
+		qdf_status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+
+	return false;
+}
+
+/**
+ * wlan_hdd_is_roc_req_queued_by_other_adapters() - Check if an roc req is
+ *	queued by another adapter
+ * @hdd_ctx: HDD context
+ * @cur_adapter: current adapter
+ *
+ * Roc requests are serialized per adapter. This means that simultaneous
+ * roc requests on multiple adapters are not supported. This function checks
+ * and returns if there is an roc request queued by another adapter.
+ *
+ * Return: true if roc is queued by another adapter, false otherwise.
+ */
+static bool
+wlan_hdd_is_roc_req_queued_by_other_adapters(hdd_context_t *hdd_ctx,
+					     hdd_adapter_t *cur_adapter)
+{
+	qdf_list_node_t *node = NULL, *next_node = NULL;
+	hdd_roc_req_t *roc_req;
+
+	qdf_spin_lock(&hdd_ctx->hdd_roc_req_q_lock);
+	if (list_empty(&hdd_ctx->hdd_roc_req_q.anchor)) {
+		qdf_spin_unlock(&hdd_ctx->hdd_roc_req_q_lock);
+		return false;
+	}
+	if (QDF_STATUS_SUCCESS != qdf_list_peek_front(&hdd_ctx->hdd_roc_req_q,
+						      &next_node)) {
+		qdf_spin_unlock(&hdd_ctx->hdd_roc_req_q_lock);
+		hdd_err("Unable to peek roc element from list");
+		return false;
+	}
+
+	do {
+		node = next_node;
+		roc_req = qdf_container_of(node, hdd_roc_req_t, node);
+		if (roc_req->pAdapter != cur_adapter) {
+			qdf_spin_unlock(&hdd_ctx->hdd_roc_req_q_lock);
+			return true;
+		}
+
+	} while (QDF_STATUS_SUCCESS  == qdf_list_peek_next(
+							&hdd_ctx->hdd_roc_req_q,
+							node, &next_node));
+	qdf_spin_unlock(&hdd_ctx->hdd_roc_req_q_lock);
+
+	return false;
+}
+
 static int wlan_hdd_request_remain_on_channel(struct wiphy *wiphy,
 					      struct net_device *dev,
 					      struct ieee80211_channel *chan,
@@ -1382,6 +1465,12 @@ static int wlan_hdd_request_remain_on_channel(struct wiphy *wiphy,
 	if (0 != ret)
 		return ret;
 
+	if ((wlan_hdd_is_roc_in_progress_for_other_adapters(pHddCtx, pAdapter))
+	   || (wlan_hdd_is_roc_req_queued_by_other_adapters(pHddCtx, pAdapter))
+		) {
+		hdd_debug("ROC in progress or queued for another adapter");
+		return -EAGAIN;
+	}
 	if (cds_is_connection_in_progress(NULL, NULL)) {
 		hdd_debug("Connection is in progress");
 		if (request_type == OFF_CHANNEL_ACTION_TX) {
