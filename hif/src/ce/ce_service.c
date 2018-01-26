@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -644,9 +644,14 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 
 	if (qdf_unlikely(CE_RING_DELTA(nentries_mask, write_index, sw_index - 1)
 			 < SLOTS_PER_DATAPATH_TX)) {
-		HIF_ERROR("Source ring full, required %d, available %d",
-		      SLOTS_PER_DATAPATH_TX,
-		      CE_RING_DELTA(nentries_mask, write_index, sw_index - 1));
+		static unsigned int rate_limit;
+
+		if (rate_limit & 0x0f)
+			HIF_ERROR("Source ring full, required %d, available %d",
+				  SLOTS_PER_DATAPATH_TX,
+				  CE_RING_DELTA(nentries_mask, write_index,
+						sw_index - 1));
+		rate_limit++;
 		OL_ATH_CE_PKT_ERROR_COUNT_INCR(scn, CE_RING_DELTA_FAIL);
 		Q_TARGET_ACCESS_END(scn);
 		qdf_spin_unlock_bh(&ce_state->ce_index_lock);
