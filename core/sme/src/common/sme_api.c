@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2475,7 +2475,7 @@ QDF_STATUS sme_process_msg(tHalHandle hHal, cds_msg_t *pMsg)
 		return status;
 	}
 	if (!SME_IS_START(pMac)) {
-		sme_warn("message type %d in stop state ignored", pMsg->type);
+		sme_debug("message type %d in stop state ignored", pMsg->type);
 		if (pMsg->bodyptr)
 			qdf_mem_free(pMsg->bodyptr);
 		goto release_lock;
@@ -17254,6 +17254,9 @@ QDF_STATUS sme_set_default_scan_ie(tHalHandle hal, uint16_t session_id,
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	struct hdd_default_scan_ie *set_ie_params;
 
+	if (!ie_data)
+		return QDF_STATUS_E_INVAL;
+
 	status = sme_acquire_global_lock(&mac_ctx->sme);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		set_ie_params = qdf_mem_malloc(sizeof(*set_ie_params));
@@ -17271,6 +17274,21 @@ QDF_STATUS sme_set_default_scan_ie(tHalHandle hal, uint16_t session_id,
 	}
 
 	return status;
+}
+
+QDF_STATUS sme_get_sar_power_limits(tHalHandle hal,
+				    wma_sar_cb callback, void *context)
+{
+	void *wma_handle;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma_handle) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+				"wma handle is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return wma_get_sar_limit(wma_handle, callback, context);
 }
 
 QDF_STATUS sme_set_sar_power_limits(tHalHandle hal,

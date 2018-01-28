@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2931,6 +2931,7 @@ __lim_process_sme_set_context_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		if (mlm_set_key_req->numKeys >
 				SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS) {
 			pe_err("no.of keys exceeded max num of default keys limit");
+			qdf_mem_free(mlm_set_key_req);
 			goto end;
 		}
 		qdf_copy_macaddr(&mlm_set_key_req->peer_macaddr,
@@ -5429,10 +5430,13 @@ static void lim_process_sme_channel_change_request(tpAniSirGlobal mac_ctx,
 		session_entry->channelChangeReasonCode =
 			LIM_SWITCH_CHANNEL_OPERATION;
 
-	pe_debug("switch old chnl %d to new chnl %d, ch_bw %d",
+	pe_debug("switch old chnl %d to new chnl %d, ch_bw %d, nw_type %d, dot11mode %d",
 			session_entry->currentOperChannel,
 			ch_change_req->targetChannel,
-			ch_change_req->ch_width);
+			ch_change_req->ch_width,
+			ch_change_req->nw_type,
+			ch_change_req->dot11mode
+			);
 
 	/* Store the New Channel Params in session_entry */
 	session_entry->ch_width = ch_change_req->ch_width;
@@ -5459,6 +5463,7 @@ static void lim_process_sme_channel_change_request(tpAniSirGlobal mac_ctx,
 
 	session_entry->lim11hEnable = val;
 	session_entry->dot11mode = ch_change_req->dot11mode;
+	session_entry->nwType = ch_change_req->nw_type;
 	qdf_mem_copy(&session_entry->rateSet,
 			&ch_change_req->operational_rateset,
 			sizeof(session_entry->rateSet));

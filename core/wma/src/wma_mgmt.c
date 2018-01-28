@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -3526,7 +3526,11 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 		WMA_LOGE("Rx event is NULL");
 		return -EINVAL;
 	}
-
+	if (hdr->buf_len > param_tlvs->num_bufp) {
+		WMA_LOGE("Invalid length of frame hdr->buf_len:%u, param_tlvs->num_bufp:%u",
+			hdr->buf_len, param_tlvs->num_bufp);
+		return -EINVAL;
+	}
 	if (hdr->buf_len < sizeof(struct ieee80211_frame) ||
 		hdr->buf_len > data_len) {
 		limit_prints_invalid_len++;

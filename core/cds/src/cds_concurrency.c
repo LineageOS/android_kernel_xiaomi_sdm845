@@ -7928,6 +7928,10 @@ void cds_check_concurrent_intf_and_restart_sap(hdd_adapter_t *adapter)
 		return;
 	}
 
+	/* don't restart sap if driver is loading/unloading/recovering */
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return;
+
 	if (cds_get_connection_count() == 1) {
 		/*
 		 * If STA+SAP sessions are on DFS channel and STA+SAP SCC is
@@ -9895,7 +9899,7 @@ uint8_t cds_get_alternate_channel_for_sap(void)
 	uint8_t pcl_channels[QDF_MAX_NUM_CHAN];
 	uint8_t pcl_weight[QDF_MAX_NUM_CHAN];
 	uint8_t channel = 0;
-	uint32_t pcl_len;
+	uint32_t pcl_len = 0;
 
 	if (QDF_STATUS_SUCCESS == cds_get_pcl(CDS_SAP_MODE,
 		&pcl_channels[0], &pcl_len,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -12382,9 +12382,12 @@ int hdd_set_band(struct net_device *dev, u8 ui_band)
 		return -EINVAL;
 	}
 
-	if ((band == SIR_BAND_2_4_GHZ && pHddCtx->config->nBandCapability == 2) ||
-	    (band == SIR_BAND_5_GHZ && pHddCtx->config->nBandCapability == 1) ||
-	    (band == SIR_BAND_ALL && pHddCtx->config->nBandCapability != 0)) {
+	if ((band == SIR_BAND_2_4_GHZ &&
+	     pHddCtx->config->nBandCapability == SIR_BAND_5_GHZ) ||
+	    (band == SIR_BAND_5_GHZ &&
+	     pHddCtx->config->nBandCapability == SIR_BAND_2_4_GHZ) ||
+	    (band == SIR_BAND_ALL &&
+	     pHddCtx->config->nBandCapability != SIR_BAND_ALL)) {
 		hdd_err("band value %u violate INI settings %u",
 			  band, pHddCtx->config->nBandCapability);
 		return -EIO;

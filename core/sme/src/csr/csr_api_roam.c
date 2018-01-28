@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -13603,7 +13603,7 @@ static void csr_populate_supported_rates_from_hostapd(tSirMacRateSet *opr_rates,
  *
  * Return: void
  */
-static void
+static QDF_STATUS
 csr_roam_get_bss_start_parms(tpAniSirGlobal pMac,
 			     tCsrRoamProfile *pProfile,
 			     tCsrRoamStartBssParams *pParam,
@@ -13631,6 +13631,7 @@ csr_roam_get_bss_start_parms(tpAniSirGlobal pMac,
 			 "For P2P (persona %d) dot11_mode is 11B",
 			  pProfile->csrPersona);
 		QDF_ASSERT(0);
+		return QDF_STATUS_E_INVAL;
 	}
 
 	nw_type = csr_convert_mode_to_nw_type(pParam->uCfgDot11Mode, band);
@@ -13653,6 +13654,7 @@ csr_roam_get_bss_start_parms(tpAniSirGlobal pMac,
 			sme_err(
 				"sees an unknown pSirNwType (%d)",
 				nw_type);
+			return QDF_STATUS_E_INVAL;
 		case eSIR_11A_NW_TYPE:
 			csr_populate_basic_rates(opr_rates, true, true);
 			if (eCSR_OPERATING_CHANNEL_ANY != tmp_opr_ch) {
@@ -13716,6 +13718,7 @@ csr_roam_get_bss_start_parms(tpAniSirGlobal pMac,
 		pProfile->ch_params.center_freq_seg1;
 	pParam->ch_params.sec_ch_offset =
 		pProfile->ch_params.sec_ch_offset;
+	return QDF_STATUS_SUCCESS;
 }
 
 static void
@@ -14833,6 +14836,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	uint32_t value = 0, value1 = 0;
 	QDF_STATUS packetdump_timer_status;
 	enum hw_mode_dbs_capab hw_mode_to_use;
+	tDot11fIEVHTCaps *vht_caps = NULL;
 
 	if (!pSession) {
 		sme_err("session %d not found", sessionId);
@@ -15365,8 +15369,12 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		csr_join_req->vht_config.su_beam_formee = value;
 
+		if (pIes->VHTCaps.present)
+			vht_caps = &pIes->VHTCaps;
+		else if (pIes->vendor_vht_ie.VHTCaps.present)
+			vht_caps = &pIes->vendor_vht_ie.VHTCaps;
 		/* Set BF CSN value only if SU Bformee is enabled */
-		if (csr_join_req->vht_config.su_beam_formee) {
+		if (vht_caps && csr_join_req->vht_config.su_beam_formee) {
 			txBFCsnValue = (uint8_t)value1;
 			/*
 			 * Certain commercial AP display a bad behavior when
@@ -15376,18 +15384,11 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			 * CSN cap of less than 4. To avoid such issues, take a
 			 * min of self and peer CSN while sending ASSOC request.
 			 */
-			if (txBFCsnValue < 4) {
-				if (IS_BSS_VHT_CAPABLE(pIes->VHTCaps) &&
-					pIes->VHTCaps.csnofBeamformerAntSup)
+			if (pIes->Vendor1IE.present &&
+					vht_caps->csnofBeamformerAntSup < 4) {
+				if (vht_caps->csnofBeamformerAntSup)
 					txBFCsnValue = QDF_MIN(txBFCsnValue,
-					  pIes->VHTCaps.csnofBeamformerAntSup);
-				else if (IS_BSS_VHT_CAPABLE(
-					pIes->vendor_vht_ie.VHTCaps)
-					&& pIes->vendor_vht_ie.VHTCaps.
-					csnofBeamformerAntSup)
-					txBFCsnValue = QDF_MIN(txBFCsnValue,
-					  pIes->vendor_vht_ie.
-					  VHTCaps.csnofBeamformerAntSup);
+					  vht_caps->csnofBeamformerAntSup);
 			}
 		}
 		csr_join_req->vht_config.csnof_beamformer_antSup = txBFCsnValue;
@@ -20204,7 +20205,13 @@ QDF_STATUS csr_roam_channel_change_req(tpAniSirGlobal pMac,
 	 */
 	qdf_mem_zero(&param, sizeof(tCsrRoamStartBssParams));
 
-	csr_roam_get_bss_start_parms(pMac, profile, &param, skip_hostapd_rate);
+	status = csr_roam_get_bss_start_parms(pMac, profile, &param,
+		skip_hostapd_rate);
+
+	if (status != QDF_STATUS_SUCCESS) {
+		sme_err("Failed to get bss parameters");
+		return status;
+	}
 
 	pMsg = qdf_mem_malloc(sizeof(tSirChanChangeRequest));
 	if (!pMsg)
@@ -20216,13 +20223,13 @@ QDF_STATUS csr_roam_channel_change_req(tpAniSirGlobal pMac,
 	pMsg->sec_ch_offset = ch_params->sec_ch_offset;
 	pMsg->ch_width = profile->ch_params.ch_width;
 	pMsg->dot11mode = csr_translate_to_wni_cfg_dot11_mode(pMac,
-					pMac->roam.configParam.uCfgDot11Mode);
+			pMac->roam.configParam.uCfgDot11Mode);
 	if (IS_24G_CH(pMsg->targetChannel) &&
 	   (false == pMac->roam.configParam.enableVhtFor24GHz) &&
 	   (WNI_CFG_DOT11_MODE_11AC == pMsg->dot11mode ||
 	    WNI_CFG_DOT11_MODE_11AC_ONLY == pMsg->dot11mode))
 		pMsg->dot11mode = WNI_CFG_DOT11_MODE_11N;
-
+	pMsg->nw_type = param.sirNwType;
 	pMsg->center_freq_seg_0 = ch_params->center_freq_seg0;
 	pMsg->center_freq_seg_1 = ch_params->center_freq_seg1;
 	qdf_mem_copy(pMsg->bssid, bssid.bytes, QDF_MAC_ADDR_SIZE);

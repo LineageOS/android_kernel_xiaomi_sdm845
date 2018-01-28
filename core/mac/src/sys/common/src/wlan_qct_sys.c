@@ -50,57 +50,57 @@ static qdf_event_t g_stop_evt;
 
 /**
  * sys_build_message_header() - to build the sys message header
- * @sysMsgId: message id
- * @pMsg: pointer to message context
+ * @msg_id: message id
+ * @msg: pointer to message context
  *
  * This API is used to build the sys message header.
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS sys_build_message_header(SYS_MSG_ID sysMsgId, cds_msg_t *pMsg)
+QDF_STATUS sys_build_message_header(SYS_MSG_ID msg_id, cds_msg_t *msg)
 {
-	pMsg->type = sysMsgId;
-	pMsg->reserved = SYS_MSG_COOKIE;
+	msg->type = msg_id;
+	msg->reserved = SYS_MSG_COOKIE;
 
 	return QDF_STATUS_SUCCESS;
 }
 
 /**
- * sys_stop_complete_cb() - a callback when system stop completes
- * @pUserData: pointer to user provided data context
+ * umac_stop_complete_cb() - a callback when system stop completes
+ * @user_data: pointer to user provided data context
  *
  * this callback is used once system stop is completed.
  *
  * Return: none
  */
 #ifdef QDF_ENABLE_TRACING
-static void sys_stop_complete_cb(void *pUserData)
+static void umac_stop_complete_cb(void *user_data)
 {
-	qdf_event_t *pStopEvt = (qdf_event_t *) pUserData;
-	QDF_STATUS qdf_status = qdf_event_set(pStopEvt);
+	qdf_event_t *stop_evt = (qdf_event_t *) user_data;
+	QDF_STATUS qdf_status = qdf_event_set(stop_evt);
 
 	QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 
 }
 #else
-static void sys_stop_complete_cb(void *pUserData)
+static void umac_stop_complete_cb(void *user_data)
 {
 	return;
 }
 #endif
 
 /**
- * sys_stop() - To post stop message to system module
+ * umac_stop() - To post stop message to system module
  * @p_cds_context:  pointer to cds context
  *
  * This API is used post a stop message to system module
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS sys_stop(v_CONTEXT_t p_cds_context)
+QDF_STATUS umac_stop(v_CONTEXT_t p_cds_context)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
-	cds_msg_t sysMsg;
+	cds_msg_t umac_stop_msg;
 
 	/* Initialize the stop event */
 	qdf_status = qdf_event_create(&g_stop_evt);
@@ -109,14 +109,14 @@ QDF_STATUS sys_stop(v_CONTEXT_t p_cds_context)
 		return qdf_status;
 
 	/* post a message to SYS module in MC to stop SME and MAC */
-	sys_build_message_header(SYS_MSG_ID_MC_STOP, &sysMsg);
+	sys_build_message_header(SYS_MSG_ID_MC_STOP, &umac_stop_msg);
 
 	/* Save the user callback and user data */
-	sysMsg.callback = sys_stop_complete_cb;
-	sysMsg.bodyptr = (void *)&g_stop_evt;
+	umac_stop_msg.callback = umac_stop_complete_cb;
+	umac_stop_msg.bodyptr = (void *)&g_stop_evt;
 
 	/* post the message.. */
-	qdf_status = cds_mq_post_message(QDF_MODULE_ID_SYS, &sysMsg);
+	qdf_status = cds_mq_post_message(QDF_MODULE_ID_SYS, &umac_stop_msg);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
 		qdf_status = QDF_STATUS_E_BADMSG;
 
@@ -178,26 +178,21 @@ QDF_STATUS sys_mc_process_msg(v_CONTEXT_t p_cds_context, cds_msg_t *pMsg)
 		case SYS_MSG_ID_MC_STOP:
 			QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_INFO,
 				"Processing SYS MC STOP");
-
-			/* get the HAL context... */
 			hHal = cds_get_context(QDF_MODULE_ID_PE);
 			if (NULL == hHal) {
 				QDF_TRACE(QDF_MODULE_ID_SYS,
 					QDF_TRACE_LEVEL_ERROR,
 					"%s: Invalid hHal", __func__);
-			} else {
-				qdf_status = sme_stop(hHal,
-						HAL_STOP_TYPE_SYS_DEEP_SLEEP);
-				QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
-				qdf_status = mac_stop(hHal,
-						HAL_STOP_TYPE_SYS_DEEP_SLEEP);
-				QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
-
-				((sysResponseCback) pMsg->callback)(
-						(void *)pMsg->bodyptr);
-
-				qdf_status = QDF_STATUS_SUCCESS;
+				break;
 			}
+			qdf_status = sme_stop(hHal,
+					      HAL_STOP_TYPE_SYS_DEEP_SLEEP);
+			QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
+			qdf_status = mac_stop(hHal,
+					      HAL_STOP_TYPE_SYS_DEEP_SLEEP);
+			QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
+			((sys_rsp_cb) pMsg->callback)(pMsg->bodyptr);
+			qdf_status = QDF_STATUS_SUCCESS;
 			break;
 
 		case SYS_MSG_ID_MC_THR_PROBE:

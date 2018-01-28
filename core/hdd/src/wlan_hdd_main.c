@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -54,6 +54,7 @@
 #include "wlan_hdd_power.h"
 #include "wlan_hdd_stats.h"
 #include "wlan_hdd_scan.h"
+#include "wlan_hdd_request_manager.h"
 #include "qdf_types.h"
 #include "qdf_trace.h"
 #include <cdp_txrx_peer_ops.h>
@@ -2279,8 +2280,12 @@ static int __hdd_open(struct net_device *dev)
 		return -EBUSY;
 	}
 
-	mutex_lock(&hdd_init_deinit_lock);
+	if (qdf_atomic_read(&hdd_ctx->con_mode_flag)) {
+		hdd_err("con_mode_handler is in progress; Please try again.");
+		return -EBUSY;
+	}
 
+	mutex_lock(&hdd_init_deinit_lock);
 	hdd_start_driver_ops_timer(eHDD_DRV_OP_IFF_UP);
 
 	/*
@@ -2334,7 +2339,6 @@ static int __hdd_open(struct net_device *dev)
 		hdd_debug("Sending Start Lpass notification");
 		hdd_lpass_notify_start(hdd_ctx, adapter);
 	}
-
 
 err_hdd_hdd_init_deinit_lock:
 	hdd_stop_driver_ops_timer();
@@ -5333,9 +5337,6 @@ hdd_adapter_t *hdd_get_adapter_by_vdev(hdd_context_t *hdd_ctx,
 		adapterNode = pNext;
 	}
 
-	hdd_err_ratelimited(RATE_LIMIT_ERROR_LOG,
-		"vdev_id %d does not exist with host", vdev_id);
-
 	return NULL;
 }
 
@@ -6034,6 +6035,7 @@ static void hdd_wlan_exit(hdd_context_t *hdd_ctx)
 	 */
 
 	hdd_green_ap_deinit(hdd_ctx);
+	hdd_request_manager_deinit();
 
 	hdd_runtime_suspend_context_deinit(hdd_ctx);
 	hdd_close_all_adapters(hdd_ctx, false);
@@ -8216,8 +8218,8 @@ err_free_config:
 
 err_free_hdd_context:
 	hdd_free_probe_req_ouis(hdd_ctx);
-	wiphy_free(hdd_ctx->wiphy);
 	mutex_destroy(&hdd_ctx->iface_change_lock);
+	wiphy_free(hdd_ctx->wiphy);
 
 err_out:
 	return ERR_PTR(ret);
@@ -10190,7 +10192,7 @@ void hdd_dp_trace_init(struct hdd_config *config)
 		live_mode = config_params[0];
 		/* fall through */
 	default:
-		hdd_info("live_mode %u thresh %u time_limit %u verbosity %u bitmap 0x%x",
+		hdd_debug("live_mode %u thresh %u time_limit %u verbosity %u bitmap 0x%x",
 			live_mode, thresh, thresh_time_limit,
 			verbosity, proto_bitmap);
 		break;
@@ -10229,6 +10231,7 @@ int hdd_wlan_startup(struct device *dev)
 	if (ret)
 		goto err_hdd_free_context;
 
+	hdd_request_manager_init();
 	hdd_green_ap_init(hdd_ctx);
 
 	hdd_init_spectral_scan(hdd_ctx);
@@ -10242,7 +10245,7 @@ int hdd_wlan_startup(struct device *dev)
 		hdd_err("Failed to init ACS Skip timer");
 	qdf_spinlock_create(&hdd_ctx->acs_skip_lock);
 #endif
-
+	qdf_atomic_init(&hdd_ctx->con_mode_flag);
 	qdf_mc_timer_init(&hdd_ctx->tdls_source_timer,
 			  QDF_TIMER_TYPE_SW,
 			  wlan_hdd_change_tdls_mode,
@@ -10355,6 +10358,7 @@ err_exit_nl_srv:
 	qdf_mc_timer_destroy(&hdd_ctx->tdls_source_timer);
 
 	hdd_green_ap_deinit(hdd_ctx);
+	hdd_request_manager_deinit();
 	hdd_exit_netlink_services(hdd_ctx);
 
 err_hdd_free_context:
@@ -12041,8 +12045,9 @@ static int __con_mode_handler(const char *kmessage, struct kernel_param *kp,
 	if (ret)
 		return ret;
 
+	qdf_atomic_set(&hdd_ctx->con_mode_flag, 1);
 	cds_set_load_in_progress(true);
-
+	mutex_lock(&hdd_init_deinit_lock);
 	ret = param_set_int(kmessage, kp);
 
 	if (!(is_con_mode_valid(con_mode))) {
@@ -12119,6 +12124,8 @@ static int __con_mode_handler(const char *kmessage, struct kernel_param *kp,
 
 reset_flags:
 	cds_set_load_in_progress(false);
+	mutex_unlock(&hdd_init_deinit_lock);
+	qdf_atomic_set(&hdd_ctx->con_mode_flag, 0);
 	return ret;
 }
 
@@ -12382,7 +12389,11 @@ hdd_adapter_t *hdd_get_adapter_by_rand_macaddr(hdd_context_t *hdd_ctx,
 	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
 	while (adapter_node && status == QDF_STATUS_SUCCESS) {
 		adapter = adapter_node->pAdapter;
-		if (adapter && hdd_check_random_mac(adapter, mac_addr))
+		if (adapter &&
+		    (adapter->device_mode == QDF_STA_MODE ||
+		     adapter->device_mode == QDF_P2P_CLIENT_MODE ||
+		     adapter->device_mode == QDF_P2P_DEVICE_MODE) &&
+		    hdd_check_random_mac(adapter, mac_addr))
 			return adapter;
 		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
 		adapter_node = next;
@@ -12588,6 +12599,11 @@ void hdd_drv_ops_inactivity_handler(void)
 	if (0 == qdf_mem_cmp(&drv_ops_string[0], "shutdown",
 		sizeof("shutdown")))
 		QDF_BUG(0);
+
+	if (cds_is_fw_down()) {
+		hdd_err("FW is down");
+		return;
+	}
 
 	if (cds_is_self_recovery_enabled())
 		cds_trigger_recovery(false);

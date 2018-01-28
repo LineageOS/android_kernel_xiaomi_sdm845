@@ -1415,6 +1415,23 @@ int pld_is_qmi_disable(struct device *dev)
 }
 
 /**
+ * pld_is_fw_down() - Check WLAN fw is down or not
+ *
+ * This is a SNOC specific API. This API will be called
+ * to check if WLAN FW is down or not. dev is not passed
+ * in this API as it could be called during driver unloading
+ * when all the information driver stored will be gone.
+ *
+ *  Return: 1 FW is down
+ *          0 FW is not down
+ *          Non zero failure code for errors
+ */
+int pld_is_fw_down(void)
+{
+	return pld_snoc_is_fw_down();
+}
+
+/**
  * pld_force_assert_target() - Send a force assert to FW.
  * This can use various sideband requests available at platform to
  * initiate a FW assert.

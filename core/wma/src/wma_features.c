@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1859,8 +1859,8 @@ int wma_nan_rsp_event_handler(void *handle, uint8_t *event_buf,
 	if (nan_rsp_event_hdr->data_len > ((WMI_SVC_MSG_MAX_SIZE -
 	    sizeof(*nan_rsp_event_hdr)) / sizeof(uint8_t)) ||
 	    nan_rsp_event_hdr->data_len > param_buf->num_data) {
-		WMA_LOGE("excess data length:%d", nan_rsp_event_hdr->data_len);
-		QDF_ASSERT(0);
+		WMA_LOGE("excess data length:%d, num_data:%d",
+			nan_rsp_event_hdr->data_len, param_buf->num_data);
 		return -EINVAL;
 	}
 	nan_rsp_event = (tSirNanEvent *) qdf_mem_malloc(alloc_len);
@@ -2549,6 +2549,11 @@ QDF_STATUS wma_extract_comb_phyerr_spectral(void *handle, void *data,
 
 	phyerr->bufp = param_tlvs->bufp;
 	phyerr->buf_len = pe_hdr->buf_len;
+	if (phyerr->buf_len > param_tlvs->num_bufp) {
+		WMA_LOGE("Invalid buf_len %d, num_bufp %d",
+				phyerr->buf_len, param_tlvs->num_bufp);
+		return -EINVAL;
+	}
 
 	phyerr->phy_err_mask0 = pe_hdr->rsPhyErrMask0;
 	phyerr->phy_err_mask1 = pe_hdr->rsPhyErrMask1;
@@ -8196,7 +8201,11 @@ int wma_channel_avoid_evt_handler(void *handle, uint8_t *event,
 		(afr_fixed_param->num_freq_ranges >
 		 SIR_CH_AVOID_MAX_RANGE) ? SIR_CH_AVOID_MAX_RANGE :
 		afr_fixed_param->num_freq_ranges;
-
+	if (num_freq_ranges > param_buf->num_avd_freq_range) {
+		WMA_LOGE("Invalid num_freq_ranges %d, avd_freq_range %d",
+			num_freq_ranges, param_buf->num_avd_freq_range);
+		return -EINVAL;
+	}
 	WMA_LOGD("Channel avoid event received with %d ranges",
 		 num_freq_ranges);
 	for (freq_range_idx = 0; freq_range_idx < num_freq_ranges;
@@ -10335,6 +10344,98 @@ QDF_STATUS wma_enable_disable_caevent_ind(tp_wma_handle wma, uint8_t val)
 	return QDF_STATUS_SUCCESS;
 }
 
+static wma_sar_cb sar_callback;
+static void *sar_context;
+
+static int wma_sar_event_handler(void *handle, uint8_t *evt_buf, uint32_t len)
+{
+	tp_wma_handle wma_handle;
+	wmi_unified_t wmi_handle;
+	struct sar_limit_event event;
+	wma_sar_cb callback;
+	QDF_STATUS status;
+
+	WMA_LOGI(FL("handle:%pK event:%pK len:%u"), handle, evt_buf, len);
+
+	wma_handle = handle;
+	if (!wma_handle) {
+		WMA_LOGE(FL("NULL wma_handle"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	wmi_handle = wma_handle->wmi_handle;
+	if (!wmi_handle) {
+		WMA_LOGE(FL("NULL wmi_handle"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	status = wmi_unified_extract_sar_limit_event(wmi_handle,
+						     evt_buf, &event);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMA_LOGE(FL("Event extract failure: %d"), status);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	callback = sar_callback;
+	sar_callback = NULL;
+	if (callback)
+		callback(sar_context, &event);
+
+	return 0;
+}
+
+QDF_STATUS wma_sar_register_event_handlers(WMA_HANDLE handle)
+{
+	tp_wma_handle wma_handle = handle;
+	wmi_unified_t wmi_handle;
+
+	if (!wma_handle) {
+		WMA_LOGE(FL("NULL wma_handle"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	wmi_handle = wma_handle->wmi_handle;
+	if (!wmi_handle) {
+		WMA_LOGE(FL("NULL wmi_handle"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	return wmi_unified_register_event_handler(wmi_handle,
+						  wmi_sar_get_limits_event_id,
+						  wma_sar_event_handler,
+						  WMA_RX_WORK_CTX);
+}
+
+QDF_STATUS wma_get_sar_limit(WMA_HANDLE handle,
+			     wma_sar_cb callback, void *context)
+{
+	tp_wma_handle wma_handle = handle;
+	wmi_unified_t wmi_handle;
+	QDF_STATUS status;
+
+	if (!wma_handle) {
+		WMA_LOGE(FL("NULL wma_handle"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	wmi_handle = wma_handle->wmi_handle;
+	if (!wmi_handle) {
+		WMA_LOGE(FL("NULL wmi_handle"));
+		return QDF_STATUS_E_INVAL;
+	}
+
+	sar_callback = callback;
+	sar_context = context;
+	status = wmi_unified_get_sar_limit_cmd(wmi_handle);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMA_LOGE(FL("wmi_unified_get_sar_limit_cmd() error: %u"),
+			 status);
+		sar_callback = NULL;
+	}
+
+	return status;
+}
+
 QDF_STATUS wma_set_sar_limit(WMA_HANDLE handle,
 		struct sar_limit_cmd_params *sar_limit_params)
 {
@@ -10973,6 +11074,12 @@ int wma_rx_aggr_failure_event_handler(void *handle, u_int8_t *event_buf,
 	}
 
 	rx_aggr_hole_event->hole_cnt = rx_aggr_failure_info->num_failure_info;
+	if (rx_aggr_hole_event->hole_cnt > param_buf->num_failure_info) {
+		WMA_LOGE("Invalid no of hole count: %d",
+				rx_aggr_hole_event->hole_cnt);
+		qdf_mem_free(rx_aggr_hole_event);
+		return -EINVAL;
+	}
 	WMA_LOGD("aggr holes_sum: %d\n",
 		 rx_aggr_failure_info->num_failure_info);
 	for (i = 0; i < rx_aggr_hole_event->hole_cnt; i++) {

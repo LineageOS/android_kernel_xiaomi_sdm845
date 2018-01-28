@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -58,10 +58,7 @@ static void lim_process_mlm_set_keys_req(tpAniSirGlobal, uint32_t *);
 
 /* MLM Timeout event handler templates */
 static void lim_process_periodic_probe_req_timer(tpAniSirGlobal mac_ctx);
-static void lim_process_join_failure_timeout(tpAniSirGlobal);
-static void lim_process_auth_failure_timeout(tpAniSirGlobal);
 static void lim_process_auth_rsp_timeout(tpAniSirGlobal, uint32_t);
-static void lim_process_assoc_failure_timeout(tpAniSirGlobal, uint32_t);
 static void lim_process_periodic_join_probe_req_timer(tpAniSirGlobal);
 static void lim_process_auth_retry_timer(tpAniSirGlobal);
 
@@ -1911,6 +1908,10 @@ lim_process_mlm_set_keys_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	}
 
 	mlm_set_keys_req = (tLimMlmSetKeysReq *) msg_buf;
+	if (mac_ctx->lim.gpLimMlmSetKeysReq != NULL) {
+		qdf_mem_free(mac_ctx->lim.gpLimMlmSetKeysReq);
+		mac_ctx->lim.gpLimMlmSetKeysReq = NULL;
+	}
 	/* Hold onto the SetKeys request parameters */
 	mac_ctx->lim.gpLimMlmSetKeysReq = (void *)mlm_set_keys_req;
 	session = pe_find_session_by_session_id(mac_ctx,
@@ -2131,17 +2132,7 @@ static void lim_process_periodic_probe_req_timer(tpAniSirGlobal mac_ctx)
 	}
 }
 
-/**
- * lim_process_join_failure_timeout() - This function is called to process
- * JoinFailureTimeout
- *
- * @mac_ctx:      Pointer to Global MAC structure
- *
- * This function is called to process JoinFailureTimeout
- *
- * @Return None
- */
-static void lim_process_join_failure_timeout(tpAniSirGlobal mac_ctx)
+void lim_process_join_failure_timeout(tpAniSirGlobal mac_ctx)
 {
 	tLimMlmJoinCnf mlm_join_cnf;
 	uint32_t len;
@@ -2306,17 +2297,7 @@ static void lim_process_auth_retry_timer(tpAniSirGlobal mac_ctx)
 	return;
 } /*** lim_process_auth_retry_timer() ***/
 
-/**
- * lim_process_auth_failure_timeout() - This function is called to process Min
- * Channel Timeout during channel scan.
- *
- * @mac_ctx:      Pointer to Global MAC structure
- *
- * This function is called to process Min Channel Timeout during channel scan.
- *
- * @Return: None
- */
-static void lim_process_auth_failure_timeout(tpAniSirGlobal mac_ctx)
+void lim_process_auth_failure_timeout(tpAniSirGlobal mac_ctx)
 {
 	/* fetch the sessionEntry based on the sessionId */
 	tpPESession session;
@@ -2431,18 +2412,8 @@ lim_process_auth_rsp_timeout(tpAniSirGlobal mac_ctx, uint32_t auth_idx)
 	}
 }
 
-/**
- * lim_process_assoc_failure_timeout() - This function is called to process Min
- * Channel Timeout during channel scan.
- *
- * @mac_ctx      Pointer to Global MAC structure
- *
- * This function is called to process Min Channel Timeout during channel scan.
- *
- * @Return: None
- */
-static void
-lim_process_assoc_failure_timeout(tpAniSirGlobal mac_ctx, uint32_t msg_type)
+void lim_process_assoc_failure_timeout(tpAniSirGlobal mac_ctx,
+						     uint32_t msg_type)
 {
 
 	tLimMlmAssocCnf mlm_assoc_cnf;

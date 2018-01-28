@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -856,17 +856,8 @@ QDF_STATUS cds_disable(v_CONTEXT_t cds_context)
 		cds_err("Invalid PE context return!");
 		return QDF_STATUS_E_INVAL;
 	}
-	qdf_status = sme_stop(handle, HAL_STOP_TYPE_SYS_DEEP_SLEEP);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		cds_err("Failed to stop SME: %d", qdf_status);
-		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
-	}
-	qdf_status = mac_stop(handle, HAL_STOP_TYPE_SYS_DEEP_SLEEP);
 
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		cds_err("Failed to stop MAC");
-		QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
-	}
+	umac_stop(cds_context);
 
 	return qdf_status;
 }
@@ -1879,14 +1870,24 @@ static void cds_trigger_recovery_work(void *param)
 	struct qdf_runtime_lock recovery_lock;
 	qdf_device_t qdf_ctx;
 
-	if (!cds_is_self_recovery_enabled()) {
-		cds_err("Recovery is not enabled");
-		QDF_BUG(0);
+	if (cds_is_driver_recovering()) {
+		cds_err("Recovery in progress; ignoring recovery trigger");
 		return;
 	}
 
-	if (cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
-		cds_err("Recovery in progress; ignoring recovery trigger");
+	if (cds_is_driver_in_bad_state()) {
+		cds_err("Driver is in bad state; ignoring recovery trigger");
+		return;
+	}
+
+	if (cds_is_fw_down()) {
+		cds_err("firmware is down; ignoring recovery trigger");
+		return;
+	}
+
+	if (!cds_is_self_recovery_enabled()) {
+		cds_err("Recovery is not enabled");
+		QDF_BUG(0);
 		return;
 	}
 

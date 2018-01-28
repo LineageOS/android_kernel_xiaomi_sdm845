@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -698,8 +698,18 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 	return status;
 
 send_fail_rsp:
-	WMA_LOGE("rcvd del_self_sta without del_bss, send fail rsp, vdev_id %d",
-			 vdev_id);
+	if (!cds_is_driver_recovering()) {
+		if (cds_is_self_recovery_enabled()) {
+			WMA_LOGE("rcvd del_self_sta without del_bss, trigger recovery, vdev_id %d",
+				 vdev_id);
+			cds_trigger_recovery(CDS_REASON_UNSPECIFIED);
+		} else {
+			WMA_LOGE("rcvd del_self_sta without del_bss, BUG_ON(), vdev_id %d",
+				 vdev_id);
+			QDF_BUG(0);
+		}
+	}
+
 	pdel_sta_self_req_param->status = QDF_STATUS_E_FAILURE;
 	wma_send_del_sta_self_resp(pdel_sta_self_req_param);
 	return status;
@@ -1194,7 +1204,6 @@ wma_vdev_set_param(wmi_unified_t wmi_handle, uint32_t if_id,
 	if (!wma_is_vdev_valid(if_id)) {
 		WMA_LOGE(FL("vdev_id: %d is not active reject the req: param id %d val %d"),
 			if_id, param_id, param_value);
-		QDF_ASSERT(0);
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -2379,11 +2388,41 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	uint32_t temp_reg_info_1 = 0;
 	uint32_t temp_reg_info_2 = 0;
 	uint16_t bw_val;
+	struct wma_txrx_node *iface = &wma->interfaces[req->vdev_id];
+	struct wma_target_req *req_msg;
+	uint32_t chan_mode;
 
 	mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
 	if (mac_ctx == NULL) {
 		WMA_LOGE("%s: vdev start failed as mac_ctx is NULL", __func__);
 		return QDF_STATUS_E_FAILURE;
+	}
+
+	chan_mode = wma_chan_phy_mode(req->chan, req->chan_width,
+				      req->dot11_mode);
+
+	if (chan_mode == MODE_UNKNOWN) {
+		WMA_LOGE("%s: invalid phy mode!", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (!isRestart &&
+	    qdf_atomic_read(&iface->bss_status) == WMA_BSS_STATUS_STARTED) {
+		req_msg = wma_find_vdev_req(wma, req->vdev_id,
+					    WMA_TARGET_REQ_TYPE_VDEV_STOP,
+					    false);
+		if (!req_msg || req_msg->msg_type != WMA_DELETE_BSS_REQ) {
+			if (!cds_is_driver_recovering()) {
+				if (cds_is_self_recovery_enabled()) {
+					WMA_LOGE("BSS is in started state before vdev start, trigger recovery");
+					cds_trigger_recovery(
+						CDS_REASON_UNSPECIFIED);
+				} else {
+					WMA_LOGE("BSS is in started state before vdev start, BUG_ON()");
+					QDF_BUG(0);
+				}
+			}
+		}
 	}
 
 	dfs = (struct ath_dfs *)wma->dfs_ic->ic_dfs;
@@ -2394,8 +2433,8 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 
 	/* Fill channel info */
 	params.chan_freq = cds_chan_to_freq(req->chan);
-	params.chan_mode = wma_chan_phy_mode(req->chan, req->chan_width,
-					     req->dot11_mode);
+	params.chan_mode = chan_mode;
+
 	intr[params.vdev_id].chanmode = params.chan_mode;
 	intr[params.vdev_id].ht_capable = req->ht_capable;
 	intr[params.vdev_id].vht_capable = req->vht_capable;
