@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1380,8 +1380,38 @@ QDF_STATUS wmi_extract_vdev_extd_stats(void *wmi_hdl, void *evt_buf,
 
 QDF_STATUS wmi_unified_send_power_dbg_cmd(void *wmi_hdl,
 				struct wmi_power_dbg_params *param);
+
+/**
+ * wmi_unified_send_sar_limit_cmd() - send sar limit cmd to fw
+ * @wmi_hdl: wmi handle
+ * @params: sar limit command params
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
 QDF_STATUS wmi_unified_send_sar_limit_cmd(void *wmi_hdl,
-				struct sar_limit_cmd_params *params);
+					  struct sar_limit_cmd_params *params);
+
+/**
+ * wmi_unified_get_sar_limit_cmd() - request current SAR limits from FW
+ * @wmi_hdl: wmi handle
+ *
+ * Return: QDF_STATUS_SUCCESS for success or error code
+ */
+QDF_STATUS wmi_unified_get_sar_limit_cmd(void *wmi_hdl);
+
+/**
+ * wmi_unified_extract_sar_limit_event() - extract SAR limits from FW event
+ * @wmi_hdl: wmi handle
+ * @evt_buf: event buffer received from firmware
+ * @event: SAR limit event which is to be populated by data extracted from
+ *         the @evt_buf buffer
+ *
+ * Return: QDF_STATUS_SUCCESS for success or error code
+ */
+QDF_STATUS wmi_unified_extract_sar_limit_event(void *wmi_hdl,
+					       uint8_t *evt_buf,
+					       struct sar_limit_event *event);
+
 QDF_STATUS wmi_unified_send_adapt_dwelltime_params_cmd(void *wmi_hdl,
 				   struct wmi_adaptive_dwelltime_params *
 				   wmi_param);

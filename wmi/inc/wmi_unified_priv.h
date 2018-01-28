@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1197,6 +1197,13 @@ QDF_STATUS (*send_action_oui_cmd)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*send_sar_limit_cmd)(wmi_unified_t wmi_handle,
 				struct sar_limit_cmd_params *params);
+
+QDF_STATUS (*get_sar_limit_cmd)(wmi_unified_t wmi_handle);
+
+QDF_STATUS (*extract_sar_limit_event)(wmi_unified_t wmi_handle,
+				      uint8_t *evt_buf,
+				      struct sar_limit_event *event);
+
 uint16_t (*wmi_set_htc_tx_tag)(wmi_unified_t wmi_handle,
 				wmi_buf_t buf, uint32_t cmd_id);
 
