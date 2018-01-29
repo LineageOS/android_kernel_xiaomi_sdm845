@@ -14629,19 +14629,10 @@ static bool wlan_hdd_is_duplicate_channel(uint8_t *arr,
 }
 #endif
 
-/*
- *wlan_hdd_send_sta_authorized_event: Function to send station authorized
- *event to user space in case of SAP
- *pAdapter: Pointer to the adapter
- *@pHddCtx: HDD Context
- *@mac_addr: MAC address of the STA for whic the Authorized event needs to
- *be sent
- *This api is used to send station authorized event to user space
- */
-static QDF_STATUS wlan_hdd_send_sta_authorized_event(
-						hdd_adapter_t *pAdapter,
-						hdd_context_t *pHddCtx,
-						struct qdf_mac_addr mac_addr)
+QDF_STATUS wlan_hdd_send_sta_authorized_event(
+					hdd_adapter_t *pAdapter,
+					hdd_context_t *pHddCtx,
+					const struct qdf_mac_addr *mac_addr)
 {
 	struct sk_buff *vendor_event;
 	uint32_t sta_flags = 0;
@@ -14677,7 +14668,7 @@ static QDF_STATUS wlan_hdd_send_sta_authorized_event(
 	}
 	status = nla_put(vendor_event,
 			 QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_STA_MAC,
-			 QDF_MAC_ADDR_SIZE, mac_addr.bytes);
+			 QDF_MAC_ADDR_SIZE, mac_addr->bytes);
 	if (status) {
 		hdd_err("STA MAC put fails");
 		kfree_skb(vendor_event);
@@ -14764,7 +14755,7 @@ static int __wlan_hdd_change_station(struct wiphy *wiphy,
 			status = wlan_hdd_send_sta_authorized_event(
 								pAdapter,
 								pHddCtx,
-								STAMacAddress);
+								&STAMacAddress);
 			if (status != QDF_STATUS_SUCCESS) {
 				return -EINVAL;
 			}
