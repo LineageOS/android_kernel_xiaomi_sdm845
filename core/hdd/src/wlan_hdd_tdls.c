@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -839,6 +839,9 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 		wlan_hdd_tdls_del_non_forced_peers(pHddTdlsCtx);
 
 		hdd_tdls_context_init(pHddCtx, true);
+
+		/* Reset tx completion status in case of SSR */
+		pAdapter->mgmtTxCompletionStatus = false;
 	}
 
 	sme_set_tdls_power_save_prohibited(WLAN_HDD_GET_HAL_CTX(pAdapter),
