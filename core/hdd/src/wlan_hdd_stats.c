@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -4379,6 +4379,8 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy,
 					}
 					maxSpeedMCS = 1;
 				}
+				if (nss == 2)
+					maxMCSIdx += MAX_HT_MCS_IDX;
 			}
 		}
 
@@ -4437,8 +4439,7 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy,
 #endif
 			} else if (rate_flags & eHAL_TX_RATE_VHT20) {
 				sinfo->txrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
-			} else
-				sinfo->txrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
+			}
 			if (rate_flags &
 			    (eHAL_TX_RATE_HT20 | eHAL_TX_RATE_HT40)) {
 				sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
@@ -4478,7 +4479,7 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy,
 			/* must be MCS */
 			sinfo->txrate.mcs = mcs_index;
 			sinfo->txrate.nss = nss;
-			sinfo->txrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
+
 			if (rate_flags & eHAL_TX_RATE_VHT80) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)) || defined(WITH_BACKPORTS)
 				sinfo->txrate.bw = RATE_INFO_BW_80;
@@ -4505,6 +4506,8 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy,
 						RATE_INFO_FLAGS_40_MHZ_WIDTH;
 #endif
 				}
+			} else {
+				sinfo->txrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
 			}
 			if (rate_flags & eHAL_TX_RATE_SGI) {
 				sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
