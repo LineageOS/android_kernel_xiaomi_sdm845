@@ -4320,6 +4320,7 @@ void lim_update_sta_run_time_ht_switch_chnl_params(tpAniSirGlobal pMac,
 						   tpPESession psessionEntry)
 {
 	uint8_t center_freq = 0;
+	enum phy_ch_width ch_width = CH_WIDTH_20MHZ;
 
 	/* If self capability is set to '20Mhz only', then do not change the CB mode. */
 	if (!lim_get_ht_capability
@@ -4371,12 +4372,15 @@ void lim_update_sta_run_time_ht_switch_chnl_params(tpAniSirGlobal pMac,
 			(uint8_t) pHTInfo->recommendedTxWidthSet;
 		if (eHT_CHANNEL_WIDTH_40MHZ ==
 		    psessionEntry->htRecommendedTxWidthSet) {
+			ch_width = CH_WIDTH_40MHZ;
 			if (PHY_DOUBLE_CHANNEL_LOW_PRIMARY ==
 					pHTInfo->secondaryChannelOffset)
 				center_freq = pHTInfo->primaryChannel + 2;
 			else if (PHY_DOUBLE_CHANNEL_HIGH_PRIMARY ==
 					pHTInfo->secondaryChannelOffset)
 				center_freq = pHTInfo->primaryChannel - 2;
+			else
+				ch_width = CH_WIDTH_20MHZ;
 		}
 
 		/* notify HAL */
@@ -4391,12 +4395,11 @@ void lim_update_sta_run_time_ht_switch_chnl_params(tpAniSirGlobal pMac,
 		pMac->lim.gpchangeChannelCallback = NULL;
 		pMac->lim.gpchangeChannelData = NULL;
 
-		lim_send_switch_chnl_params(pMac, (uint8_t) pHTInfo->primaryChannel,
-					    center_freq, 0,
-					    psessionEntry->htRecommendedTxWidthSet,
-					    psessionEntry->maxTxPower,
-					    psessionEntry->peSessionId,
-					    true);
+		lim_send_switch_chnl_params(pMac,
+				(uint8_t)pHTInfo->primaryChannel,
+				center_freq, 0, ch_width,
+				psessionEntry->maxTxPower,
+				psessionEntry->peSessionId, true);
 
 		/* In case of IBSS, if STA should update HT Info IE in its beacons. */
 		if (LIM_IS_IBSS_ROLE(psessionEntry)) {
