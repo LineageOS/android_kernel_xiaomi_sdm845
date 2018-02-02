@@ -9629,9 +9629,10 @@ static irqreturn_t tavil_slimbus_irq(int irq, void *data)
 					 */
 				}
 			}
-			WARN(!cleared,
-			     "Couldn't find slimbus %s port %d for closing\n",
-			     (tx ? "TX" : "RX"), port_id);
+			if (!cleared)
+				dev_err(tavil->dev,
+					"%s: Couldn't find slimbus %s port %d for closing\n",
+					__func__, (tx ? "TX" : "RX"), port_id);
 		}
 		wcd9xxx_interface_reg_write(tavil->wcd9xxx,
 					    WCD934X_SLIM_PGD_PORT_INT_CLR_RX_0 +
