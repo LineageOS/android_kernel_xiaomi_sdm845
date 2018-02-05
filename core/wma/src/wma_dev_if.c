@@ -910,7 +910,7 @@ static const wmi_channel_width mode_to_width[MODE_MAX] = {
  *
  * Return: channel width
  */
-static wmi_channel_width chanmode_to_chanwidth(WLAN_PHY_MODE chanmode)
+wmi_channel_width chanmode_to_chanwidth(WLAN_PHY_MODE chanmode)
 {
 	wmi_channel_width chan_width;
 

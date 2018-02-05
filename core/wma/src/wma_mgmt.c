@@ -2898,11 +2898,20 @@ void wma_process_update_opmode(tp_wma_handle wma_handle,
 {
 	struct wma_txrx_node *iface;
 	uint16_t chan_mode;
+	wmi_channel_width ch_width;
 
 
 	iface = &wma_handle->interfaces[update_vht_opmode->smesessionId];
 	if (iface == NULL)
 		return;
+
+	ch_width = chanmode_to_chanwidth(iface->chanmode);
+	if (ch_width < update_vht_opmode->opMode) {
+		WMA_LOGE("%s: Invalid peer bw update %d, self bw %d",
+				__func__, update_vht_opmode->opMode,
+				ch_width);
+		return;
+	}
 
 	chan_mode = wma_chan_phy_mode(cds_freq_to_chan(iface->mhz),
 				update_vht_opmode->opMode,
