@@ -2313,6 +2313,7 @@ static inline void __qdf_nbuf_fill_tso_cmn_seg_info(
 		   tso_cmn_info->eit_hdr_len,
 		   curr_seg->seg.tso_flags.tcp_seq_num,
 		   curr_seg->seg.total_len);
+	qdf_tso_seg_dbg_record(curr_seg, TSOSEG_LOC_FILLCMNSEG);
 }
 
 /**
@@ -2368,8 +2369,14 @@ uint32_t __qdf_nbuf_get_tso_info(qdf_device_t osdev, struct sk_buff *skb,
 	tso_frag_vaddr = skb->data + tso_cmn_info.eit_hdr_len;
 	/* get the length of the next tso fragment */
 	tso_frag_len = min(skb_frag_len, tso_seg_size);
-	tso_frag_paddr = dma_map_single(osdev->dev,
-		 tso_frag_vaddr, tso_frag_len, DMA_TO_DEVICE);
+	tso_frag_paddr = dma_map_single(osdev->dev, tso_frag_vaddr,
+				tso_frag_len, DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(osdev->dev,
+					tso_frag_paddr))) {
+		qdf_print("%s:%d DMA mapping error!\n", __func__, __LINE__);
+		qdf_assert(0);
+		return 0;
+	}
 	TSO_DEBUG("%s[%d] skb frag len %d tso frag len %d\n", __func__,
 		__LINE__, skb_frag_len, tso_frag_len);
 	num_seg = tso_info->num_segs;
@@ -2483,7 +2490,8 @@ uint32_t __qdf_nbuf_get_tso_info(qdf_device_t osdev, struct sk_buff *skb,
 						 DMA_TO_DEVICE);
 			if (unlikely(dma_mapping_error(osdev->dev,
 							tso_frag_paddr))) {
-				qdf_print("DMA mapping error!\n");
+				qdf_print("%s:%d DMA mapping error!\n",
+						__func__, __LINE__);
 				qdf_assert(0);
 				return 0;
 			}
@@ -2493,6 +2501,7 @@ uint32_t __qdf_nbuf_get_tso_info(qdf_device_t osdev, struct sk_buff *skb,
 		if (!num_seg)
 			curr_seg->seg.tso_flags.fin = tso_cmn_info.tcphdr->fin;
 
+		qdf_tso_seg_dbg_record(curr_seg, TSOSEG_LOC_GETINFO);
 		curr_seg = curr_seg->next;
 	}
 	return tso_info->num_segs;
@@ -2533,13 +2542,13 @@ void __qdf_nbuf_unmap_tso_segment(qdf_device_t osdev,
 			qdf_assert(0);
 			return;
 		}
-		qdf_tso_seg_dbg_record(tso_seg, TSOSEG_LOC_UNMAPTSO);
 		dma_unmap_single(osdev->dev,
 				 tso_seg->seg.tso_frags[num_frags].paddr,
 				 tso_seg->seg.tso_frags[num_frags].length,
 				 QDF_DMA_TO_DEVICE);
 		tso_seg->seg.tso_frags[num_frags].paddr = 0;
 		num_frags--;
+		qdf_tso_seg_dbg_record(tso_seg, TSOSEG_LOC_UNMAPTSO);
 	}
 
 	if (is_last_seg) {
@@ -2554,6 +2563,7 @@ void __qdf_nbuf_unmap_tso_segment(qdf_device_t osdev,
 				 tso_seg->seg.tso_frags[0].length,
 				 QDF_DMA_TO_DEVICE);
 		tso_seg->seg.tso_frags[0].paddr = 0;
+		qdf_tso_seg_dbg_record(tso_seg, TSOSEG_LOC_UNMAPLAST);
 	}
 }
 qdf_export_symbol(__qdf_nbuf_unmap_tso_segment);
