@@ -12290,7 +12290,8 @@ void active_list_cmd_timeout_handle(void *userData)
 		cds_trigger_recovery(CDS_ACTIVE_LIST_TIMEOUT);
 	} else {
 		if (!(cds_is_load_or_unload_in_progress() ||
-		    cds_is_driver_recovering() || cds_is_driver_in_bad_state()))
+		    cds_is_driver_recovering() ||
+		    cds_is_driver_in_bad_state() || cds_is_fw_down()))
 			QDF_BUG(0);
 		else
 			QDF_ASSERT(0);

@@ -1346,6 +1346,8 @@ static inline void hdd_register_rx_ol(void)
 		return;
 	}
 
+	hdd_ctx->tcp_delack_on = 0;
+
 	if (hdd_ctx->ol_enable == CFG_LRO_ENABLED) {
 		hdd_ctx->receive_offload_cb = hdd_lro_rx;
 		/* Register the flush callback */
@@ -1356,6 +1358,8 @@ static inline void hdd_register_rx_ol(void)
 		if (hdd_ctx->enableRxThread)
 			hdd_create_napi_for_rxthread();
 		hdd_debug("GRO is enabled");
+	} else if (hdd_ctx->config->enable_tcp_delack) {
+		hdd_ctx->tcp_delack_on = 1;
 	}
 }
 
@@ -1452,7 +1456,7 @@ void hdd_enable_rx_ol_in_concurrency(hdd_context_t *hdd_ctx)
 {
 	if (hdd_ctx->config->enable_tcp_delack) {
 		hdd_debug("Disable TCP delack as Rx Offload is enabled");
-		hdd_ctx->config->enable_tcp_delack = 0;
+		hdd_ctx->tcp_delack_on = 0;
 		hdd_reset_tcp_delack(hdd_ctx);
 	}
 	qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 0);
@@ -1466,7 +1470,7 @@ void hdd_enable_rx_ol_in_concurrency(hdd_context_t *hdd_ctx)
  */
 void hdd_disable_rx_ol_in_concurrency(hdd_context_t *hdd_ctx)
 {
-	if (!hdd_ctx->config->enable_tcp_delack) {
+	if (hdd_ctx->config->enable_tcp_delack) {
 		struct wlan_rx_tp_data rx_tp_data = {0};
 
 		hdd_debug("Enable TCP delack as Rx offload disabled in concurrency");
@@ -1474,7 +1478,7 @@ void hdd_disable_rx_ol_in_concurrency(hdd_context_t *hdd_ctx)
 		rx_tp_data.level = hdd_ctx->cur_rx_level;
 		wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
 			WLAN_SVC_WLAN_TP_IND, &rx_tp_data, sizeof(rx_tp_data));
-		hdd_ctx->config->enable_tcp_delack = 1;
+		hdd_ctx->tcp_delack_on = 1;
 	}
 	qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 1);
 }

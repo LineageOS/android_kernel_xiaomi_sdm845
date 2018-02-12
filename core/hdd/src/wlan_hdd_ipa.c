@@ -1926,8 +1926,6 @@ static void hdd_ipa_uc_handle_last_discon(struct hdd_ipa_priv *hdd_ipa)
 	INIT_COMPLETION(hdd_ipa->ipa_resource_comp);
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "Disable FW RX PIPE");
 	ol_txrx_ipa_uc_set_active(cds_ctx->pdev_txrx_ctx, false, false);
-	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "Disable FW TX PIPE");
-	ol_txrx_ipa_uc_set_active(cds_ctx->pdev_txrx_ctx, false, true);
 
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "exit: IPA WDI Pipes deactivated");
 }
@@ -2608,6 +2606,7 @@ static void hdd_ipa_uc_op_cb(struct op_msg_type *op_msg, void *usr_ctxt)
 	struct ipa_uc_fw_stats *uc_fw_stat;
 	struct hdd_ipa_priv *hdd_ipa;
 	hdd_context_t *hdd_ctx;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	if (!op_msg || !usr_ctxt) {
@@ -2660,8 +2659,16 @@ static void hdd_ipa_uc_op_cb(struct op_msg_type *op_msg, void *usr_ctxt)
 		}
 		qdf_mutex_release(&hdd_ipa->ipa_lock);
 	} else if ((HDD_IPA_UC_OPCODE_TX_SUSPEND == msg->op_code) ||
-	    (HDD_IPA_UC_OPCODE_RX_SUSPEND == msg->op_code)) {
+		   (HDD_IPA_UC_OPCODE_RX_SUSPEND == msg->op_code)) {
 		qdf_mutex_acquire(&hdd_ipa->ipa_lock);
+
+		if (HDD_IPA_UC_OPCODE_RX_SUSPEND == msg->op_code) {
+			hdd_ipa_uc_disable_pipes(hdd_ipa);
+			HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG,
+				    "Disable FW TX PIPE");
+			ol_txrx_ipa_uc_set_active(pdev, false, true);
+		}
+
 		hdd_ipa->activated_fw_pipe--;
 		if (!hdd_ipa->activated_fw_pipe) {
 			/*
@@ -2670,7 +2677,6 @@ static void hdd_ipa_uc_op_cb(struct op_msg_type *op_msg, void *usr_ctxt)
 			 */
 			hdd_ipa->resource_unloading = false;
 			complete(&hdd_ipa->ipa_resource_comp);
-			hdd_ipa_uc_disable_pipes(hdd_ipa);
 			if (hdd_ipa_is_rm_enabled(hdd_ipa->hdd_ctx))
 				ipa_rm_release_resource(
 					IPA_RM_RESOURCE_WLAN_PROD);
@@ -3853,9 +3859,10 @@ static int __hdd_ipa_uc_ssr_deinit(void)
 	for (idx = 0; (hdd_ipa->num_iface > 0) &&
 		(idx < HDD_IPA_MAX_IFACE); idx++) {
 		iface_context = &hdd_ipa->iface_context[idx];
-		if (iface_context->adapter && iface_context->adapter->magic ==
-					      WLAN_HDD_ADAPTER_MAGIC)
+		if (iface_context->adapter &&
+		    hdd_is_adapter_valid(hdd_ctx, iface_context->adapter)) {
 			hdd_ipa_cleanup_iface(iface_context);
+		}
 	}
 	hdd_ipa->num_iface = 0;
 
@@ -5839,7 +5846,7 @@ static void hdd_ipa_cleanup_iface(struct hdd_ipa_iface_context *iface_context)
 {
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "enter");
 
-	if (iface_context == NULL)
+	if (iface_context == NULL || iface_context->adapter == NULL)
 		return;
 	if (iface_context->adapter->magic != WLAN_HDD_ADAPTER_MAGIC) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG,
@@ -6934,9 +6941,6 @@ QDF_STATUS hdd_ipa_cleanup(hdd_context_t *hdd_ctx)
 
 int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
 {
-	HDD_IPA_DP_LOG(QDF_TRACE_LEVEL_DEBUG, "Map: %d Num_buf: %d",
-		       map, num_buf);
-
 	if (!num_buf) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "No buffers to map/unmap");
 		return 0;
@@ -6950,4 +6954,11 @@ int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
 			   (struct ipa_wdi_buffer_info *)buf_arr);
 }
 
+void hdd_ipa_clean_adapter_iface(hdd_adapter_t *adapter)
+{
+	struct hdd_ipa_iface_context *iface_ctx = adapter->ipa_context;
+
+	if (iface_ctx)
+		hdd_ipa_cleanup_iface(iface_ctx);
+}
 #endif /* IPA_OFFLOAD */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -463,6 +463,7 @@ static void htt_t2h_lp_msg_handler(void *context, qdf_nbuf_t htt_t2h_msg,
 		uint16_t len;
 		uint8_t *op_msg_buffer;
 		uint8_t *msg_start_ptr;
+		int msg_len = qdf_nbuf_len(htt_t2h_msg);
 
 		htc_pm_runtime_put(pdev->htc_pdev);
 		msg_start_ptr = (uint8_t *) msg_word;
@@ -471,6 +472,11 @@ static void htt_t2h_lp_msg_handler(void *context, qdf_nbuf_t htt_t2h_msg,
 		msg_word++;
 		len = HTT_WDI_IPA_OP_RESPONSE_RSP_LEN_GET(*msg_word);
 
+		if (sizeof(struct htt_wdi_ipa_op_response_t) + len > msg_len) {
+			qdf_print("Invalid buffer length");
+			WARN_ON(1);
+			break;
+		}
 		op_msg_buffer =
 			qdf_mem_malloc(sizeof
 				       (struct htt_wdi_ipa_op_response_t) +
@@ -492,8 +498,16 @@ static void htt_t2h_lp_msg_handler(void *context, qdf_nbuf_t htt_t2h_msg,
 	{
 		uint8_t num_flows;
 		struct htt_flow_pool_map_payload_t *pool_map_payoad;
+		int msg_len = qdf_nbuf_len(htt_t2h_msg);
 
 		num_flows = HTT_FLOW_POOL_MAP_NUM_FLOWS_GET(*msg_word);
+
+		if (((HTT_FLOW_POOL_MAP_PAYLOAD_SZ /
+			HTT_FLOW_POOL_MAP_HEADER_SZ) * num_flows + 1) * sizeof(*msg_word) > msg_len) {
+			qdf_print("Invalid num_flows");
+			WARN_ON(1);
+			break;
+		}
 
 		msg_word++;
 		while (num_flows) {
@@ -950,6 +964,12 @@ void htt_t2h_msg_handler_fast(void *context, qdf_nbuf_t *cmpl_msdus,
 
 			peer_id = HTT_RX_IND_PEER_ID_GET(*msg_word);
 			tid = HTT_RX_IND_EXT_TID_GET(*msg_word);
+			if (tid >= OL_TXRX_NUM_EXT_TIDS) {
+				qdf_print("HTT_T2H_MSG_TYPE_RX_IND, invalid tid %d\n",
+					tid);
+				WARN_ON(1);
+				break;
+			}
 
 			num_msdu_bytes =
 				HTT_RX_IND_FW_RX_DESC_BYTES_GET(

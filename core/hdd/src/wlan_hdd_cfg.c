@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -5332,6 +5332,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_ESP_FEATURE_MIN,
 		     CFG_ENABLE_ESP_FEATURE_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_GCMP_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, gcmp_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_GCMP_DEFAULT,
+		     CFG_ENABLE_GCMP_MIN,
+		     CFG_ENABLE_GCMP_MAX),
+
 };
 
 /**
@@ -7121,6 +7128,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		pHddCtx->config->chan_switch_hostapd_rate_enabled);
 	hdd_debug("Name = [%s] value = [0x%x]", CFG_VC_MODE_BITMAP,
 		pHddCtx->config->vc_mode_cfg_bitmap);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_ENABLE_GCMP_NAME,
+		  pHddCtx->config->gcmp_enabled);
 }
 
 /**

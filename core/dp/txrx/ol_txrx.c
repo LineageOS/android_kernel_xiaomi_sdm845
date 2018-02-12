@@ -508,6 +508,8 @@ ol_txrx_peer_find_by_local_id_inc_ref(struct ol_txrx_pdev_t *pdev,
 	qdf_spin_unlock_bh(&pdev->local_peer_ids.lock);
 	if (peer && peer->valid)
 		OL_TXRX_PEER_INC_REF_CNT_SILENT(peer);
+	else
+		peer = NULL;
 	qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 
 	return peer;
@@ -629,6 +631,13 @@ void ol_txrx_update_tx_queue_groups(
 	u_int32_t group_vdev_bit_mask, vdev_bit_mask, group_vdev_id_mask;
 	u_int32_t membership;
 	struct ol_txrx_vdev_t *vdev;
+
+	if (group_id >= OL_TX_MAX_TXQ_GROUPS) {
+		ol_txrx_warn("%s: invalid group_id=%u, ignore update.\n",
+			__func__,
+			group_id);
+		return;
+	}
 
 	group = &pdev->txq_grps[group_id];
 
@@ -3486,8 +3495,12 @@ QDF_STATUS ol_txrx_clear_peer(uint8_t sta_id)
 
 
 	peer = ol_txrx_peer_find_by_local_id(pdev, sta_id);
+
+	/* Return success, if the peer is already cleared by
+	 * data path via peer detach function.
+	 */
 	if (!peer)
-		return QDF_STATUS_E_FAULT;
+		return QDF_STATUS_SUCCESS;
 
 	return ol_txrx_clear_peer_internal(peer);
 
@@ -4949,6 +4962,7 @@ static void ol_rx_data_cb(struct ol_txrx_pdev_t *pdev,
 	if (qdf_unlikely(!(peer->state >= OL_TXRX_PEER_STATE_CONN) ||
 					 !peer->vdev->rx)) {
 		qdf_spin_unlock_bh(&peer->peer_info_lock);
+		ol_txrx_peer_dec_ref_cnt(peer);
 		goto free_buf;
 	}
 

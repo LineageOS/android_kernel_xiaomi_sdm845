@@ -560,7 +560,7 @@ void lim_deactivate_timers(tpAniSirGlobal mac_ctx)
 	if (tx_timer_running(&lim_timer->gLimJoinFailureTimer)) {
 		pe_err("Join failure timer running call the timeout API");
 		/* Cleanup as if join timer expired */
-		lim_process_join_failure_timeout(mac_ctx);
+		lim_timer_handler(mac_ctx, SIR_LIM_JOIN_FAIL_TIMEOUT);
 	}
 	/* Deactivate Join failure timer. */
 	tx_timer_deactivate(&lim_timer->gLimJoinFailureTimer);
@@ -575,7 +575,7 @@ void lim_deactivate_timers(tpAniSirGlobal mac_ctx)
 	if (tx_timer_running(&lim_timer->gLimAssocFailureTimer)) {
 		pe_err("Assoc failure timer running call the timeout API");
 		/* Cleanup as if assoc timer expired */
-		lim_process_assoc_failure_timeout(mac_ctx, LIM_ASSOC);
+		lim_assoc_failure_timer_handler(mac_ctx, LIM_ASSOC);
 	}
 	/* Deactivate Association failure timer. */
 	tx_timer_deactivate(&lim_timer->gLimAssocFailureTimer);
@@ -583,7 +583,7 @@ void lim_deactivate_timers(tpAniSirGlobal mac_ctx)
 	if (tx_timer_running(&mac_ctx->lim.limTimers.gLimAuthFailureTimer)) {
 		pe_err("Auth failure timer running call the timeout API");
 		/* Cleanup as if auth timer expired */
-		lim_process_auth_failure_timeout(mac_ctx);
+		lim_timer_handler(mac_ctx, SIR_LIM_AUTH_FAIL_TIMEOUT);
 	}
 	/* Deactivate Authentication failure timer. */
 	tx_timer_deactivate(&lim_timer->gLimAuthFailureTimer);
@@ -7125,6 +7125,43 @@ void lim_update_caps_info_for_bss(tpAniSirGlobal mac_ctx,
 	if (!(bss_caps & LIM_IMMEDIATE_BLOCK_ACK_MASK)) {
 		*caps &= (~LIM_IMMEDIATE_BLOCK_ACK_MASK);
 		pe_debug("Clearing Immed Blk Ack:no AP support");
+	}
+}
+/**
+ * lim_send_set_dtim_period(): Send SIR_HAL_SET_DTIM_PERIOD message
+ * to set dtim period.
+ *
+ * @sesssion: LIM session
+ * @dtim_period: dtim value
+ * @mac_ctx: Mac context
+ * @return None
+ */
+void lim_send_set_dtim_period(tpAniSirGlobal mac_ctx, uint8_t dtim_period,
+			      tpPESession session)
+{
+	struct set_dtim_params *dtim_params = NULL;
+	tSirRetStatus ret = eSIR_SUCCESS;
+	tSirMsgQ msg;
+
+	if (!session) {
+		pe_err("Inavalid parameters");
+		return;
+	}
+	dtim_params = qdf_mem_malloc(sizeof(*dtim_params));
+	if (!dtim_params) {
+		pe_err("Unable to allocate memory");
+		return;
+	}
+	dtim_params->dtim_period = dtim_period;
+	dtim_params->session_id = session->smeSessionId;
+	msg.type = WMA_SET_DTIM_PERIOD;
+	msg.bodyptr = dtim_params;
+	msg.bodyval = 0;
+	pe_debug("Post WMA_SET_DTIM_PERIOD to WMA");
+	ret = wma_post_ctrl_msg(mac_ctx, &msg);
+	if (eSIR_SUCCESS != ret) {
+		pe_err("wma_post_ctrl_msg() failed");
+		qdf_mem_free(dtim_params);
 	}
 }
 
