@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -41,7 +41,6 @@
 
 struct msm_audio_ion_private {
 	bool smmu_enabled;
-	bool audioheap_enabled;
 	struct device *cb_dev;
 	struct dma_iommu_mapping *mapping;
 	u8 device_status;
@@ -112,26 +111,23 @@ int msm_audio_ion_alloc(const char *name, struct ion_client **client,
 		goto err;
 	}
 
-	*handle = ion_alloc(*client, bufsz, SZ_4K,
-			ION_HEAP(ION_AUDIO_HEAP_ID), 0);
-	if (IS_ERR_OR_NULL((void *) (*handle))) {
-		if (msm_audio_ion_data.smmu_enabled == true) {
-			pr_debug("system heap is used");
-			msm_audio_ion_data.audioheap_enabled = 0;
-			*handle = ion_alloc(*client, bufsz, SZ_4K,
-					ION_HEAP(ION_SYSTEM_HEAP_ID), 0);
-		}
-		if (IS_ERR_OR_NULL((void *) (*handle))) {
-			if (IS_ERR((void *)(*handle)))
-				err_ion_ptr = PTR_ERR((int *)(*handle));
-			pr_err("%s:ION alloc fail err ptr=%ld, smmu_enabled=%d\n",
-			__func__, err_ion_ptr, msm_audio_ion_data.smmu_enabled);
-			rc = -ENOMEM;
-			goto err_ion_client;
-		}
+	if (msm_audio_ion_data.smmu_enabled == true) {
+		pr_debug("%s: system heap is used\n", __func__);
+		*handle = ion_alloc(*client, bufsz, SZ_4K,
+				    ION_HEAP(ION_SYSTEM_HEAP_ID), 0);
 	} else {
-		pr_debug("audio heap is used");
-		msm_audio_ion_data.audioheap_enabled = 1;
+		pr_debug("%s: audio heap is used\n", __func__);
+		*handle = ion_alloc(*client, bufsz, SZ_4K,
+				    ION_HEAP(ION_AUDIO_HEAP_ID), 0);
+	}
+	if (IS_ERR_OR_NULL((void *)(*handle))) {
+		if (IS_ERR((void *)(*handle)))
+			err_ion_ptr = PTR_ERR((int *)(*handle));
+
+		pr_err("%s:ION alloc fail err ptr=%ld, smmu_enabled=%d\n",
+		       __func__, err_ion_ptr, msm_audio_ion_data.smmu_enabled);
+		rc = -ENOMEM;
+		goto err_ion_client;
 	}
 
 	rc = msm_audio_ion_get_phys(*client, *handle, paddr, pa_len);
