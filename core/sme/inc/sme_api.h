@@ -1978,4 +1978,17 @@ QDF_STATUS sme_set_vc_mode_config(uint32_t vc_bitmap);
 QDF_STATUS sme_send_limit_off_channel_params(tHalHandle hal, uint8_t vdev_id,
 		bool is_tos_active, uint32_t max_off_chan_time,
 		uint32_t rest_time, bool skip_dfs_chan);
+
+/**
+ * sme_is_sta_key_exchange_in_progress() - checks whether the STA/P2P client
+ * session has key exchange in progress
+ *
+ * @hal: global hal handle
+ * @session_id: session id
+ *
+ * Return: true - if key exchange in progress
+ *         false - if not in progress
+ */
+bool sme_is_sta_key_exchange_in_progress(tHalHandle hal, uint8_t session_id);
+
 #endif /* #if !defined( __SME_API_H ) */

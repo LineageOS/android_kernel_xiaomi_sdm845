@@ -2946,9 +2946,9 @@ bool cds_is_connection_in_progress(uint8_t *session_id,
 			hdd_sta_ctx =
 				WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 			if ((eConnectionState_Associated ==
-				hdd_sta_ctx->conn_info.connState)
-				&& (false ==
-				hdd_sta_ctx->conn_info.uIsAuthenticated)) {
+			    hdd_sta_ctx->conn_info.connState)
+			    && sme_is_sta_key_exchange_in_progress(
+			    hdd_ctx->hHal, adapter->sessionId)) {
 				sta_mac = (uint8_t *)
 					&(adapter->macAddressCurrent.bytes[0]);
 				cds_debug("client " MAC_ADDRESS_STR
