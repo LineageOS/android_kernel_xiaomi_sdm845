@@ -1162,12 +1162,9 @@ static int wlan_hdd_execute_remain_on_channel(hdd_adapter_t *pAdapter,
 			hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_ROC);
 			return -EINVAL;
 		}
-		mutex_lock(&cfgState->remain_on_chan_ctx_lock);
-		pRemainChanCtx = cfgState->remain_on_chan_ctx;
-		if (pRemainChanCtx) {
-		    if (REMAIN_ON_CHANNEL_REQUEST ==
-			pRemainChanCtx->rem_on_chan_request) {
-			mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
+
+		if (REMAIN_ON_CHANNEL_REQUEST ==
+		    pRemainChanCtx->rem_on_chan_request) {
 			if (QDF_STATUS_SUCCESS != sme_register_mgmt_frame(
 						WLAN_HDD_GET_HAL_CTX(pAdapter),
 						sessionId,
@@ -1175,9 +1172,6 @@ static int wlan_hdd_execute_remain_on_channel(hdd_adapter_t *pAdapter,
 						(SIR_MAC_MGMT_PROBE_REQ << 4),
 						NULL, 0))
 				hdd_err("sme_register_mgmt_frame failed");
-			}
-		} else {
-		    mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
 		}
 	} else if ((QDF_SAP_MODE == pAdapter->device_mode) ||
 		   (QDF_P2P_GO_MODE == pAdapter->device_mode)) {
