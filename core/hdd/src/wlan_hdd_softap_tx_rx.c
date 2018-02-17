@@ -827,11 +827,12 @@ QDF_STATUS hdd_softap_deregister_sta(hdd_adapter_t *pAdapter, uint8_t staId)
 
 	if (pAdapter->aStaInfo[staId].isUsed) {
 		if (hdd_ipa_uc_is_enabled(pHddCtx)) {
-			hdd_ipa_wlan_evt(pAdapter,
+			if (hdd_ipa_wlan_evt(pAdapter,
 					 pAdapter->aStaInfo[staId].ucSTAId,
 					 HDD_IPA_CLIENT_DISCONNECT,
 					 pAdapter->aStaInfo[staId].macAddrSTA.
-					 bytes);
+					 bytes))
+				hdd_err("WLAN_CLIENT_DISCONNECT event failed");
 		}
 		spin_lock_bh(&pAdapter->staInfo_lock);
 		qdf_mem_zero(&pAdapter->aStaInfo[staId],
@@ -1037,6 +1038,14 @@ QDF_STATUS hdd_softap_stop_bss(hdd_adapter_t *pAdapter)
 	if (pHddCtx->config->disable_indoor_channel) {
 		hdd_update_indoor_channel(pHddCtx, false);
 		sme_update_channel_list(pHddCtx->hHal);
+	}
+
+	if (hdd_ipa_is_enabled(pHddCtx)) {
+		if (hdd_ipa_wlan_evt(pAdapter,
+				WLAN_HDD_GET_AP_CTX_PTR(pAdapter)->uBCStaId,
+				HDD_IPA_AP_DISCONNECT,
+				pAdapter->dev->dev_addr))
+			hdd_err("WLAN_AP_DISCONNECT event failed");
 	}
 
 	return qdf_status;
