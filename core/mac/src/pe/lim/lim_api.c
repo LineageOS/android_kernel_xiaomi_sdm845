@@ -903,6 +903,17 @@ void pe_stop(tpAniSirGlobal pMac)
 	return;
 }
 
+static void pe_free_nested_messages(tSirMsgQ *msg)
+{
+	switch (msg->type) {
+	case WMA_SET_LINK_STATE_RSP:
+		qdf_mem_free(((tpLinkStateParams) msg->bodyptr)->callbackArg);
+		break;
+	default:
+		break;
+	}
+}
+
 /** -------------------------------------------------------------
    \fn pe_free_msg
    \brief Called by CDS scheduler (function cds_sched_flush_mc_mqs)
@@ -921,6 +932,7 @@ void pe_free_msg(tpAniSirGlobal pMac, tSirMsgQ *pMsg)
 				cds_pkt_return_packet((cds_pkt_t *) pMsg->
 						      bodyptr);
 			} else {
+				pe_free_nested_messages(pMsg);
 				qdf_mem_free((void *)pMsg->bodyptr);
 			}
 		}
