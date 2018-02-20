@@ -2322,6 +2322,9 @@ static int __hdd_open(struct net_device *dev)
 		}
 	}
 
+	if (adapter->device_mode == QDF_FTM_MODE)
+		goto err_hdd_hdd_init_deinit_lock;
+
 	set_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 	hdd_info("%s interface up", dev->name);
 
