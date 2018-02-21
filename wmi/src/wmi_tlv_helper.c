@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -505,6 +505,7 @@ wmitlv_check_and_pad_tlvs(void *os_handle, void *param_struc_ptr,
 	wmitlv_cmd_param_info *cmd_param_tlvs_ptr = NULL;
 	A_UINT32 remaining_expected_tlvs = 0xFFFFFFFF;
 	A_UINT32 len_wmi_cmd_struct_buf;
+	A_UINT32 free_buf_len;
 	A_INT32 error = -1;
 
 	/* Get the number of TLVs for this command/event */
@@ -566,6 +567,13 @@ wmitlv_check_and_pad_tlvs(void *os_handle, void *param_struc_ptr,
 		A_UINT32 curr_tlv_len =
 			WMITLV_GET_TLVLEN(WMITLV_GET_HDR(buf_ptr));
 		int num_padding_bytes = 0;
+
+		free_buf_len = param_buf_len - (buf_idx + WMI_TLV_HDR_SIZE);
+		if (curr_tlv_len > free_buf_len) {
+			wmi_tlv_print_error("%s: TLV length overflow",
+					    __func__);
+			goto Error_wmitlv_check_and_pad_tlvs;
+		}
 
 		/* Get the attributes of the TLV with the given order in "tlv_index" */
 		wmi_tlv_OS_MEMZERO(&attr_struct_ptr,
@@ -630,6 +638,13 @@ wmitlv_check_and_pad_tlvs(void *os_handle, void *param_struc_ptr,
 						WMITLV_GET_TLVLEN(WMITLV_GET_HDR
 									  (buf_ptr));
 					in_tlv_len += WMI_TLV_HDR_SIZE;
+					if (in_tlv_len > curr_tlv_len) {
+						wmi_tlv_print_error("%s: Invalid in_tlv_len=%d",
+								    __func__,
+								    in_tlv_len);
+						goto
+						Error_wmitlv_check_and_pad_tlvs;
+					}
 					tlv_size_diff =
 						in_tlv_len -
 						attr_struct_ptr.tag_struct_size;
@@ -749,8 +764,17 @@ wmitlv_check_and_pad_tlvs(void *os_handle, void *param_struc_ptr,
 
 					/* Move subsequent TLVs by number of bytes to be padded
 					 * for all elements */
-					if (param_buf_len >
-					    (buf_idx + curr_tlv_len)) {
+					if ((free_buf_len <
+					    attr_struct_ptr.tag_struct_size *
+					    num_of_elems) ||
+					    (param_buf_len <
+					    buf_idx + curr_tlv_len +
+					    num_padding_bytes * num_of_elems)) {
+						wmi_tlv_print_error("%s: Insufficent buffer\n",
+								    __func__);
+						goto
+						Error_wmitlv_check_and_pad_tlvs;
+					} else {
 						src_addr =
 							buf_ptr + curr_tlv_len;
 						dst_addr =
@@ -770,12 +794,10 @@ wmitlv_check_and_pad_tlvs(void *os_handle, void *param_struc_ptr,
 					 * bytes to be padded for one element and alse set
 					 * padding bytes to zero */
 					tlv_buf_ptr = buf_ptr;
-					for (i = 0; i < num_of_elems; i++) {
+					for (i = 0; i < num_of_elems - 1; i++) {
 						src_addr =
 							tlv_buf_ptr + in_tlv_len;
 						if (i != (num_of_elems - 1)) {
-							/* Need not move anything for last element
-							 * in the array */
 							dst_addr =
 								tlv_buf_ptr +
 								in_tlv_len +
@@ -798,6 +820,9 @@ wmitlv_check_and_pad_tlvs(void *os_handle, void *param_struc_ptr,
 							attr_struct_ptr.
 							tag_struct_size;
 					}
+					src_addr = tlv_buf_ptr + in_tlv_len;
+					wmi_tlv_OS_MEMZERO(src_addr,
+							   num_padding_bytes);
 
 					/* Update the number of padding bytes to total number
 					 * of bytes padded for all elements in the array */
