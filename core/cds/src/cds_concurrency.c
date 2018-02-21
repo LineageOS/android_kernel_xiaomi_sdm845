@@ -5874,6 +5874,49 @@ static bool cds_is_5g_channel_allowed(uint8_t channel, uint32_t *list,
 
 }
 
+bool cds_allow_sap_go_concurrency(enum cds_con_mode mode, uint8_t channel)
+{
+	uint32_t sap_cnt;
+	uint32_t go_cnt;
+	enum cds_con_mode con_mode;
+	uint8_t con_chan;
+	int id;
+
+	sap_cnt = cds_mode_specific_connection_count(CDS_SAP_MODE, NULL);
+	go_cnt = cds_mode_specific_connection_count(CDS_P2P_GO_MODE, NULL);
+
+	if ((mode == CDS_SAP_MODE || mode == CDS_P2P_GO_MODE) && (sap_cnt ||
+				go_cnt)) {
+		if (!wma_is_dbs_enable()) {
+			/* Don't allow second SAP/GO interface if DBS is not
+			 * supported */
+			cds_debug("DBS is not supported, don't allow second SAP interface");
+			return false;
+		}
+
+		/* If DBS is supported then allow second SAP/GO session only if
+		 * the freq band of the second SAP/GO interface is different
+		 * than the first SAP/GO interface.
+		 */
+		for (id = 0; id < MAX_NUMBER_OF_CONC_CONNECTIONS; id++) {
+			if (conc_connection_list[id].in_use) {
+				con_mode = conc_connection_list[id].mode;
+				con_chan = conc_connection_list[id].chan;
+				if (((con_mode == CDS_SAP_MODE) ||
+					(con_mode == CDS_P2P_GO_MODE)) &&
+					(CDS_IS_SAME_BAND_CHANNELS(channel,
+					con_chan))) {
+					cds_debug("DBS is supported, but first SAP and second SAP are on same band, So don't allow second SAP interface");
+					return false;
+				}
+			}
+		}
+	}
+
+	/* Don't block the second interface */
+	return true;
+}
+
 /**
  * cds_allow_concurrency() - Check for allowed concurrency
  * combination
@@ -6076,6 +6119,11 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 			index++;
 		}
 		qdf_mutex_release(&cds_ctx->qdf_conc_list_lock);
+	}
+
+	if (!cds_allow_sap_go_concurrency(mode, channel)) {
+		hdd_err("This concurrency combination is not allowed");
+		goto done;
 	}
 
 	status = true;
