@@ -8126,7 +8126,7 @@ QDF_STATUS wma_mc_process_msg(void *cds_context, cds_msg_t *msg)
 		qdf_mem_free(msg->bodyptr);
 		break;
 	case WMA_CONF_HW_FILTER: {
-		struct hw_filter_request *req = msg->bodyptr;
+		struct wmi_hw_filter_req_params *req = msg->bodyptr;
 
 		qdf_status = wma_conf_hw_filter_mode(wma_handle, req);
 		break;

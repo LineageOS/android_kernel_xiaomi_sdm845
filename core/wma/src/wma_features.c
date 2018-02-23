@@ -7379,28 +7379,18 @@ QDF_STATUS wma_enable_arp_ns_offload(tp_wma_handle wma,
 }
 
 QDF_STATUS wma_conf_hw_filter_mode(tp_wma_handle wma,
-				   struct hw_filter_request *req)
+				   struct wmi_hw_filter_req_params *req)
 {
 	QDF_STATUS status;
-	uint8_t vdev_id;
 
-	/* Get the vdev id */
-	if (!wma_find_vdev_by_bssid(wma, req->bssid.bytes, &vdev_id)) {
-		WMA_LOGE("vdev handle is invalid for %pM",
-			 req->bssid.bytes);
-		qdf_mem_free(req);
-		return QDF_STATUS_E_INVAL;
-	}
-
-	if (!wma->interfaces[vdev_id].vdev_up) {
+	if (!wma->interfaces[req->vdev_id].vdev_up) {
 		WMA_LOGE("vdev %d is not up skipping enable Broadcast Filter",
-			 vdev_id);
+			 req->vdev_id);
 		qdf_mem_free(req);
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	status = wmi_unified_conf_hw_filter_mode_cmd(wma->wmi_handle, vdev_id,
-						     req->mode_bitmap);
+	status = wmi_unified_conf_hw_filter_mode_cmd(wma->wmi_handle, req);
 	if (QDF_IS_STATUS_ERROR(status))
 		WMA_LOGE("Failed to enable/disable Broadcast Filter");
 

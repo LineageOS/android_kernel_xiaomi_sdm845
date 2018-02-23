@@ -551,7 +551,7 @@ QDF_STATUS sme_set_host_offload(tHalHandle hHal, uint8_t sessionId,
  * Return: QDF_STATUS
  */
 QDF_STATUS sme_conf_hw_filter_mode(tHalHandle hal, uint8_t session_id,
-				   uint8_t mode_bitmap);
+				   uint8_t mode_bitmap, bool filter_enable);
 
 QDF_STATUS sme_set_keep_alive(tHalHandle hHal, uint8_t sessionId,
 		tpSirKeepAliveReq pRequest);
