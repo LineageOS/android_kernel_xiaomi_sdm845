@@ -3271,17 +3271,16 @@ QDF_STATUS wmi_unified_enable_arp_ns_offload_cmd(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 
-QDF_STATUS wmi_unified_conf_hw_filter_mode_cmd(void *wmi_hdl,
-					       uint8_t vdev_id,
-					       uint8_t mode_bitmap)
+QDF_STATUS
+wmi_unified_conf_hw_filter_mode_cmd(void *wmi_hdl,
+				    struct wmi_hw_filter_req_params *req)
 {
 	wmi_unified_t wmi = wmi_hdl;
 
 	if (!wmi->ops->send_conf_hw_filter_mode_cmd)
 		return QDF_STATUS_E_FAILURE;
 
-	return wmi->ops->send_conf_hw_filter_mode_cmd(wmi, vdev_id,
-						      mode_bitmap);
+	return wmi->ops->send_conf_hw_filter_mode_cmd(wmi, req);
 }
 
 /**

@@ -567,13 +567,12 @@ QDF_STATUS send_enable_arp_ns_offload_cmd_tlv(wmi_unified_t wmi_handle,
 /**
  * send_conf_hw_filter_cmd_tlv() - configure hw filter mode to firmware
  * @wmi: wmi handle
- * @vdev_id: Id of the vdev to configure
- * @mode_bitmap: the hw filter mode to configure
+ * @req: the hw filter mode request parameters
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS send_conf_hw_filter_cmd_tlv(wmi_unified_t wmi, uint8_t vdev_id,
-				       uint8_t mode_bitmap);
+QDF_STATUS send_conf_hw_filter_cmd_tlv(wmi_unified_t wmi,
+				       struct wmi_hw_filter_req_params *req);
 
 QDF_STATUS send_set_led_flashing_cmd_tlv(wmi_unified_t wmi_handle,
 				struct flashing_req_params *flashing);
