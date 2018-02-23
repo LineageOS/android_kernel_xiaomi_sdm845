@@ -2198,8 +2198,9 @@ bool hdd_is_roam_sync_in_progress(tCsrRoamInfo *roaminfo)
 static int hdd_change_sta_state_authenticated(hdd_adapter_t *adapter,
 						 tCsrRoamInfo *roaminfo)
 {
-	int ret;
 	uint32_t timeout;
+	QDF_STATUS status;
+	uint8_t staid = HDD_WLAN_INVALID_STA_ID;
 	hdd_station_ctx_t *hddstactx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
@@ -2207,13 +2208,27 @@ static int hdd_change_sta_state_authenticated(hdd_adapter_t *adapter,
 		AUTO_PS_ENTRY_TIMER_DEFAULT_VALUE :
 		hdd_ctx->config->auto_bmps_timer_val * 1000;
 
-	hdd_debug("Changing TL state to AUTHENTICATED for StaId= %d",
-		 hddstactx->conn_info.staId[0]);
+	if (QDF_IBSS_MODE == adapter->device_mode) {
+		if (qdf_is_macaddr_broadcast(&roaminfo->peerMac)) {
+			staid = 0;
+		} else {
+			 status = hdd_get_peer_sta_id(hddstactx,
+					&roaminfo->peerMac, &staid);
+			if (status != QDF_STATUS_SUCCESS) {
+				hdd_err("Unable to find staid for %pM",
+					roaminfo->peerMac.bytes);
+				return qdf_status_to_os_return(status);
+			}
+		}
+	} else {
+		staid = hddstactx->conn_info.staId[0];
+	}
+	hdd_debug("Changing TL state to AUTHENTICATED for StaId= %d", staid);
 
 	/* Connections that do not need Upper layer authentication,
 	 * transition TL to 'Authenticated' state after the keys are set
 	 */
-	ret = hdd_change_peer_state(adapter,
+	status = hdd_change_peer_state(adapter,
 			hddstactx->conn_info.staId[0],
 			OL_TXRX_PEER_STATE_AUTH,
 			hdd_is_roam_sync_in_progress(roaminfo));
@@ -2226,9 +2241,86 @@ static int hdd_change_sta_state_authenticated(hdd_adapter_t *adapter,
 			timeout);
 	}
 
-	return ret;
+	return qdf_status_to_os_return(status);
 }
 
+
+static void hdd_peer_state_transition(hdd_adapter_t *adapter,
+				tCsrRoamInfo *roam_info,
+				eCsrRoamResult roam_status)
+{
+	hdd_station_ctx_t *hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
+	eCsrEncryptionType encr_type = hdd_sta_ctx->conn_info.ucEncryptionType;
+
+	/*
+	 * If the security mode is one of the following, IBSS peer will be
+	 * waiting in CONN state and we will move the peer state to AUTH
+	 * here. For non-secure connection, no need to wait for set-key complete
+	 * peer will be moved to AUTH in hdd_roam_register_sta.
+	 */
+	if (QDF_IBSS_MODE == adapter->device_mode) {
+		if ((encr_type == eCSR_ENCRYPT_TYPE_TKIP) ||
+		    (encr_type == eCSR_ENCRYPT_TYPE_AES) ||
+		    (encr_type == eCSR_ENCRYPT_TYPE_WEP40_STATICKEY) ||
+		    (encr_type == eCSR_ENCRYPT_TYPE_WEP104_STATICKEY)) {
+			hdd_debug("IBSS mode: moving to authenticated state-%d",
+				  encr_type);
+			hdd_change_sta_state_authenticated(adapter, roam_info);
+		}
+		return;
+	}
+
+	if (eCSR_ROAM_RESULT_AUTHENTICATED == roam_status) {
+		hdd_sta_ctx->conn_info.gtk_installed = true;
+		/*
+		 * PTK exchange happens in preauthentication
+		 * itself if key_mgmt is FT-PSK, ptk_installed
+		 * was false as there is no set PTK after
+		 * roaming. STA TL state moves to authenticated
+		 * only if ptk_installed is true. So, make
+		 * ptk_installed to true in case of 11R roaming.
+		 */
+		if (sme_neighbor_roam_is11r_assoc(
+					WLAN_HDD_GET_HAL_CTX(adapter),
+					adapter->sessionId))
+			hdd_sta_ctx->conn_info.ptk_installed =
+				true;
+	} else {
+		hdd_sta_ctx->conn_info.ptk_installed = true;
+	}
+
+	/* In WPA case move STA to authenticated when
+	 * ptk is installed.Earlier in WEP case STA
+	 * was moved to AUTHENTICATED prior to setting
+	 * the unicast key and it was resulting in sending
+	 * few un-encrypted packet. Now in WEP case
+	 * STA state will be moved to AUTHENTICATED
+	 * after we set the unicast and broadcast key.
+	 */
+	if ((encr_type == eCSR_ENCRYPT_TYPE_WEP40) ||
+	    (encr_type == eCSR_ENCRYPT_TYPE_WEP104) ||
+	    (encr_type == eCSR_ENCRYPT_TYPE_WEP40_STATICKEY) ||
+	    (encr_type == eCSR_ENCRYPT_TYPE_WEP104_STATICKEY)) {
+		if (hdd_sta_ctx->conn_info.gtk_installed &&
+				hdd_sta_ctx->conn_info.ptk_installed)
+			qdf_status =
+				hdd_change_sta_state_authenticated(adapter,
+						roam_info);
+	} else if (hdd_sta_ctx->conn_info.ptk_installed) {
+		qdf_status =
+			hdd_change_sta_state_authenticated(adapter,
+					roam_info);
+	}
+
+	if (hdd_sta_ctx->conn_info.gtk_installed &&
+			hdd_sta_ctx->conn_info.ptk_installed) {
+		hdd_sta_ctx->conn_info.gtk_installed = false;
+		hdd_sta_ctx->conn_info.ptk_installed = false;
+	}
+
+	hdd_sta_ctx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
+}
 /**
  * hdd_roam_set_key_complete_handler() - Update the security parameters
  * @pAdapter: pointer to adapter
@@ -2247,7 +2339,6 @@ static QDF_STATUS hdd_roam_set_key_complete_handler(hdd_adapter_t *pAdapter,
 {
 	eCsrEncryptionType connectedCipherAlgo;
 	bool fConnected = false;
-	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
 	ENTER();
@@ -2269,80 +2360,7 @@ static QDF_STATUS hdd_roam_set_key_complete_handler(hdd_adapter_t *pAdapter,
 	fConnected = hdd_conn_get_connected_cipher_algo(pHddStaCtx,
 						   &connectedCipherAlgo);
 	if (fConnected) {
-		if (QDF_IBSS_MODE == pAdapter->device_mode) {
-			uint8_t staId;
-
-			if (qdf_is_macaddr_broadcast(&pRoamInfo->peerMac)) {
-				pHddStaCtx->roam_info.roamingState =
-					HDD_ROAM_STATE_NONE;
-			} else {
-				qdf_status = hdd_get_peer_sta_id(
-							pHddStaCtx,
-							&pRoamInfo->peerMac,
-							&staId);
-				if (QDF_STATUS_SUCCESS == qdf_status) {
-					hdd_debug("WLAN TL STA Ptk Installed for STAID=%d",
-						staId);
-					pHddStaCtx->roam_info.roamingState =
-						HDD_ROAM_STATE_NONE;
-				}
-			}
-		} else {
-			if (eCSR_ROAM_RESULT_AUTHENTICATED == roamResult) {
-				pHddStaCtx->conn_info.gtk_installed = true;
-				/*
-				 * PTK exchange happens in preauthentication
-				 * itself if key_mgmt is FT-PSK, ptk_installed
-				 * was false as there is no set PTK after
-				 * roaming. STA TL state moves to authenticated
-				 * only if ptk_installed is true. So, make
-				 * ptk_installed to true in case of 11R roaming.
-				 */
-				if (sme_neighbor_roam_is11r_assoc(
-				    WLAN_HDD_GET_HAL_CTX(pAdapter),
-				    pAdapter->sessionId))
-					pHddStaCtx->conn_info.ptk_installed =
-						true;
-			} else {
-				pHddStaCtx->conn_info.ptk_installed = true;
-			}
-
-			/* In WPA case move STA to authenticated when
-			 * ptk is installed.Earlier in WEP case STA
-			 * was moved to AUTHENTICATED prior to setting
-			 * the unicast key and it was resulting in sending
-			 * few un-encrypted packet. Now in WEP case
-			 * STA state will be moved to AUTHENTICATED
-			 * after we set the unicast and broadcast key.
-			 */
-			if ((pHddStaCtx->conn_info.ucEncryptionType ==
-			  eCSR_ENCRYPT_TYPE_WEP40) ||
-			  (pHddStaCtx->conn_info.ucEncryptionType ==
-			  eCSR_ENCRYPT_TYPE_WEP104) ||
-			  (pHddStaCtx->conn_info.ucEncryptionType ==
-			  eCSR_ENCRYPT_TYPE_WEP40_STATICKEY) ||
-			  (pHddStaCtx->conn_info.ucEncryptionType ==
-			  eCSR_ENCRYPT_TYPE_WEP104_STATICKEY)) {
-				if (pHddStaCtx->conn_info.gtk_installed &&
-					pHddStaCtx->conn_info.ptk_installed)
-					qdf_status =
-					    hdd_change_sta_state_authenticated(pAdapter,
-						pRoamInfo);
-			} else if (pHddStaCtx->conn_info.ptk_installed) {
-				qdf_status =
-				    hdd_change_sta_state_authenticated(pAdapter,
-					pRoamInfo);
-			}
-
-			if (pHddStaCtx->conn_info.gtk_installed &&
-				pHddStaCtx->conn_info.ptk_installed) {
-				pHddStaCtx->conn_info.gtk_installed = false;
-				pHddStaCtx->conn_info.ptk_installed = false;
-			}
-
-			pHddStaCtx->roam_info.roamingState =
-						HDD_ROAM_STATE_NONE;
-		}
+		hdd_peer_state_transition(pAdapter, pRoamInfo, roamResult);
 	} else {
 		/*
 		 * possible disassoc after issuing set key and waiting
@@ -3483,6 +3501,7 @@ roam_roam_connect_status_update_handler(hdd_adapter_t *pAdapter,
 	{
 		hdd_station_ctx_t *pHddStaCtx =
 			WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+		eCsrEncryptionType enc_type = pHddStaCtx->ibss_enc_key.encType;
 		struct station_info *stainfo;
 
 		hdd_debug("IBSS New Peer indication from SME "
@@ -3504,6 +3523,14 @@ roam_roam_connect_status_update_handler(hdd_adapter_t *pAdapter,
 			pHddCtx->sta_to_adapter[pRoamInfo->staId] = pAdapter;
 		else
 			hdd_debug("invalid sta_id %d", pRoamInfo->staId);
+		if ((eCSR_ENCRYPT_TYPE_WEP40_STATICKEY == enc_type) ||
+		    (eCSR_ENCRYPT_TYPE_WEP104_STATICKEY == enc_type) ||
+		    (eCSR_ENCRYPT_TYPE_TKIP == enc_type) ||
+		    (eCSR_ENCRYPT_TYPE_AES == enc_type)) {
+			hdd_debug("IBSS sta-id:%d, auth req set to true",
+				  pRoamInfo->staId);
+			pRoamInfo->fAuthRequired = true;
+		}
 
 		/* Register the Station with TL for the new peer. */
 		qdf_status = hdd_roam_register_sta(pAdapter,
