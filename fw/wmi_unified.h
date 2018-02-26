@@ -2211,6 +2211,15 @@ typedef struct {
      * bits 31:28 -> CRM sub ID
      */
     A_UINT32 fw_build_vers_ext;
+    /* max_nlo_ssids - dynamically negotiated maximum number of SSIDS for NLO
+     * This limit is the maximum number of SSIDs that can be configured in the
+     * target for Network List Offload (i.e. scanning for a preferred network).
+     * If this value is 0x0, the target supports WMI_NLO_MAX_SSIDS (16).
+     * If this value is non-zero, the host should send back in the
+     * WMI_INIT message's wmi_resource_config.max_nlo_ssids a value that
+     * is equal to or less than the target capability limit reported here.
+     */
+    A_UINT32 max_nlo_ssids;
 } wmi_service_ready_ext_event_fixed_param;
 
 typedef enum {
@@ -2726,6 +2735,27 @@ typedef struct {
 
     /* Max no of STA with which TWT sessions can be formed by the AP */
     A_UINT32 twt_ap_sta_count;
+
+    /* max_nlo_ssids - dynamically negotiated maximum number of SSIDS for NLO
+     * This parameter provides the final specification for the maximum number
+     * of SSIDs for the target to support for Network List Offload's scanning
+     * for preferred networks.
+     * This wmi_resource_config.max_nlo_ssids must be <= the max_nlo_ssids
+     * field from the target's WMI_SERVICE_READY_EXT_EVENT message.
+     * (If the target didn't provide a max_nlo_ssids field in the
+     * WMI_SERVICE_READY_EXT message, or if the SERVICE_READY_EXT msg's
+     * max_nlo_ssids value was 0x0, the target doesn't support dynamic
+     * negotiation of max NLO SSIDs, and WMI_NLO_MAX_SSIDS (=16) applies.)
+     * If this wmi_resource_config.max_nlo_ssids field is absent or 0x0,
+     * the host does not support dynamic negotiation of max NLO SSIDs.
+     * In such a case, the target will respond as follows:
+     * If the target supports at least WMI_NLO_MAX_SSIDS, the target will
+     * use the statically-configured WMI_NLO_MAX_SSIDS value.
+     * If the target supports less than WMI_NLO_MAX_SSIDS, the target will
+     * abort its boot-up, due to receiving an invalid/unsupported
+     * configuration specification.
+     */
+    A_UINT32 max_nlo_ssids;
 } wmi_resource_config;
 
 #define WMI_RSRC_CFG_FLAG_SET(word32, flag, value) \
@@ -8169,6 +8199,13 @@ typedef enum {
       * valid values: 0-Disable responder role 1-Enable responder role
       */
     WMI_VDEV_PARAM_ENABLE_DISABLE_RTT_RESPONDER_ROLE,        /* 0x7d */
+
+    /** Parameter to configure BA mode.
+     * Default: Auto mode.
+     * Valid values: 0- Auto mode,
+     *               1- Manual mode(addba req not sent).
+     */
+    WMI_VDEV_PARAM_BA_MODE,                                 /* 0x7e */
 
 
     /*=== ADD NEW VDEV PARAM TYPES ABOVE THIS LINE ===
@@ -21414,7 +21451,10 @@ typedef struct {
     /** TLV tag and len; tag equals
      * WMITLV_TAG_STRUC_wmi_pdev_get_nfcal_power_fixed_param */
     A_UINT32 tlv_header;
-    /* Currently there are no parameters for this message. */
+    /** pdev_id for identifying the MAC
+     * See macros starting with WMI_PDEV_ID_ for values.
+     */
+    A_UINT32 pdev_id;
 } wmi_pdev_get_nfcal_power_fixed_param;
 
 typedef struct {
@@ -21715,12 +21755,21 @@ typedef enum {
 /*
 * Lay out of flags in wmi_wlm_config_cmd_fixed_param
 *
-* |31  12|  11  |  10  |9    8|7    6|5    4|3    2|  1  |  0  |
-* +------+------+------+------+------+------+------+-----+-----+
-* | RSVD | SSLP | CSLP | RSVD | Roam | RSVD | DWLT | DFS | SUP |
-* +------+-------------+-------------+-------------------------+
-* |  WAL |      PS     |     Roam    |         Scan            |
+* |31  17|16 14| 13 | 12 |  11  |  10  |9    8|7    6|5    4|3    2|  1  |  0  |
+* +------+-----+----+----+------+------+------+------+------+------+-----+-----+
+* | RSVD | NSS |EDCA| TRY| SSLP | CSLP | RSVD | Roam | RSVD | DWLT | DFS | SUP |
+* +----------------------+-------------+-------------+-------------------------+
+* |          WAL         |      PS     |     Roam    |         Scan            |
 *
+* Flag values:
+*     TRY: (1) enable short limit for retrying unacked tx, where the limit is
+*              based on the traffic's latency level
+*          (0) default tx retry behavior
+*    EDCA: (1) Apply VO parameters on BE
+*          (0) default behavior
+*     NSS: (0) no Nss limits, other than those negotiatied during association
+*          (1) during 2-chain operation, tx only a single spatial stream
+*          (2) - (7) reserved / invalid
 */
 /* bit 0-3 of flags is used for scan operation */
 /* bit 0: WLM_FLAGS_SCAN_SUPPRESS, suppress all scan and other bits would be ignored if bit is set */
@@ -21772,7 +21821,7 @@ typedef enum {
 #define WLM_FLAGS_PS_DISABLE_SYS_SLEEP  1  /* disable sys sleep */
 
 
-/* bit 12-31 of flags is reserved for powersave and WAL */
+/* bit 17-31 of flags is reserved for powersave and WAL */
 
 #define WLM_FLAGS_SCAN_IS_SUPPRESS(flag)                  WMI_GET_BITS(flag, 0, 1)
 #define WLM_FLAGS_SCAN_SET_SUPPRESS(flag, val)            WMI_SET_BITS(flag, 0, 1, val)
@@ -21786,6 +21835,12 @@ typedef enum {
 #define WLM_FLAGS_PS_SET_CSS_CLPS_DISABLE(flag, val)      WMI_SET_BITS(flag, 10, 1, val)
 #define WLM_FLAGS_PS_IS_SYS_SLP_DISABLED(flag)            WMI_GET_BITS(flag, 11, 1)
 #define WLM_FLAGS_PS_SET_SYS_SLP_DISABLE(flag, val)       WMI_SET_BITS(flag, 11, 1, val)
+#define WLM_FLAGS_WAL_LIMIT_TRY_ENABLED(flag)             WMI_GET_BITS(flag, 12, 1)
+#define WLM_FLAGS_WAL_LIMIT_TRY_SET(flag, val)            WMI_SET_BITS(flag, 12, 1, val)
+#define WLM_FLAGS_WAL_ADJUST_EDCA_ENABLED(flag)           WMI_GET_BITS(flag, 13, 1)
+#define WLM_FLAGS_WAL_ADJUST_EDCA_SET(flag, val)          WMI_SET_BITS(flag, 13, 1, val)
+#define WLM_FLAGS_WAL_1NSS_ENABLED(flag)                 (WMI_GET_BITS(flag, 14, 3) & 0x1)
+#define WLM_FLAGS_WAL_NSS_SET(flag, val)                  WMI_SET_BITS(flag, 14, 3, val)
 
 typedef struct {
     /** TLV tag and len; tag equals
