@@ -21314,6 +21314,13 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 				ROAMING_OFFLOAD_TIMER_START);
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				eCSR_ROAM_START, eCSR_ROAM_RESULT_SUCCESS);
+		/*
+		 * Inform HDD about roam start using above callback
+		 * which will take care of blocking incoming scan
+		 * requests during roaming and then call the below
+		 * API to cancel all the active scans.
+		 */
+		csr_scan_abort_mac_scan_not_for_connect(mac_ctx, session_id);
 		return status;
 	case SIR_ROAMING_ABORT:
 		csr_roam_roaming_offload_timer_action(mac_ctx,

@@ -1173,7 +1173,6 @@ static int wlan_hdd_execute_remain_on_channel(hdd_adapter_t *pAdapter,
 						NULL, 0))
 				hdd_err("sme_register_mgmt_frame failed");
 		}
-
 	} else if ((QDF_SAP_MODE == pAdapter->device_mode) ||
 		   (QDF_P2P_GO_MODE == pAdapter->device_mode)) {
 		/* call sme API to start remain on channel. */
