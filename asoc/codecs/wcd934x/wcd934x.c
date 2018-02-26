@@ -127,6 +127,7 @@ static const struct snd_kcontrol_new name##_mux = \
 #define WCD934X_STRING_LEN 100
 
 #define WCD934X_CDC_SIDETONE_IIR_COEFF_MAX 5
+#define WCD934X_CDC_REPEAT_WRITES_MAX 16
 #define WCD934X_DIG_CORE_REG_MIN  WCD934X_CDC_ANC0_CLK_RESET_CTL
 #define WCD934X_DIG_CORE_REG_MAX  0xFFF
 
@@ -526,7 +527,7 @@ struct tx_mute_work {
 	struct delayed_work dwork;
 };
 
-#define WCD934X_SPK_ANC_EN_DELAY_MS 350
+#define WCD934X_SPK_ANC_EN_DELAY_MS 550
 static int spk_anc_en_delay = WCD934X_SPK_ANC_EN_DELAY_MS;
 module_param(spk_anc_en_delay, int, 0664);
 MODULE_PARM_DESC(spk_anc_en_delay, "delay to enable anc in speaker path");
@@ -628,8 +629,8 @@ struct tavil_priv {
 	struct tavil_idle_detect_config idle_det_cfg;
 
 	int power_active_ref;
-	int sidetone_coeff_array[IIR_MAX][BAND_MAX]
-		[WCD934X_CDC_SIDETONE_IIR_COEFF_MAX];
+	u8 sidetone_coeff_array[IIR_MAX][BAND_MAX]
+		[WCD934X_CDC_SIDETONE_IIR_COEFF_MAX * 4];
 
 	struct spi_device *spi;
 	struct platform_device *pdev_child_devices
@@ -896,7 +897,6 @@ static int tavil_codec_enable_anc(struct snd_soc_dapm_widget *w,
 	struct wcd9xxx_anc_header *anc_head;
 	struct firmware_cal *hwdep_cal = NULL;
 	u32 anc_writes_size = 0;
-	u32 anc_cal_size = 0;
 	int anc_size_remaining;
 	u32 *anc_ptr;
 	u16 reg;
@@ -985,8 +985,16 @@ static int tavil_codec_enable_anc(struct snd_soc_dapm_widget *w,
 			goto err;
 		}
 
-		anc_cal_size = anc_writes_size;
-		for (i = 0; i < anc_writes_size; i++) {
+		i = 0;
+
+		if (!strcmp(w->name, "RX INT1 DAC") ||
+		    !strcmp(w->name, "RX INT3 DAC"))
+			anc_writes_size = anc_writes_size / 2;
+		else if (!strcmp(w->name, "RX INT2 DAC") ||
+			 !strcmp(w->name, "RX INT4 DAC"))
+			i = anc_writes_size / 2;
+
+		for (; i < anc_writes_size; i++) {
 			WCD934X_CODEC_UNPACK_ENTRY(anc_ptr[i], reg, mask, val);
 			snd_soc_write(codec, reg, (val & mask));
 		}
@@ -4927,6 +4935,36 @@ static int tavil_codec_reset_hph_registers(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static void tavil_restore_iir_coeff(struct tavil_priv *tavil, int iir_idx,
+				int band_idx)
+{
+	u16 reg_add;
+	int no_of_reg = 0;
+
+	regmap_write(tavil->wcd9xxx->regmap,
+		(WCD934X_CDC_SIDETONE_IIR0_IIR_COEF_B1_CTL + 16 * iir_idx),
+		(band_idx * BAND_MAX * sizeof(uint32_t)) & 0x7F);
+
+	reg_add = WCD934X_CDC_SIDETONE_IIR0_IIR_COEF_B2_CTL + 16 * iir_idx;
+
+	if (tavil->intf_type != WCD9XXX_INTERFACE_TYPE_SLIMBUS)
+		return;
+	/*
+	 * Since wcd9xxx_slim_write_repeat() supports only maximum of 16
+	 * registers at a time, split total 20 writes(5 coefficients per
+	 * band and 4 writes per coefficient) into 16 and 4.
+	 */
+	no_of_reg = WCD934X_CDC_REPEAT_WRITES_MAX;
+	wcd9xxx_slim_write_repeat(tavil->wcd9xxx, reg_add, no_of_reg,
+			&tavil->sidetone_coeff_array[iir_idx][band_idx][0]);
+
+	no_of_reg = (WCD934X_CDC_SIDETONE_IIR_COEFF_MAX * 4) -
+						WCD934X_CDC_REPEAT_WRITES_MAX;
+	wcd9xxx_slim_write_repeat(tavil->wcd9xxx, reg_add, no_of_reg,
+			&tavil->sidetone_coeff_array[iir_idx][band_idx]
+					  [WCD934X_CDC_REPEAT_WRITES_MAX]);
+}
+
 static int tavil_iir_enable_audio_mixer_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
@@ -4951,6 +4989,7 @@ static int tavil_iir_enable_audio_mixer_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct tavil_priv *tavil = snd_soc_codec_get_drvdata(codec);
 	int iir_idx = ((struct soc_multi_mixer_control *)
 					kcontrol->private_value)->reg;
 	int band_idx = ((struct soc_multi_mixer_control *)
@@ -4958,6 +4997,8 @@ static int tavil_iir_enable_audio_mixer_put(struct snd_kcontrol *kcontrol,
 	bool iir_band_en_status;
 	int value = ucontrol->value.integer.value[0];
 	u16 iir_reg = WCD934X_CDC_SIDETONE_IIR0_IIR_CTL + 16 * iir_idx;
+
+	tavil_restore_iir_coeff(tavil, iir_idx, band_idx);
 
 	/* Mask first 5 bits, 6-8 are reserved */
 	snd_soc_update_bits(codec, iir_reg, (1 << band_idx),
@@ -5085,7 +5126,7 @@ static int tavil_iir_band_audio_mixer_put(struct snd_kcontrol *kcontrol,
 					kcontrol->private_value)->reg;
 	int band_idx = ((struct soc_multi_mixer_control *)
 					kcontrol->private_value)->shift;
-	int coeff_idx;
+	int coeff_idx, idx = 0;
 
 	/*
 	 * Mask top bit it is reserved
@@ -5098,11 +5139,19 @@ static int tavil_iir_band_audio_mixer_put(struct snd_kcontrol *kcontrol,
 	/* Store the coefficients in sidetone coeff array */
 	for (coeff_idx = 0; coeff_idx < WCD934X_CDC_SIDETONE_IIR_COEFF_MAX;
 		coeff_idx++) {
-		tavil->sidetone_coeff_array[iir_idx][band_idx][coeff_idx] =
-			ucontrol->value.integer.value[coeff_idx];
-		set_iir_band_coeff(codec, iir_idx, band_idx,
-			tavil->sidetone_coeff_array[iir_idx][band_idx]
-							[coeff_idx]);
+		uint32_t value = ucontrol->value.integer.value[coeff_idx];
+
+		set_iir_band_coeff(codec, iir_idx, band_idx, value);
+
+		/* Four 8 bit values(one 32 bit) per coefficient */
+		tavil->sidetone_coeff_array[iir_idx][band_idx][idx++] =
+								(value & 0xFF);
+		tavil->sidetone_coeff_array[iir_idx][band_idx][idx++] =
+							 (value >> 8) & 0xFF;
+		tavil->sidetone_coeff_array[iir_idx][band_idx][idx++] =
+							 (value >> 16) & 0xFF;
+		tavil->sidetone_coeff_array[iir_idx][band_idx][idx++] =
+							 (value >> 24) & 0xFF;
 	}
 
 	pr_debug("%s: IIR #%d band #%d b0 = 0x%x\n"
@@ -5121,33 +5170,6 @@ static int tavil_iir_band_audio_mixer_put(struct snd_kcontrol *kcontrol,
 		__func__, iir_idx, band_idx,
 		get_iir_band_coeff(codec, iir_idx, band_idx, 4));
 	return 0;
-}
-
-static void tavil_restore_iir_coeff(struct tavil_priv *tavil, int iir_idx)
-{
-	int band_idx = 0, coeff_idx = 0;
-	struct snd_soc_codec *codec = tavil->codec;
-
-	/*
-	 * snd_soc_write call crashes at rmmod if there is no machine
-	 * driver and hence no codec pointer available
-	 */
-	if (!codec)
-		return;
-
-	for (band_idx = 0; band_idx < BAND_MAX; band_idx++) {
-		snd_soc_write(codec,
-		(WCD934X_CDC_SIDETONE_IIR0_IIR_COEF_B1_CTL + 16 * iir_idx),
-		(band_idx * BAND_MAX * sizeof(uint32_t)) & 0x7F);
-
-		for (coeff_idx = 0;
-			coeff_idx < WCD934X_CDC_SIDETONE_IIR_COEFF_MAX;
-			coeff_idx++) {
-			set_iir_band_coeff(codec, iir_idx, band_idx,
-				tavil->sidetone_coeff_array[iir_idx][band_idx]
-								[coeff_idx]);
-		}
-	}
 }
 
 static int tavil_compander_get(struct snd_kcontrol *kcontrol,
@@ -8250,8 +8272,6 @@ static int tavil_dig_core_remove_power_collapse(struct tavil_priv *tavil)
 			     WCD934X_DIG_CORE_REG_MIN,
 			     WCD934X_DIG_CORE_REG_MAX);
 
-	tavil_restore_iir_coeff(tavil, IIR0);
-	tavil_restore_iir_coeff(tavil, IIR1);
 	return 0;
 }
 
@@ -8908,9 +8928,10 @@ static irqreturn_t tavil_slimbus_irq(int irq, void *data)
 					 */
 				}
 			}
-			WARN(!cleared,
-			     "Couldn't find slimbus %s port %d for closing\n",
-			     (tx ? "TX" : "RX"), port_id);
+			if (!cleared)
+				dev_err(tavil->dev,
+					"%s: Couldn't find slimbus %s port %d for closing\n",
+					__func__, (tx ? "TX" : "RX"), port_id);
 		}
 		wcd9xxx_interface_reg_write(tavil->wcd9xxx,
 					    WCD934X_SLIM_PGD_PORT_INT_CLR_RX_0 +
