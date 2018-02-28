@@ -67,10 +67,9 @@ struct bbr {
 		packet_conservation:1,  /* use packet conservation? */
 		restore_cwnd:1,	     /* decided to revert cwnd to old value */
 		round_start:1,	     /* start of packet-timed tx->ack round? */
-		tso_segs_goal:7,     /* segments we want in each skb we send */
 		idle_restart:1,	     /* restarting after idle? */
 		probe_rtt_round_done:1,  /* a BBR_PROBE_RTT round at 4 pkts? */
-		unused:5,
+		unused:12,
 		lt_is_sampling:1,    /* taking long-term ("LT") samples now? */
 		lt_rtt_cnt:7,	     /* round trips in long-term interval */
 		lt_use_bw:1;	     /* use lt_bw as our bw estimate? */
@@ -237,10 +236,9 @@ static u32 bbr_min_tso_segs(struct sock *sk)
 	return sk->sk_pacing_rate < (bbr_min_tso_rate >> 3) ? 1 : 2;
 }
 
-static void bbr_set_tso_segs_goal(struct sock *sk)
+static u32 bbr_tso_segs_goal(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct bbr *bbr = inet_csk_ca(sk);
 	u32 segs, bytes;
 
 	/* Sort of tcp_tso_autosize() but ignoring
@@ -250,7 +248,7 @@ static void bbr_set_tso_segs_goal(struct sock *sk)
 		      GSO_MAX_SIZE - 1 - MAX_TCP_HEADER);
 	segs = max_t(u32, bytes / tp->mss_cache, bbr_min_tso_segs(sk));
 
-	bbr->tso_segs_goal = min(segs, 0x7FU);
+	return min(segs, 0x7FU);
 }
 
 /* Save "last known good" cwnd so we can restore it after losses or PROBE_RTT */
@@ -321,7 +319,7 @@ static u32 bbr_target_cwnd(struct sock *sk, u32 bw, int gain)
 	cwnd = (((w * gain) >> BBR_SCALE) + BW_UNIT - 1) / BW_UNIT;
 
 	/* Allow enough full-sized skbs in flight to utilize end systems. */
-	cwnd += 3 * bbr->tso_segs_goal;
+	cwnd += 3 * bbr_tso_segs_goal(sk);
 
 	/* Reduce delayed ACKs by rounding up cwnd to the next even number. */
 	cwnd = (cwnd + 1) & ~1U;
@@ -802,7 +800,6 @@ static void bbr_main(struct sock *sk, const struct rate_sample *rs)
 
 	bw = bbr_bw(sk);
 	bbr_set_pacing_rate(sk, bw, bbr->pacing_gain);
-	bbr_set_tso_segs_goal(sk);
 	bbr_set_cwnd(sk, rs, rs->acked_sacked, bw, bbr->cwnd_gain);
 }
 
@@ -812,7 +809,6 @@ static void bbr_init(struct sock *sk)
 	struct bbr *bbr = inet_csk_ca(sk);
 
 	bbr->prior_cwnd = 0;
-	bbr->tso_segs_goal = 0;	 /* default segs per skb until first ACK */
 	bbr->rtt_cnt = 0;
 	bbr->next_rtt_delivered = tp->delivered;
 	bbr->prev_ca_state = TCP_CA_Open;
