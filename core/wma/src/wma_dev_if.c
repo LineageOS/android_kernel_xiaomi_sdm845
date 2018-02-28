@@ -522,7 +522,7 @@ static QDF_STATUS wma_self_peer_remove(tp_wma_handle wma_handle,
 	if (!peer) {
 		WMA_LOGE("%s Failed to find peer %pM", __func__,
 			 del_sta_self_req_param->self_mac_addr);
-		qdf_status = QDF_STATUS_SUCCESS;
+		qdf_status = QDF_STATUS_E_FAULT;
 		goto error;
 	}
 	wma_remove_peer(wma_handle,
@@ -658,9 +658,9 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 		req_msg = wma_find_vdev_req(wma_handle, vdev_id,
 				WMA_TARGET_REQ_TYPE_VDEV_STOP, false);
 		if (!req_msg)
-			goto send_fail_rsp;
+			goto send_fail_rsp_and_trigger_recovery;
 		if (req_msg->msg_type != WMA_DELETE_BSS_REQ)
-			goto send_fail_rsp;
+			goto send_fail_rsp_and_trigger_recovery;
 		WMA_LOGA("BSS is not yet stopped. Defering vdev(vdev id %x) deletion",
 			vdev_id);
 		iface->del_staself_req = pdel_sta_self_req_param;
@@ -693,8 +693,16 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 		if ((status != QDF_STATUS_SUCCESS) && generateRsp) {
 			WMA_LOGE("can't remove selfpeer, send rsp session: %d",
 				 vdev_id);
-			goto send_fail_rsp;
-		} else {
+			if (!cds_is_driver_unloading()) {
+				WMA_LOGE("Trigger recovery for session: %d",
+					 vdev_id);
+				goto send_fail_rsp_and_trigger_recovery;
+			} else {
+				WMA_LOGE("driver unload, free mem vdev_id: %d",
+					 vdev_id);
+				goto send_fail_rsp;
+			}
+		} else if (status != QDF_STATUS_SUCCESS) {
 			WMA_LOGE("can't remove selfpeer, free msg session: %d",
 				 vdev_id);
 			qdf_mem_free(pdel_sta_self_req_param);
@@ -715,7 +723,7 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 
 	return status;
 
-send_fail_rsp:
+send_fail_rsp_and_trigger_recovery:
 	if (!cds_is_driver_recovering()) {
 		if (cds_is_self_recovery_enabled()) {
 			WMA_LOGE("rcvd del_self_sta without del_bss, trigger recovery, vdev_id %d",
@@ -728,8 +736,15 @@ send_fail_rsp:
 		}
 	}
 
-	pdel_sta_self_req_param->status = QDF_STATUS_E_FAILURE;
-	wma_send_del_sta_self_resp(pdel_sta_self_req_param);
+send_fail_rsp:
+	if (generateRsp) {
+		pdel_sta_self_req_param->status = QDF_STATUS_E_FAILURE;
+		wma_send_del_sta_self_resp(pdel_sta_self_req_param);
+	} else {
+		qdf_mem_free(pdel_sta_self_req_param);
+		pdel_sta_self_req_param = NULL;
+	}
+
 	return status;
 }
 
