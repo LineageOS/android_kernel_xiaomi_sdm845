@@ -1963,8 +1963,9 @@ hdd_ipa_uc_rm_notify_handler(void *context, enum ipa_rm_event event)
 		/* Differed RM Granted */
 		qdf_mutex_acquire(&hdd_ipa->ipa_lock);
 		if ((false == hdd_ipa->resource_unloading) &&
-			(!hdd_ipa->activated_fw_pipe)) {
+		    (!hdd_ipa->activated_fw_pipe)) {
 			hdd_ipa_uc_enable_pipes(hdd_ipa);
+			hdd_ipa->resource_loading = false;
 		}
 		qdf_mutex_release(&hdd_ipa->ipa_lock);
 		break;
