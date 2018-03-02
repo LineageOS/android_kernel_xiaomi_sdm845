@@ -7402,3 +7402,29 @@ QDF_STATUS wmi_extract_dfs_status_from_fw(void *wmi_hdl, void *evt_buf,
 	return QDF_STATUS_E_FAILURE;
 }
 #endif
+
+QDF_STATUS
+wmi_unified_send_roam_scan_stats_cmd(void *wmi_hdl,
+				     struct wmi_roam_scan_stats_req *params)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t)wmi_hdl;
+
+	if (wmi_handle->ops->send_roam_scan_stats_cmd)
+		return wmi_handle->ops->send_roam_scan_stats_cmd(wmi_handle,
+								 params);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS
+wmi_extract_roam_scan_stats_res_evt(wmi_unified_t wmi, void *evt_buf,
+				    uint32_t *vdev_id,
+				    struct wmi_roam_scan_stats_res **res_param)
+{
+	if (wmi->ops->extract_roam_scan_stats_res_evt)
+		return wmi->ops->extract_roam_scan_stats_res_evt(wmi,
+							evt_buf,
+							vdev_id, res_param);
+
+	return QDF_STATUS_E_FAILURE;
+}
