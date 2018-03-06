@@ -2630,6 +2630,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 	struct wmi_mgmt_params mgmt_param = {0};
 	struct wmi_desc_t *wmi_desc = NULL;
 	ol_pdev_handle ctrl_pdev;
+	bool is_5g = false;
 
 	if (NULL == wma_handle) {
 		WMA_LOGE("wma_handle is NULL");
@@ -2962,6 +2963,9 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		}
 	}
 
+	if (CDS_IS_CHANNEL_5GHZ(wma_handle->interfaces[vdev_id].channel))
+		is_5g = true;
+
 	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 				   WMI_SERVICE_MGMT_TX_WMI)) {
 		mgmt_param.tx_frame = tx_frame;
@@ -2975,7 +2979,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		 * other than 1Mbps and 6 Mbps
 		 */
 		if (rid < RATEID_DEFAULT &&
-		    (rid != RATEID_1MBPS && rid != RATEID_6MBPS)) {
+		    (rid != RATEID_1MBPS) && !(rid == RATEID_6MBPS && is_5g)) {
 			WMA_LOGD(FL("using rate id: %d for Tx"), rid);
 			mgmt_param.tx_params_valid = true;
 			wma_update_tx_send_params(&mgmt_param.tx_param, rid);
