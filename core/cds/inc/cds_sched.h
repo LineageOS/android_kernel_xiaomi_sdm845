@@ -637,4 +637,16 @@ void cds_shutdown_notifier_purge(void);
  * shutdown.
  */
 void cds_shutdown_notifier_call(void);
+
+/**
+ * cds_remove_timer_from_sys_msg() - Flush timer message from sys msg queue
+ * @timer_cookie: Unique cookie of the timer message to be flushed
+ *
+ * Find the timer message in the sys msg queue for the unique cookie
+ * and flush the message from the queue.
+ *
+ * Return: None
+ */
+void cds_remove_timer_from_sys_msg(uint32_t timer_cookie);
+
 #endif /* #if !defined __CDS_SCHED_H */

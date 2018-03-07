@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -124,7 +124,7 @@ void cds_linux_timer_callback(unsigned long data)
 	sys_build_message_header(SYS_MSG_ID_MC_TIMER, &msg);
 	msg.callback = callback;
 	msg.bodyptr = user_data;
-	msg.bodyval = 0;
+	msg.bodyval = timer->cookie;
 
 	if (cds_mq_post_message(QDF_MODULE_ID_SYS, &msg) == QDF_STATUS_SUCCESS)
 		return;
