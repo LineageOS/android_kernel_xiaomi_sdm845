@@ -630,8 +630,10 @@ static void hdd_update_dbs_scan_ctrl_ext_flag(hdd_context_t *hdd_ctx,
 		goto end;
 	}
 
-	if (hdd_ctx->config->dual_mac_feature_disable ==
-				DISABLE_DBS_CXN_AND_SCAN) {
+	if ((hdd_ctx->config->dual_mac_feature_disable ==
+	     DISABLE_DBS_CXN_AND_SCAN) ||
+	    (hdd_ctx->config->dual_mac_feature_disable ==
+	     ENABLE_DBS_CXN_AND_DISABLE_DBS_SCAN)) {
 		hdd_debug("DBS is disabled");
 		goto end;
 	}
@@ -2007,8 +2009,10 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			return 0;
 		}
 	}
-	if (pHddCtx->config->dual_mac_feature_disable ==
-				DISABLE_DBS_CXN_AND_SCAN) {
+	if ((pHddCtx->config->dual_mac_feature_disable ==
+	     DISABLE_DBS_CXN_AND_SCAN) ||
+	    (pHddCtx->config->dual_mac_feature_disable ==
+	     ENABLE_DBS_CXN_AND_DISABLE_DBS_SCAN)) {
 		if (true == pScanInfo->mScanPending) {
 			scan_ebusy_cnt++;
 			if (MAX_PENDING_LOG >

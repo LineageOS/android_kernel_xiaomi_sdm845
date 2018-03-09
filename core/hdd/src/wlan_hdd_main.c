@@ -9513,8 +9513,10 @@ int hdd_dbs_scan_selection_init(hdd_context_t *hdd_ctx)
 	hdd_ctx->is_dbs_scan_duty_cycle_enabled = false;
 
 	/* check if DBS is enabled or supported */
-	if (hdd_ctx->config->dual_mac_feature_disable ==
-				DISABLE_DBS_CXN_AND_SCAN)
+	if ((hdd_ctx->config->dual_mac_feature_disable ==
+	     DISABLE_DBS_CXN_AND_SCAN) ||
+	    (hdd_ctx->config->dual_mac_feature_disable ==
+	     ENABLE_DBS_CXN_AND_DISABLE_DBS_SCAN))
 		return -EINVAL;
 
 	hdd_string_to_u8_array(hdd_ctx->config->dbs_scan_selection,
