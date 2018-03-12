@@ -1019,4 +1019,16 @@ void cds_remove_dfs_passive_channels_from_pcl(uint8_t *pcl_channels,
  * Return: true or false
  */
 bool cds_is_valid_channel_for_channel_switch(uint8_t channel);
+
+/**
+ * cds_allow_multi_sap_go_concurrency() - check whether multiple SAP/GO
+ * interfaces are allowed
+ * @cds_con_mode: operating mode of the new interface
+ * @channel: operating channel of the new interface
+ * This function checks whether second SAP/GO interface is allowed on the same
+ * MAC.
+ *
+ * Return: true or false
+ */
+bool cds_allow_sap_go_concurrency(enum cds_con_mode mode, uint8_t channel);
 #endif /* __CDS_CONCURRENCY_H */

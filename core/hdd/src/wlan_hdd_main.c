@@ -2322,6 +2322,9 @@ static int __hdd_open(struct net_device *dev)
 		}
 	}
 
+	if (adapter->device_mode == QDF_FTM_MODE)
+		goto err_hdd_hdd_init_deinit_lock;
+
 	set_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 	hdd_info("%s interface up", dev->name);
 
@@ -6615,7 +6618,8 @@ static void hdd_pld_request_bus_bandwidth(hdd_context_t *hdd_ctx,
 	else
 		next_tx_level = WLAN_SVC_TP_LOW;
 
-	if (hdd_ctx->cur_tx_level != next_tx_level) {
+	if ((hdd_ctx->config->enable_tcp_limit_output) &&
+	    (hdd_ctx->cur_tx_level != next_tx_level)) {
 		hdd_debug("change TCP TX trigger level %d, average_tx: %llu",
 				next_tx_level, temp_tx);
 		hdd_ctx->cur_tx_level = next_tx_level;

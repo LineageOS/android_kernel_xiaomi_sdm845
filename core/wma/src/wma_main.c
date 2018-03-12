@@ -2277,6 +2277,23 @@ static int wma_rx_service_available_event(void *handle, uint8_t *cmd_param_info,
 }
 
 /**
+ * wma_wmi_stop() - generic function to block WMI commands
+ * @return: None
+ */
+void wma_wmi_stop(void)
+{
+	tp_wma_handle wma_handle;
+
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (wma_handle == NULL) {
+		QDF_TRACE(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_INFO,
+			  "wma_handle is NULL\n");
+		return;
+	}
+	wmi_stop(wma_handle->wmi_handle);
+}
+
+/**
  * wma_open() - Allocate wma context and initialize it.
  * @cds_context:  cds context
  * @wma_tgt_cfg_cb: tgt config callback fun

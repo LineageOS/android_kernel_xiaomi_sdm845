@@ -6840,6 +6840,7 @@ static void csr_roam_process_start_bss_success(tpAniSirGlobal mac_ctx,
 	QDF_STATUS status;
 	host_log_ibss_pkt_type *ibss_log;
 	uint32_t bi;
+	eCsrEncryptionType encr_type;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	tSirSmeHTProfile *src_profile = NULL;
 	tCsrRoamHTProfile *dst_profile = NULL;
@@ -6944,26 +6945,36 @@ static void csr_roam_process_start_bss_success(tpAniSirGlobal mac_ctx,
 	}
 #endif
 	/*
-	 * Only set context for non-WDS_STA. We don't even need it for
-	 * WDS_AP. But since the encryption.
-	 * is WPA2-PSK so it won't matter.
+	 * For static key like WEP or for NO security case, send
+	 * set context request to lim to establish the broadcast
+	 * sta context. This is treated as dummy key installation.
+	 *
+	 * This is not required for SAP.
 	 */
-	if (CSR_IS_ENC_TYPE_STATIC(profile->negotiatedUCEncryptionType)
-			&& session->pCurRoamProfile
-			&& !CSR_IS_INFRA_AP(session->pCurRoamProfile)) {
+	encr_type = profile->negotiatedUCEncryptionType;
+	if (CSR_IS_ENC_TYPE_STATIC(encr_type) && session->pCurRoamProfile
+	    && !CSR_IS_INFRA_AP(session->pCurRoamProfile)
+	    && !CSR_IS_IBSS(session->pCurRoamProfile)) {
 		/*
-		 * Issue the set Context request to LIM to establish
-		 * the Broadcast STA context for the Ibss. In Rome IBSS
-		 * case, dummy key installation will break proper BSS
-		 * key installation, so skip it.
+		 * In Rome IBSS case, dummy key installation will break
+		 * proper BSS key installation, so skip it.
 		 */
-		if (!CSR_IS_IBSS(session->pCurRoamProfile)) {
-			/* NO keys. these key parameters don't matter */
-			csr_roam_issue_set_context_req(mac_ctx,
-				session_id,
-				profile->negotiatedMCEncryptionType,
-				bss_desc, &bcast_mac, false,
-				false, eSIR_TX_RX, 0, 0, NULL, 0);
+		csr_roam_issue_set_context_req(mac_ctx,
+			session_id,
+			profile->negotiatedMCEncryptionType,
+			bss_desc, &bcast_mac, false,
+			false, eSIR_TX_RX, 0, 0, NULL, 0);
+	}
+	if (session->pCurRoamProfile && CSR_IS_IBSS(session->pCurRoamProfile)) {
+		switch (encr_type) {
+		case eCSR_ENCRYPT_TYPE_WEP40_STATICKEY:
+		case eCSR_ENCRYPT_TYPE_WEP104_STATICKEY:
+		case eCSR_ENCRYPT_TYPE_TKIP:
+		case eCSR_ENCRYPT_TYPE_AES:
+			roam_info.fAuthRequired = true;
+			break;
+		default:
+			break;
 		}
 	}
 	/*

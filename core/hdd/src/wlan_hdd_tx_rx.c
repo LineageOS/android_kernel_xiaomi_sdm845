@@ -504,6 +504,45 @@ static void hdd_get_transmit_sta_id(hdd_adapter_t *adapter,
 			*station_id = sta_ctx->conn_info.staId[0];
 	}
 }
+/**
+ * hdd_is_tx_allowed() - check if Tx is allowed based on current peer state
+ * @skb: pointer to OS packet (sk_buff)
+ * @peer_id: Peer STA ID in peer table
+ *
+ * This function gets the peer state from DP and check if it is either
+ * in OL_TXRX_PEER_STATE_CONN or OL_TXRX_PEER_STATE_AUTH. Only EAP packets
+ * are allowed when peer_state is OL_TXRX_PEER_STATE_CONN. All packets
+ * allowed when peer_state is OL_TXRX_PEER_STATE_AUTH.
+ *
+ * Return: true if Tx is allowed and false otherwise.
+ **/
+static inline bool hdd_is_tx_allowed(struct sk_buff *skb, uint8_t peer_id)
+{
+	enum ol_txrx_peer_state peer_state;
+	void *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	void *peer;
+
+	QDF_ASSERT(pdev);
+	peer = ol_txrx_peer_find_by_local_id(pdev, peer_id);
+
+	if (peer == NULL) {
+		DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_DROP_PACKET_RECORD,
+					(uint8_t *)skb->data,
+					qdf_nbuf_len(skb), QDF_TX));
+		return false;
+	}
+	peer_state = ol_txrx_get_peer_state(peer);
+	if (OL_TXRX_PEER_STATE_AUTH == peer_state)
+		return true;
+	else if (OL_TXRX_PEER_STATE_CONN == peer_state &&
+			ntohs(skb->protocol) == HDD_ETHERTYPE_802_1_X)
+		return true;
+	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_DROP_PACKET_RECORD,
+				(uint8_t *)skb->data,
+				qdf_nbuf_len(skb), QDF_TX));
+
+	return false;
+}
 
 /**
  * __hdd_hard_start_xmit() - Transmit a frame
@@ -720,6 +759,11 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				 QDF_TRACE_LEVEL_INFO_HIGH,
 				 "%s: station is not connected. drop the pkt",
 				 __func__);
+		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
+		goto drop_pkt_and_release_skb;
+	}
+
+	if (!hdd_is_tx_allowed(skb, STAId)) {
 		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
 		goto drop_pkt_and_release_skb;
 	}

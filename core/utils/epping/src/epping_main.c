@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -50,6 +50,7 @@
 #include "bmi.h"
 #include "ol_fw.h"
 #include "ol_if_athvar.h"
+#include "wma_api.h"
 #include "hif.h"
 #include "epping_main.h"
 #include "epping_internal.h"
@@ -140,6 +141,7 @@ void epping_disable(void)
 			   "%s: error: htc_handle = NULL", __func__);
 		return;
 	}
+	wma_wmi_stop();
 	htc_stop(htc_handle);
 	epping_cookie_cleanup(pEpping_ctx);
 	htc_destroy(htc_handle);
@@ -338,6 +340,7 @@ int epping_enable(struct device *parent_dev)
 	if (ret < 0 || pEpping_ctx->epping_adapter == NULL) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: epping_add_adaptererror error", __func__);
+		wma_wmi_stop();
 		htc_stop(pEpping_ctx->HTCHandle);
 		epping_cookie_cleanup(pEpping_ctx);
 		goto error_end;

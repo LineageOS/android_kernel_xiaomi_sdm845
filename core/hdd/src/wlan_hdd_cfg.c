@@ -3242,6 +3242,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_MIN,
 		     CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_TCP_LIMIT_OUTPUT, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_tcp_limit_output,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_TCP_LIMIT_OUTPUT_DEFAULT,
+		     CFG_ENABLE_TCP_LIMIT_OUTPUT_MIN,
+		     CFG_ENABLE_TCP_LIMIT_OUTPUT_MAX),
+
 	REG_VARIABLE(CFG_ENABLE_TCP_ADV_WIN_SCALE, WLAN_PARAM_Integer,
 		     struct hdd_config, enable_tcp_adv_win_scale,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -6592,6 +6599,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  pHddCtx->config->busBandwidthLowThreshold);
 	hdd_debug("Name = [gbusBandwidthComputeInterval] Value = [%u] ",
 		  pHddCtx->config->busBandwidthComputeInterval);
+	hdd_debug("Name = [%s] Value = [%u] ",
+		  CFG_ENABLE_TCP_LIMIT_OUTPUT,
+		  pHddCtx->config->enable_tcp_limit_output);
 	hdd_debug("Name = [%s] Value = [%u] ",
 		  CFG_ENABLE_TCP_ADV_WIN_SCALE,
 		  pHddCtx->config->enable_tcp_adv_win_scale);

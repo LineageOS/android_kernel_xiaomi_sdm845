@@ -2642,7 +2642,6 @@ ol_txrx_peer_attach(ol_txrx_vdev_handle vdev, uint8_t *peer_mac_addr)
 				vdev->wait_on_peer_id, (int) rc);
 			/* Added for debugging only */
 			wma_peer_debug_dump();
-			cds_trigger_recovery(PEER_DEL_TIMEOUT);
 			vdev->wait_on_peer_id = OL_TXRX_INVALID_LOCAL_PEER_ID;
 			return NULL;
 		}

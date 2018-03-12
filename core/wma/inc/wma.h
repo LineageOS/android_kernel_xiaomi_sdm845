@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1718,7 +1718,8 @@ typedef struct {
 		enum sir_roam_op_code reason);
 	QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
 		roam_offload_synch_ind *roam_synch_data,
-		tpSirBssDescription  bss_desc_ptr);
+		tpSirBssDescription  bss_desc_ptr,
+		enum sir_roam_op_code reason);
 	qdf_wake_lock_t wmi_cmd_rsp_wake_lock;
 	qdf_runtime_lock_t wmi_cmd_rsp_runtime_lock;
 	qdf_runtime_lock_t wma_runtime_resume_lock;
@@ -2551,6 +2552,14 @@ void wma_set_sap_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmask_size);
  */
 bool wma_is_wow_bitmask_zero(uint32_t *bitmask,
 			     uint32_t wow_bitmask_size);
+/**
+ * chanmode_to_chanwidth() - get channel width through channel mode
+ * @chanmode:   channel phy mode
+ *
+ * Return: channel width
+ */
+wmi_channel_width chanmode_to_chanwidth(WLAN_PHY_MODE chanmode);
+
 /**
  * wma_process_roaming_config() - process roam request
  * @wma_handle: wma handle

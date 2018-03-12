@@ -910,7 +910,7 @@ static const wmi_channel_width mode_to_width[MODE_MAX] = {
  *
  * Return: channel width
  */
-static wmi_channel_width chanmode_to_chanwidth(WLAN_PHY_MODE chanmode)
+wmi_channel_width chanmode_to_chanwidth(WLAN_PHY_MODE chanmode)
 {
 	wmi_channel_width chan_width;
 
@@ -1093,22 +1093,20 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			(iface->type == WMI_VDEV_TYPE_STA)) ||
 			((resp_event->resp_type == WMI_VDEV_START_RESP_EVENT) &&
 			 (iface->type == WMI_VDEV_TYPE_MONITOR))) {
-			err = wma_set_peer_param(wma, iface->bssid,
-					WMI_PEER_PHYMODE, iface->chanmode,
-					resp_event->vdev_id);
-
-			WMA_LOGD("%s:vdev_id %d chanmode %d status %d",
-				__func__, resp_event->vdev_id,
-				iface->chanmode, err);
-
 			chanwidth = chanmode_to_chanwidth(iface->chanmode);
 			err = wma_set_peer_param(wma, iface->bssid,
 					WMI_PEER_CHWIDTH, chanwidth,
 					resp_event->vdev_id);
-
 			WMA_LOGD("%s:vdev_id %d chanwidth %d status %d",
 				__func__, resp_event->vdev_id,
 				chanwidth, err);
+
+			err = wma_set_peer_param(wma, iface->bssid,
+					WMI_PEER_PHYMODE, iface->chanmode,
+					resp_event->vdev_id);
+			WMA_LOGD("%s:vdev_id %d chanmode %d status %d",
+				__func__, resp_event->vdev_id,
+				iface->chanmode, err);
 
 			param.vdev_id = resp_event->vdev_id;
 			param.assoc_id = iface->aid;
@@ -1786,6 +1784,57 @@ wma_send_del_bss_response(tp_wma_handle wma, struct wma_target_req *req,
 	}
 }
 
+static QDF_STATUS
+wma_remove_peer_by_reference(ol_txrx_pdev_handle pdev,
+			     tp_wma_handle wma,
+			     void *params,
+			     uint8_t *peer_id,
+			     uint8_t *bssid,
+			     uint8_t vdev_id,
+			     uint8_t peer_rsp_type)
+{
+	ol_txrx_peer_handle peer;
+	struct wma_target_req *del_req;
+	QDF_STATUS status;
+
+	status = QDF_STATUS_SUCCESS;
+	peer = ol_txrx_find_peer_by_addr_inc_ref(pdev,
+						 bssid,
+						 peer_id);
+	if (!peer) {
+		WMA_LOGD("%s Failed to find peer %pM",
+			 __func__, bssid);
+		status = QDF_STATUS_E_FAULT;
+		return status;
+	}
+
+	WMA_LOGI(FL("Deleting peer %pM vdev id %d"),
+		 bssid, vdev_id);
+
+	wma_remove_peer(wma, bssid, vdev_id,
+			peer, false);
+
+	if (WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
+		    WMI_SERVICE_SYNC_DELETE_CMDS)) {
+		WMA_LOGD(FL("Wait for the peer delete. vdev_id %d"),
+				 vdev_id);
+		del_req = wma_fill_hold_req(wma,
+				   vdev_id,
+				   WMA_DELETE_STA_REQ,
+				   peer_rsp_type,
+				   params,
+				   WMA_DELETE_STA_TIMEOUT);
+		if (!del_req) {
+			WMA_LOGE(FL("Failed to allocate request. vdev_id %d"),
+				 vdev_id);
+			status = QDF_STATUS_E_NOMEM;
+		}
+	}
+
+	OL_TXRX_PEER_UNREF_DELETE(peer);
+
+	return status;
+}
 
 /**
  * wma_vdev_stop_resp_handler() - vdev stop response handler
@@ -1801,12 +1850,12 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 	tp_wma_handle wma = (tp_wma_handle) handle;
 	WMI_VDEV_STOPPED_EVENTID_param_tlvs *param_buf;
 	wmi_vdev_stopped_event_fixed_param *resp_event;
-	struct wma_target_req *req_msg, *del_req, *new_req_msg;
-	ol_txrx_peer_handle peer;
+	struct wma_target_req *req_msg, *new_req_msg;
 	ol_txrx_pdev_handle pdev;
 	uint8_t peer_id;
 	struct wma_txrx_node *iface;
 	int32_t status = 0;
+	QDF_STATUS result;
 
 	WMA_LOGD("%s: Enter", __func__);
 	param_buf = (WMI_VDEV_STOPPED_EVENTID_param_tlvs *) cmd_param_info;
@@ -1816,6 +1865,13 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 	}
 
 	resp_event = param_buf->fixed_param;
+
+	if (resp_event->vdev_id >= wma->max_bssid) {
+		WMA_LOGE("%s: Invalid vdev_id %d from FW",
+			 __func__, resp_event->vdev_id);
+		return -EINVAL;
+	}
+
 	iface = &wma->interfaces[resp_event->vdev_id];
 	wma_release_wakelock(&iface->vdev_stop_wakelock);
 
@@ -1827,8 +1883,7 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 		return -EINVAL;
 	}
 
-	if ((resp_event->vdev_id < wma->max_bssid) &&
-	    (qdf_atomic_read
+	if ((qdf_atomic_read
 		     (&wma->interfaces[resp_event->vdev_id].vdev_restart_params.
 		     hidden_ssid_restart_in_progress))
 	    && ((wma->interfaces[resp_event->vdev_id].type == WMI_VDEV_TYPE_AP)
@@ -1867,14 +1922,6 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 		tpDeleteBssParams params =
 			(tpDeleteBssParams) req_msg->user_data;
 
-		if (resp_event->vdev_id >= wma->max_bssid) {
-			WMA_LOGE("%s: Invalid vdev_id %d", __func__,
-				 resp_event->vdev_id);
-			wma_cleanup_target_req_param(req_msg);
-			status = -EINVAL;
-			goto free_req_msg;
-		}
-
 		if (iface->handle == NULL) {
 			WMA_LOGE("%s vdev id %d is already deleted",
 				 __func__, resp_event->vdev_id);
@@ -1904,32 +1951,16 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 				wma_delete_all_ap_remote_peers(wma,
 						resp_event->vdev_id);
 			}
-			peer = ol_txrx_find_peer_by_addr(pdev, params->bssid,
-							 &peer_id);
-			if (!peer)
-				WMA_LOGD("%s Failed to find peer %pM",
-					 __func__, params->bssid);
-			wma_remove_peer(wma, params->bssid, resp_event->vdev_id,
-					peer, false);
-			if (peer && WMI_SERVICE_IS_ENABLED(
-			   wma->wmi_service_bitmap,
-			   WMI_SERVICE_SYNC_DELETE_CMDS)) {
-				WMA_LOGD(FL("Wait for the peer delete. vdev_id %d"),
-						 req_msg->vdev_id);
-				del_req = wma_fill_hold_req(wma,
-						   req_msg->vdev_id,
-						   WMA_DELETE_STA_REQ,
-						   WMA_DELETE_PEER_RSP,
-						   params,
-						   WMA_DELETE_STA_TIMEOUT);
-				if (!del_req) {
-					WMA_LOGE(FL("Failed to allocate request. vdev_id %d"),
-						 req_msg->vdev_id);
-					params->status = QDF_STATUS_E_NOMEM;
-				} else {
-					goto free_req_msg;
-				}
-			}
+			result = wma_remove_peer_by_reference(pdev,
+							      wma, params,
+							      &peer_id,
+							      params->bssid,
+							      resp_event->vdev_id,
+							      WMA_DELETE_PEER_RSP);
+
+			if (result == QDF_STATUS_SUCCESS)
+				goto free_req_msg;
+
 		}
 		wma_send_del_bss_response(wma, req_msg, resp_event->vdev_id);
 
@@ -1937,31 +1968,15 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 		tpLinkStateParams params =
 			(tpLinkStateParams) req_msg->user_data;
 
-		peer = ol_txrx_find_peer_by_addr(pdev, params->bssid, &peer_id);
-		if (peer) {
-			WMA_LOGE(FL("Deleting peer %pM vdev id %d"),
-				 params->bssid, req_msg->vdev_id);
-			wma_remove_peer(wma, params->bssid, req_msg->vdev_id,
-				peer, false);
-			if (WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
-				    WMI_SERVICE_SYNC_DELETE_CMDS)) {
-				WMA_LOGD(FL("Wait for the peer delete. vdev_id %d"),
-						 req_msg->vdev_id);
-				del_req = wma_fill_hold_req(wma,
-						   req_msg->vdev_id,
-						   WMA_DELETE_STA_REQ,
-						   WMA_SET_LINK_PEER_RSP,
-						   params,
-						   WMA_DELETE_STA_TIMEOUT);
-				if (!del_req) {
-					WMA_LOGE(FL("Failed to allocate request. vdev_id %d"),
-						 req_msg->vdev_id);
-					params->status = QDF_STATUS_E_NOMEM;
-				} else {
-					goto free_req_msg;
-				}
-			}
-		}
+		result = wma_remove_peer_by_reference(pdev, wma, params,
+						      &peer_id,
+						      params->bssid,
+						      req_msg->vdev_id,
+						      WMA_SET_LINK_PEER_RSP);
+
+		if (result == QDF_STATUS_SUCCESS)
+			goto free_req_msg;
+
 		if (wma_send_vdev_down_to_fw(wma, req_msg->vdev_id) !=
 		    QDF_STATUS_SUCCESS) {
 			WMA_LOGE("Failed to send vdev down cmd: vdev %d",
@@ -3326,6 +3341,7 @@ void wma_vdev_resp_timer(void *data)
 	} else if (tgt_req->msg_type == WMA_ADD_BSS_REQ) {
 		tpAddBssParams params = (tpAddBssParams) tgt_req->user_data;
 
+		params->status = QDF_STATUS_E_TIMEOUT;
 		WMA_LOGA("%s: WMA_ADD_BSS_REQ timedout", __func__);
 		WMA_LOGD("%s: bssid %pM vdev_id %d", __func__, params->bssId,
 			 tgt_req->vdev_id);

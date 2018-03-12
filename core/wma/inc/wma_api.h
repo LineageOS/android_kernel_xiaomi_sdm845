@@ -519,4 +519,11 @@ QDF_STATUS wma_crash_inject(WMA_HANDLE wma_handle, uint32_t type,
 QDF_STATUS wma_wow_set_wake_time(WMA_HANDLE wma_handle, uint8_t vdev_id,
 				 uint32_t cookie, uint32_t time);
 
+/**
+ * wma_wmi_stop() - send wmi stop cmd
+ *
+ *  Return: None
+ */
+void wma_wmi_stop(void);
+
 #endif
