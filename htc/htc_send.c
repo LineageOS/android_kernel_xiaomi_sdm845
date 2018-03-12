@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1505,8 +1505,17 @@ static inline QDF_STATUS __htc_send_pkt(HTC_HANDLE HTCHandle,
 /* HTC API - htc_send_pkt */
 QDF_STATUS htc_send_pkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket)
 {
-	if (HTCHandle == NULL || pPacket == NULL)
+	if (HTCHandle == NULL) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+				("%s: HTCHandle is NULL \n", __func__));
 		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (pPacket == NULL) {
+		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+				("%s: pPacket is NULL \n", __func__));
+		return QDF_STATUS_E_FAILURE;
+	}
 
 	AR_DEBUG_PRINTF(ATH_DEBUG_SEND,
 			("+-htc_send_pkt: Enter endPointId: %d, buffer: %pK, length: %d\n",
