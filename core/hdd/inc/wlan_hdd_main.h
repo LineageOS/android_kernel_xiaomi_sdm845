@@ -1987,6 +1987,7 @@ struct hdd_context {
 #ifdef FEATURE_WLAN_APF
 	bool apf_supported;
 	uint32_t apf_version;
+	bool apf_enabled_v2;
 #endif
 };
 
