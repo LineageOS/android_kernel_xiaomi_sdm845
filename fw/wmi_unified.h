@@ -502,8 +502,19 @@ typedef enum {
     WMI_PEER_SET_RX_BLOCKSIZE_CMDID,
     /** request peer antdiv info from FW. FW shall respond with PEER_ANTDIV_INFO_EVENTID */
     WMI_PEER_ANTDIV_INFO_REQ_CMDID,
-    /** Peer operating mode change indication sent to host to update stats */
-    WMI_PEER_OPER_MODE_CHANGE_EVENTID,
+    /*
+     * The WMI_PEER_OPER_MODE_CHANGE_EVENTID def was originally mistakenly
+     * placed here, amongst the CMDID defs.
+     * The WMI_PEER_OPER_MODE_CHANGE_EVENTID def has been moved to the
+     * EVENTID section, but to preserve backwards compatibility, the value
+     * here that had been used for WMI_PEER_OPER_MODE_CHANGE_EVENTID
+     * is kept reserved/deprecated.
+     *
+     * This WMI_PEER_RESERVED0_CMDID value can be replaced with an actual
+     * WMI peer event message ID, though it will be simpler to instead add
+     * new WMI_PEER CMDID defs at the end of the WMI_GRP_PEER WMI_CMD_GRP.
+     */
+    WMI_PEER_RESERVED0_CMDID,
     /** Peer/Tid/Msduq threshold update */
     WMI_PEER_TID_MSDUQ_QDEPTH_THRESH_UPDATE_CMDID,
 
@@ -1270,6 +1281,32 @@ typedef enum {
     WMI_PEER_STA_PS_STATECHG_EVENTID,
     /** Peer Ant Div Info Event with rssi per chain, etc */
     WMI_PEER_ANTDIV_INFO_EVENTID,
+
+    /*
+     * WMI_PEER_RESERVED_EVENTID
+     * These values are used for placeholders, to allow the subsequent
+     * WMI_PEER_OPER_MODE_CHANGE_EVENTID constant to have the same value
+     * as it had in its original location, when it was mistakenly placed
+     * amongst the WMI_PEER CMDID defs.
+     *
+     * These WMI_PEER_RESERVED values can be replaced with actual WMI peer
+     * event message IDs, though it will be simpler to instead add new
+     * WMI_PEER EVENTID defs at the end of the WMI_GRP_PEER WMI_EVT_GRP.
+     */
+    WMI_PEER_RESERVED0_EVENTID,
+    WMI_PEER_RESERVED1_EVENTID,
+    WMI_PEER_RESERVED2_EVENTID,
+    WMI_PEER_RESERVED3_EVENTID,
+    WMI_PEER_RESERVED4_EVENTID,
+    WMI_PEER_RESERVED5_EVENTID,
+    WMI_PEER_RESERVED6_EVENTID,
+    WMI_PEER_RESERVED7_EVENTID,
+    WMI_PEER_RESERVED8_EVENTID,
+    WMI_PEER_RESERVED9_EVENTID,
+    WMI_PEER_RESERVED10_EVENTID,
+    /** Peer operating mode change indication sent to host to update stats */
+    WMI_PEER_OPER_MODE_CHANGE_EVENTID,
+
 
     /* beacon/mgmt specific events */
     /** RX management frame. the entire frame is carried along with the event.  */
@@ -4858,6 +4895,21 @@ typedef enum {
     WMI_PDEV_PARAM_DATA_STALL_DETECT_ENABLE,          /* 0x9b */
     /* GCMP Support indication to FW */
     WMI_PDEV_PARAM_GCMP_SUPPORT_ENABLE,               /* 0x9c */
+    /** Enable/Disable chain selection optimization for one chain dtim
+     *   non-zero - Enable optimization and use this non-zero value as the
+     *              chain imbalance threshold for optimization to kick in
+     *              (units = dB)
+     *   0- Disable optimization
+     */
+    WMI_PDEV_PARAM_1CH_DTIM_OPTIMIZED_CHAIN_SELECTION,/* 0x9d */
+    /*
+     * Override default FW behavior and explicitly enable / disable
+     * the use of CCK for PPDU transmissions.
+     *
+     * When CCK transmissions are disabled, the default OFDM legacy
+     * rate will be used instead.
+     */
+    WMI_PDEV_PARAM_CCK_TX_ENABLE,                     /* 0x9e */
 } WMI_PDEV_PARAM;
 
 typedef struct {
@@ -5047,6 +5099,11 @@ typedef struct {
      * See macros starting with WMI_PDEV_ID_ for values.
      */
     A_UINT32    pdev_id;
+    /* ppdu_id
+     * Hardware PPDU ID for tracking the completion stats
+     * A ppdu_id value of 0x0 is invalid, and should be ignored.
+     */
+    A_UINT32    ppdu_id;
 } wmi_mgmt_tx_compl_event_fixed_param;
 
 typedef struct {
@@ -5057,6 +5114,11 @@ typedef struct {
      * See macros starting with WMI_PDEV_ID_ for values.
      */
     A_UINT32    pdev_id;
+    /* ppdu_id
+     * Hardware PPDU ID for tracking the completion stats
+     * A ppdu_id value of 0x0 is invalid, and should be ignored.
+     */
+    A_UINT32    ppdu_id;
 } wmi_offchan_data_tx_compl_event_fixed_param;
 
 typedef struct {
@@ -8207,6 +8269,14 @@ typedef enum {
      */
     WMI_VDEV_PARAM_BA_MODE,                                 /* 0x7e */
 
+    /**
+     * VDEV parameter to force to set modulate DTIM count as listen interval,
+     * no matter whether WoW is enabled
+     * Default: Disabled.
+     * Valid values: 0- Disabled,
+     *               1- Enabled.
+     */
+    WMI_VDEV_PARAM_FORCED_MODDTIM_ENABLE,                   /* 0x7f */
 
     /*=== ADD NEW VDEV PARAM TYPES ABOVE THIS LINE ===
      * The below vdev param types are used for prototyping, and are
@@ -12720,11 +12790,24 @@ typedef struct {
     A_UINT32 vdev_id; /** unique id identifying the VDEV */
     A_UINT32 flags; /* status flags */
     A_UINT32 refresh_cnt; /* number of successful GTK refresh exchanges since last SET operation */
+    /*
+     * As with all WMI messages, this message uses little-endian byte
+     * ordering within each A_UINT32 field.
+     * If a big-endian host is using automatic swapping of the bytes within
+     * each 4-byte A_UINT32 to automatically correct the endianness of the
+     * A_UINT32 fields as the message is uploaded from target --> host, the
+     * big-endian host will have to undo the automatic byte swapping for the
+     * below A_UINT8 fields, to restore them to their original order.
+     */
     A_UINT8 replay_counter[GTK_REPLAY_COUNTER_BYTES]; /* current replay counter */
     A_UINT8 igtk_keyIndex; /* Use if IGTK_OFFLOAD is defined */
     A_UINT8 igtk_keyLength; /* Use if IGTK_OFFLOAD is defined */
     A_UINT8 igtk_keyRSC[IGTK_PN_SIZE]; /* key replay sequence counter *//* Use if IGTK_OFFLOAD is defined */
     A_UINT8 igtk_key[WMI_MAX_KEY_LEN]; /* Use if IGTK_OFFLOAD is defined */
+    A_UINT8 gtk_keyIndex; /* GTK key index */
+    A_UINT8 gtk_keyLength; /* GTK key length */
+    A_UINT8 gtk_keyRSC[GTK_REPLAY_COUNTER_BYTES]; /* GTK key replay sequence counter */
+    A_UINT8 gtk_key[WMI_MAX_KEY_LEN]; /* GTK key data */
 } WMI_GTK_OFFLOAD_STATUS_EVENT_fixed_param;
 
 typedef struct {
@@ -20380,6 +20463,8 @@ typedef struct {
     wmi_ppe_threshold he_ppet5G;
     /* chainmask table to be used for the MAC */
     A_UINT32 chainmask_table_id;
+    /* PDEV ID to LMAC ID mapping */
+    A_UINT32 lmac_id;
 } WMI_MAC_PHY_CAPABILITIES;
 
 typedef struct {
