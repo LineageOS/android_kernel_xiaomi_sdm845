@@ -1672,7 +1672,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 					HDD_IPA_AP_CONNECT,
 					pHostapdAdapter->dev->dev_addr);
 			if (status) {
-				hdd_err("WLAN_AP_CONNECT event failed!!");
+				hdd_err("WLAN_AP_CONNECT event failed");
 				/*
 				 * Make sure to set the event before proceeding
 				 * for error handling otherwise caller thread
@@ -1680,7 +1680,6 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 				 * connection will go through before that.
 				 */
 				qdf_event_set(&pHostapdState->qdf_event);
-				goto stopbss;
 			}
 		}
 
@@ -1814,16 +1813,6 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 
 		/* Invalidate the channel info. */
 		pHddApCtx->operatingChannel = 0;
-		if (hdd_ipa_is_enabled(pHddCtx)) {
-			status = hdd_ipa_wlan_evt(pHostapdAdapter,
-					pHddApCtx->uBCStaId,
-					HDD_IPA_AP_DISCONNECT,
-					pHostapdAdapter->dev->dev_addr);
-			if (status) {
-				hdd_err("WLAN_AP_DISCONNECT event failed!!");
-				goto stopbss;
-			}
-		}
 
 		/* reset the dfs_cac_status and dfs_cac_block_tx flag only when
 		 * the last BSS is stopped
@@ -2062,10 +2051,8 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			status = hdd_ipa_wlan_evt(pHostapdAdapter,
 					event->staId, HDD_IPA_CLIENT_CONNECT_EX,
 					event->staMac.bytes);
-			if (status) {
+			if (status)
 				hdd_err("WLAN_CLIENT_CONNECT_EX event failed");
-				goto stopbss;
-			}
 		}
 
 		DPTRACE(qdf_dp_trace_mgmt_pkt(QDF_DP_TRACE_MGMT_PACKET_RECORD,
