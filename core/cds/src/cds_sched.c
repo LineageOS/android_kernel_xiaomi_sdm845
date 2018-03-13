@@ -409,7 +409,8 @@ __cds_cpu_hotplug_notify(struct notifier_block *block,
 	if (pref_cpu == 0)
 		return NOTIFY_OK;
 
-	if (!cds_set_cpus_allowed_ptr(pSchedContext->ol_rx_thread, pref_cpu))
+	if (pSchedContext->ol_rx_thread &&
+	    !cds_set_cpus_allowed_ptr(pSchedContext->ol_rx_thread, pref_cpu))
 		affine_cpu = pref_cpu;
 
 	return NOTIFY_OK;
