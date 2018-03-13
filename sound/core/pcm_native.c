@@ -281,10 +281,10 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 	struct snd_interval *i = NULL;
 	struct snd_mask *m = NULL;
 	struct snd_pcm_hw_constraints *constrs = &substream->runtime->hw_constraints;
-	unsigned int rstamps[constrs->rules_num];
+	unsigned int *rstamps;
 	unsigned int vstamps[SNDRV_PCM_HW_PARAM_LAST_INTERVAL + 1];
 	unsigned int stamp = 2;
-	int changed, again;
+	int changed, again, err = 0;
 
 	params->info = 0;
 	params->fifo_size = 0;
@@ -346,8 +346,10 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 			return changed;
 	}
 
-	for (k = 0; k < constrs->rules_num; k++)
-		rstamps[k] = 0;
+	rstamps = kcalloc(constrs->rules_num, sizeof(unsigned int), GFP_KERNEL);
+	if (!rstamps)
+		return -ENOMEM;
+
 	for (k = 0; k <= SNDRV_PCM_HW_PARAM_LAST_INTERVAL; k++) 
 		vstamps[k] = (params->rmask & (1 << k)) ? 1 : 0;
 	do {
@@ -407,8 +409,10 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 				vstamps[r->var] = stamp;
 				again = 1;
 			}
-			if (changed < 0)
-				return changed;
+			if (changed < 0) {
+				err = changed;
+				goto out;
+			}
 			stamp++;
 		}
 	} while (again);
@@ -446,7 +450,10 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		}
 	}
 	params->rmask = 0;
-	return 0;
+
+out:
+	kfree(rstamps);
+	return err;
 }
 
 EXPORT_SYMBOL(snd_pcm_hw_refine);
