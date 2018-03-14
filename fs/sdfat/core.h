@@ -53,12 +53,11 @@ extern "C" {
 #define ES_ALL_ENTRIES	0
 
 typedef struct {
-	u32	sector;		// sector number that contains file_entry
-	s32	offset;		// byte offset in the sector
-	s32	alloc_flag;	// flag in stream entry. 01 for cluster chain, 03 for contig. clusteres.
-	u32 num_entries;
-	// __buf should be the last member
-	void *__buf;
+	u64	sector;		// sector number that contains file_entry
+	u32	offset;		// byte offset in the sector
+	s32	alloc_flag;	// flag in stream entry. 01 for cluster chain, 03 for contig. clusters.
+	u32	num_entries;
+	void	*__buf;		// __buf should be the last member
 } ENTRY_SET_CACHE_T;
 
 
@@ -72,7 +71,7 @@ s32 fscore_init(void);
 s32 fscore_shutdown(void);
 
 /* chain management */
-s32 chain_cont_cluster(struct super_block *sb, u32 chain, s32 len);
+s32 chain_cont_cluster(struct super_block *sb, u32 chain, u32 len);
 
 /* volume management functions */
 s32 fscore_mount(struct super_block *sb);
@@ -93,7 +92,7 @@ s32 fscore_rename(struct inode *old_parent_inode, FILE_ID_T *fid,
 s32 fscore_remove(struct inode *inode, FILE_ID_T *fid);
 s32 fscore_read_inode(struct inode *inode, DIR_ENTRY_T *info);
 s32 fscore_write_inode(struct inode *inode, DIR_ENTRY_T *info, int sync);
-s32 fscore_map_clus(struct inode *inode, s32 clu_offset, u32 *clu, int dest);
+s32 fscore_map_clus(struct inode *inode, u32 clu_offset, u32 *clu, int dest);
 s32 fscore_reserve_clus(struct inode *inode);
 s32 fscore_unlink(struct inode *inode, FILE_ID_T *fid);
 
@@ -109,30 +108,30 @@ s32 fscore_rmdir(struct inode *inode, FILE_ID_T *fid);
 
 /* core.c : core code for common */
 /* dir entry management functions */
-DENTRY_T *get_dentry_in_dir(struct super_block *sb, CHAIN_T *p_dir, s32 entry, u32 *sector);
+DENTRY_T *get_dentry_in_dir(struct super_block *sb, CHAIN_T *p_dir, s32 entry, u64 *sector);
 
 /* name conversion functions */
 void get_uniname_from_dos_entry(struct super_block *sb, DOS_DENTRY_T *ep, UNI_NAME_T *p_uniname, u8 mode);
 
 /* file operation functions */
-s32 walk_fat_chain(struct super_block *sb, CHAIN_T *p_dir, s32 byte_offset, u32 *clu);
+s32 walk_fat_chain(struct super_block *sb, CHAIN_T *p_dir, u32 byte_offset, u32 *clu);
 
 /* sdfat/cache.c */
 s32  meta_cache_init(struct super_block *sb);
 s32  meta_cache_shutdown(struct super_block *sb);
-u8 *fcache_getblk(struct super_block *sb, u32 sec);
-s32  fcache_modify(struct super_block *sb, u32 sec);
+u8 *fcache_getblk(struct super_block *sb, u64 sec);
+s32  fcache_modify(struct super_block *sb, u64 sec);
 s32  fcache_release_all(struct super_block *sb);
 s32  fcache_flush(struct super_block *sb, u32 sync);
 
-u8 *dcache_getblk(struct super_block *sb, u32 sec);
-s32   dcache_modify(struct super_block *sb, u32 sec);
-s32   dcache_lock(struct super_block *sb, u32 sec);
-s32   dcache_unlock(struct super_block *sb, u32 sec);
-s32   dcache_release(struct super_block *sb, u32 sec);
+u8 *dcache_getblk(struct super_block *sb, u64 sec);
+s32   dcache_modify(struct super_block *sb, u64 sec);
+s32   dcache_lock(struct super_block *sb, u64 sec);
+s32   dcache_unlock(struct super_block *sb, u64 sec);
+s32   dcache_release(struct super_block *sb, u64 sec);
 s32   dcache_release_all(struct super_block *sb);
 s32   dcache_flush(struct super_block *sb, u32 sync);
-s32   dcache_readahead(struct super_block *sb, u32 sec);
+s32   dcache_readahead(struct super_block *sb, u64 sec);
 
 
 /* fatent.c */
@@ -163,7 +162,7 @@ int amap_create(struct super_block *sb, u32 pack_ratio, u32 sect_per_au, u32 hid
 void amap_destroy(struct super_block *sb);
 
 /* amap_smart.c : (de)allocation functions */
-s32 amap_fat_alloc_cluster(struct super_block *sb, s32 num_alloc, CHAIN_T *p_chain, int dest);
+s32 amap_fat_alloc_cluster(struct super_block *sb, u32 num_alloc, CHAIN_T *p_chain, s32 dest);
 s32 amap_free_cluster(struct super_block *sb, CHAIN_T *p_chain, s32 do_relse);/* Not impelmented */
 s32 amap_release_cluster(struct super_block *sb, u32 clu); /* Only update AMAP */
 
@@ -182,17 +181,17 @@ u32 amap_get_au_stat(struct super_block *sb, s32 mode);
 s32 bdev_open_dev(struct super_block *sb);
 s32 bdev_close_dev(struct super_block *sb);
 s32 bdev_check_bdi_valid(struct super_block *sb);
-s32 bdev_readahead(struct super_block *sb, u32 secno, u32 num_secs);
-s32 bdev_mread(struct super_block *sb, u32 secno, struct buffer_head **bh, u32 num_secs, s32 read);
-s32 bdev_mwrite(struct super_block *sb, u32 secno, struct buffer_head *bh, u32 num_secs, s32 sync);
+s32 bdev_readahead(struct super_block *sb, u64 secno, u64 num_secs);
+s32 bdev_mread(struct super_block *sb, u64 secno, struct buffer_head **bh, u64 num_secs, s32 read);
+s32 bdev_mwrite(struct super_block *sb, u64 secno, struct buffer_head *bh, u64 num_secs, s32 sync);
 s32 bdev_sync_all(struct super_block *sb);
 
 /* blkdev.c : sector read/write functions */
-s32 read_sect(struct super_block *sb, u32 sec, struct buffer_head **bh, s32 read);
-s32 write_sect(struct super_block *sb, u32 sec, struct buffer_head *bh, s32 sync);
-s32 read_msect(struct super_block *sb, u32 sec, struct buffer_head **bh, s32 num_secs, s32 read);
-s32 write_msect(struct super_block *sb, u32 sec, struct buffer_head *bh, s32 num_secs, s32 sync);
-s32 write_msect_zero(struct super_block *sb, u32 sec, s32 num_secs);
+s32 read_sect(struct super_block *sb, u64 sec, struct buffer_head **bh, s32 read);
+s32 write_sect(struct super_block *sb, u64 sec, struct buffer_head *bh, s32 sync);
+s32 read_msect(struct super_block *sb, u64 sec, struct buffer_head **bh, s64 num_secs, s32 read);
+s32 write_msect(struct super_block *sb, u64 sec, struct buffer_head *bh, s64 num_secs, s32 sync);
+s32 write_msect_zero(struct super_block *sb, u64 sec, u64 num_secs);
 
 /* misc.c */
 u8  calc_chksum_1byte(void *data, s32 len, u8 chksum);
@@ -203,7 +202,7 @@ s32 extent_cache_init(void);
 void extent_cache_shutdown(void);
 void extent_cache_init_inode(struct inode *inode);
 void extent_cache_inval_inode(struct inode *inode);
-s32 extent_get_clus(struct inode *inode, s32 cluster, s32 *fclus,
+s32 extent_get_clus(struct inode *inode, u32 cluster, u32 *fclus,
 		u32 *dclus, u32 *last_dclus, s32 allow_eof);
 /*----------------------------------------------------------------------*/
 /*  Wrapper Function                                                    */

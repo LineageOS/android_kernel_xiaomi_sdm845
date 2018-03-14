@@ -47,15 +47,15 @@
 
 struct extent_cache {
 	struct list_head cache_list;
-	s32 nr_contig;	/* number of contiguous clusters */
-	s32 fcluster;	/* cluster number in the file. */
+	u32 nr_contig;	/* number of contiguous clusters */
+	u32 fcluster;	/* cluster number in the file. */
 	u32 dcluster;	/* cluster number on disk. */
 };
 
 struct extent_cache_id {
 	u32 id;
-	s32 nr_contig;
-	s32 fcluster;
+	u32 nr_contig;
+	u32 fcluster;
 	u32 dcluster;
 };
 
@@ -116,16 +116,16 @@ static inline void extent_cache_update_lru(struct inode *inode,
 		list_move(&cache->cache_list, &extent->cache_lru);
 }
 
-static s32 extent_cache_lookup(struct inode *inode, s32 fclus,
+static u32 extent_cache_lookup(struct inode *inode, u32 fclus,
 			    struct extent_cache_id *cid,
-			    s32 *cached_fclus, u32 *cached_dclus)
+			    u32 *cached_fclus, u32 *cached_dclus)
 {
 	EXTENT_T *extent = &(SDFAT_I(inode)->fid.extent);
 
 	static struct extent_cache nohit = { .fcluster = 0, };
 
 	struct extent_cache *hit = &nohit, *p;
-	s32 offset = -1;
+	u32 offset = CLUS_EOF;
 
 	spin_lock(&extent->cache_lru_lock);
 	list_for_each_entry(p, &extent->cache_lru, cache_list) {
@@ -261,7 +261,7 @@ static inline s32 cache_contiguous(struct extent_cache_id *cid, u32 dclus)
 	return ((cid->dcluster + cid->nr_contig) == dclus);
 }
 
-static inline void cache_init(struct extent_cache_id *cid, s32 fclus, u32 dclus)
+static inline void cache_init(struct extent_cache_id *cid, u32 fclus, u32 dclus)
 {
 	cid->id = EXTENT_CACHE_VALID;
 	cid->fcluster = fclus;
@@ -269,12 +269,12 @@ static inline void cache_init(struct extent_cache_id *cid, s32 fclus, u32 dclus)
 	cid->nr_contig = 0;
 }
 
-s32 extent_get_clus(struct inode *inode, s32 cluster, s32 *fclus,
+s32 extent_get_clus(struct inode *inode, u32 cluster, u32 *fclus,
 		u32 *dclus, u32 *last_dclus, s32 allow_eof)
 {
 	struct super_block *sb = inode->i_sb;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
-	s32 limit = (s32)(fsi->num_clusters);
+	u32 limit = fsi->num_clusters;
 	FILE_ID_T *fid = &(SDFAT_I(inode)->fid);
 	struct extent_cache_id cid;
 	u32 content;
@@ -287,10 +287,6 @@ s32 extent_get_clus(struct inode *inode, s32 cluster, s32 *fclus,
 		return -EIO;
 	}
 
-	/* We allow max clusters per a file upto max of signed integer */
-	if (fsi->num_clusters & 0x80000000)
-		limit = 0x7FFFFFFF;
-
 	*fclus = 0;
 	*dclus = fid->start_clu;
 	*last_dclus = *dclus;
@@ -301,16 +297,16 @@ s32 extent_get_clus(struct inode *inode, s32 cluster, s32 *fclus,
 	if ((cluster == 0) || IS_CLUS_EOF(*dclus))
 		return 0;
 
-	cache_init(&cid, -1, -1);
+	cache_init(&cid, CLUS_EOF, CLUS_EOF);
 
-	if (extent_cache_lookup(inode, cluster, &cid, fclus, dclus) < 0) {
+	if (extent_cache_lookup(inode, cluster, &cid, fclus, dclus) == CLUS_EOF) {
 		/*
 		 * dummy, always not contiguous
 		 * This is reinitialized by cache_init(), later.
 		 */
 		ASSERT((cid.id == EXTENT_CACHE_VALID)
-			&& (cid.fcluster == -1)
-			&& (cid.dcluster == -1)
+			&& (cid.fcluster == CLUS_EOF)
+			&& (cid.dcluster == CLUS_EOF)
 			&& (cid.nr_contig == 0));
 	}
 
@@ -322,7 +318,7 @@ s32 extent_get_clus(struct inode *inode, s32 cluster, s32 *fclus,
 		if (*fclus > limit) {
 			sdfat_fs_error(sb,
 				"%s: detected the cluster chain loop"
-				" (i_pos %d)", __func__,
+				" (i_pos %u)", __func__,
 				(*fclus));
 			return -EIO;
 		}
@@ -337,7 +333,7 @@ s32 extent_get_clus(struct inode *inode, s32 cluster, s32 *fclus,
 		if (IS_CLUS_EOF(content)) {
 			if (!allow_eof) {
 				sdfat_fs_error(sb,
-				       "%s: invalid cluster chain (i_pos %d,"
+				       "%s: invalid cluster chain (i_pos %u,"
 				       "last_clus 0x%08x is EOF)",
 				       __func__, *fclus, (*last_dclus));
 				return -EIO;

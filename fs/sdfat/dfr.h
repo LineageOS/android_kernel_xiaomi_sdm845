@@ -114,8 +114,8 @@ struct defrag_info_arg {
 	/* PBS info */
 	unsigned int sec_sz;
 	unsigned int clus_sz;
-	unsigned int total_sec;
-	unsigned int fat_offset_sec;
+	unsigned long long total_sec;
+	unsigned long long fat_offset_sec;
 	unsigned int fat_sz_sec;
 	unsigned int n_fat;
 	unsigned int hidden_sectors;
