@@ -50,7 +50,8 @@
  */
 static s32 exfat_ent_get(struct super_block *sb, u32 loc, u32 *content)
 {
-	u32 sec, off, _content;
+	u32 off, _content;
+	u64 sec;
 	u8 *fat_sector;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
@@ -74,7 +75,8 @@ static s32 exfat_ent_get(struct super_block *sb, u32 loc, u32 *content)
 
 static s32 exfat_ent_set(struct super_block *sb, u32 loc, u32 content)
 {
-	u32 sec, off;
+	u32 off;
+	u64 sec;
 	u8 *fat_sector;
 	__le32 *fat_entry;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
@@ -96,7 +98,8 @@ static s32 exfat_ent_set(struct super_block *sb, u32 loc, u32 content)
 #define FATENT_FAT32_IGNORE_MASK	(0xF0000000U)
 static s32 fat32_ent_get(struct super_block *sb, u32 loc, u32 *content)
 {
-	u32 sec, off, _content;
+	u32 off, _content;
+	u64 sec;
 	u8 *fat_sector;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
@@ -122,7 +125,8 @@ static s32 fat32_ent_get(struct super_block *sb, u32 loc, u32 *content)
 
 static s32 fat32_ent_set(struct super_block *sb, u32 loc, u32 content)
 {
-	u32 sec, off;
+	u32 off;
+	u64 sec;
 	u8 *fat_sector;
 	__le32 *fat_entry;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
@@ -146,7 +150,8 @@ static s32 fat32_ent_set(struct super_block *sb, u32 loc, u32 content)
 #define FATENT_FAT16_VALID_MASK		(0x0000FFFFU)
 static s32 fat16_ent_get(struct super_block *sb, u32 loc, u32 *content)
 {
-	u32 sec, off, _content;
+	u32 off, _content;
+	u64 sec;
 	u8 *fat_sector;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
@@ -172,7 +177,8 @@ static s32 fat16_ent_get(struct super_block *sb, u32 loc, u32 *content)
 
 static s32 fat16_ent_set(struct super_block *sb, u32 loc, u32 content)
 {
-	u32 sec, off;
+	u32 off;
+	u64 sec;
 	u8 *fat_sector;
 	__le16 *fat_entry;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
@@ -195,7 +201,8 @@ static s32 fat16_ent_set(struct super_block *sb, u32 loc, u32 content)
 #define FATENT_FAT12_VALID_MASK		(0x00000FFFU)
 static s32 fat12_ent_get(struct super_block *sb, u32 loc, u32 *content)
 {
-	u32 sec, off, _content;
+	u32 off, _content;
+	u64 sec;
 	u8 *fat_sector;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
@@ -235,7 +242,8 @@ static s32 fat12_ent_get(struct super_block *sb, u32 loc, u32 *content)
 
 static s32 fat12_ent_set(struct super_block *sb, u32 loc, u32 content)
 {
-	u32 sec, off;
+	u32 off;
+	u64 sec;
 	u8 *fat_sector, *fat_entry;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
