@@ -78,6 +78,7 @@ const char *FS_TYPE_STR[] = {
 static struct kset *sdfat_kset;
 static struct kmem_cache *sdfat_inode_cachep;
 
+
 static int sdfat_default_codepage = CONFIG_SDFAT_DEFAULT_CODEPAGE;
 static char sdfat_default_iocharset[] = CONFIG_SDFAT_DEFAULT_IOCHARSET;
 static const char sdfat_iocharset_with_utf8[] = "iso8859-1";
@@ -199,19 +200,21 @@ static inline unsigned long __sdfat_init_name_hash(const struct dentry *unused)
 }
 #endif
 
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 21)
-	/* EMPTY */
+       /* EMPTY */
 #else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 21) */
 static inline void inode_lock(struct inode *inode)
 {
-	mutex_lock(&inode->i_mutex);
+	       mutex_lock(&inode->i_mutex);
 }
 
 static inline void inode_unlock(struct inode *inode)
 {
-	mutex_unlock(&inode->i_mutex);
+	       mutex_unlock(&inode->i_mutex);
 }
 #endif
+
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
 static void sdfat_writepage_end_io(struct bio *bio)
@@ -1709,7 +1712,7 @@ sdfat_ioctl_defrag_req(
 
 	dfr_debug("IOC_DFR_REQ started (mode %d, nr_req %d)", head.mode, len - 1);
 	if (get_order(len * sizeof(struct defrag_chunk_info)) > MAX_ORDER) {
-		dfr_debug("len %u, sizeof(struct defrag_chunk_info) %lu, MAX_ORDER %d",
+		dfr_debug("len %d, sizeof(struct defrag_chunk_info) %lu, MAX_ORDER %d",
 				len, sizeof(struct defrag_chunk_info), MAX_ORDER);
 		err = -EINVAL;
 		goto error;
@@ -4707,7 +4710,7 @@ static int sdfat_read_root(struct inode *inode)
 	SDFAT_I(inode)->fid.type = TYPE_DIR;
 	SDFAT_I(inode)->fid.version = 0;
 	SDFAT_I(inode)->fid.rwoffset = 0;
-	SDFAT_I(inode)->fid.hint_bmap.off = -1;
+	SDFAT_I(inode)->fid.hint_bmap.off = CLUS_EOF;
 	SDFAT_I(inode)->fid.hint_stat.eidx = 0;
 	SDFAT_I(inode)->fid.hint_stat.clu = fsi->root_dir;
 	SDFAT_I(inode)->fid.hint_femp.eidx = -1;
