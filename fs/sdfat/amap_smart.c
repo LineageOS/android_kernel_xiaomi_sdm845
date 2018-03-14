@@ -367,7 +367,7 @@ int amap_create(struct super_block *sb, u32 pack_ratio, u32 sect_per_au, u32 hid
 	/* data start sector must be a multiple of clu_size */
 	if (fsi->data_start_sector & (fsi->sect_per_clus - 1)) {
 		sdfat_msg(sb, KERN_ERR,
-			"misaligned data area (start sect : %u, "
+			"misaligned data area (start sect : %llu, "
 			"sect_per_clus : %u) "
 			"please re-format for performance.",
 			fsi->data_start_sector, fsi->sect_per_clus);
@@ -882,7 +882,7 @@ ret_new_cold:
 }
 
 /* Put and update target AU */
-void amap_put_target_au(AMAP_T *amap, TARGET_AU_T *cur, int num_allocated)
+void amap_put_target_au(AMAP_T *amap, TARGET_AU_T *cur, unsigned int num_allocated)
 {
 	/* Update AMAP info vars. */
 	if (num_allocated > 0 &&
@@ -973,37 +973,33 @@ static inline int amap_skip_cluster(struct super_block *sb, TARGET_AU_T *cur, in
 
 
 /* AMAP-based allocation function for FAT32 */
-s32 amap_fat_alloc_cluster(struct super_block *sb, s32 num_alloc, CHAIN_T *p_chain, int dest)
+s32 amap_fat_alloc_cluster(struct super_block *sb, u32 num_alloc, CHAIN_T *p_chain, s32 dest)
 {
 	AMAP_T *amap = SDFAT_SB(sb)->fsi.amap;
 	TARGET_AU_T *cur = NULL;
 	AU_INFO_T *target_au = NULL;				/* Allocation target AU */
+	s32 ret = -ENOSPC;
 	u32 last_clu = CLUS_EOF, read_clu;
-	s32 new_clu; // Max. 2G 개의 clusters
-	s32 num_allocated = 0, num_allocated_each = 0;
+	u32 new_clu, total_cnt;
+	u32 num_allocated = 0, num_allocated_each = 0;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
 	BUG_ON(!amap);
 	BUG_ON(IS_CLUS_EOF(fsi->used_clusters));
 
-	p_chain->dir = CLUS_EOF;
+	total_cnt = fsi->num_clusters - CLUS_BASE;
 
-	if ((fsi->used_clusters + num_alloc) > (fsi->num_clusters - CLUS_BASE)) {
-		/* Reserved count management error
-		 * or called by dir. management function on fully filled disk
-		 */
-		num_alloc = fsi->num_clusters - fsi->used_clusters - CLUS_BASE;
-
-		if (unlikely(num_alloc < 0)) {
-			sdfat_fs_error_ratelimit(sb,
+	if (unlikely(total_cnt < fsi->used_clusters)) {
+		sdfat_fs_error_ratelimit(sb,
 				"AMAP(%s): invalid used clusters(t:%u,u:%u)\n",
-				__func__, fsi->num_clusters, fsi->used_clusters);
-			return -EIO;
-		}
-
-		if (!num_alloc)
-			return 0;
+				__func__, total_cnt, fsi->used_clusters);
+		return -EIO;
 	}
+
+	if (num_alloc > total_cnt - fsi->used_clusters)
+		return -ENOSPC;
+
+	p_chain->dir = CLUS_EOF;
 
 	set_sb_dirty(sb);
 
@@ -1015,13 +1011,15 @@ retry_alloc:
 	if (unlikely(!cur)) {
 		// There is no available AU (only ignored-AU are left)
 		sdfat_msg(sb, KERN_ERR, "AMAP Allocator: no avaialble AU.");
-		return 0;
+		goto error;
 	}
 
 	/* If there are clusters to skip */
 	if (cur->clu_to_skip > 0) {
-		if (amap_skip_cluster(sb, &amap->cur_cold, cur->clu_to_skip))
-			return -EIO;
+		if (amap_skip_cluster(sb, &amap->cur_cold, cur->clu_to_skip)) {
+			ret = -EIO;
+			goto error;
+		}
 		cur->clu_to_skip = 0;
 	}
 
@@ -1041,24 +1039,31 @@ retry_alloc:
 	do {
 		/* Allocate at the target AU */
 		if ((new_clu >= CLUS_BASE) && (new_clu < fsi->num_clusters)) {
-			if (fat_ent_get(sb, new_clu, &read_clu))
+			if (fat_ent_get(sb, new_clu, &read_clu)) {
 				// spin_unlock(&amap->amap_lock);
-				return -EIO;	// goto err_and_return
+				ret = -EIO;
+				goto error;
+			}
 
 			if (IS_CLUS_FREE(read_clu)) {
 				BUG_ON(GET_AU(amap, i_AU_of_CLU(amap, new_clu)) != target_au);
 
 				/* Free cluster found */
-				if (fat_ent_set(sb, new_clu, CLUS_EOF))
-					return -EIO;
+				if (fat_ent_set(sb, new_clu, CLUS_EOF)) {
+					ret = -EIO;
+					goto error;
+				}
 
 				num_allocated_each++;
 
-				if (IS_CLUS_EOF(p_chain->dir))
+				if (IS_CLUS_EOF(p_chain->dir)) {
 					p_chain->dir = new_clu;
-				else
-					if (fat_ent_set(sb, last_clu, new_clu))
-						return -EIO;
+				} else {
+					if (fat_ent_set(sb, last_clu, new_clu)) {
+						ret = -EIO;
+						goto error;
+					}
+				}
 				last_clu = new_clu;
 
 				/* Update au info */
@@ -1088,7 +1093,11 @@ retry_alloc:
 		goto retry_alloc;
 
 	// spin_unlock(&amap->amap_lock);
-	return num_allocated;
+	return 0;
+error:
+	if (num_allocated)
+		fsi->fs_func->free_cluster(sb, p_chain, 0);
+	return ret;
 }
 
 
@@ -1117,8 +1126,8 @@ s32 amap_release_cluster(struct super_block *sb, u32 clu)
 	au = GET_AU(amap, i_au);
 	if (au->free_clusters >= amap->clusters_per_au) {
 		sdfat_fs_error(sb, "%s, au->free_clusters(%hd) is "
-			"greater than or equal to amap->clusters_per_au(%hd)"
-			, __func__, au->free_clusters, amap->clusters_per_au);
+			"greater than or equal to amap->clusters_per_au(%hd)",
+			__func__, au->free_clusters, amap->clusters_per_au);
 		return -EIO;
 	}
 

@@ -94,7 +94,7 @@ typedef struct __AMAP_T {
 	int fclu_hint;			/* maximum # of free clusters in an AU */
 
 	/* Hot AU list */
-	int total_fclu_hot;		/* Free clusters in hot list */
+	unsigned int total_fclu_hot;	/* Free clusters in hot list */
 	struct slist_head slist_hot;	/* Hot AU list */
 
 	/* Ignored AU list */

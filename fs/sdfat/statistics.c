@@ -226,7 +226,7 @@ void sdfat_statistics_set_rw(u8 flags, u32 clu_offset, s32 create)
  * clu : cluster chain
  *
  * Set no fat-chain trunc when file or dir have 0x03 flag
- * and tow or more clusters.
+ * and two or more clusters.
  */
 void sdfat_statistics_set_trunc(u8 flags, CHAIN_T *clu)
 {

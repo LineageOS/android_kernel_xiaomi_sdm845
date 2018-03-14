@@ -458,12 +458,6 @@ defrag_reserve_clusters(
 		/* Nothing to do */
 		return 0;
 
-	/* Update used_clusters */
-	if (fsi->used_clusters == (u32) ~0) {
-		if (fsi->fs_func->count_used_clusters(sb, &fsi->used_clusters))
-			return -EIO;
-	}
-
 	/* Check error case */
 	if (fsi->used_clusters + fsi->reserved_clusters + nr_clus >= fsi->num_clusters - 2)  {
 		return -ENOSPC;
@@ -544,7 +538,7 @@ defrag_map_cluster(
 	struct defrag_info *ino_dfr = &(SDFAT_I(inode)->dfr_info);
 	struct defrag_chunk_info *chunk = NULL;
 	CHAIN_T new_clu;
-	int num = 0, i = 0, nr_new = 0, err = 0;
+	int i = 0, nr_new = 0, err = 0;
 
 	/* Get corresponding chunk */
 	for (i = 0; i < ino_dfr->nr_chunks; i++) {
@@ -570,16 +564,16 @@ defrag_map_cluster(
 	/* Allocate new cluster */
 #ifdef CONFIG_SDFAT_DFR_PACKING
 	if (amap->n_clean_au * DFR_FULL_RATIO <= amap->n_au * DFR_DEFAULT_PACKING_RATIO)
-		num = fsi->fs_func->alloc_cluster(sb, 1, &new_clu, ALLOC_COLD_PACKING);
+		err = fsi->fs_func->alloc_cluster(sb, 1, &new_clu, ALLOC_COLD_PACKING);
 	else
-		num = fsi->fs_func->alloc_cluster(sb, 1, &new_clu, ALLOC_COLD_ALIGNED);
+		err = fsi->fs_func->alloc_cluster(sb, 1, &new_clu, ALLOC_COLD_ALIGNED);
 #else
-		num = fsi->fs_func->alloc_cluster(sb, 1, &new_clu, ALLOC_COLD_ALIGNED);
+		err = fsi->fs_func->alloc_cluster(sb, 1, &new_clu, ALLOC_COLD_ALIGNED);
 #endif
 
-	if (num != 1) {
-		dfr_err("Map: num %d", num);
-		return -EIO;
+	if (err) {
+		dfr_err("Map: 1 %d", 0);
+		return err;
 	}
 
 	/* Decrease reserved cluster count */
@@ -824,7 +818,8 @@ __defrag_update_dirent(
 	FS_INFO_T *fsi = &SDFAT_SB(sb)->fsi;
 	CHAIN_T dir;
 	DOS_DENTRY_T *dos_ep;
-	unsigned int entry = 0, sector = 0;
+	unsigned int entry = 0;
+	unsigned long long sector = 0;
 	unsigned short hi = 0, lo = 0;
 	int err = 0;
 
@@ -963,7 +958,7 @@ defrag_update_fat_prev(
 			extent_cache_inval_inode(inode);
 
 			/* Update FID info */
-			ino_info->fid.hint_bmap.off = -1;
+			ino_info->fid.hint_bmap.off = CLUS_EOF;
 			ino_info->fid.hint_bmap.clu = 0;
 
 			/* Clear old FAT-chain */

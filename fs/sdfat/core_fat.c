@@ -155,60 +155,6 @@ out:
 /*
  *  Cluster Management Functions
  */
-static s32 fat_alloc_cluster(struct super_block *sb, s32 num_alloc, CHAIN_T *p_chain, int dest)
-{
-	s32 i, num_clusters = 0;
-	u32 new_clu, last_clu = CLUS_EOF, read_clu;
-	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
-
-
-	new_clu = p_chain->dir;
-	if (IS_CLUS_EOF(new_clu))
-		new_clu = fsi->clu_srch_ptr;
-	else if (new_clu >= fsi->num_clusters)
-		new_clu = 2;
-
-	set_sb_dirty(sb);
-
-	p_chain->dir = CLUS_EOF;
-
-	for (i = CLUS_BASE; i < fsi->num_clusters; i++) {
-		if (fat_ent_get(sb, new_clu, &read_clu))
-			return -EIO;
-
-		if (IS_CLUS_FREE(read_clu)) {
-			if (fat_ent_set(sb, new_clu, CLUS_EOF))
-				return -EIO;
-			num_clusters++;
-
-			if (IS_CLUS_EOF(p_chain->dir)) {
-				p_chain->dir = new_clu;
-			} else {
-				if (fat_ent_set(sb, last_clu, new_clu))
-					return -EIO;
-			}
-
-			last_clu = new_clu;
-
-			if ((--num_alloc) == 0) {
-				fsi->clu_srch_ptr = new_clu;
-				if (fsi->used_clusters != (u32) ~0)
-					fsi->used_clusters += num_clusters;
-
-				return num_clusters;
-			}
-		}
-		if ((++new_clu) >= fsi->num_clusters)
-			new_clu = CLUS_BASE;
-	}
-
-	fsi->clu_srch_ptr = new_clu;
-	if (fsi->used_clusters != (u32) ~0)
-		fsi->used_clusters += num_clusters;
-
-	return num_clusters;
-} /* end of fat_alloc_cluster */
-
 static s32 fat_free_cluster(struct super_block *sb, CHAIN_T *p_chain, s32 do_relse)
 {
 	s32 ret = -EIO;
@@ -216,14 +162,14 @@ static s32 fat_free_cluster(struct super_block *sb, CHAIN_T *p_chain, s32 do_rel
 	u32 clu, prev;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 	s32 i;
-	u32 sector;
+	u64 sector;
 
 	/* invalid cluster number */
 	if (IS_CLUS_FREE(p_chain->dir) || IS_CLUS_EOF(p_chain->dir))
 		return 0;
 
 	/* no cluster to truncate */
-	if (p_chain->size <= 0) {
+	if (!p_chain->size) {
 		DMSG("%s: cluster(%u) truncation is not required.",
 			__func__, p_chain->dir);
 		return 0;
@@ -281,10 +227,78 @@ static s32 fat_free_cluster(struct super_block *sb, CHAIN_T *p_chain, s32 do_rel
 	/* success */
 	ret = 0;
 out:
-	if (fsi->used_clusters != (u32) ~0)
-		fsi->used_clusters -= num_clusters;
+	fsi->used_clusters -= num_clusters;
 	return ret;
 } /* end of fat_free_cluster */
+
+static s32 fat_alloc_cluster(struct super_block *sb, u32 num_alloc, CHAIN_T *p_chain, s32 dest)
+{
+	s32 ret = -ENOSPC;
+	u32 i, num_clusters = 0, total_cnt;
+	u32 new_clu, last_clu = CLUS_EOF, read_clu;
+	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
+
+	total_cnt = fsi->num_clusters - CLUS_BASE;
+
+	if (unlikely(total_cnt < fsi->used_clusters)) {
+		sdfat_fs_error_ratelimit(sb,
+				"%s : invalid used clusters(t:%u,u:%u)\n",
+				__func__, total_cnt, fsi->used_clusters);
+		return -EIO;
+	}
+
+	if (num_alloc > total_cnt - fsi->used_clusters)
+		return -ENOSPC;
+
+	new_clu = p_chain->dir;
+	if (IS_CLUS_EOF(new_clu))
+		new_clu = fsi->clu_srch_ptr;
+	else if (new_clu >= fsi->num_clusters)
+		new_clu = CLUS_BASE;
+
+	set_sb_dirty(sb);
+
+	p_chain->dir = CLUS_EOF;
+
+	for (i = CLUS_BASE; i < fsi->num_clusters; i++) {
+		if (fat_ent_get(sb, new_clu, &read_clu)) {
+			ret = -EIO;
+			goto error;
+		}
+
+		if (IS_CLUS_FREE(read_clu)) {
+			if (fat_ent_set(sb, new_clu, CLUS_EOF)) {
+				ret = -EIO;
+				goto error;
+			}
+			num_clusters++;
+
+			if (IS_CLUS_EOF(p_chain->dir)) {
+				p_chain->dir = new_clu;
+			} else {
+				if (fat_ent_set(sb, last_clu, new_clu)) {
+					ret = -EIO;
+					goto error;
+				}
+			}
+
+			last_clu = new_clu;
+
+			if ((--num_alloc) == 0) {
+				fsi->clu_srch_ptr = new_clu;
+				fsi->used_clusters += num_clusters;
+
+				return 0;
+			}
+		}
+		if ((++new_clu) >= fsi->num_clusters)
+			new_clu = CLUS_BASE;
+	}
+error:
+	if (num_clusters)
+		fat_free_cluster(sb, p_chain, 0);
+	return ret;
+} /* end of fat_alloc_cluster */
 
 static s32 fat_count_used_clusters(struct super_block *sb, u32 *ret_count)
 {
@@ -525,7 +539,7 @@ static void __init_ext_entry(EXT_DENTRY_T *ep, s32 order, u8 chksum, u16 *uninam
 static s32 fat_init_dir_entry(struct super_block *sb, CHAIN_T *p_dir, s32 entry, u32 type,
 						 u32 start_clu, u64 size)
 {
-	u32 sector;
+	u64 sector;
 	DOS_DENTRY_T *dos_ep;
 
 	dos_ep = (DOS_DENTRY_T *) get_dentry_in_dir(sb, p_dir, entry, &sector);
@@ -542,7 +556,7 @@ static s32 fat_init_ext_entry(struct super_block *sb, CHAIN_T *p_dir, s32 entry,
 						 UNI_NAME_T *p_uniname, DOS_NAME_T *p_dosname)
 {
 	s32 i;
-	u32 sector;
+	u64 sector;
 	u8 chksum;
 	u16 *uniname = p_uniname->name;
 	DOS_DENTRY_T *dos_ep;
@@ -586,7 +600,7 @@ static s32 fat_init_ext_entry(struct super_block *sb, CHAIN_T *p_dir, s32 entry,
 static s32 fat_delete_dir_entry(struct super_block *sb, CHAIN_T *p_dir, s32 entry, s32 order, s32 num_entries)
 {
 	s32 i;
-	u32 sector;
+	u64 sector;
 	DENTRY_T *ep;
 
 	for (i = num_entries-1; i >= order; i--) {
@@ -1225,7 +1239,7 @@ static FS_FUNC_T amap_fat_fs_func = {
 
 s32 mount_fat16(struct super_block *sb, pbr_t *p_pbr)
 {
-	s32 num_reserved, num_root_sectors;
+	s32 num_root_sectors;
 	bpb16_t *p_bpb = &(p_pbr->bpb.f16);
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
@@ -1262,8 +1276,7 @@ s32 mount_fat16(struct super_block *sb, pbr_t *p_pbr)
 		return -EINVAL;
 	}
 
-	num_reserved = fsi->data_start_sector;
-	fsi->num_clusters = ((fsi->num_sectors - num_reserved) >> fsi->sect_per_clus_bits) + CLUS_BASE;
+	fsi->num_clusters = (u32)((fsi->num_sectors - fsi->data_start_sector) >> fsi->sect_per_clus_bits) + CLUS_BASE;
 	/* because the cluster index starts with 2 */
 
 	fsi->vol_type = FAT16;
@@ -1329,7 +1342,6 @@ out:
 
 s32 mount_fat32(struct super_block *sb, pbr_t *p_pbr)
 {
-	s32 num_reserved;
 	pbr32_t *p_bpb = (pbr32_t *)p_pbr;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
@@ -1365,9 +1377,7 @@ s32 mount_fat32(struct super_block *sb, pbr_t *p_pbr)
 		return -EINVAL;
 	}
 
-	num_reserved = fsi->data_start_sector;
-
-	fsi->num_clusters = ((fsi->num_sectors-num_reserved) >> fsi->sect_per_clus_bits) + 2;
+	fsi->num_clusters = (u32)((fsi->num_sectors - fsi->data_start_sector) >> fsi->sect_per_clus_bits) + CLUS_BASE;
 	/* because the cluster index starts with 2 */
 
 	fsi->vol_type = FAT32;
