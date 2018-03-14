@@ -1011,7 +1011,7 @@ static ssize_t wcd_miscdev_write(struct file *filep, const char __user *ubuf,
 {
 	struct wcd_dsp_cntl *cntl = container_of(filep->private_data,
 						 struct wcd_dsp_cntl, miscdev);
-	char val[count];
+	char val[WCD_MISCDEV_CMD_MAX_LEN];
 	bool vote;
 	int ret = 0;
 
