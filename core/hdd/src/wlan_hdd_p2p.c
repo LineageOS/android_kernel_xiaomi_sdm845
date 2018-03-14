@@ -1384,6 +1384,10 @@ static int wlan_hdd_request_remain_on_channel(struct wiphy *wiphy,
 
 	if (cds_is_connection_in_progress(NULL, NULL)) {
 		hdd_debug("Connection is in progress");
+		if (request_type == OFF_CHANNEL_ACTION_TX) {
+			hdd_debug("Reject Offchannel action frame tx as conection in progress");
+			return -EAGAIN;
+		}
 		isBusy = true;
 	}
 	pRemainChanCtx = qdf_mem_malloc(sizeof(hdd_remain_on_chan_ctx_t));
