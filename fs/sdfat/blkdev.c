@@ -106,12 +106,12 @@ s32 bdev_check_bdi_valid(struct super_block *sb)
 
 
 /* Make a readahead request */
-s32 bdev_readahead(struct super_block *sb, u32 secno, u32 num_secs)
+s32 bdev_readahead(struct super_block *sb, u64 secno, u64 num_secs)
 {
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 	u32 sects_per_page = (PAGE_SIZE >> sb->s_blocksize_bits);
 	struct blk_plug plug;
-	u32 i;
+	u64 i;
 
 	if (!fsi->bd_opened)
 		return -EIO;
@@ -120,14 +120,14 @@ s32 bdev_readahead(struct super_block *sb, u32 secno, u32 num_secs)
 	for (i = 0; i < num_secs; i++) {
 		if (i && !(i & (sects_per_page - 1)))
 			blk_flush_plug(current);
-		sb_breadahead(sb, secno + i);
+		sb_breadahead(sb, (sector_t)(secno + i));
 	}
 	blk_finish_plug(&plug);
 
 	return 0;
 }
 
-s32 bdev_mread(struct super_block *sb, u32 secno, struct buffer_head **bh, u32 num_secs, s32 read)
+s32 bdev_mread(struct super_block *sb, u64 secno, struct buffer_head **bh, u64 num_secs, s32 read)
 {
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 	u8 blksize_bits = sb->s_blocksize_bits;
@@ -145,9 +145,9 @@ s32 bdev_mread(struct super_block *sb, u32 secno, struct buffer_head **bh, u32 n
 	brelse(*bh);
 
 	if (read)
-		*bh = __bread(sb->s_bdev, secno, num_secs << blksize_bits);
+		*bh = __bread(sb->s_bdev, (sector_t)secno, num_secs << blksize_bits);
 	else
-		*bh = __getblk(sb->s_bdev, secno, num_secs << blksize_bits);
+		*bh = __getblk(sb->s_bdev, (sector_t)secno, num_secs << blksize_bits);
 
 	/* read successfully */
 	if (*bh)
@@ -165,9 +165,9 @@ s32 bdev_mread(struct super_block *sb, u32 secno, struct buffer_head **bh, u32 n
 	return -EIO;
 }
 
-s32 bdev_mwrite(struct super_block *sb, u32 secno, struct buffer_head *bh, u32 num_secs, s32 sync)
+s32 bdev_mwrite(struct super_block *sb, u64 secno, struct buffer_head *bh, u64 num_secs, s32 sync)
 {
-	s32 count;
+	u64 count;
 	struct buffer_head *bh2;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 #ifdef CONFIG_SDFAT_DBG_IOCTL
@@ -189,7 +189,7 @@ s32 bdev_mwrite(struct super_block *sb, u32 secno, struct buffer_head *bh, u32 n
 	} else {
 		count = num_secs << sb->s_blocksize_bits;
 
-		bh2 = __getblk(sb->s_bdev, secno, count);
+		bh2 = __getblk(sb->s_bdev, (sector_t)secno, count);
 
 		if (!bh2)
 			goto no_bh;
@@ -239,39 +239,39 @@ s32 bdev_sync_all(struct super_block *sb)
 /*
  *  Sector Read/Write Functions
  */
-s32 read_sect(struct super_block *sb, u32 sec, struct buffer_head **bh, s32 read)
+s32 read_sect(struct super_block *sb, u64 sec, struct buffer_head **bh, s32 read)
 {
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
 	BUG_ON(!bh);
 	if ((sec >= fsi->num_sectors) && (fsi->num_sectors > 0)) {
 		sdfat_fs_error_ratelimit(sb,
-				"%s: out of range (sect:%u)", __func__, sec);
+				"%s: out of range (sect:%llu)", __func__, sec);
 		return -EIO;
 	}
 
 	if (bdev_mread(sb, sec, bh, 1, read)) {
 		sdfat_fs_error_ratelimit(sb,
-				"%s: I/O error (sect:%u)", __func__, sec);
+				"%s: I/O error (sect:%llu)", __func__, sec);
 		return -EIO;
 	}
 
 	return 0;
 }
 
-s32 write_sect(struct super_block *sb, u32 sec, struct buffer_head *bh, s32 sync)
+s32 write_sect(struct super_block *sb, u64 sec, struct buffer_head *bh, s32 sync)
 {
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
 	BUG_ON(!bh);
 	if ((sec >= fsi->num_sectors) && (fsi->num_sectors > 0)) {
 		sdfat_fs_error_ratelimit(sb,
-				"%s: out of range (sect:%u)", __func__, sec);
+				"%s: out of range (sect:%llu)", __func__, sec);
 		return -EIO;
 	}
 
 	if (bdev_mwrite(sb, sec, bh, 1, sync)) {
-		sdfat_fs_error_ratelimit(sb, "%s: I/O error (sect:%u)",
+		sdfat_fs_error_ratelimit(sb, "%s: I/O error (sect:%llu)",
 						__func__, sec);
 		return -EIO;
 	}
@@ -279,19 +279,19 @@ s32 write_sect(struct super_block *sb, u32 sec, struct buffer_head *bh, s32 sync
 	return 0;
 }
 
-s32 read_msect(struct super_block *sb, u32 sec, struct buffer_head **bh, s32 num_secs, s32 read)
+s32 read_msect(struct super_block *sb, u64 sec, struct buffer_head **bh, u64 num_secs, s32 read)
 {
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
 	BUG_ON(!bh);
 	if (((sec+num_secs) > fsi->num_sectors) && (fsi->num_sectors > 0)) {
-		sdfat_fs_error_ratelimit(sb, "%s: out of range(sect:%u len:%d)",
+		sdfat_fs_error_ratelimit(sb, "%s: out of range(sect:%llu len:%llu)",
 						__func__, sec, num_secs);
 		return -EIO;
 	}
 
 	if (bdev_mread(sb, sec, bh, num_secs, read)) {
-		sdfat_fs_error_ratelimit(sb, "%s: I/O error (sect:%u len:%d)",
+		sdfat_fs_error_ratelimit(sb, "%s: I/O error (sect:%llu len:%llu)",
 						__func__, sec, num_secs);
 		return -EIO;
 	}
@@ -299,20 +299,20 @@ s32 read_msect(struct super_block *sb, u32 sec, struct buffer_head **bh, s32 num
 	return 0;
 }
 
-s32 write_msect(struct super_block *sb, u32 sec, struct buffer_head *bh, s32 num_secs, s32 sync)
+s32 write_msect(struct super_block *sb, u64 sec, struct buffer_head *bh, u64 num_secs, s32 sync)
 {
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
 	BUG_ON(!bh);
 	if (((sec+num_secs) > fsi->num_sectors) && (fsi->num_sectors > 0)) {
-		sdfat_fs_error_ratelimit(sb, "%s: out of range(sect:%u len:%d)",
+		sdfat_fs_error_ratelimit(sb, "%s: out of range(sect:%llu len:%llu)",
 						__func__, sec, num_secs);
 		return -EIO;
 	}
 
 
 	if (bdev_mwrite(sb, sec, bh, num_secs, sync)) {
-		sdfat_fs_error_ratelimit(sb, "%s: I/O error (sect:%u len:%d)",
+		sdfat_fs_error_ratelimit(sb, "%s: I/O error (sect:%llu len:%llu)",
 						__func__, sec, num_secs);
 		return -EIO;
 	}
@@ -340,11 +340,11 @@ static inline s32 __blkdev_sync_bhs(struct buffer_head **bhs, s32 nr_bhs)
 	return err;
 }
 
-static inline s32 __buffer_zeroed(struct super_block *sb, u32 blknr, s32 num_secs)
+static inline s32 __buffer_zeroed(struct super_block *sb, u64 blknr, u64 num_secs)
 {
 	struct buffer_head *bhs[MAX_BUF_PER_PAGE];
 	s32 nr_bhs = MAX_BUF_PER_PAGE;
-	u32 last_blknr = blknr + num_secs;
+	u64 last_blknr = blknr + num_secs;
 	s32 err, i, n;
 	struct blk_plug plug;
 
@@ -352,7 +352,7 @@ static inline s32 __buffer_zeroed(struct super_block *sb, u32 blknr, s32 num_sec
 	n = 0;
 	blk_start_plug(&plug);
 	while (blknr < last_blknr) {
-		bhs[n] = sb_getblk(sb, blknr);
+		bhs[n] = sb_getblk(sb, (sector_t)blknr);
 		if (!bhs[n]) {
 			err = -ENOMEM;
 			blk_finish_plug(&plug);
@@ -389,19 +389,19 @@ static inline s32 __buffer_zeroed(struct super_block *sb, u32 blknr, s32 num_sec
 	return 0;
 
 error:
-	EMSG("%s: failed zeroed sect %u\n", __func__, blknr);
+	EMSG("%s: failed zeroed sect %llu\n", __func__, blknr);
 	for (i = 0; i < n; i++)
 		bforget(bhs[i]);
 
 	return err;
 }
 
-s32 write_msect_zero(struct super_block *sb, u32 sec, s32 num_secs)
+s32 write_msect_zero(struct super_block *sb, u64 sec, u64 num_secs)
 {
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
 	if (((sec+num_secs) > fsi->num_sectors) && (fsi->num_sectors > 0)) {
-		sdfat_fs_error_ratelimit(sb, "%s: out of range(sect:%u len:%d)",
+		sdfat_fs_error_ratelimit(sb, "%s: out of range(sect:%llu len:%llu)",
 						__func__, sec, num_secs);
 		return -EIO;
 	}

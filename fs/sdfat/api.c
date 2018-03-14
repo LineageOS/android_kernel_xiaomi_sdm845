@@ -328,7 +328,7 @@ s32 fsapi_write_inode(struct inode *inode, DIR_ENTRY_T *info, int sync)
 EXPORT_SYMBOL(fsapi_write_inode);
 
 /* return the cluster number in the given cluster offset */
-s32 fsapi_map_clus(struct inode *inode, s32 clu_offset, u32 *clu, int dest)
+s32 fsapi_map_clus(struct inode *inode, u32 clu_offset, u32 *clu, int dest)
 {
 	s32 err;
 	struct super_block *sb = inode->i_sb;
