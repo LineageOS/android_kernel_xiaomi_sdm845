@@ -2367,7 +2367,9 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 				&hdd_cfg80211_scan_done_callback, dev);
 
 	if (QDF_STATUS_SUCCESS != status) {
-		hdd_err("sme_scan_request returned error %d", status);
+		hdd_err_ratelimited(HDD_SCAN_REJECT_RATE_LIMIT,
+				    "sme_scan_request returned error %d",
+				    status);
 		if (QDF_STATUS_E_RESOURCES == status) {
 			scan_ebusy_cnt++;
 			hdd_err("HO is in progress. Defer scan scan_ebusy_cnt: %d",
@@ -2821,7 +2823,8 @@ static int __wlan_hdd_cfg80211_vendor_scan(struct wiphy *wiphy,
 
 	ret = __wlan_hdd_cfg80211_scan(wiphy, request, VENDOR_SCAN);
 	if (0 != ret) {
-		hdd_err("Scan Failed. Ret = %d", ret);
+		hdd_err_ratelimited(HDD_SCAN_REJECT_RATE_LIMIT,
+				    "Scan Failed. Ret = %d", ret);
 		qdf_mem_free(request);
 		return ret;
 	}

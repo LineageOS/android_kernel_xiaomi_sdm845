@@ -60,6 +60,26 @@
 #define SME_GLOBAL_CLASSD_STATS   (1 << eCsrGlobalClassDStats)
 #define SME_PER_CHAIN_RSSI_STATS  (1 << csr_per_chain_rssi_stats)
 
+#define sme_log_rate_limited(rate, level, args...) \
+		QDF_TRACE_RATE_LIMITED(rate, QDF_MODULE_ID_SME, level, ## args)
+#define sme_log_rate_limited_fl(rate, level, format, args...) \
+			sme_log_rate_limited(rate, level, FL(format), ## args)
+#define sme_alert_rate_limited(rate, format, args...) \
+			sme_log_rate_limited_fl(rate, QDF_TRACE_LEVEL_FATAL,\
+				format, ## args)
+#define sme_err_rate_limited(rate, format, args...) \
+			sme_log_rate_limited_fl(rate, QDF_TRACE_LEVEL_ERROR,\
+				format, ## args)
+#define sme_warn_rate_limited(rate, format, args...) \
+			sme_log_rate_limited_fl(rate, QDF_TRACE_LEVEL_WARN,\
+				format, ## args)
+#define sme_info_rate_limited(rate, format, args...) \
+			sme_log_rate_limited_fl(rate, QDF_TRACE_LEVEL_INFO,\
+				format, ## args)
+#define sme_debug_rate_limited(rate, format, args...) \
+			sme_log_rate_limited_fl(rate, QDF_TRACE_LEVEL_DEBUG,\
+				format, ## args)
+
 #define sme_log(level, args...) QDF_TRACE(QDF_MODULE_ID_SME, level, ## args)
 #define sme_logfl(level, format, args...) sme_log(level, FL(format), ## args)
 
@@ -76,6 +96,7 @@
 
 #define SME_ENTER() sme_logfl(QDF_TRACE_LEVEL_DEBUG, "enter")
 #define SME_EXIT() sme_logfl(QDF_TRACE_LEVEL_DEBUG, "exit")
+#define SME_SCAN_REJECT_RATE_LIMIT  5
 
 #define SME_SESSION_ID_ANY        50
 
