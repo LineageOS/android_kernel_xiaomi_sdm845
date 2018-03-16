@@ -1,5 +1,4 @@
-/*
- * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1079,6 +1078,7 @@ int tavil_mbhc_init(struct wcd934x_mbhc **mbhc, struct snd_soc_codec *codec,
 	struct wcd934x_mbhc *wcd934x_mbhc;
 	struct wcd_mbhc *wcd_mbhc;
 	int ret;
+	struct wcd9xxx_pdata *pdata;
 
 	wcd934x_mbhc = devm_kzalloc(codec->dev, sizeof(struct wcd934x_mbhc),
 				    GFP_KERNEL);
@@ -1098,6 +1098,14 @@ int tavil_mbhc_init(struct wcd934x_mbhc **mbhc, struct snd_soc_codec *codec,
 
 	/* Setting default mbhc detection logic to ADC for Tavil */
 	wcd_mbhc->mbhc_detection_logic = WCD_DETECTION_ADC;
+
+	pdata = dev_get_platdata(codec->dev->parent);
+	if (!pdata) {
+		dev_err(codec->dev, "%s: pdata pointer is NULL\n", __func__);
+		ret = -EINVAL;
+		goto err;
+	}
+	wcd_mbhc->micb_mv = pdata->micbias.micb2_mv;
 
 	ret = wcd_mbhc_init(wcd_mbhc, codec, &mbhc_cb,
 				&intr_ids, wcd_mbhc_registers,
