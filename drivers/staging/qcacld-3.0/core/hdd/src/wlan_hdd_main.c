@@ -13410,7 +13410,7 @@ bool hdd_is_cli_iface_up(hdd_context_t *hdd_ctx)
 module_init(hdd_module_init);
 module_exit(hdd_module_exit);
 #else
-late_initcall(hdd_module_init);
+device_initcall(hdd_module_init);
 #endif
 
 MODULE_LICENSE("Dual BSD/GPL");
