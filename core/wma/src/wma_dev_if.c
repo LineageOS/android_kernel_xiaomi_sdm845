@@ -500,6 +500,7 @@ static QDF_STATUS wma_self_peer_remove(tp_wma_handle wma_handle,
 {
 	ol_txrx_peer_handle peer;
 	ol_txrx_pdev_handle pdev;
+	QDF_STATUS qdf_status;
 	uint8_t peer_id;
 	uint8_t vdev_id = del_sta_self_req_param->session_id;
 	struct wma_target_req *msg = NULL;
@@ -511,7 +512,8 @@ static QDF_STATUS wma_self_peer_remove(tp_wma_handle wma_handle,
 	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (NULL == pdev) {
 		WMA_LOGE("%s: Failed to get pdev", __func__);
-			return QDF_STATUS_E_FAULT;
+		qdf_status = QDF_STATUS_E_FAULT;
+		goto error;
 	}
 
 	peer = ol_txrx_find_peer_by_addr(pdev,
@@ -520,7 +522,8 @@ static QDF_STATUS wma_self_peer_remove(tp_wma_handle wma_handle,
 	if (!peer) {
 		WMA_LOGE("%s Failed to find peer %pM", __func__,
 			 del_sta_self_req_param->self_mac_addr);
-		return QDF_STATUS_SUCCESS;
+		qdf_status = QDF_STATUS_E_FAULT;
+		goto error;
 	}
 	wma_remove_peer(wma_handle,
 			del_sta_self_req_param->self_mac_addr,
@@ -532,7 +535,8 @@ static QDF_STATUS wma_self_peer_remove(tp_wma_handle wma_handle,
 			qdf_mem_malloc(sizeof(struct del_sta_self_rsp_params));
 		if (sta_self_wmi_rsp == NULL) {
 			WMA_LOGE(FL("Failed to allocate memory"));
-			return QDF_STATUS_E_NOMEM;
+			qdf_status = QDF_STATUS_E_NOMEM;
+			goto error;
 		}
 		sta_self_wmi_rsp->self_sta_param = del_sta_self_req_param;
 		sta_self_wmi_rsp->generate_rsp = generate_vdev_rsp;
@@ -546,10 +550,13 @@ static QDF_STATUS wma_self_peer_remove(tp_wma_handle wma_handle,
 				 vdev_id);
 			wma_remove_req(wma_handle, vdev_id,
 				WMA_DEL_P2P_SELF_STA_RSP_START);
-			return QDF_STATUS_E_FAILURE;
+			qdf_status = QDF_STATUS_E_FAILURE;
+			goto error;
 		}
 	}
 	return QDF_STATUS_SUCCESS;
+error:
+	return qdf_status;
 }
 
 static void
@@ -651,9 +658,9 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 		req_msg = wma_find_vdev_req(wma_handle, vdev_id,
 				WMA_TARGET_REQ_TYPE_VDEV_STOP, false);
 		if (!req_msg)
-			goto send_fail_rsp;
+			goto send_fail_rsp_and_trigger_recovery;
 		if (req_msg->msg_type != WMA_DELETE_BSS_REQ)
-			goto send_fail_rsp;
+			goto send_fail_rsp_and_trigger_recovery;
 		WMA_LOGA("BSS is not yet stopped. Defering vdev(vdev id %x) deletion",
 			vdev_id);
 		iface->del_staself_req = pdel_sta_self_req_param;
@@ -681,8 +688,27 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 	/* P2P Device */
 	if ((iface->type == WMI_VDEV_TYPE_AP) &&
 	    (iface->sub_type == WMI_UNIFIED_VDEV_SUBTYPE_P2P_DEVICE)) {
-		wma_self_peer_remove(wma_handle, pdel_sta_self_req_param,
-					generateRsp);
+		status = wma_self_peer_remove(wma_handle,
+					pdel_sta_self_req_param, generateRsp);
+		if ((status != QDF_STATUS_SUCCESS) && generateRsp) {
+			WMA_LOGE("can't remove selfpeer, send rsp session: %d",
+				 vdev_id);
+			if (!cds_is_driver_unloading()) {
+				WMA_LOGE("Trigger recovery for session: %d",
+					 vdev_id);
+				goto send_fail_rsp_and_trigger_recovery;
+			} else {
+				WMA_LOGE("driver unload, free mem vdev_id: %d",
+					 vdev_id);
+				goto send_fail_rsp;
+			}
+		} else if (status != QDF_STATUS_SUCCESS) {
+			WMA_LOGE("can't remove selfpeer, free msg session: %d",
+				 vdev_id);
+			qdf_mem_free(pdel_sta_self_req_param);
+			pdel_sta_self_req_param = NULL;
+			return status;
+		}
 		if (!WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 				WMI_SERVICE_SYNC_DELETE_CMDS))
 			status = wma_handle_vdev_detach(wma_handle,
@@ -697,7 +723,7 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 
 	return status;
 
-send_fail_rsp:
+send_fail_rsp_and_trigger_recovery:
 	if (!cds_is_driver_recovering()) {
 		if (cds_is_self_recovery_enabled()) {
 			WMA_LOGE("rcvd del_self_sta without del_bss, trigger recovery, vdev_id %d",
@@ -710,8 +736,15 @@ send_fail_rsp:
 		}
 	}
 
-	pdel_sta_self_req_param->status = QDF_STATUS_E_FAILURE;
-	wma_send_del_sta_self_resp(pdel_sta_self_req_param);
+send_fail_rsp:
+	if (generateRsp) {
+		pdel_sta_self_req_param->status = QDF_STATUS_E_FAILURE;
+		wma_send_del_sta_self_resp(pdel_sta_self_req_param);
+	} else {
+		qdf_mem_free(pdel_sta_self_req_param);
+		pdel_sta_self_req_param = NULL;
+	}
+
 	return status;
 }
 

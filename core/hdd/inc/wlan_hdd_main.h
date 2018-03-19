@@ -2045,6 +2045,7 @@ struct hdd_context_s {
 	/* mutex lock to block concurrent access */
 	struct mutex power_stats_lock;
 #endif
+	qdf_atomic_t is_acs_allowed;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,

@@ -131,10 +131,8 @@ v_CONTEXT_t cds_init(void)
 	QDF_STATUS ret;
 
 	ret = qdf_debugfs_init();
-	if (ret != QDF_STATUS_SUCCESS) {
+	if (ret != QDF_STATUS_SUCCESS)
 		cds_err("Failed to init debugfs");
-		goto err_ret;
-	}
 
 	qdf_lock_stats_init();
 	qdf_mem_init();
@@ -170,7 +168,7 @@ deinit:
 	gp_cds_context->qdf_ctx = NULL;
 	gp_cds_context = NULL;
 	qdf_mem_zero(&g_cds_context, sizeof(g_cds_context));
-err_ret:
+
 	return NULL;
 }
 

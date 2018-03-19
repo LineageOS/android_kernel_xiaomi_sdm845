@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -379,11 +379,12 @@ int hdd_napi_apply_throughput_policy(struct hdd_context_s *hddctx,
 	else
 		req_state = QCA_NAPI_TPUT_LO;
 
-	if (req_state != napid->napi_mode)
+	if (req_state != napid->napi_mode) {
 		/* [re]set the floor frequency of high cluster */
 		rc = hdd_napi_perfd_cpufreq(req_state);
 		/* blacklist/boost_mode on/off */
 		rc = hdd_napi_event(NAPI_EVT_TPUT_STATE, (void *)req_state);
+	}
 	return rc;
 }
 
