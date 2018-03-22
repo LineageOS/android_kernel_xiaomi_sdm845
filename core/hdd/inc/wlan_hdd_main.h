@@ -803,6 +803,7 @@ typedef struct hdd_remain_on_chan_ctx {
 	action_pkt_buffer_t action_pkt_buff;
 	bool hdd_remain_on_chan_cancel_in_progress;
 	uint32_t scan_id;
+	bool is_recd_roc_ready;
 } hdd_remain_on_chan_ctx_t;
 
 /* RoC Request entry */
