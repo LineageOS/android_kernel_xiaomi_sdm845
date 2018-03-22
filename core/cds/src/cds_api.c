@@ -911,6 +911,10 @@ QDF_STATUS cds_post_disable(void)
 		return QDF_STATUS_E_INVAL;
 	}
 
+	/* Clean up all MC thread message queues */
+	if (gp_cds_sched_context)
+		cds_sched_flush_mc_mqs(gp_cds_sched_context);
+
 	/*
 	 * With new state machine changes cds_close can be invoked without
 	 * cds_disable. So, send the following clean up prerequisites to fw,
