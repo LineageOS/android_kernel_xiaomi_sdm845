@@ -3010,7 +3010,6 @@ void wlan_hdd_tdls_timer_restart(hdd_adapter_t *pAdapter,
 	}
 
 	if (hdd_conn_is_connected(pHddStaCtx)) {
-		qdf_mc_timer_stop(timer);
 		qdf_mc_timer_start(timer, expirationTime);
 	}
 }
