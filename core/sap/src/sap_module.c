@@ -2680,6 +2680,12 @@ wlansap_channel_change_request(void *pSapCtx, uint8_t target_channel)
 
 	sapContext = (ptSapContext) pSapCtx;
 
+	if (!target_channel) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "%s: channel 0 requested", __func__);
+		return QDF_STATUS_E_FAULT;
+	}
+
 	if (NULL == sapContext) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Invalid SAP pointer", __func__);

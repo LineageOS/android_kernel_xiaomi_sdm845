@@ -2452,6 +2452,12 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	if (req->chan == 0) {
+		WMA_LOGE("%s: invalid channel: %d", __func__, req->chan);
+		QDF_ASSERT(0);
+		return QDF_STATUS_E_INVAL;
+	}
+
 	params.band_center_freq1 = cds_chan_to_freq(req->chan);
 	ch_width = req->chan_width;
 	bw_val = cds_bw_value(ch_width);
