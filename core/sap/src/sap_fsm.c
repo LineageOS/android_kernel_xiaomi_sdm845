@@ -3102,22 +3102,6 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 
 		break;
 
-	case eSAP_STA_LOSTLINK_DETECTED:
-		if (!csr_roaminfo) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				  FL("Invalid CSR Roam Info"));
-			return QDF_STATUS_E_INVAL;
-		}
-		sap_ap_event.sapHddEventCode = eSAP_STA_LOSTLINK_DETECTED;
-		disassoc_comp =
-			&sap_ap_event.sapevt.sapStationDisassocCompleteEvent;
-
-		qdf_copy_macaddr(&disassoc_comp->staMac,
-				 &csr_roaminfo->peerMac);
-		disassoc_comp->reason_code = csr_roaminfo->reasonCode;
-
-		break;
-
 	case eSAP_STA_DISASSOC_EVENT:
 
 		if (!csr_roaminfo) {
@@ -3139,6 +3123,10 @@ QDF_STATUS sap_signal_hdd_event(ptSapContext sap_ctx,
 
 		disassoc_comp->statusCode = csr_roaminfo->statusCode;
 		disassoc_comp->status = (eSapStatus) context;
+		disassoc_comp->rssi = csr_roaminfo->rssi;
+		disassoc_comp->rx_rate = csr_roaminfo->rx_rate;
+		disassoc_comp->tx_rate = csr_roaminfo->tx_rate;
+		disassoc_comp->reason_code = csr_roaminfo->disassoc_reason;
 		break;
 
 	case eSAP_STA_SET_KEY_EVENT:
