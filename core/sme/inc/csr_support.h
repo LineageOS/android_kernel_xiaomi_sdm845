@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -366,8 +366,9 @@ QDF_STATUS csr_reassoc(tpAniSirGlobal pMac, uint32_t sessionId,
 QDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal pMac, uint8_t channelId,
 		uint16_t *beaconInterval, uint32_t cursessionId,
 		enum tQDF_ADAPTER_MODE currBssPersona);
-bool csr_is_profile11r(tCsrRoamProfile *pProfile);
-bool csr_is_auth_type11r(eCsrAuthType AuthType, uint8_t mdiePresent);
+bool csr_is_profile11r(tpAniSirGlobal mac, tCsrRoamProfile *pProfile);
+bool csr_is_auth_type11r(tpAniSirGlobal mac, eCsrAuthType AuthType,
+			 uint8_t mdiePresent);
 #ifdef FEATURE_WLAN_ESE
 bool csr_is_profile_ese(tCsrRoamProfile *pProfile);
 #endif
