@@ -44,19 +44,21 @@
 * @param label string to attach at the beginning
 * @param buff pointer to the byte array that should be printed as HEX string
 * @param count size of buff
+* @param result pointer to the array of characters that compose the HEX final
+* string
+* @param size size of result
 * @return pointer to the array of characters that compose the HEX string. This point should be free outside when the string is no more needed
 */
-char *printHex(char *label, u8 *buff, int count, u8 *result)
+char *printHex(char *label, u8 *buff, int count, u8 *result, int size)
 {
-	int i, offset;
+	int i, offset = 0;
 
-	offset = strlen(label);
-
-	strlcpy(result, label, offset);
-
+	offset = scnprintf(result + offset, size - offset, "%s", label);
 	for (i = 0; i < count; i++) {
-		snprintf(&result[offset], 4, "%02X ", buff[i]);
-		offset += 3;
+		offset +=
+			scnprintf(result + offset,
+				 size - offset, "%02X ", buff[i]);
+			/* this append automatically a null terminator char */
 	}
 
 	return result;

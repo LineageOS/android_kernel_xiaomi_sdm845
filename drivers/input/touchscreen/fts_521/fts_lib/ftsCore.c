@@ -214,7 +214,7 @@ int pollForEvent(int *event_to_search, int event_bytes, u8 *readData,
 
 			logError(1, "%s %s\n", tag,
 				 printHex("ERROR EVENT = ", readData,
-					  FIFO_EVENT_SIZE, temp));
+					  FIFO_EVENT_SIZE, temp, sizeof(temp)));
 			memset(temp, 0, 128);
 			count_err++;
 			err_handling = errorHandler(readData, FIFO_EVENT_SIZE);
@@ -229,7 +229,7 @@ int pollForEvent(int *event_to_search, int event_bytes, u8 *readData,
 			if (readData[0] != EVT_ID_NOEVENT) {
 				logError(0, "%s %s\n", tag,
 					 printHex("READ EVENT = ", readData,
-						  FIFO_EVENT_SIZE, temp));
+						  FIFO_EVENT_SIZE, temp, sizeof(temp)));
 				memset(temp, 0, 128);
 
 			}
@@ -265,7 +265,7 @@ int pollForEvent(int *event_to_search, int event_bytes, u8 *readData,
 	} else if (find == 1) {
 		logError(0, "%s %s\n", tag,
 			 printHex("FOUND EVENT = ", readData, FIFO_EVENT_SIZE,
-				  temp));
+				  temp, sizeof(temp)));
 		memset(temp, 0, 128);
 		logError(0,
 			 "%s Event found in %d ms (%d iterations)! Number of errors found = %d \n",
@@ -581,7 +581,7 @@ int readSysInfo(int request)
 	}
 	logError(0, "%s %s \n", tag,
 		 printHex("Die Info =  ", systemInfo.u8_dieInfo, DIE_INFO_SIZE,
-			  temp));
+			  temp, sizeof(temp)));
 	memset(temp, 0, 256);
 
 	for (i = 0; i < RELEASE_INFO_SIZE; i++) {
@@ -590,7 +590,7 @@ int readSysInfo(int request)
 
 	logError(1, "%s %s \n", tag,
 		 printHex("Release Info =  ", systemInfo.u8_releaseInfo,
-			  RELEASE_INFO_SIZE, temp));
+			  RELEASE_INFO_SIZE, temp, sizeof(temp)));
 	memset(temp, 0, 256);
 
 	u8ToU32(&data[index], &systemInfo.u32_fwCrc);

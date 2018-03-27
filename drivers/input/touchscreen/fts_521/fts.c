@@ -265,9 +265,14 @@ static ssize_t fts_appid_show(struct device *dev,
 	int error;
 	char temp[100] = { 0x00, };
 
-	error = snprintf(buf, PAGE_SIZE, "%s\n",
-			 printHex("EXT Release = ", systemInfo.u8_releaseInfo,
-				  EXTERNAL_RELEASE_INFO_SIZE, temp));
+	error = scnprintf(buf,
+			  PAGE_SIZE,
+			  "%s\n",
+			  printHex("EXT Release = ",
+				   systemInfo.u8_releaseInfo,
+				   EXTERNAL_RELEASE_INFO_SIZE,
+				   temp,
+				   sizeof(temp)));
 
 	return error;
 }
@@ -313,7 +318,8 @@ static ssize_t fts_fw_test_show(struct device *dev,
 	} else {
 		logError(1, "%s %s, size = %d bytes\n", tag,
 			 printHex("EXT Release = ", systemInfo.u8_releaseInfo,
-				  EXTERNAL_RELEASE_INFO_SIZE, temp),
+				  EXTERNAL_RELEASE_INFO_SIZE,
+				  temp, sizeof(temp)),
 			 fw.data_size);
 	}
 
@@ -476,8 +482,6 @@ static ssize_t fts_feature_enable_store(struct device *dev,
 static ssize_t fts_feature_enable_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
-	int size = (6 * 2) + 1, index = 0;
-	u8 *all_strbuff = NULL;
 	int count = 0;
 
 	if (feature_feasibility < OK) {
@@ -486,18 +490,9 @@ static ssize_t fts_feature_enable_show(struct device *dev,
 			 tag, __func__, feature_feasibility);
 	}
 
-	all_strbuff = (u8 *) kzalloc(size, GFP_KERNEL);
-	if (all_strbuff != NULL) {
-		index +=
-		    snprintf(&all_strbuff[index], 13, "{ %08X }",
-			     feature_feasibility);
-		count = snprintf(buf, TSP_BUF_SIZE, "%s\n", all_strbuff);
-		kfree(all_strbuff);
-	} else {
-		logError(1,
-			 "%s fts_feature_enable_show: Unable to allocate all_strbuff! ERROR %08X\n",
-			 tag, ERROR_ALLOC);
-	}
+	count += scnprintf(buf + count,
+			   PAGE_SIZE - count, "{ %08X }\n",
+			   feature_feasibility);
 
 	feature_feasibility = ERROR_OP_NOT_ALLOW;
 	return count;
@@ -518,29 +513,16 @@ static ssize_t fts_feature_enable_show(struct device *dev,
 static ssize_t fts_grip_mode_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-
-	int size = (6 * 2) + 1, index = 0;
-	u8 *all_strbuff = NULL;
 	int count = 0;
+
 	struct fts_ts_info *info = dev_get_drvdata(dev);
 
 	logError(0, "%s %s: grip_enabled = %d \n", tag, __func__,
 		 info->grip_enabled);
 
-	all_strbuff = (u8 *) kzalloc(size, GFP_KERNEL);
-	if (all_strbuff != NULL) {
-
-		index +=
-		    snprintf(&all_strbuff[index], 13, "{ %08X }",
-			     info->grip_enabled);
-
-		count = snprintf(buf, TSP_BUF_SIZE, "%s\n", all_strbuff);
-		kfree(all_strbuff);
-	} else {
-		logError(1,
-			 "%s %s: Unable to allocate all_strbuff! ERROR %08X\n",
-			 tag, __func__, ERROR_ALLOC);
-	}
+	count += scnprintf(buf + count,
+			   PAGE_SIZE - count, "{ %08X }\n",
+			   info->grip_enabled);
 
 	return count;
 }
@@ -597,26 +579,16 @@ static ssize_t fts_grip_mode_store(struct device *dev,
 static ssize_t fts_charger_mode_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	int size = (6 * 2) + 1, index = 0;
-	u8 *all_strbuff = NULL;
 	int count = 0;
+
 	struct fts_ts_info *info = dev_get_drvdata(dev);
 
 	logError(0, "%s %s: charger_enabled = %d \n", tag, __func__,
 		 info->charger_enabled);
 
-	all_strbuff = (u8 *) kzalloc(size, GFP_KERNEL);
-	if (all_strbuff != NULL) {
-		index +=
-		    snprintf(&all_strbuff[index], 13, "{ %08X }",
-			     info->charger_enabled);
-		count = snprintf(buf, TSP_BUF_SIZE, "%s\n", all_strbuff);
-		kfree(all_strbuff);
-	} else {
-		logError(1,
-			 "%s %s: Unable to allocate all_strbuff! ERROR %08X\n",
-			 tag, __func__, ERROR_ALLOC);
-	}
+	count += scnprintf(buf + count,
+			   PAGE_SIZE - count, "{ %08X }\n",
+			   info->charger_enabled);
 
 	return count;
 }
@@ -673,27 +645,16 @@ static ssize_t fts_charger_mode_store(struct device *dev,
 static ssize_t fts_glove_mode_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	int size = (6 * 2) + 1, index = 0;
-	u8 *all_strbuff = NULL;
 	int count = 0;
+
 	struct fts_ts_info *info = dev_get_drvdata(dev);
 
 	logError(0, "%s %s: glove_enabled = %d \n", tag, __func__,
 		 info->glove_enabled);
 
-	all_strbuff = (u8 *) kzalloc(size, GFP_KERNEL);
-	if (all_strbuff != NULL) {
-
-		index +=
-		    snprintf(&all_strbuff[index], 13, "{ %08X }",
-			     info->glove_enabled);
-		count = snprintf(buf, TSP_BUF_SIZE, "%s\n", all_strbuff);
-		kfree(all_strbuff);
-	} else {
-		logError(1,
-			 "%s %s: Unable to allocate all_strbuff! ERROR %08X\n",
-			 tag, __func__, ERROR_ALLOC);
-	}
+	count += scnprintf(buf + count,
+			   PAGE_SIZE - count, "{ %08X }\n",
+			   info->glove_enabled);
 
 	return count;
 }
@@ -753,27 +714,16 @@ static ssize_t fts_glove_mode_store(struct device *dev,
 static ssize_t fts_cover_mode_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	int size = (6 * 2) + 1, index = 0;
-	u8 *all_strbuff = NULL;
 	int count = 0;
+
 	struct fts_ts_info *info = dev_get_drvdata(dev);
 
 	logError(0, "%s %s: cover_enabled = %d \n", tag, __func__,
 		 info->cover_enabled);
 
-	all_strbuff = (u8 *) kzalloc(size, GFP_KERNEL);
-	if (all_strbuff != NULL) {
-
-		index +=
-		    snprintf(&all_strbuff[index], 13, "{ %08X }",
-			     info->cover_enabled);
-		count = snprintf(buf, TSP_BUF_SIZE, "%s\n", all_strbuff);
-		kfree(all_strbuff);
-	} else {
-		logError(1,
-			 "%s %s: Unable to allocate all_strbuff! ERROR %08X\n",
-			 tag, __func__, ERROR_ALLOC);
-	}
+	count += scnprintf(buf + count,
+			   PAGE_SIZE - count, "{ %08X }\n",
+			   info->cover_enabled);
 
 	return count;
 }
@@ -831,28 +781,16 @@ static ssize_t fts_cover_mode_store(struct device *dev,
 static ssize_t fts_stylus_mode_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	int size = (6 * 2) + 1, index = 0;
-	u8 *all_strbuff = NULL;
 	int count = 0;
+
 	struct fts_ts_info *info = dev_get_drvdata(dev);
 
 	logError(0, "%s %s: stylus_enabled = %d \n", tag, __func__,
 		 info->stylus_enabled);
 
-	all_strbuff = (u8 *) kzalloc(size, GFP_KERNEL);
-	if (all_strbuff != NULL) {
-
-		index +=
-		    snprintf(&all_strbuff[index], 13, "{ %08X }",
-			     info->stylus_enabled);
-
-		count = snprintf(buf, TSP_BUF_SIZE, "%s\n", all_strbuff);
-		kfree(all_strbuff);
-	} else {
-		logError(1,
-			 "%s %s: Unable to allocate all_strbuff! ERROR %08X\n",
-			 tag, __func__, ERROR_ALLOC);
-	}
+	count += scnprintf(buf + count,
+			   PAGE_SIZE - count, "{ %08X }\n",
+			   info->stylus_enabled);
 
 	return count;
 }
@@ -909,9 +847,8 @@ static ssize_t fts_stylus_mode_store(struct device *dev,
 static ssize_t fts_gesture_mask_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	int size = (6 * 2) + 1, index = 0;
-	u8 *all_strbuff = NULL;
 	int count = 0, res, temp;
+
 	struct fts_ts_info *info = dev_get_drvdata(dev);
 
 	if (mask[0] == 0) {
@@ -940,18 +877,8 @@ static ssize_t fts_gesture_mask_show(struct device *dev,
 	logError(1, "%s fts_gesture_mask_store: Gesture Enabled = %d \n", tag,
 		 info->gesture_enabled);
 
-	all_strbuff = (u8 *) kzalloc(size, GFP_KERNEL);
-	if (all_strbuff != NULL) {
-
-		index += snprintf(&all_strbuff[index], 13, "{ %08X }", res);
-
-		count = snprintf(buf, TSP_BUF_SIZE, "%s\n", all_strbuff);
-		kfree(all_strbuff);
-	} else {
-		logError(1,
-			 "%s fts_gesture_mask_show: Unable to allocate all_strbuff! ERROR %08X\n",
-			 tag, ERROR_ALLOC);
-	}
+	count += scnprintf(buf + count,
+			   PAGE_SIZE - count, "{ %08X }\n", res);
 
 	mask[0] = 0;
 	return count;
@@ -999,28 +926,16 @@ static ssize_t fts_gesture_mask_store(struct device *dev,
 static ssize_t fts_gesture_mask_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	int size = (6 * 2) + 1, index = 0;
-	u8 *all_strbuff = NULL;
 	int count = 0;
+
 	struct fts_ts_info *info = dev_get_drvdata(dev);
 
 	logError(0, "%s fts_gesture_mask_show: gesture_enabled = %d \n", tag,
 		 info->gesture_enabled);
 
-	all_strbuff = (u8 *) kzalloc(size, GFP_KERNEL);
-	if (all_strbuff != NULL) {
-
-		index +=
-		    snprintf(&all_strbuff[index], 13, "{ %08X }",
-			     info->gesture_enabled);
-
-		count = snprintf(buf, TSP_BUF_SIZE, "%s\n", all_strbuff);
-		kfree(all_strbuff);
-	} else {
-		logError(1,
-			 "%s fts_gesture_mask_show: Unable to allocate all_strbuff! ERROR %08X\n",
-			 tag, ERROR_ALLOC);
-	}
+	count += scnprintf(buf + count,
+			   PAGE_SIZE - count, "{ %08X }\n",
+			   info->gesture_enabled);
 
 	return count;
 }
@@ -1107,8 +1022,7 @@ static ssize_t fts_gesture_coordinates_show(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	int size = (6 * 2) + 1, index = 0;
-	u8 *all_strbuff = NULL;
+	int size = PAGE_SIZE;
 	int count = 0, res, i = 0;
 
 	logError(0, "%s %s: Getting gestures coordinates... \n", tag, __func__);
@@ -1122,39 +1036,29 @@ static ssize_t fts_gesture_coordinates_show(struct device *dev,
 		res = OK;
 	}
 
-	all_strbuff = (u8 *) kzalloc(size, GFP_KERNEL);
-	if (all_strbuff != NULL) {
+	count += scnprintf(buf + count,
+			   size - count, "{ %08X", res);
 
-		snprintf(&all_strbuff[index], 11, "{ %08X", res);
-		index += 10;
+	if (res >= OK) {
+		count += scnprintf(buf + count,
+				   size - count, "%02X",
+				   gesture_coords_reported);
 
-		if (res >= OK) {
-			snprintf(&all_strbuff[index], 3, "%02X",
-				 gesture_coords_reported);
-			index += 2;
-
-			for (i = 0; i < gesture_coords_reported; i++) {
-				snprintf(&all_strbuff[index], 5, "%04X",
-					 gesture_coordinates_x[i]);
-				index += 4;
-				snprintf(&all_strbuff[index], 5, "%04X",
-					 gesture_coordinates_y[i]);
-				index += 4;
-			}
+		for (i = 0; i < gesture_coords_reported; i++) {
+			count += scnprintf(buf + count,
+					   size - count,
+					   "%04X",
+					   gesture_coordinates_x[i]);
+			count += scnprintf(buf + count,
+					   size - count,
+					   "%04X",
+					   gesture_coordinates_y[i]);
 		}
-
-		index += snprintf(&all_strbuff[index], 3, " }");
-
-		count = snprintf(buf, TSP_BUF_SIZE, "%s\n", all_strbuff);
-		kfree(all_strbuff);
-		logError(0, "%s %s: Getting gestures coordinates FINISHED! \n",
-			 tag, __func__);
-
-	} else {
-		logError(1,
-			 "%s %s: Unable to allocate all_strbuff! ERROR %08X\n",
-			 tag, ERROR_ALLOC);
 	}
+
+	count += scnprintf(buf + count, size - count, " }\n");
+	logError(0, "%s %s: Getting gestures coordinates FINISHED!\n",
+		 tag, __func__);
 
 	return count;
 }
@@ -1214,12 +1118,10 @@ static ssize_t stm_fts_cmd_store(struct device *dev,
 static ssize_t stm_fts_cmd_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int res, j, doClean = 0, count = 0, index = 0;
-	char buff[CMD_STR_LEN] = { 0 };
-
+	int res, j, doClean = 0, index = 0;
 	int size = (6 * 2) + 1;
 	int init_type = SPECIAL_PANEL_INIT;
-	u8 *all_strbuff = NULL;
+	u8 *all_strbuff = buf;
 	const char *limit_file_name = NULL;
 	struct fts_ts_info *info = dev_get_drvdata(dev);
 
@@ -1468,148 +1370,156 @@ static ssize_t stm_fts_cmd_show(struct device *dev,
 	}
 #endif
 END:
-	all_strbuff = (u8 *) kzalloc(size, GFP_KERNEL);
+	size = PAGE_SIZE;
+	index = 0;
+	index += scnprintf(all_strbuff + index, size - index, "{ %08X", res);
 
 	if (res >= OK) {
 		/*all the other cases are already fine printing only the res. */
 		switch (typeOfComand[0]) {
 		case 0x13:
-			snprintf(all_strbuff, size, "ms_frame\n");
-			for (j = 0; j < frameMS.node_data_size; j++) {
-				if ((j + 1) % frameMS.header.sense_node)
-					snprintf(buff, sizeof(buff), "%04d ",
-						 frameMS.node_data[j]);
-				else
-					snprintf(buff, sizeof(buff), "%04d\n",
-						 frameMS.node_data[j]);
+			index += scnprintf(all_strbuff + index, size - index,
+					   "%3d",
+					   (u8)frameMS.header.force_node);
+			index += scnprintf(all_strbuff + index, size - index,
+					   "%3d",
+					   (u8)frameMS.header.sense_node);
 
-				strlcat(all_strbuff, buff, size);
+			for (j = 0; j < frameMS.node_data_size; j++) {
+				if (j % frameMS.header.sense_node == 0)
+					index += scnprintf(all_strbuff + index,
+							   size - index, "\n");
+				index += scnprintf(all_strbuff + index,
+						   size - index, "%7d",
+						   frameMS.node_data[j]);
 			}
 
 			kfree(frameMS.node_data);
-			frameMS.node_data = NULL;
 			break;
 
 		case 0x15:
-			snprintf(all_strbuff, size, "ss_frame\n");
-			for (j = 0; j < frameSS.header.force_node - 1; j++) {
-				snprintf(buff, sizeof(buff), "%04d ",
-					 frameSS.force_data[j]);
-				strlcat(all_strbuff, buff, size);
+			index += scnprintf(all_strbuff + index, size - index,
+					   "%3d",
+					   (u8)frameSS.header.force_node);
+			index += scnprintf(all_strbuff + index, size - index,
+					   "%3d",
+					   (u8)frameSS.header.sense_node);
+			index += scnprintf(all_strbuff + index, size - index,
+					   "\n");
+
+			for (j = 0; j < frameSS.header.force_node; j++) {
+				index += scnprintf(all_strbuff + index,
+						   size - index,
+						   "%7d",
+						   frameSS.force_data[j]);
 			}
 
-			if (j == frameSS.header.force_node - 1) {
-				snprintf(buff, sizeof(buff), "%04d\n",
-					 frameSS.force_data[j]);
-				strlcat(all_strbuff, buff, size);
-			}
+			index += scnprintf(all_strbuff + index, size - index,
+					   "\n");
 
-			for (j = 0; j < frameSS.header.sense_node - 1; j++) {
-				snprintf(buff, sizeof(buff), "%04d ",
-					 frameSS.sense_data[j]);
-				strlcat(all_strbuff, buff, size);
-			}
-
-			if (j == frameSS.header.sense_node - 1) {
-				snprintf(buff, sizeof(buff), "%04d\n",
-					 frameSS.sense_data[j]);
-				strlcat(all_strbuff, buff, size);
+			for (j = 0; j < frameSS.header.sense_node; j++) {
+				index += scnprintf(all_strbuff + index,
+						   size - index, "%7d",
+						   frameSS.sense_data[j]);
 			}
 
 			kfree(frameSS.force_data);
 			kfree(frameSS.sense_data);
-
 			break;
 
 		case 0x14:
-			snprintf(buff, sizeof(buff), "%02X",
-				 (u8) compData.header.force_node);
-			strlcat(all_strbuff, buff, size);
-			snprintf(buff, sizeof(buff), "%02X",
-				 (u8) compData.header.sense_node);
-			strlcat(all_strbuff, buff, size);
-			snprintf(buff, sizeof(buff), "%02X", compData.cx1);
-			strlcat(all_strbuff, buff, size);
+			index += scnprintf(all_strbuff + index,
+					   size - index, "%02X",
+					   (u8)compData.header.force_node);
+
+			index += scnprintf(all_strbuff + index,
+					   size - index, "%02X",
+					   (u8)compData.header.sense_node);
+
+			index += scnprintf(all_strbuff + index,
+					   size - index, "%02X",
+					   (compData.cx1) & 0xFF);
 
 			for (j = 0; j < compData.node_data_size; j++) {
-				snprintf(buff, sizeof(buff), "%02X",
-					 *(compData.node_data + j));
-				strlcat(all_strbuff, buff, size);
+				index += scnprintf(all_strbuff + index,
+						size - index,
+						"%02X",
+						(compData.node_data[j]) & 0xFF);
 			}
 
 			kfree(compData.node_data);
-			compData.node_data = NULL;
-
 			break;
 
 		case 0x16:
-			snprintf(buff, sizeof(buff), "%02X",
-				 comData.header.force_node);
-			strlcat(all_strbuff, buff, size);
-			snprintf(buff, sizeof(buff), "%02X",
-				 comData.header.sense_node);
-			strlcat(all_strbuff, buff, size);
-			snprintf(buff, sizeof(buff), "%02X", comData.f_ix1);
-			strlcat(all_strbuff, buff, size);
-			snprintf(buff, sizeof(buff), "%02X", comData.s_ix1);
-			strlcat(all_strbuff, buff, size);
-			snprintf(buff, sizeof(buff), "%02X", comData.f_cx1);
-			strlcat(all_strbuff, buff, size);
-			snprintf(buff, sizeof(buff), "%02X", comData.s_cx1);
-			strlcat(all_strbuff, buff, size);
+			index += scnprintf(all_strbuff + index,
+					   size - index, "%02X",
+					   comData.header.force_node);
+
+			index += scnprintf(all_strbuff + index,
+					   size - index, "%02X",
+					   comData.header.sense_node);
+
+			index += scnprintf(all_strbuff + index,
+					   size - index, "%02X",
+					   (comData.f_ix1) & 0xFF);
+
+			index += scnprintf(all_strbuff + index,
+					   size - index, "%02X",
+					   (comData.s_ix1) & 0xFF);
+
+			index += scnprintf(all_strbuff + index,
+					   size - index, "%02X",
+					   (comData.f_cx1) & 0xFF);
+
+			index += scnprintf(all_strbuff + index,
+					   size - index, "%02X",
+					   (comData.s_cx1) & 0xFF);
 
 			for (j = 0; j < comData.header.force_node; j++) {
-				snprintf(buff, sizeof(buff), "%02X",
-					 comData.ix2_fm[j]);
-				strlcat(all_strbuff, buff, size);
+				index += scnprintf(all_strbuff + index,
+						   size - index,
+						   "%02X",
+						   comData.ix2_fm[j] & 0xFF);
 			}
 
 			for (j = 0; j < comData.header.sense_node; j++) {
-				snprintf(buff, sizeof(buff), "%02X",
-					 comData.ix2_sn[j]);
-				strlcat(all_strbuff, buff, size);
+				index += scnprintf(all_strbuff + index,
+						   size - index,
+						   "%02X",
+						   comData.ix2_sn[j] & 0xFF);
 			}
 
 			for (j = 0; j < comData.header.force_node; j++) {
-				snprintf(buff, sizeof(buff), "%02X",
-					 comData.cx2_fm[j]);
-				strlcat(all_strbuff, buff, size);
+				index += scnprintf(all_strbuff + index,
+						   size - index,
+						   "%02X",
+						   comData.cx2_fm[j] & 0xFF);
 			}
 
 			for (j = 0; j < comData.header.sense_node; j++) {
-				snprintf(buff, sizeof(buff), "%02X",
-					 comData.cx2_sn[j]);
-				strlcat(all_strbuff, buff, size);
+				index += scnprintf(all_strbuff + index,
+						   size - index,
+						   "%02X",
+						   comData.cx2_sn[j] & 0xFF);
 			}
 
 			kfree(comData.ix2_fm);
 			kfree(comData.ix2_sn);
 			kfree(comData.cx2_fm);
 			kfree(comData.cx2_sn);
-
 			break;
 
 		default:
-			snprintf(&all_strbuff[index], 11, "{ %08X", res);
-			index += 10;
-			snprintf(&all_strbuff[index], 3, " }");
-			index += 2;
-
 			break;
 
 		}
-	} else {
-		snprintf(&all_strbuff[index], 11, "{ %08X", res);
-		index += 10;
-		snprintf(&all_strbuff[index], 3, " }");
-		index += 2;
 	}
 
-	count = snprintf(buf, TSP_BUF_SIZE, "%s\n", all_strbuff);
-	numberParameters = 0;
-	kfree(all_strbuff);
+	index += scnprintf(all_strbuff + index, size - index, " }\n");
 
-	return count;
+	numberParameters = 0;
+
+	return index;
 }
 
 static ssize_t fts_panel_color_show(struct device *dev,
@@ -4369,7 +4279,7 @@ static int fts_gpio_setup(int gpio, bool config, int dir, int state)
 	unsigned char buf[16];
 
 	if (config) {
-		snprintf(buf, 16, "fts_gpio_%u\n", gpio);
+		scnprintf(buf, sizeof(buf), "fts_gpio_%u\n", gpio);
 
 		retval = gpio_request(gpio, buf);
 		if (retval) {
@@ -5346,7 +5256,7 @@ static int fts_probe(struct spi_device *client)
 	}
 	info->input_dev->dev.parent = &client->dev;
 	info->input_dev->name = FTS_TS_DRV_NAME;
-	snprintf(fts_ts_phys, sizeof(fts_ts_phys), "%s/input0",
+	scnprintf(fts_ts_phys, sizeof(fts_ts_phys), "%s/input0",
 		 info->input_dev->name);
 	info->input_dev->phys = fts_ts_phys;
 	info->input_dev->id.bustype = bus_type;

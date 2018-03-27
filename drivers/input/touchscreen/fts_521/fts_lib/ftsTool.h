@@ -21,7 +21,7 @@
 #ifndef FTS_TOOL_H
 #define FTS_TOOL_H
 
-char *printHex(char *label, u8 *buff, int count, u8 *result);
+char *printHex(char *label, u8 *buff, int count, u8 *result, int size);
 char *printHex_data(char *label, u8 *buff, int count);
 int u8ToU16(u8 *src, u16 *dst);
 int u8ToU16_be(u8 *src, u16 *dst);
