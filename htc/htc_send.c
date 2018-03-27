@@ -2194,16 +2194,16 @@ void htc_process_credit_rpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt,
 
 #endif
 
-		pEndpoint->TxCredits += rpt_credits;
-
 		if (pEndpoint->service_id == WMI_CONTROL_SVC) {
 			LOCK_HTC_CREDIT(target);
 			htc_credit_record(HTC_PROCESS_CREDIT_REPORT,
-					  pEndpoint->TxCredits,
+					  pEndpoint->TxCredits + rpt_credits,
 					  HTC_PACKET_QUEUE_DEPTH(&pEndpoint->
 								 TxQueue));
 			UNLOCK_HTC_CREDIT(target);
 		}
+
+		pEndpoint->TxCredits += rpt_credits;
 
 		if (pEndpoint->TxCredits
 		    && HTC_PACKET_QUEUE_DEPTH(&pEndpoint->TxQueue)) {

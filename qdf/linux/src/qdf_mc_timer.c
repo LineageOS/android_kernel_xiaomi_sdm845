@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -40,6 +40,7 @@
 #include <linux/export.h>
 #ifdef CONFIG_MCL
 #include <cds_mc_timer.h>
+#include <cds_sched.h>
 #endif
 /* Preprocessor definitions and constants */
 
@@ -52,6 +53,9 @@
 /* Static Variable Definitions */
 static unsigned int persistent_timer_count;
 static qdf_mutex_t persistent_timer_count_lock;
+
+static qdf_spinlock_t qdf_mc_timer_cookie_lock;
+static uint32_t  g_qdf_mc_timer_cookie;
 
 /* Function declarations and documenation */
 
@@ -119,6 +123,7 @@ void qdf_timer_module_init(void)
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "Initializing the QDF MC timer module");
 	qdf_mutex_create(&persistent_timer_count_lock);
+	qdf_spinlock_create(&qdf_mc_timer_cookie_lock);
 }
 qdf_export_symbol(qdf_timer_module_init);
 
@@ -662,9 +667,24 @@ QDF_STATUS qdf_mc_timer_start(qdf_mc_timer_t *timer, uint32_t expiration_time)
 
 	qdf_spin_unlock_irqrestore(&timer->platform_info.spinlock);
 
+	qdf_spin_lock_irqsave(&qdf_mc_timer_cookie_lock);
+	timer->cookie = g_qdf_mc_timer_cookie++;
+	qdf_spin_unlock_irqrestore(&qdf_mc_timer_cookie_lock);
+
 	return QDF_STATUS_SUCCESS;
 }
 qdf_export_symbol(qdf_mc_timer_start);
+
+#ifdef CONFIG_MCL
+static void qdf_remove_timer_from_sys_msg(uint32_t timer_cookie)
+{
+	cds_remove_timer_from_sys_msg(timer_cookie);
+}
+#else
+static inline void qdf_remove_timer_from_sys_msg(uint32_t timer_cookie)
+{
+}
+#endif
 
 /**
  * qdf_mc_timer_stop() - stop a QDF timer
@@ -706,6 +726,8 @@ QDF_STATUS qdf_mc_timer_stop(qdf_mc_timer_t *timer)
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 			  "%s: Cannot stop timer in state = %d",
 			  __func__, timer->state);
+		qdf_remove_timer_from_sys_msg(timer->cookie);
+
 		return QDF_STATUS_SUCCESS;
 	}
 
@@ -777,6 +799,7 @@ void qdf_timer_module_deinit(void)
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "De-Initializing the QDF MC timer module");
 	qdf_mutex_destroy(&persistent_timer_count_lock);
+	qdf_spinlock_destroy(&qdf_mc_timer_cookie_lock);
 }
 qdf_export_symbol(qdf_timer_module_deinit);
 

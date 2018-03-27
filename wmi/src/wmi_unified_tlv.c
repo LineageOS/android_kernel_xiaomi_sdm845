@@ -12085,6 +12085,16 @@ error:
 
 	return status;
 }
+
+/**
+ * send_set_arp_stats_req_cmd_tlv() - set connectivity stats command
+ * @wmi_handle: wmi handle
+ * @req_buf: connecitivity stats
+ *
+ * Set connectivity stats.
+ *
+ * Return: QDF status
+ */
 QDF_STATUS send_set_arp_stats_req_cmd_tlv(wmi_unified_t wmi_handle,
 					  struct set_arp_stats *req_buf)
 {
@@ -12095,6 +12105,10 @@ QDF_STATUS send_set_arp_stats_req_cmd_tlv(wmi_unified_t wmi_handle,
 	wmi_vdev_set_arp_stats_cmd_fixed_param *wmi_set_arp;
 
 	len = sizeof(wmi_vdev_set_arp_stats_cmd_fixed_param);
+	if (req_buf->pkt_type_bitmap) {
+		len += WMI_TLV_HDR_SIZE;
+		len += sizeof(wmi_vdev_set_connectivity_check_stats);
+	}
 	buf = wmi_buf_alloc(wmi_handle, len);
 	if (!buf) {
 		WMI_LOGE("%s : wmi_buf_alloc failed", __func__);
@@ -12109,14 +12123,47 @@ QDF_STATUS send_set_arp_stats_req_cmd_tlv(wmi_unified_t wmi_handle,
 		       WMITLV_GET_STRUCT_TLVLEN
 		       (wmi_vdev_set_arp_stats_cmd_fixed_param));
 
-	/* fill in per roam config values */
 	wmi_set_arp->vdev_id = req_buf->vdev_id;
 
 	wmi_set_arp->set_clr = req_buf->flag;
 	wmi_set_arp->pkt_type = req_buf->pkt_type;
 	wmi_set_arp->ipv4 = req_buf->ip_addr;
 
-	/* Send per roam config parameters */
+	WMI_LOGD("NUD Stats: vdev_id %u set_clr %u pkt_type:%u ipv4 %u",
+		 wmi_set_arp->vdev_id, wmi_set_arp->set_clr,
+		 wmi_set_arp->pkt_type, wmi_set_arp->ipv4);
+
+	/*
+	 * pkt_type_bitmap should be non-zero to ensure
+	 * presence of additional stats.
+	 */
+	if (req_buf->pkt_type_bitmap) {
+		wmi_vdev_set_connectivity_check_stats *wmi_set_connect_stats;
+
+		buf_ptr += sizeof(wmi_vdev_set_arp_stats_cmd_fixed_param);
+		WMITLV_SET_HDR(buf_ptr,
+		       WMITLV_TAG_ARRAY_STRUC,
+		       sizeof(wmi_vdev_set_connectivity_check_stats));
+		buf_ptr += WMI_TLV_HDR_SIZE;
+		wmi_set_connect_stats =
+			(wmi_vdev_set_connectivity_check_stats *)buf_ptr;
+		WMITLV_SET_HDR(&wmi_set_connect_stats->tlv_header,
+		    WMITLV_TAG_STRUC_wmi_vdev_set_connectivity_check_stats,
+		    WMITLV_GET_STRUCT_TLVLEN(
+					wmi_vdev_set_connectivity_check_stats));
+		wmi_set_connect_stats->pkt_type_bitmap =
+						req_buf->pkt_type_bitmap;
+		wmi_set_connect_stats->tcp_src_port = req_buf->tcp_src_port;
+		wmi_set_connect_stats->tcp_dst_port = req_buf->tcp_dst_port;
+		wmi_set_connect_stats->icmp_ipv4 = req_buf->icmp_ipv4;
+
+		WMI_LOGD("Connectivity Stats: pkt_type_bitmap %u tcp_src_port:%u tcp_dst_port %u icmp_ipv4 %u",
+			 wmi_set_connect_stats->pkt_type_bitmap,
+			 wmi_set_connect_stats->tcp_src_port,
+			 wmi_set_connect_stats->tcp_dst_port,
+			 wmi_set_connect_stats->icmp_ipv4);
+	}
+
 	status = wmi_unified_cmd_send(wmi_handle, buf,
 				      len, WMI_VDEV_SET_ARP_STAT_CMDID);
 	if (QDF_IS_STATUS_ERROR(status)) {
