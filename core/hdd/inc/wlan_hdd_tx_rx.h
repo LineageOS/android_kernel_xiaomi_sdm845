@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -60,6 +60,19 @@ void hdd_tx_timeout(struct net_device *dev);
 QDF_STATUS hdd_init_tx_rx(hdd_adapter_t *pAdapter);
 QDF_STATUS hdd_deinit_tx_rx(hdd_adapter_t *pAdapter);
 QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf);
+
+/**
+ * hdd_tx_rx_collect_connectivity_stats_info() - collect connectivity stats
+ * @skb: pointer to skb data
+ * @adapter: pointer to vdev apdapter
+ * @action: action done on pkt.
+ * @pkt_type: data pkt type
+ *
+ * Return: None
+ */
+void hdd_tx_rx_collect_connectivity_stats_info(struct sk_buff *skb,
+		void *adapter, enum connectivity_stats_pkt_status action,
+		uint8_t *pkt_type);
 
 /**
  * hdd_rx_ol_init() - Initialize Rx mode(LRO or GRO) method

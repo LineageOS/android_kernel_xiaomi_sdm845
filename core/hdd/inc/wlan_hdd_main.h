@@ -291,6 +291,9 @@
 #endif
 
 #define MAX_USER_COMMAND_SIZE 4096
+#define DNS_DOMAIN_NAME_MAX_LEN 255
+#define ICMPv6_ADDR_LEN 16
+
 
 #define HDD_MIN_TX_POWER (-100) /* minimum tx power */
 #define HDD_MAX_TX_POWER (+100) /* maximum tx power */
@@ -515,6 +518,19 @@ typedef struct hdd_pmf_stats_s {
 } hdd_pmf_stats_t;
 #endif
 
+/**
+ * struct hdd_arp_stats_s - arp debug stats count
+ * @tx_arp_req_count: no. of arp req received from network stack
+ * @rx_arp_rsp_count: no. of arp res received from FW
+ * @tx_dropped: no. of arp req dropped at hdd layer
+ * @rx_dropped: no. of arp res dropped
+ * @rx_delivered: no. of arp res delivered to network stack
+ * @rx_refused: no of arp rsp refused (not delivered) to network stack
+ * @tx_host_fw_sent: no of arp req sent by FW OTA
+ * @rx_host_drop_reorder: no of arp res dropped by host
+ * @rx_fw_cnt: no of arp res received by FW
+ * @tx_ack_cnt: no of arp req acked by FW
+ */
 struct hdd_arp_stats_s {
 	uint16_t tx_arp_req_count;
 	uint16_t rx_arp_rsp_count;
@@ -528,6 +544,88 @@ struct hdd_arp_stats_s {
 	uint16_t tx_ack_cnt;
 };
 
+/**
+ * struct hdd_dns_stats_s - dns debug stats count
+ * @tx_dns_req_count: no. of dns query received from network stack
+ * @rx_dns_rsp_count: no. of dns res received from FW
+ * @tx_dropped: no. of dns query dropped at hdd layer
+ * @rx_delivered: no. of dns res delivered to network stack
+ * @rx_refused: no of dns res refused (not delivered) to network stack
+ * @tx_host_fw_sent: no of dns query sent by FW OTA
+ * @rx_host_drop: no of dns res dropped by host
+ * @tx_ack_cnt: no of dns req acked by FW
+ */
+struct hdd_dns_stats_s {
+	uint16_t tx_dns_req_count;
+	uint16_t rx_dns_rsp_count;
+	uint16_t tx_dropped;
+	uint16_t rx_delivered;
+	uint16_t rx_refused;
+	uint16_t tx_host_fw_sent;
+	uint16_t rx_host_drop;
+	uint16_t tx_ack_cnt;
+};
+
+/**
+ * struct hdd_tcp_stats_s - tcp debug stats count
+ * @tx_tcp_syn_count: no. of tcp syn received from network stack
+ * @@tx_tcp_ack_count: no. of tcp ack received from network stack
+ * @rx_tcp_syn_ack_count: no. of tcp syn ack received from FW
+ * @tx_tcp_syn_dropped: no. of tcp syn dropped at hdd layer
+ * @tx_tcp_ack_dropped: no. of tcp ack dropped at hdd layer
+ * @rx_delivered: no. of tcp syn ack delivered to network stack
+ * @rx_refused: no of tcp syn ack refused (not delivered) to network stack
+ * @tx_tcp_syn_host_fw_sent: no of tcp syn sent by FW OTA
+ * @@tx_tcp_ack_host_fw_sent: no of tcp ack sent by FW OTA
+ * @rx_host_drop: no of tcp syn ack dropped by host
+ * @tx_tcp_syn_ack_cnt: no of tcp syn acked by FW
+ * @tx_tcp_syn_ack_cnt: no of tcp ack acked by FW
+ * @is_tcp_syn_ack_rcv: flag to check tcp syn ack received or not
+ * @is_tcp_ack_sent: flag to check tcp ack sent or not
+ */
+struct hdd_tcp_stats_s {
+	uint16_t tx_tcp_syn_count;
+	uint16_t tx_tcp_ack_count;
+	uint16_t rx_tcp_syn_ack_count;
+	uint16_t tx_tcp_syn_dropped;
+	uint16_t tx_tcp_ack_dropped;
+	uint16_t rx_delivered;
+	uint16_t rx_refused;
+	uint16_t tx_tcp_syn_host_fw_sent;
+	uint16_t tx_tcp_ack_host_fw_sent;
+	uint16_t rx_host_drop;
+	uint16_t rx_fw_cnt;
+	uint16_t tx_tcp_syn_ack_cnt;
+	uint16_t tx_tcp_ack_ack_cnt;
+	bool is_tcp_syn_ack_rcv;
+	bool is_tcp_ack_sent;
+
+};
+
+/**
+ * struct hdd_icmpv4_stats_s - icmpv4 debug stats count
+ * @tx_icmpv4_req_count: no. of icmpv4 req received from network stack
+ * @rx_icmpv4_rsp_count: no. of icmpv4 res received from FW
+ * @tx_dropped: no. of icmpv4 req dropped at hdd layer
+ * @rx_delivered: no. of icmpv4 res delivered to network stack
+ * @rx_refused: no of icmpv4 res refused (not delivered) to network stack
+ * @tx_host_fw_sent: no of icmpv4 req sent by FW OTA
+ * @rx_host_drop: no of icmpv4 res dropped by host
+ * @rx_fw_cnt: no of icmpv4 res received by FW
+ * @tx_ack_cnt: no of icmpv4 req acked by FW
+ */
+struct hdd_icmpv4_stats_s {
+	uint16_t tx_icmpv4_req_count;
+	uint16_t rx_icmpv4_rsp_count;
+	uint16_t tx_dropped;
+	uint16_t rx_delivered;
+	uint16_t rx_refused;
+	uint16_t tx_host_fw_sent;
+	uint16_t rx_host_drop;
+	uint16_t rx_fw_cnt;
+	uint16_t tx_ack_cnt;
+};
+
 typedef struct hdd_stats_s {
 	tCsrSummaryStatsInfo summary_stat;
 	tCsrGlobalClassAStatsInfo ClassA_stat;
@@ -535,6 +633,9 @@ typedef struct hdd_stats_s {
 	struct csr_per_chain_rssi_stats_info  per_chain_rssi_stats;
 	hdd_tx_rx_stats_t hddTxRxStats;
 	struct hdd_arp_stats_s hdd_arp_stats;
+	struct hdd_dns_stats_s hdd_dns_stats;
+	struct hdd_tcp_stats_s hdd_tcp_stats;
+	struct hdd_icmpv4_stats_s hdd_icmpv4_stats;
 #ifdef WLAN_FEATURE_11W
 	hdd_pmf_stats_t hddPmfStats;
 #endif
@@ -1449,6 +1550,13 @@ struct hdd_adapter_s {
 	struct lfr_firmware_status lfr_fw_status;
 	bool con_status;
 	bool dad;
+	uint32_t pkt_type_bitmap;
+	uint32_t track_arp_ip;
+	uint8_t dns_payload[256];
+	uint32_t track_dns_domain_len;
+	uint32_t track_src_port;
+	uint32_t track_dest_port;
+	uint32_t track_dest_ipv4;
 	/* random address management for management action frames */
 	spinlock_t random_mac_lock;
 	struct action_frame_random_mac random_mac[MAX_RANDOM_MAC_ADDRS];
@@ -2024,7 +2132,6 @@ struct hdd_context_s {
 	uint32_t no_of_probe_req_ouis;
 	uint32_t *probe_req_voui;
 	struct hdd_nud_stats_context nud_stats_context;
-	uint32_t track_arp_ip;
 	uint8_t bt_a2dp_active:1;
 	uint8_t bt_vo_active:1;
 #ifdef FEATURE_SPECTRAL_SCAN

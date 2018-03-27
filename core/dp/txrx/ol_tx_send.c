@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -544,16 +544,53 @@ void ol_tx_credit_completion_handler(ol_txrx_pdev_handle pdev, int credits)
 }
 
 /**
- * ol_tx_update_arp_stats() - update ARP packet TX stats
+ * ol_tx_update_connectivity_stats() - update connectivity stats
+ * @tx_desc: tx desc
  * @netbuf:  buffer
+ * @status: htt status
  *
  *
  * Return: none
  */
-static void ol_tx_update_arp_stats(qdf_nbuf_t netbuf,
-					enum htt_tx_status status)
+static void ol_tx_update_connectivity_stats(struct ol_tx_desc_t *tx_desc,
+					    qdf_nbuf_t netbuf,
+					    enum htt_tx_status status)
 {
-	uint32_t tgt_ip = cds_get_arp_stats_gw_ip();
+	void *osif_dev;
+	ol_txrx_stats_rx_fp stats_rx = NULL;
+	uint8_t pkt_type = 0;
+
+	qdf_assert(tx_desc);
+	osif_dev = tx_desc->vdev->osif_dev;
+	stats_rx = tx_desc->vdev->stats_rx;
+
+	if (stats_rx) {
+		if (status != htt_tx_status_download_fail)
+			stats_rx(netbuf, osif_dev,
+				 PKT_TYPE_TX_HOST_FW_SENT, &pkt_type);
+		if (status == htt_tx_status_ok)
+			stats_rx(netbuf, osif_dev,
+				 PKT_TYPE_TX_ACK_CNT, &pkt_type);
+	}
+}
+
+/**
+ * ol_tx_update_arp_stats() - update ARP packet TX stats
+ * @tx_desc: tx desc
+ * @netbuf:  buffer
+ * @status: htt status
+ *
+ *
+ * Return: none
+ */
+static void ol_tx_update_arp_stats(struct ol_tx_desc_t *tx_desc,
+				   qdf_nbuf_t netbuf,
+				   enum htt_tx_status status)
+{
+	uint32_t tgt_ip;
+
+	qdf_assert(tx_desc);
+	tgt_ip = cds_get_arp_stats_gw_ip(tx_desc->vdev->osif_dev);
 
 	if (tgt_ip == qdf_nbuf_get_arp_tgt_ip(netbuf)) {
 		if (status != htt_tx_status_download_fail)
@@ -638,6 +675,7 @@ ol_tx_completion_handler(ol_txrx_pdev_handle pdev,
 	struct ol_tx_desc_t *tx_desc;
 	uint32_t byte_cnt = 0;
 	qdf_nbuf_t netbuf;
+	uint32_t pkt_type_bitmap;
 	tp_ol_packetdump_cb packetdump_cb;
 	uint32_t is_tx_desc_freed = 0;
 	struct htt_tx_compl_ind_append_tx_tstamp *txtstamp_list = NULL;
@@ -677,8 +715,15 @@ ol_tx_completion_handler(ol_txrx_pdev_handle pdev,
 		if (QDF_NBUF_CB_GET_PACKET_TYPE(netbuf) ==
 		    QDF_NBUF_CB_PACKET_TYPE_ARP) {
 			if (qdf_nbuf_data_is_arp_req(netbuf))
-				ol_tx_update_arp_stats(netbuf, status);
+				ol_tx_update_arp_stats(tx_desc, netbuf, status);
 		}
+
+		/* track connectivity stats */
+		pkt_type_bitmap = cds_get_connectivity_stats_pkt_bitmap(
+						tx_desc->vdev->osif_dev);
+		if (pkt_type_bitmap)
+			ol_tx_update_connectivity_stats(tx_desc, netbuf,
+							status);
 
 		if (tx_desc->pkt_type != OL_TX_FRM_TSO) {
 			packetdump_cb = pdev->ol_tx_packetdump_cb;
