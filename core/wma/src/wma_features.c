@@ -4675,6 +4675,11 @@ int wma_d0_wow_disable_ack_event(void *handle, u_int8_t *event,
 int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 			      uint32_t len)
 {
+	uint8_t *bssid;
+	uint8_t peer_id;
+	ol_txrx_peer_handle peer;
+	ol_txrx_pdev_handle pdev;
+	tpDeleteStaContext del_sta_ctx;
 	tp_wma_handle wma = (tp_wma_handle) handle;
 	struct wma_txrx_node *wma_vdev = NULL;
 	WMI_WOW_WAKEUP_HOST_EVENTID_param_tlvs *param_buf;
@@ -4685,6 +4690,7 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	uint8_t *wow_buf_data = NULL;
 	int tlv_ok_status;
 
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	param_buf = (WMI_WOW_WAKEUP_HOST_EVENTID_param_tlvs *) event;
 	if (!param_buf) {
 		WMA_LOGE("Invalid wow wakeup host event buf");
@@ -4692,6 +4698,8 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	}
 
 	wake_info = param_buf->fixed_param;
+	bssid = wma->interfaces[wake_info->vdev_id].bssid;
+	peer = ol_txrx_find_peer_by_addr(pdev, bssid, &peer_id);
 
 	/* unspecified means apps-side wakeup, so there won't be a vdev */
 	if (wake_info->wake_reason != WOW_REASON_UNSPECIFIED) {
@@ -4962,16 +4970,20 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		 * programmed. So do not check for cookie.
 		 */
 		WMA_LOGE("WOW_REASON_TIMER_INTR_RECV received, indicating key exchange did not finish. Initiate disconnect");
-		if (param_buf->wow_packet_buffer) {
-			WMA_LOGD("wow_packet_buffer dump");
-			qdf_trace_hex_dump(QDF_MODULE_ID_WMA,
-				QDF_TRACE_LEVEL_DEBUG,
-				param_buf->wow_packet_buffer, wow_buf_pkt_len);
-			wma_peer_sta_kickout_event_handler(handle,
-				wmi_cmd_struct_ptr, wow_buf_pkt_len);
-		} else {
-		    WMA_LOGD("No wow_packet_buffer present");
+
+		del_sta_ctx = (tpDeleteStaContext) qdf_mem_malloc(sizeof(*del_sta_ctx));
+		if (!del_sta_ctx) {
+			WMA_LOGE("%s: mem alloc failed ", __func__);
+			break;
 		}
+		del_sta_ctx->is_tdls = false;
+		del_sta_ctx->vdev_id = wake_info->vdev_id;
+		del_sta_ctx->staId = peer_id;
+		qdf_mem_copy(del_sta_ctx->addr2, bssid, IEEE80211_ADDR_LEN);
+		qdf_mem_copy(del_sta_ctx->bssId, bssid, IEEE80211_ADDR_LEN);
+		del_sta_ctx->reasonCode = HAL_DEL_STA_REASON_CODE_KEEP_ALIVE;
+		wma_send_msg(wma, SIR_LIM_DELETE_STA_CONTEXT_IND,
+			     (void *)del_sta_ctx, 0);
 		break;
 	default:
 		break;
