@@ -2163,6 +2163,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_VHT_ENABLE_TX_MCS2x2_8_9_MIN,
 		     CFG_VHT_ENABLE_TX_MCS2x2_8_9_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_VHT20_MCS9, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_vht20_mcs9,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK,
+		     CFG_ENABLE_VHT20_MCS9_DEFAULT,
+		     CFG_ENABLE_VHT20_MCS9_MIN,
+		     CFG_ENABLE_VHT20_MCS9_MAX),
+
 	REG_VARIABLE(CFG_VHT_ENABLE_2x2_CAP_FEATURE, WLAN_PARAM_Integer,
 		     struct hdd_config, enable2x2,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -9511,6 +9518,7 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 					pConfig->disable_high_ht_mcs_2x2;
 	smeConfig->csrConfig.rx_ldpc_support_for_2g =
 					pConfig->rx_ldpc_support_for_2g;
+	smeConfig->csrConfig.enable_vht20_mcs9 = pConfig->enable_vht20_mcs9;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	smeConfig->csrConfig.cc_switch_mode = pConfig->WlanMccToSccSwitchMode;
 #endif
