@@ -1808,7 +1808,8 @@ more_data:
 		CE_ENGINE_INT_STATUS_CLEAR(scn, ctrl_addr,
 					   HOST_IS_COPY_COMPLETE_MASK);
 	} else {
-		HIF_ERROR("%s: target access is not allowed", __func__);
+		HIF_ERROR_RL(HIF_RATE_LIMIT_CE_ACCESS_LOG,
+			"%s: target access is not allowed", __func__);
 		return;
 	}
 
@@ -2007,7 +2008,8 @@ more_watermarks:
 					   CE_WATERMARK_MASK |
 					   HOST_IS_COPY_COMPLETE_MASK);
 	} else {
-		HIF_ERROR("%s: target access is not allowed", __func__);
+		HIF_ERROR_RL(HIF_RATE_LIMIT_CE_ACCESS_LOG,
+			"%s: target access is not allowed", __func__);
 		goto unlock_end;
 	}
 
@@ -2126,7 +2128,8 @@ ce_per_engine_handler_adjust(struct CE_state *CE_state,
 		return;
 
 	if (!TARGET_REGISTER_ACCESS_ALLOW(scn)) {
-		HIF_ERROR("%s: target access is not allowed", __func__);
+		HIF_ERROR_RL(HIF_RATE_LIMIT_CE_ACCESS_LOG,
+			"%s: target access is not allowed", __func__);
 		return;
 	}
 
