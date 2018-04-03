@@ -5864,7 +5864,7 @@ static void hdd_ipa_cleanup_iface(struct hdd_ipa_iface_context *iface_context)
 	 * and check if the address has been already cleared by the
 	 * other thread
 	 */
-	if (iface_context->adapter) {
+	if (!iface_context->adapter) {
 		qdf_spin_unlock_bh(&iface_context->interface_lock);
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "Already cleared");
 		goto end;
