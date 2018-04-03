@@ -535,7 +535,8 @@ static inline bool hdd_is_tx_allowed(struct sk_buff *skb, uint8_t peer_id)
 	if (OL_TXRX_PEER_STATE_AUTH == peer_state)
 		return true;
 	else if (OL_TXRX_PEER_STATE_CONN == peer_state &&
-			ntohs(skb->protocol) == HDD_ETHERTYPE_802_1_X)
+			(ntohs(skb->protocol) == HDD_ETHERTYPE_802_1_X
+			|| IS_HDD_ETHERTYPE_WAI(skb)))
 		return true;
 	DPTRACE(qdf_dp_trace(skb, QDF_DP_TRACE_DROP_PACKET_RECORD,
 				(uint8_t *)skb->data,
@@ -798,7 +799,6 @@ void hdd_tx_rx_collect_connectivity_stats_info(struct sk_buff *skb,
 	}
 }
 
-
 /**
  * __hdd_hard_start_xmit() - Transmit a frame
  * @skb: pointer to OS packet (sk_buff)
@@ -1026,6 +1026,10 @@ static int __hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (!hdd_is_tx_allowed(skb, STAId)) {
+		QDF_TRACE(QDF_MODULE_ID_HDD_DATA,
+			  QDF_TRACE_LEVEL_INFO_HIGH,
+			  "%s: Tx is not allowed. drop the pkt",
+			  __func__);
 		++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
 		goto drop_pkt_and_release_skb;
 	}
