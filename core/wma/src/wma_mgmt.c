@@ -1325,12 +1325,12 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 
 	intr->nss = cmd->peer_nss;
 	cmd->peer_phymode = phymode;
-	WMA_LOGD("%s: vdev_id %d associd %d peer_flags %x rate_caps %x peer_caps %x",
-		 __func__,  cmd->vdev_id, cmd->peer_associd, cmd->peer_flags,
+	WMA_LOGI("%s: vdev_id %d associd %d peer_flags %x nss %d phymode %d ht_caps %x",
+		 __func__, cmd->vdev_id, cmd->peer_associd, cmd->peer_flags,
+		 cmd->peer_nss, cmd->peer_phymode, cmd->peer_ht_caps);
+	WMA_LOGD("%s:listen_intval %d max_mpdu %d rate_caps %x peer_caps %x",
+		 __func__, cmd->peer_listen_intval, cmd->peer_max_mpdu,
 		 cmd->peer_rate_caps, cmd->peer_caps);
-	WMA_LOGD("%s:listen_intval %d ht_caps %x max_mpdu %d nss %d phymode %d",
-		 __func__, cmd->peer_listen_intval, cmd->peer_ht_caps,
-		 cmd->peer_max_mpdu, cmd->peer_nss, cmd->peer_phymode);
 	WMA_LOGD("%s: peer_mpdu_density %d encr_type %d cmd->peer_vht_caps %x",
 		 __func__, cmd->peer_mpdu_density, params->encryptType,
 		 cmd->peer_vht_caps);
@@ -2897,7 +2897,6 @@ void wma_process_update_opmode(tp_wma_handle wma_handle,
 			       tUpdateVHTOpMode *update_vht_opmode)
 {
 	struct wma_txrx_node *iface;
-	uint16_t chan_mode;
 	wmi_channel_width ch_width;
 
 
@@ -2913,23 +2912,11 @@ void wma_process_update_opmode(tp_wma_handle wma_handle,
 		return;
 	}
 
-	chan_mode = wma_chan_phy_mode(cds_freq_to_chan(iface->mhz),
-				update_vht_opmode->opMode,
-				update_vht_opmode->dot11_mode);
-	if (MODE_UNKNOWN == chan_mode)
-		return;
-
-	WMA_LOGD("%s: opMode = %d, chanMode = %d, dot11mode = %d ",
-			__func__,
-			update_vht_opmode->opMode, chan_mode,
-			update_vht_opmode->dot11_mode);
+	WMA_LOGD("%s: opMode = %d, current_ch_width: %d", __func__,
+		 update_vht_opmode->opMode, ch_width);
 
 	wma_set_peer_param(wma_handle, update_vht_opmode->peer_mac,
 			WMI_PEER_CHWIDTH, update_vht_opmode->opMode,
-			update_vht_opmode->smesessionId);
-
-	wma_set_peer_param(wma_handle, update_vht_opmode->peer_mac,
-			WMI_PEER_PHYMODE, chan_mode,
 			update_vht_opmode->smesessionId);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -855,6 +855,7 @@ QDF_STATUS wlansap_start_bss(void *pCtx,     /* pwextCtx */
 	pSapCtx->acs_cfg = &pConfig->acs_cfg;
 	pSapCtx->isCacEndNotified = false;
 	pSapCtx->is_chan_change_inprogress = false;
+	pSapCtx->stop_bss_in_progress = false;
 	/* Set the BSSID to your "self MAC Addr" read the mac address
 		from Configuation ITEM received from HDD */
 	pSapCtx->csr_roamProfile.BSSIDs.numOfBSSIDs = 1;
@@ -996,6 +997,29 @@ QDF_STATUS wlansap_set_mac_acl(void *pCtx,    /* pwextCtx */
 
 	return qdf_status;
 } /* wlansap_set_mac_acl */
+
+void wlansap_set_stop_bss_inprogress(void *ctx, bool in_progress)
+{
+	ptSapContext sap_ctx = NULL;
+
+	if (!ctx) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Invalid Global CDS handle", __func__);
+		return;
+	}
+
+	sap_ctx = CDS_GET_SAP_CB(ctx);
+	if (!sap_ctx) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Invalid SAP pointer from ctx", __func__);
+		return;
+	}
+
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+		  "%s: Set stop_bss_in_progress to %d",
+		  __func__, in_progress);
+	sap_ctx->stop_bss_in_progress = in_progress;
+}
 
 /**
  * wlansap_stop_bss() - stop BSS.

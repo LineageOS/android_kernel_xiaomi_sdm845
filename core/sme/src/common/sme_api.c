@@ -692,8 +692,10 @@ tListElem *csr_get_cmd_to_process(tpAniSirGlobal pMac, tDblLinkList *pList,
 		pCommand = GET_BASE_ADDR(pCurEntry, tSmeCmd, Link);
 
 		if (pCommand->sessionId != sessionId ||
-		    pCommand->command ==  eSmeCommandSetKey) {
-			sme_debug("selected the command with different sessionId or setkey");
+		    pCommand->command ==  eSmeCommandSetKey ||
+		    pCommand->command ==  eSmeCommandWmStatusChange) {
+			sme_debug("selected the command with different sessionId or cmd %d",
+				  pCommand->command);
 			return pCurEntry;
 		}
 
@@ -6300,12 +6302,12 @@ QDF_STATUS sme_set_host_offload(tHalHandle hHal, uint8_t sessionId,
 }
 
 QDF_STATUS sme_conf_hw_filter_mode(tHalHandle hal, uint8_t session_id,
-				   uint8_t mode_bitmap)
+				   uint8_t mode_bitmap, bool filter_enable)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hal);
 	QDF_STATUS status;
 	tCsrRoamSession *session;
-	struct hw_filter_request *req;
+	struct wmi_hw_filter_req_params *req;
 	cds_msg_t msg;
 
 	status = sme_acquire_global_lock(&pMac->sme);
@@ -6328,6 +6330,8 @@ QDF_STATUS sme_conf_hw_filter_mode(tHalHandle hal, uint8_t session_id,
 		return QDF_STATUS_E_NOMEM;
 	}
 
+	req->vdev_id = session_id;
+	req->enable = filter_enable;
 	req->mode_bitmap = mode_bitmap;
 	qdf_copy_macaddr(&req->bssid, &session->connectedProfile.bssid);
 
@@ -18887,3 +18891,16 @@ QDF_STATUS sme_destroy_config(tHalHandle hal)
 
 	return status;
 }
+
+bool sme_is_sta_key_exchange_in_progress(tHalHandle hal, uint8_t session_id)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
+		sme_err("Invalid session id: %d", session_id);
+		return false;
+	}
+
+	return CSR_IS_WAIT_FOR_KEY(mac_ctx, session_id);
+}
+

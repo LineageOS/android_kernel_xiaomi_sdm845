@@ -661,13 +661,8 @@ void hdd_conf_hostoffload(hdd_adapter_t *pAdapter, bool fenable)
 	}
 
 	/* Configure DTIM hardware filter rules */
-	{
-		enum hw_filter_mode mode = pHddCtx->config->hw_filter_mode;
-
-		if (!fenable)
-			mode = HW_FILTER_DISABLED;
-		hdd_conf_hw_filter_mode(pAdapter, mode);
-	}
+	hdd_conf_hw_filter_mode(pAdapter, pHddCtx->config->hw_filter_mode,
+				fenable);
 
 	EXIT();
 }
@@ -1057,7 +1052,8 @@ QDF_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, bool fenable)
 	return QDF_STATUS_SUCCESS;
 }
 
-int hdd_conf_hw_filter_mode(hdd_adapter_t *adapter, enum hw_filter_mode mode)
+int hdd_conf_hw_filter_mode(hdd_adapter_t *adapter, enum hw_filter_mode mode,
+			    bool filter_enable)
 {
 	QDF_STATUS status;
 
@@ -1067,7 +1063,8 @@ int hdd_conf_hw_filter_mode(hdd_adapter_t *adapter, enum hw_filter_mode mode)
 	}
 
 	status = sme_conf_hw_filter_mode(WLAN_HDD_GET_HAL_CTX(adapter),
-					 adapter->sessionId, mode);
+					 adapter->sessionId, mode,
+					 filter_enable);
 
 	return qdf_status_to_os_return(status);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -405,6 +405,10 @@ static int __hdd_hostapd_stop(struct net_device *dev)
 	hdd_stop_adapter(hdd_ctx, adapter, true);
 
 	clear_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
+
+	if (!hdd_is_cli_iface_up(hdd_ctx))
+		sme_scan_flush_result(hdd_ctx->hHal);
+
 	/* Stop all tx queues */
 	hdd_info("Disabling queues");
 	wlan_hdd_netif_queue_control(adapter,
@@ -7815,6 +7819,7 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 	enum dfs_mode mode;
 	bool disable_fw_tdls_state = false;
 	uint8_t ignore_cac = 0;
+	hdd_adapter_t *sta_adapter;
 
 	ENTER();
 
@@ -7829,6 +7834,30 @@ int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 			ret = -EINVAL;
 			goto ret_status;
 		}
+	}
+
+	/*
+	 * For STA+SAP concurrency support from GUI, first STA connection gets
+	 * triggered and while it is in progress, SAP start also comes up.
+	 * Once STA association is successful, STA connect event is sent to
+	 * kernel which gets queued in kernel workqueue and supplicant won't
+	 * process M1 received from AP and send M2 until this NL80211_CONNECT
+	 * event is received. Workqueue is not scheduled as RTNL lock is already
+	 * taken by hostapd thread which has issued start_bss command to driver.
+	 * Driver cannot complete start_bss as the pending command at the head
+	 * of the SME command pending list is hw_mode_update for STA session
+	 * which cannot be processed as SME is in WAITforKey state for STA
+	 * interface. The start_bss command for SAP interface is queued behind
+	 * the hw_mode_update command and so it cannot be processed until
+	 * hw_mode_update command is processed. This is causing a deadlock so
+	 * disconnect the STA interface first if connection or key exchange is
+	 * in progress and then start SAP interface.
+	 */
+	sta_adapter = hdd_get_sta_connection_in_progress(pHddCtx);
+	if (sta_adapter) {
+		hdd_debug("Disconnecting STA with session id: %d",
+			  sta_adapter->sessionId);
+		wlan_hdd_disconnect(sta_adapter, eCSR_DISCONNECT_REASON_DEAUTH);
 	}
 
 	sme_config = qdf_mem_malloc(sizeof(tSmeConfigParams));
@@ -8527,6 +8556,18 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	if (0 != ret)
 		return ret;
 
+	/*
+	 * If a STA connection is in progress in another adapter, disconnect
+	 * the STA and complete the SAP operation. STA will reconnect
+	 * after SAP stop is done.
+	 */
+	staAdapter = hdd_get_sta_connection_in_progress(pHddCtx);
+	if (staAdapter) {
+		hdd_debug("Disconnecting STA with session id: %d",
+			  staAdapter->sessionId);
+		wlan_hdd_disconnect(staAdapter, eCSR_DISCONNECT_REASON_DEAUTH);
+	}
+
 	if (pAdapter->device_mode == QDF_SAP_MODE) {
 		wlan_hdd_del_station(pAdapter);
 		hdd_green_ap_stop_bss(pHddCtx);
@@ -8604,6 +8645,10 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 		hdd_hostapd_state_t *pHostapdState =
 			WLAN_HDD_GET_HOSTAP_STATE_PTR(pAdapter);
 
+		/* Set the stop_bss_in_progress flag */
+		wlansap_set_stop_bss_inprogress(
+			WLAN_HDD_GET_SAP_CTX_PTR(pAdapter), true);
+
 		qdf_event_reset(&pHostapdState->qdf_stop_bss_event);
 		status = wlansap_stop_bss(WLAN_HDD_GET_SAP_CTX_PTR(pAdapter));
 		if (QDF_IS_STATUS_SUCCESS(status)) {
@@ -8622,6 +8667,11 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 			}
 		}
 		clear_bit(SOFTAP_BSS_STARTED, &pAdapter->event_flags);
+
+		/* Clear the stop_bss_in_progress flag */
+		wlansap_set_stop_bss_inprogress(
+			WLAN_HDD_GET_SAP_CTX_PTR(pAdapter), false);
+
 		/*BSS stopped, clear the active sessions for this device mode*/
 		cds_decr_session_set_pcl(pAdapter->device_mode,
 						pAdapter->sessionId);

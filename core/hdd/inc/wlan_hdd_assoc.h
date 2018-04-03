@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -243,6 +243,15 @@ bool hdd_conn_is_connected(hdd_station_ctx_t *pHddStaCtx);
  *      SIR_BAND_ALL if not connected
  */
 tSirRFBand hdd_conn_get_connected_band(hdd_station_ctx_t *pHddStaCtx);
+
+/**
+ * hdd_get_sta_connection_in_progress() - get STA for which connection
+ *                                        is in progress
+ * @hdd_ctx: hdd context
+ *
+ * Return: hdd adpater for which connection is in progress
+ */
+hdd_adapter_t *hdd_get_sta_connection_in_progress(hdd_context_t *hdd_ctx);
 
 /**
  * hdd_sme_roam_callback() - hdd sme roam callback

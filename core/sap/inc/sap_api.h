@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1033,6 +1033,20 @@ QDF_STATUS sap_roam_session_close_callback(void *pContext);
  * Return: None
  */
 void wlansap_cleanup_cac_timer(void *sap_ctx);
+
+/**
+ * wlansap_set_stop_bss_inprogress - sets the stop_bss_in_progress flag
+ *
+ * @ctx: Pointer to the global cds context from which the handle to the SAP
+ *     ctx can be extracted.
+ * @in_progress: the value to be set to the stop_bss_in_progress_flag
+ *
+ * This function sets the value in in_progress parameter to the
+ * stop_bss_in_progress flag in sap_context.
+ *
+ * Return: None
+ */
+void wlansap_set_stop_bss_inprogress(void *ctx, bool in_progress);
 
 #ifdef __cplusplus
 }

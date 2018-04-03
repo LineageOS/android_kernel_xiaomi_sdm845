@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -930,6 +930,10 @@ QDF_STATUS hdd_softap_register_sta(hdd_adapter_t *pAdapter,
 
 		pAdapter->aStaInfo[staId].tlSTAState = OL_TXRX_PEER_STATE_AUTH;
 		pAdapter->sessionCtx.ap.uIsAuthenticated = true;
+		if (!qdf_is_macaddr_broadcast(pPeerMacAddress))
+			qdf_status = wlan_hdd_send_sta_authorized_event(
+							   pAdapter, pHddCtx,
+							   pPeerMacAddress);
 	} else {
 
 		hdd_info("ULA auth StaId= %d.  Changing TL state to CONNECTED at Join time",
