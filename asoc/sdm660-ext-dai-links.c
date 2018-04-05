@@ -596,7 +596,7 @@ static struct snd_soc_dai_link msm_ext_tasha_be_dai[] = {
 };
 
 static struct snd_soc_dai_link msm_ext_compress_capture_dai[] = {
-	{/* tavil:hw:x,40 */
+	{/* hw:x,37 */
 		.name = "Compress9",
 		.stream_name = "Compress9",
 		.cpu_dai_name = "MultiMedia17",
@@ -610,7 +610,7 @@ static struct snd_soc_dai_link msm_ext_compress_capture_dai[] = {
 		.ignore_suspend = 1,
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA17,
 	},
-	{/* tavil:hw:x,41 */
+	{/* hw:x,38 */
 		.name = "Compress10",
 		.stream_name = "Compress10",
 		.cpu_dai_name = "MultiMedia18",
@@ -624,7 +624,7 @@ static struct snd_soc_dai_link msm_ext_compress_capture_dai[] = {
 		.ignore_suspend = 1,
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA18,
 	},
-	{/* tavil:hw:x,42 */
+	{/* hw:x,39 */
 		.name = "Compress11",
 		.stream_name = "Compress11",
 		.cpu_dai_name = "MultiMedia19",
@@ -638,7 +638,7 @@ static struct snd_soc_dai_link msm_ext_compress_capture_dai[] = {
 		.ignore_suspend = 1,
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA19,
 	},
-	{/* tavil:hw:x,43 */
+	{/* hw:x,40 */
 		.name = "Compress12",
 		.stream_name = "Compress12",
 		.cpu_dai_name = "MultiMedia28",
@@ -652,7 +652,7 @@ static struct snd_soc_dai_link msm_ext_compress_capture_dai[] = {
 		.ignore_suspend = 1,
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA28,
 	},
-	{/* tavil:hw:x,44 */
+	{/* hw:x,41 */
 		.name = "Compress13",
 		.stream_name = "Compress13",
 		.cpu_dai_name = "MultiMedia29",
@@ -2072,6 +2072,7 @@ static struct snd_soc_dai_link ext_disp_be_dai_link[] = {
 
 static struct snd_soc_dai_link msm_ext_tasha_dai_links[
 ARRAY_SIZE(msm_ext_common_fe_dai) +
+ARRAY_SIZE(msm_ext_compress_capture_dai) +
 ARRAY_SIZE(msm_ext_tasha_fe_dai) +
 ARRAY_SIZE(msm_ext_common_be_dai) +
 ARRAY_SIZE(msm_ext_tasha_be_dai) +
@@ -2082,8 +2083,8 @@ ARRAY_SIZE(ext_disp_be_dai_link)];
 
 static struct snd_soc_dai_link msm_ext_tavil_dai_links[
 ARRAY_SIZE(msm_ext_common_fe_dai) +
-ARRAY_SIZE(msm_ext_tavil_fe_dai) +
 ARRAY_SIZE(msm_ext_compress_capture_dai) +
+ARRAY_SIZE(msm_ext_tavil_fe_dai) +
 ARRAY_SIZE(msm_ext_common_be_dai) +
 ARRAY_SIZE(msm_ext_tavil_be_dai) +
 ARRAY_SIZE(msm_mi2s_be_dai_links) +
@@ -2130,62 +2131,65 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev,
 			card->name = "sdm660-tashalite-snd-card";
 
 		len1 = ARRAY_SIZE(msm_ext_common_fe_dai);
-		len2 = len1 + ARRAY_SIZE(msm_ext_tasha_fe_dai);
-		len3 = len2 + ARRAY_SIZE(msm_ext_common_be_dai);
+		len2 = len1 + ARRAY_SIZE(msm_ext_compress_capture_dai);
+		len3 = len2 + ARRAY_SIZE(msm_ext_tasha_fe_dai);
+		len4 = len3 + ARRAY_SIZE(msm_ext_common_be_dai);
 		memcpy(msm_ext_tasha_dai_links, msm_ext_common_fe_dai,
 		       sizeof(msm_ext_common_fe_dai));
 		memcpy(msm_ext_tasha_dai_links + len1,
-		       msm_ext_tasha_fe_dai, sizeof(msm_ext_tasha_fe_dai));
+		       msm_ext_compress_capture_dai,
+		       sizeof(msm_ext_compress_capture_dai));
 		memcpy(msm_ext_tasha_dai_links + len2,
-		       msm_ext_common_be_dai, sizeof(msm_ext_common_be_dai));
+		       msm_ext_tasha_fe_dai, sizeof(msm_ext_tasha_fe_dai));
 		memcpy(msm_ext_tasha_dai_links + len3,
+		       msm_ext_common_be_dai, sizeof(msm_ext_common_be_dai));
+		memcpy(msm_ext_tasha_dai_links + len4,
 		       msm_ext_tasha_be_dai, sizeof(msm_ext_tasha_be_dai));
-		len4 = len3 + ARRAY_SIZE(msm_ext_tasha_be_dai);
+		len5 = len4 + ARRAY_SIZE(msm_ext_tasha_be_dai);
 		if (of_property_read_bool(dev->of_node,
 					  "qcom,mi2s-audio-intf")) {
-			memcpy(msm_ext_tasha_dai_links + len4,
+			memcpy(msm_ext_tasha_dai_links + len5,
 			       msm_mi2s_be_dai_links,
 			       sizeof(msm_mi2s_be_dai_links));
-			len4 += ARRAY_SIZE(msm_mi2s_be_dai_links);
+			len5 += ARRAY_SIZE(msm_mi2s_be_dai_links);
 		}
 		if (of_property_read_bool(dev->of_node,
 					  "qcom,auxpcm-audio-intf")) {
-			memcpy(msm_ext_tasha_dai_links + len4,
+			memcpy(msm_ext_tasha_dai_links + len5,
 			       msm_auxpcm_be_dai_links,
 			       sizeof(msm_auxpcm_be_dai_links));
-			len4 += ARRAY_SIZE(msm_auxpcm_be_dai_links);
+			len5 += ARRAY_SIZE(msm_auxpcm_be_dai_links);
 		}
 		if (of_property_read_bool(dev->of_node, "qcom,wcn-btfm")) {
 			dev_dbg(dev, "%s(): WCN BTFM support present\n",
 					__func__);
-			memcpy(msm_ext_tasha_dai_links + len4,
+			memcpy(msm_ext_tasha_dai_links + len5,
 				   msm_wcn_be_dai_links,
 				   sizeof(msm_wcn_be_dai_links));
-			len4 += ARRAY_SIZE(msm_wcn_be_dai_links);
+			len5 += ARRAY_SIZE(msm_wcn_be_dai_links);
 		}
 		if (of_property_read_bool(dev->of_node,
 					  "qcom,ext-disp-audio-rx")) {
 			dev_dbg(dev, "%s(): ext disp audio support present\n",
 					__func__);
-			memcpy(msm_ext_tasha_dai_links + len4,
+			memcpy(msm_ext_tasha_dai_links + len5,
 				ext_disp_be_dai_link,
 				sizeof(ext_disp_be_dai_link));
-			len4 += ARRAY_SIZE(ext_disp_be_dai_link);
+			len5 += ARRAY_SIZE(ext_disp_be_dai_link);
 		}
-		len5 = len4;
 		msm_ext_dai_links = msm_ext_tasha_dai_links;
 	} else if (strnstr(card->name, "tavil", strlen(card->name))) {
 		len1 = ARRAY_SIZE(msm_ext_common_fe_dai);
-		len2 = len1 + ARRAY_SIZE(msm_ext_tavil_fe_dai);
-		len3 = len2 + ARRAY_SIZE(msm_ext_compress_capture_dai);
+		len2 = len1 + ARRAY_SIZE(msm_ext_compress_capture_dai);
+		len3 = len2 + ARRAY_SIZE(msm_ext_tavil_fe_dai);
 		len4 = len3 + ARRAY_SIZE(msm_ext_common_be_dai);
 		memcpy(msm_ext_tavil_dai_links, msm_ext_common_fe_dai,
 		       sizeof(msm_ext_common_fe_dai));
 		memcpy(msm_ext_tavil_dai_links + len1,
-		       msm_ext_tavil_fe_dai, sizeof(msm_ext_tavil_fe_dai));
-		memcpy(msm_ext_tavil_dai_links + len2,
 		       msm_ext_compress_capture_dai,
 		       sizeof(msm_ext_compress_capture_dai));
+		memcpy(msm_ext_tavil_dai_links + len2,
+		       msm_ext_tavil_fe_dai, sizeof(msm_ext_tavil_fe_dai));
 		memcpy(msm_ext_tavil_dai_links + len3,
 		       msm_ext_common_be_dai, sizeof(msm_ext_common_be_dai));
 		memcpy(msm_ext_tavil_dai_links + len4,
