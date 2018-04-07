@@ -3641,6 +3641,7 @@ static int msm_compr_adsp_stream_cmd_put(struct snd_kcontrol *kcontrol,
 	struct msm_compr_audio *prtd;
 	int ret = 0;
 	struct msm_adsp_event_data *event_data = NULL;
+	uint64_t actual_payload_len = 0;
 
 	if (fe_id >= MSM_FRONTEND_DAI_MAX) {
 		pr_err("%s Received invalid fe_id %lu\n",
@@ -3674,6 +3675,15 @@ static int msm_compr_adsp_stream_cmd_put(struct snd_kcontrol *kcontrol,
 	    (event_data->event_type >= ADSP_STREAM_EVENT_MAX)) {
 		pr_err("%s: invalid event_type=%d",
 			__func__, event_data->event_type);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	actual_payload_len = sizeof(struct msm_adsp_event_data) +
+		event_data->payload_len;
+	if (actual_payload_len >= U32_MAX) {
+		pr_err("%s payload length 0x%X  exceeds limit",
+				__func__, event_data->payload_len);
 		ret = -EINVAL;
 		goto done;
 	}
