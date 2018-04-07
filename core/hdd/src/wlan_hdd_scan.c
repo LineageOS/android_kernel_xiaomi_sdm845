@@ -306,6 +306,7 @@ static int hdd_add_scan_event_from_ies(struct hdd_scan_info *scanInfo,
 					tCsrScanResultInfo *scan_result,
 					char *current_event, char *last_event)
 {
+	int ret;
 	hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(scanInfo->dev);
 	tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 	tSirBssDescription *descriptor = &scan_result->BssDescriptor;
@@ -335,9 +336,13 @@ static int hdd_add_scan_event_from_ies(struct hdd_scan_info *scanInfo,
 	if (ie_length <= 0)
 		return 0;
 
-	dot11f_unpack_beacon_i_es((tpAniSirGlobal)
+	ret = dot11f_unpack_beacon_i_es((tpAniSirGlobal)
 				  hHal, (uint8_t *) descriptor->ieFields,
 				  ie_length, &dot11BeaconIEs, false);
+	if (DOT11F_FAILED(ret)) {
+		hdd_err("unpack failed, ret: 0x%x", ret);
+		return -EINVAL;
+	}
 
 	pDot11SSID = &dot11BeaconIEs.SSID;
 
@@ -2362,7 +2367,9 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 				&hdd_cfg80211_scan_done_callback, dev);
 
 	if (QDF_STATUS_SUCCESS != status) {
-		hdd_err("sme_scan_request returned error %d", status);
+		hdd_err_ratelimited(HDD_SCAN_REJECT_RATE_LIMIT,
+				    "sme_scan_request returned error %d",
+				    status);
 		if (QDF_STATUS_E_RESOURCES == status) {
 			scan_ebusy_cnt++;
 			hdd_err("HO is in progress. Defer scan scan_ebusy_cnt: %d",
@@ -2816,7 +2823,8 @@ static int __wlan_hdd_cfg80211_vendor_scan(struct wiphy *wiphy,
 
 	ret = __wlan_hdd_cfg80211_scan(wiphy, request, VENDOR_SCAN);
 	if (0 != ret) {
-		hdd_err("Scan Failed. Ret = %d", ret);
+		hdd_err_ratelimited(HDD_SCAN_REJECT_RATE_LIMIT,
+				    "Scan Failed. Ret = %d", ret);
 		qdf_mem_free(request);
 		return ret;
 	}

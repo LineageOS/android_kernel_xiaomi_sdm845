@@ -18521,6 +18521,7 @@ static int wlan_hdd_cfg80211_set_privacy_ibss(hdd_adapter_t *pAdapter,
 					      struct cfg80211_ibss_params
 					      *params)
 {
+	uint32_t ret;
 	int status = 0;
 	hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 	eCsrEncryptionType encryptionType = eCSR_ENCRYPT_TYPE_NONE;
@@ -18549,18 +18550,22 @@ static int wlan_hdd_cfg80211_set_privacy_ibss(hdd_adapter_t *pAdapter,
 			if (NULL != ie) {
 				pWextState->wpaVersion =
 					IW_AUTH_WPA_VERSION_WPA;
-				if (ie[1] < DOT11F_IE_WPA_MIN_LEN ||
-				    ie[1] > DOT11F_IE_WPA_MAX_LEN) {
-					hdd_err("invalid ie len:%d", ie[1]);
+				/*
+				 * Unpack the WPA IE. Skip past the EID byte and
+				 * length byte - and four byte WiFi OUI
+				 */
+				ret = dot11f_unpack_ie_wpa(
+						(tpAniSirGlobal) halHandle,
+						&ie[2 + 4], ie[1] - 4,
+						&dot11WPAIE, false);
+				if (DOT11F_FAILED(ret)) {
+					hdd_err("unpack failed ret: 0x%x", ret);
 					return -EINVAL;
 				}
-				/* Unpack the WPA IE */
-				/* Skip past the EID byte and length byte - and four byte WiFi OUI */
-				dot11f_unpack_ie_wpa((tpAniSirGlobal) halHandle,
-						     &ie[2 + 4], ie[1] - 4,
-						     &dot11WPAIE, false);
-				/*Extract the multicast cipher, the encType for unicast
-				   cipher for wpa-none is none */
+				/*
+				 * Extract the multicast cipher, the encType for
+				 * unicast cipher for wpa-none is none
+				 */
 				encryptionType =
 					hdd_translate_wpa_to_csr_encryption_type
 						(dot11WPAIE.multicast_cipher);
@@ -20865,6 +20870,12 @@ static int __wlan_hdd_cfg80211_update_connect_params(
 		fils_info->key_nai_length = req->fils_erp_username_len +
 					    sizeof(char) +
 					    req->fils_erp_realm_len;
+		if (fils_info->key_nai_length >
+		    FILS_MAX_KEYNAME_NAI_LENGTH) {
+			hdd_err("Key NAI Length %d",
+				fils_info->key_nai_length);
+			return -EINVAL;
+		}
 		if (req->fils_erp_username_len && req->fils_erp_username) {
 			buf = fils_info->keyname_nai;
 			qdf_mem_copy(buf, req->fils_erp_username,
