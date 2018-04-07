@@ -3141,8 +3141,6 @@ static int __tavil_codec_enable_mad(struct snd_soc_codec *codec, bool enable)
 		/* Undo reset for MAD */
 		snd_soc_update_bits(codec, WCD934X_CPE_SS_MAD_CTL,
 				    0x02, 0x00);
-		snd_soc_update_bits(codec, WCD934X_CODEC_RPM_CLK_MCLK_CFG,
-					0x04, 0x04);
 	} else {
 		snd_soc_update_bits(codec, WCD934X_SOC_MAD_AUDIO_CTL_2,
 				    0x03, 0x00);
@@ -3152,8 +3150,6 @@ static int __tavil_codec_enable_mad(struct snd_soc_codec *codec, bool enable)
 		/* Turn off MAD clk */
 		snd_soc_update_bits(codec, WCD934X_CPE_SS_MAD_CTL,
 				    0x01, 0x00);
-		snd_soc_update_bits(codec, WCD934X_CODEC_RPM_CLK_MCLK_CFG,
-					0x04, 0x00);
 	}
 done:
 	return rc;
@@ -9374,6 +9370,7 @@ static const struct tavil_reg_mask_val tavil_codec_reg_defaults[] = {
 	{WCD934X_HPH_R_TEST, 0x01, 0x01},
 	{WCD934X_CPE_FLL_CONFIG_CTL_2, 0xFF, 0x20},
 	{WCD934X_MBHC_NEW_CTL_2, 0x0C, 0x00},
+	{WCD934X_CODEC_RPM_CLK_MCLK_CFG, 0x04, 0x04},
 };
 
 static const struct tavil_reg_mask_val tavil_codec_reg_init_1_1_val[] = {
