@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -250,6 +250,7 @@ void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx,
 	u8 staidx;
 	hddTdlsPeer_t *curr_peer = NULL;
 	hdd_adapter_t *adapter = NULL;
+	bool tdls_in_progress = false;
 
 	if (eTDLS_SUPPORT_NOT_ENABLED == hddctx->tdls_mode) {
 		hdd_debug("TDLS mode is disabled OR not enabled in FW");
@@ -265,8 +266,11 @@ void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *hddctx,
 
 	connected_tdls_peers = wlan_hdd_tdls_connected_peers(adapter);
 
-	if (!connected_tdls_peers) {
-		hdd_debug("No TDLS connected peers to delete");
+	if (wlan_hdd_tdls_is_progress(hddctx, NULL, true))
+		tdls_in_progress = true;
+
+	if (!(connected_tdls_peers || tdls_in_progress)) {
+		hdd_debug("No TDLS connected/in progress peers to delete");
 		return;
 	}
 
@@ -835,6 +839,9 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 		wlan_hdd_tdls_del_non_forced_peers(pHddTdlsCtx);
 
 		hdd_tdls_context_init(pHddCtx, true);
+
+		/* Reset tx completion status in case of SSR */
+		pAdapter->mgmtTxCompletionStatus = false;
 	}
 
 	sme_set_tdls_power_save_prohibited(WLAN_HDD_GET_HAL_CTX(pAdapter),
@@ -2160,13 +2167,17 @@ void wlan_hdd_check_conc_and_update_tdls_state(hdd_context_t *hdd_ctx,
 {
 	hdd_adapter_t *temp_adapter;
 	uint16_t connected_tdls_peers;
+	bool tdls_in_progress = false;
 
 	temp_adapter = wlan_hdd_tdls_get_adapter(hdd_ctx);
 	if (NULL != temp_adapter) {
 		if (disable_tdls) {
 			connected_tdls_peers = wlan_hdd_tdls_connected_peers(
 								temp_adapter);
-			if (!connected_tdls_peers ||
+			if (wlan_hdd_tdls_is_progress(hdd_ctx, NULL, true))
+				tdls_in_progress = true;
+
+			if (!(tdls_in_progress || connected_tdls_peers) ||
 			   (eTDLS_SUPPORT_NOT_ENABLED == hdd_ctx->tdls_mode)) {
 				mutex_lock(&hdd_ctx->tdls_lock);
 				if (hdd_ctx->set_state_info.set_state_cnt !=

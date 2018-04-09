@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2548,6 +2548,19 @@ static tSirRetStatus lim_tdls_setup_add_sta(tpAniSirGlobal pMac,
 
 	pStaDs = dph_lookup_hash_entry(pMac, pAddStaReq->peermac.bytes, &aid,
 				       &psessionEntry->dph.dphHashTable);
+
+	if (pStaDs && pAddStaReq->tdlsAddOper == TDLS_OPER_ADD) {
+		pe_err("TDLS entry for peer: "MAC_ADDRESS_STR " already exist, cannot add new entry",
+			MAC_ADDR_ARRAY(pAddStaReq->peermac.bytes));
+			return eSIR_FAILURE;
+	}
+
+	if (pStaDs && pStaDs->staType != STA_ENTRY_TDLS_PEER) {
+		pe_err("Non TDLS entry for peer: "MAC_ADDRESS_STR " already exist",
+			MAC_ADDR_ARRAY(pAddStaReq->peermac.bytes));
+			return eSIR_FAILURE;
+	}
+
 	if (NULL == pStaDs) {
 		aid = lim_assign_peer_idx(pMac, psessionEntry);
 

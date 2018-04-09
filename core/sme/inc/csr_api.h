@@ -356,9 +356,8 @@ typedef struct tagCsrEseCckmInfo {
 #endif
 } tCsrEseCckmInfo;
 
-#define CSR_DOT11F_IE_RSN_MAX_LEN   (114)
 typedef struct tagCsrEseCckmIe {
-	uint8_t cckmIe[CSR_DOT11F_IE_RSN_MAX_LEN];
+	uint8_t cckmIe[DOT11F_IE_RSN_MAX_LEN];
 	uint8_t cckmIeLen;
 } tCsrEseCckmIe;
 #endif /* FEATURE_WLAN_ESE */
@@ -1270,6 +1269,7 @@ typedef struct tagCsrConfigParam {
 	uint8_t enable_rx_ldpc;
 	uint8_t disable_high_ht_mcs_2x2;
 	uint8_t rx_ldpc_support_for_2g;
+	bool enable_vht20_mcs9;
 	uint8_t max_amsdu_num;
 	uint8_t nSelect5GHzMargin;
 	uint8_t isCoalesingInIBSSAllowed;
@@ -1361,6 +1361,7 @@ typedef struct tagCsrConfigParam {
 	uint32_t scan_num_probes;
 	struct sir_score_config bss_score_params;
 	uint8_t oce_feature_bitmap;
+	bool enable_ftopen;
 } tCsrConfigParam;
 
 /* Tush */

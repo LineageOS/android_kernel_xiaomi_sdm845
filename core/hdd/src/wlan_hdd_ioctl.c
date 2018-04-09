@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -5205,9 +5205,6 @@ static int drv_cmd_get_ibss_peer_info_all(hdd_adapter_t *adapter,
 			}
 			hdd_debug("%s", &extra[numOfBytestoPrint]);
 		}
-
-		/* Free temporary buffer */
-		qdf_mem_free(extra);
 	} else {
 		/* Command failed, log error */
 		hdd_err("GETIBSSPEERINFOALL command failed with status code %d",
@@ -7047,13 +7044,18 @@ static int hdd_drv_cmd_process(hdd_adapter_t *adapter,
 	const int cmd_num_total = ARRAY_SIZE(hdd_drv_cmds);
 	uint8_t *cmd_i = NULL;
 	hdd_drv_cmd_handler_t handler = NULL;
-	int len = 0;
+	int len = 0, cmd_len = 0;
+	uint8_t *ptr;
 	bool args;
 
 	if (!adapter || !cmd || !priv_data) {
 		hdd_err("at least 1 param is NULL");
 		return -EINVAL;
 	}
+
+	/* Calculate length of the first word */
+	ptr = strchrnul(cmd, ' ');
+	cmd_len = ptr - cmd;
 
 	hdd_ctx = (hdd_context_t *)adapter->pHddCtx;
 
@@ -7069,7 +7071,7 @@ static int hdd_drv_cmd_process(hdd_adapter_t *adapter,
 			return -EINVAL;
 		}
 
-		if (strncasecmp(cmd, cmd_i, len) == 0) {
+		if (len == cmd_len && strncasecmp(cmd, cmd_i, len) == 0) {
 			if (args && drv_cmd_validate(cmd, len))
 				return -EINVAL;
 

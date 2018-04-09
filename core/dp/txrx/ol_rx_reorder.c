@@ -626,6 +626,11 @@ ol_rx_flush_handler(ol_txrx_pdev_handle pdev,
 		return;
 	}
 
+	if (tid >= OL_TXRX_NUM_EXT_TIDS) {
+		ol_txrx_err("%s:  invalid tid, %u\n", __FUNCTION__, tid);
+		return;
+	}
+
 	peer = ol_txrx_peer_find_by_id(pdev, peer_id);
 	if (peer)
 		vdev = peer->vdev;
