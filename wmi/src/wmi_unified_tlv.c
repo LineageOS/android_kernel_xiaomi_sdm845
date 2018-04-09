@@ -4677,7 +4677,8 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 			if ((auth_mode != WMI_AUTH_NONE) &&
 				((auth_mode != WMI_AUTH_OPEN) ||
 				 (auth_mode == WMI_AUTH_OPEN &&
-				  roam_req->mdid.mdie_present) ||
+				  roam_req->mdid.mdie_present &&
+				  roam_req->is_11r_assoc) ||
 				  roam_req->is_ese_assoc)) {
 				len += WMI_TLV_HDR_SIZE;
 				if (roam_req->is_ese_assoc)
@@ -4686,7 +4687,8 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 				else if (auth_mode == WMI_AUTH_FT_RSNA ||
 					 auth_mode == WMI_AUTH_FT_RSNA_PSK ||
 					 (auth_mode == WMI_AUTH_OPEN &&
-					  roam_req->mdid.mdie_present))
+					  roam_req->mdid.mdie_present &&
+					  roam_req->is_11r_assoc))
 					len +=
 					sizeof(wmi_roam_11r_offload_tlv_param);
 				else
@@ -4806,7 +4808,8 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 		if ((auth_mode != WMI_AUTH_NONE) &&
 		    ((auth_mode != WMI_AUTH_OPEN) ||
 		     (auth_mode == WMI_AUTH_OPEN
-		      && roam_req->mdid.mdie_present) ||
+		      && roam_req->mdid.mdie_present &&
+		      roam_req->is_11r_assoc) ||
 			roam_req->is_ese_assoc)) {
 			if (roam_req->is_ese_assoc) {
 				WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
@@ -4835,7 +4838,8 @@ QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 			} else if (auth_mode == WMI_AUTH_FT_RSNA
 				   || auth_mode == WMI_AUTH_FT_RSNA_PSK
 				   || (auth_mode == WMI_AUTH_OPEN
-				       && roam_req->mdid.mdie_present)) {
+				       && roam_req->mdid.mdie_present &&
+				       roam_req->is_11r_assoc)) {
 				WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
 					       0);
 				buf_ptr += WMI_TLV_HDR_SIZE;
