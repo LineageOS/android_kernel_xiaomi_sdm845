@@ -3430,7 +3430,7 @@ static int __afe_port_start(u16 port_id, union afe_port_config *afe_config,
 
 	if ((codec_format != ASM_MEDIA_FMT_NONE) &&
 	    (cfg_type == AFE_PARAM_ID_SLIMBUS_CONFIG)) {
-		if (enc_cfg != NULL)
+		if (enc_cfg != NULL) {
 			pr_debug("%s: Found AFE encoder support for SLIMBUS enc_format = %d\n",
 						__func__, codec_format);
 			ret = q6afe_send_enc_config(port_id, enc_cfg,
@@ -3443,6 +3443,7 @@ static int __afe_port_start(u16 port_id, union afe_port_config *afe_config,
 					__func__, port_id, ret);
 				goto fail_cmd;
 			}
+		}
 		if (dec_cfg != NULL) {
 			pr_debug("%s: Found AFE decoder support for SLIMBUS dec_format = %d\n",
 				  __func__, codec_format);
