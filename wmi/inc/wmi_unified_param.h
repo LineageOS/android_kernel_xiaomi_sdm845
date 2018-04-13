@@ -5526,7 +5526,7 @@ typedef enum {
 #endif
 	wmi_twt_enable_complete_event_id,
 	wmi_apf_get_vdev_work_memory_resp_event_id,
-
+	wmi_wlan_sar2_result_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 
