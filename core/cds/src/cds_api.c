@@ -2777,7 +2777,7 @@ uint32_t cds_get_connectivity_stats_pkt_bitmap(void *context)
 		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_ERROR,
 			  "Magic cookie(%x) for adapter sanity verification is invalid",
 			  adapter->magic);
-		return QDF_STATUS_E_FAILURE;
+		return 0;
 	}
 	return adapter->pkt_type_bitmap;
 }
