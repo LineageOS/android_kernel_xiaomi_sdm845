@@ -133,7 +133,6 @@ typedef struct {
 	int last_index;		                     					/*index of the list where will be stored the next error event. Subtract -1 to have the index of the last error event!*/
 } ErrorList;
 
-void logError(int force, const char *msg, ...);
 int isI2cError(int error);
 int dumpErrorInfo(u8 *outBuf, int size);
 int errorHandler(u8 *event, int size);

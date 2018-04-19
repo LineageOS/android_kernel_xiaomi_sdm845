@@ -97,11 +97,11 @@ int flushFIFO(void)
 	u8 sett = SPECIAL_FIFO_FLUSH;
 	ret = writeSysCmd(SYS_CMD_SPECIAL, &sett, 1);
 	if (ret < OK) {
-		logError(1, "%s flushFIFO: ERROR %08X \n", tag, ret);
+		pr_err("flushFIFO: ERROR %08X\n", ret);
 		return ret;
 	}
 
-	logError(0, "%s FIFO flushed! \n", tag);
+	pr_info("FIFO flushed!\n");
 	return OK;
 
 }
@@ -284,11 +284,11 @@ int senseOn(void)
 
 	ret = setScanMode(SCAN_MODE_ACTIVE, 0x01);
 	if (ret < OK) {
-		logError(1, "%s senseOn: ERROR %08X\n", tag, ret);
+		pr_err("senseOn: ERROR %08X\n", ret);
 		return ret;
 	}
 
-	logError(0, "%s senseOn: SENSE ON\n", tag);
+	pr_info("senseOn: SENSE ON\n");
 	return OK;
 }
 
@@ -302,11 +302,11 @@ int senseOff(void)
 
 	ret = setScanMode(SCAN_MODE_ACTIVE, 0x00);;
 	if (ret < OK) {
-		logError(1, "%s senseOff: ERROR %08X\n", tag, ret);
+		pr_err("senseOff: ERROR %08X\n", ret);
 		return ret;
 	}
 
-	logError(0, "%s senseOff: SENSE OFF\n", tag);
+	pr_info("senseOff: SENSE OFF\n");
 	return OK;
 }
 
@@ -319,16 +319,16 @@ int cleanUp(int enableTouch)
 {
 	int res;
 
-	logError(0, "%s cleanUp: system reset...\n", tag);
+	pr_info("cleanUp: system reset...\n");
 	res = fts_system_reset();
 	if (res < OK)
 		return res;
 	if (enableTouch) {
-		logError(0, "%s cleanUp: enabling touches...\n", tag);
+		pr_info("cleanUp: enabling touches...\n");
 		res = senseOn();
 		if (res < OK)
 			return res;
-		logError(0, "%s cleanUp: enabling interrupts...\n", tag);
+		pr_info("cleanUp: enabling interrupts...\n");
 		res = fts_enableInterrupt();
 		if (res < OK)
 			return res;
@@ -457,16 +457,27 @@ i8 **array1dTo2d_i8(i8 *data, int size, int columns)
 void print_frame_short(char *label, short **matrix, int row, int column)
 {
 	int i, j;
-	logError(1, "%s %s \n", tag, label);
+	int buff_len, index;
+	char *buff;
+
+	buff_len = (6 + 1) * column + 1; /* -32768 str len: 6 */
+	buff = kzalloc(buff_len, GFP_KERNEL);
+	if (buff == NULL) {
+		pr_err("%s: fail to allocate buffer\n", __func__);
+		return;
+	}
+
+	pr_info("%s\n", label);
 	for (i = 0; i < row; i++) {
-		logError(1, "%s ", tag);
-		for (j = 0; j < column; j++) {
-			printk("%d ", matrix[i][j]);
-		}
-		logError(1, "\n");
+		index = 0;
+		for (j = 0; j < column; j++)
+			index += scnprintf(buff + index, buff_len - index,
+					"%d ", matrix[i][j]);
+		pr_info("%s\n", buff);
 		kfree(matrix[i]);
 	}
 	kfree(matrix);
+	kfree(buff);
 }
 
 /**
@@ -479,16 +490,27 @@ void print_frame_short(char *label, short **matrix, int row, int column)
 void print_frame_u16(char *label, u16 **matrix, int row, int column)
 {
 	int i, j;
-	logError(1, "%s %s \n", tag, label);
+	int buff_len, index;
+	char *buff;
+
+	buff_len = (5 + 1) * column + 1; /* 65535 str len: 5 */
+	buff = kzalloc(buff_len, GFP_KERNEL);
+	if (buff == NULL) {
+		pr_err("%s: fail to allocate buffer\n", __func__);
+		return;
+	}
+
+	pr_info("%s\n", label);
 	for (i = 0; i < row; i++) {
-		logError(0, "%s ", tag);
-		for (j = 0; j < column; j++) {
-			printk("%d ", matrix[i][j]);
-		}
-		logError(0, "\n");
+		index = 0;
+		for (j = 0; j < column; j++)
+			index += scnprintf(buff + index, buff_len - index,
+					"%d ", matrix[i][j]);
+		pr_info("%s\n", buff);
 		kfree(matrix[i]);
 	}
 	kfree(matrix);
+	kfree(buff);
 }
 
 /**
@@ -501,16 +523,27 @@ void print_frame_u16(char *label, u16 **matrix, int row, int column)
 void print_frame_u8(char *label, u8 **matrix, int row, int column)
 {
 	int i, j;
-	logError(1, "%s %s \n", tag, label);
+	int buff_len, index;
+	char *buff;
+
+	buff_len = (3 + 1) * column + 1; /* 255 str len: 3 */
+	buff = kzalloc(buff_len, GFP_KERNEL);
+	if (buff == NULL) {
+		pr_err("%s: fail to allocate buffer\n", __func__);
+		return;
+	}
+
+	pr_info("%s\n", label);
 	for (i = 0; i < row; i++) {
-		logError(1, "%s ", tag);
-		for (j = 0; j < column; j++) {
-			printk("%d ", matrix[i][j]);
-		}
-		logError(1, "\n");
+		index = 0;
+		for (j = 0; j < column; j++)
+			index += scnprintf(buff + index, buff_len - index,
+					"%d ", matrix[i][j]);
+		pr_info("%s\n", buff);
 		kfree(matrix[i]);
 	}
 	kfree(matrix);
+	kfree(buff);
 }
 
 /**
@@ -523,16 +556,27 @@ void print_frame_u8(char *label, u8 **matrix, int row, int column)
 void print_frame_i8(char *label, i8 **matrix, int row, int column)
 {
 	int i, j;
-	logError(1, "%s %s \n", tag, label);
+	int buff_len, index;
+	char *buff;
+
+	buff_len = (4 + 1) * column + 1; /* -128 str len: 4 */
+	buff = kzalloc(buff_len, GFP_KERNEL);
+	if (buff == NULL) {
+		pr_err("%s: fail to allocate buffer\n", __func__);
+		return;
+	}
+
+	pr_info("%s\n", label);
 	for (i = 0; i < row; i++) {
-		logError(1, "%s ", tag);
-		for (j = 0; j < column; j++) {
-			printk("%d ", matrix[i][j]);
-		}
-		logError(1, "\n");
+		index = 0;
+		for (j = 0; j < column; j++)
+			index += scnprintf(buff + index, buff_len - index,
+					"%d ", matrix[i][j]);
+		pr_info("%s\n", buff);
 		kfree(matrix[i]);
 	}
 	kfree(matrix);
+	kfree(buff);
 }
 
 /**
@@ -545,16 +589,27 @@ void print_frame_i8(char *label, i8 **matrix, int row, int column)
 void print_frame_u32(char *label, u32 **matrix, int row, int column)
 {
 	int i, j;
-	logError(1, "%s %s \n", tag, label);
+	int buff_len, index;
+	char *buff;
+
+	buff_len = (10 + 1) * column + 1; /* 4294967295 str len: 10 */
+	buff = kzalloc(buff_len, GFP_KERNEL);
+	if (buff == NULL) {
+		pr_err("%s: fail to allocate buffer\n", __func__);
+		return;
+	}
+
+	pr_info("%s\n", label);
 	for (i = 0; i < row; i++) {
-		logError(0, "%s ", tag);
-		for (j = 0; j < column; j++) {
-			printk("%d ", matrix[i][j]);
-		}
-		logError(0, "\n");
+		index = 0;
+		for (j = 0; j < column; j++)
+			index += scnprintf(buff + index, buff_len - index,
+					"%d ", matrix[i][j]);
+		pr_info("%s\n", buff);
 		kfree(matrix[i]);
 	}
 	kfree(matrix);
+	kfree(buff);
 }
 
 /**
@@ -567,16 +622,27 @@ void print_frame_u32(char *label, u32 **matrix, int row, int column)
 void print_frame_int(char *label, int **matrix, int row, int column)
 {
 	int i, j;
-	logError(1, "%s %s \n", tag, label);
+	int buff_len, index;
+	char *buff;
+
+	buff_len = (11 + 1) * column + 1; /* -2147483648 str len: 11 */
+	buff = kzalloc(buff_len, GFP_KERNEL);
+	if (buff == NULL) {
+		pr_err("%s: fail to allocate buffer\n", __func__);
+		return;
+	}
+
+	pr_info("%s\n", label);
 	for (i = 0; i < row; i++) {
-		logError(0, "%s ", tag);
-		for (j = 0; j < column; j++) {
-			printk("%d ", matrix[i][j]);
-		}
-		logError(0, "\n");
+		index = 0;
+		for (j = 0; j < column; j++)
+			index += scnprintf(buff + index, buff_len - index,
+					"%d ", matrix[i][j]);
+		pr_info("%s\n", buff);
 		kfree(matrix[i]);
 	}
 	kfree(matrix);
+	kfree(buff);
 }
 
 /**
@@ -636,15 +702,14 @@ int u64ToU8_be(u64 src, u8 *dest, int size)
 int fromIDtoMask(u8 id, u8 *mask, int size)
 {
 	if (((int)((id) / 8)) < size) {
-		logError(0, "%s %s: ID = %d Index = %d Position = %d !\n", tag,
+		pr_info("%s: ID = %d Index = %d Position = %d !\n",
 			 __func__, id, ((int)((id) / 8)), (id % 8));
 		mask[((int)((id) / 8))] |= 0x01 << (id % 8);
 		return OK;
 	} else {
-		logError(1,
-			 "%s %s: Bitmask too small! Impossible contain ID = %d %d>=%d! ERROR %08X\n",
-			 tag, __func__, id, ((int)((id) / 8)), size,
-			 ERROR_OP_NOT_ALLOW);
+		pr_err("%s: Bitmask too small! Impossible contain ID = %d %d>=%d! ERROR %08X\n",
+			__func__, id, ((int)((id) / 8)), size,
+			ERROR_OP_NOT_ALLOW);
 		return ERROR_OP_NOT_ALLOW;
 	}
 }

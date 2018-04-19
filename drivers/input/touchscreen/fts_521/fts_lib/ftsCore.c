@@ -51,16 +51,16 @@ spinlock_t fts_int;						/*spinlock to controll the access to the disable_irq_co
 int initCore(struct fts_ts_info *info)
 {
 	int ret = OK;
-	logError(0, "%s %s: Initialization of the Core... \n", tag, __func__);
+	pr_info("%s: Initialization of the Core...\n", __func__);
 	ret |= openChannel(info->client);
 	ret |= resetErrorList();
 	ret |= initTestToDo();
 	setResetGpio(info->board->reset_gpio);
 	if (ret < OK) {
-		logError(0, "%s %s: Initialization Core ERROR %08X! \n", tag,
+		pr_err("%s: Initialization Core ERROR %08X!\n",
 			 __func__, ret);
 	} else {
-		logError(0, "%s %s: Initialization Finished! \n", tag,
+		pr_info("%s: Initialization Finished!\n",
 			 __func__);
 	}
 	return ret;
@@ -73,7 +73,7 @@ int initCore(struct fts_ts_info *info)
 void setResetGpio(int gpio)
 {
 	reset_gpio = gpio;
-	logError(0, "%s setResetGpio: reset_gpio = %d\n", tag, reset_gpio);
+	pr_info("setResetGpio: reset_gpio = %d\n", reset_gpio);
 }
 
 /**
@@ -90,7 +90,7 @@ int fts_system_reset(void)
 	u8 data[1] = { SYSTEM_RESET_VALUE };
 	event_to_search = (int)EVT_ID_CONTROLLER_READY;
 
-	logError(1, "%s System resetting...\n", tag);
+	pr_info("System resetting...\n");
 	if (fts_info) {
 		reinit_completion(&fts_info->tp_reset_completion);
 		atomic_set(&fts_info->system_is_resetting, 1);
@@ -111,15 +111,13 @@ int fts_system_reset(void)
 			res = OK;
 		}
 		if (res < OK) {
-			logError(1, "%s fts_system_reset: ERROR %08X\n", tag,
-				 ERROR_BUS_W);
+			pr_err("fts_system_reset: ERROR %08X\n", ERROR_BUS_W);
 		} else {
 			res =
 			    pollForEvent(&event_to_search, 1, readData,
 					 GENERAL_TIMEOUT);
 			if (res < OK) {
-				logError(1, "%s fts_system_reset: ERROR %08X\n",
-					 tag, res);
+				pr_err("fts_system_reset: ERROR %08X\n", res);
 			}
 		}
 	}
@@ -128,12 +126,11 @@ int fts_system_reset(void)
 		atomic_set(&fts_info->system_is_resetting, 0);
 	}
 	if (res < OK) {
-		logError(1,
-			 "%s fts_system_reset...failed after 3 attempts: ERROR %08X\n",
-			 tag, (res | ERROR_SYSTEM_RESET_FAIL));
+		pr_err("fts_system_reset...failed after 3 attempts: ERROR %08X\n",
+			(res | ERROR_SYSTEM_RESET_FAIL));
 		return (res | ERROR_SYSTEM_RESET_FAIL);
 	} else {
-		logError(1, "%s System reset DONE!\n", tag);
+		pr_debug("System reset DONE!\n");
 		system_reseted_down = 1;
 		system_reseted_up = 1;
 		return OK;
@@ -212,7 +209,7 @@ int pollForEvent(int *event_to_search, int event_bytes, u8 *readData,
 
 		if (readData[0] == EVT_ID_ERROR) {
 
-			logError(1, "%s %s\n", tag,
+			pr_debug("%s\n",
 				 printHex("ERROR EVENT = ", readData,
 					  FIFO_EVENT_SIZE, temp, sizeof(temp)));
 			memset(temp, 0, 128);
@@ -220,14 +217,13 @@ int pollForEvent(int *event_to_search, int event_bytes, u8 *readData,
 			err_handling = errorHandler(readData, FIFO_EVENT_SIZE);
 			if ((err_handling & 0xF0FF0000) ==
 			    ERROR_HANDLER_STOP_PROC) {
-				logError(0,
-					 "%s pollForEvent: forced to be stopped! ERROR %08X\n",
-					 tag, err_handling);
+				pr_err("pollForEvent: forced to be stopped! ERROR %08X\n",
+					err_handling);
 				return err_handling;
 			}
 		} else {
 			if (readData[0] != EVT_ID_NOEVENT) {
-				logError(0, "%s %s\n", tag,
+				pr_debug("%s\n",
 					 printHex("READ EVENT = ", readData,
 						  FIFO_EVENT_SIZE, temp, sizeof(temp)));
 				memset(temp, 0, 128);
@@ -235,9 +231,7 @@ int pollForEvent(int *event_to_search, int event_bytes, u8 *readData,
 			}
 			if (readData[0] == EVT_ID_CONTROLLER_READY
 			    && event_to_search[0] != EVT_ID_CONTROLLER_READY) {
-				logError(0,
-					 "%s pollForEvent: Unmanned Controller Ready Event! Setting reset flags...\n",
-					 tag);
+				pr_err("pollForEvent: Unmanned Controller Ready Event! Setting reset flags...\n");
 				setSystemResetedUp(1);
 				setSystemResetedDown(1);
 			}
@@ -259,20 +253,18 @@ int pollForEvent(int *event_to_search, int event_bytes, u8 *readData,
 	}
 	stopStopWatch(&clock);
 	if ((retry >= time_to_count) && find != 1) {
-		logError(1, "%s pollForEvent: ERROR %02X \n", tag,
-			 ERROR_TIMEOUT);
+		pr_err("pollForEvent: ERROR %08X\n", ERROR_TIMEOUT);
 		return ERROR_TIMEOUT;
 	} else if (find == 1) {
-		logError(0, "%s %s\n", tag,
+		pr_debug("%s\n",
 			 printHex("FOUND EVENT = ", readData, FIFO_EVENT_SIZE,
 				  temp, sizeof(temp)));
 		memset(temp, 0, 128);
-		logError(0,
-			 "%s Event found in %d ms (%d iterations)! Number of errors found = %d \n",
-			 tag, elapsedMillisecond(&clock), retry, count_err);
+		pr_debug("Event found in %d ms (%d iterations)! Number of errors found = %d\n",
+			elapsedMillisecond(&clock), retry, count_err);
 		return count_err;
 	} else {
-		logError(1, "%s pollForEvent: ERROR %08X \n", tag, ERROR_BUS_R);
+		pr_err("pollForEvent: ERROR %08X\n", ERROR_BUS_R);
 		return ERROR_BUS_R;
 	}
 }
@@ -292,8 +284,7 @@ int checkEcho(u8 *cmd, int size)
 	u8 readData[FIFO_EVENT_SIZE];
 
 	if (size < 1) {
-		logError(1, "%s checkEcho: Error Size = %d not valid! \n", tag,
-			 size, ERROR_OP_NOT_ALLOW);
+		pr_err("checkEcho: Error Size = %d not valid!\n", size);
 		return ERROR_OP_NOT_ALLOW;
 	} else {
 		if ((size + 3) > FIFO_EVENT_SIZE)
@@ -308,18 +299,16 @@ int checkEcho(u8 *cmd, int size)
 		    pollForEvent(event_to_search, size + 2, readData,
 				 TIEMOUT_ECHO);
 		if (ret < OK) {
-			logError(1,
-				 "%s checkEcho: Echo Event not found! ERROR %08X\n",
-				 tag, ret);
+			pr_err("checkEcho: Echo Event not found! ERROR %08X\n",
+				ret);
 			return (ret | ERROR_CHECK_ECHO_FAIL);
 		} else if (ret > OK) {
-			logError(1,
-				 "%s checkEcho: Echo Event found but with some error events before! num_error = %d \n",
-				 tag, ret);
+			pr_err("checkEcho: Echo Event found but with some error events before! num_error = %d\n",
+				ret);
 			return ERROR_CHECK_ECHO_FAIL;
 		}
 
-		logError(0, "%s ECHO OK!\n", tag);
+		pr_info("ECHO OK!\n");
 		return ret;
 	}
 
@@ -339,17 +328,17 @@ int setScanMode(u8 mode, u8 settings)
 	u8 cmd[3] = { FTS_CMD_SCAN_MODE, mode, settings };
 	int ret, size = 3;
 
-	logError(0, "%s %s: Setting scan mode: mode = %02X settings = %02X !\n",
-		 tag, __func__, mode, settings);
+	pr_debug("%s: Setting scan mode: mode = %02X settings = %02X !\n",
+		__func__, mode, settings);
 	if (mode == SCAN_MODE_LOW_POWER)
 		size = 2;
 	ret = fts_write_dma_safe(cmd, size);
 	if (ret < OK) {
-		logError(1, "%s %s: write failed...ERROR %08X !\n", tag,
+		pr_err("%s: write failed...ERROR %08X !\n",
 			 __func__, ret);
 		return ret | ERROR_SET_SCAN_MODE_FAIL;
 	}
-	logError(0, "%s %s: Setting scan mode OK!\n", tag, __func__);
+	pr_debug("%s: Setting scan mode OK!\n", __func__);
 	return OK;
 }
 
@@ -370,23 +359,25 @@ int setFeatures(u8 feat, u8 *settings, int size)
 	u8 cmd[2 + size];
 	int i = 0;
 	int ret;
-	logError(0, "%s %s: Setting feature: feat = %02X !\n", tag, __func__,
-		 feat);
+	char buff[(2 + 1) * size + 1];
+	int buff_len = sizeof(buff);
+	int index = 0;
+
+	pr_info("%s: Setting feature: feat = %02X !\n", __func__, feat);
 	cmd[0] = FTS_CMD_FEATURE;
 	cmd[1] = feat;
-	logError(0, "%s %s: Settings = ", tag, __func__);
 	for (i = 0; i < size; i++) {
 		cmd[2 + i] = settings[i];
-		logError(0, "%02X ", settings[i]);
+		index += scnprintf(buff + index, buff_len - index,
+					"%02X ", settings[i]);
 	}
-	logError(0, "\n");
+	pr_info("%s: Settings = %s\n", __func__, buff);
 	ret = fts_write_dma_safe(cmd, 2 + size);
 	if (ret < OK) {
-		logError(1, "%s %s: write failed...ERROR %08X !\n", tag,
-			 __func__, ret);
+		pr_err("%s: write failed...ERROR %08X !\n", __func__, ret);
 		return ret | ERROR_SET_FEATURE_FAIL;
 	}
-	logError(0, "%s %s: Setting feature OK!\n", tag, __func__);
+	pr_info("%s: Setting feature OK!\n", __func__);
 	return OK;
 }
 
@@ -406,32 +397,36 @@ int writeSysCmd(u8 sys_cmd, u8 *sett, int size)
 {
 	u8 cmd[2 + size];
 	int ret;
+	char buff[(2 + 1) * size + 1];
+	int buff_len = sizeof(buff);
+	int index = 0;
 
 	cmd[0] = FTS_CMD_SYSTEM;
 	cmd[1] = sys_cmd;
 
-	logError(0, "%s %s: Command = %02X %02X ", tag, __func__, cmd[0],
-		 cmd[1]);
 	for (ret = 0; ret < size; ret++) {
 		cmd[2 + ret] = sett[ret];
-		logError(0, "%02X ", cmd[2 + ret]);
+		index += scnprintf(buff + index, buff_len - index,
+					"%02X ", sett[ret]);
 	}
-	logError(0, "\n%s %s: Writing Sys command...\n", tag, __func__);
+	pr_info("%s: Command = %02X %02X %s\n", __func__, cmd[0],
+		 cmd[1], buff);
+	pr_info("%s: Writing Sys command...\n", __func__);
 	if (sys_cmd != SYS_CMD_LOAD_DATA) {
 		ret = fts_writeFwCmd(cmd, 2 + size);
 	} else {
 		if (size >= 1) {
 			ret = requestSyncFrame(sett[0]);
 		} else {
-			logError(1, "%s %s: No setting argument! ERROR %08X\n",
-				 tag, __func__, ERROR_OP_NOT_ALLOW);
+			pr_err("%s: No setting argument! ERROR %08X\n",
+				__func__, ERROR_OP_NOT_ALLOW);
 			return ERROR_OP_NOT_ALLOW;
 		}
 	}
 	if (ret < OK) {
-		logError(1, "%s %s: ERROR %08X\n", tag, __func__, ret);
+		pr_err("%s: ERROR %08X\n", __func__, ret);
 	} else
-		logError(0, "%s %s: FINISHED! \n", tag, __func__);
+		pr_info("%s: FINISHED!\n", __func__);
 
 	return ret;
 
@@ -450,7 +445,7 @@ int writeSysCmd(u8 sys_cmd, u8 *sett, int size)
 int defaultSysInfo(int i2cError)
 {
 	int i;
-	logError(0, "%s Setting default System Info... \n", tag);
+	pr_info("Setting default System Info...\n");
 
 	if (i2cError == 1) {
 		systemInfo.u16_fwVer = 0xFFFF;
@@ -471,7 +466,7 @@ int defaultSysInfo(int i2cError)
 	systemInfo.u8_scrRxLen = 0;
 	systemInfo.u8_scrTxLen = 0;
 
-	logError(0, "%s default System Info DONE! \n", tag);
+	pr_info("default System Info DONE!\n");
 	return OK;
 
 }
@@ -489,45 +484,40 @@ int readSysInfo(int request)
 	char temp[256] = { 0 };
 
 	if (request == 1) {
-		logError(0, "%s %s: Requesting System Info...\n", tag,
-			 __func__);
+		pr_info("%s: Requesting System Info...\n", __func__);
 
 		ret = writeSysCmd(SYS_CMD_LOAD_DATA, &sett, 1);
 		if (ret < OK) {
-			logError(1,
-				 "%s %s: error while writing the sys cmd ERROR %08X\n",
-				 tag, __func__, ret);
+			pr_err("%s: error while writing the sys cmd ERROR %08X\n",
+				__func__, ret);
 			goto FAIL;
 		}
 	}
 
-	logError(0, "%s %s: Reading System Info...\n", tag, __func__);
+	pr_info("%s: Reading System Info...\n", __func__);
 	ret =
 	    fts_writeReadU8UX(FTS_CMD_FRAMEBUFFER_R, BITS_16, ADDR_FRAMEBUFFER,
 			      data, SYS_INFO_SIZE, DUMMY_FRAMEBUFFER);
 	if (ret < OK) {
-		logError(1,
-			 "%s %s: error while reading the system data ERROR %08X\n",
-			 tag, __func__, ret);
+		pr_err("%s: error while reading the system data ERROR %08X\n",
+			__func__, ret);
 		goto FAIL;
 	}
 
-	logError(0, "%s %s: Parsing System Info...\n", tag, __func__);
+	pr_info("%s: Parsing System Info...\n", __func__);
 
 	if (data[0] != HEADER_SIGNATURE) {
-		logError(1,
-			 "%s %s: The Header Signature is wrong!  sign: %02X != %02X ERROR %08X\n",
-			 tag, __func__, data[0], HEADER_SIGNATURE,
-			 ERROR_WRONG_DATA_SIGN);
+		pr_err("%s: The Header Signature is wrong!  sign: %02X != %02X ERROR %08X\n",
+			__func__, data[0], HEADER_SIGNATURE,
+			ERROR_WRONG_DATA_SIGN);
 		ret = ERROR_WRONG_DATA_SIGN;
 		goto FAIL;
 	}
 
 	if (data[1] != LOAD_SYS_INFO) {
-		logError(1,
-			 "%s %s: The Data ID is wrong!  ids: %02X != %02X ERROR %08X \n",
-			 tag, __func__, data[3], LOAD_SYS_INFO,
-			 ERROR_DIFF_DATA_TYPE);
+		pr_err("%s: The Data ID is wrong!  ids: %02X != %02X ERROR %08X\n",
+			__func__, data[3], LOAD_SYS_INFO,
+			ERROR_DIFF_DATA_TYPE);
 		ret = ERROR_DIFF_DATA_TYPE;
 		goto FAIL;
 	}
@@ -547,39 +537,37 @@ int readSysInfo(int request)
 	index += 2;
 	u8ToU16(&data[index], &systemInfo.u16_fwVer);
 	index += 2;
-	logError(1, "%s FW VER = %04X \n", tag, systemInfo.u16_fwVer);
+	pr_info("FW VER = %04X\n", systemInfo.u16_fwVer);
 
 	u8ToU16(&data[index], &systemInfo.u16_svnRev);
 	index += 2;
-	logError(1, "%s SVN REV = %04X \n", tag, systemInfo.u16_svnRev);
+	pr_info("SVN REV = %04X\n", systemInfo.u16_svnRev);
 	u8ToU16(&data[index], &systemInfo.u16_cfgVer);
 	index += 2;
-	logError(1, "%s CONFIG VER = %04X \n", tag, systemInfo.u16_cfgVer);
+	pr_info("CONFIG VER = %04X\n", systemInfo.u16_cfgVer);
 	u8ToU16(&data[index], &systemInfo.u16_cfgProgectId);
 	index += 2;
-	logError(1, "%s CONFIG PROJECT ID = %04X \n", tag,
-		 systemInfo.u16_cfgProgectId);
+	pr_info("CONFIG PROJECT ID = %04X\n", systemInfo.u16_cfgProgectId);
 	u8ToU16(&data[index], &systemInfo.u16_cxVer);
 	index += 2;
-	logError(1, "%s CX VER = %04X \n", tag, systemInfo.u16_cxVer);
+	pr_info("CX VER = %04X\n", systemInfo.u16_cxVer);
 	u8ToU16(&data[index], &systemInfo.u16_cxProjectId);
 	index += 2;
-	logError(1, "%s CX PROJECT ID = %04X \n", tag,
-		 systemInfo.u16_cxProjectId);
+	pr_info("CX PROJECT ID = %04X\n", systemInfo.u16_cxProjectId);
 	systemInfo.u8_cfgAfeVer = data[index++];
 	systemInfo.u8_cxAfeVer = data[index++];
 	systemInfo.u8_panelCfgAfeVer = data[index++];
-	logError(1, "%s AFE VER: CFG = %02X - CX = %02X - PANEL = %02X \n", tag,
+	pr_info("AFE VER: CFG = %02X - CX = %02X - PANEL = %02X\n",
 		 systemInfo.u8_cfgAfeVer, systemInfo.u8_cxAfeVer,
 		 systemInfo.u8_panelCfgAfeVer);
 	systemInfo.u8_protocol = data[index++];
-	logError(0, "%s Protocol = %02X \n", tag, systemInfo.u8_protocol);
+	pr_info("Protocol = %02X\n", systemInfo.u8_protocol);
 
 	for (i = 0; i < DIE_INFO_SIZE; i++) {
 		systemInfo.u8_dieInfo[i] = data[index++];
 
 	}
-	logError(0, "%s %s \n", tag,
+	pr_info("%s\n",
 		 printHex("Die Info =  ", systemInfo.u8_dieInfo, DIE_INFO_SIZE,
 			  temp, sizeof(temp)));
 	memset(temp, 0, 256);
@@ -588,7 +576,7 @@ int readSysInfo(int request)
 		systemInfo.u8_releaseInfo[i] = data[index++];
 	}
 
-	logError(1, "%s %s \n", tag,
+	pr_info("%s\n",
 		 printHex("Release Info =  ", systemInfo.u8_releaseInfo,
 			  RELEASE_INFO_SIZE, temp, sizeof(temp)));
 	memset(temp, 0, 256);
@@ -605,16 +593,16 @@ int readSysInfo(int request)
 	index += 2;
 	u8ToU16(&data[index], &systemInfo.u16_scrResY);
 	index += 2;
-	logError(0, "%s Screen Resolution = %d x %d \n", tag,
+	pr_info("Screen Resolution = %d x %d\n",
 		 systemInfo.u16_scrResX, systemInfo.u16_scrResY);
 	systemInfo.u8_scrTxLen = data[index++];
-	logError(0, "%s TX Len = %d \n", tag, systemInfo.u8_scrTxLen);
+	pr_info("TX Len = %d\n", systemInfo.u8_scrTxLen);
 	systemInfo.u8_scrRxLen = data[index++];
-	logError(0, "%s RX Len = %d \n", tag, systemInfo.u8_scrRxLen);
+	pr_info("RX Len = %d\n", systemInfo.u8_scrRxLen);
 	systemInfo.u8_keyLen = data[index++];
-	logError(0, "%s Key Len = %d \n", tag, systemInfo.u8_keyLen);
+	pr_info("Key Len = %d\n", systemInfo.u8_keyLen);
 	systemInfo.u8_forceLen = data[index++];
-	logError(0, "%s Force Len = %d \n", tag, systemInfo.u8_forceLen);
+	pr_info("Force Len = %d\n", systemInfo.u8_forceLen);
 
 	index += 40;
 
@@ -704,16 +692,16 @@ int readSysInfo(int request)
 	u8ToU16(&data[index], &systemInfo.u16_ssPrxRxBaselineAddr);
 	index += 2;
 
-	logError(0, "%s Parsed %d bytes! \n", tag, index);
+	pr_info("Parsed %d bytes!\n", index);
 
 	if (index != SYS_INFO_SIZE) {
-		logError(1, "%s %s: index = %d different from %d ERROR %08X\n",
-			 tag, __func__, index, SYS_INFO_SIZE,
-			 ERROR_OP_NOT_ALLOW);
+		pr_err("%s: index = %d different from %d ERROR %08X\n",
+			__func__, index, SYS_INFO_SIZE,
+			ERROR_OP_NOT_ALLOW);
 		return ERROR_OP_NOT_ALLOW;
 	}
 
-	logError(0, "%s System Info Read DONE!\n", tag);
+	pr_info("System Info Read DONE!\n");
 	return OK;
 
 FAIL:
@@ -736,19 +724,18 @@ int readConfig(u16 offset, u8 *outBuf, int len)
 	int ret;
 	u64 final_address = offset + ADDR_CONFIG_OFFSET;
 
-	logError(0, "%s %s: Starting to read config memory at %08X ...", tag,
-		 __func__, final_address);
+	pr_info("%s: Starting to read config memory at %llx ...\n",
+		__func__, final_address);
 	ret =
 	    fts_writeReadU8UX(FTS_CMD_CONFIG_R, BITS_16, final_address, outBuf,
 			      len, DUMMY_CONFIG);
 	if (ret < OK) {
-		logError(1,
-			 "%s %s: Impossible to read Config Memory... ERROR %08X!",
-			 tag, __func__, ret);
+		pr_err("%s: Impossible to read Config Memory... ERROR %08X!\n",
+			__func__, ret);
 		return ret;
 	}
 
-	logError(0, "%s %s: Read config memory FINISHED!", tag, __func__);
+	pr_info("%s: Read config memory FINISHED!\n", __func__);
 	return OK;
 }
 
@@ -759,18 +746,17 @@ int readConfig(u16 offset, u8 *outBuf, int len)
 int fts_disableInterrupt(void)
 {
 	if (getClient() != NULL) {
-		logError(0, "%s Number of disable = %d \n", tag,
-			 disable_irq_count);
+		pr_debug("Number of disable = %d\n", disable_irq_count);
 		if (disable_irq_count == 0) {
-			logError(0, "%s Excecuting Disable... \n", tag);
+			pr_debug("Executing Disable...\n");
 			disable_irq(getClient()->irq);
 			disable_irq_count++;
 		}
-		logError(0, "%s Interrupt Disabled!\n", tag);
+		pr_debug("Interrupt Disabled!\n");
 		return OK;
 	} else {
-		logError(1, "%s %s: Impossible get client irq... ERROR %08X\n",
-			 tag, __func__, ERROR_OP_NOT_ALLOW);
+		pr_err("%s: Impossible get client irq... ERROR %08X\n",
+			__func__, ERROR_OP_NOT_ALLOW);
 		return ERROR_OP_NOT_ALLOW;
 	}
 
@@ -784,20 +770,19 @@ int fts_disableInterruptNoSync(void)
 {
 	if (getClient() != NULL) {
 		spin_lock_irq(&fts_int);
-		logError(0, "%s Number of disable = %d \n", tag,
-			 disable_irq_count);
+		pr_debug("Number of disable = %d\n", disable_irq_count);
 		if (disable_irq_count == 0) {
-			logError(0, "%s Executing Disable... \n", tag);
+			pr_debug("Executing Disable...\n");
 			disable_irq_nosync(getClient()->irq);
 			disable_irq_count++;
 		}
 
 		spin_unlock_irq(&fts_int);
-		logError(0, "%s Interrupt No Sync Disabled!\n", tag);
+		pr_debug("Interrupt No Sync Disabled!\n");
 		return OK;
 	} else {
-		logError(1, "%s %s: Impossible get client irq... ERROR %08X\n",
-			 tag, __func__, ERROR_OP_NOT_ALLOW);
+		pr_err("%s: Impossible get client irq... ERROR %08X\n",
+			__func__, ERROR_OP_NOT_ALLOW);
 		return ERROR_OP_NOT_ALLOW;
 	}
 }
@@ -820,18 +805,17 @@ int fts_enableInterrupt(void)
 {
 	if (getClient() != NULL) {
 
-		logError(0, "%s Number of re-enable = %d \n", tag,
-			 disable_irq_count);
+		pr_debug("Number of re-enable = %d\n", disable_irq_count);
 		while (disable_irq_count > 0) {
-			logError(0, "%s Excecuting Enable... \n", tag);
+			pr_debug("Executing Enable...\n");
 			enable_irq(getClient()->irq);
 			disable_irq_count--;
 		}
-		logError(0, "%s Interrupt Enabled!\n", tag);
+		pr_debug("Interrupt Enabled!\n");
 		return OK;
 	} else {
-		logError(1, "%s %s: Impossible get client irq... ERROR %08X\n",
-			 tag, __func__, ERROR_OP_NOT_ALLOW);
+		pr_err("%s: Impossible get client irq... ERROR %08X\n",
+			__func__, ERROR_OP_NOT_ALLOW);
 		return ERROR_OP_NOT_ALLOW;
 	}
 }
@@ -855,48 +839,41 @@ int fts_crc_check(void)
 	    fts_writeReadU8UX(FTS_CMD_HW_REG_R, ADDR_SIZE_HW_REG, ADDR_CRC,
 			      &val, 1, DUMMY_HW_REG);
 	if (res < OK) {
-		logError(1, "%s %s Cannot read crc status ERROR %08X\n", tag,
-			 __func__, res);
+		pr_err("%s Cannot read crc status ERROR %08X\n", __func__, res);
 		return res;
 	}
 
 	crc_status = val & CRC_MASK;
 	if (crc_status != OK) {
-		logError(1, "%s %s CRC ERROR = %02X \n", tag, __func__,
-			 crc_status);
+		pr_err("%s CRC ERROR = %02X\n", __func__, crc_status);
 		return CRC_CODE;
 	}
 
-	logError(1, "%s %s: Verifying if Config CRC Error...\n", tag, __func__);
+	pr_info("%s: Verifying if Config CRC Error...\n", __func__);
 	res = fts_system_reset();
 	if (res >= OK) {
 		res = pollForErrorType(error_to_search, 2);
 		if (res < OK) {
-			logError(1, "%s %s: No Config CRC Error Found! \n", tag,
-				 __func__);
-			logError(1, "%s %s: Verifying if Cx CRC Error...\n",
-				 tag, __func__);
+			pr_info("%s: No Config CRC Error Found!\n", __func__);
+			pr_info("%s: Verifying if Cx CRC Error...\n", __func__);
 			res = pollForErrorType(&error_to_search[2], 4);
 			if (res < OK) {
-				logError(1, "%s %s: No Cx CRC Error Found! \n",
-					 tag, __func__);
+				pr_info("%s: No Cx CRC Error Found!\n",
+					__func__);
 				return OK;
 			} else {
-				logError(1,
-					 "%s %s: Cx CRC Error found! CRC ERROR = %02X\n",
-					 tag, __func__, res);
+				pr_err("%s: Cx CRC Error found! CRC ERROR = %02X\n",
+					__func__, res);
 				return CRC_CX;
 			}
 		} else {
-			logError(1,
-				 "%s %s: Config CRC Error found! CRC ERROR = %02X\n",
-				 tag, __func__, res);
+			pr_err("%s: Config CRC Error found! CRC ERROR = %02X\n",
+				__func__, res);
 			return CRC_CONFIG;
 		}
 	} else {
-		logError(1,
-			 "%s %s: Error while executing system reset! ERROR %08X\n",
-			 tag, __func__, res);
+		pr_err("%s: Error while executing system reset! ERROR %08X\n",
+			__func__, res);
 		return res;
 	}
 
@@ -915,28 +892,26 @@ int requestSyncFrame(u8 type)
 	int ret, retry = 0, retry2 = 0, time_to_count;
 	int count, new_count;
 
-	logError(0, "%s %s: Starting to get a sync frame...\n", tag, __func__);
+	pr_info("%s: Starting to get a sync frame...\n", __func__);
 
 	while (retry2 < RETRY_MAX_REQU_DATA) {
-		logError(0, "%s %s: Reading count...\n", tag, __func__);
+		pr_info("%s: Reading count...\n", __func__);
 
 		ret =
 		    fts_writeReadU8UX(FTS_CMD_FRAMEBUFFER_R, BITS_16,
 				      ADDR_FRAMEBUFFER, readData, DATA_HEADER,
 				      DUMMY_FRAMEBUFFER);
 		if (ret < OK) {
-			logError(0,
-				 "%s %s: Error while reading count! ERROR %08X \n",
-				 tag, __func__, ret | ERROR_REQU_DATA);
+			pr_err("%s: Error while reading count! ERROR %08X\n",
+				__func__, ret | ERROR_REQU_DATA);
 			ret |= ERROR_REQU_DATA;
 			retry2++;
 			continue;
 		}
 
 		if (readData[0] != HEADER_SIGNATURE) {
-			logError(1,
-				 "%s %s: Invalid Signature while reading count! ERROR %08X \n",
-				 tag, __func__, ret | ERROR_REQU_DATA);
+			pr_err("%s: Invalid Signature while reading count! ERROR %08X\n",
+				__func__, ret | ERROR_REQU_DATA);
 			ret |= ERROR_REQU_DATA;
 			retry2++;
 			continue;
@@ -944,15 +919,14 @@ int requestSyncFrame(u8 type)
 
 		count = (readData[3] << 8) | readData[2];
 		new_count = count;
-		logError(0, "%s %s: Base count = %d\n", tag, __func__, count);
+		pr_info("%s: Base count = %d\n", __func__, count);
 
-		logError(0, "%s %s: Requesting frame %02X  attempt = %d \n",
-			 tag, __func__, type, retry2 + 1);
+		pr_info("%s: Requesting frame %02X  attempt = %d\n",
+			__func__,  type, retry2 + 1);
 		ret = fts_write_dma_safe(request, ARRAY_SIZE(request));
 		if (ret >= OK) {
 
-			logError(0, "%s %s: Polling for new count... \n", tag,
-				 __func__);
+			pr_info("%s: Polling for new count...\n", __func__);
 			time_to_count = TIMEOUT_REQU_DATA / TIMEOUT_RESOLUTION;
 			while (count == new_count && retry < time_to_count) {
 				ret =
@@ -965,31 +939,27 @@ int requestSyncFrame(u8 type)
 					new_count =
 					    ((readData[3] << 8) | readData[2]);
 				} else {
-					logError(0,
-						 "%s %s: invalid Signature or can not read count... ERROR %08X \n",
-						 tag, __func__, ret);
+					pr_err("%s: invalid Signature or can not read count... ERROR %08X\n",
+						__func__, ret);
 				}
 				retry++;
 				mdelay(TIMEOUT_RESOLUTION);
 			}
 
 			if (count == new_count) {
-				logError(1,
-					 "%s %s: New count not received! ERROR %08X \n",
-					 tag, __func__,
-					 ERROR_TIMEOUT | ERROR_REQU_DATA);
+				pr_err("%s: New count not received! ERROR %08X\n",
+					__func__,
+					ERROR_TIMEOUT | ERROR_REQU_DATA);
 				ret = ERROR_TIMEOUT | ERROR_REQU_DATA;
 			} else {
-				logError(0,
-					 "%s %s: New count found! count = %d! Frame ready! \n",
-					 tag, __func__, new_count);
+				pr_info("%s: New count found! count = %d! Frame ready!\n",
+					__func__, new_count);
 				return OK;
 			}
 		}
 		retry2++;
 	}
-	logError(1, "%s %s: Request Data failed! ERROR %08X \n", tag, __func__,
-		 ret);
+	pr_err("%s: Request Data failed! ERROR %08X\n", __func__, ret);
 	return ret;
 }
 
@@ -1000,7 +970,7 @@ int calculateCRC8(u8 *u8_srcBuff, int size, u8 *crc)
 	int i = 0;
 	u8_remainder = 0x00;
 
-	logError(0, "%s %s: Start CRC computing...\n", tag, __func__);
+	pr_info("%s: Start CRC computing...\n", __func__);
 	if (size != 0 && u8_srcBuff != NULL) {
 		for (i = 0; i < size; i++) {
 			u8_remainder ^= u8_srcBuff[i];
@@ -1014,12 +984,12 @@ int calculateCRC8(u8 *u8_srcBuff, int size, u8 *crc)
 			}
 		}
 		*crc = u8_remainder;
-		logError(0, "%s %s: CRC value = %02X\n", tag, __func__, *crc);
+		pr_info("%s: CRC value = %02X\n", __func__, *crc);
 		return OK;
 	} else {
-		logError(1,
-			 "%s %s: Arguments passed not valid! Data pointer = NULL or size = 0 (%d) ERROR %08X\n",
-			 tag, __func__, size, ERROR_OP_NOT_ALLOW);
+		pr_err("%s: Arguments passed not valid! Data pointer = NULL or size = 0 (%d) ERROR %08X\n",
+						__func__, size, ERROR_OP_NOT_ALLOW);
+
 		return ERROR_OP_NOT_ALLOW;
 	}
 }
@@ -1038,47 +1008,43 @@ int writeLockDownInfo(u8 *data, int size, u8 lock_id)
 		EVT_TYPE_ERROR_LOCKDOWN_WRITE_FULL
 	};
 
-	logError(0, "%s %s:enter", tag, __func__);
 	if (lock_id < 0x70 || lock_id > 0x77 || size <= 0
 	    || size > LOCKDOWN_LENGTH - 20) {
-		logError(1,
-			 "%s %s the lock id type is:%02X size:%d not support\n",
-			 tag, __func__, lock_id, size);
+		pr_err("%s: The lock id type is: %02X size: %d not support\n",
+			__func__, lock_id, size);
 		return ERROR_LOCKDOWN_CODE;
 	}
 
 	temp = printHex_data("Lockdown Code = ", data, size);
 	if (temp != NULL) {
-		logError(1, "%s: %s", __func__, temp);
+		pr_info("%s: %s", __func__, temp);
 		kfree(temp);
 	}
 
-	logError(0, "%s: Writing Lockdown code into the IC ...\n", __func__);
+	pr_info("%s: Writing Lockdown code into the IC ...\n", __func__);
 	fts_disableInterrupt();
 	for (i = 0; i < 3; i++) {
 		cmd_lockdown_prepare[1] = lock_id;
 		ret = calculateCRC8(data, size, &crc_data);
 		if (ret < OK) {
-			logError(1,
-				 "%s %s: Unable to compute data CRC.. ERROR %08X\n",
-				 tag, __func__, ret);
+			pr_err("%s: Unable to compute data CRC.. ERROR %08X\n",
+				__func__, ret);
 			ret = (ret | ERROR_LOCKDOWN_CODE);
 			continue;
 		}
-		logError(0, "%s %s: Get the data CRC value:%02X\n", tag,
+		pr_info("%s: Get the data CRC value:%02X\n",
 			 __func__, crc_data);
 		ret =
 		    fts_writeU8UX(LOCKDOWN_WRITEREAD_CMD, BITS_16,
 				  ADDR_LOCKDOWN, cmd_lockdown_prepare,
 				  ARRAY_SIZE(cmd_lockdown_prepare));
 		if (ret < OK) {
-			logError(1,
-				 "%s %s: Unable to write Lockdown data prepare at %d iteration.. ERROR %08X\n",
-				 tag, __func__, i, ret);
+			pr_err("%s: Unable to write Lockdown data prepare at %d iteration.. ERROR %08X\n",
+				__func__, i, ret);
 			ret = (ret | ERROR_LOCKDOWN_CODE);
 			continue;
 		}
-		logError(0, "%s %s: Compute 8bit header CRC...\n", tag,
+		pr_info("%s: Compute 8bit header CRC...\n",
 			 __func__);
 
 		cmd_lockdown_crc[0] = (u8) size;
@@ -1086,14 +1052,13 @@ int writeLockDownInfo(u8 *data, int size, u8 lock_id)
 		cmd_lockdown_crc[2] = lock_id;
 		ret = calculateCRC8(cmd_lockdown_crc, 3, &crc_head);
 		if (ret < OK) {
-			logError(1,
-				 "%s %s: Unable to compute head CRC.. ERROR %08X\n",
-				 tag, __func__, ret);
+			pr_err("%s: Unable to compute head CRC.. ERROR %08X\n",
+				__func__, ret);
 			ret = (ret | ERROR_LOCKDOWN_CODE);
 			continue;
 		}
 		cmd_lockdown_crc[3] = crc_head;
-		logError(0, "%s %s: Get the header CRC value:%02X\n", tag,
+		pr_info("%s: Get the header CRC value:%02X\n",
 			 __func__, crc_head);
 
 		ret =
@@ -1102,9 +1067,8 @@ int writeLockDownInfo(u8 *data, int size, u8 lock_id)
 				  LOCKDOWN_HEAD_LENGTH, cmd_lockdown_crc,
 				  ARRAY_SIZE(cmd_lockdown_crc));
 		if (ret < OK) {
-			logError(1,
-				 "%s %s: Unable to write Lockdown  head at %d iteration.. ERROR %08X\n",
-				 tag, __func__, i, ret);
+			pr_err("%s: Unable to write Lockdown  head at %d iteration.. ERROR %08X\n",
+				__func__, i, ret);
 			ret = (ret | ERROR_LOCKDOWN_CODE);
 			continue;
 		}
@@ -1114,9 +1078,8 @@ int writeLockDownInfo(u8 *data, int size, u8 lock_id)
 				  ADDR_LOCKDOWN + LOCKDOWN_DATA_OFFSET, data,
 				  size);
 		if (ret < OK) {
-			logError(1,
-				 "%s %s: Unable to write Lockdown  head at %d iteration.. ERROR %08X\n",
-				 tag, __func__, i, ret);
+			pr_err("%s: Unable to write Lockdown  head at %d iteration.. ERROR %08X\n",
+				__func__, i, ret);
 			ret = (ret | ERROR_LOCKDOWN_CODE);
 			continue;
 		}
@@ -1125,31 +1088,26 @@ int writeLockDownInfo(u8 *data, int size, u8 lock_id)
 		mdelay(5);
 		ret = checkEcho(lockdown_save, 3);
 		if (ret < OK) {
-			logError(1, "%s No Echo received.. ERROR %08X !\n", tag,
-				 ret);
+			pr_err("%s: No Echo received.. ERROR %08X !\n", __func__, ret);
 			continue;
 		} else {
-			logError(1, "%s Echo FOUND... OK!\n", tag, ret);
+			pr_info("%s: Echo FOUND... OK!\n", __func__, ret);
 			ret = pollForErrorType(error_to_search, 4);
 			if (ret < OK) {
-				logError(1, "%s %s: No Error Found! \n", tag,
-					 __func__);
+				pr_info("%s: No Error Found! \n", __func__);
 				ret = OK;
 			} else {
-				logError(1,
-					 "%s %s: have error when write lockdown ERROR = %02X\n",
-					 tag, __func__, ret);
+				pr_err("%s: have error when write lockdown ERROR = %02X\n",
+					 __func__, ret);
 				ret = ERROR_LOCKDOWN_CODE;
 			}
 			break;
 		}
 	}
 	if (ret < OK)
-		logError(1, "%s %s end, write lockdown failed\n", tag, __func__,
-			 ret);
+		pr_err("%s: end, write lockdown failed\n", __func__, ret);
 	else
-		logError(1, "%s %s end, write lockdown success\n", tag,
-			 __func__, ret);
+		pr_info("%s: end, write lockdown success\n", __func__, ret);
 
 	fts_enableInterrupt();
 	return ret;
@@ -1164,17 +1122,16 @@ int readLockDownInfo(u8 *lockData, u8 lock_id, int size)
 	char *datatemp = NULL;
 	u8 cmd_lockdown[3] = { 0xA4, 0x06, 0x00 };
 
-	logError(0, "%s %s:enter", tag, __func__);
 	if (lock_id < 0x70 || lock_id > 0x77 || size <= 0
 	    || size > LOCKDOWN_LENGTH - 20) {
-		logError(1, "%s the lock id type is:%02X not support\n", tag,
-			 lock_id);
+		pr_err("%s: The lock id type is: %02X not support\n",
+			__func__, lock_id);
 		return ERROR_LOCKDOWN_CODE;
 	}
 
 	temp = (u8 *) kmalloc(LOCKDOWN_LENGTH * sizeof(u8), GFP_KERNEL);
 	if (temp == NULL) {
-		logError(1, "FTS temp alloc  memory failed \n");
+		pr_err("%s: temp alloc  memory failed\n", __func__);
 		return -ENOMEM;
 	}
 	memset(temp, 0, LOCKDOWN_LENGTH * sizeof(u8));
@@ -1186,9 +1143,8 @@ int readLockDownInfo(u8 *lockData, u8 lock_id, int size)
 				      ADDR_LOCKDOWN, temp, LOCKDOWN_HEAD_LENGTH,
 				      DUMMY_CONFIG);
 		if (ret < OK) {
-			logError(1,
-				 "%s %s: error while reading data ERROR %08X \n",
-				 tag, __func__, ret);
+			pr_err("%s: error while reading data ERROR %08X \n",
+				__func__, ret);
 			goto END;
 		}
 		loaded_cnt = (int)((temp[3] & 0xFF) << 8) + (temp[2] & 0xFF);
@@ -1197,11 +1153,10 @@ int readLockDownInfo(u8 *lockData, u8 lock_id, int size)
 		mdelay(10);
 		ret = checkEcho(cmd_lockdown, 3);
 		if (ret < OK) {
-			logError(1, "%s No Echo received.. ERROR %08X !\n", tag,
-				 ret);
+			pr_err("%s: No Echo received.. ERROR %08X !\n", __func__, ret);
 			continue;
 		} else {
-			logError(1, "%s Echo FOUND... OK!\n", tag, ret);
+			pr_info("%s: Echo FOUND... OK!\n", __func__, ret);
 		}
 		ret =
 		    fts_writeReadU8UX(LOCKDOWN_WRITEREAD_CMD, BITS_16,
@@ -1209,9 +1164,8 @@ int readLockDownInfo(u8 *lockData, u8 lock_id, int size)
 				      size + LOCKDOWN_DATA_OFFSET,
 				      DUMMY_CONFIG);
 		if (ret < OK) {
-			logError(1,
-				 "%s %s: error while reading data ERROR %08X \n",
-				 tag, __func__, ret);
+			pr_err("%s: error while reading data ERROR %08X \n",
+				__func__, ret);
 			goto END;
 		}
 
@@ -1219,16 +1173,14 @@ int readLockDownInfo(u8 *lockData, u8 lock_id, int size)
 		    (int)((temp[3] & 0xFF) << 8) + (temp[2] & 0xFF);
 		if (temp[4] == EVT_TYPE_ERROR_LOCKDOWN_FLASH
 		    || temp[4] == EVT_TYPE_ERROR_LOCKDOWN_NO_DATA) {
-			logError(1,
-				 "%s %s: can not read the lockdown code ERROR type:%02X\n",
-				 tag, __func__, temp[4]);
+			pr_err("%s: can not read the lockdown code ERROR type:%02X\n",
+				__func__, temp[4]);
 			ret = ERROR_LOCKDOWN_CODE;
 			goto END;
 		}
 
-		logError(1,
-			 "%s %s signature:%02X id:%02X %02X beforecnt:%d,aftercnt:%d\n",
-			 tag, __func__, temp[0], temp[1], lock_id, loaded_cnt,
+		pr_info("%s: signature:%02X id:%02X %02X beforecnt:%d,aftercnt:%d\n",
+			 __func__, temp[0], temp[1], lock_id, loaded_cnt,
 			 loaded_cnt_after);
 		if (loaded_cnt_after == loaded_cnt + 1) {
 			ret = OK;
@@ -1240,7 +1192,7 @@ int readLockDownInfo(u8 *lockData, u8 lock_id, int size)
 
 	datatemp = printHex_data("Lockdown Code = ", lockData, size);
 	if (datatemp != NULL) {
-		logError(1, "%s %s", tag, datatemp);
+		pr_info("%s: %s", __func__, datatemp);
 		kfree(datatemp);
 	}
 
@@ -1264,18 +1216,18 @@ int fts_get_lockdown_info(u8 *lockData, struct fts_ts_info *info)
 	if (info == NULL)
 		return ERROR_LOCKDOWN_CODE;
 	if (info->lockdown_is_ok) {
-		logError(1, "%s %s aleady get,skip\n", tag, __func__);
+		pr_info("%s: already get, skipping\n", __func__);
 		return OK;
 	}
-	logError(0, "%s %s:enter", tag, __func__);
+
 	if (lock_id < 0x70 || lock_id > 0x77) {
-		logError(1, "%s the lock id type is not support\n", tag);
+		pr_err("%s: The lock id type is not support\n", __func__);
 		return ERROR_LOCKDOWN_CODE;
 	}
 
 	temp = (u8 *) kmalloc(1024 * sizeof(u8), GFP_KERNEL);
 	if (temp == NULL) {
-		logError(1, "FTS temp alloc  memory failed \n");
+		pr_err("%s: temp alloc  memory failed \n", __func__);
 		return -ENOMEM;
 	}
 	memset(temp, 0, 1024 * sizeof(u8));
@@ -1289,9 +1241,8 @@ int fts_get_lockdown_info(u8 *lockData, struct fts_ts_info *info)
 				      ADDR_LOCKDOWN, temp, LOCKDOWN_HEAD_LENGTH,
 				      DUMMY_CONFIG);
 		if (ret < OK) {
-			logError(1,
-				 "%s %s: error while reading data ERROR %08X \n",
-				 tag, __func__, ret);
+			pr_err("%s: error while reading data ERROR %08X \n",
+				__func__, ret);
 			goto END;
 		}
 		loaded_cnt = (int)((temp[3] & 0xFF) << 8) + (temp[2] & 0xFF);
@@ -1300,11 +1251,10 @@ int fts_get_lockdown_info(u8 *lockData, struct fts_ts_info *info)
 		mdelay(10);
 		ret = checkEcho(cmd_lockdown, 3);
 		if (ret < OK) {
-			logError(1, "%s No Echo received.. ERROR %08X !\n", tag,
-				 ret);
+			pr_err("%s: No Echo received.. ERROR %08X !\n", __func__, ret);
 			continue;
 		} else {
-			logError(1, "%s Echo FOUND... OK!\n", tag, ret);
+			pr_info("%s: Echo FOUND... OK!\n", __func__, ret);
 		}
 		ret =
 		    fts_writeReadU8UX(LOCKDOWN_WRITEREAD_CMD, BITS_16,
@@ -1312,9 +1262,8 @@ int fts_get_lockdown_info(u8 *lockData, struct fts_ts_info *info)
 				      size + LOCKDOWN_DATA_OFFSET,
 				      DUMMY_CONFIG);
 		if (ret < OK) {
-			logError(1,
-				 "%s %s: error while reading data ERROR %08X \n",
-				 tag, __func__, ret);
+			pr_err("%s: error while reading data ERROR %08X \n",
+				__func__, ret);
 			goto END;
 		}
 
@@ -1322,16 +1271,14 @@ int fts_get_lockdown_info(u8 *lockData, struct fts_ts_info *info)
 		    (int)((temp[3] & 0xFF) << 8) + (temp[2] & 0xFF);
 		if (temp[4] == EVT_TYPE_ERROR_LOCKDOWN_FLASH
 		    || temp[4] == EVT_TYPE_ERROR_LOCKDOWN_NO_DATA) {
-			logError(1,
-				 "%s %s: can not read the lockdown code ERROR type:%02X\n",
-				 tag, __func__, temp[4]);
+			pr_err("%s: can not read the lockdown code ERROR type: %02X\n",
+				__func__, temp[4]);
 			ret = ERROR_LOCKDOWN_CODE;
 			goto END;
 		}
 
-		logError(1,
-			 "%s %s signature:%02X id:%02X %02X beforecnt:%d,aftercnt:%d\n",
-			 tag, __func__, temp[0], temp[1], lock_id, loaded_cnt,
+		pr_info("%s: signature:%02X id:%02X %02X beforecnt:%d,aftercnt:%d\n",
+			 __func__, temp[0], temp[1], lock_id, loaded_cnt,
 			 loaded_cnt_after);
 		if (loaded_cnt_after == loaded_cnt + 1) {
 			ret = OK;
@@ -1343,7 +1290,7 @@ int fts_get_lockdown_info(u8 *lockData, struct fts_ts_info *info)
 
 	datatemp = printHex_data("Lockdown Code = ", lockData, size);
 	if (datatemp != NULL) {
-		logError(0, "%s %s", tag, datatemp);
+		pr_info("%s %s", __func__, datatemp);
 		kfree(datatemp);
 	}
 
