@@ -92,6 +92,7 @@
 #include <net/neighbour.h>
 #include <net/netevent.h>
 #include "wlan_hdd_nud_tracking.h"
+#include "wlan_hdd_twt.h"
 
 /*
  * Preprocessor definitions and constants
@@ -1902,6 +1903,9 @@ struct hdd_context {
 	/* defining the board related information */
 	uint32_t hw_bd_id;
 	struct board_info hw_bd_info;
+#ifdef WLAN_FEATURE_TWT
+	enum twt_status twt_state;
+#endif
 };
 
 /**
