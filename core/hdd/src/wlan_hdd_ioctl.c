@@ -5920,7 +5920,7 @@ static int drv_cmd_set_mc_rate(hdd_adapter_t *adapter,
 {
 	int ret = 0;
 	uint8_t *value = command;
-	int targetRate;
+	int targetRate = 0;
 
 	/* input value is in units of hundred kbps */
 
