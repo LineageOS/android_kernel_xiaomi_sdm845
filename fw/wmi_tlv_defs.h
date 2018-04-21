@@ -912,6 +912,9 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_request_roam_scan_stats_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_roam_scan_stats_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_peer_tid_configurations_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_vdev_set_custom_sw_retry_th_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_get_tpc_power_cmd_fixed_param,
+    WMITLV_TAG_STRUC_wmi_get_tpc_power_evt_fixed_param,
 } WMITLV_TAG_ID;
 
 /*
@@ -1283,6 +1286,8 @@ typedef enum {
     OP(WMI_TWT_RESUME_DIALOG_CMDID) \
     OP(WMI_REQUEST_ROAM_SCAN_STATS_CMDID) \
     OP(WMI_PEER_TID_CONFIGURATIONS_CMDID) \
+    OP(WMI_VDEV_SET_CUSTOM_SW_RETRY_TH_CMDID) \
+    OP(WMI_GET_TPC_POWER_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -1489,6 +1494,7 @@ typedef enum {
     OP(WMI_TWT_PAUSE_DIALOG_COMPLETE_EVENTID) \
     OP(WMI_TWT_RESUME_DIALOG_COMPLETE_EVENTID) \
     OP(WMI_ROAM_SCAN_STATS_EVENTID) \
+    OP(WMI_GET_TPC_POWER_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -2388,6 +2394,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_GET_TX_POWER_CMDID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_limit_offchan_cmd_fixed_param, wmi_vdev_limit_offchan_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_LIMIT_OFFCHAN_CMDID);
+
+/* vdev per-AC SW retry configuration cmd */
+#define WMITLV_TABLE_WMI_VDEV_SET_CUSTOM_SW_RETRY_TH_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_set_custom_sw_retry_th_cmd_fixed_param, wmi_vdev_set_custom_sw_retry_th_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+
+WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_SET_CUSTOM_SW_RETRY_TH_CMDID);
 
 /* PDEV Set Base Mac Address Cmd */
 #define WMITLV_TABLE_WMI_PDEV_SET_BASE_MACADDR_CMDID(id,op,buf,len) \
@@ -3658,6 +3670,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_SET_RX_FILTER_PROMISCUOUS_CMDID);
 
 WMITLV_CREATE_PARAM_STRUC(WMI_RUNTIME_DPD_RECAL_CMDID);
 
+/** Get TX power Cmd */
+#define WMITLV_TABLE_WMI_GET_TPC_POWER_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_get_tpc_power_cmd_fixed_param, wmi_get_tpc_power_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+
+WMITLV_CREATE_PARAM_STRUC(WMI_GET_TPC_POWER_CMDID);
+
 /* TWT enable cmd */
 #define WMITLV_TABLE_WMI_TWT_ENABLE_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_twt_enable_cmd_fixed_param, wmi_twt_enable_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
@@ -3990,6 +4008,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_FTM_INTG_EVENTID);
 #define WMITLV_TABLE_WMI_VDEV_GET_KEEPALIVE_EVENTID(id,op,buf,len)                                                         \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_vdev_get_keepalive_event_fixed_param, wmi_vdev_get_keepalive_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_VDEV_GET_KEEPALIVE_EVENTID);
+
+/** Get TX power Event */
+#define WMITLV_TABLE_WMI_GET_TPC_POWER_EVENTID(id,op,buf,len)  \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_get_tpc_power_evt_fixed_param, wmi_get_tpc_power_evt_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_GET_TPC_POWER_EVENTID);
 
 /* GPIO Input Event */
 #define WMITLV_TABLE_WMI_GPIO_INPUT_EVENTID(id,op,buf,len)  \
