@@ -203,7 +203,6 @@ int hdd_sap_context_init(hdd_context_t *hdd_ctx)
 	qdf_spinlock_create(&hdd_ctx->sap_update_info_lock);
 
 	qdf_atomic_init(&hdd_ctx->dfs_radar_found);
-	qdf_atomic_init(&hdd_ctx->is_acs_allowed);
 
 	return 0;
 }
@@ -1676,16 +1675,8 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 					pHddApCtx->uBCStaId,
 					HDD_IPA_AP_CONNECT,
 					pHostapdAdapter->dev->dev_addr);
-			if (status) {
+			if (status)
 				hdd_err("WLAN_AP_CONNECT event failed");
-				/*
-				 * Make sure to set the event before proceeding
-				 * for error handling otherwise caller thread
-				 * will wait till 10 secs and no other
-				 * connection will go through before that.
-				 */
-				qdf_event_set(&pHostapdState->qdf_event);
-			}
 		}
 
 		if (0 !=
@@ -2518,7 +2509,8 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		/* send vendor event to hostapd only for hostapd based acs*/
 		if (!pHddCtx->config->force_sap_acs)
 			wlan_hdd_cfg80211_acs_ch_select_evt(pHostapdAdapter);
-		qdf_atomic_set(&pHddCtx->is_acs_allowed, 0);
+		qdf_atomic_set(
+			&pHostapdAdapter->sessionCtx.ap.acs_in_progress, 0);
 		return QDF_STATUS_SUCCESS;
 	case eSAP_ECSA_CHANGE_CHAN_IND:
 		hdd_debug("Channel change indication from peer for channel %d",
@@ -5268,58 +5260,6 @@ static int iw_get_ap_freq(struct net_device *dev,
 	return ret;
 }
 
-/**
- * __iw_get_mode() - get mode
- * @dev - Pointer to the net device.
- * @info - Pointer to the iw_request_info.
- * @wrqu - Pointer to the iwreq_data.
- * @extra - Pointer to the data.
- *
- * Return: 0 for success, non zero for failure.
- */
-static int __iw_get_mode(struct net_device *dev,
-		       struct iw_request_info *info,
-		       union iwreq_data *wrqu, char *extra) {
-
-	hdd_adapter_t *adapter;
-	hdd_context_t *hdd_ctx;
-	int ret;
-
-	ENTER_DEV(dev);
-
-	adapter = WLAN_HDD_GET_PRIV_PTR(dev);
-	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
-		return ret;
-
-	wrqu->mode = IW_MODE_MASTER;
-
-	return ret;
-}
-
-/**
- * iw_get_mode() - Wrapper function to protect __iw_get_mode from the SSR.
- * @dev - Pointer to the net device.
- * @info - Pointer to the iw_request_info.
- * @wrqu - Pointer to the iwreq_data.
- * @extra - Pointer to the data.
- *
- * Return: 0 for success, non zero for failure.
- */
-static int iw_get_mode(struct net_device *dev,
-			struct iw_request_info *info,
-			union iwreq_data *wrqu, char *extra)
-{
-	int ret;
-
-	cds_ssr_protect(__func__);
-	ret = __iw_get_mode(dev, info, wrqu, extra);
-	cds_ssr_unprotect(__func__);
-
-	return ret;
-}
-
 static int
 __iw_softap_stopbss(struct net_device *dev,
 		    struct iw_request_info *info,
@@ -5811,7 +5751,7 @@ static const iw_handler hostapd_handler[] = {
 	(iw_handler) NULL,      /* SIOCSIWFREQ */
 	(iw_handler) iw_get_ap_freq,            /* SIOCGIWFREQ */
 	(iw_handler) NULL,      /* SIOCSIWMODE */
-	(iw_handler) iw_get_mode,       /* SIOCGIWMODE */
+	(iw_handler) NULL,       /* SIOCGIWMODE */
 	(iw_handler) NULL,      /* SIOCSIWSENS */
 	(iw_handler) NULL,      /* SIOCGIWSENS */
 	(iw_handler) NULL,      /* SIOCSIWRANGE */
@@ -6451,7 +6391,7 @@ QDF_STATUS hdd_init_ap_mode(hdd_adapter_t *pAdapter, bool reinit)
 	ENTER();
 
 	hdd_info("SSR in progress: %d", reinit);
-
+	qdf_atomic_init(&pAdapter->sessionCtx.ap.acs_in_progress);
 	if (reinit)
 		sapContext = pAdapter->sessionCtx.ap.sapContext;
 	else {
@@ -8499,6 +8439,8 @@ error:
 	if (sme_config)
 		qdf_mem_free(sme_config);
 	clear_bit(SOFTAP_INIT_DONE, &pHostapdAdapter->event_flags);
+	qdf_atomic_set(
+		&pHostapdAdapter->sessionCtx.ap.acs_in_progress, 0);
 	wlan_hdd_undo_acs(pHostapdAdapter);
 
 ret_status:
@@ -8635,6 +8577,8 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 
 	pConfig = &pAdapter->sessionCtx.ap.sapConfig;
 	pConfig->acs_cfg.acs_mode = false;
+	qdf_atomic_set(
+		&pAdapter->sessionCtx.ap.acs_in_progress, 0);
 	wlan_hdd_undo_acs(pAdapter);
 	qdf_mem_zero(&pConfig->acs_cfg, sizeof(struct sap_acs_cfg));
 

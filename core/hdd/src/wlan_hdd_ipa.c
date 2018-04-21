@@ -5859,17 +5859,30 @@ static void hdd_ipa_cleanup_iface(struct hdd_ipa_iface_context *iface_context)
 	hdd_ipa_clean_hdr(iface_context->adapter);
 
 	qdf_spin_lock_bh(&iface_context->interface_lock);
+	/*
+	 * Possible race condtion between supplicant and MC thread
+	 * and check if the address has been already cleared by the
+	 * other thread
+	 */
+	if (!iface_context->adapter) {
+		qdf_spin_unlock_bh(&iface_context->interface_lock);
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "Already cleared");
+		goto end;
+	}
 	iface_context->adapter->ipa_context = NULL;
 	iface_context->adapter = NULL;
 	iface_context->tl_context = NULL;
-	qdf_spin_unlock_bh(&iface_context->interface_lock);
 	iface_context->ifa_address = 0;
+	qdf_spin_unlock_bh(&iface_context->interface_lock);
 	if (!iface_context->hdd_ipa->num_iface) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR,
 			"NUM INTF 0, Invalid");
 		QDF_ASSERT(0);
+		goto end;
 	}
 	iface_context->hdd_ipa->num_iface--;
+
+end:
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "exit: num_iface=%d",
 		    iface_context->hdd_ipa->num_iface);
 }

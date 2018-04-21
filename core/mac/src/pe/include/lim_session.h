@@ -512,6 +512,7 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	bool recvd_deauth_while_roaming;
 	bool recvd_disassoc_while_roaming;
 	bool deauth_disassoc_rc;
+	int8_t def_max_tx_pwr;
 } tPESession, *tpPESession;
 
 /*-------------------------------------------------------------------------

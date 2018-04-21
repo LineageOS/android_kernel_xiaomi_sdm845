@@ -5360,6 +5360,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_GCMP_MIN,
 		     CFG_ENABLE_GCMP_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_UNIT_TEST_FRAMEWORK_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, is_unit_test_framework_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_UINT_TEST_FRAMEWORK_DEFAULT,
+		     CFG_ENABLE_UNIT_TEST_FRAMEWORK_MIN,
+		     CFG_ENABLE_UNIT_TEST_FRAMEWORK_MAX),
 };
 
 /**
@@ -7158,6 +7165,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%d]",
 		  CFG_ENABLE_GCMP_NAME,
 		  pHddCtx->config->gcmp_enabled);
+	hdd_debug("Name = [%s] value = [0x%x]",
+		  CFG_ENABLE_UNIT_TEST_FRAMEWORK_NAME,
+		  pHddCtx->config->is_unit_test_framework_enabled);
 }
 
 /**

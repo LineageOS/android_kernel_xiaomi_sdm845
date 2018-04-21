@@ -725,13 +725,13 @@ int wlan_hdd_validate_context(hdd_context_t *hdd_ctx)
 	if (cds_is_driver_in_bad_state()) {
 		hdd_debug("%pS driver in bad State: 0x%x Ignore!!!",
 			(void *)_RET_IP_, cds_get_driver_state());
-		return -ENODEV;
+		return -EAGAIN;
 	}
 
 	if (cds_is_fw_down()) {
 		hdd_debug("%pS FW is down: 0x%x Ignore!!!",
 			(void *)_RET_IP_, cds_get_driver_state());
-		return -ENODEV;
+		return -EAGAIN;
 	}
 
 	return 0;
@@ -3420,6 +3420,7 @@ static void hdd_ap_adapter_deinit(hdd_context_t *hdd_ctx,
 		hdd_wmm_adapter_close(adapter);
 		clear_bit(WMM_INIT_DONE, &adapter->event_flags);
 	}
+	qdf_atomic_set(&adapter->sessionCtx.ap.acs_in_progress, 0);
 	wlan_hdd_undo_acs(adapter);
 
 	hdd_cleanup_actionframe(hdd_ctx, adapter);
@@ -4389,6 +4390,7 @@ QDF_STATUS hdd_stop_adapter(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 		/* Any softap specific cleanup here... */
 		sap_config = &adapter->sessionCtx.ap.sapConfig;
 		wlansap_reset_sap_config_add_ie(sap_config, eUPDATE_IE_ALL);
+		qdf_atomic_set(&adapter->sessionCtx.ap.acs_in_progress, 0);
 		wlan_hdd_undo_acs(adapter);
 		if (adapter->device_mode == QDF_P2P_GO_MODE)
 			wlan_hdd_cleanup_remain_on_channel_ctx(adapter);
@@ -9513,8 +9515,10 @@ int hdd_dbs_scan_selection_init(hdd_context_t *hdd_ctx)
 	hdd_ctx->is_dbs_scan_duty_cycle_enabled = false;
 
 	/* check if DBS is enabled or supported */
-	if (hdd_ctx->config->dual_mac_feature_disable ==
-				DISABLE_DBS_CXN_AND_SCAN)
+	if ((hdd_ctx->config->dual_mac_feature_disable ==
+	     DISABLE_DBS_CXN_AND_SCAN) ||
+	    (hdd_ctx->config->dual_mac_feature_disable ==
+	     ENABLE_DBS_CXN_AND_DISABLE_DBS_SCAN))
 		return -EINVAL;
 
 	hdd_string_to_u8_array(hdd_ctx->config->dbs_scan_selection,

@@ -66,6 +66,14 @@ QDF_STATUS hdd_deinit_tx_rx(hdd_adapter_t *pAdapter);
 QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf);
 
 /**
+ * hdd_reset_all_adapters_connectivity_stats() - reset connectivity stats
+ * @hdd_ctx: pointer to HDD Station Context
+ *
+ * Return: None
+ */
+void hdd_reset_all_adapters_connectivity_stats(hdd_context_t *hdd_ctx);
+
+/**
  * hdd_tx_rx_collect_connectivity_stats_info() - collect connectivity stats
  * @skb: pointer to skb data
  * @adapter: pointer to vdev apdapter

@@ -9008,6 +9008,7 @@ enum dot11p_mode {
  *			scan policy disabled.
  * 4 - enable DBS for connection as well as for scan with async
  *			scan policy disabled.
+ * 5 - enable DBS for connection but disable dbs for scan.
  *
  * Note: INI item value should match 'enum dbs_support'
  *
@@ -9021,7 +9022,7 @@ enum dot11p_mode {
  */
 #define CFG_DUAL_MAC_FEATURE_DISABLE               "gDualMacFeatureDisable"
 #define CFG_DUAL_MAC_FEATURE_DISABLE_MIN          (0)
-#define CFG_DUAL_MAC_FEATURE_DISABLE_MAX          (4)
+#define CFG_DUAL_MAC_FEATURE_DISABLE_MAX          (5)
 #define CFG_DUAL_MAC_FEATURE_DISABLE_DEFAULT      (0)
 
 /*
@@ -13554,6 +13555,23 @@ enum hw_filter_mode {
 #define CFG_ENABLE_GCMP_MAX     (1)
 #define CFG_ENABLE_GCMP_DEFAULT (0)
 
+/*
+ * <ini>
+ * gEnableUnitTestFramework - Enable/Disable unit test framework
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Usage: Internal (only for dev and test team)
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_UNIT_TEST_FRAMEWORK_NAME    "gEnableUnitTestFramework"
+#define CFG_ENABLE_UNIT_TEST_FRAMEWORK_MIN     (0)
+#define CFG_ENABLE_UNIT_TEST_FRAMEWORK_MAX     (1)
+#define CFG_ENABLE_UINT_TEST_FRAMEWORK_DEFAULT (0)
+
+
 /*---------------------------------------------------------------------------
    Type declarations
    -------------------------------------------------------------------------*/
@@ -14431,6 +14449,7 @@ struct hdd_config {
 	bool esp_for_roam_enabled;
 	bool gcmp_enabled;
 	bool enable_ftopen;
+	bool is_unit_test_framework_enabled;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

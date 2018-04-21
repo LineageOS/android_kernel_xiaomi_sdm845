@@ -3603,31 +3603,43 @@ int wma_unified_debug_print_event_handler(void *handle, uint8_t *datap,
 	WMI_DEBUG_PRINT_EVENTID_param_tlvs *param_buf;
 	uint8_t *data;
 	uint32_t datalen;
+	char dbgbuf[WMI_SVC_MSG_MAX_SIZE] = { 0 };
 
 	param_buf = (WMI_DEBUG_PRINT_EVENTID_param_tlvs *) datap;
-	if (!param_buf) {
+	if (!param_buf || !param_buf->data) {
 		WMA_LOGE("Get NULL point message from FW");
 		return -ENOMEM;
 	}
 	data = param_buf->data;
 	datalen = param_buf->num_data;
+	if (datalen > WMI_SVC_MSG_MAX_SIZE) {
+	    WMA_LOGE("Received data len %d exceeds max value %d",
+			    datalen, WMI_SVC_MSG_MAX_SIZE);
+	    return QDF_STATUS_E_FAILURE;
+	}
 
 #ifdef BIG_ENDIAN_HOST
 	{
-		if (datalen > BIG_ENDIAN_MAX_DEBUG_BUF) {
+		if (datalen >= BIG_ENDIAN_MAX_DEBUG_BUF) {
 			WMA_LOGE("%s Invalid data len %d, limiting to max",
 				 __func__, datalen);
-			datalen = BIG_ENDIAN_MAX_DEBUG_BUF;
+			datalen = BIG_ENDIAN_MAX_DEBUG_BUF-1;
 		}
-		char dbgbuf[BIG_ENDIAN_MAX_DEBUG_BUF] = { 0 };
 
-		memcpy(dbgbuf, data, datalen);
+		strlcpy(dbgbuf, data, datalen);
 		SWAPME(dbgbuf, datalen);
 		WMA_LOGD("FIRMWARE:%s", dbgbuf);
 		return 0;
 	}
 #else
-	WMA_LOGD("FIRMWARE:%s", data);
+	if (datalen == WMI_SVC_MSG_MAX_SIZE) {
+		WMA_LOGE("%s Invalid data len %d, limiting to max",
+				__func__, datalen);
+		datalen = WMI_SVC_MSG_MAX_SIZE -1 ;
+	}
+
+	strlcpy(dbgbuf, data, datalen);
+	WMA_LOGD("FIRMWARE:%s", dbgbuf);
 	return 0;
 #endif /* BIG_ENDIAN_HOST */
 }
@@ -5142,6 +5154,11 @@ QDF_STATUS wma_get_updated_scan_and_fw_mode_config(uint32_t *scan_config,
 			dual_mac_disable_ini);
 		WMI_DBS_CONC_SCAN_CFG_ASYNC_DBS_SCAN_SET(*scan_config, 0);
 		break;
+	case ENABLE_DBS_CXN_AND_DISABLE_DBS_SCAN:
+		WMA_LOGD("%s: dual_mac_disable_ini:%d ", __func__,
+			dual_mac_disable_ini);
+		WMI_DBS_CONC_SCAN_CFG_DBS_SCAN_SET(*scan_config, 0);
+		break;
 	default:
 		break;
 	}
@@ -5495,10 +5512,12 @@ bool wma_is_scan_simultaneous_capable(void)
 		return true;
 	}
 
-	if (mac->dual_mac_feature_disable != DISABLE_DBS_CXN_AND_SCAN)
-		return true;
+	if ((mac->dual_mac_feature_disable == DISABLE_DBS_CXN_AND_SCAN) ||
+	    (mac->dual_mac_feature_disable ==
+	     ENABLE_DBS_CXN_AND_DISABLE_DBS_SCAN))
+		return false;
 
-	return false;
+	return true;
 }
 
 /**
