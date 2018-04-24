@@ -10233,6 +10233,13 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	case WE_POLICY_MANAGER_CLIST_CMD:
 	{
 		hdd_debug("<iwpriv wlan0 pm_clist> is called");
+		if ((apps_args[0] < 0) || (apps_args[1] < 0) ||
+			(apps_args[2] < 0) || (apps_args[3] < 0) ||
+			(apps_args[4] < 0) || (apps_args[5] < 0) ||
+			(apps_args[6] < 0) || (apps_args[7] < 0)) {
+			hdd_err("Invalid input params recieved for the IOCTL");
+			return 0;
+		}
 		cds_incr_connection_count_utfw(apps_args[0],
 			apps_args[1], apps_args[2], apps_args[3],
 			apps_args[4], apps_args[5], apps_args[6],
@@ -10243,6 +10250,11 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	case WE_POLICY_MANAGER_DLIST_CMD:
 	{
 		hdd_debug("<iwpriv wlan0 pm_dlist> is called");
+		if ((apps_args[0] < 0) || (apps_args[1] < 0)) {
+			hdd_err("Invalid input params recieved for the IOCTL");
+			return 0;
+		}
+
 		cds_decr_connection_count_utfw(apps_args[0],
 			apps_args[1]);
 	}
@@ -10251,6 +10263,13 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	case WE_POLICY_MANAGER_ULIST_CMD:
 	{
 		hdd_debug("<iwpriv wlan0 pm_ulist> is called");
+		if ((apps_args[0] < 0) || (apps_args[1] < 0) ||
+			(apps_args[2] < 0) || (apps_args[3] < 0) ||
+			(apps_args[4] < 0) || (apps_args[5] < 0) ||
+			(apps_args[6] < 0) || (apps_args[7] < 0)) {
+			hdd_err("Invalid input params recieved for the IOCTL");
+			return 0;
+		}
 		cds_update_connection_info_utfw(apps_args[0],
 			apps_args[1], apps_args[2], apps_args[3],
 			apps_args[4], apps_args[5], apps_args[6],
@@ -10261,6 +10280,11 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 	case WE_POLICY_MANAGER_DBS_CMD:
 	{
 		hdd_debug("<iwpriv wlan0 pm_dbs> is called");
+		if (apps_args[0] < 0) {
+			hdd_err("Invalid input param recieved for the IOCTL");
+			return 0;
+		}
+
 		if (apps_args[0] == 0)
 			wma_set_dbs_capability_ut(0);
 		else
@@ -10282,6 +10306,10 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 
 		hdd_debug("<iwpriv wlan0 pm_pcl> is called");
 
+		if (apps_args[0] < 0) {
+			hdd_err("Invalid input param recieved for the IOCTL");
+			return 0;
+		}
 		cds_get_pcl(apps_args[0],
 				pcl, &pcl_len,
 				weight_list, QDF_ARRAY_SIZE(weight_list));
@@ -10325,6 +10353,11 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 		QDF_STATUS status;
 
 		hdd_debug("<iwpriv wlan0 pm_query_action> is called");
+		if (apps_args[0] < 0) {
+			hdd_err("Invalid input params recieved for the IOCTL");
+			return 0;
+		}
+
 		status = cds_current_connections_update(adapter->sessionId,
 						apps_args[0],
 						SIR_UPDATE_REASON_UT);
@@ -10337,6 +10370,11 @@ static int iw_get_policy_manager_ut_ops(hdd_context_t *hdd_ctx,
 		bool allow;
 
 		hdd_debug("<iwpriv wlan0 pm_query_allow> is called");
+		if ((apps_args[0] < 0) || (apps_args[1] < 0) ||
+			(apps_args[2] < 0)) {
+			hdd_err("Invalid input params recieved for the IOCTL");
+			return 0;
+		}
 		allow = cds_allow_concurrency(
 				apps_args[0], apps_args[1], apps_args[2]);
 		pr_info("allow %d {0 = don't allow, 1 = allow}", allow);
