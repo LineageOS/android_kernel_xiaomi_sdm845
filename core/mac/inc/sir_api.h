@@ -4527,6 +4527,17 @@ struct sir_peer_sta_info {
 	struct sir_peer_info info[MAX_PEER_STA];
 };
 
+/**
+ * @sta_num: number of peer station which has valid info
+ * @info: peer extended information
+ *
+ * all SAP peer station's extended information retrieved
+ */
+struct sir_peer_sta_ext_info {
+	uint8_t sta_num;
+	struct sir_peer_info_ext info[MAX_PEER_STA];
+};
+
 typedef struct sSirAddPeriodicTxPtrn {
 	/* MAC Address for the adapter */
 	struct qdf_mac_addr mac_address;
