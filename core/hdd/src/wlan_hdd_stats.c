@@ -34,6 +34,7 @@
 #include "hif.h"
 #include "wlan_hdd_hostapd.h"
 #include "wlan_hdd_debugfs_llstat.h"
+#include "wlan_hdd_request_manager.h"
 #include "wma_api.h"
 #include "wma.h"
 
@@ -4935,59 +4936,37 @@ static bool hdd_is_rcpi_applicable(hdd_adapter_t *adapter,
 
 /**
  * wlan_hdd_get_rcpi_cb() - callback function for rcpi response
- * @context: Pointer to rcpi context
- * @rcpi_req: Pointer to rcpi response
+ * @context: used to refer cookie in hdd request manager
+ * @mac_addr: destination mac address for which RCPI is computed
+ * @rcpi: RCPI value from firmware
+ * @status: status of RCPI computation
  *
  * Return: None
  */
 static void wlan_hdd_get_rcpi_cb(void *context, struct qdf_mac_addr mac_addr,
 				 int32_t rcpi, QDF_STATUS status)
 {
-	hdd_adapter_t *adapter;
-	struct statsContext *rcpi_context;
+	struct hdd_request *request;
+	struct rcpi_info *priv;
 
-	if (!context) {
-		hdd_err("No rcpi context");
+	request = hdd_request_get(context);
+	if (!request) {
+		hdd_err("Obsolete RCPI request");
 		return;
 	}
 
-	rcpi_context = context;
-	adapter = rcpi_context->pAdapter;
-	if (adapter->magic != WLAN_HDD_ADAPTER_MAGIC) {
-		hdd_err("Invalid adapter magic");
-		return;
+	priv = hdd_request_priv(request);
+	priv->mac_addr = mac_addr;
+
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		priv->rcpi = 0;
+		hdd_err("Error in computing RCPI");
+	} else {
+		priv->rcpi = rcpi;
 	}
 
-	/*
-	 * there is a race condition that exists between this callback
-	 * function and the caller since the caller could time out
-	 * either before or while this code is executing.  we use a
-	 * spinlock to serialize these actions
-	 */
-	spin_lock(&hdd_context_lock);
-	if (rcpi_context->magic != RCPI_CONTEXT_MAGIC) {
-		/*
-		 * the caller presumably timed out so there is nothing
-		 * we can do
-		 */
-		spin_unlock(&hdd_context_lock);
-		hdd_warn("Invalid RCPI context magic");
-		return;
-	}
-
-	rcpi_context->magic = 0;
-	adapter->rcpi.mac_addr = mac_addr;
-	if (status != QDF_STATUS_SUCCESS)
-		/* peer rcpi is not available for requested mac addr */
-		adapter->rcpi.rcpi = 0;
-	else
-		adapter->rcpi.rcpi = rcpi;
-
-	/* notify the caller */
-	complete(&rcpi_context->completion);
-
-	/* serialization is complete */
-	spin_unlock(&hdd_context_lock);
+	hdd_request_complete(request);
+	hdd_request_put(request);
 }
 
 /**
@@ -5005,12 +4984,17 @@ static int __wlan_hdd_get_rcpi(hdd_adapter_t *adapter,
 			       enum rcpi_measurement_type measurement_type)
 {
 	hdd_context_t *hdd_ctx;
-	static struct statsContext rcpi_context;
-	int status = 0;
-	unsigned long rc;
+	int status = 0, ret = 0;
 	struct qdf_mac_addr mac_addr;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	struct sme_rcpi_req *rcpi_req;
+	void *cookie;
+	struct rcpi_info *priv;
+	struct hdd_request *request;
+	static const struct hdd_request_params params = {
+		.priv_size = sizeof(*priv),
+		.timeout_ms = WLAN_WAIT_TIME_RCPI,
+	};
 	bool reassoc;
 
 	ENTER();
@@ -5056,47 +5040,51 @@ static int __wlan_hdd_get_rcpi(hdd_adapter_t *adapter,
 		return -EINVAL;
 	}
 
-	init_completion(&rcpi_context.completion);
-	rcpi_context.pAdapter = adapter;
-	rcpi_context.magic = RCPI_CONTEXT_MAGIC;
+	request = hdd_request_alloc(&params);
+	if (!request) {
+		hdd_err("Request allocation failure");
+		qdf_mem_free(rcpi_req);
+		return -ENOMEM;
+	}
+	cookie = hdd_request_cookie(request);
 
 	rcpi_req->mac_addr = mac_addr;
 	rcpi_req->session_id = adapter->sessionId;
 	rcpi_req->measurement_type = measurement_type;
 	rcpi_req->rcpi_callback = wlan_hdd_get_rcpi_cb;
-	rcpi_req->rcpi_context = &rcpi_context;
+	rcpi_req->rcpi_context = cookie;
 
 	qdf_status = sme_get_rcpi(hdd_ctx->hHal, rcpi_req);
-	if (qdf_status != QDF_STATUS_SUCCESS) {
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hdd_err("Unable to retrieve RCPI");
 		status = qdf_status_to_os_return(qdf_status);
-	} else {
-		/* request was sent -- wait for the response */
-		rc = wait_for_completion_timeout(&rcpi_context.completion,
-					msecs_to_jiffies(WLAN_WAIT_TIME_RCPI));
-		if (!rc) {
-			hdd_err("SME timed out while retrieving RCPI");
-			status = -EINVAL;
-		}
+		goto out;
 	}
+
+	/* request was sent -- wait for the response */
+	ret = hdd_request_wait_for_response(request);
+	if (ret) {
+		hdd_err("SME timed out while retrieving RCPI");
+		status = -EINVAL;
+		goto out;
+	}
+
+	/* update the adapter with the fresh results */
+	priv = hdd_request_priv(request);
+	adapter->rcpi.mac_addr = priv->mac_addr;
+	adapter->rcpi.rcpi = priv->rcpi;
+
+	if (qdf_mem_cmp(&mac_addr, &priv->mac_addr, sizeof(mac_addr))) {
+		hdd_err("mis match of mac addr from call-back");
+		status = -EINVAL;
+		goto out;
+	}
+
+	*rcpi_value = adapter->rcpi.rcpi;
+	hdd_debug("RCPI = %d", *rcpi_value);
+out:
 	qdf_mem_free(rcpi_req);
-
-	spin_lock(&hdd_context_lock);
-	rcpi_context.magic = 0;
-	spin_unlock(&hdd_context_lock);
-
-	if (status) {
-		hdd_err("rcpi computation is failed");
-	} else {
-		if (qdf_mem_cmp(&mac_addr, &adapter->rcpi.mac_addr,
-		    sizeof(mac_addr))) {
-			hdd_err("mac addr is not matching from call-back");
-			status = -EINVAL;
-		} else {
-			*rcpi_value = adapter->rcpi.rcpi;
-			hdd_debug("RCPI = %d", *rcpi_value);
-		}
-	}
+	hdd_request_put(request);
 
 	EXIT();
 	return status;
