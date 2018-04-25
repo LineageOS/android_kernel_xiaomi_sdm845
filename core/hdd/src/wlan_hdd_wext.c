@@ -8737,7 +8737,8 @@ static int __iw_setint_getnone(struct net_device *dev,
 				(set_value > CFG_ENABLE_MODULATED_DTIM_MAX)) {
 			hdd_err("Invalid gEnableModuleDTIM value %d",
 				set_value);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto free;
 		} else {
 			hdd_ctx->config->enableModulatedDTIM = set_value;
 		}
