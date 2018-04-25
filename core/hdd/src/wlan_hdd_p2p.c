@@ -53,6 +53,7 @@
 #include "cds_sched.h"
 #include "cds_concurrency.h"
 #include "cds_utils.h"
+#include "wlan_hdd_request_manager.h"
 
 /* Ms to Time Unit Micro Sec */
 #define MS_TO_TU_MUS(x)   ((x) * 1024)
@@ -180,6 +181,10 @@ static bool hdd_is_p2p_go_cnf_frame(const u8 *buf, uint32_t len)
 		return false;
 }
 
+struct random_mac_priv {
+	bool set_random_addr;
+};
+
 /**
  * hdd_random_mac_callback() - Callback invoked from wmi layer
  * @set_random_addr: Status of random mac filter set operation
@@ -192,31 +197,20 @@ static bool hdd_is_p2p_go_cnf_frame(const u8 *buf, uint32_t len)
  */
 static void hdd_random_mac_callback(bool set_random_addr, void *context)
 {
-	struct random_mac_context *rnd_ctx;
-	hdd_adapter_t *adapter;
+	struct hdd_request *request;
+	struct random_mac_priv *priv;
 
-	if (!context) {
-		hdd_err("Bad param, pContext");
+	request = hdd_request_get(context);
+	if (!request) {
+		hdd_err("invalid request");
 		return;
 	}
 
-	rnd_ctx = context;
-	adapter = rnd_ctx->adapter;
+	priv = hdd_request_priv(request);
+	priv->set_random_addr = set_random_addr;
 
-	spin_lock(&hdd_context_lock);
-	if ((!adapter) ||
-	    (rnd_ctx->magic != ACTION_FRAME_RANDOM_CONTEXT_MAGIC)) {
-		spin_unlock(&hdd_context_lock);
-		hdd_err("Invalid context, magic [%08x]", rnd_ctx->magic);
-		return;
-	}
-
-	rnd_ctx->magic = 0;
-	if (set_random_addr)
-		rnd_ctx->set_random_addr = true;
-
-	complete(&rnd_ctx->random_mac_completion);
-	spin_unlock(&hdd_context_lock);
+	hdd_request_complete(request);
+	hdd_request_put(request);
 }
 
 /**
@@ -231,11 +225,17 @@ static bool hdd_set_random_mac(hdd_adapter_t *adapter,
 			       uint8_t *random_mac_addr,
 			       uint32_t freq)
 {
-	struct random_mac_context context;
 	hdd_context_t *hdd_ctx;
 	QDF_STATUS sme_status;
 	unsigned long rc;
+	void *cookie;
 	bool status = false;
+	struct hdd_request     *request;
+	struct random_mac_priv *priv;
+	static const struct hdd_request_params params = {
+		.priv_size = sizeof(*priv),
+		.timeout_ms = WLAN_WAIT_TIME_SET_RND,
+	};
 
 	ENTER();
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
@@ -244,30 +244,33 @@ static bool hdd_set_random_mac(hdd_adapter_t *adapter,
 		return false;
 	}
 
-	init_completion(&context.random_mac_completion);
-	context.adapter = adapter;
-	context.magic = ACTION_FRAME_RANDOM_CONTEXT_MAGIC;
-	context.set_random_addr = false;
+	request = hdd_request_alloc(&params);
+	if (!request) {
+		hdd_err("Request allocation failure");
+		return false;
+	}
+
+	cookie = hdd_request_cookie(request);
 
 	sme_status = sme_set_random_mac(hdd_ctx->hHal, hdd_random_mac_callback,
 				     adapter->sessionId, random_mac_addr, freq,
-				     &context);
+				     cookie);
 
 	if (sme_status != QDF_STATUS_SUCCESS) {
 		hdd_err("Unable to set random mac");
 	} else {
-		rc = wait_for_completion_timeout(&context.random_mac_completion,
-				msecs_to_jiffies(WLAN_WAIT_TIME_SET_RND));
-		if (!rc)
+		rc = hdd_request_wait_for_response(request);
+		if (rc) {
 			hdd_err("SME timed out while setting random mac");
+		} else {
+			priv = hdd_request_priv(request);
+			status = priv->set_random_addr;
+		}
 	}
 
-	spin_lock(&hdd_context_lock);
-	context.magic = 0;
-	status = context.set_random_addr;
-	spin_unlock(&hdd_context_lock);
-
+	hdd_request_put(request);
 	EXIT();
+
 	return status;
 }
 
