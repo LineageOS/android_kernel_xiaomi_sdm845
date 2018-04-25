@@ -78,6 +78,7 @@ ssize_t bw_show(struct device *dev, struct device_attribute *attr,
 			bus_node->lnode_list[i].lnode_ab[ACTIVE_CTX],
 			bus_node->lnode_list[i].lnode_ib[DUAL_CTX],
 			bus_node->lnode_list[i].lnode_ab[DUAL_CTX]);
+#if defined(CONFIG_TRACING) && defined(DEBUG)
 		trace_printk(
 		"[%d]:%s:Act_IB %llu Act_AB %llu Slp_IB %llu Slp_AB %llu\n",
 			i, bus_node->lnode_list[i].cl_name,
@@ -85,6 +86,7 @@ ssize_t bw_show(struct device *dev, struct device_attribute *attr,
 			bus_node->lnode_list[i].lnode_ab[ACTIVE_CTX],
 			bus_node->lnode_list[i].lnode_ib[DUAL_CTX],
 			bus_node->lnode_list[i].lnode_ab[DUAL_CTX]);
+#endif
 	}
 	off += scnprintf((buf + off), PAGE_SIZE,
 	"Max_Act_IB %llu Sum_Act_AB %llu Act_Util_fact %d Act_Vrail_comp %d\n",
@@ -98,6 +100,7 @@ ssize_t bw_show(struct device *dev, struct device_attribute *attr,
 		bus_node->node_bw[DUAL_CTX].sum_ab,
 		bus_node->node_bw[DUAL_CTX].util_used,
 		bus_node->node_bw[DUAL_CTX].vrail_used);
+#if defined(CONFIG_TRACING) && defined(DEBUG)
 	trace_printk(
 	"Max_Act_IB %llu Sum_Act_AB %llu Act_Util_fact %d Act_Vrail_comp %d\n",
 		bus_node->node_bw[ACTIVE_CTX].max_ib,
@@ -110,6 +113,7 @@ ssize_t bw_show(struct device *dev, struct device_attribute *attr,
 		bus_node->node_bw[DUAL_CTX].sum_ab,
 		bus_node->node_bw[DUAL_CTX].util_used,
 		bus_node->node_bw[DUAL_CTX].vrail_used);
+#endif
 	return off;
 }
 
