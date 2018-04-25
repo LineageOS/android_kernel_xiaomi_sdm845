@@ -5574,14 +5574,12 @@ int __iw_get_softap_linkspeed(struct net_device *dev,
 		hdd_err("Invalid peer macaddress");
 		return -EINVAL;
 	}
-	errno = wlan_hdd_get_linkspeed_for_peermac(pHostapdAdapter,
-						   macAddress);
-	if (errno) {
+	rc = wlan_hdd_get_linkspeed_for_peermac(pHostapdAdapter, &macAddress,
+						&link_speed);
+	if (rc) {
 		hdd_err("Unable to retrieve SME linkspeed: %d", errno);
-		return errno;
+		return rc;
 	}
-
-	link_speed = pHostapdAdapter->ls_stats.estLinkSpeed;
 
 	/* linkspeed in units of 500 kbps */
 	link_speed = link_speed / 500;
