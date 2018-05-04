@@ -3479,9 +3479,7 @@ static void hdd_get_rssi_cb(int8_t rssi, uint32_t staId, void *pContext)
 
 	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
-	/* update rssi only if its valid else return previous valid rssi */
-	if (rssi)
-		pAdapter->rssi = rssi;
+	pAdapter->rssi = rssi;
 
 	/* for new connection there might be no valid previous RSSI
 	 * Do not keep hdd_get_rssi_snr_by_bssid under spin_lock
