@@ -218,6 +218,10 @@ static inline bool seccomp_may_assign_mode(unsigned long seccomp_mode)
 
 void __weak arch_seccomp_spec_mitigate(struct task_struct *task) { }
 
+	if (state > 0 && (state & PR_SPEC_PRCTL))
+		arch_prctl_spec_ctrl_set(task, which, PR_SPEC_FORCE_DISABLE);
+}
+
 static inline void seccomp_assign_mode(struct task_struct *task,
 				       unsigned long seccomp_mode,
 				       unsigned long flags)
