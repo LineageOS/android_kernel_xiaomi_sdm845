@@ -2195,50 +2195,26 @@ static void hdd_ipa_print_resource_info(struct hdd_ipa_priv *hdd_ipa)
 
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
 		"\n==== IPA RESOURCE INFO ====\n"
-		"CE RING BASE: %pad\n"
 		"CE RING SIZE: %d\n"
-		"CE REG ADDR: %pad\n"
-		"TX COMP RING BASE: %pad\n"
 		"TX COMP RING SIZE: %d\n"
 		"TX NUM ALLOC BUF: %d\n"
-		"RX IND RING BASE: %pad\n"
 		"RX IND RING SIZE: %d\n"
-		"RX PROC DONE IND ADDR: %pad\n"
 #if defined(QCA_WIFI_3_0) && defined(CONFIG_IPA3)
-		"RX2 IND RING BASE: %pad\n"
 		"RX2 IND RING SIZE: %d\n"
-		"RX2 PROC DONE IND ADDR: %pad\n"
 #endif
 		"PROD CLIENT: %d\n"
 		"TX PIPE HDL: 0x%x\n"
-		"RX PIPE HDL: 0x%x\n"
-		"TX COMP RING DBELL: %pad\n"
-		"RX IND RING DBELL: %pad\n",
-		qdf_mem_get_dma_addr_ptr(osdev,
-				&res->ce_sr->mem_info),
+		"RX PIPE HDL: 0x%x\n",
 		(int)res->ce_sr->mem_info.size,
-		&res->ce_reg_paddr,
-		qdf_mem_get_dma_addr_ptr(osdev,
-				&res->tx_comp_ring->mem_info),
 		(int)res->tx_comp_ring->mem_info.size,
 		res->tx_num_alloc_buffer,
-		qdf_mem_get_dma_addr_ptr(osdev,
-				&res->rx_rdy_ring->mem_info),
 		(int)res->rx_rdy_ring->mem_info.size,
-		qdf_mem_get_dma_addr_ptr(osdev,
-				&res->rx_proc_done_idx->mem_info),
 #if defined(QCA_WIFI_3_0) && defined(CONFIG_IPA3)
-		qdf_mem_get_dma_addr_ptr(osdev,
-				&res->rx2_rdy_ring->mem_info),
 		(int)res->rx2_rdy_ring->mem_info.size,
-		qdf_mem_get_dma_addr_ptr(osdev,
-				&res->rx2_proc_done_idx->mem_info),
 #endif
 		hdd_ipa->prod_client,
 		hdd_ipa->tx_pipe_handle,
-		hdd_ipa->rx_pipe_handle,
-		&hdd_ipa->tx_comp_doorbell_dmaaddr,
-		&hdd_ipa->rx_ready_doorbell_dmaaddr);
+		hdd_ipa->rx_pipe_handle);
 }
 
 /**
@@ -2410,17 +2386,13 @@ static void hdd_ipa_print_fw_wdi_stats(struct hdd_ipa_priv *hdd_ipa,
 {
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
 		"\n==== WLAN FW WDI TX STATS ====\n"
-		"COMP RING BASE: 0x%x\n"
 		"COMP RING SIZE: %d\n"
-		"COMP RING DBELL : 0x%x\n"
 		"COMP RING DBELL IND VAL : %d\n"
 		"COMP RING DBELL CACHED VAL : %d\n"
 		"PKTS ENQ : %d\n"
 		"PKTS COMP : %d\n"
 		"IS SUSPEND : %d\n",
-		uc_fw_stat->tx_comp_ring_base,
 		uc_fw_stat->tx_comp_ring_size,
-		uc_fw_stat->tx_comp_ring_dbell_addr,
 		uc_fw_stat->tx_comp_ring_dbell_ind_val,
 		uc_fw_stat->tx_comp_ring_dbell_cached_val,
 		uc_fw_stat->tx_pkts_enqueued,
@@ -2429,12 +2401,9 @@ static void hdd_ipa_print_fw_wdi_stats(struct hdd_ipa_priv *hdd_ipa,
 
 	QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_INFO,
 		"\n==== WLAN FW WDI RX STATS ====\n"
-		"IND RING BASE: 0x%x\n"
 		"IND RING SIZE: %d\n"
-		"IND RING DBELL : 0x%x\n"
 		"IND RING DBELL IND VAL : %d\n"
 		"IND RING DBELL CACHED VAL : %d\n"
-		"RDY IND ADDR : 0x%x\n"
 		"RDY IND CACHE VAL : %d\n"
 		"RFIL IND : %d\n"
 		"NUM PKT INDICAT : %d\n"
@@ -2442,12 +2411,9 @@ static void hdd_ipa_print_fw_wdi_stats(struct hdd_ipa_priv *hdd_ipa,
 		"NUM DROP NO SPC : %d\n"
 		"NUM DROP NO BUF : %d\n"
 		"IS SUSPND : %d\n",
-		uc_fw_stat->rx_ind_ring_base,
 		uc_fw_stat->rx_ind_ring_size,
-		uc_fw_stat->rx_ind_ring_dbell_addr,
 		uc_fw_stat->rx_ind_ring_dbell_ind_val,
 		uc_fw_stat->rx_ind_ring_dbell_ind_cached_val,
-		uc_fw_stat->rx_ind_ring_rdidx_addr,
 		uc_fw_stat->rx_ind_ring_rd_idx_cached_val,
 		uc_fw_stat->rx_refill_idx,
 		uc_fw_stat->rx_num_pkts_indicated,
