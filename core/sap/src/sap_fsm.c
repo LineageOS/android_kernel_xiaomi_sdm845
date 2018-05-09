@@ -2294,6 +2294,13 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 	tHalHandle h_hal;
 	uint8_t con_ch;
 	bool sta_sap_scc_on_dfs_chan;
+	hdd_context_t *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
 
 	h_hal = cds_get_context(QDF_MODULE_ID_SME);
 	if (NULL == h_hal) {
@@ -2376,6 +2383,9 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 					sap_context->channel,
 					sap_context->csr_roamProfile.phyMode,
 					sap_context->cc_switch_mode);
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+				  FL("After check overlap: con_ch:%d"),
+					con_ch);
 			if (QDF_IS_STATUS_ERROR(
 				cds_valid_sap_conc_channel_check(&con_ch,
 					sap_context->channel))) {
@@ -2384,14 +2394,20 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 					FL("SAP can't start (no MCC)"));
 				return QDF_STATUS_E_ABORTED;
 			}
-
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+				  FL("After check concurrency: con_ch:%d"),
+				con_ch);
 			sta_sap_scc_on_dfs_chan =
 				cds_is_sta_sap_scc_allowed_on_dfs_channel();
 
-			if (con_ch && cds_is_safe_channel(con_ch) &&
-					(!CDS_IS_DFS_CH(con_ch) ||
-					 (CDS_IS_DFS_CH(con_ch) &&
-					  sta_sap_scc_on_dfs_chan))) {
+			if (con_ch &&
+			    (cds_is_safe_channel(con_ch) ||
+			     (!cds_is_safe_channel(con_ch) &&
+			      hdd_ctx->config->sta_sap_scc_on_lte_coex_chan)
+			    ) &&
+			    (!CDS_IS_DFS_CH(con_ch) ||
+			     (CDS_IS_DFS_CH(con_ch) &&
+			      sta_sap_scc_on_dfs_chan))) {
 
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 						QDF_TRACE_LEVEL_ERROR,
