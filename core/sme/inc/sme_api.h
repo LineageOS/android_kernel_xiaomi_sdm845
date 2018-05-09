@@ -2023,4 +2023,18 @@ QDF_STATUS sme_send_limit_off_channel_params(tHalHandle hal, uint8_t vdev_id,
  */
 bool sme_is_sta_key_exchange_in_progress(tHalHandle hal, uint8_t session_id);
 
+/*
+ * sme_validate_channel_list() - Validate the given channel list
+ * @hal: handle to global hal context
+ * @chan_list: Pointer to the channel list
+ * @num_channels: number of channels present in the chan_list
+ *
+ * Validates the given channel list with base channels in mac context
+ *
+ * Return: True if all channels in the list are valid, false otherwise
+ */
+bool sme_validate_channel_list(tHalHandle hal,
+				      uint8_t *chan_list,
+				      uint8_t num_channels);
+
 #endif /* #if !defined( __SME_API_H ) */
