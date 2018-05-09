@@ -617,9 +617,8 @@ static void ol_tx_update_connectivity_stats(struct ol_tx_desc_t *tx_desc,
 	}
 	osif_dev = tx_desc->vdev->osif_dev;
 	stats_rx = tx_desc->vdev->stats_rx;
-	ol_tx_flow_pool_unlock(tx_desc);
-
 	pkt_type_bitmap = cds_get_connectivity_stats_pkt_bitmap(osif_dev);
+	ol_tx_flow_pool_unlock(tx_desc);
 
 	if (pkt_type_bitmap) {
 		if (status != htt_tx_status_download_fail)
