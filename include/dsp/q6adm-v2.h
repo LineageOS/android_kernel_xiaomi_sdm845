@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,6 +27,7 @@
 		((MAX_MODULES_IN_TOPO + 1) * sizeof(uint32_t))
 #define AUD_PROC_BLOCK_SIZE	4096
 #define AUD_VOL_BLOCK_SIZE	4096
+#define AUD_PROC_PERSIST_BLOCK_SIZE	(2 * 1024 * 1020)
 #define AUDIO_RX_CALIBRATION_SIZE	(AUD_PROC_BLOCK_SIZE + \
 						AUD_VOL_BLOCK_SIZE)
 enum {
@@ -38,6 +39,7 @@ enum {
 	ADM_RTAC_APR_CAL,
 	ADM_SRS_TRUMEDIA,
 	ADM_RTAC_AUDVOL_CAL,
+	ADM_LSM_AUDPROC_PERSISTENT_CAL,
 	ADM_MAX_CAL_TYPES
 };
 
