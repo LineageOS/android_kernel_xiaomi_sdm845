@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -156,7 +156,8 @@ void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 	}
 
 	if (reglog)
-		printk(KERN_DEBUG "IO:region %s %p %08lx\n", dbgname, ptr, size);
+		dev_dbg(&pdev->dev, "IO:region %s %pK %08lx\n",
+			dbgname, ptr, size);
 
 	return ptr;
 }
@@ -187,7 +188,7 @@ void msm_iounmap(struct platform_device *pdev, void __iomem *addr)
 void msm_writel(u32 data, void __iomem *addr)
 {
 	if (reglog)
-		printk(KERN_DEBUG "IO:W %p %08x\n", addr, data);
+		pr_debug("IO:W %pK %08x\n", addr, data);
 	writel(data, addr);
 }
 
@@ -196,7 +197,7 @@ u32 msm_readl(const void __iomem *addr)
 	u32 val = readl(addr);
 
 	if (reglog)
-		printk(KERN_ERR "IO:R %p %08x\n", addr, val);
+		pr_err("IO:R %pK %08x\n", addr, val);
 	return val;
 }
 
@@ -995,7 +996,7 @@ static int msm_enable_vblank(struct drm_device *dev, unsigned int pipe)
 
 	if (!kms)
 		return -ENXIO;
-	DBG("dev=%p, crtc=%u", dev, pipe);
+	DBG("dev=%pK, crtc=%u", dev, pipe);
 	return vblank_ctrl_queue_work(priv, pipe, true);
 }
 
@@ -1006,7 +1007,7 @@ static void msm_disable_vblank(struct drm_device *dev, unsigned int pipe)
 
 	if (!kms)
 		return;
-	DBG("dev=%p, crtc=%u", dev, pipe);
+	DBG("dev=%pK, crtc=%u", dev, pipe);
 	vblank_ctrl_queue_work(priv, pipe, false);
 }
 
