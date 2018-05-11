@@ -500,6 +500,15 @@ static int htt_rx_ring_fill_n(struct htt_pdev_t *pdev, int num)
 	int num_alloc = 0;
 
 	idx = *(pdev->rx_ring.alloc_idx.vaddr);
+
+	if ((idx < 0) || (idx > pdev->rx_ring.size_mask) ||
+	    (num > pdev->rx_ring.size))  {
+		QDF_TRACE(QDF_MODULE_ID_HTT,
+			  QDF_TRACE_LEVEL_ERROR,
+			  "%s:rx refill failed!", __func__);
+		return filled;
+	}
+
 	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled) {
 		mem_map_table = qdf_mem_map_table_alloc(num);
 		if (!mem_map_table) {
