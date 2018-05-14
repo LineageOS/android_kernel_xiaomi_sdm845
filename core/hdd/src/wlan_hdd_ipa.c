@@ -6134,6 +6134,12 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 	struct ipa_wlan_msg_ex *msg_ex = NULL;
 	int ret;
 
+	if (hdd_validate_adapter(adapter)) {
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "Invalid adapter: 0x%pK",
+			    adapter);
+		return -EINVAL;
+	}
+
 	HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "%s: EVT: %s, MAC: %pM sta_id: %d",
 		    adapter->dev->name, hdd_ipa_wlan_event_to_str(type),
 		    mac_addr, sta_id);
