@@ -5848,9 +5848,8 @@ static void hdd_get_class_a_statistics_cb(void *stats, void *context)
 	tCsrGlobalClassAStatsInfo *returned_stats;
 
 	ENTER();
-	if ((NULL == stats) || (NULL == context)) {
-		hdd_err("Bad param, stats [%p] context [%p]",
-			stats, context);
+	if (NULL == stats) {
+		hdd_err("Bad param, stats");
 		return;
 	}
 
