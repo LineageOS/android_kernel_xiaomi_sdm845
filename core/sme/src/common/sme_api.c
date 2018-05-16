@@ -11734,37 +11734,39 @@ QDF_STATUS sme_ll_stats_set_req(tHalHandle hHal, tSirLLStatsSetReq
 	return status;
 }
 
-/*
- * sme_ll_stats_get_req() -
- * SME API to get the Link Layer Statistics
+/**
+ * sme_ll_stats_get_req() - SME API to get the Link Layer Statistics
+ * @mac_handle: Global MAC handle
+ * @get_stats_req: Link Layer get stats request params structure
+ * @context: Callback context for ll stats
  *
- * hHal
- * pgetStatsReq: Link Layer get stats request params structure
- * Return QDF_STATUS
+ * Return: QDF_STATUS
  */
-QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq
-				*pgetStatsReq)
+QDF_STATUS sme_ll_stats_get_req(mac_handle_t mac_handle,
+				tSirLLStatsGetReq *get_stats_req,
+				void *context)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	tpAniSirGlobal mac = MAC_CONTEXT(mac_handle);
 	struct scheduler_msg message = {0};
-	tSirLLStatsGetReq *get_stats_req;
+	tSirLLStatsGetReq *ll_stats_get_req;
 
-	get_stats_req = qdf_mem_malloc(sizeof(*get_stats_req));
+	ll_stats_get_req = qdf_mem_malloc(sizeof(*ll_stats_get_req));
 
-	if (!get_stats_req) {
+	if (!ll_stats_get_req) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Not able to allocate memory for WMA_LL_STATS_GET_REQ",
 			  __func__);
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	*get_stats_req = *pgetStatsReq;
+	*ll_stats_get_req = *get_stats_req;
 
-	if (QDF_STATUS_SUCCESS == sme_acquire_global_lock(&pMac->sme)) {
+	mac->sme.ll_stats_context = context;
+	if (sme_acquire_global_lock(&mac->sme) == QDF_STATUS_SUCCESS) {
 		/* Serialize the req through MC thread */
-		message.bodyptr = get_stats_req;
+		message.bodyptr = ll_stats_get_req;
 		message.type = WMA_LINK_LAYER_STATS_GET_REQ;
 		MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
 				 NO_SESSION, message.type));
@@ -11775,32 +11777,35 @@ QDF_STATUS sme_ll_stats_get_req(tHalHandle hHal, tSirLLStatsGetReq
 				  "%s: not able to post WMA_LL_STATS_GET_REQ",
 				  __func__);
 
-			qdf_mem_free(get_stats_req);
+			qdf_mem_free(ll_stats_get_req);
 			status = QDF_STATUS_E_FAILURE;
 
 		}
-		sme_release_global_lock(&pMac->sme);
+		sme_release_global_lock(&mac->sme);
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			"%s: sme_acquire_global_lock error", __func__);
-		qdf_mem_free(get_stats_req);
+		qdf_mem_free(ll_stats_get_req);
 		status = QDF_STATUS_E_FAILURE;
 	}
 
 	return status;
 }
 
-/*
- * sme_set_link_layer_stats_ind_cb() -
- * SME API to trigger the stats are available  after get request
+/**
+ * sme_set_link_layer_stats_ind_cb() - Link layer stats indication callback
+ * @hHal: handle in hdd context
+ * @callback_routine: HDD callback which needs to be invoked after
+ *                    getting status notification from FW
  *
- * hHal
- * callback_routine - HDD callback which needs to be invoked after
-	   getting status notification from FW
- * Return QDF_STATUS
+ * SME API to trigger the stats are available  after get request.
+ *
+ * Return: QDF_STATUS
  */
 QDF_STATUS sme_set_link_layer_stats_ind_cb(tHalHandle hHal,
-	void (*callback_routine)(void *callbackCtx, int indType, void *pRsp))
+					   void (*callback_routine)(
+					   void *callback_ctx, int ind_type,
+					   void *rsp, void *cookie))
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);

@@ -80,29 +80,6 @@ struct index_data_rate_type {
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 
 /**
- * struct hdd_ll_stats_context - hdd link layer stats context
- *
- * @request_id: userspace-assigned link layer stats request id
- * @request_bitmap: userspace-assigned link layer stats request bitmap
- * @response_event: LL stats request wait event
- */
-struct hdd_ll_stats_context {
-	uint32_t request_id;
-	uint32_t request_bitmap;
-	struct completion response_event;
-	spinlock_t context_lock;
-};
-
-/*
- * Used to allocate the size of 4096 for the link layer stats.
- * The size of 4096 is considered assuming that all data per
- * respective event fit with in the limit.Please take a call
- * on the limit based on the data requirements on link layer
- * statistics.
- */
-#define LL_STATS_EVENT_BUF_SIZE 4096
-
-/**
  * wlan_hdd_cfg80211_ll_stats_set() - set link layer stats
  * @wiphy: Pointer to wiphy
  * @wdev: Pointer to wdev
@@ -145,8 +122,6 @@ int wlan_hdd_cfg80211_ll_stats_clear(struct wiphy *wiphy,
 				     const void *data,
 				     int data_len);
 
-void hdd_init_ll_stats_ctx(void);
-
 static inline bool hdd_link_layer_stats_supported(void)
 {
 	return true;
@@ -187,10 +162,6 @@ int wlan_hdd_ll_stats_get(struct hdd_adapter *adapter, uint32_t req_id,
 			  uint32_t req_mask);
 
 #else
-
-static inline void hdd_init_ll_stats_ctx(void)
-{
-}
 
 static inline bool hdd_link_layer_stats_supported(void)
 {
@@ -288,8 +259,8 @@ void wlan_hdd_cfg80211_stats_ext_callback(void *ctx,
 void wlan_hdd_cfg80211_stats_ext2_callback(void *ctx,
 				struct sir_sme_rx_aggr_hole_ind *pmsg);
 
-void wlan_hdd_cfg80211_link_layer_stats_callback(void *ctx,
-						 int indType, void *pRsp);
+void wlan_hdd_cfg80211_link_layer_stats_callback(void *ctx, int indType,
+						 void *pRsp, void *context);
 /**
  * wlan_hdd_cfg80211_link_layer_stats_ext_callback() - Callback for LL ext
  * @ctx: HDD context

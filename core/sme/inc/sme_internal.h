@@ -227,8 +227,9 @@ typedef struct tagSmeStruct {
 	host_event_wlan_status_payload_type eventPayload;
 #endif
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
-	void (*pLinkLayerStatsIndCallback)(void *callbackContext,
-			int indType, void *pRsp);
+	void *ll_stats_context;
+	void (*pLinkLayerStatsIndCallback)(void *callback_ctx, int ind_type,
+					   void *rsp, void *context);
 	void (*link_layer_stats_ext_cb)(hdd_handle_t callback_ctx,
 					tSirLLStatsResults *rsp);
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
