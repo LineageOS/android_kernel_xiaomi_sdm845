@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -434,20 +434,16 @@ static void spectral_scan_msg_handler(const void *data, int data_len,
 	cds_ssr_unprotect(__func__);
 }
 
-/**
- * spectral_scan_activate_service() - API to register spectral
- * scan cmd handler
- *
- * API to register the spectral scan command handler using new
- * genl infra. Return type is zero to match with legacy
- * prototype
- *
- * Return: 0
- */
 int spectral_scan_activate_service(void)
 {
 	register_cld_cmd_cb(WLAN_NL_MSG_SPECTRAL_SCAN,
 				spectral_scan_msg_handler, NULL);
+	return 0;
+}
+
+int spectral_scan_deactivate_service(void)
+{
+	deregister_cld_cmd_cb(WLAN_NL_MSG_SPECTRAL_SCAN);
 	return 0;
 }
 
@@ -488,16 +484,6 @@ static int spectral_scan_msg_callback(struct sk_buff *skb)
 	return 0;
 }
 
-/**
- * spectral_scan_activate_service() - Activate spectral scan message handler
- *
- *  This function registers a handler to receive netlink message from
- *  the spectral scan application process.
- *  param -
- *     - None
- *
- * Return - 0 for success, non zero for failure
- */
 int spectral_scan_activate_service(void)
 {
 	int ret;
@@ -512,6 +498,23 @@ int spectral_scan_activate_service(void)
 
 	return ret;
 }
+
+int spectral_scan_deactivate_service(void)
+{
+	int ret;
+
+	/*
+	 * Unregister the msg handler for msgs addressed to
+	 * WLAN_NL_MSG_SPECTRAL_SCAN
+	 */
+	ret = nl_srv_unregister(WLAN_NL_MSG_SPECTRAL_SCAN,
+				spectral_scan_msg_callback);
+	if (ret)
+		hdd_err("Spectral Scan Unregistration failed");
+
+	return ret;
+}
+
 #endif
 
 /**
