@@ -1198,8 +1198,6 @@ struct hdd_adapter {
 
 	/* TODO Move this to sta Ctx */
 	struct wireless_dev wdev;
-	struct cfg80211_scan_request *request;
-	struct cfg80211_scan_request *vendor_request;
 
 	/** ops checks if Opportunistic Power Save is Enable or Not
 	 * ctw stores ctWindow value once we receive Opps command from
@@ -1334,6 +1332,8 @@ struct hdd_adapter {
 	struct delayed_work acs_pending_work;
 
 	struct work_struct scan_block_work;
+	qdf_list_t blocked_scan_request_q;
+	qdf_mutex_t blocked_scan_request_q_lock;
 #ifdef MSM_PLATFORM
 	unsigned long prev_rx_packets;
 	unsigned long prev_tx_packets;
