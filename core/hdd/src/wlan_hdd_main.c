@@ -1159,7 +1159,8 @@ static void hdd_update_tgt_ht_cap(hdd_context_t *hdd_ctx,
 	if (sme_cfg_get_str(hdd_ctx->hHal, WNI_CFG_SUPPORTED_MCS_SET, mcs_set,
 			    &value) == QDF_STATUS_SUCCESS) {
 		hdd_debug("Read MCS rate set");
-
+		if (cfg->num_rf_chains > SIZE_OF_SUPPORTED_MCS_SET)
+			cfg->num_rf_chains = SIZE_OF_SUPPORTED_MCS_SET;
 		if (pconfig->enable2x2) {
 			for (value = 0; value < cfg->num_rf_chains; value++)
 				mcs_set[value] =
@@ -2164,11 +2165,17 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 
 		hdd_ctx->hHal = cds_get_context(QDF_MODULE_ID_SME);
 
+		ret = hdd_register_cb(hdd_ctx);
+		if (ret) {
+			hdd_err("Failed to register HDD callbacks!");
+			goto close;
+		}
+
 		status = cds_pre_enable(hdd_ctx->pcds_context);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			hdd_err("Failed to pre-enable CDS: %d", status);
 			ret = (status == QDF_STATUS_E_NOMEM) ? -ENOMEM : -EINVAL;
-			goto close;
+			goto deregister_cb;
 		}
 
 		hdd_ctx->driver_status = DRIVER_MODULES_OPENED;
@@ -2229,6 +2236,9 @@ int hdd_wlan_start_modules(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter,
 post_disable:
 	sme_destroy_config(hdd_ctx->hHal);
 	cds_post_disable();
+
+deregister_cb:
+	hdd_deregister_cb(hdd_ctx);
 
 close:
 	hdd_ctx->driver_status = DRIVER_MODULES_CLOSED;
@@ -9755,22 +9765,17 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	wlan_hdd_tsf_init(hdd_ctx);
 	hdd_encrypt_decrypt_init(hdd_ctx);
 
-	ret = hdd_register_cb(hdd_ctx);
-	if (ret) {
-		hdd_err("Failed to register HDD callbacks!");
-		goto deregister_frames;
-	}
 	status = hdd_set_dbs_scan_and_fw_mode_cfg(hdd_ctx);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("Failed to set dbs scan and fw mode cfg");
-		goto deregister_cb;
+		goto deregister_frames;
 	}
 	if (hdd_ctx->config->goptimize_chan_avoid_event) {
 		status = sme_enable_disable_chanavoidind_event(
 							hdd_ctx->hHal, 0);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			hdd_err("Failed to disable Chan Avoidance Indication");
-			goto deregister_cb;
+			goto deregister_frames;
 		}
 	}
 
@@ -9801,13 +9806,11 @@ static int hdd_features_init(hdd_context_t *hdd_ctx, hdd_adapter_t *adapter)
 	ret = hdd_set_auto_shutdown_cb(hdd_ctx);
 
 	if (ret)
-		goto deregister_cb;
+		goto deregister_frames;
 
 	EXIT();
 	return 0;
 
-deregister_cb:
-	hdd_deregister_cb(hdd_ctx);
 deregister_frames:
 	wlan_hdd_cfg80211_deregister_frames(adapter);
 out:
@@ -9979,8 +9982,6 @@ static int hdd_deconfigure_cds(hdd_context_t *hdd_ctx)
 	/* De-init features */
 	hdd_features_deinit(hdd_ctx);
 
-	/* De-register the SME callbacks */
-	hdd_deregister_cb(hdd_ctx);
 	hdd_encrypt_decrypt_deinit(hdd_ctx);
 
 	sme_destroy_config(hdd_ctx->hHal);
@@ -10117,6 +10118,8 @@ int hdd_wlan_stop_modules(hdd_context_t *hdd_ctx, bool ftm_mode)
 		QDF_ASSERT(0);
 	}
 
+	/* De-register the SME callbacks */
+	hdd_deregister_cb(hdd_ctx);
 	qdf_status = cds_close(hdd_ctx->pcds_context);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		hdd_warn("Failed to stop CDS: %d", qdf_status);
@@ -10585,6 +10588,11 @@ int hdd_register_cb(hdd_context_t *hdd_ctx)
 	QDF_STATUS status;
 	int ret = 0;
 
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+		hdd_err("in ftm mode, no need to register callbacks");
+		return ret;
+	}
+
 	ENTER();
 
 	sme_register11d_scan_done_callback(hdd_ctx->hHal, hdd_11d_scan_done);
@@ -10680,6 +10688,11 @@ void hdd_deregister_cb(hdd_context_t *hdd_ctx)
 	QDF_STATUS status;
 	int ret;
 
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+		hdd_err("in ftm mode, no need to deregister callbacks");
+		return;
+	}
+
 	ENTER();
 
 	status = sme_deregister_for_dcc_stats_event(hdd_ctx->hHal);
@@ -10770,8 +10783,6 @@ void hdd_softap_sta_disassoc(hdd_adapter_t *adapter,
 	if (pDelStaParams->peerMacAddr.bytes[0] & 0x1)
 		return;
 
-	wlan_hdd_get_peer_rssi(adapter, &pDelStaParams->peerMacAddr,
-			       HDD_WLAN_GET_PEER_RSSI_SOURCE_DRIVER);
 	wlansap_disassoc_sta(WLAN_HDD_GET_SAP_CTX_PTR(adapter),
 			     pDelStaParams);
 }

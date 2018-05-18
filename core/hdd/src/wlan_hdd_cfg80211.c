@@ -11400,6 +11400,11 @@ static int __wlan_hdd_cfg80211_set_limit_offchan_param(struct wiphy *wiphy,
 	}
 
 	tos = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS]);
+	if (tos >= HDD_MAX_AC) {
+		hdd_err("tos value %d exceeded Max value %d",
+			tos, HDD_MAX_AC);
+		goto fail;
+	}
 	hdd_debug("tos %d", tos);
 
 	if (!tb[QCA_WLAN_VENDOR_ATTR_ACTIVE_TOS_START]) {
@@ -19257,8 +19262,6 @@ int __wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 			}
 
 			pAdapter->aStaInfo[staId].isDeauthInProgress = true;
-			pAdapter->cache_sta_info[staId].reason_code =
-				pDelStaParams->reason_code;
 
 			hdd_debug("Delete STA with MAC::" MAC_ADDRESS_STR,
 			       MAC_ADDR_ARRAY(mac));
@@ -19503,8 +19506,7 @@ static void hdd_fill_pmksa_info(tPmkidCacheInfo *pmk_cache,
 		qdf_mem_copy(pmk_cache->BSSID.bytes,
 			     pmksa->bssid, QDF_MAC_ADDR_SIZE);
 	} else {
-		qdf_mem_copy(pmk_cache->ssid, pmksa->ssid,
-			     SIR_MAC_MAX_SSID_LENGTH);
+		qdf_mem_copy(pmk_cache->ssid, pmksa->ssid, pmksa->ssid_len);
 		qdf_mem_copy(pmk_cache->cache_id, pmksa->cache_id,
 			     CACHE_ID_LEN);
 		pmk_cache->ssid_len = pmksa->ssid_len;

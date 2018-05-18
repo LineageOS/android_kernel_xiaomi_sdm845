@@ -1811,6 +1811,17 @@ QDF_STATUS sme_ipa_uc_stat_request(tHalHandle hal,
 
 QDF_STATUS sme_set_smps_cfg(uint32_t vdev_id, uint32_t param_id,
 				uint32_t param_val);
+
+/**
+ * sme_get_peer_stats() - sme api to post peer info request
+ * @mac: mac handle
+ * @req: peer info request struct send to wma
+ *
+ * Return: QDF_STATUS_SUCCESS or non-zero on failure
+ */
+QDF_STATUS sme_get_peer_stats(tpAniSirGlobal mac,
+			      struct sir_peer_info_req req);
+
 /**
  * sme_get_peer_info() - sme api to get peer info
  * @hal: hal handle for getting global mac struct
@@ -2011,5 +2022,19 @@ QDF_STATUS sme_send_limit_off_channel_params(tHalHandle hal, uint8_t vdev_id,
  *         false - if not in progress
  */
 bool sme_is_sta_key_exchange_in_progress(tHalHandle hal, uint8_t session_id);
+
+/*
+ * sme_validate_channel_list() - Validate the given channel list
+ * @hal: handle to global hal context
+ * @chan_list: Pointer to the channel list
+ * @num_channels: number of channels present in the chan_list
+ *
+ * Validates the given channel list with base channels in mac context
+ *
+ * Return: True if all channels in the list are valid, false otherwise
+ */
+bool sme_validate_channel_list(tHalHandle hal,
+				      uint8_t *chan_list,
+				      uint8_t num_channels);
 
 #endif /* #if !defined( __SME_API_H ) */

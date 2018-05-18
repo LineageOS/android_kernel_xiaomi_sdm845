@@ -2571,7 +2571,16 @@ static int wma_fill_roam_synch_buffer(tp_wma_handle wma,
 
 	fils_info = (wmi_roam_fils_synch_tlv_param *)
 			(param_buf->roam_fils_synch_info);
-	if (param_buf->roam_fils_synch_info) {
+	if (fils_info) {
+		if ((fils_info->kek_len > SIR_KEK_KEY_LEN_FILS) ||
+		    (fils_info->pmk_len > SIR_PMK_LEN)) {
+			WMA_LOGE("%s: Invalid kek_len %d or pmk_len %d",
+				 __func__,
+				 fils_info->kek_len,
+				 fils_info->pmk_len);
+			return -EINVAL;
+		}
+
 		roam_synch_ind_ptr->kek_len = fils_info->kek_len;
 		qdf_mem_copy(roam_synch_ind_ptr->kek, fils_info->kek,
 			     fils_info->kek_len);
@@ -3810,7 +3819,7 @@ QDF_STATUS wma_pno_start(tp_wma_handle wma, tpSirPNOScanReq pno)
 			pno->aNetworks[i].ssId.length;
 		qdf_mem_copy(params->aNetworks[i].ssid.mac_ssid,
 			pno->aNetworks[i].ssId.ssId,
-				WMI_MAC_MAX_SSID_LENGTH);
+				pno->aNetworks[i].ssId.length);
 	}
 
 	params->enable_pno_scan_randomization =
@@ -6293,7 +6302,7 @@ QDF_STATUS wma_set_epno_network_list(tp_wma_handle wma,
 					req->networks[i].ssid.length;
 			qdf_mem_copy(params->networks[i].ssid.mac_ssid,
 					req->networks[i].ssid.ssId,
-					WMI_MAC_MAX_SSID_LENGTH);
+					req->networks[i].ssid.length);
 		}
 	}
 

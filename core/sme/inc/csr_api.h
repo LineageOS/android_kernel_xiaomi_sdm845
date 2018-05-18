@@ -1408,6 +1408,7 @@ typedef struct tagCsrRoamInfo {
 	tSirResultCodes statusCode;
 	/* this'd be our own defined or sent from otherBSS(per 802.11spec) */
 	uint32_t reasonCode;
+	uint8_t disassoc_reason;
 	uint8_t staId;         /* Peer stationId when connected */
 	/*
 	 * The DPU signatures will be sent eventually to TL to help it
@@ -1516,6 +1517,10 @@ typedef struct tagCsrRoamInfo {
 #ifdef WLAN_FEATURE_FILS_SK
 	struct fils_join_rsp_params *fils_join_rsp;
 #endif
+
+	int rssi;
+	int tx_rate;
+	int rx_rate;
 } tCsrRoamInfo;
 
 typedef struct tagCsrFreqScanInfo {
