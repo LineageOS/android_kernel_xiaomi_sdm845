@@ -90,6 +90,10 @@ ifeq ($(CONFIG_QCACLD_FEATURE_GREEN_AP), y)
 HDD_OBJS+=	$(HDD_SRC_DIR)/wlan_hdd_green_ap.o
 endif
 
+ifeq ($(CONFIG_QCACLD_FEATURE_APF), y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_apf.o
+endif
+
 ifeq ($(CONFIG_WLAN_FEATURE_LPSS), y)
 HDD_OBJS +=	$(HDD_SRC_DIR)/wlan_hdd_lpass.o
 endif
@@ -830,6 +834,10 @@ WMI_OBJS := $(WMI_OBJ_DIR)/wmi_unified.o \
 
 ifeq ($(CONFIG_POWER_MANAGEMENT_OFFLOAD), y)
 WMI_OBJS += $(WMI_OBJ_DIR)/wmi_unified_pmo_api.o
+endif
+
+ifeq ($(CONFIG_QCACLD_FEATURE_APF), y)
+WMI_OBJS += $(WMI_OBJ_DIR)/wmi_unified_apf_tlv.o
 endif
 
 ifeq ($(CONFIG_WLAN_FEATURE_DSRC), y)
@@ -1806,6 +1814,10 @@ cppflags-$(CONFIG_WLAN_ENABLE_SOCIAL_CHANNELS_5G_ONLY) += -DWLAN_ENABLE_SOCIAL_C
 
 #Green AP feature
 cppflags-$(CONFIG_QCACLD_FEATURE_GREEN_AP) += -DWLAN_SUPPORT_GREEN_AP
+
+ifeq ($(CONFIG_QCACLD_FEATURE_APF), y)
+cppflags-$(CONFIG_QCACLD_FEATURE_APF) += -DFEATURE_WLAN_APF
+endif
 
 #Stats & Quota Metering feature
 ifeq ($(CONFIG_IPA_OFFLOAD), y)
