@@ -5,7 +5,7 @@
 # A mix between the arm64 and arm vDSO Makefiles.
 
 ifeq ($(cc-name),clang)
-  CC_ARM32 := $(cc-name) $(CLANG_TARGET_ARM32) -no-integrated-as
+  CC_ARM32 := $(CC) $(CLANG_TARGET_ARM32) -no-integrated-as
   GCC_ARM32_TC := $(realpath $(dir $(shell which $(CROSS_COMPILE_ARM32)ld))/..)
 ifneq ($(GCC_ARM32_TC),)
   CC_ARM32 += --gcc-toolchain=$(GCC_ARM32_TC)
