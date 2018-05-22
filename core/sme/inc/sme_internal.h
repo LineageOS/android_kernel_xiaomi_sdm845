@@ -274,7 +274,8 @@ typedef struct tagSmeStruct {
 			struct sir_lost_link_info *lost_link_info);
 	void (*rso_cmd_status_cb)(void *hdd_context,
 			 struct rso_cmd_status *rso_status);
-	void (*get_arp_stats_cb)(void *, struct rsp_stats *);
+	void *get_arp_stats_context;
+	void (*get_arp_stats_cb)(void *, struct rsp_stats *, void *);
 	void (*bt_activity_info_cb)(void *context, uint32_t bt_activity);
 	void (*chip_power_save_fail_cb)(void *,
 			struct chip_pwr_save_fail_detected_params *);
