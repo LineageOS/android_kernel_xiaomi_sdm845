@@ -16453,6 +16453,7 @@ static QDF_STATUS extract_ndp_ind_tlv(wmi_unified_t wmi_handle,
 {
 	WMI_NDP_INDICATION_EVENTID_param_tlvs *event;
 	wmi_ndp_indication_event_fixed_param *fixed_params;
+	size_t total_array_len;
 
 	event = (WMI_NDP_INDICATION_EVENTID_param_tlvs *)data;
 	fixed_params =
@@ -16468,6 +16469,31 @@ static QDF_STATUS extract_ndp_ind_tlv(wmi_unified_t wmi_handle,
 		WMI_LOGE("FW message ndp app info length %d more than TLV hdr %d",
 			 fixed_params->ndp_app_info_len,
 			 event->num_ndp_app_info);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (fixed_params->ndp_cfg_len >
+		(WMI_SVC_MSG_MAX_SIZE - sizeof(*fixed_params))) {
+		WMI_LOGE("%s: excess wmi buffer: ndp_cfg_len %d",
+			 __func__, fixed_params->ndp_cfg_len);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	total_array_len = fixed_params->ndp_cfg_len +
+					sizeof(*fixed_params);
+
+	if (fixed_params->ndp_app_info_len >
+		(WMI_SVC_MSG_MAX_SIZE - total_array_len)) {
+		WMI_LOGE("%s: excess wmi buffer: ndp_cfg_len %d",
+			 __func__, fixed_params->ndp_app_info_len);
+		return QDF_STATUS_E_INVAL;
+	}
+	total_array_len += fixed_params->ndp_app_info_len;
+
+	if (fixed_params->nan_scid_len >
+		(WMI_SVC_MSG_MAX_SIZE - total_array_len)) {
+		WMI_LOGE("%s: excess wmi buffer: ndp_cfg_len %d",
+			 __func__, fixed_params->nan_scid_len);
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -16532,6 +16558,7 @@ static QDF_STATUS extract_ndp_confirm_tlv(wmi_unified_t wmi_handle,
 	WMI_HOST_WLAN_PHY_MODE ch_mode;
 	WMI_NDP_CONFIRM_EVENTID_param_tlvs *event;
 	wmi_ndp_confirm_event_fixed_param *fixed_params;
+	size_t total_array_len;
 
 	event = (WMI_NDP_CONFIRM_EVENTID_param_tlvs *) data;
 	fixed_params = (wmi_ndp_confirm_event_fixed_param *)event->fixed_param;
@@ -16563,6 +16590,23 @@ static QDF_STATUS extract_ndp_confirm_tlv(wmi_unified_t wmi_handle,
 			fixed_params->ndp_app_info_len);
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_DEBUG,
 		&event->ndp_app_info, fixed_params->ndp_app_info_len);
+
+	if (fixed_params->ndp_cfg_len >
+			(WMI_SVC_MSG_MAX_SIZE - sizeof(*fixed_params))) {
+		WMI_LOGE("%s: excess wmi buffer: ndp_cfg_len %d",
+			 __func__, fixed_params->ndp_cfg_len);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	total_array_len = fixed_params->ndp_cfg_len +
+				sizeof(*fixed_params);
+
+	if (fixed_params->ndp_app_info_len >
+		(WMI_SVC_MSG_MAX_SIZE - total_array_len)) {
+		WMI_LOGE("%s: excess wmi buffer: ndp_cfg_len %d",
+			 __func__, fixed_params->ndp_app_info_len);
+		return QDF_STATUS_E_INVAL;
+	}
 
 	rsp->vdev =
 		wlan_objmgr_get_vdev_by_id_from_psoc(wmi_handle->soc->wmi_psoc,
