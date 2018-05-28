@@ -170,6 +170,16 @@ void hdd_ipa_uc_info(hdd_context_t *hdd_ctx);
  */
 void hdd_ipa_clean_adapter_iface(hdd_adapter_t *adapter);
 
+/**
+ * hdd_ipa_uc_disconnect_ap() - send ap disconnect event
+ * @hdd_ctx: pointer to hdd adapter
+ *
+ * Send disconnect ap event to IPA driver during SSR
+ *
+ * Return: 0 - Success
+ */
+int hdd_ipa_uc_disconnect_ap(hdd_adapter_t *adapter);
+
 #else
 
 static inline QDF_STATUS hdd_ipa_init(hdd_context_t *hdd_ctx)
@@ -347,5 +357,9 @@ static inline void hdd_ipa_clean_adapter_iface(hdd_adapter_t *adapter)
 {
 }
 
+static int hdd_ipa_uc_disconnect_ap(hdd_adapter_t *adapter)
+{
+	return 0;
+}
 #endif /* IPA_OFFLOAD */
 #endif /* #ifndef HDD_IPA_H__ */

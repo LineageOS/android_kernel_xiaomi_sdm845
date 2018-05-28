@@ -2579,6 +2579,10 @@ stopbss:
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			hdd_warn("hdd_softap_stop_bss failed %d",
 			       qdf_status);
+			if (hdd_ipa_is_enabled(pHddCtx)) {
+				hdd_ipa_uc_disconnect_ap(pHostapdAdapter);
+				hdd_ipa_clean_adapter_iface(pHostapdAdapter);
+			}
 		}
 
 		/* notify userspace that the BSS has stopped */
