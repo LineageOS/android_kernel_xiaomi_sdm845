@@ -617,9 +617,8 @@ static void ol_tx_update_connectivity_stats(struct ol_tx_desc_t *tx_desc,
 	}
 	osif_dev = tx_desc->vdev->osif_dev;
 	stats_rx = tx_desc->vdev->stats_rx;
-	ol_tx_flow_pool_unlock(tx_desc);
-
 	pkt_type_bitmap = cds_get_connectivity_stats_pkt_bitmap(osif_dev);
+	ol_tx_flow_pool_unlock(tx_desc);
 
 	if (pkt_type_bitmap) {
 		if (status != htt_tx_status_download_fail)
@@ -863,6 +862,11 @@ void ol_tx_desc_update_group_credit(ol_txrx_pdev_handle pdev,
 	uint8_t i, is_member;
 	uint16_t vdev_id_mask;
 	struct ol_tx_desc_t *tx_desc;
+
+	if (tx_desc_id >= pdev->tx_desc.pool_size) {
+		qdf_print("%s: Invalid desc id", __func__);
+		return;
+	}
 
 	tx_desc = ol_tx_desc_find(pdev, tx_desc_id);
 	for (i = 0; i < OL_TX_MAX_TXQ_GROUPS; i++) {

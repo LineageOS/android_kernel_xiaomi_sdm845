@@ -2940,6 +2940,11 @@ static QDF_STATUS spectral_process_phyerr(tp_wma_handle wma, uint8_t *data,
 
 	get_spectral_control_info(wma, &upper_is_control, &lower_is_control);
 
+	if (!wma->dfs_ic || !wma->dfs_ic->ic_curchan) {
+		WMA_LOGE("%s: channel information is not available", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	if (upper_is_control)
 		rssi_up = control_rssi;
 	else

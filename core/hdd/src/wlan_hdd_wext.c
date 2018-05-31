@@ -11843,8 +11843,6 @@ static int __iw_set_pno(struct net_device *dev,
 	if (ret)
 		return ret;
 
-	hdd_debug("PNO data len %d data %s", wrqu->data.length, extra);
-
 	/* making sure argument string ends with '\0' */
 	len = (wrqu->data.length + 1);
 	data = qdf_mem_malloc(len);
@@ -11855,6 +11853,8 @@ static int __iw_set_pno(struct net_device *dev,
 	qdf_mem_zero(data, len);
 	qdf_mem_copy(data, extra, (len-1));
 	ptr = data;
+
+	hdd_debug("PNO data len %d data %s", wrqu->data.length, data);
 
 	request.enable = 0;
 	request.ucNetworksCount = 0;
