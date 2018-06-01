@@ -13813,7 +13813,7 @@ static uint32_t unpack_core(tpAniSirGlobal pCtx,
 						    append_ie);
 					break;
 				case SigIeRICDataDesc:
-					/* reset the pointers back since this is a container IE and it doesnt have its own EID and Len. */
+					/* reset the pointers back since this is a container IE and it doesn't have its own EID and Len. */
 					pBufRemaining -= 2;
 					nBufRemaining += 2;
 					if (pIe && pIe->noui) {
@@ -17001,7 +17001,7 @@ static uint32_t get_packed_size_core(tpAniSirGlobal pCtx,
 					break;
 				case SigIeRICDataDesc:
 					offset = sizeof(tDot11fIERICDataDesc);
-					pnNeeded -= 2  ; /* Subtract the length and Oui as this is our container IE to group Ies and it doesnt have its own length and OUI. */
+					pnNeeded -= 2  ; /* Subtract the length and Oui as this is our container IE to group Ies and it doesn't have its own length and OUI. */
 					status |=
 						dot11f_get_packed_ieric_data_desc(
 						pCtx, (tDot11fIERICDataDesc *)
