@@ -134,6 +134,14 @@ void dfs_stop(struct wlan_dfs *dfs)
 	dfs_clear_nolhistory(dfs);
 }
 
+void dfs_task_testtimer_reset(struct wlan_dfs *dfs)
+{
+	if (dfs->wlan_dfstest) {
+		qdf_timer_stop(&dfs->wlan_dfstesttimer);
+		dfs->wlan_dfstest = 0;
+	}
+}
+
 void dfs_reset(struct wlan_dfs *dfs)
 {
 	if (!dfs) {
@@ -147,6 +155,7 @@ void dfs_reset(struct wlan_dfs *dfs)
 		dfs_main_timer_reset(dfs);
 		dfs->dfs_event_log_count = 0;
 	}
+	dfs_task_testtimer_reset(dfs);
 }
 
 void dfs_detach(struct wlan_dfs *dfs)
