@@ -1169,6 +1169,11 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 					mac_hdr->sa, pe_session, false);
 			goto free;
 		}
+
+		if (frame_len < 4) {
+			pe_err("invalid frame len: %d", frame_len);
+			goto free;
+		}
 		/* Extract key ID from IV (most 2 bits of 4th byte of IV) */
 		key_id = (*(body_ptr + 3)) >> 6;
 
