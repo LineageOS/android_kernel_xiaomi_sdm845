@@ -1042,8 +1042,9 @@ static void wma_override_listen_interval(tp_wma_handle wma,
 	} else if (!new_override_li &&
 		   (new_override_li != old_override_li)) {
 		/* Configure default LI as we do on resume */
-		if ((wlan_cfg_get_int(mac, WNI_CFG_LISTEN_INTERVAL,
-				      &listen_interval) != eSIR_SUCCESS)) {
+		ret = wlan_cfg_get_int(mac, WNI_CFG_LISTEN_INTERVAL,
+				       &listen_interval);
+		if (ret != QDF_STATUS_SUCCESS) {
 			QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_ERROR,
 				  "Failed to get value for listen interval");
 			listen_interval = POWERSAVE_DEFAULT_LISTEN_INTERVAL;
@@ -1671,7 +1672,7 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 				if (cfg_set_int(pMac,
 						WNI_CFG_CURRENT_TX_POWER_LEVEL,
 						privcmd->param_value) !=
-								eSIR_SUCCESS)
+				    QDF_STATUS_SUCCESS)
 					WMA_LOGE("could not set WNI_CFG_CURRENT_TX_POWER_LEVEL");
 
 			} else {
@@ -1687,7 +1688,7 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 				if (cfg_set_int(pMac,
 						WNI_CFG_CURRENT_TX_POWER_LEVEL,
 						privcmd->param_value) !=
-							    eSIR_SUCCESS)
+				    QDF_STATUS_SUCCESS)
 					WMA_LOGE("could not set WNI_CFG_CURRENT_TX_POWER_LEVEL");
 
 			} else {
