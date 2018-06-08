@@ -520,6 +520,7 @@ lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
 		session->supported_nss_1x1 = true;
 		session->vdev_nss = 1;
 		session->nss = 1;
+		session->nss_forced_1x1 = true;
 		pe_debug("For special ap, NSS: %d", session->nss);
 	}
 
