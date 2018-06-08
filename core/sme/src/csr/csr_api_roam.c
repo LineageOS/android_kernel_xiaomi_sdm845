@@ -4391,7 +4391,7 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 				roam_info->pBssDesc->channelId;
 		}
 		if (cfg_set_int(pMac, WNI_CFG_CURRENT_RSSI,
-				connectionStatus.rssi) == eSIR_FAILURE)
+				connectionStatus.rssi) == QDF_STATUS_E_FAILURE)
 			sme_err("Can't pass WNI_CFG_CURRENT_RSSI to cfg");
 
 		connectionStatus.qosCapability =
@@ -4416,7 +4416,7 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 			|| (eCSR_ROAM_RESULT_MIC_FAILURE == u2)) {
 		qdf_mem_copy(&connectionStatus, &pMac->sme.eventPayload,
 				sizeof(host_event_wlan_status_payload_type));
-		if (IS_SIR_STATUS_SUCCESS(wlan_cfg_get_int(pMac,
+		if (QDF_IS_STATUS_SUCCESS(wlan_cfg_get_int(pMac,
 				WNI_CFG_CURRENT_RSSI, &rssi)))
 			connectionStatus.rssi = rssi;
 
@@ -4428,7 +4428,7 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 	if (eCSR_ROAM_RESULT_FORCED == u2) {
 		qdf_mem_copy(&connectionStatus, &pMac->sme.eventPayload,
 				sizeof(host_event_wlan_status_payload_type));
-		if (IS_SIR_STATUS_SUCCESS(wlan_cfg_get_int(pMac,
+		if (QDF_IS_STATUS_SUCCESS(wlan_cfg_get_int(pMac,
 				WNI_CFG_CURRENT_RSSI, &rssi)))
 			connectionStatus.rssi = rssi;
 
@@ -4440,7 +4440,7 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 	if (eCSR_ROAM_RESULT_DISASSOC_IND == u2) {
 		qdf_mem_copy(&connectionStatus, &pMac->sme.eventPayload,
 				sizeof(host_event_wlan_status_payload_type));
-		if (IS_SIR_STATUS_SUCCESS(wlan_cfg_get_int(pMac,
+		if (QDF_IS_STATUS_SUCCESS(wlan_cfg_get_int(pMac,
 				WNI_CFG_CURRENT_RSSI, &rssi)))
 			connectionStatus.rssi = rssi;
 
@@ -4456,7 +4456,7 @@ QDF_STATUS csr_roam_call_callback(tpAniSirGlobal pMac, uint32_t sessionId,
 	if (eCSR_ROAM_RESULT_DEAUTH_IND == u2) {
 		qdf_mem_copy(&connectionStatus, &pMac->sme.eventPayload,
 				sizeof(host_event_wlan_status_payload_type));
-		if (IS_SIR_STATUS_SUCCESS(wlan_cfg_get_int(pMac,
+		if (QDF_IS_STATUS_SUCCESS(wlan_cfg_get_int(pMac,
 				WNI_CFG_CURRENT_RSSI, &rssi)))
 			connectionStatus.rssi = rssi;
 
@@ -5544,7 +5544,7 @@ QDF_STATUS csr_roam_set_bss_config_cfg(tpAniSirGlobal pMac, uint32_t sessionId,
 				       struct sDot11fBeaconIEs *pIes,
 				       bool resetCountry)
 {
-	tSirRetStatus status;
+	QDF_STATUS status;
 	uint32_t cfgCb = WNI_CFG_CHANNEL_BONDING_MODE_DISABLE;
 	uint8_t channel = 0;
 	struct csr_roam_session *pSession = CSR_GET_SESSION(pMac, sessionId);
@@ -7380,7 +7380,7 @@ static void csr_roam_process_start_bss_success(tpAniSirGlobal mac_ctx,
 			ibss_log->operatingChannel =
 				bss_desc->channelId;
 		}
-		if (IS_SIR_STATUS_SUCCESS(wlan_cfg_get_int(
+		if (QDF_IS_STATUS_SUCCESS(wlan_cfg_get_int(
 					mac_ctx,
 					WNI_CFG_BEACON_INTERVAL,
 					&bi)))
@@ -9917,7 +9917,7 @@ csr_roaming_state_config_cnf_processor(tpAniSirGlobal mac_ctx,
 		return;
 	}
 
-	if (!IS_SIR_STATUS_SUCCESS(result)) {
+	if (!QDF_IS_STATUS_SUCCESS(result)) {
 		/*
 		 * In the event the configuration failed, for infra let the roam
 		 * processor attempt to join something else...
@@ -11134,7 +11134,7 @@ QDF_STATUS csr_roam_send_set_key_cmd(tpAniSirGlobal mac_ctx,
 		if (CSR_IS_ENC_TYPE_STATIC(set_key_cmd->encType)) {
 			uint32_t defKeyId;
 			/* It has to be static WEP here */
-			if (IS_SIR_STATUS_SUCCESS(wlan_cfg_get_int(mac_ctx,
+			if (QDF_IS_STATUS_SUCCESS(wlan_cfg_get_int(mac_ctx,
 					WNI_CFG_WEP_DEFAULT_KEYID,
 					&defKeyId))) {
 				setKeyEvent.keyId = (uint8_t) defKeyId;
@@ -12141,7 +12141,7 @@ csr_roam_diag_joined_new_bss(tpAniSirGlobal mac_ctx,
 			     pNewBss->ssId.length);
 		pIbssLog->operatingChannel = pNewBss->channelNumber;
 	}
-	if (IS_SIR_STATUS_SUCCESS(wlan_cfg_get_int(mac_ctx,
+	if (QDF_IS_STATUS_SUCCESS(wlan_cfg_get_int(mac_ctx,
 						   WNI_CFG_BEACON_INTERVAL,
 						   &bi)))
 		/* U8 is not enough for beacon interval */
@@ -13517,7 +13517,7 @@ QDF_STATUS csr_get_cfg_valid_channels(tpAniSirGlobal pMac, uint8_t *pChannels,
 	uint8_t num_chan_temp = 0;
 	int i;
 
-	if (!IS_SIR_STATUS_SUCCESS(wlan_cfg_get_str(pMac,
+	if (!QDF_IS_STATUS_SUCCESS(wlan_cfg_get_str(pMac,
 					WNI_CFG_VALID_CHANNEL_LIST,
 					(uint8_t *) pChannels, pNumChan)))
 		return QDF_STATUS_E_FAILURE;
@@ -13565,7 +13565,7 @@ int8_t csr_get_cfg_max_tx_power(tpAniSirGlobal pMac, uint8_t channel)
 		goto error;
 	}
 	if (wlan_cfg_get_str(pMac, cfgId, (uint8_t *)pCountryInfo,
-			&cfgLength) != eSIR_SUCCESS) {
+			&cfgLength) != QDF_STATUS_SUCCESS) {
 		goto error;
 	}
 	/* Identify the channel and maxtxpower */
@@ -15796,12 +15796,12 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			csr_join_req_copy_he_cap(csr_join_req, pSession);
 
 		if (wlan_cfg_get_int(pMac, WNI_CFG_VHT_SU_BEAMFORMEE_CAP,
-				     &value) != eSIR_SUCCESS)
+				     &value) != QDF_STATUS_SUCCESS)
 			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 				("Failed to get SU beamformee capability"));
 		if (wlan_cfg_get_int(pMac,
 				WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED,
-				&value1) != eSIR_SUCCESS)
+				&value1) != QDF_STATUS_SUCCESS)
 			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 				("Failed to get CSN beamformee capability"));
 
@@ -15833,7 +15833,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		if (wlan_cfg_get_int(pMac,
 		   WNI_CFG_VHT_SU_BEAMFORMER_CAP, &value)
-		   != eSIR_SUCCESS)
+		   != QDF_STATUS_SUCCESS)
 			sme_err("Failed to get SU beamformer capability");
 
 		/*
@@ -15856,7 +15856,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		if (wlan_cfg_get_int(pMac,
 		   WNI_CFG_VHT_MU_BEAMFORMEE_CAP, &value)
-		   != eSIR_SUCCESS)
+		   != QDF_STATUS_SUCCESS)
 			sme_err("Failed to get CSN beamformee capability");
 		/*
 		 * Set MU Bformee only if SU Bformee is enabled and
@@ -16665,7 +16665,7 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t
 		     sizeof(tSirHTConfig));
 
 	if (wlan_cfg_get_int(pMac, WNI_CFG_VHT_SU_BEAMFORMEE_CAP, &value)
-					!= eSIR_SUCCESS)
+					!= QDF_STATUS_SUCCESS)
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 			 "could not get SU beam formee capability");
 	pMsg->vht_config.su_beam_formee =
@@ -16673,7 +16673,7 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t
 		(uint8_t)pMac->roam.configParam.enable_txbf_sap_mode;
 	if (wlan_cfg_get_int(pMac,
 			WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED,
-			&value) != eSIR_SUCCESS)
+			&value) != QDF_STATUS_SUCCESS)
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
 				("Failed to get CSN beamformee capability"));
 	pMsg->vht_config.csnof_beamformer_antSup = (uint8_t)value;
@@ -17017,7 +17017,7 @@ QDF_STATUS csr_roam_open_session(tpAniSirGlobal mac_ctx,
 
 	/* get the HT capability info */
 	if (wlan_cfg_get_int(mac_ctx, WNI_CFG_HT_CAP_INFO, &nCfgValue) !=
-	    eSIR_SUCCESS) {
+	    QDF_STATUS_SUCCESS) {
 		sme_err("could not get HT capability info");
 		return QDF_STATUS_SUCCESS;
 	}
@@ -17166,7 +17166,7 @@ csr_issue_del_sta_for_session_req(tpAniSirGlobal pMac, uint32_t sessionId,
 	struct del_sta_self_params *del_sta_self_req;
 	struct scheduler_msg msg = {0};
 	tp_wma_handle wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
-	tSirRetStatus status;
+	QDF_STATUS status;
 
 	if (!wma_handle) {
 		sme_err("wma handle is NULL");
@@ -17202,7 +17202,7 @@ csr_issue_del_sta_for_session_req(tpAniSirGlobal pMac, uint32_t sessionId,
 
 	sme_debug("sending WMA_DEL_STA_SELF_REQ");
 	status = wma_post_ctrl_msg(pMac, &msg);
-	if (status != eSIR_SUCCESS) {
+	if (status != QDF_STATUS_SUCCESS) {
 		sme_err("wma_post_ctrl_msg failed");
 		qdf_mem_free(del_sta_self_req);
 		return QDF_STATUS_E_FAILURE;
@@ -18015,7 +18015,7 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 
 	if (wlan_cfg_get_int(mac_ctx, WNI_CFG_REASSOCIATION_FAILURE_TIMEOUT,
 			     (uint32_t *) &req_buf->ReassocFailureTimeout)
-	    != eSIR_SUCCESS) {
+	    != QDF_STATUS_SUCCESS) {
 		sme_err(
 			"could not retrieve ReassocFailureTimeout value");
 		req_buf->ReassocFailureTimeout =
