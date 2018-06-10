@@ -2184,6 +2184,7 @@ static int qpnp_regulator_probe(struct platform_device *pdev)
 	vreg->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!vreg->regmap) {
 		dev_err(&pdev->dev, "Couldn't get parent's regmap\n");
+		kfree(vreg);
 		return -EINVAL;
 	}
 
