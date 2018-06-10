@@ -3031,7 +3031,6 @@ eCsrPhyMode sme_get_phy_mode(tHalHandle hHal)
  */
 QDF_STATUS sme_get_channel_bonding_mode5_g(tHalHandle hHal, uint32_t *mode)
 {
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	tSmeConfigParams *smeConfig;
 
 	if (!mode) {
@@ -3047,7 +3046,7 @@ QDF_STATUS sme_get_channel_bonding_mode5_g(tHalHandle hHal, uint32_t *mode)
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	if (sme_get_config_param(pMac, smeConfig) != QDF_STATUS_SUCCESS) {
+	if (sme_get_config_param(hHal, smeConfig) != QDF_STATUS_SUCCESS) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				"%s: sme_get_config_param failed", __func__);
 		qdf_mem_free(smeConfig);
@@ -3071,7 +3070,6 @@ QDF_STATUS sme_get_channel_bonding_mode5_g(tHalHandle hHal, uint32_t *mode)
  */
 QDF_STATUS sme_get_channel_bonding_mode24_g(tHalHandle hHal, uint32_t *mode)
 {
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	tSmeConfigParams *smeConfig;
 
 	if (!mode) {
@@ -3087,7 +3085,7 @@ QDF_STATUS sme_get_channel_bonding_mode24_g(tHalHandle hHal, uint32_t *mode)
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	if (sme_get_config_param(pMac, smeConfig) != QDF_STATUS_SUCCESS) {
+	if (sme_get_config_param(hHal, smeConfig) != QDF_STATUS_SUCCESS) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				"%s: sme_get_config_param failed", __func__);
 		qdf_mem_free(smeConfig);
