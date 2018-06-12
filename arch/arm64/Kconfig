@@ -1373,6 +1373,8 @@ endif
 
 source "lib/Kconfig"
 
+source "techpack/Kconfig"
+
 # Xiaomi configuration options
 menu "Xiaomi configuration options"
 
