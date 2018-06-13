@@ -1408,6 +1408,7 @@ struct hdd_adapter {
 
 	/* rcpi information */
 	struct rcpi_info rcpi;
+	bool send_mode_change;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(adapter) (&(adapter)->session.station)
