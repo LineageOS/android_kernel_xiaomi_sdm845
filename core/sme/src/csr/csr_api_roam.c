@@ -2147,7 +2147,9 @@ csr_fetch_ch_lst_from_received_list(tpAniSirGlobal mac_ctx,
 		ch_lst++;
 	}
 	req_buf->ConnectedNetwork.ChannelCount = num_channels;
-	req_buf->ChannelCacheType = CHANNEL_LIST_DYNAMIC_UPDATE;
+	req_buf->ChannelCacheType = CHANNEL_LIST_DYNAMIC;
+	sme_debug("ChannelCacheType %dChannelCount %d",
+		  req_buf->ChannelCacheType, num_channels);
 }
 
 /**
@@ -18292,21 +18294,9 @@ csr_fetch_ch_lst_from_occupied_lst(tpAniSirGlobal mac_ctx,
 		ch_lst++;
 	}
 	req_buf->ConnectedNetwork.ChannelCount = num_channels;
-	/*
-	 * If the profile changes as to what it was earlier, inform the FW
-	 * through FLUSH as ChannelCacheType in which case, the FW will flush
-	 * the occupied channels for the earlier profile and try to learn them
-	 * afresh
-	 */
-	if (reason == REASON_FLUSH_CHANNEL_LIST)
-		req_buf->ChannelCacheType = CHANNEL_LIST_DYNAMIC_FLUSH;
-	else {
-		if (csr_neighbor_roam_is_new_connected_profile(mac_ctx,
-							       session_id))
-			req_buf->ChannelCacheType = CHANNEL_LIST_DYNAMIC_INIT;
-		else
-			req_buf->ChannelCacheType = CHANNEL_LIST_DYNAMIC_UPDATE;
-	}
+	req_buf->ChannelCacheType = CHANNEL_LIST_DYNAMIC;
+	sme_debug("ChannelCacheType %dChannelCount %d",
+		  req_buf->ChannelCacheType, num_channels);
 }
 
 /**
@@ -18413,6 +18403,8 @@ csr_fetch_valid_ch_lst(tpAniSirGlobal mac_ctx,
 		req_buf->ConnectedNetwork.ChannelCount = num_channels;
 	}
 
+	sme_debug("ChannelCacheType %dChannelCount %d",
+		  req_buf->ChannelCacheType, num_channels);
 	return status;
 }
 
