@@ -44,120 +44,132 @@
 #include "wlan_hdd_twt.h"
 
 static void
-cb_notify_set_roam_prefer5_g_hz(struct hdd_context *hdd_ctx, unsigned long notifyId)
+cb_notify_set_roam_prefer5_g_hz(struct hdd_context *hdd_ctx,
+				unsigned long notify_id)
 {
-	sme_update_roam_prefer5_g_hz(hdd_ctx->hHal,
+	sme_update_roam_prefer5_g_hz(hdd_ctx->mac_handle,
 				     hdd_ctx->config->nRoamPrefer5GHz);
 }
 
 static void
-cb_notify_set_roam_rssi_diff(struct hdd_context *hdd_ctx, unsigned long notifyId)
+cb_notify_set_roam_rssi_diff(struct hdd_context *hdd_ctx,
+			     unsigned long notify_id)
 {
-	sme_update_roam_rssi_diff(hdd_ctx->hHal,
+	sme_update_roam_rssi_diff(hdd_ctx->mac_handle,
 				  0, hdd_ctx->config->RoamRssiDiff);
 }
 
 static void
 cb_notify_set_fast_transition_enabled(struct hdd_context *hdd_ctx,
-				      unsigned long notifyId)
+				      unsigned long notify_id)
 {
-	sme_update_fast_transition_enabled(hdd_ctx->hHal,
-					   hdd_ctx->config->
-					   isFastTransitionEnabled);
+	bool enabled = hdd_ctx->config->isFastTransitionEnabled;
+
+	sme_update_fast_transition_enabled(hdd_ctx->mac_handle, enabled);
 }
 
 static void
-cb_notify_set_roam_intra_band(struct hdd_context *hdd_ctx, unsigned long notifyId)
+cb_notify_set_roam_intra_band(struct hdd_context *hdd_ctx,
+			      unsigned long notify_id)
 {
-	sme_set_roam_intra_band(hdd_ctx->hHal, hdd_ctx->config->nRoamIntraBand);
+	sme_set_roam_intra_band(hdd_ctx->mac_handle,
+				hdd_ctx->config->nRoamIntraBand);
 }
 
 static void cb_notify_set_wes_mode(struct hdd_context *hdd_ctx,
-				   unsigned long notifyId)
+				   unsigned long notify_id)
 {
-	sme_update_wes_mode(hdd_ctx->hHal,
+	sme_update_wes_mode(hdd_ctx->mac_handle,
 			    hdd_ctx->config->isWESModeEnabled, 0);
 }
 
 static void
-cb_notify_set_roam_scan_n_probes(struct hdd_context *hdd_ctx, unsigned long notifyId)
+cb_notify_set_roam_scan_n_probes(struct hdd_context *hdd_ctx,
+				 unsigned long notify_id)
 {
-	sme_update_roam_scan_n_probes(hdd_ctx->hHal, 0,
+	sme_update_roam_scan_n_probes(hdd_ctx->mac_handle, 0,
 				      hdd_ctx->config->nProbes);
 }
 
 static void
 cb_notify_set_roam_scan_home_away_time(struct hdd_context *hdd_ctx,
-				       unsigned long notifyId)
+				       unsigned long notify_id)
 {
-	sme_update_roam_scan_home_away_time(hdd_ctx->hHal, 0,
-					    hdd_ctx->config->nRoamScanHomeAwayTime,
-					    true);
+	uint16_t away_time = hdd_ctx->config->nRoamScanHomeAwayTime;
+
+	sme_update_roam_scan_home_away_time(hdd_ctx->mac_handle, 0,
+					    away_time, true);
 }
 
 static void
 notify_is_fast_roam_ini_feature_enabled(struct hdd_context *hdd_ctx,
-					unsigned long notifyId)
+					unsigned long notify_id)
 {
-	sme_update_is_fast_roam_ini_feature_enabled(hdd_ctx->hHal, 0,
-						    hdd_ctx->config->
-						    isFastRoamIniFeatureEnabled);
+	bool enabled = hdd_ctx->config->isFastRoamIniFeatureEnabled;
+
+	sme_update_is_fast_roam_ini_feature_enabled(hdd_ctx->mac_handle, 0,
+						    enabled);
 }
 
 static void
 notify_is_mawc_ini_feature_enabled(struct hdd_context *hdd_ctx,
-				   unsigned long notifyId)
+				   unsigned long notify_id)
 {
-	sme_update_is_mawc_ini_feature_enabled(hdd_ctx->hHal,
+	sme_update_is_mawc_ini_feature_enabled(hdd_ctx->mac_handle,
 					       hdd_ctx->config->MAWCEnabled);
 }
 
 #ifdef FEATURE_WLAN_ESE
 static void
 cb_notify_set_ese_feature_enabled(struct hdd_context *hdd_ctx,
-				  unsigned long notifyId)
+				  unsigned long notify_id)
 {
-	sme_update_is_ese_feature_enabled(hdd_ctx->hHal, 0,
-					  hdd_ctx->config->isEseIniFeatureEnabled);
+	bool enabled = hdd_ctx->config->isEseIniFeatureEnabled;
+
+	sme_update_is_ese_feature_enabled(hdd_ctx->mac_handle, 0, enabled);
 }
 #endif
-static void cb_notify_set_opportunistic_scan_threshold_diff(struct hdd_context *hdd_ctx,
-							    unsigned long notifyId)
+
+static void
+cb_notify_set_opportunistic_scan_threshold_diff(struct hdd_context *hdd_ctx,
+						unsigned long notify_id)
 {
-	sme_set_roam_opportunistic_scan_threshold_diff(hdd_ctx->hHal, 0,
-						       hdd_ctx->config->
-						       nOpportunisticThresholdDiff);
+	uint8_t diff = hdd_ctx->config->nOpportunisticThresholdDiff;
+
+	sme_set_roam_opportunistic_scan_threshold_diff(hdd_ctx->mac_handle,
+						       0, diff);
 }
 
 static void cb_notify_set_roam_rescan_rssi_diff(struct hdd_context *hdd_ctx,
-						unsigned long notifyId)
+						unsigned long notify_id)
 {
-	sme_set_roam_rescan_rssi_diff(hdd_ctx->hHal,
+	sme_set_roam_rescan_rssi_diff(hdd_ctx->mac_handle,
 				      0, hdd_ctx->config->nRoamRescanRssiDiff);
 }
 
 static void
 cb_notify_set_neighbor_lookup_rssi_threshold(struct hdd_context *hdd_ctx,
-					     unsigned long notifyId)
+					     unsigned long notify_id)
 {
-	sme_set_neighbor_lookup_rssi_threshold(hdd_ctx->hHal, 0,
-					       hdd_ctx->config->
-					       nNeighborLookupRssiThreshold);
+	uint8_t threshold = hdd_ctx->config->nNeighborLookupRssiThreshold;
+
+	sme_set_neighbor_lookup_rssi_threshold(hdd_ctx->mac_handle, 0,
+					       threshold);
 }
 
 static void
 cb_notify_set_delay_before_vdev_stop(struct hdd_context *hdd_ctx,
 				     unsigned long notify_id)
 {
-	sme_set_delay_before_vdev_stop(hdd_ctx->hHal, 0,
-				hdd_ctx->config->delay_before_vdev_stop);
+	sme_set_delay_before_vdev_stop(hdd_ctx->mac_handle, 0,
+				       hdd_ctx->config->delay_before_vdev_stop);
 }
 
 static void
 cb_notify_set_neighbor_scan_period(struct hdd_context *hdd_ctx,
-				   unsigned long notifyId)
+				   unsigned long notify_id)
 {
-	sme_set_neighbor_scan_period(hdd_ctx->hHal, 0,
+	sme_set_neighbor_scan_period(hdd_ctx->mac_handle, 0,
 				     hdd_ctx->config->nNeighborScanPeriod);
 }
 
@@ -173,119 +185,130 @@ cb_notify_set_neighbor_scan_period(struct hdd_context *hdd_ctx,
  */
 static void
 cb_notify_set_neighbor_scan_min_period(struct hdd_context *hdd_ctx,
-				   unsigned long notifyId)
+				       unsigned long notify_id)
 {
-	sme_set_neighbor_scan_min_period(hdd_ctx->hHal, 0,
-					 hdd_ctx->config->
-					 neighbor_scan_min_period);
+	uint16_t period = hdd_ctx->config->neighbor_scan_min_period;
+
+	sme_set_neighbor_scan_min_period(hdd_ctx->mac_handle, 0,
+					 period);
 }
 
 static void
 cb_notify_set_neighbor_results_refresh_period(struct hdd_context *hdd_ctx,
-					      unsigned long notifyId)
+					      unsigned long notify_id)
 {
-	sme_set_neighbor_scan_refresh_period(hdd_ctx->hHal, 0,
-					     hdd_ctx->config->
-					     nNeighborResultsRefreshPeriod);
+	uint16_t period = hdd_ctx->config->nNeighborResultsRefreshPeriod;
+
+	sme_set_neighbor_scan_refresh_period(hdd_ctx->mac_handle, 0,
+					     period);
 }
 
 static void
 cb_notify_set_empty_scan_refresh_period(struct hdd_context *hdd_ctx,
-					unsigned long notifyId)
+					unsigned long notify_id)
 {
-	sme_update_empty_scan_refresh_period(hdd_ctx->hHal, 0,
-					     hdd_ctx->config->
-					     nEmptyScanRefreshPeriod);
+	uint16_t period = hdd_ctx->config->nEmptyScanRefreshPeriod;
+
+	sme_update_empty_scan_refresh_period(hdd_ctx->mac_handle, 0,
+					     period);
 }
 
 static void
 cb_notify_set_neighbor_scan_min_chan_time(struct hdd_context *hdd_ctx,
-					  unsigned long notifyId)
+					  unsigned long notify_id)
 {
-	sme_set_neighbor_scan_min_chan_time(hdd_ctx->hHal,
-					    hdd_ctx->config->
-					    nNeighborScanMinChanTime, 0);
+	uint16_t min_chan_time = hdd_ctx->config->nNeighborScanMinChanTime;
+
+	sme_set_neighbor_scan_min_chan_time(hdd_ctx->mac_handle,
+					    min_chan_time, 0);
 }
 
 static void
 cb_notify_set_neighbor_scan_max_chan_time(struct hdd_context *hdd_ctx,
-					  unsigned long notifyId)
+					  unsigned long notify_id)
 {
-	sme_set_neighbor_scan_max_chan_time(hdd_ctx->hHal, 0,
-					    hdd_ctx->config->
-					    nNeighborScanMaxChanTime);
+	uint16_t max_chan_time = hdd_ctx->config->nNeighborScanMaxChanTime;
+
+	sme_set_neighbor_scan_max_chan_time(hdd_ctx->mac_handle, 0,
+					    max_chan_time);
 }
 
 static void cb_notify_set_roam_bmiss_first_bcnt(struct hdd_context *hdd_ctx,
-						unsigned long notifyId)
+						unsigned long notify_id)
 {
-	sme_set_roam_bmiss_first_bcnt(hdd_ctx->hHal,
+	sme_set_roam_bmiss_first_bcnt(hdd_ctx->mac_handle,
 				      0, hdd_ctx->config->nRoamBmissFirstBcnt);
 }
 
 static void cb_notify_set_roam_bmiss_final_bcnt(struct hdd_context *hdd_ctx,
-						unsigned long notifyId)
+						unsigned long notify_id)
 {
-	sme_set_roam_bmiss_final_bcnt(hdd_ctx->hHal, 0,
+	sme_set_roam_bmiss_final_bcnt(hdd_ctx->mac_handle, 0,
 				      hdd_ctx->config->nRoamBmissFinalBcnt);
 }
 
 static void cb_notify_set_roam_beacon_rssi_weight(struct hdd_context *hdd_ctx,
-						  unsigned long notifyId)
+						  unsigned long notify_id)
 {
-	sme_set_roam_beacon_rssi_weight(hdd_ctx->hHal, 0,
+	sme_set_roam_beacon_rssi_weight(hdd_ctx->mac_handle, 0,
 					hdd_ctx->config->nRoamBeaconRssiWeight);
 }
 
 static void
-cb_notify_set_dfs_scan_mode(struct hdd_context *hdd_ctx, unsigned long notifyId)
+cb_notify_set_dfs_scan_mode(struct hdd_context *hdd_ctx,
+			    unsigned long notify_id)
 {
-	sme_update_dfs_scan_mode(hdd_ctx->hHal, 0,
+	sme_update_dfs_scan_mode(hdd_ctx->mac_handle, 0,
 				 hdd_ctx->config->allowDFSChannelRoam);
 }
 
 static void cb_notify_set_enable_ssr(struct hdd_context *hdd_ctx,
-				     unsigned long notifyId)
+				     unsigned long notify_id)
 {
-	sme_update_enable_ssr(hdd_ctx->hHal, hdd_ctx->config->enableSSR);
+	sme_update_enable_ssr(hdd_ctx->mac_handle, hdd_ctx->config->enableSSR);
 }
 
-static void cb_notify_set_g_sap_preferred_chan_location(struct hdd_context *hdd_ctx,
-							unsigned long notifyId)
+static void
+cb_notify_set_g_sap_preferred_chan_location(struct hdd_context *hdd_ctx,
+					    unsigned long notify_id)
 {
-	wlansap_set_dfs_preferred_channel_location(hdd_ctx->hHal,
-						   hdd_ctx->config->
-						   gSapPreferredChanLocation);
+	uint8_t location = hdd_ctx->config->gSapPreferredChanLocation;
+
+	wlansap_set_dfs_preferred_channel_location(hdd_ctx->mac_handle,
+						   location);
 }
+
 static void ch_notify_set_g_disable_dfs_japan_w53(struct hdd_context *hdd_ctx,
-						  unsigned long notifyId)
+						  unsigned long notify_id)
 {
-	wlansap_set_dfs_restrict_japan_w53(hdd_ctx->hHal,
-					   hdd_ctx->config->
-					   gDisableDfsJapanW53);
+	bool disabled = hdd_ctx->config->gDisableDfsJapanW53;
+
+	wlansap_set_dfs_restrict_japan_w53(hdd_ctx->mac_handle, disabled);
 }
+
 static void
 cb_notify_update_roam_scan_offload_enabled(struct hdd_context *hdd_ctx,
-					   unsigned long notifyId)
+					   unsigned long notify_id)
 {
-	sme_update_roam_scan_offload_enabled(hdd_ctx->hHal,
-					     hdd_ctx->config->
-					     isRoamOffloadScanEnabled);
-	if (0 == hdd_ctx->config->isRoamOffloadScanEnabled) {
-		hdd_ctx->config->bFastRoamInConIniFeatureEnabled = 0;
-		sme_update_enable_fast_roam_in_concurrency(hdd_ctx->hHal,
-							   hdd_ctx->config->
-							   bFastRoamInConIniFeatureEnabled);
-	}
+	bool enabled = hdd_ctx->config->isRoamOffloadScanEnabled;
+
+	sme_update_roam_scan_offload_enabled(hdd_ctx->mac_handle, enabled);
+	if (enabled)
+		return;
+
+	/* fate sharing */
+	hdd_ctx->config->bFastRoamInConIniFeatureEnabled = false;
+	sme_update_enable_fast_roam_in_concurrency(hdd_ctx->mac_handle, false);
 }
 
 static void
 cb_notify_set_enable_fast_roam_in_concurrency(struct hdd_context *hdd_ctx,
-					      unsigned long notifyId)
+					      unsigned long notify_id)
 {
-	sme_update_enable_fast_roam_in_concurrency(hdd_ctx->hHal,
-						   hdd_ctx->config->
-						   bFastRoamInConIniFeatureEnabled);
+	bool enabled = hdd_ctx->config->bFastRoamInConIniFeatureEnabled;
+
+	sme_update_enable_fast_roam_in_concurrency(hdd_ctx->mac_handle,
+						   enabled);
 }
 
 /**
@@ -300,7 +323,7 @@ cb_notify_set_enable_fast_roam_in_concurrency(struct hdd_context *hdd_ctx,
 
 static void
 cb_notify_set_roam_scan_hi_rssi_scan_params(struct hdd_context *hdd_ctx,
-				    unsigned long notify_id)
+					    unsigned long notify_id)
 {
 	int32_t val;
 
@@ -328,8 +351,8 @@ cb_notify_set_roam_scan_hi_rssi_scan_params(struct hdd_context *hdd_ctx,
 		return;
 	}
 
-	sme_update_roam_scan_hi_rssi_scan_params(hdd_ctx->hHal, 0,
-		notify_id, val);
+	sme_update_roam_scan_hi_rssi_scan_params(hdd_ctx->mac_handle, 0,
+						 notify_id, val);
 }
 
 
@@ -6186,7 +6209,7 @@ static void hdd_set_power_save_offload_config(struct hdd_context *hdd_ctx)
 		 * Make sure CFG is updated because PE reads this
 		 * from CFG at the time of assoc or reassoc
 		 */
-		sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_LISTEN_INTERVAL,
+		sme_cfg_set_int(hdd_ctx->mac_handle, WNI_CFG_LISTEN_INTERVAL,
 				listenInterval);
 	}
 
@@ -7883,7 +7906,7 @@ static bool hdd_update_ht_cap_in_cfg(struct hdd_context *hdd_ctx)
 	bool status = true;
 	tSirMacHTCapabilityInfo *ht_cap_info;
 
-	if (sme_cfg_get_int(hdd_ctx->hHal, WNI_CFG_HT_CAP_INFO,
+	if (sme_cfg_get_int(hdd_ctx->mac_handle, WNI_CFG_HT_CAP_INFO,
 				&val32) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
@@ -7898,7 +7921,7 @@ static bool hdd_update_ht_cap_in_cfg(struct hdd_context *hdd_ctx)
 	ht_cap_info->shortGI20MHz &= hdd_ctx->config->ShortGI20MhzEnable;
 	ht_cap_info->shortGI40MHz &= hdd_ctx->config->ShortGI40MhzEnable;
 	val32 = val16;
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_HT_CAP_INFO, val32) ==
+	if (sme_cfg_set_int(hdd_ctx->mac_handle, WNI_CFG_HT_CAP_INFO, val32) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Could not set WNI_CFG_HT_CAP_INFO");
@@ -7920,8 +7943,9 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 	bool status = true;
 	uint32_t val;
 	struct hdd_config *config = hdd_ctx->config;
+	mac_handle_t mac_handle = hdd_ctx->mac_handle;
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_VHT_ENABLE_TXBF_20MHZ,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_ENABLE_TXBF_20MHZ,
 			    config->enableTxBFin20MHz) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
@@ -7936,13 +7960,13 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 	    (config->dot11Mode == eHDD_DOT11_MODE_11ac_ONLY) ||
 	    (config->dot11Mode == eHDD_DOT11_MODE_11ac)) {
 		/* Currently shortGI40Mhz is used for shortGI80Mhz and 160MHz*/
-		if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_VHT_SHORT_GI_80MHZ,
+		if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_SHORT_GI_80MHZ,
 			config->ShortGI40MhzEnable) == QDF_STATUS_E_FAILURE) {
 			status = false;
 			hdd_err("Couldn't pass WNI_VHT_SHORT_GI_80MHZ to CFG");
 		}
 
-		if (sme_cfg_set_int(hdd_ctx->hHal,
+		if (sme_cfg_set_int(mac_handle,
 			WNI_CFG_VHT_SHORT_GI_160_AND_80_PLUS_80MHZ,
 			config->ShortGI40MhzEnable) == QDF_STATUS_E_FAILURE) {
 			status = false;
@@ -7952,7 +7976,7 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 		/* Hardware is capable of doing
 		 * 128K AMPDU in 11AC mode
 		 */
-		if (sme_cfg_set_int(hdd_ctx->hHal,
+		if (sme_cfg_set_int(mac_handle,
 			     WNI_CFG_VHT_AMPDU_LEN_EXPONENT,
 			     config->fVhtAmpduLenExponent) ==
 			    QDF_STATUS_E_FAILURE) {
@@ -7961,11 +7985,11 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 		}
 		/* Change MU Bformee only when TxBF is enabled */
 		if (config->enableTxBF) {
-			sme_cfg_get_int(hdd_ctx->hHal,
+			sme_cfg_get_int(mac_handle,
 				WNI_CFG_VHT_MU_BEAMFORMEE_CAP, &val);
 
 			if (val != config->enableMuBformee) {
-				if (sme_cfg_set_int(hdd_ctx->hHal,
+				if (sme_cfg_set_int(mac_handle,
 					    WNI_CFG_VHT_MU_BEAMFORMEE_CAP,
 					    config->enableMuBformee
 					    ) == QDF_STATUS_E_FAILURE) {
@@ -7974,21 +7998,21 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 				}
 			}
 		}
-		if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_VHT_MAX_MPDU_LENGTH,
+		if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_MAX_MPDU_LENGTH,
 			    config->vhtMpduLen) == QDF_STATUS_E_FAILURE) {
 			status = false;
 			hdd_err("Couldn't pass on WNI_CFG_VHT_MAX_MPDU_LENGTH to CFG");
 		}
 
 		if (config->enable2x2 && config->enable_su_tx_bformer) {
-			if (sme_cfg_set_int(hdd_ctx->hHal,
+			if (sme_cfg_set_int(mac_handle,
 					WNI_CFG_VHT_SU_BEAMFORMER_CAP,
 					config->enable_su_tx_bformer) ==
 				QDF_STATUS_E_FAILURE) {
 				status = false;
 				hdd_err("set SU_BEAMFORMER_CAP to CFG failed");
 			}
-			if (sme_cfg_set_int(hdd_ctx->hHal,
+			if (sme_cfg_set_int(mac_handle,
 					WNI_CFG_VHT_NUM_SOUNDING_DIMENSIONS,
 					NUM_OF_SOUNDING_DIMENSIONS) ==
 				QDF_STATUS_E_FAILURE) {
@@ -7998,34 +8022,34 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 		}
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_VHT_RXSTBC,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_RXSTBC,
 			    config->enableRxSTBC) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_VHT_RXSTBC to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_VHT_TXSTBC,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_TXSTBC,
 			    config->enableTxSTBC) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_VHT_TXSTBC to CFG");
 	}
 
 	/* first get HW RX LDPC capability */
-	if (sme_cfg_get_int(hdd_ctx->hHal, WNI_CFG_VHT_LDPC_CODING_CAP, &val) ==
+	if (sme_cfg_get_int(mac_handle, WNI_CFG_VHT_LDPC_CODING_CAP, &val) ==
 							QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Could not get WNI_CFG_VHT_LDPC_CODING_CAP");
 	}
 
 	/* enable RX LDPC only when both INI and HW are enabled */
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_VHT_LDPC_CODING_CAP,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_LDPC_CODING_CAP,
 				config->enable_rx_ldpc && val) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_VHT_LDPC_CODING_CAP to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal,
+	if (sme_cfg_set_int(mac_handle,
 		WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED,
 		config->txBFCsnValue) ==
 			QDF_STATUS_E_FAILURE) {
@@ -8052,6 +8076,7 @@ bool hdd_update_config_cfg(struct hdd_context *hdd_ctx)
 {
 	bool status = true;
 	struct hdd_config *config = hdd_ctx->config;
+	mac_handle_t mac_handle;
 
 	/*
 	 * During the initialization both 2G and 5G capabilities should be same.
@@ -8072,27 +8097,29 @@ bool hdd_update_config_cfg(struct hdd_context *hdd_ctx)
 		hdd_err("Couldn't set HE CAP in cfg");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_MAX_RX_AMPDU_FACTOR,
+	mac_handle = hdd_ctx->mac_handle;
+
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_MAX_RX_AMPDU_FACTOR,
 			    config->MaxRxAmpduFactor) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_HT_AMPDU_PARAMS_MAX_RX_AMPDU_FACTOR to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_MPDU_DENSITY,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_MPDU_DENSITY,
 			    config->ht_mpdu_density) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_MPDU_DENSITY to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_SHORT_PREAMBLE,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_SHORT_PREAMBLE,
 		     config->fIsShortPreamble) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_SHORT_PREAMBLE to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal,
+	if (sme_cfg_set_int(mac_handle,
 				WNI_CFG_PASSIVE_MINIMUM_CHANNEL_TIME,
 				config->nPassiveMinChnTime)
 				== QDF_STATUS_E_FAILURE) {
@@ -8100,7 +8127,7 @@ bool hdd_update_config_cfg(struct hdd_context *hdd_ctx)
 		hdd_err("Couldn't pass on WNI_CFG_PASSIVE_MINIMUM_CHANNEL_TIME to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal,
+	if (sme_cfg_set_int(mac_handle,
 				WNI_CFG_PASSIVE_MAXIMUM_CHANNEL_TIME,
 				config->nPassiveMaxChnTime)
 				== QDF_STATUS_E_FAILURE) {
@@ -8108,130 +8135,130 @@ bool hdd_update_config_cfg(struct hdd_context *hdd_ctx)
 		hdd_err("Couldn't pass on WNI_CFG_PASSIVE_MAXIMUM_CHANNEL_TIME to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_BEACON_INTERVAL,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_BEACON_INTERVAL,
 		     config->nBeaconInterval) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_BEACON_INTERVAL to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_MAX_PS_POLL,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_MAX_PS_POLL,
 		     config->nMaxPsPoll) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_MAX_PS_POLL to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_PS_DATA_INACTIVITY_TIMEOUT,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_PS_DATA_INACTIVITY_TIMEOUT,
 		    config->nDataInactivityTimeout) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_PS_DATA_INACTIVITY_TIMEOUT to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal,
+	if (sme_cfg_set_int(mac_handle,
 		WNI_CFG_PS_WOW_DATA_INACTIVITY_TIMEOUT,
 		config->wow_data_inactivity_timeout) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Fail to pass WNI_CFG_PS_WOW_DATA_INACTIVITY_TO CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_ENABLE_LTE_COEX,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_ENABLE_LTE_COEX,
 		     config->enableLTECoex) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_ENABLE_LTE_COEX to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_AP_KEEP_ALIVE_TIMEOUT,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_AP_KEEP_ALIVE_TIMEOUT,
 		    config->apKeepAlivePeriod) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_AP_KEEP_ALIVE_TIMEOUT to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_GO_KEEP_ALIVE_TIMEOUT,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_GO_KEEP_ALIVE_TIMEOUT,
 		    config->goKeepAlivePeriod) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_GO_KEEP_ALIVE_TIMEOUT to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_AP_LINK_MONITOR_TIMEOUT,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_AP_LINK_MONITOR_TIMEOUT,
 		    config->apLinkMonitorPeriod) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_AP_LINK_MONITOR_TIMEOUT to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_GO_LINK_MONITOR_TIMEOUT,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_GO_LINK_MONITOR_TIMEOUT,
 		    config->goLinkMonitorPeriod) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_GO_LINK_MONITOR_TIMEOUT to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_SINGLE_TID_RC,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_SINGLE_TID_RC,
 		    config->bSingleTidRc) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_SINGLE_TID_RC to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_TELE_BCN_WAKEUP_EN,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_TELE_BCN_WAKEUP_EN,
 		    config->teleBcnWakeupEn) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_TELE_BCN_WAKEUP_EN to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_TELE_BCN_MAX_LI,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_TELE_BCN_MAX_LI,
 		    config->nTeleBcnMaxListenInterval) ==
 		    QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_TELE_BCN_MAX_LI to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_INFRA_STA_KEEP_ALIVE_PERIOD,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_INFRA_STA_KEEP_ALIVE_PERIOD,
 		    config->infraStaKeepAlivePeriod) ==
 		    QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_INFRA_STA_KEEP_ALIVE_PERIOD to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_FRAGMENTATION_THRESHOLD,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_FRAGMENTATION_THRESHOLD,
 		    config->FragmentationThreshold) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_FRAGMENTATION_THRESHOLD to CFG");
 	}
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_RTS_THRESHOLD,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_RTS_THRESHOLD,
 		     config->RTSThreshold) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_RTS_THRESHOLD to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_11D_ENABLED,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_11D_ENABLED,
 		     config->Is11dSupportEnabled) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_11D_ENABLED to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_DFS_MASTER_ENABLED,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_DFS_MASTER_ENABLED,
 			    config->enableDFSMasterCap) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Failure: Couldn't set value for WNI_CFG_DFS_MASTER_ENABLED");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_HEART_BEAT_THRESHOLD,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_HEART_BEAT_THRESHOLD,
 		    config->HeartbeatThresh24) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_HEART_BEAT_THRESHOLD to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_ENABLE_MC_ADDR_LIST,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_ENABLE_MC_ADDR_LIST,
 		    config->fEnableMCAddrList) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_ENABLE_MC_ADDR_LIST to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED,
 		    config->enableMCCAdaptiveScheduler) ==
 		    QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED to CFG");
 	}
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_DISABLE_LDPC_WITH_TXBF_AP,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_DISABLE_LDPC_WITH_TXBF_AP,
 		    config->disableLDPCWithTxbfAP) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_DISABLE_LDPC_WITH_TXBF_AP to CFG");
@@ -8239,37 +8266,37 @@ bool hdd_update_config_cfg(struct hdd_context *hdd_ctx)
 
 #ifdef FEATURE_WLAN_TDLS
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_TDLS_QOS_WMM_UAPSD_MASK,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_TDLS_QOS_WMM_UAPSD_MASK,
 			    config->fTDLSUapsdMask) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_TDLS_QOS_WMM_UAPSD_MASK to CFG");
 	}
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_TDLS_BUF_STA_ENABLED,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_TDLS_BUF_STA_ENABLED,
 			    config->fEnableTDLSBufferSta) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_TDLS_BUF_STA_ENABLED to CFG");
 	}
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_TDLS_PUAPSD_INACT_TIME,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_TDLS_PUAPSD_INACT_TIME,
 			    config->fTDLSPuapsdInactivityTimer) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_TDLS_PUAPSD_INACT_TIME to CFG");
 	}
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_TDLS_RX_FRAME_THRESHOLD,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_TDLS_RX_FRAME_THRESHOLD,
 			    config->fTDLSRxFrameThreshold) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_TDLS_RX_FRAME_THRESHOLD to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_TDLS_OFF_CHANNEL_ENABLED,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_TDLS_OFF_CHANNEL_ENABLED,
 			    config->fEnableTDLSOffChannel) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_TDLS_BUF_STA_ENABLED to CFG");
 	}
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_TDLS_WMM_MODE_ENABLED,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_TDLS_WMM_MODE_ENABLED,
 			    config->fEnableTDLSWmmMode) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
@@ -8277,7 +8304,7 @@ bool hdd_update_config_cfg(struct hdd_context *hdd_ctx)
 	}
 #endif
 
-	if (sme_cfg_set_int(hdd_ctx->hHal,
+	if (sme_cfg_set_int(mac_handle,
 			    WNI_CFG_DEBUG_P2P_REMAIN_ON_CHANNEL,
 			    config->debugP2pRemainOnChannel) ==
 			QDF_STATUS_E_FAILURE) {
@@ -8285,14 +8312,14 @@ bool hdd_update_config_cfg(struct hdd_context *hdd_ctx)
 		hdd_err("Couldn't pass on WNI_CFG_DEBUG_P2P_REMAIN_ON_CHANNEL to CFG");
 	}
 #ifdef WLAN_FEATURE_11W
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_PMF_SA_QUERY_MAX_RETRIES,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_PMF_SA_QUERY_MAX_RETRIES,
 			    config->pmfSaQueryMaxRetries) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_SA_QUERY_MAX_RETRIES to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_PMF_SA_QUERY_RETRY_INTERVAL,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_PMF_SA_QUERY_RETRY_INTERVAL,
 			    config->pmfSaQueryRetryInterval) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
@@ -8300,63 +8327,63 @@ bool hdd_update_config_cfg(struct hdd_context *hdd_ctx)
 	}
 #endif
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_IBSS_ATIM_WIN_SIZE,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_IBSS_ATIM_WIN_SIZE,
 			    config->ibssATIMWinSize) ==
 			QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_IBSS_ATIM_WIN_SIZE to CFG");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_TGT_GTX_USR_CFG,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_TGT_GTX_USR_CFG,
 	    config->tgt_gtx_usr_cfg) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_TGT_GTX_USR_CFG to CCM");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_MAX_HT_MCS_TX_DATA,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_MAX_HT_MCS_TX_DATA,
 			    config->max_ht_mcs_txdata) ==
 			    QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_MAX_HT_MCS_TX_DATA to CCM");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_DISABLE_ABG_RATE_FOR_TX_DATA,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_DISABLE_ABG_RATE_FOR_TX_DATA,
 			    config->disable_abg_rate_txdata) ==
 			    QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_DISABLE_ABG_RATE_FOR_TX_DATA to CCM");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_RATE_FOR_TX_MGMT,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_RATE_FOR_TX_MGMT,
 			    config->rate_for_tx_mgmt) ==
 			    QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_RATE_FOR_TX_MGMT to CCM");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_SAP_MAX_MCS_DATA,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_SAP_MAX_MCS_DATA,
 			    config->sap_max_mcs_txdata) ==
 			    QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Could not pass on WNI_CFG_SAP_MAX_MCS_DATA to CCM");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_RATE_FOR_TX_MGMT_2G,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_RATE_FOR_TX_MGMT_2G,
 			    config->rate_for_tx_mgmt_2g) ==
 			    QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_RATE_FOR_TX_MGMT_2G to CCM");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_RATE_FOR_TX_MGMT_5G,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_RATE_FOR_TX_MGMT_5G,
 			    config->rate_for_tx_mgmt_5g) ==
 			    QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_RATE_FOR_TX_MGMT_5G to CCM");
 	}
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_ASSOC_STA_LIMIT,
-				config->maxNumberOfPeers) ==
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_ASSOC_STA_LIMIT,
+			    config->maxNumberOfPeers) ==
 				QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_ASSOC_STA_LIMIT to CFG");
@@ -8625,6 +8652,7 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tSmeConfigParams *smeConfig;
 	uint8_t rrm_capab_len, val;
+	mac_handle_t mac_handle = hdd_ctx->mac_handle;
 
 	struct hdd_config *pConfig = hdd_ctx->config;
 
@@ -8864,8 +8892,7 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 	smeConfig->csrConfig.ignore_peer_erp_info =
 						pConfig->ignore_peer_erp_info;
 	/* update SSR config */
-	sme_update_enable_ssr((tHalHandle) (hdd_ctx->hHal),
-			      hdd_ctx->config->enableSSR);
+	sme_update_enable_ssr(mac_handle, hdd_ctx->config->enableSSR);
 
 	/* Update maximum interfaces information */
 	smeConfig->csrConfig.max_intf_count = hdd_ctx->max_intf_count;
@@ -9098,7 +9125,7 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 	hdd_update_11k_offload_params(hdd_ctx->config,
 					&smeConfig->csrConfig);
 
-	status = sme_update_config(hdd_ctx->hHal, smeConfig);
+	status = sme_update_config(mac_handle, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("sme_update_config() failure: %d", status);
 
@@ -9256,6 +9283,7 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 	uint32_t val, val32;
 	uint16_t val16;
 	uint8_t enable2x2;
+	mac_handle_t mac_handle;
 
 	if ((nss == 2) && (hdd_ctx->num_rf_chains != 2)) {
 		hdd_err("No support for 2 spatial streams");
@@ -9269,7 +9297,8 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 		return QDF_STATUS_SUCCESS;
 	}
 
-	if (true == sme_is_any_session_in_connected_state(hdd_ctx->hHal)) {
+	mac_handle = hdd_ctx->mac_handle;
+	if (sme_is_any_session_in_connected_state(mac_handle)) {
 		hdd_err("Connected sessions present, Do not change NSS");
 		return QDF_STATUS_E_INVAL;
 	}
@@ -9287,7 +9316,7 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 	}
 
 	/* Update Rx Highest Long GI data Rate */
-	if (sme_cfg_set_int(hdd_ctx->hHal,
+	if (sme_cfg_set_int(mac_handle,
 			    WNI_CFG_VHT_RX_HIGHEST_SUPPORTED_DATA_RATE,
 			    rx_supp_data_rate) == QDF_STATUS_E_FAILURE) {
 		status = false;
@@ -9295,64 +9324,64 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 	}
 
 	/* Update Tx Highest Long GI data Rate */
-	if (sme_cfg_set_int(hdd_ctx->hHal,
+	if (sme_cfg_set_int(mac_handle,
 			    WNI_CFG_VHT_TX_HIGHEST_SUPPORTED_DATA_RATE,
 			    tx_supp_data_rate) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Could not pass on WNI_CFG_VHT_TX_HIGHEST_SUPPORTED_DATA_RATE to CFG");
 	}
 
-	sme_cfg_get_int(hdd_ctx->hHal, WNI_CFG_HT_CAP_INFO, &temp);
+	sme_cfg_get_int(mac_handle, WNI_CFG_HT_CAP_INFO, &temp);
 	val16 = (uint16_t)temp;
 	ht_cap_info = (tSirMacHTCapabilityInfo *)&val16;
 	if (!(hdd_ctx->ht_tx_stbc_supported && hdd_config->enable2x2)) {
 		ht_cap_info->txSTBC = 0;
 	} else {
-		sme_cfg_get_int(hdd_ctx->hHal, WNI_CFG_VHT_TXSTBC, &val32);
+		sme_cfg_get_int(mac_handle, WNI_CFG_VHT_TXSTBC, &val32);
 		hdd_debug("STBC %d", val32);
 		ht_cap_info->txSTBC = val32;
 	}
 	temp = val16;
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_HT_CAP_INFO,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_HT_CAP_INFO,
 			    temp) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Could not pass on WNI_CFG_HT_CAP_INFO to CFG");
 	}
 
-	sme_cfg_get_int(hdd_ctx->hHal, WNI_CFG_VHT_BASIC_MCS_SET, &temp);
+	sme_cfg_get_int(mac_handle, WNI_CFG_VHT_BASIC_MCS_SET, &temp);
 	temp = (temp & 0xFFFC) | hdd_config->vhtRxMCS;
 	if (hdd_config->enable2x2)
 		temp = (temp & 0xFFF3) | (hdd_config->vhtRxMCS2x2 << 2);
 	else
 		temp |= 0x000C;
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_VHT_BASIC_MCS_SET,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_BASIC_MCS_SET,
 			    temp) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Could not pass on WNI_CFG_VHT_BASIC_MCS_SET to CFG");
 	}
 
-	sme_cfg_get_int(hdd_ctx->hHal, WNI_CFG_VHT_RX_MCS_MAP, &temp);
+	sme_cfg_get_int(mac_handle, WNI_CFG_VHT_RX_MCS_MAP, &temp);
 	temp = (temp & 0xFFFC) | hdd_config->vhtRxMCS;
 	if (hdd_config->enable2x2)
 		temp = (temp & 0xFFF3) | (hdd_config->vhtRxMCS2x2 << 2);
 	else
 		temp |= 0x000C;
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_VHT_RX_MCS_MAP,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_RX_MCS_MAP,
 			    temp) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Could not pass on WNI_CFG_VHT_RX_MCS_MAP to CFG");
 	}
 
-	sme_cfg_get_int(hdd_ctx->hHal, WNI_CFG_VHT_TX_MCS_MAP, &temp);
+	sme_cfg_get_int(mac_handle, WNI_CFG_VHT_TX_MCS_MAP, &temp);
 	temp = (temp & 0xFFFC) | hdd_config->vhtTxMCS;
 	if (hdd_config->enable2x2)
 		temp = (temp & 0xFFF3) | (hdd_config->vhtTxMCS2x2 << 2);
 	else
 		temp |= 0x000C;
 
-	if (sme_cfg_set_int(hdd_ctx->hHal, WNI_CFG_VHT_TX_MCS_MAP,
+	if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_TX_MCS_MAP,
 			    temp) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Could not pass on WNI_CFG_VHT_TX_MCS_MAP to CFG");
@@ -9360,7 +9389,7 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 
 #define WLAN_HDD_RX_MCS_ALL_NSTREAM_RATES 0xff
 	val = SIZE_OF_SUPPORTED_MCS_SET;
-	sme_cfg_get_str(hdd_ctx->hHal, WNI_CFG_SUPPORTED_MCS_SET,
+	sme_cfg_get_str(mac_handle, WNI_CFG_SUPPORTED_MCS_SET,
 			mcs_set_temp, &val);
 
 	mcs_set[0] = mcs_set_temp[0];
@@ -9368,17 +9397,17 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 		for (val = 0; val < nss; val++)
 			mcs_set[val] = WLAN_HDD_RX_MCS_ALL_NSTREAM_RATES;
 
-	if (sme_cfg_set_str(hdd_ctx->hHal, WNI_CFG_SUPPORTED_MCS_SET,
+	if (sme_cfg_set_str(mac_handle, WNI_CFG_SUPPORTED_MCS_SET,
 			    mcs_set,
 			    SIZE_OF_SUPPORTED_MCS_SET) ==
 				QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Could not pass on MCS SET to CFG");
 	}
-	sme_update_he_cap_nss(hdd_ctx->hHal, adapter->session_id, nss);
+	sme_update_he_cap_nss(mac_handle, adapter->session_id, nss);
 #undef WLAN_HDD_RX_MCS_ALL_NSTREAM_RATES
 
-	if (QDF_STATUS_SUCCESS != sme_update_nss(hdd_ctx->hHal, nss))
+	if (QDF_STATUS_SUCCESS != sme_update_nss(mac_handle, nss))
 		status = false;
 
 	hdd_set_policy_mgr_user_cfg(hdd_ctx);
