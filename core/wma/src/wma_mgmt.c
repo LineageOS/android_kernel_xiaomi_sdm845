@@ -3651,6 +3651,9 @@ static int wma_mgmt_rx_process(void *handle, uint8_t *data,
 	qdf_nbuf_put_tail(wbuf, hdr->buf_len);
 	qdf_nbuf_set_protocol(wbuf, ETH_P_CONTROL);
 	wh = (struct ieee80211_frame *)qdf_nbuf_data(wbuf);
+	qdf_mem_zero(((uint8_t *)wh + hdr->buf_len), roundup(hdr->buf_len +
+							RESERVE_BYTES, 4) -
+							hdr->buf_len);
 
 	rx_pkt->pkt_meta.mpdu_hdr_ptr = qdf_nbuf_data(wbuf);
 	rx_pkt->pkt_meta.mpdu_data_ptr = rx_pkt->pkt_meta.mpdu_hdr_ptr +

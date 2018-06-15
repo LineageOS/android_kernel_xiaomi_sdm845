@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -168,8 +168,25 @@ dbglog_parse_debug_logs(ol_scn_t scn, u_int8_t *datap,
 					u_int32_t len);
 
 
-/** Register the cnss_diag activate with the wlan driver */
+/**
+ * cnss_diag_activate_service() - API to register CNSS diag cmd handler
+ *
+ * API to register the handler for the NL message received from cnss_diag
+ * application.
+ *
+ * Return: 0
+ */
 int cnss_diag_activate_service(void);
+
+/**
+ * cnss_diag_deactivate_service() - API to deregister CNSS diag cmd handler
+ *
+ * API to deregister the handler for the NL message received from cnss_diag
+ * application.
+ *
+ * Return: 0
+ */
+int cnss_diag_deactivate_service(void);
 
 #ifdef __cplusplus
 }

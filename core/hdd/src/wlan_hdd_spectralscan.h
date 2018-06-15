@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -112,14 +112,22 @@ int wlan_hdd_cfg80211_spectral_scan_stop(struct wiphy *wiphy,
 /**
  * spectral_scan_activate_service() - Activate spectral scan  message handler
  *
- *  This function registers a handler to receive netlink message from
- *  the spectral scan application process.
- *  param -
- *     - None
+ * This function registers a handler to receive netlink message from
+ * the spectral scan application process.
  *
  * Return - 0 for success, non zero for failure
  */
 int spectral_scan_activate_service(void);
+
+/**
+ * spectral_scan_deactivate_service() - Deactivate spectral scan message handler
+ *
+ * This function deregisters a handler to receive netlink message from
+ * the spectral scan application process.
+ *
+ * Return - 0 for success, non zero for failure
+ */
+int spectral_scan_deactivate_service(void);
 
 /**
  * hdd_init_spectral_scan() - Initialize spectral scan config parameters
@@ -156,6 +164,11 @@ void hdd_register_spectral_scan_cb(hdd_context_t *hdd_ctx,
 void spectral_scan_callback(void *context, struct spectral_samp_msg *samp_msg);
 #else
 static inline int spectral_scan_activate_service(void)
+{
+	return 0;
+}
+
+static inline int spectral_scan_deactivate_service(void)
 {
 	return 0;
 }
