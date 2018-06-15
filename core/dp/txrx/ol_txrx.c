@@ -3816,7 +3816,7 @@ int ol_txrx_peer_release_ref(ol_txrx_peer_handle peer,
 						&peer->access_list[debug_id]);
 		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 		if (!ref_silent)
-			ol_txrx_info_high("[%d][%d]: ref delete peer %pK ref_cnt -> %d",
+			ol_txrx_dbg("[%d][%d]: ref delete peer %pK ref_cnt -> %d",
 					debug_id,
 					access_list,
 					peer, rc);
@@ -3953,7 +3953,7 @@ static void ol_txrx_peer_detach(void *ppeer, uint32_t bitmap)
 	/* debug print to dump rx reorder state */
 	/* htt_rx_reorder_log_print(vdev->pdev->htt_pdev); */
 
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_DEBUG,
 		   "%s:peer %pK (%02x:%02x:%02x:%02x:%02x:%02x)",
 		   __func__, peer,
 		   peer->mac_addr.raw[0], peer->mac_addr.raw[1],
