@@ -99,6 +99,31 @@
  * Preprocessor definitions and constants
  */
 
+#ifdef FEATURE_WLAN_APF
+/**
+ * struct hdd_apf_context - hdd Context for apf
+ * @magic: magic number
+ * @qdf_apf_event: Completion variable for APF get operations
+ * @capability_response: capabilities response received from fw
+ * @apf_enabled: True: APF Interpreter enabled, False: Disabled
+ * @cmd_in_progress: Flag that indicates an APF command is in progress
+ * @buf: Buffer to accumulate read memory chunks
+ * @buf_len: Length of the read memory requested
+ * @offset: APF work memory offset to fetch from
+ * @lock: APF Context lock
+ */
+struct hdd_apf_context {
+	unsigned int magic;
+	qdf_event_t qdf_apf_event;
+	bool apf_enabled;
+	bool cmd_in_progress;
+	uint8_t *buf;
+	uint32_t buf_len;
+	uint32_t offset;
+	qdf_spinlock_t lock;
+};
+#endif /* FEATURE_WLAN_APF */
+
 /** Number of Tx Queues */
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 #define NUM_TX_QUEUES 5
@@ -1426,6 +1451,9 @@ struct hdd_adapter {
 	/* rcpi information */
 	struct rcpi_info rcpi;
 	bool send_mode_change;
+#ifdef FEATURE_WLAN_APF
+	struct hdd_apf_context apf_context;
+#endif /* FEATURE_WLAN_APF */
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(adapter) (&(adapter)->session.station)
@@ -1864,7 +1892,6 @@ struct hdd_context {
 	uint64_t no_rx_offload_pkt_cnt;
 	/* Current number of TX X RX chains being used */
 	enum antenna_mode current_antenna_mode;
-	bool apf_enabled;
 
 	/* the radio index assigned by cnss_logger */
 	int radio_index;
@@ -1950,6 +1977,10 @@ struct hdd_context {
 	qdf_mutex_t cache_channel_lock;
 #endif
 	enum sar_version sar_version;
+#ifdef FEATURE_WLAN_APF
+	bool apf_supported;
+	uint32_t apf_version;
+#endif
 };
 
 /**

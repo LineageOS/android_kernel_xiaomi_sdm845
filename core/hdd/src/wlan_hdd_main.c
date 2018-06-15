@@ -1825,6 +1825,29 @@ static int hdd_generate_macaddr_auto(struct hdd_context *hdd_ctx)
 	return 0;
 }
 
+#ifdef FEATURE_WLAN_APF
+/**
+ * hdd_update_apf_support() - Update APF supported flag in hdd context
+ * @hdd_ctx: Pointer to hdd_ctx
+ * @cfg: target configuration
+ *
+ * Update the APF support flag in HDD Context using INI and target config.
+ *
+ * Return: None
+ */
+static void hdd_update_apf_support(struct hdd_context *hdd_ctx,
+				   struct wma_tgt_cfg *cfg)
+{
+	hdd_ctx->apf_supported = (cfg->apf_enabled &&
+				  hdd_ctx->config->apf_packet_filter_enable);
+}
+#else
+static void hdd_update_apf_support(struct hdd_context *hdd_ctx,
+				   struct wma_tgt_cfg *cfg)
+{
+}
+#endif
+
 /**
  * hdd_update_ra_rate_limit() - Update RA rate limit from target
  *  configuration to cfg_ini in HDD
@@ -2009,8 +2032,6 @@ void hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 	hdd_debug("Init current antenna mode: %d",
 		  hdd_ctx->current_antenna_mode);
 
-	hdd_ctx->apf_enabled = (cfg->apf_enabled &&
-				hdd_ctx->config->apf_packet_filter_enable);
 	hdd_ctx->rcpi_enabled = cfg->rcpi_enabled;
 	hdd_update_ra_rate_limit(hdd_ctx, cfg);
 
@@ -2027,6 +2048,7 @@ void hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 	if (QDF_IS_STATUS_ERROR(status))
 		hdd_err("fw update WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED to CFG fails");
 
+	hdd_update_apf_support(hdd_ctx, cfg);
 
 	hdd_debug("Target APF %d Host APF %d 8ss fw support %d txBFCsnValue %d",
 		  cfg->apf_enabled, hdd_ctx->config->apf_packet_filter_enable,
@@ -4224,6 +4246,7 @@ static void hdd_cleanup_adapter(struct hdd_context *hdd_ctx, struct hdd_adapter 
 
 	hdd_nud_deinit_tracking(adapter);
 	qdf_mutex_destroy(&adapter->disconnection_status_lock);
+	hdd_apf_context_destroy(adapter);
 
 	hdd_debugfs_exit(adapter);
 
@@ -4867,6 +4890,7 @@ struct hdd_adapter *hdd_open_adapter(struct hdd_context *hdd_ctx, uint8_t sessio
 
 		return NULL;
 	}
+	hdd_apf_context_init(adapter);
 
 	if (QDF_STATUS_SUCCESS == status) {
 		policy_mgr_set_concurrency_mode(hdd_ctx->hdd_psoc,
@@ -6784,8 +6808,6 @@ static int hdd_context_deinit(struct hdd_context *hdd_ctx)
 	hdd_scan_context_destroy(hdd_ctx);
 
 	qdf_list_destroy(&hdd_ctx->hdd_adapters);
-
-	hdd_apf_context_destroy();
 
 	return 0;
 }
@@ -8750,8 +8772,6 @@ static int hdd_context_init(struct hdd_context *hdd_ctx)
 
 	init_completion(&hdd_ctx->mc_sus_event_var);
 	init_completion(&hdd_ctx->ready_to_suspend);
-
-	hdd_apf_context_init();
 
 	qdf_spinlock_create(&hdd_ctx->connection_status_lock);
 	qdf_spinlock_create(&hdd_ctx->sta_update_info_lock);
