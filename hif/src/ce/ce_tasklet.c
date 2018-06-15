@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -118,6 +118,22 @@ void init_tasklet_workers(struct hif_opaque_softc *scn)
 				  reschedule_ce_tasklet_work_handler);
 	}
 	work_initialized = true;
+}
+
+/**
+ * deinit_tasklet_workers() - deinit_tasklet_workers
+ * @scn: HIF Context
+ *
+ * Return: N/A
+ */
+void deinit_tasklet_workers(struct hif_opaque_softc *scn)
+{
+	u32 id;
+
+	for (id = 0; id < CE_ID_MAX; id++)
+		cancel_work_sync(&tasklet_workers[id].work);
+
+	work_initialized = false;
 }
 
 #ifdef CONFIG_SLUB_DEBUG_ON
