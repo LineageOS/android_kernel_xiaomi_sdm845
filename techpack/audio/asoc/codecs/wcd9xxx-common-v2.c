@@ -794,6 +794,7 @@ static void wcd_clsh_state_hph_ear(struct snd_soc_codec *codec,
 			wcd_clsh_set_gain_path(codec, mode);
 			wcd_clsh_set_flyback_mode(codec, mode);
 			wcd_clsh_set_buck_mode(codec, mode);
+			wcd_clsh_set_hph_mode(codec, mode);
 		}
 	} else {
 		if (req_state == WCD_CLSH_STATE_EAR) {
