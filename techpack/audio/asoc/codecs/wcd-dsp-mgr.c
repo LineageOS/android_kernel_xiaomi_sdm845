@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1064,6 +1065,9 @@ static void wdsp_mgr_debugfs_init(struct wdsp_mgr_priv *wdsp)
 
 	debugfs_create_bool("panic_on_error", 0644,
 			    wdsp->entry, &wdsp->panic_on_error);
+
+	debugfs_create_u32("wdsp_status", S_IRUGO,
+			    wdsp->entry, &wdsp->status);
 }
 
 static void wdsp_mgr_debugfs_remove(struct wdsp_mgr_priv *wdsp)
