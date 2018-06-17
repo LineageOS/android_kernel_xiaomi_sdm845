@@ -6296,21 +6296,6 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.ignore_suspend = 1,
 	},
 	{
-		.name = LPASS_BE_QUAT_MI2S_RX,
-		.stream_name = "Quaternary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.3",
-		.platform_name = "msm-pcm-routing",
-		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name = "msm-stub-rx",
-		.no_pcm = 1,
-		.dpcm_playback = 1,
-		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
-		.be_hw_params_fixup = msm_be_hw_params_fixup,
-		.ops = &msm_mi2s_be_ops,
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
-	},
-	{
 		.name = LPASS_BE_QUAT_MI2S_TX,
 		.stream_name = "Quaternary MI2S Capture",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
@@ -6445,6 +6430,43 @@ static struct snd_soc_dai_link msm_auxpcm_be_dai_links[] = {
 	},
 };
 
+static struct snd_soc_dai_link msm_quat_mi2s_tas2559_dai_links[] = {
+	{
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "tas2559.2-004c",
+		.codec_dai_name = "tas2559 ASI1",
+		.no_pcm = 1,
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+	},
+};
+
+static struct snd_soc_dai_link msm_quat_mi2s_tas2557_dai_links[] = {
+	{
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "tas2557.2-004c",
+		.codec_dai_name = "tas2557 ASI1",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+	},
+};
+
 static struct snd_soc_dai_link msm_tavil_snd_card_dai_links[
 			 ARRAY_SIZE(msm_common_dai_links) +
 			 ARRAY_SIZE(msm_tavil_fe_dai_links) +
@@ -6454,7 +6476,9 @@ static struct snd_soc_dai_link msm_tavil_snd_card_dai_links[
 			 ARRAY_SIZE(msm_wcn_be_dai_links) +
 			 ARRAY_SIZE(ext_disp_be_dai_link) +
 			 ARRAY_SIZE(msm_mi2s_be_dai_links) +
-			 ARRAY_SIZE(msm_auxpcm_be_dai_links)];
+			 ARRAY_SIZE(msm_auxpcm_be_dai_links) +
+			 ARRAY_SIZE(msm_quat_mi2s_tas2559_dai_links) +
+			 ARRAY_SIZE(msm_quat_mi2s_tas2557_dai_links)];
 
 static int msm_snd_card_tavil_late_probe(struct snd_soc_card *card)
 {
@@ -6796,6 +6820,22 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 			       msm_mi2s_be_dai_links,
 			       sizeof(msm_mi2s_be_dai_links));
 			total_links += ARRAY_SIZE(msm_mi2s_be_dai_links);
+
+			if (get_hw_version_platform() == HARDWARE_PLATFORM_DIPPERN ||
+					get_hw_version_platform() == HARDWARE_PLATFORM_URSA ||
+					get_hw_version_platform() == HARDWARE_PLATFORM_EQUULEUS ||
+					get_hw_version_platform() == HARDWARE_PLATFORM_PERSEUS) {
+				memcpy(msm_tavil_snd_card_dai_links + total_links,
+						msm_quat_mi2s_tas2557_dai_links,
+						sizeof(msm_quat_mi2s_tas2557_dai_links));
+				total_links += ARRAY_SIZE(msm_quat_mi2s_tas2557_dai_links);
+			} else if (get_hw_version_platform() == HARDWARE_PLATFORM_POLARIS ||
+					get_hw_version_platform() == HARDWARE_PLATFORM_BERYLLIUM) {
+				memcpy(msm_tavil_snd_card_dai_links + total_links,
+						msm_quat_mi2s_tas2559_dai_links,
+						sizeof(msm_quat_mi2s_tas2559_dai_links));
+				total_links += ARRAY_SIZE(msm_quat_mi2s_tas2559_dai_links);
+			}
 		}
 		if (of_property_read_bool(dev->of_node,
 					  "qcom,auxpcm-audio-intf")) {
