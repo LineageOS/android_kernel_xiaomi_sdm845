@@ -5667,6 +5667,7 @@ int afe_validate_port(u16 port_id)
 	case SLIMBUS_2_RX:
 	case SLIMBUS_2_TX:
 	case SLIMBUS_3_RX:
+	case SLIMBUS_3_TX:
 	case INT_BT_SCO_RX:
 	case INT_BT_SCO_TX:
 	case INT_BT_A2DP_RX:
