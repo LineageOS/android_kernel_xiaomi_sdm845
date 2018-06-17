@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -730,7 +731,7 @@ static const struct reg_default wcd934x_defaults[] = {
 	{ WCD934X_EAR_STATUS_REG,                          0x04 },
 	{ WCD934X_EAR_EAR_MISC,                            0x28 },
 	{ WCD934X_DIFF_LO_MISC,                            0x03 },
-	{ WCD934X_DIFF_LO_LO2_COMPANDER,                   0x00 },
+	{ WCD934X_DIFF_LO_LO2_COMPANDER,                   0x04 },
 	{ WCD934X_DIFF_LO_LO1_COMPANDER,                   0x00 },
 	{ WCD934X_DIFF_LO_COMMON,                          0x40 },
 	{ WCD934X_DIFF_LO_BYPASS_EN,                       0x00 },
