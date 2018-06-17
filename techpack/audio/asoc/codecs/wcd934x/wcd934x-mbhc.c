@@ -986,6 +986,26 @@ int tavil_mbhc_get_impedance(struct wcd934x_mbhc *wcd934x_mbhc,
 }
 EXPORT_SYMBOL(tavil_mbhc_get_impedance);
 
+int tavil_mb_pull_down(struct snd_soc_codec *codec, bool active,
+		int value)
+{
+	int old_value = 0;
+
+	if (active) {
+		old_value = snd_soc_read(codec, WCD934X_ANA_MICB2);
+		snd_soc_update_bits(codec, WCD934X_ANA_MBHC_ELECT,
+				0x80, 0x00);
+		snd_soc_update_bits(codec, WCD934X_ANA_MICB2, 0xC0, 0xC0);
+	} else {
+		snd_soc_write(codec, WCD934X_ANA_MICB2, value);
+		snd_soc_update_bits(codec, WCD934X_ANA_MBHC_ELECT,
+				0x80, 0x80);
+	}
+
+	return old_value;
+}
+EXPORT_SYMBOL(tavil_mb_pull_down);
+
 /*
  * tavil_mbhc_hs_detect: starts mbhc insertion/removal functionality
  * @codec: handle to snd_soc_codec *
