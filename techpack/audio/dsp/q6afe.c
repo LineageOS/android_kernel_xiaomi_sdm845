@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,6 +26,7 @@
 #include <dsp/q6audio-v2.h>
 #include <ipc/apr_tal.h>
 #include "adsp_err.h"
+#include <asoc/apr_elliptic.h>
 
 #define WAKELOCK_TIMEOUT	5000
 enum {
@@ -109,6 +111,7 @@ struct afe_ctl {
 	u16 dtmf_gen_rx_portid;
 	struct audio_cal_info_spk_prot_cfg	prot_cfg;
 	struct afe_spkr_prot_calib_get_resp	calib_data;
+	struct afe_ultrasound_calib_get_resp    ultrasound_calib_data;
 	struct audio_cal_info_sp_th_vi_ftm_cfg	th_ftm_cfg;
 	struct audio_cal_info_sp_ex_vi_ftm_cfg	ex_ftm_cfg;
 	struct afe_sp_th_vi_get_param_resp	th_vi_resp;
@@ -365,6 +368,11 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 				return -EINVAL;
 		}
 		wake_up(&this_afe.wait[data->token]);
+	} else if (data->opcode == ULTRASOUND_OPCODE) {
+		if (data->payload != NULL)
+			elliptic_process_apr_payload(data->payload);
+		else
+			pr_err("[ELUS]: payload is invalid");
 	} else if (data->payload_size) {
 		uint32_t *payload;
 		uint16_t port_id = 0;
@@ -1092,6 +1100,15 @@ fail_cmd:
 	__func__, config.pdata.param_id, ret, src_port);
 	return ret;
 }
+
+afe_ultrasound_state_t elus_afe = {
+       .ptr_apr = &this_afe.apr,
+       .ptr_status = &this_afe.status,
+       .ptr_state = &this_afe.state,
+       .ptr_wait = this_afe.wait,
+       .timeout_ms = TIMEOUT_MS,
+       .ptr_ultrasound_calib_data = &this_afe.ultrasound_calib_data
+};
 
 static void afe_send_cal_spkr_prot_tx(int port_id)
 {
