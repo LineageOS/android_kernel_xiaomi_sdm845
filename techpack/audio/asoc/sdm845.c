@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -38,6 +39,8 @@
 #include "codecs/wcd934x/wcd934x.h"
 #include "codecs/wcd934x/wcd934x-mbhc.h"
 #include "codecs/wsa881x.h"
+#include <linux/regulator/consumer.h>
+#include <soc/qcom/socinfo.h>
 
 #define DRV_NAME "sdm845-asoc-snd"
 
@@ -168,6 +171,7 @@ struct msm_asoc_mach_data {
 	struct pinctrl *usbc_en2_gpio_p; /* used by pinctrl API */
 	struct device_node *hph_en1_gpio_p; /* used by pinctrl API */
 	struct device_node *hph_en0_gpio_p; /* used by pinctrl API */
+	struct device_node *adc2_sel_gpio_p; /* used by pinctrl API */
 	struct snd_info_entry *codec_root;
 	struct msm_pinctrl_info pinctrl_info;
 };
@@ -298,7 +302,7 @@ static struct dev_config tdm_tx_cfg[TDM_INTERFACE_MAX][TDM_PORT_MAX] = {
 /* Default configuration of slimbus channels */
 static struct dev_config slim_rx_cfg[] = {
 	[SLIM_RX_0] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
-	[SLIM_RX_1] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
+	[SLIM_RX_1] = {SAMPLING_RATE_96KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_RX_2] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_RX_3] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_RX_4] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
@@ -309,7 +313,7 @@ static struct dev_config slim_rx_cfg[] = {
 
 static struct dev_config slim_tx_cfg[] = {
 	[SLIM_TX_0] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
-	[SLIM_TX_1] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
+	[SLIM_TX_1] = {SAMPLING_RATE_96KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_TX_2] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_TX_3] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_TX_4] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
@@ -3011,6 +3015,48 @@ static int msm_hifi_ctrl_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static void external_enable_dual_adc_gpio(struct device_node *np, bool val)
+{
+	if (!np)
+		return;
+
+	if (val == 1) {
+		msm_cdc_pinctrl_select_active_state(np);
+		pr_info("%s: enable Dual ADC \n", __func__);
+	} else {
+		msm_cdc_pinctrl_select_sleep_state(np);
+		pr_info("%s: disable Dual ADC \n", __func__);
+	}
+}
+
+static int external_amic2_sel_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_card *card = dapm->card;
+	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+	unsigned int val;
+
+	val = ucontrol->value.enumerated.item[0];
+
+	if (!pdata || !pdata->adc2_sel_gpio_p) {
+		pr_err("%s: adc2_sel_gpio is invalid\n", __func__);
+		return -EINVAL;
+	}
+
+	pr_info("external_amic2_sel_put %u \n", val);
+
+	return snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
+}
+
+static const char *const external_AMIC2_enum_text[] = {"default", "Dual_ADC"};
+
+static SOC_ENUM_SINGLE_VIRT_DECL(external_AMIC2_enum, external_AMIC2_enum_text);
+
+static const struct snd_kcontrol_new ext_amc2_mux =
+	SOC_DAPM_ENUM_EXT("External AMIC2 sel", external_AMIC2_enum,
+			snd_soc_dapm_get_enum_double, external_amic2_sel_put);
+
 static const struct snd_soc_dapm_widget msm_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SUPPLY("MCLK",  SND_SOC_NOPM, 0, 0,
@@ -3035,6 +3081,19 @@ static const struct snd_soc_dapm_widget msm_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Digital Mic3", NULL),
 	SND_SOC_DAPM_MIC("Digital Mic4", NULL),
 	SND_SOC_DAPM_MIC("Digital Mic5", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic2", NULL),
+};
+
+static const struct snd_soc_dapm_widget sdm845_polaris_dapm_widgets[] = {
+	SND_SOC_DAPM_MUX("External AMIC2 Mux", SND_SOC_NOPM, 0, 0, &ext_amc2_mux),
+	SND_SOC_DAPM_INPUT("AMIC2_EXT_0"),
+	SND_SOC_DAPM_INPUT("AMIC2_EXT_1"),
+};
+
+static const struct snd_soc_dapm_route sdm845_polaris_dapm_routes[] = {
+	{"AMIC2", NULL, "External AMIC2 Mux"},
+	{"External AMIC2 Mux", "default", "AMIC2_EXT_0"},
+	{"External AMIC2 Mux", "Dual_ADC", "AMIC2_EXT_1"},
 };
 
 static inline int param_is_mask(int p)
@@ -3791,7 +3850,23 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_add_routes(dapm, wcd_audio_paths,
 				ARRAY_SIZE(wcd_audio_paths));
 
+	if (get_hw_version_platform() == HARDWARE_PLATFORM_POLARIS ||
+			get_hw_version_platform() == HARDWARE_PLATFORM_DIPPER ||
+			get_hw_version_platform() == HARDWARE_PLATFORM_DIPPERN ||
+			get_hw_version_platform() == HARDWARE_PLATFORM_URSA) {
+		pr_info("add the External AMIC2 Mux\n");
+		snd_soc_dapm_new_controls(dapm, sdm845_polaris_dapm_widgets,
+				ARRAY_SIZE(sdm845_polaris_dapm_widgets));
+
+		snd_soc_dapm_add_routes(dapm, sdm845_polaris_dapm_routes,
+				ARRAY_SIZE(sdm845_polaris_dapm_routes));
+	}
+
 	snd_soc_dapm_ignore_suspend(dapm, "Handset Mic");
+	snd_soc_dapm_ignore_suspend(dapm, "AMIC2");
+	snd_soc_dapm_ignore_suspend(dapm, "AMIC2_EXT_0");
+	snd_soc_dapm_ignore_suspend(dapm, "AMIC2_EXT_1");
+	snd_soc_dapm_ignore_suspend(dapm, "Headset Mic2");
 	snd_soc_dapm_ignore_suspend(dapm, "Headset Mic");
 	snd_soc_dapm_ignore_suspend(dapm, "ANCRight Headset Mic");
 	snd_soc_dapm_ignore_suspend(dapm, "ANCLeft Headset Mic");
@@ -5276,6 +5351,36 @@ static struct snd_soc_dai_link msm_common_dai_links[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 	},
+	{
+		.name = "Quaternary MI2S_RX Hostless Playback",
+		.stream_name = "Quaternary MI2S_RX Hostless Playback",
+		.cpu_dai_name = "QUAT_MI2S_RX_HOSTLESS",
+		.platform_name = "msm-pcm-hostless",
+		.dynamic = 1,
+		.dpcm_playback = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
+	{
+		.name = "Quaternary MI2S_TX Hostless Capture",
+		.stream_name = "Quaternary MI2S_TX Hostless Capture",
+		.cpu_dai_name = "QUAT_MI2S_TX_HOSTLESS",
+		.platform_name = "msm-pcm-hostless",
+		.dynamic = 1,
+		.dpcm_capture = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
 };
 
 static struct snd_soc_dai_link msm_tavil_fe_dai_links[] = {
@@ -5620,7 +5725,7 @@ static struct snd_soc_dai_link msm_tavil_be_dai_links[] = {
 		.cpu_dai_name = "msm-dai-q6-dev.16386",
 		.platform_name = "msm-pcm-routing",
 		.codec_name = "tavil_codec",
-		.codec_dai_name = "tavil_rx1",
+		.codec_dai_name = "tavil_rx2",
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.id = MSM_BACKEND_DAI_SLIMBUS_1_RX,
@@ -5636,7 +5741,7 @@ static struct snd_soc_dai_link msm_tavil_be_dai_links[] = {
 		.cpu_dai_name = "msm-dai-q6-dev.16387",
 		.platform_name = "msm-pcm-routing",
 		.codec_name = "tavil_codec",
-		.codec_dai_name = "tavil_tx3",
+		.codec_dai_name = "tavil_tx2",
 		.no_pcm = 1,
 		.dpcm_capture = 1,
 		.id = MSM_BACKEND_DAI_SLIMBUS_1_TX,
@@ -6768,6 +6873,17 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, pdata);
 
+	pdata->adc2_sel_gpio_p = of_parse_phandle(pdev->dev.of_node,
+			"qcom,adc2-switch-gpio", 0);
+	if (!pdata->adc2_sel_gpio_p) {
+		dev_err(&pdev->dev, "property %s not detected in node %s",
+				"qcom,adc2-switch-gpio",
+				pdev->dev.of_node->full_name);
+	}
+	wcd_mbhc_cfg.dual_adc_gpio_node = pdata->adc2_sel_gpio_p;
+	wcd_mbhc_cfg.enable_dual_adc_gpio = external_enable_dual_adc_gpio;
+	pr_info("pdata->adc2_sel_gpio_p = %lx\n", (unsigned long)pdata->adc2_sel_gpio_p);
+
 	ret = snd_soc_of_parse_card_name(card, "qcom,model");
 	if (ret) {
 		dev_err(&pdev->dev, "parse card name failed, err:%d\n",
@@ -6880,27 +6996,29 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	 * entry is not found in DT file as some targets do not support
 	 * US-Euro detection
 	 */
-	pdata->us_euro_gpio = of_get_named_gpio(pdev->dev.of_node,
-				"qcom,us-euro-gpios", 0);
-	if (!gpio_is_valid(pdata->us_euro_gpio))
-		pdata->us_euro_gpio_p = of_parse_phandle(pdev->dev.of_node,
+	if (!of_property_read_bool(pdev->dev.of_node, "qcom,euro-us-hw-auto-switch")) {
+		pdata->us_euro_gpio = of_get_named_gpio(pdev->dev.of_node,
 					"qcom,us-euro-gpios", 0);
-	if (!gpio_is_valid(pdata->us_euro_gpio) && (!pdata->us_euro_gpio_p)) {
-		dev_dbg(&pdev->dev, "property %s not detected in node %s",
-			"qcom,us-euro-gpios", pdev->dev.of_node->full_name);
-	} else {
-		dev_dbg(&pdev->dev, "%s detected",
-			"qcom,us-euro-gpios");
-		wcd_mbhc_cfg.swap_gnd_mic = msm_swap_gnd_mic;
+		if (!gpio_is_valid(pdata->us_euro_gpio))
+			pdata->us_euro_gpio_p = of_parse_phandle(pdev->dev.of_node,
+						"qcom,us-euro-gpios", 0);
+		if (!gpio_is_valid(pdata->us_euro_gpio) && (!pdata->us_euro_gpio_p)) {
+			dev_dbg(&pdev->dev, "property %s not detected in node %s",
+				"qcom,us-euro-gpios", pdev->dev.of_node->full_name);
+		} else {
+			dev_dbg(&pdev->dev, "%s detected",
+				"qcom,us-euro-gpios");
+			wcd_mbhc_cfg.swap_gnd_mic = msm_swap_gnd_mic;
+		}
+
+		if (of_find_property(pdev->dev.of_node, usb_c_dt, NULL))
+			wcd_mbhc_cfg.swap_gnd_mic = msm_swap_gnd_mic;
+
+		ret = msm_prepare_us_euro(card);
+		if (ret)
+			dev_err(&pdev->dev, "msm_prepare_us_euro failed (%d)\n",
+				ret);
 	}
-
-	if (of_find_property(pdev->dev.of_node, usb_c_dt, NULL))
-		wcd_mbhc_cfg.swap_gnd_mic = msm_swap_gnd_mic;
-
-	ret = msm_prepare_us_euro(card);
-	if (ret)
-		dev_dbg(&pdev->dev, "msm_prepare_us_euro failed (%d)\n",
-			ret);
 
 	/* Parse pinctrl info from devicetree */
 	ret = msm_get_pinctrl(pdev);
