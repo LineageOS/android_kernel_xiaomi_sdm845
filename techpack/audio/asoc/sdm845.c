@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -38,6 +39,8 @@
 #include "codecs/wcd934x/wcd934x.h"
 #include "codecs/wcd934x/wcd934x-mbhc.h"
 #include "codecs/wsa881x.h"
+#include <linux/regulator/consumer.h>
+#include <soc/qcom/socinfo.h>
 
 #define DRV_NAME "sdm845-asoc-snd"
 
@@ -177,6 +180,7 @@ struct msm_asoc_mach_data {
 	struct pinctrl *usbc_en2_gpio_p; /* used by pinctrl API */
 	struct device_node *hph_en1_gpio_p; /* used by pinctrl API */
 	struct device_node *hph_en0_gpio_p; /* used by pinctrl API */
+	struct device_node *adc2_sel_gpio_p; /* used by pinctrl API */
 	struct snd_info_entry *codec_root;
 	struct msm_pinctrl_info pinctrl_info;
 };
@@ -390,7 +394,7 @@ static struct tdm_dev_config tdm_cfg[TDM_INTERFACE_MAX * 2]
 /* Default configuration of slimbus channels */
 static struct dev_config slim_rx_cfg[] = {
 	[SLIM_RX_0] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
-	[SLIM_RX_1] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
+	[SLIM_RX_1] = {SAMPLING_RATE_96KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_RX_2] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_RX_3] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_RX_4] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
@@ -401,7 +405,7 @@ static struct dev_config slim_rx_cfg[] = {
 
 static struct dev_config slim_tx_cfg[] = {
 	[SLIM_TX_0] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
-	[SLIM_TX_1] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
+	[SLIM_TX_1] = {SAMPLING_RATE_96KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_TX_2] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_TX_3] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SLIM_TX_4] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
@@ -520,6 +524,7 @@ static SOC_ENUM_SINGLE_EXT_DECL(slim_0_rx_chs, slim_rx_ch_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_2_rx_chs, slim_rx_ch_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_0_tx_chs, slim_tx_ch_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_1_tx_chs, slim_tx_ch_text);
+static SOC_ENUM_SINGLE_EXT_DECL(slim_3_tx_chs, slim_tx_ch_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_5_rx_chs, slim_rx_ch_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_6_rx_chs, slim_rx_ch_text);
 static SOC_ENUM_SINGLE_EXT_DECL(usb_rx_chs, usb_ch_text);
@@ -531,12 +536,14 @@ static SOC_ENUM_SINGLE_EXT_DECL(slim_0_rx_format, bit_format_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_5_rx_format, bit_format_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_6_rx_format, bit_format_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_0_tx_format, bit_format_text);
+static SOC_ENUM_SINGLE_EXT_DECL(slim_3_tx_format, bit_format_text);
 static SOC_ENUM_SINGLE_EXT_DECL(usb_rx_format, bit_format_text);
 static SOC_ENUM_SINGLE_EXT_DECL(usb_tx_format, bit_format_text);
 static SOC_ENUM_SINGLE_EXT_DECL(ext_disp_rx_format, ext_disp_bit_format_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_0_rx_sample_rate, slim_sample_rate_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_2_rx_sample_rate, slim_sample_rate_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_0_tx_sample_rate, slim_sample_rate_text);
+static SOC_ENUM_SINGLE_EXT_DECL(slim_3_tx_sample_rate, slim_sample_rate_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_5_rx_sample_rate, slim_sample_rate_text);
 static SOC_ENUM_SINGLE_EXT_DECL(slim_6_rx_sample_rate, slim_sample_rate_text);
 static SOC_ENUM_SINGLE_EXT_DECL(bt_sample_rate, bt_sample_rate_text);
@@ -610,9 +617,9 @@ static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = true,
 	.key_code[0] = KEY_MEDIA,
-	.key_code[1] = KEY_VOICECOMMAND,
-	.key_code[2] = KEY_VOLUMEUP,
-	.key_code[3] = KEY_VOLUMEDOWN,
+	.key_code[1] = BTN_1,
+	.key_code[2] = BTN_2,
+	.key_code[3] = 0,
 	.key_code[4] = 0,
 	.key_code[5] = 0,
 	.key_code[6] = 0,
@@ -820,6 +827,8 @@ static int slim_get_port_idx(struct snd_kcontrol *kcontrol)
 		port_id = SLIM_TX_0;
 	else if (strnstr(kcontrol->id.name, "SLIM_1_TX", sizeof("SLIM_1_TX")))
 		port_id = SLIM_TX_1;
+	else if (strnstr(kcontrol->id.name, "SLIM_3_TX", sizeof("SLIM_3_TX")))
+		port_id = SLIM_TX_3;
 	else {
 		pr_err("%s: unsupported channel: %s",
 			__func__, kcontrol->id.name);
@@ -2943,6 +2952,35 @@ static int msm_qos_ctl_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int usbhs_direction_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = NULL;
+	struct snd_soc_card *card = NULL;
+	struct msm_asoc_mach_data *pdata = NULL;
+
+	ucontrol->value.integer.value[0] = 0;
+
+	codec = snd_soc_kcontrol_codec(kcontrol);
+	if (codec) {
+		card = codec->component.card;
+		if (card) {
+			pdata = snd_soc_card_get_drvdata(card);
+			if (pdata) {
+				if (pdata->usbc_en2_gpio_p) {
+					ucontrol->value.integer.value[0] =
+						gpio_get_value_cansleep(pdata->usbc_en2_gpio);
+				} else if (pdata->usbc_en2_gpio > 0) {
+					ucontrol->value.integer.value[0] =
+						gpio_get_value_cansleep(pdata->usbc_en2_gpio);
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new msm_snd_controls[] = {
 	SOC_ENUM_EXT("SLIM_0_RX Channels", slim_0_rx_chs,
 			msm_slim_rx_ch_get, msm_slim_rx_ch_put),
@@ -2951,6 +2989,8 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 	SOC_ENUM_EXT("SLIM_0_TX Channels", slim_0_tx_chs,
 			msm_slim_tx_ch_get, msm_slim_tx_ch_put),
 	SOC_ENUM_EXT("SLIM_1_TX Channels", slim_1_tx_chs,
+			msm_slim_tx_ch_get, msm_slim_tx_ch_put),
+	SOC_ENUM_EXT("SLIM_3_TX Channels", slim_3_tx_chs,
 			msm_slim_tx_ch_get, msm_slim_tx_ch_put),
 	SOC_ENUM_EXT("SLIM_5_RX Channels", slim_5_rx_chs,
 			msm_slim_rx_ch_get, msm_slim_rx_ch_put),
@@ -2974,6 +3014,8 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			slim_rx_bit_format_get, slim_rx_bit_format_put),
 	SOC_ENUM_EXT("SLIM_0_TX Format", slim_0_tx_format,
 			slim_tx_bit_format_get, slim_tx_bit_format_put),
+	SOC_ENUM_EXT("SLIM_3_TX Format", slim_3_tx_format,
+			slim_tx_bit_format_get, slim_tx_bit_format_put),
 	SOC_ENUM_EXT("USB_AUDIO_RX Format", usb_rx_format,
 			usb_audio_rx_format_get, usb_audio_rx_format_put),
 	SOC_ENUM_EXT("USB_AUDIO_TX Format", usb_tx_format,
@@ -2985,6 +3027,8 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 	SOC_ENUM_EXT("SLIM_2_RX SampleRate", slim_2_rx_sample_rate,
 			slim_rx_sample_rate_get, slim_rx_sample_rate_put),
 	SOC_ENUM_EXT("SLIM_0_TX SampleRate", slim_0_tx_sample_rate,
+			slim_tx_sample_rate_get, slim_tx_sample_rate_put),
+	SOC_ENUM_EXT("SLIM_3_TX SampleRate", slim_3_tx_sample_rate,
 			slim_tx_sample_rate_get, slim_tx_sample_rate_put),
 	SOC_ENUM_EXT("SLIM_5_RX SampleRate", slim_5_rx_sample_rate,
 			slim_rx_sample_rate_get, slim_rx_sample_rate_put),
@@ -3189,6 +3233,8 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			msm_hifi_put),
 	SOC_ENUM_EXT("MultiMedia5_RX QOS Vote", qos_vote, msm_qos_ctl_get,
 			msm_qos_ctl_put),
+	SOC_SINGLE_EXT("USB Headset Direction", 0, 0, UINT_MAX, 0,
+			usbhs_direction_get, NULL),
 	SOC_SINGLE_MULTI_EXT("TDM Slot Map", SND_SOC_NOPM, 0, 255, 0, 4,
 	NULL, tdm_slot_map_put),
 };
@@ -3289,6 +3335,58 @@ static int msm_hifi_ctrl_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static void external_enable_dual_adc_gpio(struct device_node *np, bool val)
+{
+	if (!np)
+		return;
+
+	if (val == 1) {
+		msm_cdc_pinctrl_select_active_state(np);
+		pr_info("%s: enable Dual ADC \n", __func__);
+	} else {
+		msm_cdc_pinctrl_select_sleep_state(np);
+		pr_info("%s: disable Dual ADC \n", __func__);
+	}
+}
+
+/*
+static int external_amic2_sel_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = amic2_sel_state;
+	return 0;
+}
+*/
+
+static int external_amic2_sel_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_card *card = dapm->card;
+	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+	unsigned int val;
+
+	val = ucontrol->value.enumerated.item[0];
+
+	if (!pdata || !pdata->adc2_sel_gpio_p) {
+		pr_err("%s: adc2_sel_gpio is invalid\n", __func__);
+		return -EINVAL;
+	}
+
+	//external_enable_dual_adc_gpio(pdata->adc2_sel_gpio_p, !!(val));
+	pr_info("external_amic2_sel_put %u \n", val);
+
+	return snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
+}
+
+static const char *const external_AMIC2_enum_text[] = {"default", "Dual_ADC"};
+
+static SOC_ENUM_SINGLE_VIRT_DECL(external_AMIC2_enum, external_AMIC2_enum_text);
+
+static const struct snd_kcontrol_new ext_amc2_mux =
+	SOC_DAPM_ENUM_EXT("External AMIC2 sel", external_AMIC2_enum,
+			snd_soc_dapm_get_enum_double, external_amic2_sel_put);
+
 static const struct snd_soc_dapm_widget msm_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SUPPLY("MCLK",  SND_SOC_NOPM, 0, 0,
@@ -3313,6 +3411,19 @@ static const struct snd_soc_dapm_widget msm_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Digital Mic3", NULL),
 	SND_SOC_DAPM_MIC("Digital Mic4", NULL),
 	SND_SOC_DAPM_MIC("Digital Mic5", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic2", NULL),
+};
+
+static const struct snd_soc_dapm_widget sdm845_xiaomi_dapm_widgets[] = {
+	SND_SOC_DAPM_MUX("External AMIC2 Mux", SND_SOC_NOPM, 0, 0, &ext_amc2_mux),
+	SND_SOC_DAPM_INPUT("AMIC2_EXT_0"),
+	SND_SOC_DAPM_INPUT("AMIC2_EXT_1"),
+};
+
+static const struct snd_soc_dapm_route sdm845_xiaomi_dapm_routes[] = {
+	{"AMIC2", NULL, "External AMIC2 Mux"},
+	{"External AMIC2 Mux", "default", "AMIC2_EXT_0"},
+	{"External AMIC2 Mux", "Dual_ADC", "AMIC2_EXT_1"},
 };
 
 static inline int param_is_mask(int p)
@@ -3739,6 +3850,7 @@ static bool msm_usbc_swap_gnd_mic(struct snd_soc_codec *codec, bool active)
 {
 	int value = 0;
 	bool ret = 0;
+	int old_value;
 	struct snd_soc_card *card = codec->component.card;
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	struct pinctrl_state *en2_pinctrl_active;
@@ -3793,7 +3905,17 @@ static bool msm_usbc_swap_gnd_mic(struct snd_soc_codec *codec, bool active)
 	/* if active and usbc_en2_gpio_p defined, swap using usbc_en2_gpio_p */
 	if (active) {
 		dev_dbg(codec->dev, "%s: enter\n", __func__);
-		if (pdata->usbc_en2_gpio_p) {
+		old_value = tavil_mb_pull_down(codec, true, 0);
+		if (wcd_mbhc_cfg.usbc_analog_cfg.euro_us_hw_switch_gpio_p) {
+			value = gpio_get_value_cansleep(pdata->usbc_en2_gpio);
+			if (value)
+				msm_cdc_pinctrl_select_sleep_state(wcd_mbhc_cfg.
+						usbc_analog_cfg.euro_us_hw_switch_gpio_p);
+			else
+				msm_cdc_pinctrl_select_active_state(wcd_mbhc_cfg.
+						usbc_analog_cfg.euro_us_hw_switch_gpio_p);
+		}
+		else if (pdata->usbc_en2_gpio_p) {
 			value = gpio_get_value_cansleep(pdata->usbc_en2_gpio);
 			if (value)
 				pinctrl_select_state(pdata->usbc_en2_gpio_p,
@@ -3805,6 +3927,7 @@ static bool msm_usbc_swap_gnd_mic(struct snd_soc_codec *codec, bool active)
 			value = gpio_get_value_cansleep(pdata->usbc_en2_gpio);
 			gpio_set_value_cansleep(pdata->usbc_en2_gpio, !value);
 		}
+		tavil_mb_pull_down(codec, false, old_value);
 		pr_debug("%s: swap select switch %d to %d\n", __func__,
 			value, !value);
 		ret = true;
@@ -4070,7 +4193,24 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_add_routes(dapm, wcd_audio_paths,
 				ARRAY_SIZE(wcd_audio_paths));
 
+	if (get_hw_version_platform() == HARDWARE_PLATFORM_POLARIS ||
+			get_hw_version_platform() == HARDWARE_PLATFORM_DIPPERN ||
+			get_hw_version_platform() == HARDWARE_PLATFORM_URSA ||
+			get_hw_version_platform() == HARDWARE_PLATFORM_EQUULEUS ||
+			get_hw_version_platform() == HARDWARE_PLATFORM_PERSEUS) {
+		pr_info("add the External AMIC2 Mux\n");
+		snd_soc_dapm_new_controls(dapm, sdm845_xiaomi_dapm_widgets,
+				ARRAY_SIZE(sdm845_xiaomi_dapm_widgets));
+
+		snd_soc_dapm_add_routes(dapm, sdm845_xiaomi_dapm_routes,
+				ARRAY_SIZE(sdm845_xiaomi_dapm_routes));
+	}
+
 	snd_soc_dapm_ignore_suspend(dapm, "Handset Mic");
+	snd_soc_dapm_ignore_suspend(dapm, "AMIC2");
+	snd_soc_dapm_ignore_suspend(dapm, "AMIC2_EXT_0");
+	snd_soc_dapm_ignore_suspend(dapm, "AMIC2_EXT_1");
+	snd_soc_dapm_ignore_suspend(dapm, "Headset Mic2");
 	snd_soc_dapm_ignore_suspend(dapm, "Headset Mic");
 	snd_soc_dapm_ignore_suspend(dapm, "ANCRight Headset Mic");
 	snd_soc_dapm_ignore_suspend(dapm, "ANCLeft Headset Mic");
@@ -4192,13 +4332,13 @@ static void *def_tavil_mbhc_cal(void)
 		(sizeof(btn_cfg->_v_btn_low[0]) * btn_cfg->num_btn);
 
 	btn_high[0] = 75;
-	btn_high[1] = 150;
-	btn_high[2] = 237;
-	btn_high[3] = 500;
-	btn_high[4] = 500;
-	btn_high[5] = 500;
-	btn_high[6] = 500;
-	btn_high[7] = 500;
+	btn_high[1] = 260;
+	btn_high[2] = 750;
+	btn_high[3] = 750;
+	btn_high[4] = 750;
+	btn_high[5] = 750;
+	btn_high[6] = 750;
+	btn_high[7] = 750;
 
 	return tavil_wcd_cal;
 }
@@ -4266,6 +4406,8 @@ static int msm_snd_hw_params(struct snd_pcm_substream *substream,
 		/* For <codec>_tx3 case */
 		else if (dai_link->id == MSM_BACKEND_DAI_SLIMBUS_1_TX)
 			user_set_tx_ch = slim_tx_cfg[1].channels;
+		else if (dai_link->id == MSM_BACKEND_DAI_SLIMBUS_3_TX)
+			user_set_tx_ch = slim_tx_cfg[3].channels;
 		else if (dai_link->id == MSM_BACKEND_DAI_SLIMBUS_4_TX)
 			user_set_tx_ch = msm_vi_feed_tx_ch;
 		else
@@ -5569,6 +5711,36 @@ static struct snd_soc_dai_link msm_common_dai_links[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 	},
+	{
+		.name = "Quaternary MI2S_RX Hostless Playback",
+		.stream_name = "Quaternary MI2S_RX Hostless Playback",
+		.cpu_dai_name = "QUAT_MI2S_RX_HOSTLESS",
+		.platform_name = "msm-pcm-hostless",
+		.dynamic = 1,
+		.dpcm_playback = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
+	{
+		.name = "Quaternary MI2S_TX Hostless Capture",
+		.stream_name = "Quaternary MI2S_TX Hostless Capture",
+		.cpu_dai_name = "QUAT_MI2S_TX_HOSTLESS",
+		.platform_name = "msm-pcm-hostless",
+		.dynamic = 1,
+		.dpcm_capture = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
 };
 
 static struct snd_soc_dai_link msm_tavil_fe_dai_links[] = {
@@ -5973,7 +6145,7 @@ static struct snd_soc_dai_link msm_tavil_be_dai_links[] = {
 		.cpu_dai_name = "msm-dai-q6-dev.16386",
 		.platform_name = "msm-pcm-routing",
 		.codec_name = "tavil_codec",
-		.codec_dai_name = "tavil_rx1",
+		.codec_dai_name = "tavil_rx2",
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.id = MSM_BACKEND_DAI_SLIMBUS_1_RX,
@@ -5989,7 +6161,7 @@ static struct snd_soc_dai_link msm_tavil_be_dai_links[] = {
 		.cpu_dai_name = "msm-dai-q6-dev.16387",
 		.platform_name = "msm-pcm-routing",
 		.codec_name = "tavil_codec",
-		.codec_dai_name = "tavil_tx3",
+		.codec_dai_name = "tavil_tx2",
 		.no_pcm = 1,
 		.dpcm_capture = 1,
 		.id = MSM_BACKEND_DAI_SLIMBUS_1_TX,
@@ -6034,7 +6206,7 @@ static struct snd_soc_dai_link msm_tavil_be_dai_links[] = {
 		.cpu_dai_name = "msm-dai-q6-dev.16391",
 		.platform_name = "msm-pcm-routing",
 		.codec_name = "tavil_codec",
-		.codec_dai_name = "tavil_tx1",
+		.codec_dai_name = "tavil_tx3",
 		.no_pcm = 1,
 		.dpcm_capture = 1,
 		.id = MSM_BACKEND_DAI_SLIMBUS_3_TX,
@@ -7121,6 +7293,25 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, pdata);
 
+	pdata->adc2_sel_gpio_p = of_parse_phandle(pdev->dev.of_node,
+			"qcom,adc2-switch-gpio", 0);
+	if (!pdata->adc2_sel_gpio_p) {
+		dev_err(&pdev->dev, "property %s not detected in node %s",
+				"qcom,adc2-switch-gpio",
+				pdev->dev.of_node->full_name);
+	}
+	wcd_mbhc_cfg.dual_adc_gpio_node = pdata->adc2_sel_gpio_p;
+	wcd_mbhc_cfg.enable_dual_adc_gpio = external_enable_dual_adc_gpio;
+	pr_info("pdata->adc2_sel_gpio_p = %lx\n", (unsigned long)pdata->adc2_sel_gpio_p);
+
+	pdata->usbc_en2_gpio = of_get_named_gpio(card->dev->of_node,
+				    "qcom,usbc-analog-en2-gpio", 0);
+	if (!gpio_is_valid(pdata->usbc_en2_gpio)) {
+		dev_err(card->dev, "%s, property %s not in node %s",
+			__func__, "qcom,usbc-analog-en2-gpio",
+			card->dev->of_node->full_name);
+	}
+
 	ret = snd_soc_of_parse_card_name(card, "qcom,model");
 	if (ret) {
 		dev_err(&pdev->dev, "parse card name failed, err:%d\n",
@@ -7233,27 +7424,29 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	 * entry is not found in DT file as some targets do not support
 	 * US-Euro detection
 	 */
-	pdata->us_euro_gpio = of_get_named_gpio(pdev->dev.of_node,
-				"qcom,us-euro-gpios", 0);
-	if (!gpio_is_valid(pdata->us_euro_gpio))
-		pdata->us_euro_gpio_p = of_parse_phandle(pdev->dev.of_node,
+	if (!of_property_read_bool(pdev->dev.of_node, "qcom,euro-us-hw-auto-switch")) {
+		pdata->us_euro_gpio = of_get_named_gpio(pdev->dev.of_node,
 					"qcom,us-euro-gpios", 0);
-	if (!gpio_is_valid(pdata->us_euro_gpio) && (!pdata->us_euro_gpio_p)) {
-		dev_dbg(&pdev->dev, "property %s not detected in node %s",
-			"qcom,us-euro-gpios", pdev->dev.of_node->full_name);
-	} else {
-		dev_dbg(&pdev->dev, "%s detected",
-			"qcom,us-euro-gpios");
-		wcd_mbhc_cfg.swap_gnd_mic = msm_swap_gnd_mic;
+		if (!gpio_is_valid(pdata->us_euro_gpio))
+			pdata->us_euro_gpio_p = of_parse_phandle(pdev->dev.of_node,
+						"qcom,us-euro-gpios", 0);
+		if (!gpio_is_valid(pdata->us_euro_gpio) && (!pdata->us_euro_gpio_p)) {
+			dev_dbg(&pdev->dev, "property %s not detected in node %s",
+				"qcom,us-euro-gpios", pdev->dev.of_node->full_name);
+		} else {
+			dev_dbg(&pdev->dev, "%s detected",
+				"qcom,us-euro-gpios");
+			wcd_mbhc_cfg.swap_gnd_mic = msm_swap_gnd_mic;
+		}
+
+		if (of_find_property(pdev->dev.of_node, usb_c_dt, NULL))
+			wcd_mbhc_cfg.swap_gnd_mic = msm_swap_gnd_mic;
+
+		ret = msm_prepare_us_euro(card);
+		if (ret)
+			dev_err(&pdev->dev, "msm_prepare_us_euro failed (%d)\n",
+				ret);
 	}
-
-	if (of_find_property(pdev->dev.of_node, usb_c_dt, NULL))
-		wcd_mbhc_cfg.swap_gnd_mic = msm_swap_gnd_mic;
-
-	ret = msm_prepare_us_euro(card);
-	if (ret)
-		dev_dbg(&pdev->dev, "msm_prepare_us_euro failed (%d)\n",
-			ret);
 
 	/* Parse pinctrl info from devicetree */
 	ret = msm_get_pinctrl(pdev);
