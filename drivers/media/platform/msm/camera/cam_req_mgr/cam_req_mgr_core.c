@@ -1283,8 +1283,7 @@ static int __cam_req_mgr_destroy_link_info(struct cam_req_mgr_core_link *link)
 				rc = dev->ops->link_setup(&link_data);
 				if (rc)
 					CAM_ERR(CAM_CRM,
-						"Unlink failed dev name %s hdl %x",
-						dev->dev_info.name,
+						"Unlink failed dev_hdl %d",
 						dev->dev_hdl);
 			}
 			dev->dev_hdl = 0;
@@ -2351,8 +2350,8 @@ static int __cam_req_mgr_unlink(struct cam_req_mgr_core_link *link)
 	/* Destroy the link handle */
 	rc = cam_destroy_device_hdl(link->link_hdl);
 	if (rc < 0) {
-		CAM_ERR(CAM_CRM, "error destroying link hdl %x rc %d",
-			link->link_hdl, rc);
+		CAM_ERR(CAM_CRM, "error while destroying dev handle %d %x",
+			rc, link->link_hdl);
 	}
 
 	mutex_unlock(&link->lock);
@@ -2432,15 +2431,16 @@ int cam_req_mgr_link(struct cam_req_mgr_link_info *link_info)
 		return -EINVAL;
 	}
 
+	mutex_lock(&g_crm_core_dev->crm_lock);
+
 	/* session hdl's priv data is cam session struct */
 	cam_session = (struct cam_req_mgr_core_session *)
 		cam_get_device_priv(link_info->session_hdl);
 	if (!cam_session) {
 		CAM_DBG(CAM_CRM, "NULL pointer");
+		mutex_unlock(&g_crm_core_dev->crm_lock);
 		return -EINVAL;
 	}
-
-	mutex_lock(&g_crm_core_dev->crm_lock);
 
 	/* Allocate link struct and map it with session's request queue */
 	link = __cam_req_mgr_reserve_link(cam_session);
@@ -2553,7 +2553,8 @@ int cam_req_mgr_unlink(struct cam_req_mgr_unlink_info *unlink_info)
 	rc = __cam_req_mgr_unlink(link);
 
 	/* Free curent link and put back into session's free pool of links */
-	__cam_req_mgr_unreserve_link(cam_session, link);
+	if (!rc)
+		__cam_req_mgr_unreserve_link(cam_session, link);
 
 done:
 	mutex_unlock(&g_crm_core_dev->crm_lock);
@@ -2790,7 +2791,7 @@ int cam_req_mgr_link_control(struct cam_req_mgr_link_control *control)
 		link = (struct cam_req_mgr_core_link *)
 			cam_get_device_priv(control->link_hdls[i]);
 		if (!link) {
-			CAM_ERR(CAM_CRM, "Link(%d) is NULL on session 0x%x",
+			CAM_ERR_RATE_LIMIT(CAM_CRM, "Link(%d) is NULL on session 0x%x",
 				i, control->session_hdl);
 			rc = -EINVAL;
 			break;
