@@ -103,3 +103,4 @@ obj-$(CONFIG_TOUCHSCREEN_ST_FTS)	+= fts/
 obj-$(CONFIG_TOUCHSCREEN_ST_FTS_V521)	+= fts_521/
 obj-$(CONFIG_TOUCHSCREEN_FT5X46)	+= ft5x46/
 obj-$(CONFIG_TOUCHSCREEN_FTS)		+= focaltech_touch/
+obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_FORCE)	+= synaptics_dsx_force/
