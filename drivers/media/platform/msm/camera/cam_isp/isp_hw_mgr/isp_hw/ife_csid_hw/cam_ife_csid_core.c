@@ -2434,6 +2434,7 @@ static int cam_ife_csid_stop(void *hw_priv,
 				rc = cam_ife_csid_tpg_stop(csid_hw, res);
 			break;
 		case CAM_ISP_RESOURCE_PIX_PATH:
+			CAM_INFO(CAM_ISP, "%s: Stop Pix Path: %d", __func__, res->res_id);
 			if (res->res_id == CAM_IFE_PIX_PATH_RES_IPP)
 				rc = cam_ife_csid_disable_ipp_path(csid_hw,
 						res, csid_stop->stop_cmd);
