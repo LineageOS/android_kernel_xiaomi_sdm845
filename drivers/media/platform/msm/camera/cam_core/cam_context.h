@@ -176,6 +176,7 @@ struct cam_ctx_ops {
  * @refcount:              Context object refcount
  * @node:                  The main node to which this context belongs
  * @sync_mutex:            mutex to sync with sync cb thread
+ * @ctx_released:          whether context is released from umd after acquire
  *
  */
 struct cam_context {
@@ -211,6 +212,7 @@ struct cam_context {
 	struct kref                  refcount;
 	void                        *node;
 	struct mutex                 sync_mutex;
+	bool                         ctx_released;
 };
 
 /**

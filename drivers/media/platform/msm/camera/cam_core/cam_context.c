@@ -163,6 +163,7 @@ int cam_context_handle_crm_apply_req(struct cam_context *ctx,
 		return -EINVAL;
 	}
 
+	mutex_lock(&ctx->ctx_mutex);
 	if (ctx->state_machine[ctx->state].crm_ops.apply_req) {
 		rc = ctx->state_machine[ctx->state].crm_ops.apply_req(ctx,
 			apply);
@@ -171,6 +172,7 @@ int cam_context_handle_crm_apply_req(struct cam_context *ctx,
 			ctx->dev_hdl, ctx->state);
 		rc = -EPROTO;
 	}
+	mutex_unlock(&ctx->ctx_mutex);
 
 	return rc;
 }
@@ -460,6 +462,7 @@ int cam_context_init(struct cam_context *ctx,
 	ctx->ctx_crm_intf = NULL;
 	ctx->crm_ctx_intf = crm_node_intf;
 	ctx->hw_mgr_intf = hw_mgr_intf;
+	ctx->ctx_released = true;
 	ctx->irq_cb_intf = cam_context_handle_hw_event;
 
 	INIT_LIST_HEAD(&ctx->active_req_list);
