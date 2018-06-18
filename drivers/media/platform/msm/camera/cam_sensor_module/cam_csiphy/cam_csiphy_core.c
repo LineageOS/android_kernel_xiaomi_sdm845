@@ -403,10 +403,8 @@ int32_t cam_csiphy_config_dev(struct csiphy_device *csiphy_dev)
 				CAM_DBG(CAM_CSIPHY, "Do Nothing");
 			break;
 			}
-			if (reg_array[lane_pos][i].delay > 0) {
-				usleep_range(reg_array[lane_pos][i].delay*1000,
-					reg_array[lane_pos][i].delay*1000 + 10);
-			}
+			usleep_range(reg_array[lane_pos][i].delay*1000,
+				reg_array[lane_pos][i].delay*1000 + 1000);
 		}
 		lane_mask >>= 1;
 		lane_pos++;
