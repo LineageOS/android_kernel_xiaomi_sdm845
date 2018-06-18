@@ -77,7 +77,7 @@
 #define CSID_DEBUG_ENABLE_LONG_PKT_CAPTURE        BIT(5)
 #define CSID_DEBUG_ENABLE_CPHY_PKT_CAPTURE        BIT(6)
 #define CSID_DEBUG_ENABLE_HBI_VBI_INFO            BIT(7)
-#define CSID_DEBUG_DISABLE_EARLY_EOF              BIT(8)
+
 
 /* enum cam_csid_path_halt_mode select the path halt mode control */
 enum cam_csid_path_halt_mode {
@@ -137,7 +137,6 @@ struct cam_ife_csid_ipp_reg_offset {
 
 	/* configuration */
 	uint32_t  pix_store_en_shift_val;
-	uint32_t  early_eof_en_shift_val;
 };
 
 struct cam_ife_csid_rdi_reg_offset {
@@ -443,8 +442,6 @@ struct cam_ife_csid_path_cfg {
  * @sof_irq_triggered:        Flag is set on receiving event to enable sof irq
  *                            incase of SOF freeze.
  * @irq_debug_cnt:            Counter to track sof irq's when above flag is set.
- * @error_irq_count           Error IRQ count, if continuous error irq comes
- *                            need to stop the CSID and mask interrupts.
  *
  */
 struct cam_ife_csid_hw {
@@ -468,7 +465,6 @@ struct cam_ife_csid_hw {
 	uint64_t                         clk_rate;
 	bool                             sof_irq_triggered;
 	uint32_t                         irq_debug_cnt;
-	uint32_t                         error_irq_count;
 };
 
 int cam_ife_csid_hw_probe_init(struct cam_hw_intf  *csid_hw_intf,

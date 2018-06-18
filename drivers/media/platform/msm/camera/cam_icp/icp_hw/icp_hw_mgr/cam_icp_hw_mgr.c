@@ -2002,11 +2002,6 @@ int32_t cam_icp_hw_mgr_cb(uint32_t irq_status, void *data)
 	struct crm_workq_task *task;
 	struct hfi_msg_work_data *task_data;
 
-	if (!data) {
-		CAM_ERR(CAM_ICP, "irq cb data is NULL");
-		return rc;
-	}
-
 	spin_lock_irqsave(&hw_mgr->hw_mgr_lock, flags);
 	task = cam_req_mgr_workq_get_task(icp_hw_mgr.msg_work);
 	if (!task) {
@@ -2463,7 +2458,13 @@ static int cam_icp_mgr_abort_handle(
 	unsigned long rem_jiffies;
 	size_t packet_size;
 	int timeout = 100;
+	struct hfi_cmd_work_data *task_data;
 	struct hfi_cmd_ipebps_async *abort_cmd;
+	struct crm_workq_task *task;
+
+	task = cam_req_mgr_workq_get_task(icp_hw_mgr.cmd_work);
+	if (!task)
+		return -ENOMEM;
 
 	packet_size =
 		sizeof(struct hfi_cmd_ipebps_async) +
@@ -2489,7 +2490,13 @@ static int cam_icp_mgr_abort_handle(
 	abort_cmd->user_data1 = (uint64_t)ctx_data;
 	abort_cmd->user_data2 = (uint64_t)0x0;
 
-	rc = hfi_write_cmd(abort_cmd);
+	task_data = (struct hfi_cmd_work_data *)task->payload;
+	task_data->data = (void *)abort_cmd;
+	task_data->request_id = 0;
+	task_data->type = ICP_WORKQ_TASK_CMD_TYPE;
+	task->process_cb = cam_icp_mgr_process_cmd;
+	rc = cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
+		CRM_TASK_PRIORITY_0);
 	if (rc) {
 		kfree(abort_cmd);
 		return rc;
@@ -2504,7 +2511,6 @@ static int cam_icp_mgr_abort_handle(
 		cam_hfi_queue_dump();
 	}
 
-	kfree(abort_cmd);
 	return rc;
 }
 
@@ -2515,7 +2521,13 @@ static int cam_icp_mgr_destroy_handle(
 	int timeout = 100;
 	unsigned long rem_jiffies;
 	size_t packet_size;
+	struct hfi_cmd_work_data *task_data;
 	struct hfi_cmd_ipebps_async *destroy_cmd;
+	struct crm_workq_task *task;
+
+	task = cam_req_mgr_workq_get_task(icp_hw_mgr.cmd_work);
+	if (!task)
+		return -ENOMEM;
 
 	packet_size =
 		sizeof(struct hfi_cmd_ipebps_async) +
@@ -2542,7 +2554,13 @@ static int cam_icp_mgr_destroy_handle(
 	memcpy(destroy_cmd->payload.direct, &ctx_data->temp_payload,
 		sizeof(uint64_t));
 
-	rc = hfi_write_cmd(destroy_cmd);
+	task_data = (struct hfi_cmd_work_data *)task->payload;
+	task_data->data = (void *)destroy_cmd;
+	task_data->request_id = 0;
+	task_data->type = ICP_WORKQ_TASK_CMD_TYPE;
+	task->process_cb = cam_icp_mgr_process_cmd;
+	rc = cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
+		CRM_TASK_PRIORITY_0);
 	if (rc) {
 		kfree(destroy_cmd);
 		return rc;
@@ -2560,7 +2578,6 @@ static int cam_icp_mgr_destroy_handle(
 			cam_icp_mgr_process_dbg_buf();
 		cam_hfi_queue_dump();
 	}
-	kfree(destroy_cmd);
 	return rc;
 }
 
@@ -2985,6 +3002,7 @@ static int cam_icp_mgr_hw_open(void *hw_mgr_priv, void *download_fw_args)
 	hw_mgr->fw_download = true;
 	hw_mgr->recovery = false;
 
+	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 	CAM_INFO(CAM_ICP, "FW download done successfully");
 
 	rc = cam_ipe_bps_deint(hw_mgr);
@@ -3105,7 +3123,7 @@ static int cam_icp_mgr_send_config_io(struct cam_icp_hw_ctx_data *ctx_data,
 	task_data->type = ICP_WORKQ_TASK_MSG_TYPE;
 	task->process_cb = cam_icp_mgr_process_cmd;
 	size_in_words = (*(uint32_t *)task_data->data) >> 2;
-	CAM_DBG(CAM_ICP, "size_in_words %u", size_in_words);
+	CAM_INFO(CAM_ICP, "size_in_words %u", size_in_words);
 	rc = cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
 		CRM_TASK_PRIORITY_0);
 	if (rc)
@@ -3181,8 +3199,8 @@ static int cam_icp_mgr_config_hw(void *hw_mgr_priv, void *config_hw_args)
 	frame_info = (struct icp_frame_info *)config_args->priv;
 	req_id = frame_info->request_id;
 	idx = cam_icp_clk_idx_from_req_id(ctx_data, req_id);
-	cam_icp_mgr_ipe_bps_clk_update(hw_mgr, ctx_data, idx);
 	ctx_data->hfi_frame_process.fw_process_flag[idx] = true;
+	cam_icp_mgr_ipe_bps_clk_update(hw_mgr, ctx_data, idx);
 
 	CAM_DBG(CAM_ICP, "req_id %llu, io config %llu", req_id,
 		frame_info->io_config);
@@ -3926,15 +3944,19 @@ static int cam_icp_mgr_hw_flush(void *hw_priv, void *hw_flush_args)
 		return -EINVAL;
 	}
 
-	CAM_DBG(CAM_REQ, "ctx_id %d Flush type %d",
-		ctx_data->ctx_id, flush_args->flush_type);
+	CAM_DBG(CAM_REQ, "ctx_id %d req %lld Flush type %d",
+		ctx_data->ctx_id,
+		*(int64_t *)flush_args->flush_req_pending[0],
+		flush_args->flush_type);
 
 	switch (flush_args->flush_type) {
 	case CAM_FLUSH_TYPE_ALL:
 		mutex_lock(&hw_mgr->hw_mgr_mutex);
-		if (!hw_mgr->recovery && flush_args->num_req_active) {
-			mutex_unlock(&hw_mgr->hw_mgr_mutex);
-			cam_icp_mgr_abort_handle(ctx_data);
+		if (!hw_mgr->recovery) {
+			if (flush_args->num_req_active) {
+				mutex_unlock(&hw_mgr->hw_mgr_mutex);
+				cam_icp_mgr_abort_handle(ctx_data);
+			}
 		} else {
 			mutex_unlock(&hw_mgr->hw_mgr_mutex);
 		}
