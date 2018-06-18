@@ -1459,4 +1459,22 @@ config TOUCHSCREEN_EKTF3XXX_CHIPSET
 
 		  If unusre, say N.
 
+config INPUT_PRESS_NDT
+	bool "ndt"
+	depends on I2C
+	help
+	  Say Y here if you have a press ic ndt.
+
+config INPUT_PRESS_NDT_F60
+	bool "ndt f60"
+	depends on INPUT_PRESS_NDT
+	help
+	  Say Y here if you have a press ic ndt.
+
+config INPUT_PRESS_NDT_M65
+	bool "ndt m65"
+	depends on INPUT_PRESS_NDT
+	help
+	  Say Y here if you have a press ic ndt.
+
 endif
