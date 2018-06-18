@@ -59,7 +59,6 @@ static void cam_req_mgr_workq_put_task(struct crm_workq_task *task)
 		(struct cam_req_mgr_core_workq *)task->parent;
 	unsigned long flags = 0;
 
-	list_del_init(&task->entry);
 	task->cancel = 0;
 	task->process_cb = NULL;
 	task->priv = NULL;
@@ -239,7 +238,6 @@ int cam_req_mgr_workq_create(char *name, int32_t num_tasks,
 			task = &crm_workq->task.pool[i];
 			task->parent = (void *)crm_workq;
 			/* Put all tasks in free pool */
-			INIT_LIST_HEAD(&task->entry);
 			cam_req_mgr_workq_put_task(task);
 		}
 		*workq = crm_workq;
@@ -261,6 +259,7 @@ void cam_req_mgr_workq_destroy(struct cam_req_mgr_core_workq **crm_workq)
 			job = (*crm_workq)->job;
 			(*crm_workq)->job = NULL;
 			WORKQ_RELEASE_LOCK(*crm_workq, flags);
+			cancel_work_sync(&(*crm_workq)->work);
 			destroy_workqueue(job);
 		} else
 			WORKQ_RELEASE_LOCK(*crm_workq, flags);

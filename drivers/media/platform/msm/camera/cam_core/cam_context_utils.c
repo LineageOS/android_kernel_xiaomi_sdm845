@@ -91,19 +91,10 @@ int cam_context_buf_done_from_hw(struct cam_context *ctx,
 	 */
 	list_del_init(&req->list);
 	spin_unlock(&ctx->lock);
-	if (!bubble_state) {
+	if (!bubble_state)
 		result = CAM_SYNC_STATE_SIGNALED_SUCCESS;
-	} else {
-		CAM_DBG(CAM_REQ,
-			"[%s][ctx_id %d] : req[%llu] is done with error",
-			ctx->dev_name, ctx->ctx_id, req->request_id);
-
-		for (j = 0; j < req->num_out_map_entries; j++)
-			CAM_DBG(CAM_REQ, "fence %d signaled with error",
-				req->out_map_entries[j].sync_id);
-
+	else
 		result = CAM_SYNC_STATE_SIGNALED_ERROR;
-	}
 
 	for (j = 0; j < req->num_out_map_entries; j++) {
 		cam_sync_signal(req->out_map_entries[j].sync_id, result);
@@ -503,7 +494,8 @@ int32_t cam_context_flush_ctx_to_hw(struct cam_context *ctx)
 	int rc = 0;
 	bool free_req;
 
-	CAM_DBG(CAM_CTXT, "[%s] E: NRT flush ctx", ctx->dev_name);
+	CAM_DBG(CAM_CTXT, "[%s][%d] E: NRT flush ctx",
+		ctx->dev_name, ctx->ctx_id);
 
 	/*
 	 * flush pending requests, take the sync lock to synchronize with the
