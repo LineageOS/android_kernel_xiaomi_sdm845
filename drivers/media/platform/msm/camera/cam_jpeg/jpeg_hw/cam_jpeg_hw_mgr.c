@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -116,6 +116,7 @@ static int cam_jpeg_mgr_process_irq(void *priv, void *data)
 			CAM_ERR(CAM_JPEG, "Failed to Deinit %d HW", dev_type);
 	}
 
+	CAM_ERR(CAM_JPEG, "JPEG end %d", task_data->result_size);
 	hw_mgr->device_in_use[dev_type][0] = false;
 	hw_mgr->dev_hw_cfg_args[dev_type][0] = NULL;
 	mutex_unlock(&g_jpeg_hw_mgr.hw_mgr_mutex);
@@ -793,8 +794,15 @@ static int cam_jpeg_mgr_flush(void *hw_mgr_priv,
 	dev_type = ctx_data->jpeg_dev_acquire_info.dev_type;
 
 	p_cfg_req = hw_mgr->dev_hw_cfg_args[dev_type][0];
+
+	CAM_ERR(CAM_JPEG, "JPEG flush - used %d procing %d ",
+		(hw_mgr->device_in_use[dev_type][0] == true),
+		(p_cfg_req != NULL));
 	if (hw_mgr->device_in_use[dev_type][0] == true &&
 		p_cfg_req != NULL) {
+		CAM_ERR(CAM_JPEG, "JPEG flush -match %d",
+			((struct cam_jpeg_hw_ctx_data *)p_cfg_req->
+			hw_cfg_args.ctxt_to_hw_map == ctx_data));
 		if ((struct cam_jpeg_hw_ctx_data *)
 			p_cfg_req->hw_cfg_args.ctxt_to_hw_map == ctx_data) {
 			cam_jpeg_mgr_stop_deinit_dev(hw_mgr, p_cfg_req,
@@ -1012,19 +1020,13 @@ static int cam_jpeg_mgr_release_hw(void *hw_mgr_priv, void *release_hw_args)
 	}
 
 	mutex_unlock(&hw_mgr->hw_mgr_mutex);
-
+	kfree(ctx_data->cdm_cmd);
 	rc = cam_jpeg_mgr_release_ctx(hw_mgr, ctx_data);
 	if (rc) {
 		mutex_unlock(&hw_mgr->hw_mgr_mutex);
-		CAM_ERR(CAM_JPEG, "JPEG release ctx failed");
-		kfree(ctx_data->cdm_cmd);
-		ctx_data->cdm_cmd = NULL;
-
 		return -EINVAL;
 	}
 
-	kfree(ctx_data->cdm_cmd);
-	ctx_data->cdm_cmd = NULL;
 	CAM_DBG(CAM_JPEG, "handle %llu", ctx_data);
 
 	return rc;
@@ -1078,7 +1080,7 @@ static int cam_jpeg_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 			sizeof(struct cam_cdm_bl_cmd))), GFP_KERNEL);
 	if (!ctx_data->cdm_cmd) {
 		rc = -ENOMEM;
-		goto jpeg_release_ctx;
+		goto acq_cdm_kma_failed;
 	}
 
 	mutex_lock(&ctx_data->ctx_mutex);
@@ -1125,8 +1127,20 @@ static int cam_jpeg_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 		hw_mgr->cdm_info[dev_type][0].ref_cnt++;
 	}
 
+	ctx_data->cdm_cmd_chbase =
+		kzalloc(((sizeof(struct cam_cdm_bl_request)) +
+			(2 * sizeof(struct cam_cdm_bl_cmd))), GFP_KERNEL);
+	if (!ctx_data->cdm_cmd_chbase) {
+		rc = -ENOMEM;
+		goto start_cdm_hdl_failed;
+	}
 	size =
 	hw_mgr->cdm_info[dev_type][0].cdm_ops->cdm_required_size_changebase();
+	ctx_data->cmd_chbase_buf_addr = kzalloc(size*4, GFP_KERNEL);
+	if (!ctx_data->cdm_cmd_chbase) {
+		rc = -ENOMEM;
+		goto start_cdm_hdl_failed;
+	}
 
 	if (hw_mgr->cdm_info[dev_type][0].ref_cnt == 1)
 		if (cam_cdm_stream_on(
@@ -1168,7 +1182,7 @@ start_cdm_hdl_failed:
 	hw_mgr->cdm_info[dev_type][0].ref_cnt--;
 acq_cdm_hdl_failed:
 	kfree(ctx_data->cdm_cmd);
-jpeg_release_ctx:
+acq_cdm_kma_failed:
 	cam_jpeg_mgr_release_ctx(hw_mgr, ctx_data);
 	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 
