@@ -1231,4 +1231,10 @@ config TOUCHSCREEN_ROHM_BU21023
 	  To compile this driver as a module, choose M here: the
 	  module will be called bu21023_ts.
 
+config INPUT_PRESS_NDT
+	bool "ndt"
+	depends on I2C
+	help
+	  Say Y here if you have a press ic ndt.
+
 endif
