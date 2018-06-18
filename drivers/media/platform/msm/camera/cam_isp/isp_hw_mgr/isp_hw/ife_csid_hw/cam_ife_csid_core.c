@@ -339,8 +339,6 @@ static int cam_ife_csid_global_reset(struct cam_ife_csid_hw *csid_hw)
 	struct cam_ife_csid_reg_offset  *csid_reg;
 	int rc = 0;
 	uint32_t val = 0, i;
-	uint32_t status;
-
 
 	soc_info = &csid_hw->hw_info->soc_info;
 	csid_reg = csid_hw->csid_info->csid_reg;
@@ -354,6 +352,8 @@ static int cam_ife_csid_global_reset(struct cam_ife_csid_hw *csid_hw)
 
 	CAM_DBG(CAM_ISP, "CSID:%d Csid reset",
 		csid_hw->hw_intf->hw_idx);
+
+	init_completion(&csid_hw->csid_top_complete);
 
 	/* Mask all interrupts */
 	cam_io_w_mb(0, soc_info->reg_map[0].mem_base +
@@ -400,19 +400,21 @@ static int cam_ife_csid_global_reset(struct cam_ife_csid_hw *csid_hw)
 		cam_io_w_mb(0x2, soc_info->reg_map[0].mem_base +
 			csid_reg->rdi_reg[i]->csid_rdi_cfg0_addr);
 
-	/* perform the top CSID HW and SW registers reset */
-	cam_io_w_mb(csid_reg->cmn_reg->csid_rst_stb_sw_all,
+	/* perform the top CSID HW reset */
+	cam_io_w_mb(csid_reg->cmn_reg->csid_rst_stb,
 		soc_info->reg_map[0].mem_base +
 		csid_reg->cmn_reg->csid_rst_strobes_addr);
 
-	rc = readl_poll_timeout(soc_info->reg_map[0].mem_base +
-		csid_reg->cmn_reg->csid_top_irq_status_addr,
-			status, (status & 0x1) == 0x1,
-		CAM_IFE_CSID_TIMEOUT_SLEEP_US, CAM_IFE_CSID_TIMEOUT_ALL_US);
-	if (rc < 0) {
-		CAM_ERR(CAM_ISP, "CSID:%d csid_reset fail rc = %d",
-			  csid_hw->hw_intf->hw_idx, rc);
-		rc = -ETIMEDOUT;
+	CAM_DBG(CAM_ISP, " Waiting for reset complete from irq handler");
+	rc = wait_for_completion_timeout(&csid_hw->csid_top_complete,
+		msecs_to_jiffies(IFE_CSID_TIMEOUT));
+	if (rc <= 0) {
+		CAM_ERR(CAM_ISP, "CSID:%d reset completion in fail rc = %d",
+			 csid_hw->hw_intf->hw_idx, rc);
+		if (rc == 0)
+			rc = -ETIMEDOUT;
+	} else {
+		rc = 0;
 	}
 
 	val = cam_io_r_mb(soc_info->reg_map[0].mem_base +
@@ -886,6 +888,7 @@ static int cam_ife_csid_path_reserve(struct cam_ife_csid_hw *csid_hw,
 	}
 
 	if (reserve->sync_mode == CAM_ISP_HW_SYNC_MASTER) {
+		path_data->crop_enable = 1;
 		path_data->start_pixel = reserve->in_port->left_start;
 		path_data->end_pixel = reserve->in_port->left_stop;
 		path_data->width  = reserve->in_port->left_width;
@@ -909,13 +912,9 @@ static int cam_ife_csid_path_reserve(struct cam_ife_csid_hw *csid_hw,
 			csid_hw->hw_intf->hw_idx, path_data->start_line,
 			path_data->end_line);
 	} else {
+		path_data->crop_enable = 0;
 		path_data->width  = reserve->in_port->left_width;
 		path_data->start_pixel = reserve->in_port->left_start;
-		path_data->end_pixel = reserve->in_port->left_stop;
-		CAM_DBG(CAM_ISP, "Res id: %d left width %d start: %d stop:%d",
-			reserve->res_id, reserve->in_port->left_width,
-			reserve->in_port->left_start,
-			reserve->in_port->left_stop);
 	}
 
 	CAM_DBG(CAM_ISP, "Res %d width %d height %d", reserve->res_id,
@@ -931,7 +930,7 @@ static int cam_ife_csid_enable_hw(struct cam_ife_csid_hw  *csid_hw)
 	int rc = 0;
 	struct cam_ife_csid_reg_offset      *csid_reg;
 	struct cam_hw_soc_info              *soc_info;
-	uint32_t i, val;
+	uint32_t i, status, val;
 
 	csid_reg = csid_hw->csid_info->csid_reg;
 	soc_info = &csid_hw->hw_info->soc_info;
@@ -950,7 +949,7 @@ static int cam_ife_csid_enable_hw(struct cam_ife_csid_hw  *csid_hw)
 		return rc;
 	}
 
-	CAM_DBG(CAM_ISP, "CSID:%d init CSID HW",
+	CAM_INFO(CAM_ISP, "CSID:%d init CSID HW",
 		csid_hw->hw_intf->hw_idx);
 
 	rc = cam_ife_csid_enable_soc_resources(soc_info);
@@ -960,10 +959,42 @@ static int cam_ife_csid_enable_hw(struct cam_ife_csid_hw  *csid_hw)
 		goto err;
 	}
 
+
+	CAM_DBG(CAM_ISP, "CSID:%d enable top irq interrupt",
+		csid_hw->hw_intf->hw_idx);
+
 	csid_hw->hw_info->hw_state = CAM_HW_STATE_POWER_UP;
-	/* Reset CSID top */
+	/* Enable the top IRQ interrupt */
+	cam_io_w_mb(1, soc_info->reg_map[0].mem_base +
+		csid_reg->cmn_reg->csid_top_irq_mask_addr);
+
 	rc = cam_ife_csid_global_reset(csid_hw);
 	if (rc) {
+		CAM_ERR(CAM_ISP, "CSID:%d csid_reset fail rc = %d",
+			  csid_hw->hw_intf->hw_idx, rc);
+		rc = -ETIMEDOUT;
+		goto disable_soc;
+	}
+
+	/*
+	 * Reset the SW registers
+	 * SW register reset also reset the mask irq, so poll the irq status
+	 * to check the reset complete.
+	 */
+	CAM_DBG(CAM_ISP, "CSID:%d Reset Software registers",
+			csid_hw->hw_intf->hw_idx);
+
+	cam_io_w_mb(csid_reg->cmn_reg->csid_rst_stb_sw_all,
+		soc_info->reg_map[0].mem_base +
+		csid_reg->cmn_reg->csid_rst_strobes_addr);
+
+	rc = readl_poll_timeout(soc_info->reg_map[0].mem_base +
+		csid_reg->cmn_reg->csid_top_irq_status_addr,
+			status, (status & 0x1) == 0x1,
+		CAM_IFE_CSID_TIMEOUT_SLEEP_US, CAM_IFE_CSID_TIMEOUT_ALL_US);
+	if (rc < 0) {
+		CAM_ERR(CAM_ISP, "software register reset timeout.....");
+		rc = -ETIMEDOUT;
 		goto disable_soc;
 	}
 
@@ -987,6 +1018,10 @@ static int cam_ife_csid_enable_hw(struct cam_ife_csid_hw  *csid_hw)
 
 	cam_io_w_mb(1, soc_info->reg_map[0].mem_base +
 		csid_reg->cmn_reg->csid_irq_cmd_addr);
+
+	/* Enable the top IRQ interrupt */
+	cam_io_w_mb(1, soc_info->reg_map[0].mem_base +
+			csid_reg->cmn_reg->csid_top_irq_mask_addr);
 
 	val = cam_io_r_mb(soc_info->reg_map[0].mem_base +
 			csid_reg->cmn_reg->csid_hw_version_addr);
@@ -1658,10 +1693,6 @@ static int cam_ife_csid_init_config_rdi_path(
 	if (rc)
 		return rc;
 
-	/* if path decode format is payload only then RDI crop is not applied */
-	if (path_format == 0xF)
-		path_data->crop_enable = 0;
-
 	/*
 	 * RDI path config and enable the time stamp capture
 	 * Enable the measurement blocks
@@ -2166,38 +2197,24 @@ static int cam_ife_csid_reset_retain_sw_reg(
 	struct cam_ife_csid_hw *csid_hw)
 {
 	int rc = 0;
-	uint32_t status;
 	struct cam_ife_csid_reg_offset *csid_reg =
 		csid_hw->csid_info->csid_reg;
-	struct cam_hw_soc_info          *soc_info;
-
-	soc_info = &csid_hw->hw_info->soc_info;
-	/* clear the top interrupt first */
-	cam_io_w_mb(1, soc_info->reg_map[0].mem_base +
-		csid_reg->cmn_reg->csid_top_irq_clear_addr);
-	cam_io_w_mb(1, soc_info->reg_map[0].mem_base +
-		csid_reg->cmn_reg->csid_irq_cmd_addr);
 
 	cam_io_w_mb(csid_reg->cmn_reg->csid_rst_stb,
-		soc_info->reg_map[0].mem_base +
+		csid_hw->hw_info->soc_info.reg_map[0].mem_base +
 		csid_reg->cmn_reg->csid_rst_strobes_addr);
-	rc = readl_poll_timeout(soc_info->reg_map[0].mem_base +
-		csid_reg->cmn_reg->csid_top_irq_status_addr,
-			status, (status & 0x1) == 0x1,
-		CAM_IFE_CSID_TIMEOUT_SLEEP_US, CAM_IFE_CSID_TIMEOUT_ALL_US);
-	if (rc < 0) {
-		CAM_ERR(CAM_ISP, "CSID:%d csid_reset fail rc = %d",
-			  csid_hw->hw_intf->hw_idx, rc);
-		rc = -ETIMEDOUT;
-	} else {
-		CAM_DBG(CAM_ISP, "CSID:%d hw reset completed %d",
+
+	CAM_DBG(CAM_ISP, " Waiting for SW reset complete from irq handler");
+	rc = wait_for_completion_timeout(&csid_hw->csid_top_complete,
+		msecs_to_jiffies(IFE_CSID_TIMEOUT));
+	if (rc <= 0) {
+		CAM_ERR(CAM_ISP, "CSID:%d reset completion in fail rc = %d",
 			csid_hw->hw_intf->hw_idx, rc);
+		if (rc == 0)
+			rc = -ETIMEDOUT;
+	} else {
 		rc = 0;
 	}
-	cam_io_w_mb(1, soc_info->reg_map[0].mem_base +
-		csid_reg->cmn_reg->csid_top_irq_clear_addr);
-	cam_io_w_mb(1, soc_info->reg_map[0].mem_base +
-		csid_reg->cmn_reg->csid_irq_cmd_addr);
 
 	return rc;
 }
@@ -2434,6 +2451,7 @@ static int cam_ife_csid_stop(void *hw_priv,
 				rc = cam_ife_csid_tpg_stop(csid_hw, res);
 			break;
 		case CAM_ISP_RESOURCE_PIX_PATH:
+			CAM_INFO(CAM_ISP, "%s: Stop Pix Path: %d", __func__, res->res_id);
 			if (res->res_id == CAM_IFE_PIX_PATH_RES_IPP)
 				rc = cam_ife_csid_disable_ipp_path(csid_hw,
 						res, csid_stop->stop_cmd);
@@ -2607,6 +2625,8 @@ irqreturn_t cam_ife_csid_irq(int irq_num, void *data)
 		csid_reg->rdi_reg[i]->csid_rdi_irq_status_addr);
 
 	/* clear */
+	cam_io_w_mb(irq_status_top, soc_info->reg_map[0].mem_base +
+		csid_reg->cmn_reg->csid_top_irq_clear_addr);
 	cam_io_w_mb(irq_status_rx, soc_info->reg_map[0].mem_base +
 		csid_reg->csi2_reg->csid_csi2_rx_irq_clear_addr);
 	if (csid_reg->cmn_reg->no_pix)
@@ -2626,6 +2646,13 @@ irqreturn_t cam_ife_csid_irq(int irq_num, void *data)
 	CAM_DBG(CAM_ISP, "irq_status_rdi0= 0x%x", irq_status_rdi[0]);
 	CAM_DBG(CAM_ISP, "irq_status_rdi1= 0x%x", irq_status_rdi[1]);
 	CAM_DBG(CAM_ISP, "irq_status_rdi2= 0x%x", irq_status_rdi[2]);
+
+	if (irq_status_top) {
+		CAM_DBG(CAM_ISP, "CSID global reset complete......Exit");
+		complete(&csid_hw->csid_top_complete);
+		return IRQ_HANDLED;
+	}
+
 
 	if (irq_status_rx & BIT(csid_reg->csi2_reg->csi2_rst_done_shift_val)) {
 		CAM_DBG(CAM_ISP, "csi rx reset complete");
