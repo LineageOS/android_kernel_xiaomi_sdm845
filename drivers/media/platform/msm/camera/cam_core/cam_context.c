@@ -460,6 +460,7 @@ int cam_context_init(struct cam_context *ctx,
 	ctx->ctx_crm_intf = NULL;
 	ctx->crm_ctx_intf = crm_node_intf;
 	ctx->hw_mgr_intf = hw_mgr_intf;
+	ctx->ctx_released = true;
 	ctx->irq_cb_intf = cam_context_handle_hw_event;
 
 	INIT_LIST_HEAD(&ctx->active_req_list);

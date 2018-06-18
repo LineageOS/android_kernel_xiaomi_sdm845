@@ -643,6 +643,57 @@ clk_disable:
 }
 
 /**
+ * cam_soc_util_clk_enable_backward()
+ *
+ * @brief:              This function enables the default clocks present
+ *                      in soc_info backward
+ *
+ * @soc_info:           Device soc struct to be populated
+ * @clk_level:          Clk level to apply while enabling
+ *
+ * @return:             success or failure
+ */
+int cam_soc_util_clk_enable_backward(struct cam_hw_soc_info *soc_info,
+	enum cam_vote_level clk_level)
+{
+	int i, rc = 0;
+	enum cam_vote_level apply_level;
+
+	if ((soc_info->num_clk == 0) ||
+		(soc_info->num_clk >= CAM_SOC_MAX_CLK)) {
+		CAM_ERR(CAM_UTIL, "Invalid number of clock %d",
+			soc_info->num_clk);
+		return -EINVAL;
+	}
+
+	rc = cam_soc_util_get_clk_level_to_apply(soc_info, clk_level,
+		&apply_level);
+	if (rc)
+		return rc;
+
+	for (i = soc_info->num_clk - 1; i >= 0; i--) {
+		CAM_ERR(CAM_UTIL, "backward dev name %s enable clk %s i %d leve %d rate %d",
+				soc_info->dev_name, soc_info->clk_name[i], i, apply_level,
+				soc_info->clk_rate[apply_level][i]);
+		rc = cam_soc_util_clk_enable(soc_info->clk[i],
+			soc_info->clk_name[i],
+			soc_info->clk_rate[apply_level][i]);
+		if (rc)
+			goto clk_disable;
+	}
+
+	return rc;
+
+clk_disable:
+	for (i++; i < soc_info->num_clk; i++) {
+		cam_soc_util_clk_disable(soc_info->clk[i],
+			soc_info->clk_name[i]);
+	}
+
+	return rc;
+}
+
+/**
  * cam_soc_util_clk_disable_default()
  *
  * @brief:              This function disables the default clocks present
@@ -1616,6 +1667,12 @@ int cam_soc_util_enable_platform_resource(struct cam_hw_soc_info *soc_info,
 
 	if (enable_clocks) {
 		rc = cam_soc_util_clk_enable_default(soc_info, clk_level);
+		if (rc && soc_info->dev_name) {
+			if (!strncmp(soc_info->dev_name, "soc:qcom,bps", sizeof("soc:qcom,bps"))) {
+				CAM_ERR(CAM_UTIL, "try set clk backward for qcom,bps");
+				rc = cam_soc_util_clk_enable_backward(soc_info, clk_level);
+			}
+		}
 		if (rc)
 			goto disable_regulator;
 	}
