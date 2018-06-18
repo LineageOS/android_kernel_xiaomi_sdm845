@@ -20,6 +20,7 @@ int cam_cci_init(struct v4l2_subdev *sd,
 	int32_t rc = 0;
 	struct cci_device *cci_dev;
 	enum cci_i2c_master_t master = MASTER_0;
+	enum cci_i2c_master_t cci_master = MASTER_0;
 	struct cam_ahb_vote ahb_vote;
 	struct cam_axi_vote axi_vote;
 	struct cam_hw_soc_info *soc_info = NULL;
@@ -45,10 +46,22 @@ int cam_cci_init(struct v4l2_subdev *sd,
 
 	CAM_DBG(CAM_CCI, "Base address %pK", base);
 
+	cci_master = c_ctrl->cci_info->cci_i2c_master;
+	if (cci_master < MASTER_MAX && cci_master >= 0) {
+		mutex_lock(&cci_dev->cci_master_info[cci_master].mutex);
+		if (cci_dev->ref_count_cci[cci_master]++) {
+			cci_dev->ref_count++;
+			cci_dev->cci_state = CCI_STATE_ENABLED;
+			mutex_unlock(&cci_dev->cci_master_info[cci_master].mutex);
+			return 0;
+		}
+		mutex_unlock(&cci_dev->cci_master_info[cci_master].mutex);
+	}
 	if (cci_dev->ref_count++) {
 		CAM_DBG(CAM_CCI, "ref_count %d", cci_dev->ref_count);
 		master = c_ctrl->cci_info->cci_i2c_master;
 		CAM_DBG(CAM_CCI, "master %d", master);
+		cci_dev->cci_state = CCI_STATE_ENABLED;
 		if (master < MASTER_MAX && master >= 0) {
 			mutex_lock(&cci_dev->cci_master_info[master].mutex);
 			mutex_lock(&cci_dev->
@@ -185,6 +198,7 @@ reset_complete_failed:
 
 platform_enable_failed:
 	cci_dev->ref_count--;
+	cci_dev->ref_count_cci[cci_master]--;
 	cam_cpas_stop(cci_dev->cpas_handle);
 
 	return rc;
@@ -355,6 +369,8 @@ int cam_cci_parse_dt_info(struct platform_device *pdev,
 	}
 
 	new_cci_dev->ref_count = 0;
+	for (i = 0; i < MASTER_MAX; i++)
+		new_cci_dev->ref_count_cci[i] = 0;
 
 	rc = cam_soc_util_request_platform_resource(soc_info,
 		cam_cci_irq, new_cci_dev);
@@ -380,16 +396,23 @@ int cam_cci_parse_dt_info(struct platform_device *pdev,
 	return 0;
 }
 
-int cam_cci_soc_release(struct cci_device *cci_dev)
+int cam_cci_soc_release(struct cci_device *cci_dev, struct cam_cci_ctrl *c_ctrl)
 {
 	uint8_t i = 0, rc = 0;
 	struct cam_hw_soc_info *soc_info =
 		&cci_dev->soc_info;
+	enum cci_i2c_master_t master = MASTER_0;
 
 	if (!cci_dev->ref_count || cci_dev->cci_state != CCI_STATE_ENABLED) {
 		CAM_ERR(CAM_CCI, "invalid ref count %d / cci state %d",
 			cci_dev->ref_count, cci_dev->cci_state);
 		return -EINVAL;
+	}
+	master = c_ctrl->cci_info->cci_i2c_master;
+	if (master < MASTER_MAX && master >= 0) {
+		mutex_lock(&cci_dev->cci_master_info[master].mutex);
+		cci_dev->ref_count_cci[master]--;
+		mutex_unlock(&cci_dev->cci_master_info[master].mutex);
 	}
 	if (--cci_dev->ref_count) {
 		CAM_DBG(CAM_CCI, "ref_count Exit %d", cci_dev->ref_count);
