@@ -190,44 +190,43 @@ static void cam_cci_dump_registers(struct cci_device *cci_dev,
 	uint32_t read_val = 0;
 	uint32_t i = 0;
 	uint32_t reg_offset = 0;
-	void __iomem *base = cci_dev->soc_info.reg_map[0].mem_base;
 
 	/* CCI Top Registers */
-	CAM_INFO(CAM_CCI, "****CCI TOP Registers ****");
+	CAM_DBG(CAM_CCI, "****CCI TOP Registers ****");
 	for (i = 0; i < DEBUG_TOP_REG_COUNT; i++) {
 		reg_offset = DEBUG_TOP_REG_START + i * 4;
-		read_val = cam_io_r_mb(base + reg_offset);
-		CAM_INFO(CAM_CCI, "offset = 0x%X value = 0x%X",
+		read_val = cam_io_r_mb(cci_dev->base + reg_offset);
+		CAM_DBG(CAM_CCI, "offset = 0x%X value = 0x%X",
 			reg_offset, read_val);
 	}
 
 	/* CCI Master registers */
-	CAM_INFO(CAM_CCI, "****CCI MASTER %d Registers ****",
+	CAM_DBG(CAM_CCI, "****CCI MASTER %d Registers ****",
 		master);
 	for (i = 0; i < DEBUG_MASTER_REG_COUNT; i++) {
 		reg_offset = DEBUG_MASTER_REG_START + master*0x100 + i * 4;
-		read_val = cam_io_r_mb(base + reg_offset);
-		CAM_INFO(CAM_CCI, "offset = 0x%X value = 0x%X",
+		read_val = cam_io_r_mb(cci_dev->base + reg_offset);
+		CAM_DBG(CAM_CCI, "offset = 0x%X value = 0x%X",
 			reg_offset, read_val);
 	}
 
 	/* CCI Master Queue registers */
-	CAM_INFO(CAM_CCI, " **** CCI MASTER%d QUEUE%d Registers ****",
+	CAM_DBG(CAM_CCI, " **** CCI MASTER%d QUEUE%d Registers ****",
 		master, queue);
 	for (i = 0; i < DEBUG_MASTER_QUEUE_REG_COUNT; i++) {
 		reg_offset = DEBUG_MASTER_QUEUE_REG_START +  master*0x200 +
 			queue*0x100 + i * 4;
-		read_val = cam_io_r_mb(base + reg_offset);
-		CAM_INFO(CAM_CCI, "offset = 0x%X value = 0x%X",
+		read_val = cam_io_r_mb(cci_dev->base + reg_offset);
+		CAM_DBG(CAM_CCI, "offset = 0x%X value = 0x%X",
 			reg_offset, read_val);
 	}
 
 	/* CCI Interrupt registers */
-	CAM_INFO(CAM_CCI, " ****CCI Interrupt Registers ****");
+	CAM_DBG(CAM_CCI, " ****CCI Interrupt Registers ****");
 	for (i = 0; i < DEBUG_INTR_REG_COUNT; i++) {
 		reg_offset = DEBUG_INTR_REG_START + i * 4;
-		read_val = cam_io_r_mb(base + reg_offset);
-		CAM_INFO(CAM_CCI, "offset = 0x%X value = 0x%X",
+		read_val = cam_io_r_mb(cci_dev->base + reg_offset);
+		CAM_DBG(CAM_CCI, "offset = 0x%X value = 0x%X",
 			reg_offset, read_val);
 	}
 }
@@ -471,15 +470,11 @@ static int32_t cam_cci_calc_cmd_len(struct cci_device *cci_dev,
 		for (i = 0; i < pack_max_len;) {
 			if (cmd->delay || ((cmd - i2c_cmd) >= (cmd_size - 1)))
 				break;
-			if (cmd->reg_addr + 1 ==
+			/*if (cmd->reg_addr + 1 ==
 				(cmd+1)->reg_addr) {
 				len += data_len;
-				if (len > cci_dev->payload_size) {
-					len = len - data_len;
-					break;
-				}
 				(*pack)++;
-			} else {
+			}*/ else {
 				break;
 			}
 			i += data_len;
@@ -1410,7 +1405,7 @@ static int32_t cam_cci_read_bytes(struct v4l2_subdev *sd,
 		else
 			rc = cam_cci_read(sd, c_ctrl);
 
-		if (rc) {
+		if (!rc) {
 			CAM_ERR(CAM_CCI, "failed to read rc:%d", rc);
 			goto ERROR;
 		}
