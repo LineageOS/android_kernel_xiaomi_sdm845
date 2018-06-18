@@ -1,0 +1,19 @@
+fpc,fpc1020
+
+
+Required properties:
+
+- compatible : should be compatible = "fpc,fpc1020";
+
+example:
+	fpc_fpc1020 {
+		compatible = "fpc,fpc1020";
+		interrupt-parent = <&tlmm>;
+		fpc,irq-gpio     = <&tlmm 121 0>;
+		fpc,reset-gpio   = <&tlmm 35 0>;
+		pinctrl-names = "fp_reset_high", "fp_reset_low";
+		pinctrl-0 = <&fp_reset_high>;
+		pinctrl-1 = <&fp_reset_low>;
+	};
+
+
