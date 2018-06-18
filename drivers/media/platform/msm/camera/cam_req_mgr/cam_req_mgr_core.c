@@ -1283,8 +1283,7 @@ static int __cam_req_mgr_destroy_link_info(struct cam_req_mgr_core_link *link)
 				rc = dev->ops->link_setup(&link_data);
 				if (rc)
 					CAM_ERR(CAM_CRM,
-						"Unlink failed dev name %s hdl %x",
-						dev->dev_info.name,
+						"Unlink failed dev_hdl %d",
 						dev->dev_hdl);
 			}
 			dev->dev_hdl = 0;
@@ -1325,9 +1324,9 @@ static struct cam_req_mgr_core_link *__cam_req_mgr_reserve_link(
 		return NULL;
 	}
 
-	if (session->num_links >= MAXIMUM_LINKS_PER_SESSION) {
+	if (session->num_links >= MAX_LINKS_PER_SESSION) {
 		CAM_ERR(CAM_CRM, "Reached max links %d per session limit %d",
-			session->num_links, MAXIMUM_LINKS_PER_SESSION);
+			session->num_links, MAX_LINKS_PER_SESSION);
 		return NULL;
 	}
 
@@ -1362,7 +1361,7 @@ static struct cam_req_mgr_core_link *__cam_req_mgr_reserve_link(
 
 	mutex_lock(&session->lock);
 	/*  Loop through and find a free index */
-	for (i = 0; i < MAXIMUM_LINKS_PER_SESSION; i++) {
+	for (i = 0; i < MAX_LINKS_PER_SESSION; i++) {
 		if (!session->links[i]) {
 			CAM_DBG(CAM_CRM,
 				"Free link index %d found, num_links=%d",
@@ -1372,7 +1371,7 @@ static struct cam_req_mgr_core_link *__cam_req_mgr_reserve_link(
 		}
 	}
 
-	if (i == MAXIMUM_LINKS_PER_SESSION) {
+	if (i == MAX_LINKS_PER_SESSION) {
 		CAM_ERR(CAM_CRM, "Free link index not found");
 		goto error;
 	}
@@ -1433,7 +1432,7 @@ static void __cam_req_mgr_unreserve_link(
 		return;
 	}
 
-	for (i = 0; i < MAXIMUM_LINKS_PER_SESSION; i++) {
+	for (i = 0; i < MAX_LINKS_PER_SESSION; i++) {
 		if (session->links[i] == link)
 			session->links[i] = NULL;
 	}
@@ -1445,7 +1444,7 @@ static void __cam_req_mgr_unreserve_link(
 		 * of only having 2 links in a given session
 		 */
 		session->sync_mode = CAM_REQ_MGR_SYNC_MODE_NO_SYNC;
-		for (i = 0; i < MAXIMUM_LINKS_PER_SESSION; i++) {
+		for (i = 0; i < MAX_LINKS_PER_SESSION; i++) {
 			if (session->links[i])
 				session->links[i]->sync_link = NULL;
 		}
@@ -2351,8 +2350,8 @@ static int __cam_req_mgr_unlink(struct cam_req_mgr_core_link *link)
 	/* Destroy the link handle */
 	rc = cam_destroy_device_hdl(link->link_hdl);
 	if (rc < 0) {
-		CAM_ERR(CAM_CRM, "error destroying link hdl %x rc %d",
-			link->link_hdl, rc);
+		CAM_ERR(CAM_CRM, "error while destroying dev handle %d %x",
+			rc, link->link_hdl);
 	}
 
 	mutex_unlock(&link->lock);
@@ -2387,7 +2386,7 @@ int cam_req_mgr_destroy_session(
 			ses_info->session_hdl,
 			cam_session->num_links);
 
-		for (i = 0; i < MAXIMUM_LINKS_PER_SESSION; i++) {
+		for (i = 0; i < MAX_LINKS_PER_SESSION; i++) {
 			link = cam_session->links[i];
 
 			if (!link)
@@ -2432,15 +2431,16 @@ int cam_req_mgr_link(struct cam_req_mgr_link_info *link_info)
 		return -EINVAL;
 	}
 
+	mutex_lock(&g_crm_core_dev->crm_lock);
+
 	/* session hdl's priv data is cam session struct */
 	cam_session = (struct cam_req_mgr_core_session *)
 		cam_get_device_priv(link_info->session_hdl);
 	if (!cam_session) {
 		CAM_DBG(CAM_CRM, "NULL pointer");
+		mutex_unlock(&g_crm_core_dev->crm_lock);
 		return -EINVAL;
 	}
-
-	mutex_lock(&g_crm_core_dev->crm_lock);
 
 	/* Allocate link struct and map it with session's request queue */
 	link = __cam_req_mgr_reserve_link(cam_session);
@@ -2553,7 +2553,8 @@ int cam_req_mgr_unlink(struct cam_req_mgr_unlink_info *unlink_info)
 	rc = __cam_req_mgr_unlink(link);
 
 	/* Free curent link and put back into session's free pool of links */
-	__cam_req_mgr_unreserve_link(cam_session, link);
+	if (!rc)
+		__cam_req_mgr_unreserve_link(cam_session, link);
 
 done:
 	mutex_unlock(&g_crm_core_dev->crm_lock);
@@ -2628,8 +2629,7 @@ int cam_req_mgr_sync_config(
 	}
 
 	if ((sync_info->num_links < 0) ||
-		(sync_info->num_links >
-		MAX_LINKS_PER_SESSION)) {
+		(sync_info->num_links > MAX_LINKS_PER_SESSION)) {
 		CAM_ERR(CAM_CRM, "Invalid num links %d", sync_info->num_links);
 		return -EINVAL;
 	}
@@ -2778,19 +2778,12 @@ int cam_req_mgr_link_control(struct cam_req_mgr_link_control *control)
 		goto end;
 	}
 
-	if (control->num_links > MAX_LINKS_PER_SESSION) {
-		CAM_ERR(CAM_CRM, "Invalid number of links %d",
-			control->num_links);
-		rc = -EINVAL;
-		goto end;
-	}
-
 	mutex_lock(&g_crm_core_dev->crm_lock);
 	for (i = 0; i < control->num_links; i++) {
 		link = (struct cam_req_mgr_core_link *)
 			cam_get_device_priv(control->link_hdls[i]);
 		if (!link) {
-			CAM_ERR(CAM_CRM, "Link(%d) is NULL on session 0x%x",
+			CAM_ERR_RATE_LIMIT(CAM_CRM, "Link(%d) is NULL on session 0x%x",
 				i, control->session_hdl);
 			rc = -EINVAL;
 			break;

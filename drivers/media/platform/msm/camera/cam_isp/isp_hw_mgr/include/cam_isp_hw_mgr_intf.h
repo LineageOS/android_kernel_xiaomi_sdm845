@@ -60,29 +60,13 @@ enum cam_isp_hw_stop_cmd {
 };
 
 /**
- * struct cam_isp_stop_args - hardware stop arguments
+ * struct cam_isp_stop_hw_method - hardware stop method
  *
  * @hw_stop_cmd:               Hardware stop command type information
- * @stop_only                  Send stop only to hw drivers. No Deinit to be
- *                             done.
  *
  */
-struct cam_isp_stop_args {
+struct cam_isp_stop_hw_method {
 	enum cam_isp_hw_stop_cmd      hw_stop_cmd;
-	bool                          stop_only;
-};
-
-/**
- * struct cam_isp_start_args - isp hardware start arguments
- *
- * @config_args:               Hardware configuration commands.
- * @start_only                 Send start only to hw drivers. No init to
- *                             be done.
- *
- */
-struct cam_isp_start_args {
-	struct cam_hw_config_args     hw_config;
-	bool                          start_only;
 };
 
 /**
@@ -203,11 +187,13 @@ enum cam_isp_hw_mgr_command {
 /**
  * struct cam_isp_hw_cmd_args - Payload for hw manager command
  *
+ * @ctxt_to_hw_map:        HW context from the acquire
  * @cmd_type               HW command type
  * @get_context            Get context type information
  */
 struct cam_isp_hw_cmd_args {
-	uint32_t                              cmd_type;
+	void                               *ctxt_to_hw_map;
+	uint32_t                            cmd_type;
 	union {
 		uint32_t                      is_rdi_only_context;
 		uint32_t                      sof_irq_enable;
@@ -223,9 +209,9 @@ struct cam_isp_hw_cmd_args {
  * @of_node:            Device node input
  * @hw_mgr:             Input/output structure for the ISP hardware manager
  *                          initialization
- * @iommu_hdl:          Iommu handle to be returned
+ *
  */
 int cam_isp_hw_mgr_init(struct device_node *of_node,
-	struct cam_hw_mgr_intf *hw_mgr, int *iommu_hdl);
+	struct cam_hw_mgr_intf *hw_mgr);
 
 #endif /* __CAM_ISP_HW_MGR_INTF_H__ */

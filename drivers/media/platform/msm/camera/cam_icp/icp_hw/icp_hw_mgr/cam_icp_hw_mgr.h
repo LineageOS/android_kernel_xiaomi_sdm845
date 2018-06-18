@@ -135,7 +135,7 @@ struct clk_work_data {
   */
 struct icp_frame_info {
 	uint64_t request_id;
-	dma_addr_t io_config;
+	uint64_t io_config;
 	struct hfi_cmd_ipebps_async hfi_cfg_io_cmd;
 };
 
@@ -238,7 +238,7 @@ struct cam_icp_hw_ctx_data {
 struct icp_cmd_generic_blob {
 	struct cam_icp_hw_ctx_data *ctx;
 	uint32_t frame_info_idx;
-	dma_addr_t *io_buf_addr;
+	uint64_t *io_buf_addr;
 };
 
 /**

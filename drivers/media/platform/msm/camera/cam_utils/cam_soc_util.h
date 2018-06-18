@@ -41,25 +41,17 @@
 /* maximum number of device clock */
 #define CAM_SOC_MAX_CLK             32
 
-/* soc id */
-#define SDM670_SOC_ID 336
-#define SDM710_SOC_ID 360
-#define SDM712_SOC_ID 393
-
-/* Minor Version */
-#define SDM670_V1_1 0x1
 /**
  * enum cam_vote_level - Enum for voting level
  *
- * @CAM_SUSPEND_VOTE  : Suspend vote
- * @CAM_MINSVS_VOTE   : Min SVS vote
- * @CAM_LOWSVS_VOTE   : Low SVS vote
- * @CAM_SVS_VOTE      : SVS vote
- * @CAM_SVSL1_VOTE    : SVS Plus vote
- * @CAM_NOMINAL_VOTE  : Nominal vote
- * @CAM_NOMINALL1_VOTE: Nominal plus vote
- * @CAM_TURBO_VOTE    : Turbo vote
- * @CAM_MAX_VOTE      : Max voting level, This is invalid level.
+ * @CAM_SUSPEND_VOTE : Suspend vote
+ * @CAM_MINSVS_VOTE  : Min SVS vote
+ * @CAM_LOWSVS_VOTE  : Low SVS vote
+ * @CAM_SVS_VOTE     : SVS vote
+ * @CAM_SVSL1_VOTE   : SVS Plus vote
+ * @CAM_NOMINAL_VOTE : Nominal vote
+ * @CAM_TURBO_VOTE   : Turbo vote
+ * @CAM_MAX_VOTE     : Max voting level, This is invalid level.
  */
 enum cam_vote_level {
 	CAM_SUSPEND_VOTE,
@@ -68,7 +60,6 @@ enum cam_vote_level {
 	CAM_SVS_VOTE,
 	CAM_SVSL1_VOTE,
 	CAM_NOMINAL_VOTE,
-	CAM_NOMINALL1_VOTE,
 	CAM_TURBO_VOTE,
 	CAM_MAX_VOTE,
 };
@@ -631,23 +622,5 @@ void cam_soc_util_clk_disable_default(struct cam_hw_soc_info *soc_info);
 
 int cam_soc_util_clk_enable_default(struct cam_hw_soc_info *soc_info,
 	enum cam_vote_level clk_level);
-/**
- * cam_soc_util_get_soc_id()
- *
- * @brief:           Read soc id
- *
- * @return           SOC id
- */
-uint32_t cam_soc_util_get_soc_id(void);
 
-/**
- * cam_soc_util_get_hw_revision_node()
- *
- * @brief:           Camera HW ID
- *
- * @soc_info:        Device soc information
- *
- * @return           HW id
- */
-uint32_t cam_soc_util_get_hw_revision_node(struct cam_hw_soc_info *soc_info);
 #endif /* _CAM_SOC_UTIL_H_ */

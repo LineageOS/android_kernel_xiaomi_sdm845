@@ -434,7 +434,7 @@ int cam_isp_add_io_buffers(
 	bool                                  fill_fence)
 {
 	int rc = 0;
-	dma_addr_t                          io_addr[CAM_PACKET_MAX_PLANES];
+	uint64_t                            io_addr[CAM_PACKET_MAX_PLANES];
 	struct cam_buf_io_cfg              *io_cfg;
 	struct cam_isp_resource_node       *res;
 	struct cam_ife_hw_mgr_res          *hw_mgr_res;
@@ -457,7 +457,6 @@ int cam_isp_add_io_buffers(
 	num_out_buf = 0;
 	num_in_buf  = 0;
 	io_cfg_used_bytes = 0;
-	prepare->pf_data->packet = prepare->packet;
 
 	/* Max one hw entries required for each base */
 	if (prepare->num_hw_update_entries + 1 >=
