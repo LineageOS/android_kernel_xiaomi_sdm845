@@ -91,12 +91,13 @@ int32_t cam_sensor_handle_delay(
 	if (offset > 0) {
 		i2c_list =
 			list_entry(list_ptr, struct i2c_settings_list, list);
+		CAM_ERR(CAM_SENSOR, "generic_op_code: %d delay %d", generic_op_code, cmd_uncond_wait->delay);
 		if (generic_op_code ==
-			CAMERA_SENSOR_WAIT_OP_HW_UCND)
+			CAMERA_SENSOR_WAIT_OP_HW_UCND && cmd_uncond_wait->delay < 1000)
 			i2c_list->i2c_settings.reg_setting[offset - 1].delay =
 				cmd_uncond_wait->delay;
 		else
-			i2c_list->i2c_settings.delay = cmd_uncond_wait->delay;
+			i2c_list->i2c_settings.delay = (cmd_uncond_wait->delay + 500) / 1000;
 		(*cmd_buf) +=
 			sizeof(
 			struct cam_cmd_unconditional_wait) / sizeof(uint32_t);
