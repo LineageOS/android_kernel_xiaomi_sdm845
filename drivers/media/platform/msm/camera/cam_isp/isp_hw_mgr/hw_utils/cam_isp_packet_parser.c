@@ -469,12 +469,11 @@ int cam_isp_add_io_buffers(
 
 	for (i = 0; i < prepare->packet->num_io_configs; i++) {
 		CAM_DBG(CAM_ISP, "======= io config idx %d ============", i);
-		CAM_DBG(CAM_REQ,
-			"i %d req_id %llu resource_type:%d fence:%d direction %d",
-			i, prepare->packet->header.request_id,
-			io_cfg[i].resource_type, io_cfg[i].fence,
-			io_cfg[i].direction);
+		CAM_DBG(CAM_ISP, "i %d resource_type:%d fence:%d",
+			i, io_cfg[i].resource_type, io_cfg[i].fence);
 		CAM_DBG(CAM_ISP, "format: %d", io_cfg[i].format);
+		CAM_DBG(CAM_ISP, "direction %d",
+			io_cfg[i].direction);
 
 		if (io_cfg[i].direction == CAM_BUF_OUTPUT) {
 			res_id_out = io_cfg[i].resource_type & 0xFF;
@@ -606,15 +605,8 @@ int cam_isp_add_io_buffers(
 				io_addr[plane_id] +=
 						io_cfg[i].offsets[plane_id];
 				CAM_DBG(CAM_ISP,
-					"get io_addr for plane %d: 0x%llx, mem_hdl=0x%x",
-					plane_id, io_addr[plane_id],
-					io_cfg[i].mem_handle[plane_id]);
-
-				CAM_DBG(CAM_ISP,
-					"mmu_hdl=0x%x, size=%d, end=0x%x",
-					mmu_hdl, (int)size,
-					io_addr[plane_id]+size);
-
+					"get io_addr for plane %d: 0x%llx",
+					plane_id, io_addr[plane_id]);
 			}
 			if (!plane_id) {
 				CAM_ERR(CAM_ISP, "No valid planes for res%d",

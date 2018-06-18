@@ -177,7 +177,7 @@ irqreturn_t cam_csiphy_irq(int irq_num, void *data)
 
 	if (!csiphy_dev) {
 		CAM_ERR(CAM_CSIPHY, "Invalid Args");
-		return IRQ_NONE;
+		return -EINVAL;
 	}
 
 	soc_info = &csiphy_dev->soc_info;
@@ -435,12 +435,6 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 
 	if (!csiphy_dev || !cmd) {
 		CAM_ERR(CAM_CSIPHY, "Invalid input args");
-		return -EINVAL;
-	}
-
-	if (cmd->handle_type != CAM_HANDLE_USER_POINTER) {
-		CAM_ERR(CAM_CSIPHY, "Invalid handle type: %d",
-			cmd->handle_type);
 		return -EINVAL;
 	}
 
@@ -706,7 +700,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 		rc = -EINVAL;
 		goto release_mutex;
 	}
-
+	CAM_DBG(CAM_CSIPHY, "Dev ref Cnt: %d",csiphy_dev->start_dev_count);
 release_mutex:
 	mutex_unlock(&csiphy_dev->mutex);
 
