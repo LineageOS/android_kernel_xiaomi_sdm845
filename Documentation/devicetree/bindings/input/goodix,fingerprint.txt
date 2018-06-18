@@ -1,0 +1,17 @@
+goodix,fingerprint
+
+
+Required properties:
+
+- compatible : should be compatible = "goodix,fingerprint";
+
+example:
+
+	goodix_fp {
+	    compatible = "goodix,fingerprint";
+		interrupt-parent = <&tlmm>;
+		fp-gpio-irq = <&tlmm 121 0x00>;
+		fp-gpio-reset = <&tlmm 35 0x00>;
+		status = "okay";
+	};
+
