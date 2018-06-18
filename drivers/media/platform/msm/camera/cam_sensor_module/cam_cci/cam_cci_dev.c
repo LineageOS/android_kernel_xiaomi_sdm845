@@ -16,6 +16,7 @@
 #include "cam_cci_core.h"
 
 #define CCI_MAX_DELAY 1000000
+#define CCI_TIMEOUT msecs_to_jiffies(500)
 
 static struct v4l2_subdev *g_cci_subdev;
 
@@ -78,14 +79,14 @@ irqreturn_t cam_cci_irq(int irq_num, void *data)
 		if (cci_dev->cci_master_info[MASTER_0].reset_pending == TRUE) {
 			cci_dev->cci_master_info[MASTER_0].reset_pending =
 				FALSE;
-			complete(
-			&cci_dev->cci_master_info[MASTER_0].reset_complete);
+			complete(&cci_dev->cci_master_info[MASTER_0].
+				reset_complete);
 		}
 		if (cci_dev->cci_master_info[MASTER_1].reset_pending == TRUE) {
 			cci_dev->cci_master_info[MASTER_1].reset_pending =
 				FALSE;
-			complete(
-			&cci_dev->cci_master_info[MASTER_1].reset_complete);
+			complete(&cci_dev->cci_master_info[MASTER_1].
+				reset_complete);
 		}
 	}
 

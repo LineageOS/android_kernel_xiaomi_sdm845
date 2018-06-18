@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -440,8 +440,6 @@ int cam_isp_add_io_buffers(
 	struct cam_ife_hw_mgr_res          *hw_mgr_res;
 	struct cam_isp_hw_get_cmd_update    update_buf;
 	struct cam_isp_hw_get_wm_update     wm_update;
-	struct cam_hw_fence_map_entry      *out_map_entries;
-	struct cam_hw_fence_map_entry      *in_map_entries;
 	uint32_t                            kmd_buf_remain_size;
 	uint32_t                            i, j, num_out_buf, num_in_buf;
 	uint32_t                            res_id_out, res_id_in, plane_id;
@@ -469,12 +467,11 @@ int cam_isp_add_io_buffers(
 
 	for (i = 0; i < prepare->packet->num_io_configs; i++) {
 		CAM_DBG(CAM_ISP, "======= io config idx %d ============", i);
-		CAM_DBG(CAM_REQ,
-			"i %d req_id %llu resource_type:%d fence:%d direction %d",
-			i, prepare->packet->header.request_id,
-			io_cfg[i].resource_type, io_cfg[i].fence,
-			io_cfg[i].direction);
+		CAM_DBG(CAM_ISP, "i %d resource_type:%d fence:%d",
+			i, io_cfg[i].resource_type, io_cfg[i].fence);
 		CAM_DBG(CAM_ISP, "format: %d", io_cfg[i].format);
+		CAM_DBG(CAM_ISP, "direction %d",
+			io_cfg[i].direction);
 
 		if (io_cfg[i].direction == CAM_BUF_OUTPUT) {
 			res_id_out = io_cfg[i].resource_type & 0xFF;
@@ -487,15 +484,14 @@ int cam_isp_add_io_buffers(
 			CAM_DBG(CAM_ISP,
 				"configure output io with fill fence %d",
 				fill_fence);
-			out_map_entries =
-				&prepare->out_map_entries[num_out_buf];
 			if (fill_fence) {
 				if (num_out_buf <
 					prepare->max_out_map_entries) {
-					out_map_entries->resource_handle =
-						io_cfg[i].resource_type;
-					out_map_entries->sync_id =
-						io_cfg[i].fence;
+					prepare->out_map_entries[num_out_buf].
+						resource_handle =
+							io_cfg[i].resource_type;
+					prepare->out_map_entries[num_out_buf].
+						sync_id = io_cfg[i].fence;
 					num_out_buf++;
 				} else {
 					CAM_ERR(CAM_ISP, "ln_out:%d max_ln:%d",
@@ -516,14 +512,14 @@ int cam_isp_add_io_buffers(
 			CAM_DBG(CAM_ISP,
 				"configure input io with fill fence %d",
 				fill_fence);
-			in_map_entries =
-				&prepare->in_map_entries[num_in_buf];
 			if (fill_fence) {
 				if (num_in_buf < prepare->max_in_map_entries) {
-					in_map_entries->resource_handle =
-						io_cfg[i].resource_type;
-					in_map_entries->sync_id =
-						io_cfg[i].fence;
+					prepare->in_map_entries[num_in_buf].
+						resource_handle =
+							io_cfg[i].resource_type;
+					prepare->in_map_entries[num_in_buf].
+						sync_id =
+							io_cfg[i].fence;
 					num_in_buf++;
 				} else {
 					CAM_ERR(CAM_ISP, "ln_in:%d imax_ln:%d",
@@ -606,15 +602,8 @@ int cam_isp_add_io_buffers(
 				io_addr[plane_id] +=
 						io_cfg[i].offsets[plane_id];
 				CAM_DBG(CAM_ISP,
-					"get io_addr for plane %d: 0x%llx, mem_hdl=0x%x",
-					plane_id, io_addr[plane_id],
-					io_cfg[i].mem_handle[plane_id]);
-
-				CAM_DBG(CAM_ISP,
-					"mmu_hdl=0x%x, size=%d, end=0x%x",
-					mmu_hdl, (int)size,
-					io_addr[plane_id]+size);
-
+					"get io_addr for plane %d: 0x%llx",
+					plane_id, io_addr[plane_id]);
 			}
 			if (!plane_id) {
 				CAM_ERR(CAM_ISP, "No valid planes for res%d",
