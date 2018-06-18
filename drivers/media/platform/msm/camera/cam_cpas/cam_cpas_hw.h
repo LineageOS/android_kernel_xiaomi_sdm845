@@ -123,7 +123,6 @@ struct cam_cpas_client {
  * @dyn_vote: Whether dynamic voting enabled
  * @lock: Mutex lock used while voting on this client
  * @valid: Whether bus client is valid
- * @name: Name of the bus client
  *
  */
 struct cam_cpas_bus_client {
@@ -137,7 +136,6 @@ struct cam_cpas_bus_client {
 	bool dyn_vote;
 	struct mutex lock;
 	bool valid;
-	const char *name;
 };
 
 /**
