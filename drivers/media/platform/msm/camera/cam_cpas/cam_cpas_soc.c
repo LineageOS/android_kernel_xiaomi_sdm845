@@ -44,26 +44,17 @@ int cam_cpas_get_custom_dt_info(struct platform_device *pdev,
 		return rc;
 	}
 
-	soc_private->camnoc_axi_min_ib_bw = 0;
-	rc = of_property_read_u64(of_node,
-		"camnoc-axi-min-ib-bw",
-		&soc_private->camnoc_axi_min_ib_bw);
-	if (rc == -EOVERFLOW) {
-		soc_private->camnoc_axi_min_ib_bw = 0;
-		rc = of_property_read_u32(of_node,
-			"camnoc-axi-min-ib-bw",
-			(u32 *)&soc_private->camnoc_axi_min_ib_bw);
-	}
 
+	soc_private->hw_version = 0;
+	rc = of_property_read_u32(of_node,
+		"qcom,cpas-hw-ver", &soc_private->hw_version);
 	if (rc) {
-		CAM_DBG(CAM_CPAS,
-			"failed to read camnoc-axi-min-ib-bw rc:%d", rc);
-		soc_private->camnoc_axi_min_ib_bw =
-			CAM_CPAS_AXI_MIN_CAMNOC_IB_BW;
+		CAM_ERR(CAM_CPAS, "device %s failed to read cpas-hw-ver",
+			pdev->name);
+		return rc;
 	}
 
-	CAM_DBG(CAM_CPAS, "camnoc-axi-min-ib-bw = %llu",
-		soc_private->camnoc_axi_min_ib_bw);
+	CAM_DBG(CAM_CPAS, "CPAS HW VERSION %x", soc_private->hw_version);
 
 	soc_private->client_id_based = of_property_read_bool(of_node,
 		"client-id-based");
