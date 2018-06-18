@@ -760,6 +760,9 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 		ctx->ctx_crm_intf->notify_err) {
 		struct cam_req_mgr_error_notify notify;
 
+		list_del_init(&req->list);
+		list_add(&req->list, &ctx->pending_req_list);
+
 		notify.link_hdl = ctx->link_hdl;
 		notify.dev_hdl = ctx->dev_hdl;
 		notify.req_id = req->request_id;
@@ -908,6 +911,7 @@ static int __cam_isp_ctx_epoch_in_bubble_applied(
 		ctx->ctx_crm_intf->notify_err) {
 		struct cam_req_mgr_error_notify notify;
 
+		list_add(&req->list, &ctx->pending_req_list);
 		notify.link_hdl = ctx->link_hdl;
 		notify.dev_hdl = ctx->dev_hdl;
 		notify.req_id = req->request_id;
