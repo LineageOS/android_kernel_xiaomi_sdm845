@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -45,7 +45,7 @@
 #define CYCLES_PER_MICRO_SEC_DEFAULT 4915
 #define CCI_MAX_DELAY 1000000
 
-#define CCI_TIMEOUT msecs_to_jiffies(1500)
+#define CCI_TIMEOUT msecs_to_jiffies(500)
 
 #define NUM_MASTERS 2
 #define NUM_QUEUES 2
@@ -65,13 +65,18 @@
 #define MAX_LRME_V4l2_EVENTS 30
 
 /* Max bytes that can be read per CCI read transaction */
-#define CCI_READ_MAX 256
+#define CCI_READ_MAX 12
 #define CCI_I2C_READ_MAX_RETRIES 3
 #define CCI_I2C_MAX_READ 8192
 #define CCI_I2C_MAX_WRITE 8192
-#define CCI_I2C_MAX_BYTE_COUNT 65535
 
 #define CAMX_CCI_DEV_NAME "cam-cci-driver"
+
+/* Max bytes that can be read per CCI read transaction */
+#define CCI_READ_MAX 12
+#define CCI_I2C_READ_MAX_RETRIES 3
+#define CCI_I2C_MAX_READ 8192
+#define CCI_I2C_MAX_WRITE 8192
 
 #define PRIORITY_QUEUE (QUEUE_0)
 #define SYNC_QUEUE (QUEUE_1)
@@ -120,7 +125,6 @@ struct cam_cci_read_cfg {
 	uint16_t addr_type;
 	uint8_t *data;
 	uint16_t num_byte;
-	uint16_t data_type;
 };
 
 struct cam_cci_i2c_queue_info {
@@ -140,7 +144,6 @@ struct cam_cci_master_info {
 	struct mutex mutex_q[NUM_QUEUES];
 	struct completion report_q[NUM_QUEUES];
 	atomic_t done_pending[NUM_QUEUES];
-	spinlock_t lock_q[NUM_QUEUES];
 };
 
 struct cam_cci_clk_params_t {
