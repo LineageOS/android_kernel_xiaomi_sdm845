@@ -13,6 +13,14 @@ menuconfig SPECTRA_CAMERA
       Enabling this adds support for the camera driver stack including sensor,
       IFE and postprocessing drivers.
 
+config USE_BU64748
+    bool "use BU64748 acculator"
+    default n
+
+config USE_ROHM_BU64753
+    bool "use ROHM BU64753 acculator"
+    default n
+
 menuconfig MSM_CAMERA
     bool "QTI MSM camera and video capture support"
     depends on ARCH_QCOM && VIDEO_V4L2 && I2C
@@ -44,7 +52,6 @@ config MSMB_CAMERA_DEBUG
     depends on MSMB_CAMERA
     ---help---
       Enable printk() debug for msm camera 2.0
-
 
 
 if MSMB_CAMERA
