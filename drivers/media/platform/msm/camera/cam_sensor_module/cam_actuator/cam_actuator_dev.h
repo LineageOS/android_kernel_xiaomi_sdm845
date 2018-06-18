@@ -48,6 +48,12 @@
 #define MSM_ACTUATOR_MAX_VREGS (10)
 #define ACTUATOR_MAX_POLL_COUNT 10
 
+#ifdef CONFIG_USE_ROHM_BU64753
+#define EEPROM_MAP_DATA_CNT 60
+#define EEPROM_READ_START_INDEX 7856
+#define EEPROM_READ_END_INDEX 7915
+#define ROHM_ACTUATOR_II2_ADDR 0x76
+#endif
 
 enum cam_actuator_apply_state_t {
 	ACT_APPLY_SETTINGS_NOW,
@@ -125,6 +131,7 @@ struct cam_actuator_ctrl_t {
 	struct i2c_data_settings i2c_data;
 	struct cam_actuator_query_cap act_info;
 	struct intf_params bridge_intf;
+	struct platform_device *pdev;
 };
 
 #endif /* _CAM_ACTUATOR_DEV_H_ */
