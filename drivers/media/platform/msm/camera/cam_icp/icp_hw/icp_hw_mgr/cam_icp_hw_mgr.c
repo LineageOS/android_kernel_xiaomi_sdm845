@@ -2457,7 +2457,13 @@ static int cam_icp_mgr_abort_handle(
 	unsigned long rem_jiffies;
 	size_t packet_size;
 	int timeout = 100;
+	struct hfi_cmd_work_data *task_data;
 	struct hfi_cmd_ipebps_async *abort_cmd;
+	struct crm_workq_task *task;
+
+	task = cam_req_mgr_workq_get_task(icp_hw_mgr.cmd_work);
+	if (!task)
+		return -ENOMEM;
 
 	packet_size =
 		sizeof(struct hfi_cmd_ipebps_async) +
@@ -2483,7 +2489,13 @@ static int cam_icp_mgr_abort_handle(
 	abort_cmd->user_data1 = (uint64_t)ctx_data;
 	abort_cmd->user_data2 = (uint64_t)0x0;
 
-	rc = hfi_write_cmd(abort_cmd);
+	task_data = (struct hfi_cmd_work_data *)task->payload;
+	task_data->data = (void *)abort_cmd;
+	task_data->request_id = 0;
+	task_data->type = ICP_WORKQ_TASK_CMD_TYPE;
+	task->process_cb = cam_icp_mgr_process_cmd;
+	rc = cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
+		CRM_TASK_PRIORITY_0);
 	if (rc) {
 		kfree(abort_cmd);
 		return rc;
@@ -2498,7 +2510,6 @@ static int cam_icp_mgr_abort_handle(
 		cam_hfi_queue_dump();
 	}
 
-	kfree(abort_cmd);
 	return rc;
 }
 
@@ -2509,7 +2520,13 @@ static int cam_icp_mgr_destroy_handle(
 	int timeout = 100;
 	unsigned long rem_jiffies;
 	size_t packet_size;
+	struct hfi_cmd_work_data *task_data;
 	struct hfi_cmd_ipebps_async *destroy_cmd;
+	struct crm_workq_task *task;
+
+	task = cam_req_mgr_workq_get_task(icp_hw_mgr.cmd_work);
+	if (!task)
+		return -ENOMEM;
 
 	packet_size =
 		sizeof(struct hfi_cmd_ipebps_async) +
@@ -2536,7 +2553,13 @@ static int cam_icp_mgr_destroy_handle(
 	memcpy(destroy_cmd->payload.direct, &ctx_data->temp_payload,
 		sizeof(uint64_t));
 
-	rc = hfi_write_cmd(destroy_cmd);
+	task_data = (struct hfi_cmd_work_data *)task->payload;
+	task_data->data = (void *)destroy_cmd;
+	task_data->request_id = 0;
+	task_data->type = ICP_WORKQ_TASK_CMD_TYPE;
+	task->process_cb = cam_icp_mgr_process_cmd;
+	rc = cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
+		CRM_TASK_PRIORITY_0);
 	if (rc) {
 		kfree(destroy_cmd);
 		return rc;
@@ -2554,7 +2577,6 @@ static int cam_icp_mgr_destroy_handle(
 			cam_icp_mgr_process_dbg_buf();
 		cam_hfi_queue_dump();
 	}
-	kfree(destroy_cmd);
 	return rc;
 }
 
@@ -2979,6 +3001,7 @@ static int cam_icp_mgr_hw_open(void *hw_mgr_priv, void *download_fw_args)
 	hw_mgr->fw_download = true;
 	hw_mgr->recovery = false;
 
+	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 	CAM_INFO(CAM_ICP, "FW download done successfully");
 
 	rc = cam_ipe_bps_deint(hw_mgr);
