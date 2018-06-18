@@ -94,6 +94,15 @@ struct cam_ife_hw_mgr_debug {
 	uint32_t       camif_debug;
 };
 
+/* enum cam_ife_hw_mgr_ctx_state - state of the context */
+enum cam_ife_hw_mgr_ctx_state {
+	CAM_IFE_HW_MGR_CTX_AVAILABLE = 0,
+	CAM_IFE_HW_MGR_CTX_ACQUIRED  = 1,
+	CAM_IFE_HW_MGR_CTX_STARTED   = 2,
+	CAM_IFE_HW_MGR_CTX_STOPPED   = 3,
+	CAM_IFE_HW_MGR_CTX_PAUSED    = 4,
+};
+
 /**
  * struct cam_vfe_hw_mgr_ctx - IFE HW manager Context object
  *
@@ -101,7 +110,7 @@ struct cam_ife_hw_mgr_debug {
  * @common:                 common acquired context data
  * @ctx_index:              acquired context id.
  * @hw_mgr:                 IFE hw mgr which owns this context
- * @ctx_in_use:             flag to tell whether context is active
+ * @ctx_state:              state of the conxtext
  * @res_list_ife_in:        Starting resource(TPG,PHY0, PHY1...) Can only be
  *                          one.
  * @res_list_csid:          CSID resource list
@@ -133,7 +142,7 @@ struct cam_ife_hw_mgr_ctx {
 
 	uint32_t                        ctx_index;
 	struct cam_ife_hw_mgr          *hw_mgr;
-	uint32_t                        ctx_in_use;
+	enum cam_ife_hw_mgr_ctx_state   ctx_state;
 
 	struct cam_ife_hw_mgr_res       res_list_ife_in;
 	struct list_head                res_list_ife_cid;
