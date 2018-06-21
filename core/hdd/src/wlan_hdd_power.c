@@ -1307,6 +1307,26 @@ static void hdd_send_default_scan_ies(struct hdd_context *hdd_ctx)
 	}
 }
 
+void hdd_is_interface_down_during_ssr(struct hdd_context *hdd_ctx)
+{
+	struct hdd_adapter *adapter = NULL, *pnext = NULL;
+	QDF_STATUS status;
+
+	hdd_enter();
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter);
+	while (NULL != adapter && QDF_STATUS_SUCCESS == status) {
+		if (test_bit(DOWN_DURING_SSR, &adapter->event_flags)) {
+			hdd_stop_adapter(hdd_ctx, adapter);
+			clear_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
+		}
+		status = hdd_get_next_adapter(hdd_ctx, adapter, &pnext);
+		adapter = pnext;
+	}
+
+	hdd_exit();
+}
+
 QDF_STATUS hdd_wlan_re_init(void)
 {
 	struct hdd_context *hdd_ctx = NULL;
@@ -1365,7 +1385,7 @@ QDF_STATUS hdd_wlan_re_init(void)
 
 	if (hdd_ctx->config->sap_internal_restart)
 		hdd_ssr_restart_sap(hdd_ctx);
-
+	hdd_is_interface_down_during_ssr(hdd_ctx);
 	hdd_wlan_ssr_reinit_event();
 	return QDF_STATUS_SUCCESS;
 

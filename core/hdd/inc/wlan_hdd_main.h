@@ -185,6 +185,7 @@ static inline bool in_compat_syscall(void) { return is_compat_task(); }
  * @ACS_PENDING: Auto Channel Selection (ACS) is pending
  * @SOFTAP_INIT_DONE: Software Access Point (SAP) is initialized
  * @VENDOR_ACS_RESPONSE_PENDING: Waiting for event for vendor acs
+ * DOWN_DURING_SSR: Interface went down during SSR
  */
 enum hdd_adapter_flags {
 	NET_DEVICE_REGISTERED,
@@ -196,6 +197,7 @@ enum hdd_adapter_flags {
 	ACS_PENDING,
 	SOFTAP_INIT_DONE,
 	VENDOR_ACS_RESPONSE_PENDING,
+	DOWN_DURING_SSR
 };
 
 /**

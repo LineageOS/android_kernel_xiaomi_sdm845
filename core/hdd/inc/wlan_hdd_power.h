@@ -506,5 +506,13 @@ hdd_wlan_fake_apps_suspend(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 #endif /* WLAN_SUSPEND_RESUME_TEST */
-
+/**
+ * hdd_is_interface_down_during_ssr - Check if the interface went down during
+ * SSR
+ * @hdd_ctx: HDD context
+ *
+ * Check if any of the interface went down while the device is recovering.
+ * If the interface went down close the session.
+ */
+void hdd_is_interface_down_during_ssr(struct hdd_context *hdd_ctx);
 #endif /* __WLAN_HDD_POWER_H */
