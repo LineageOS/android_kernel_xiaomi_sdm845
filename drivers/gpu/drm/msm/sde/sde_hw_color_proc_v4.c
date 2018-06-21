@@ -10,9 +10,18 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#include <linux/moduleparam.h>
 #include <drm/msm_drm_pp.h>
 #include "sde_hw_color_proc_common_v4.h"
 #include "sde_hw_color_proc_v4.h"
+
+unsigned int kcal_red = 256;
+unsigned int kcal_green = 256;
+unsigned int kcal_blue = 256;
+
+module_param(kcal_red, uint, 0644);
+module_param(kcal_green, uint, 0644);
+module_param(kcal_blue, uint, 0644);
 
 static int sde_write_3d_gamut(struct sde_hw_blk_reg_map *hw,
 		struct drm_msm_3d_gamut *payload, u32 base,
@@ -173,21 +182,21 @@ void sde_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 	struct drm_msm_pcc *pcc_cfg;
 	struct drm_msm_pcc_coeff *coeffs = NULL;
 	int i = 0;
+	int kcal_min = 20;
 	u32 base = 0;
-#if 1
-	int enable = 0, r=255,g=255,b=255, min = 20;
-#endif
 
 	if (!ctx || !cfg) {
 		DRM_ERROR("invalid param ctx %pK cfg %pK\n", ctx, cfg);
 		return;
 	}
-#if 1
-	pr_info("%s [CLEANSLATE] kcal setup... \n",__func__);
-	if (r<min) r= min;
-	if (g<min) g= min;
-	if (b<min) b= min;
-#endif
+
+	if (kcal_red < kcal_min)
+		kcal_red = kcal_min;
+	if (kcal_green < kcal_min)
+		kcal_green = kcal_min;
+	if (kcal_blue < kcal_min)
+		kcal_blue = kcal_min;
+
 	if (!hw_cfg->payload) {
 		DRM_DEBUG_DRIVER("disable pcc feature\n");
 		SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->pcc.base, 0);
@@ -239,39 +248,19 @@ void sde_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 		SDE_REG_WRITE(&ctx->hw, base + PCC_C_OFF, coeffs->c);
 // ====
 // RED
-#if 1
-		if (enable && i==0) {
-			SDE_REG_WRITE(&ctx->hw, base + PCC_R_OFF, (coeffs->r * r)/256);
-			pr_info("%s [CLEANSLATE] kcal r = %d\n",__func__,(coeffs->r * r)/256);
-		} else
-#endif
-		SDE_REG_WRITE(&ctx->hw, base + PCC_R_OFF, coeffs->r);
+		SDE_REG_WRITE(&ctx->hw, base + PCC_R_OFF,
+			i == 0 ? (coeffs->r * kcal_red) / 256 : coeffs->r);
 // GREEN
-#if 1
-		if (enable && i==1) {
-			SDE_REG_WRITE(&ctx->hw, base + PCC_G_OFF, (coeffs->g * g)/256);
-			pr_info("%s [CLEANSLATE] kcal g = %d\n",__func__,(coeffs->g * g)/256);
-		} else
-#endif
-		SDE_REG_WRITE(&ctx->hw, base + PCC_G_OFF, coeffs->g);
+		SDE_REG_WRITE(&ctx->hw, base + PCC_G_OFF,
+			i == 1 ? (coeffs->g * kcal_green) / 256 : coeffs->g);
 // BLUE
-#if 1
-		if (enable && i==2) {
-			SDE_REG_WRITE(&ctx->hw, base + PCC_B_OFF, (coeffs->b * b)/256);
-			pr_info("%s [CLEANSLATE] kcal b = %d\n",__func__,(coeffs->b * b)/256);
-		} else
-#endif
-		SDE_REG_WRITE(&ctx->hw, base + PCC_B_OFF, coeffs->b);
+		SDE_REG_WRITE(&ctx->hw, base + PCC_B_OFF,
+			i == 2 ? (coeffs->b * kcal_blue) / 256 : coeffs->b);
 // =====
 		SDE_REG_WRITE(&ctx->hw, base + PCC_RG_OFF, coeffs->rg);
 		SDE_REG_WRITE(&ctx->hw, base + PCC_RB_OFF, coeffs->rb);
 		SDE_REG_WRITE(&ctx->hw, base + PCC_GB_OFF, coeffs->gb);
 		SDE_REG_WRITE(&ctx->hw, base + PCC_RGB_OFF, coeffs->rgb);
-#if 0
-		pr_info("%s [CLEANSLATE] kcal setup... drm_msm_pcc i %d r %d (rg %d) r_rr %d r_gg %d r_bb %d  \n",__func__, i, coeffs->r, coeffs->rg, pcc_cfg->r_rr, pcc_cfg->r_gg, pcc_cfg->r_bb);
-		pr_info("%s [CLEANSLATE] kcal setup... drm_msm_pcc i %d g %d (rb %d) g_rr %d g_gg %d g_bb %d  \n",__func__, i, coeffs->g, coeffs->rb, pcc_cfg->g_rr, pcc_cfg->g_gg, pcc_cfg->g_bb);
-		pr_info("%s [CLEANSLATE] kcal setup... drm_msm_pcc i %d b %d (gb %d rgb %d) b_rr %d b_gg %d b_bb %d  \n",__func__, i, coeffs->b, coeffs->gb, coeffs->rgb, pcc_cfg->b_rr, pcc_cfg->b_gg, pcc_cfg->b_bb);
-#endif
 	}
 
 	SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->pcc.base, PCC_EN);
