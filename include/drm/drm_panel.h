@@ -185,12 +185,16 @@ static inline int drm_panel_get_modes(struct drm_panel *panel)
 }
 
 void drm_panel_init(struct drm_panel *panel);
+void drm_panel_reset_skip_enable(bool enable);
 
 int drm_panel_add(struct drm_panel *panel);
 void drm_panel_remove(struct drm_panel *panel);
 
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector);
 int drm_panel_detach(struct drm_panel *panel);
+
+void drm_dsi_ulps_enable(bool enable);
+void drm_dsi_ulps_suspend_enable(bool enable);
 
 #ifdef CONFIG_OF
 struct drm_panel *of_drm_find_panel(struct device_node *np);
