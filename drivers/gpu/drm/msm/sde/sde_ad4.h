@@ -53,6 +53,7 @@ enum ad_property {
 	AD_IPC_RESUME,
 	AD_IPC_RESET,
 	AD_VSYNC_UPDATE,
+	AD_RESUME,
 	AD_PROPMAX,
 };
 
