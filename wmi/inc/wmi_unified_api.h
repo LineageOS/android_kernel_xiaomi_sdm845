@@ -2331,4 +2331,8 @@ wmi_unified_dfs_send_avg_params_cmd(void *wmi_hdl,
 QDF_STATUS wmi_extract_dfs_status_from_fw(void *wmi_hdl, void *evt_buf,
 					  uint32_t  *dfs_status_check);
 #endif
+
+void wmi_process_fw_event_worker_thread_ctx(struct wmi_unified *wmi_handle,
+					    HTC_PACKET *htc_packet);
+
 #endif /* _WMI_UNIFIED_API_H_ */
