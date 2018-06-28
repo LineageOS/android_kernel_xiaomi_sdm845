@@ -8016,8 +8016,7 @@ static void csr_roam_process_join_res(tpAniSirGlobal mac_ctx,
 			sme_err(
 				" uapsd_mask (0x%X) set, request UAPSD now",
 				conn_profile->modifyProfileFields.uapsd_mask);
-			sme_ps_start_uapsd(MAC_HANDLE(mac_ctx), session_id,
-				NULL, NULL);
+			sme_ps_start_uapsd(MAC_HANDLE(mac_ctx), session_id);
 		}
 		conn_profile->dot11Mode = session->bssParams.uCfgDot11Mode;
 		roam_info.u.pConnectedProfile = conn_profile;
@@ -21830,8 +21829,7 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 		sme_debug(
 				" uapsd_mask (0x%X) set, request UAPSD now",
 				conn_profile->modifyProfileFields.uapsd_mask);
-		sme_ps_start_uapsd(MAC_HANDLE(mac_ctx), session_id,
-				NULL, NULL);
+		sme_ps_start_uapsd(MAC_HANDLE(mac_ctx), session_id);
 	}
 	conn_profile->dot11Mode = session->bssParams.uCfgDot11Mode;
 	roam_info->u.pConnectedProfile = conn_profile;
