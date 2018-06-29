@@ -95,6 +95,7 @@ static struct asm_mmap this_mmap;
 struct audio_session {
 	struct audio_client *ac;
 	spinlock_t session_lock;
+	struct mutex mutex_lock_per_session;
 };
 /* session id: 0 reserved */
 static struct audio_session session[ASM_ACTIVE_STREAMS_ALLOWED + 1];
@@ -562,6 +563,8 @@ static int q6asm_get_session_id_from_audio_client(struct audio_client *ac)
 		if (session[n].ac == ac)
 			return n;
 	}
+	pr_err("%s: cannot find matching audio client. ac = %pK\n",
+		__func__, ac);
 	return 0;
 }
 
@@ -577,6 +580,7 @@ static void q6asm_session_free(struct audio_client *ac)
 
 	pr_debug("%s: sessionid[%d]\n", __func__, ac->session);
 	session_id = ac->session;
+	mutex_lock(&session[session_id].mutex_lock_per_session);
 	rtac_remove_popp_from_adm_devices(ac->session);
 	spin_lock_irqsave(&(session[session_id].session_lock), flags);
 	session[ac->session].ac = NULL;
@@ -588,6 +592,7 @@ static void q6asm_session_free(struct audio_client *ac)
 	kfree(ac);
 	ac = NULL;
 	spin_unlock_irqrestore(&(session[session_id].session_lock), flags);
+	mutex_unlock(&session[session_id].mutex_lock_per_session);
 }
 
 static uint32_t q6asm_get_next_buf(struct audio_client *ac,
@@ -1156,13 +1161,19 @@ int q6asm_send_stream_cmd(struct audio_client *ac,
 {
 	char *asm_params = NULL;
 	struct apr_hdr hdr;
-	int rc;
+	int rc, session_id = 0;
 	uint32_t sz = 0;
 	uint64_t actual_sz = 0;
 
 	if (!data || !ac) {
 		pr_err("%s: %s is NULL\n", __func__,
 			(!data) ? "data" : "ac");
+		rc = -EINVAL;
+		goto done;
+	}
+
+	session_id = q6asm_get_session_id_from_audio_client(ac);
+	if (!session_id) {
 		rc = -EINVAL;
 		goto done;
 	}
@@ -1188,6 +1199,12 @@ int q6asm_send_stream_cmd(struct audio_client *ac,
 	if (!asm_params) {
 		rc = -ENOMEM;
 		goto done;
+	}
+
+	mutex_lock(&session[session_id].mutex_lock_per_session);
+	if (!q6asm_is_valid_audio_client(ac)) {
+		rc = -EINVAL;
+		goto fail_send_param;
 	}
 
 	q6asm_add_hdr_async(ac, &hdr, sz, TRUE);
@@ -1222,6 +1239,7 @@ int q6asm_send_stream_cmd(struct audio_client *ac,
 
 	rc = 0;
 fail_send_param:
+	mutex_unlock(&session[session_id].mutex_lock_per_session);
 	kfree(asm_params);
 done:
 	return rc;
@@ -6829,12 +6847,26 @@ int q6asm_set_lrgain(struct audio_client *ac, int left_gain, int right_gain)
 	struct asm_volume_ctrl_multichannel_gain multi_ch_gain;
 	int sz = 0;
 	int rc  = 0;
+	int session_id = 0;
 
 	if (ac == NULL) {
 		pr_err("%s: APR handle NULL\n", __func__);
 		rc = -EINVAL;
+		goto done;
+	}
+
+	session_id = q6asm_get_session_id_from_audio_client(ac);
+	if (!session_id) {
+		rc = -EINVAL;
+		goto done;
+	}
+
+	mutex_lock(&session[session_id].mutex_lock_per_session);
+	if (!q6asm_is_valid_audio_client(ac)) {
+		rc = -EINVAL;
 		goto fail_cmd;
 	}
+
 	if (ac->apr == NULL) {
 		pr_err("%s: AC APR handle NULL\n", __func__);
 		rc = -EINVAL;
@@ -6888,6 +6920,8 @@ int q6asm_set_lrgain(struct audio_client *ac, int left_gain, int right_gain)
 	}
 	rc = 0;
 fail_cmd:
+	mutex_unlock(&session[session_id].mutex_lock_per_session);
+done:
 	return rc;
 }
 
@@ -6905,7 +6939,7 @@ int q6asm_set_multich_gain(struct audio_client *ac, uint32_t channels,
 	struct asm_volume_ctrl_multichannel_gain multich_gain;
 	int sz = 0;
 	int rc  = 0;
-	int i;
+	int i, session_id = 0;
 	u8 default_chmap[VOLUME_CONTROL_MAX_CHANNELS];
 
 	if (ac == NULL) {
@@ -6913,30 +6947,44 @@ int q6asm_set_multich_gain(struct audio_client *ac, uint32_t channels,
 		rc = -EINVAL;
 		goto done;
 	}
-	if (ac->apr == NULL) {
-		dev_err(ac->dev, "%s: AC APR handle NULL\n", __func__);
-		rc = -EINVAL;
-		goto done;
-	}
-	if (gains == NULL) {
-		dev_err(ac->dev, "%s: gain_list is NULL\n", __func__);
-		rc = -EINVAL;
-		goto done;
-	}
-	if (channels > VOLUME_CONTROL_MAX_CHANNELS) {
-		dev_err(ac->dev, "%s: Invalid channel count %d\n",
-			__func__, channels);
-		rc = -EINVAL;
-		goto done;
-	}
-	if (!use_default && ch_map == NULL) {
-		dev_err(ac->dev, "%s: NULL channel map\n", __func__);
+
+	session_id = q6asm_get_session_id_from_audio_client(ac);
+	if (!session_id) {
 		rc = -EINVAL;
 		goto done;
 	}
 
 	memset(&multich_gain, 0, sizeof(multich_gain));
 	sz = sizeof(struct asm_volume_ctrl_multichannel_gain);
+	mutex_lock(&session[session_id].mutex_lock_per_session);
+	if (!q6asm_is_valid_audio_client(ac)) {
+		rc = -EINVAL;
+		goto fail_cmd;
+	}
+
+	if (ac->apr == NULL) {
+		dev_err(ac->dev, "%s: AC APR handle NULL\n", __func__);
+		rc = -EINVAL;
+		goto fail_cmd;
+	}
+
+	if (gains == NULL) {
+		dev_err(ac->dev, "%s: gain_list is NULL\n", __func__);
+		rc = -EINVAL;
+		goto fail_cmd;
+	}
+	if (channels > VOLUME_CONTROL_MAX_CHANNELS) {
+		dev_err(ac->dev, "%s: Invalid channel count %d\n",
+			__func__, channels);
+		rc = -EINVAL;
+		goto fail_cmd;
+	}
+	if (!use_default && ch_map == NULL) {
+		dev_err(ac->dev, "%s: NULL channel map\n", __func__);
+		rc = -EINVAL;
+		goto fail_cmd;
+	}
+
 	q6asm_add_hdr_async(ac, &multich_gain.hdr, sz, TRUE);
 	atomic_set(&ac->cmd_state_pp, -1);
 	multich_gain.hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS_V2;
@@ -6954,7 +7002,7 @@ int q6asm_set_multich_gain(struct audio_client *ac, uint32_t channels,
 	if (use_default) {
 		rc = q6asm_map_channels(default_chmap, channels, false);
 		if (rc < 0)
-			goto done;
+			goto fail_cmd;
 		for (i = 0; i < channels; i++) {
 			multich_gain.gain_data[i].channeltype =
 				default_chmap[i];
@@ -6972,7 +7020,7 @@ int q6asm_set_multich_gain(struct audio_client *ac, uint32_t channels,
 	if (rc < 0) {
 		pr_err("%s: set-params send failed paramid[0x%x] rc %d\n",
 				__func__, multich_gain.data.param_id, rc);
-		goto done;
+		goto fail_cmd;
 	}
 
 	rc = wait_event_timeout(ac->cmd_wait,
@@ -6981,16 +7029,18 @@ int q6asm_set_multich_gain(struct audio_client *ac, uint32_t channels,
 		pr_err("%s: timeout, set-params paramid[0x%x]\n", __func__,
 				multich_gain.data.param_id);
 		rc = -EINVAL;
-		goto done;
+		goto fail_cmd;
 	}
 	if (atomic_read(&ac->cmd_state_pp) > 0) {
 		pr_err("%s: DSP returned error[%d] , set-params paramid[0x%x]\n",
 		       __func__, atomic_read(&ac->cmd_state_pp),
 		       multich_gain.data.param_id);
 		rc = -EINVAL;
-		goto done;
+		goto fail_cmd;
 	}
 	rc = 0;
+fail_cmd:
+	mutex_unlock(&session[session_id].mutex_lock_per_session);
 done:
 	return rc;
 }
@@ -7000,12 +7050,26 @@ int q6asm_set_mute(struct audio_client *ac, int muteflag)
 	struct asm_volume_ctrl_mute_config mute;
 	int sz = 0;
 	int rc  = 0;
+	int session_id = 0;
 
 	if (ac == NULL) {
 		pr_err("%s: APR handle NULL\n", __func__);
 		rc = -EINVAL;
+		goto done;
+	}
+
+	session_id = q6asm_get_session_id_from_audio_client(ac);
+	if (!session_id) {
+		rc = -EINVAL;
+		goto done;
+	}
+
+	mutex_lock(&session[session_id].mutex_lock_per_session);
+	if (!q6asm_is_valid_audio_client(ac)) {
+		rc = -EINVAL;
 		goto fail_cmd;
 	}
+
 	if (ac->apr == NULL) {
 		pr_err("%s: AC APR handle NULL\n", __func__);
 		rc = -EINVAL;
@@ -7054,6 +7118,8 @@ int q6asm_set_mute(struct audio_client *ac, int muteflag)
 	}
 	rc = 0;
 fail_cmd:
+	mutex_unlock(&session[session_id].mutex_lock_per_session);
+done:
 	return rc;
 }
 
@@ -7062,17 +7128,18 @@ static int __q6asm_set_volume(struct audio_client *ac, int volume, int instance)
 	struct asm_volume_ctrl_master_gain vol;
 	int sz = 0;
 	int rc  = 0;
-	int module_id;
+	int module_id, session_id = 0;
 
 	if (ac == NULL) {
 		pr_err("%s: APR handle NULL\n", __func__);
 		rc = -EINVAL;
-		goto fail_cmd;
+		goto done;
 	}
-	if (ac->apr == NULL) {
-		pr_err("%s: AC APR handle NULL\n", __func__);
+
+	session_id = q6asm_get_session_id_from_audio_client(ac);
+	if (!session_id) {
 		rc = -EINVAL;
-		goto fail_cmd;
+		goto done;
 	}
 
 	switch (instance) {
@@ -7086,6 +7153,18 @@ static int __q6asm_set_volume(struct audio_client *ac, int volume, int instance)
 	}
 
 	sz = sizeof(struct asm_volume_ctrl_master_gain);
+	mutex_lock(&session[session_id].mutex_lock_per_session);
+	if (!q6asm_is_valid_audio_client(ac)) {
+		rc = -EINVAL;
+		goto fail_cmd;
+	}
+
+	if (ac->apr == NULL) {
+		pr_err("%s: AC APR handle NULL\n", __func__);
+		rc = -EINVAL;
+		goto fail_cmd;
+	}
+
 	q6asm_add_hdr_async(ac, &vol.hdr, sz, TRUE);
 	atomic_set(&ac->cmd_state_pp, -1);
 	vol.hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS_V2;
@@ -7128,6 +7207,8 @@ static int __q6asm_set_volume(struct audio_client *ac, int volume, int instance)
 
 	rc = 0;
 fail_cmd:
+	mutex_unlock(&session[session_id].mutex_lock_per_session);
+done:
 	return rc;
 }
 
@@ -7360,12 +7441,26 @@ int q6asm_set_softpause(struct audio_client *ac,
 	struct asm_soft_pause_params softpause;
 	int sz = 0;
 	int rc  = 0;
+	int session_id = 0;
 
 	if (ac == NULL) {
 		pr_err("%s: APR handle NULL\n", __func__);
 		rc = -EINVAL;
+		goto done;
+	}
+
+	session_id = q6asm_get_session_id_from_audio_client(ac);
+	if (!session_id) {
+		rc = -EINVAL;
+		goto done;
+	}
+
+	mutex_lock(&session[session_id].mutex_lock_per_session);
+	if (!q6asm_is_valid_audio_client(ac)) {
+		rc = -EINVAL;
 		goto fail_cmd;
 	}
+
 	if (ac->apr == NULL) {
 		pr_err("%s: AC APR handle NULL\n", __func__);
 		rc = -EINVAL;
@@ -7419,6 +7514,8 @@ int q6asm_set_softpause(struct audio_client *ac,
 	}
 	rc = 0;
 fail_cmd:
+	mutex_unlock(&session[session_id].mutex_lock_per_session);
+done:
 	return rc;
 }
 
@@ -7429,17 +7526,18 @@ static int __q6asm_set_softvolume(struct audio_client *ac,
 	struct asm_soft_step_volume_params softvol;
 	int sz = 0;
 	int rc  = 0;
-	int module_id;
+	int module_id, session_id;
 
 	if (ac == NULL) {
 		pr_err("%s: APR handle NULL\n", __func__);
 		rc = -EINVAL;
-		goto fail_cmd;
+		goto done;
 	}
-	if (ac->apr == NULL) {
-		pr_err("%s: AC APR handle NULL\n", __func__);
+
+	session_id = q6asm_get_session_id_from_audio_client(ac);
+	if (!session_id) {
 		rc = -EINVAL;
-		goto fail_cmd;
+		goto done;
 	}
 
 	switch (instance) {
@@ -7453,6 +7551,18 @@ static int __q6asm_set_softvolume(struct audio_client *ac,
 	}
 
 	sz = sizeof(struct asm_soft_step_volume_params);
+	mutex_lock(&session[session_id].mutex_lock_per_session);
+	if (!q6asm_is_valid_audio_client(ac)) {
+		rc = -EINVAL;
+		goto fail_cmd;
+	}
+
+	if (ac->apr == NULL) {
+		pr_err("%s: AC APR handle NULL\n", __func__);
+		rc = -EINVAL;
+		goto fail_cmd;
+	}
+
 	q6asm_add_hdr_async(ac, &softvol.hdr, sz, TRUE);
 	atomic_set(&ac->cmd_state_pp, -1);
 	softvol.hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS_V2;
@@ -7497,6 +7607,8 @@ static int __q6asm_set_softvolume(struct audio_client *ac,
 	}
 	rc = 0;
 fail_cmd:
+	mutex_unlock(&session[session_id].mutex_lock_per_session);
+done:
 	return rc;
 }
 
@@ -7521,12 +7633,26 @@ int q6asm_equalizer(struct audio_client *ac, void *eq_p)
 	int i  = 0;
 	int sz = 0;
 	int rc  = 0;
+	int session_id = 0;
 
 	if (ac == NULL) {
 		pr_err("%s: APR handle NULL\n", __func__);
 		rc = -EINVAL;
+		goto done;
+	}
+
+	session_id = q6asm_get_session_id_from_audio_client(ac);
+	if (!session_id) {
+		rc = -EINVAL;
+		goto done;
+	}
+
+	mutex_lock(&session[session_id].mutex_lock_per_session);
+	if (!q6asm_is_valid_audio_client(ac)) {
+		rc = -EINVAL;
 		goto fail_cmd;
 	}
+
 	if (ac->apr == NULL) {
 		pr_err("%s: AC APR handle NULL\n", __func__);
 		rc = -EINVAL;
@@ -7604,6 +7730,8 @@ int q6asm_equalizer(struct audio_client *ac, void *eq_p)
 	}
 	rc = 0;
 fail_cmd:
+	mutex_unlock(&session[session_id].mutex_lock_per_session);
+done:
 	return rc;
 }
 
@@ -8193,17 +8321,18 @@ int q6asm_send_audio_effects_params(struct audio_client *ac, char *params,
 	char *asm_params = NULL;
 	struct apr_hdr hdr;
 	struct asm_stream_cmd_set_pp_params_v2 payload_params;
-	int sz, rc;
+	int sz, rc, session_id = 0;
 
 	pr_debug("%s:\n", __func__);
 	if (!ac) {
 		pr_err("%s: APR handle NULL\n", __func__);
 		return -EINVAL;
 	}
-	if (ac->apr == NULL) {
-		pr_err("%s: AC APR handle NULL\n", __func__);
+
+	session_id = q6asm_get_session_id_from_audio_client(ac);
+	if (!session_id)
 		return -EINVAL;
-	}
+
 	if (params == NULL) {
 		pr_err("%s: params NULL\n", __func__);
 		return -EINVAL;
@@ -8216,6 +8345,18 @@ int q6asm_send_audio_effects_params(struct audio_client *ac, char *params,
 		pr_err("%s, asm params memory alloc failed", __func__);
 		return -ENOMEM;
 	}
+	mutex_lock(&session[session_id].mutex_lock_per_session);
+	if (!q6asm_is_valid_audio_client(ac)) {
+		rc = -EINVAL;
+		goto fail_send_param;
+	}
+
+	if (ac->apr == NULL) {
+		pr_err("%s: AC APR handle NULL\n", __func__);
+		rc = -EINVAL;
+		goto fail_send_param;
+	}
+
 	q6asm_add_hdr_async(ac, &hdr, (sizeof(struct apr_hdr) +
 				sizeof(struct asm_stream_cmd_set_pp_params_v2) +
 				params_length), TRUE);
@@ -8255,6 +8396,7 @@ int q6asm_send_audio_effects_params(struct audio_client *ac, char *params,
 
 	rc = 0;
 fail_send_param:
+	mutex_unlock(&session[session_id].mutex_lock_per_session);
 	kfree(asm_params);
 	return rc;
 }
@@ -9178,7 +9320,7 @@ int q6asm_send_cal(struct audio_client *ac)
 	struct apr_hdr	hdr;
 	char *asm_params = NULL;
 	struct asm_stream_cmd_set_pp_params_v2 payload_params;
-	int sz, rc = -EINVAL;
+	int sz, rc = -EINVAL, session_id = 0;
 
 	pr_debug("%s:\n", __func__);
 
@@ -9186,22 +9328,13 @@ int q6asm_send_cal(struct audio_client *ac)
 		pr_err("%s: APR handle NULL\n", __func__);
 		goto done;
 	}
-	if (ac->apr == NULL) {
-		pr_err("%s: AC APR handle NULL\n", __func__);
+
+	session_id = q6asm_get_session_id_from_audio_client(ac);
+	if (!session_id)
 		goto done;
-	}
-	if (ac->io_mode & NT_MODE) {
-		pr_debug("%s: called for NT MODE, exiting\n", __func__);
-		goto done;
-	}
 
 	if (cal_data[ASM_AUDSTRM_CAL] == NULL)
 		goto done;
-
-	if (ac->perf_mode == ULTRA_LOW_LATENCY_PCM_MODE) {
-		rc = 0; /* no cal is required, not error case */
-		goto done;
-	}
 
 	mutex_lock(&cal_data[ASM_AUDSTRM_CAL]->lock);
 	cal_block = cal_utils_get_only_cal_block(cal_data[ASM_AUDSTRM_CAL]);
@@ -9232,6 +9365,26 @@ int q6asm_send_cal(struct audio_client *ac)
 		pr_err("%s, asm params memory alloc failed", __func__);
 		rc = -ENOMEM;
 		goto unlock;
+	}
+
+	mutex_lock(&session[session_id].mutex_lock_per_session);
+	if (!q6asm_is_valid_audio_client(ac)) {
+		rc = -EINVAL;
+		goto free;
+	}
+
+	if (ac->apr == NULL) {
+		pr_err("%s: AC APR handle NULL\n", __func__);
+		goto free;
+	}
+	if (ac->io_mode & NT_MODE) {
+		pr_debug("%s: called for NT MODE, exiting\n", __func__);
+		goto free;
+	}
+
+	if (ac->perf_mode == ULTRA_LOW_LATENCY_PCM_MODE) {
+		rc = 0; /* no cal is required, not error case */
+		goto free;
 	}
 
 	/* asm_stream_cmd_set_pp_params_v2 has no APR header in it */
@@ -9280,6 +9433,7 @@ int q6asm_send_cal(struct audio_client *ac)
 	rc = 0;
 
 free:
+	mutex_unlock(&session[session_id].mutex_lock_per_session);
 	kfree(asm_params);
 unlock:
 	mutex_unlock(&cal_data[ASM_AUDSTRM_CAL]->lock);
@@ -9468,8 +9622,10 @@ static int __init q6asm_init(void)
 
 	memset(session, 0, sizeof(struct audio_session) *
 		(ASM_ACTIVE_STREAMS_ALLOWED + 1));
-	for (lcnt = 0; lcnt <= ASM_ACTIVE_STREAMS_ALLOWED; lcnt++)
+	for (lcnt = 0; lcnt <= ASM_ACTIVE_STREAMS_ALLOWED; lcnt++) {
 		spin_lock_init(&(session[lcnt].session_lock));
+		mutex_init(&(session[lcnt].mutex_lock_per_session));
+	}
 	set_custom_topology = 1;
 
 	/*setup common client used for cal mem map */
