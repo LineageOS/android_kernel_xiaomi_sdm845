@@ -742,6 +742,23 @@ bool cds_is_any_nondfs_chnl_present(uint8_t *channel);
 bool cds_is_any_dfs_beaconing_session_present(uint8_t *channel);
 bool cds_allow_concurrency(enum cds_con_mode mode,
 				uint8_t channel, enum hw_mode_bandwidth bw);
+
+/**
+ * cds_check_privacy_with_concurrency() - privacy/concurrency checker
+ *
+ * This function checks the new device mode of the current adapter against its
+ * privacy settings and concurrency settings to see if there are any conflicts.
+ *
+ * Return: true if all checkings are passed, false if any conflict detected
+ */
+#ifdef FEATURE_WLAN_WAPI
+bool cds_check_privacy_with_concurrency(void);
+#else
+static inline bool cds_check_privacy_with_concurrency(void)
+{
+	return true;
+}
+#endif
 enum cds_conc_priority_mode cds_get_first_connection_pcl_table_index(void);
 enum cds_one_connection_mode cds_get_second_connection_pcl_table_index(void);
 enum cds_two_connection_mode cds_get_third_connection_pcl_table_index(void);
