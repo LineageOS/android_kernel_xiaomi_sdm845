@@ -5481,8 +5481,6 @@ static QDF_STATUS cds_modify_pcl_based_on_enabled_channels(
 {
 	cds_context_type *cds_ctx;
 	uint32_t i, pcl_len = 0;
-	uint8_t pcl_list[QDF_MAX_NUM_CHAN];
-	uint8_t weight_list[QDF_MAX_NUM_CHAN];
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
 	if (!cds_ctx) {
@@ -5492,15 +5490,10 @@ static QDF_STATUS cds_modify_pcl_based_on_enabled_channels(
 
 	for (i = 0; i < *pcl_len_org; i++) {
 		if (!CDS_IS_PASSIVE_OR_DISABLE_CH(pcl_list_org[i])) {
-			pcl_list[pcl_len] = pcl_list_org[i];
-			weight_list[pcl_len++] = weight_list_org[i];
+			pcl_list_org[pcl_len] = pcl_list_org[i];
+			weight_list_org[pcl_len++] = weight_list_org[i];
 		}
 	}
-
-	qdf_mem_zero(pcl_list_org, QDF_ARRAY_SIZE(pcl_list_org));
-	qdf_mem_zero(weight_list_org, QDF_ARRAY_SIZE(weight_list_org));
-	qdf_mem_copy(pcl_list_org, pcl_list, pcl_len);
-	qdf_mem_copy(weight_list_org, weight_list, pcl_len);
 	*pcl_len_org = pcl_len;
 
 	return QDF_STATUS_SUCCESS;
@@ -9845,8 +9838,6 @@ QDF_STATUS cds_modify_sap_pcl_based_on_mandatory_channel(uint8_t *pcl_list_org,
 {
 	cds_context_type *cds_ctx;
 	uint32_t i, j, pcl_len = 0;
-	uint8_t pcl_list[QDF_MAX_NUM_CHAN];
-	uint8_t weight_list[QDF_MAX_NUM_CHAN];
 	bool found;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
@@ -9877,15 +9868,10 @@ QDF_STATUS cds_modify_sap_pcl_based_on_mandatory_channel(uint8_t *pcl_list_org,
 			}
 		}
 		if (found) {
-			pcl_list[pcl_len] = pcl_list_org[i];
-			weight_list[pcl_len++] = weight_list_org[i];
+			pcl_list_org[pcl_len] = pcl_list_org[i];
+			weight_list_org[pcl_len++] = weight_list_org[i];
 		}
 	}
-
-	qdf_mem_zero(pcl_list_org, QDF_ARRAY_SIZE(pcl_list_org));
-	qdf_mem_zero(weight_list_org, QDF_ARRAY_SIZE(weight_list_org));
-	qdf_mem_copy(pcl_list_org, pcl_list, pcl_len);
-	qdf_mem_copy(weight_list_org, weight_list, pcl_len);
 	*pcl_len_org = pcl_len;
 
 	return QDF_STATUS_SUCCESS;

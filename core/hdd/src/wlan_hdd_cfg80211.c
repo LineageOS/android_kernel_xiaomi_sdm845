@@ -175,6 +175,11 @@
  */
 #define WLAN_DEAUTH_DPTRACE_DUMP_COUNT 100
 
+/*
+ * Count to ratelimit the HDD logs during NL parsing
+ */
+#define HDD_NL_ERR_RATE_LIMIT 5
+
 static const u32 hdd_gcmp_cipher_suits[] = {
 	WLAN_CIPHER_SUITE_GCMP,
 	WLAN_CIPHER_SUITE_GCMP_256,
@@ -5403,6 +5408,7 @@ wlan_hdd_wifi_config_policy[QCA_WLAN_VENDOR_ATTR_CONFIG_MAX + 1] = {
 	[QCA_WLAN_VENDOR_ATTR_CONFIG_SCAN_ENABLE] = {.type = NLA_U8 },
 	[QCA_WLAN_VENDOR_ATTR_CONFIG_TOTAL_BEACON_MISS_COUNT] = {
 			.type = NLA_U8},
+	[QCA_WLAN_VENDOR_ATTR_CONFIG_GTX] = {.type = NLA_U8},
 };
 
 /**
@@ -6157,6 +6163,23 @@ __wlan_hdd_cfg80211_wifi_configuration_set(struct wiphy *wiphy,
 			hdd_err("set disable_fils failed");
 			ret_val = -EINVAL;
 		}
+	}
+
+	if (tb[QCA_WLAN_VENDOR_ATTR_CONFIG_GTX]) {
+		uint8_t config_gtx;
+
+		config_gtx = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_CONFIG_GTX]);
+		if (config_gtx > 1) {
+			hdd_err_ratelimited(HDD_NL_ERR_RATE_LIMIT,
+					    "Invalid config_gtx value %d",
+					     config_gtx);
+			return -EINVAL;
+		}
+		ret_val = sme_cli_set_command(adapter->sessionId,
+					      WMI_VDEV_PARAM_GTX_ENABLE,
+					      config_gtx, VDEV_CMD);
+		if (ret_val)
+			hdd_err("Failed to set GTX");
 	}
 
 	return ret_val;
@@ -17894,6 +17917,7 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 	hdd_station_ctx_t *pHddStaCtx;
 	int status, result = 0;
 	tHalHandle hal;
+	uint32_t wait_time = WLAN_WAIT_TIME_DISCONNECT;
 
 	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 	hal = WLAN_HDD_GET_HAL_CTX(pAdapter);
@@ -17928,6 +17952,9 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 	  (eConnectionState_Associated == pHddStaCtx->conn_info.connState) ||
 	  (eConnectionState_Connecting == pHddStaCtx->conn_info.connState) ||
 	  (eConnectionState_IbssConnected == pHddStaCtx->conn_info.connState)) {
+		eConnectionState prev_conn_state;
+
+		prev_conn_state = pHddStaCtx->conn_info.connState;
 		hdd_conn_set_connection_state(pAdapter,
 						eConnectionState_Disconnecting);
 		/* Issue disconnect to CSR */
@@ -17936,13 +17963,25 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 		status = sme_roam_disconnect(WLAN_HDD_GET_HAL_CTX(pAdapter),
 				pAdapter->sessionId,
 				eCSR_DISCONNECT_REASON_UNSPECIFIED);
-		/*
-		 * Wait here instead of returning directly, this will block the
-		 * next connect command and allow processing of the scan for
-		 * ssid and the previous connect command in CSR. Else we might
-		 * hit some race conditions leading to SME and HDD out of sync.
-		 */
-		if (QDF_STATUS_CMD_NOT_QUEUED == status) {
+
+		if ((status == QDF_STATUS_CMD_NOT_QUEUED) &&
+		    prev_conn_state != eConnectionState_Connecting) {
+			hdd_debug("Already disconnect in progress");
+			result = 0;
+			/*
+			 * Wait here instead of returning directly. This will
+			 * block the connect command and allow processing
+			 * of the disconnect in SME. As disconnect is already
+			 * in progress, wait here for 1 sec instead of 5 sec.
+			 */
+			wait_time = WLAN_WAIT_DISCONNECT_ALREADY_IN_PROGRESS;
+		} else if (status == QDF_STATUS_CMD_NOT_QUEUED) {
+			/*
+			 * Wait here instead of returning directly, this will
+			 * block the connect command and allow processing
+			 * of the scan for ssid and the previous connect command
+			 * in CSR.
+			 */
 			hdd_debug("Already disconnected or connect was in sme/roam pending list and removed by disconnect");
 		} else if (0 != status) {
 			hdd_err("sme_roam_disconnect failure, status: %d",
@@ -17952,9 +17991,8 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 			goto disconnected;
 		}
 
-		rc = wait_for_completion_timeout(
-			&pAdapter->disconnect_comp_var,
-			msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+		rc = wait_for_completion_timeout(&pAdapter->disconnect_comp_var,
+						 msecs_to_jiffies(wait_time));
 		if (!rc && (QDF_STATUS_CMD_NOT_QUEUED != status)) {
 			hdd_err("Sme disconnect event timed out session Id: %d staDebugState: %d",
 				pAdapter->sessionId, pHddStaCtx->staDebugState);
@@ -17963,7 +18001,7 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 	} else if (eConnectionState_Disconnecting ==
 				pHddStaCtx->conn_info.connState) {
 		rc = wait_for_completion_timeout(&pAdapter->disconnect_comp_var,
-				msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+						 msecs_to_jiffies(wait_time));
 		if (!rc) {
 			hdd_err("Disconnect event timed out session Id: %d staDebugState: %d",
 				pAdapter->sessionId, pHddStaCtx->staDebugState);

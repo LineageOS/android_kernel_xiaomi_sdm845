@@ -106,12 +106,12 @@ static void lim_process_auth_shared_system_algo(tpAniSirGlobal mac_ctx,
 		tpSirMacMgmtHdr mac_hdr,
 		tSirMacAuthFrameBody *rx_auth_frm_body,
 		tSirMacAuthFrameBody *auth_frame,
-		uint8_t *challenge_txt_arr,
 		tpPESession pe_session)
 {
 	uint32_t val;
-	uint8_t cfg_privacy_opt_imp, *challenge;
+	uint8_t cfg_privacy_opt_imp;
 	struct tLimPreAuthNode *auth_node;
+	uint8_t challenge_txt_arr[SIR_MAC_SAP_AUTH_CHALLENGE_LENGTH] = {0};
 
 	pe_debug("=======> eSIR_SHARED_KEY");
 	if (LIM_IS_AP_ROLE(pe_session))
@@ -192,19 +192,39 @@ static void lim_process_auth_shared_system_algo(tpAniSirGlobal mac_ctx,
 			lim_delete_pre_auth_node(mac_ctx, mac_hdr->sa);
 			return;
 		}
-		lim_activate_auth_rsp_timer(mac_ctx, auth_node);
-		auth_node->fTimerStarted = 1;
+
 		/*
 		 * get random bytes and use as challenge text.
-		 * If it fails we already have random stack bytes.
 		 */
-		if (!QDF_IS_STATUS_SUCCESS(cds_rand_get_bytes(0,
-				(uint8_t *) challenge_txt_arr,
-				SIR_MAC_SAP_AUTH_CHALLENGE_LENGTH)))
+		get_random_bytes(challenge_txt_arr,
+				 SIR_MAC_SAP_AUTH_CHALLENGE_LENGTH);
+		qdf_mem_zero(auth_node->challengeText,
+			     SIR_MAC_SAP_AUTH_CHALLENGE_LENGTH);
+		if (!qdf_mem_cmp(challenge_txt_arr,
+				 auth_node->challengeText,
+				 SIR_MAC_SAP_AUTH_CHALLENGE_LENGTH)) {
 			pe_err("Challenge text preparation failed");
-		challenge = auth_node->challengeText;
-		qdf_mem_copy(challenge, (uint8_t *)challenge_txt_arr,
-				sizeof(challenge_txt_arr));
+			lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGW);
+			auth_frame->authAlgoNumber =
+				rx_auth_frm_body->authAlgoNumber;
+			auth_frame->authTransactionSeqNumber =
+				rx_auth_frm_body->authTransactionSeqNumber + 1;
+			auth_frame->authStatusCode = eSIR_MAC_TRY_AGAIN_LATER;
+			lim_send_auth_mgmt_frame(mac_ctx,
+						 auth_frame,
+						 mac_hdr->sa,
+						 LIM_NO_WEP_IN_FC,
+						 pe_session);
+			lim_delete_pre_auth_node(mac_ctx, mac_hdr->sa);
+			return;
+		}
+
+		lim_activate_auth_rsp_timer(mac_ctx, auth_node);
+		auth_node->fTimerStarted = 1;
+
+		qdf_mem_copy(auth_node->challengeText,
+			     challenge_txt_arr,
+			     sizeof(challenge_txt_arr));
 		/*
 		 * Sending Authenticaton frame with challenge.
 		 */
@@ -273,7 +293,6 @@ static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
 {
 	tpDphHashNode sta_ds_ptr = NULL;
 	struct tLimPreAuthNode *auth_node;
-	uint8_t challenge_txt_arr[SIR_MAC_SAP_AUTH_CHALLENGE_LENGTH];
 	uint32_t maxnum_preauth;
 	uint16_t associd = 0;
 
@@ -455,8 +474,7 @@ static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
 
 		case eSIR_SHARED_KEY:
 			lim_process_auth_shared_system_algo(mac_ctx, mac_hdr,
-				rx_auth_frm_body, auth_frame,
-				challenge_txt_arr, pe_session);
+				rx_auth_frm_body, auth_frame, pe_session);
 			break;
 		default:
 			pe_err("rx Auth frm for unsupported auth algo %d "
@@ -1149,6 +1167,11 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 			lim_send_deauth_mgmt_frame(mac_ctx,
 					eSIR_MAC_MIC_FAILURE_REASON,
 					mac_hdr->sa, pe_session, false);
+			goto free;
+		}
+
+		if (frame_len < 4) {
+			pe_err("invalid frame len: %d", frame_len);
 			goto free;
 		}
 		/* Extract key ID from IV (most 2 bits of 4th byte of IV) */

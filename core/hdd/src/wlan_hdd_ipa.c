@@ -5824,9 +5824,11 @@ static void hdd_ipa_cleanup_iface(struct hdd_ipa_iface_context *iface_context)
 
 	if (iface_context == NULL)
 		return;
-	if (hdd_validate_adapter(iface_context->adapter))
+	if (hdd_validate_adapter(iface_context->adapter)) {
 		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "Invalid adapter: 0x%pK",
 			    iface_context->adapter);
+		return;
+	}
 
 	hdd_ipa_clean_hdr(iface_context->adapter);
 
@@ -6638,11 +6640,13 @@ hdd_ipa_uc_proc_pending_event(struct hdd_ipa_priv *hdd_ipa, bool is_loading)
 	qdf_list_remove_front(&hdd_ipa->pending_event,
 			(qdf_list_node_t **)&pending_event);
 	while (pending_event != NULL) {
-		if (pending_event->is_loading == is_loading)
+		if (pending_event->is_loading == is_loading &&
+		    !hdd_validate_adapter(pending_event->adapter)) {
 			__hdd_ipa_wlan_evt(pending_event->adapter,
 					pending_event->sta_id,
 					pending_event->type,
 					pending_event->mac_addr);
+		}
 		qdf_mem_free(pending_event);
 		pending_event = NULL;
 		qdf_list_remove_front(&hdd_ipa->pending_event,

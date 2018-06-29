@@ -3125,12 +3125,22 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 			hdd_conn_set_connection_state(pAdapter,
 					eConnectionState_NotConnected);
 		}
+
 		hdd_wmm_init(pAdapter);
 
 		hdd_debug("Disabling queues");
 		wlan_hdd_netif_queue_control(pAdapter,
 					   WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					   WLAN_CONTROL_PATH);
+		/*
+		 * if hddDisconInProgress is set and roamResult is
+		 * eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE that mean HDD is
+		 * waiting on disconnect_comp_var so unblock anyone waiting for
+		 * disconnect to complete.
+		 */
+		if ((roamResult == eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE) &&
+		    hddDisconInProgress)
+			complete(&pAdapter->disconnect_comp_var);
 	}
 
 	if (QDF_STATUS_SUCCESS != cds_check_and_restart_sap(
