@@ -1313,6 +1313,7 @@ static struct platform_driver wdsp_mgr_driver = {
 		.name = "wcd-dsp-mgr",
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(wdsp_mgr_dt_match),
+		.suppress_bind_attrs = true,
 	},
 	.probe = wdsp_mgr_probe,
 	.remove = wdsp_mgr_remove,

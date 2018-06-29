@@ -2076,6 +2076,7 @@ static struct platform_driver msm_sdw_codec_driver = {
 		.name = "msm_sdw_codec",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_sdw_codec_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 module_platform_driver(msm_sdw_codec_driver);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -863,6 +863,7 @@ static struct platform_driver wcd9xxx_irq_driver = {
 		.name = "wcd9xxx_intc",
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_match),
+		.suppress_bind_attrs = true,
 	},
 };
 

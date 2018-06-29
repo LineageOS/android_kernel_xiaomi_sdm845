@@ -3439,6 +3439,7 @@ static struct platform_driver sdm660_asoc_machine_driver = {
 		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = sdm660_asoc_machine_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = msm_asoc_machine_probe,
 	.remove = msm_asoc_machine_remove,

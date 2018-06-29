@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -534,6 +534,7 @@ static struct platform_driver msm_ext_disp_audio_codec_rx_driver = {
 		.name = "msm-ext-disp-audio-codec-rx",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_ext_disp_audio_codec_rx_dt_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = msm_ext_disp_audio_codec_rx_plat_probe,
 	.remove = msm_ext_disp_audio_codec_rx_plat_remove,

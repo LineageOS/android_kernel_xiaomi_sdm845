@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -241,6 +241,7 @@ static struct platform_driver msm_cdc_pinctrl_driver = {
 		.name = "msm-cdc-pinctrl",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_cdc_pinctrl_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = msm_cdc_pinctrl_probe,
 	.remove = msm_cdc_pinctrl_remove,
