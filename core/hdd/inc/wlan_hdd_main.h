@@ -3010,7 +3010,7 @@ void hdd_start_complete(int ret);
 /**
  * hdd_chip_pwr_save_fail_detected_cb() - chip power save failure detected
  * callback
- * @hddctx: HDD context
+ * @hdd_handle: HDD handle
  * @data: chip power save failure detected data
  *
  * This function reads the chip power save failure detected data and fill in
@@ -3021,7 +3021,7 @@ void hdd_start_complete(int ret);
  * Return: none
  */
 
-void hdd_chip_pwr_save_fail_detected_cb(void *hddctx,
+void hdd_chip_pwr_save_fail_detected_cb(hdd_handle_t hdd_handle,
 				struct chip_pwr_save_fail_detected_params
 				*data);
 
