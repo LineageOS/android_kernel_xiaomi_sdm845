@@ -716,11 +716,6 @@ struct csr_roam_connectedinfo {
 	uint8_t staId;
 };
 
-struct csr_linkquality_indinfo {
-	csr_roamLinkQualityIndCallback callback;
-	void *context;
-};
-
 #ifndef QCA_SUPPORT_CP_STATS
 struct csr_pestats_reqinfo {
 	tListElem link;         /* list links */
@@ -979,8 +974,6 @@ struct csr_roamstruct {
 	tDblLinkList peStatsReqList;
 	struct csr_tlstats_reqinfo tlStatsReqInfo;
 #endif
-	eCsrRoamLinkQualityInd vccLinkQuality;
-	struct csr_linkquality_indinfo linkQualityIndInfo;
 	tCsrTimerInfo WaitForKeyTimerInfo;
 	struct csr_roam_session *roamSession;
 	uint32_t transactionId;  /* Current transaction ID for internal use. */
