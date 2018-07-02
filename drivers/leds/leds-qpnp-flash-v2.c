@@ -1,4 +1,5 @@
 /* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -323,6 +324,10 @@ struct qpnp_flash_led {
 	bool				trigger_lmh;
 	bool				trigger_chgr;
 };
+
+struct flash_node_data *g_torch_0 = NULL;
+struct flash_node_data *g_torch_1 = NULL;
+struct flash_switch_data *g_switch_0 = NULL;
 
 static int thermal_derate_slow_table[] = {
 	128, 256, 512, 1024, 2048, 4096, 8192, 314592,
@@ -1741,6 +1746,9 @@ static void qpnp_flash_led_brightness_set(struct led_classdev *led_cdev,
 						strlen("led:torch"))) {
 		fnode = container_of(led_cdev, struct flash_node_data, cdev);
 		led = dev_get_drvdata(&fnode->pdev->dev);
+	} else if (!strncmp(led_cdev->name, "flashlight", strlen("flashlight"))) {
+		fnode = container_of(led_cdev, struct flash_node_data, cdev);
+		led = dev_get_drvdata(&fnode->pdev->dev);
 	}
 
 	if (!led) {
@@ -1754,7 +1762,16 @@ static void qpnp_flash_led_brightness_set(struct led_classdev *led_cdev,
 		if (rc < 0)
 			pr_err("Failed to set flash LED switch rc=%d\n", rc);
 	} else if (fnode) {
-		qpnp_flash_led_node_set(fnode, value);
+		if (!strncmp(led_cdev->name, "flashlight", strlen("flashlight"))) {
+			if (g_torch_0 && g_torch_1 && g_switch_0) {
+				pr_err("flash light fnode %d", __LINE__);
+				qpnp_flash_led_node_set(g_torch_0, value);
+				qpnp_flash_led_node_set(g_torch_1, value);
+				qpnp_flash_led_switch_set(g_switch_0, value > 0);
+			}
+		} else{
+			qpnp_flash_led_node_set(fnode, value);
+		}
 	}
 
 	spin_unlock(&led->lock);
@@ -2650,6 +2667,8 @@ static int qpnp_flash_led_probe(struct platform_device *pdev)
 {
 	struct qpnp_flash_led *led;
 	struct device_node *node, *temp;
+	struct flash_node_data *fnode;
+	struct flash_switch_data *snode;
 	const char *temp_string;
 	unsigned int base;
 	int rc, i = 0, j = 0;
@@ -2746,12 +2765,26 @@ static int qpnp_flash_led_probe(struct platform_device *pdev)
 					i, rc);
 				goto error_led_register;
 			}
+
+			fnode = &led->fnode[i];
+			if (!strcmp("led:torch_0", fnode->cdev.name)) {
+				g_torch_0 = fnode;
+			} else if (!strcmp("led:torch_1",  fnode->cdev.name)) {
+				g_torch_1 = fnode;
+			}
+
 			i++;
 		}
 
 		if (!strcmp("switch", temp_string)) {
 			rc = qpnp_flash_led_parse_and_register_switch(led,
 					&led->snode[j], temp);
+
+			snode = &led->snode[j];
+			if (!strcmp("led:switch_0",  snode->cdev.name)) {
+				g_switch_0 = snode;
+			}
+
 			if (rc < 0) {
 				pr_err("Unable to parse and register switch node, rc=%d\n",
 					rc);
