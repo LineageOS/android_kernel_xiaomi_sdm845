@@ -39,6 +39,10 @@
 
 #include <asm/current.h>
 #include <linux/timer.h>
+#include <linux/io.h>
+
+#define JTAG_ID 0x786130
+#define HW_VERSION_OFFSET 28
 
 #include "peripheral-loader.h"
 
@@ -929,9 +933,22 @@ void *__subsystem_get(const char *name, const char *fw_name)
 	int ret;
 	void *retval;
 	struct subsys_tracking *track;
+	void __iomem *jtag_id_vir = NULL;
+	u32 jtag_id = 0;
 
 	if (!name)
 		return NULL;
+	pr_debug("debugging: __subsystem_get: %s\n", name);
+	if (strcmp(name, "cdsp") == 0) {
+		jtag_id_vir = ioremap(JTAG_ID, 4);
+		jtag_id = readl_relaxed(jtag_id_vir);
+		iounmap(jtag_id_vir);
+		pr_debug("debugging: JTAG ID is %x\n", jtag_id);
+		if (0x0 == (jtag_id >> HW_VERSION_OFFSET)) {
+			pr_info("CDSP for 845 v1.0 is not supported!\n");
+			return NULL;
+		}
+	}
 
 	subsys = retval = find_subsys(name);
 	if (!subsys)
