@@ -515,7 +515,8 @@ int hif_get_wake_ce_id(struct hif_softc *scn, uint8_t *ce_id);
  * Note: For MCL, #if defined (HIF_CONFIG_SLUB_DEBUG_ON) needs to be checked
  * for defined here
  */
-#if HIF_CE_DEBUG_DATA_BUF
+#if defined(HIF_CONFIG_SLUB_DEBUG_ON) || defined(HIF_CE_DEBUG_DATA_BUF)
+
 #define HIF_CE_HISTORY_MAX 512
 
 #define CE_DEBUG_MAX_DATA_BUF_SIZE 64
