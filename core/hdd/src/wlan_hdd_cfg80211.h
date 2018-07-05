@@ -497,13 +497,13 @@ void hdd_set_rate_bw(struct rate_info *info, enum hdd_rate_info_bw hdd_bw);
 
 /**
  * hdd_lost_link_info_cb() - callback function to get lost link information
- * @context: HDD context
+ * @hdd_handle: Opaque handle for the HDD context
  * @lost_link_info: lost link information
  *
  * Return: none
  */
-void hdd_lost_link_info_cb(void *context,
-			struct sir_lost_link_info *lost_link_info);
+void hdd_lost_link_info_cb(hdd_handle_t hdd_handle,
+			   struct sir_lost_link_info *lost_link_info);
 /*
  * hdd_get_sap_operating_band:  Get current operating channel
  * for sap.
