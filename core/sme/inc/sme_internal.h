@@ -119,7 +119,8 @@ typedef struct sSelfRecoveryStats {
 } tSelfRecoveryStats;
 
 typedef void (*ocb_callback)(void *context, void *response);
-typedef void (*sme_set_thermal_level_callback)(void *context, u_int8_t level);
+typedef void (*sme_set_thermal_level_callback)(hdd_handle_t hdd_handle,
+					       u_int8_t level);
 typedef void (*p2p_lo_callback)(void *context, void *event);
 #ifdef FEATURE_OEM_DATA_SUPPORT
 typedef void (*sme_send_oem_data_rsp_msg)(struct oem_data_rsp *);
