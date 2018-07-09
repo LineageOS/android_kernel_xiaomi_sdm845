@@ -44,6 +44,7 @@ static void *apr_pkt_ctx;
 static wait_queue_head_t dsp_wait;
 static wait_queue_head_t modem_wait;
 static bool is_modem_up;
+static char *subsys_name = NULL;
 /* Subsystem restart: QDSP6 data, functions */
 static struct workqueue_struct *apr_reset_workqueue;
 static void apr_reset_deregister(struct work_struct *work);
@@ -1076,7 +1077,7 @@ static void apr_cleanup(void)
 
 static int apr_probe(struct platform_device *pdev)
 {
-	int i, j, k;
+	int i, j, k, ret = 0;
 
 	init_waitqueue_head(&dsp_wait);
 	init_waitqueue_head(&modem_wait);
@@ -1113,10 +1114,26 @@ static int apr_probe(struct platform_device *pdev)
 	spin_lock(&apr_priv->apr_lock);
 	apr_priv->is_initial_boot = true;
 	spin_unlock(&apr_priv->apr_lock);
-	subsys_notif_register("apr_adsp", AUDIO_NOTIFIER_ADSP_DOMAIN,
-			      &adsp_service_nb);
-	subsys_notif_register("apr_modem", AUDIO_NOTIFIER_MODEM_DOMAIN,
-			      &modem_service_nb);
+	ret = of_property_read_string(pdev->dev.of_node,
+				      "qcom,subsys-name",
+				      (const char **)(&subsys_name));
+	if (ret) {
+		pr_err("%s: missing subsys-name entry in dt node\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!strcmp(subsys_name, "apr_adsp")) {
+		subsys_notif_register("apr_adsp",
+				       AUDIO_NOTIFIER_ADSP_DOMAIN,
+				       &adsp_service_nb);
+	} else if (!strcmp(subsys_name, "apr_modem")) {
+		subsys_notif_register("apr_modem",
+				       AUDIO_NOTIFIER_MODEM_DOMAIN,
+				       &modem_service_nb);
+	} else {
+		pr_err("%s: invalid subsys-name %s\n", __func__, subsys_name);
+		return -EINVAL;
+	}
 
 	return apr_debug_init();
 }
