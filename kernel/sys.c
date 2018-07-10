@@ -2313,10 +2313,18 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		error = SET_ENDIAN(me, arg2);
 		break;
 	case PR_GET_SECCOMP:
+#ifdef CONFIG_SECCOMP
 		error = prctl_get_seccomp();
+#else
+		error = 0;
+#endif
 		break;
 	case PR_SET_SECCOMP:
+#ifdef CONFIG_SECCOMP
 		error = prctl_set_seccomp(arg2, (char __user *)arg3);
+#else
+		error = 0;
+#endif
 		break;
 	case PR_GET_TSC:
 		error = GET_TSC_CTL(arg2);
