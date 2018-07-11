@@ -140,4 +140,8 @@ config WLAN_FEATURE_FILS
 	bool "Enable FILS_SK feature"
 	default n
 
+config QCACLD_FEATURE_METERING
+	bool "Stats & Quota Metering feature"
+	default n
+
 endif # QCA_CLD_WLAN
