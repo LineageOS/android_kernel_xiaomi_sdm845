@@ -5073,6 +5073,12 @@ typedef enum {
      * Bit 3-5: "Xretry threshold" to use
      */
     WMI_PDEV_PARAM_SECONDARY_RETRY_ENABLE,            /* 0xA0 */
+    /** Set global uplink triggered PPDU duration limit (usec). */
+    WMI_PDEV_PARAM_SET_UL_PPDU_DURATION,              /* 0xA1 */
+    /** Set target buffer status report trigger interval (ms) */
+    WMI_PDEV_PARAM_SET_UL_BSR_TRIG_INTERVAL,          /* 0xA2 */
+    /** Use simplified equal RU allocation for DL and UL OFDMA */
+    WMI_PDEV_PARAM_EQUAL_RU_ALLOCATION_ENABLE,        /* 0xA3 */
 } WMI_PDEV_PARAM;
 
 typedef struct {
@@ -8532,6 +8538,90 @@ typedef enum {
      */
     WMI_VDEV_PARAM_GTX_ENABLE,                             /* 0x85 */
 
+    /*
+     * Enable/Disable multicast buffer.
+     * A FLAG to enable & disable buffering of multicast frames at AP
+     * when stations are in Power Save mode.
+     * Once AP disables buffering of multicast frame,
+     * clients which goes into Power save mode will not receive these frames.
+     * by default MCAST buffering will be enabled.
+     * (CABQ = Content After Beacon Queue = multicast queue)
+     * Host will send this VDEV param command,
+     * With Value = 1 means fw will disable the MCAST buffering
+     * With Value = 0 means fw will enable the MCAST buffering.
+     */
+    WMI_VDEV_PARAM_DISABLE_CABQ,                          /* 0x86 */
+
+    /**
+      * For SU and MU sounding
+      * switch between su ac/ax sounding and mu ac/ax sounding
+      * switch between triggered/ non-triggered on ax sounding enabled.
+      * each bit toggles the corresponding modes by enabling/disabling
+      *
+      * Bit 1 doesn't carry any operation for now and may change later,
+      * so reserved.
+      *
+      *-----------------------
+      * bit(0)   |    mode
+      *-----------------------
+      *       0  |  AC
+      *       1  |  AX
+      *-----------------------
+      *
+      * bit(1)   |  Reserved
+      *
+      *-----------------------
+      * bit(2)   |    mode
+      *-----------------------
+      *       0  |  SU
+      *       1  |  MU
+      *-----------------------
+      * bit(3)   |    mode
+      *-----------------------
+      *       0  |  non -triggered
+      *       1  |  triggered
+      */
+    WMI_VDEV_PARAM_SET_HE_SOUNDING_MODE,                  /* 0x87 */
+
+    /** Fixed rate setting used in UL Trigger
+     * The top nibble is used to select which format to use for encoding
+     * the rate specification: 0xVXXXXXXX, V must be 1 for the UL
+     * format.
+     * If V == 0b0001: format is: 0x1000RRRR.
+     *                 This will be output of WMI_ASSEMBLE_RATECODE_V1
+     *
+     * This parameter controls the UL OFDMA and UL MU-MIMO vdev fixed rate.
+     */
+    WMI_VDEV_PARAM_UL_FIXED_RATE,                         /* 0x88 */
+
+    /**
+     * Uplink MU-MIMO & OFDMA GI configuration used in UL Trigger
+     * 11AX: GI =
+     *     WMI_GI_400_NS, WMI_GI_800_NS, WMI_GI_1600_NS, or WMI_GI_3200_NS
+     * 11N: SGI=WMI_GI_400_NS
+     */
+    WMI_VDEV_PARAM_UL_GI,                                 /* 0x89 */
+
+    /** Enable/Disable LDPC in UL Trigger */
+    WMI_VDEV_PARAM_UL_LDPC,                               /* 0x8A */
+
+    /** Max NSS allowed in UL Trigger */
+    WMI_VDEV_PARAM_UL_NSS,                                /* 0x8B */
+
+    /** Enable/Disable STBC in UL Trigger */
+    WMI_VDEV_PARAM_UL_STBC,                               /* 0x8C */
+
+    /** specify the HE LTF setting that should be used for fixed rate
+     * uplink transmissions.
+     *
+     * Expects values of WMI_HE_LTF_DEFAULT, WMI_HE_LTF_1X, WMI_HE_LTF_2X,
+     * or WMI_HE_LTF_4X.
+     */
+    WMI_VDEV_PARAM_UL_HE_LTF,                             /* 0x8D */
+
+    /** Uplink OFDMA PPDU bandwidth (0: 20MHz, 1: 40MHz, 2: 80Mhz, 3: 160MHz)*/
+    WMI_VDEV_PARAM_UL_PPDU_BW,                            /* 0x8E */
+
 
     /*=== ADD NEW VDEV PARAM TYPES ABOVE THIS LINE ===
      * The below vdev param types are used for prototyping, and are
@@ -8591,6 +8681,10 @@ typedef enum {
 #define WMI_VDEV_HE_ULMUMIMO_IS_ENABLED(hemu_mode) WMI_GET_BITS(hemu_mode, 6, 1)
 #define WMI_VDEV_HE_ULMUMIMO_ENABLE(hemu_mode) WMI_SET_BITS(hemu_mode, 6, 1, 1)
 #define WMI_VDEV_HE_ULMUMIMO_DISABLE(hemu_mode) WMI_SET_BITS(hemu_mode, 6, 1, 0)
+
+#define WMI_VDEV_HE_AX_SOUNDING_IS_ENABLED(mode) WMI_GET_BITS(mode, 0, 1)
+#define WMI_VDEV_HE_MU_SOUNDING_IS_ENABLED(mode) WMI_GET_BITS(mode, 2, 1)
+#define WMI_VDEV_HE_AX_TRIG_SOUNDING_IS_ENABLED(mode) WMI_GET_BITS(mode, 3, 1)
 
 /* vdev capabilities bit mask */
 #define WMI_VDEV_BEACON_SUPPORT  0x1
@@ -9887,6 +9981,15 @@ typedef struct {
 #define WMI_PEER_PARAM_OFDMA_ENABLE                     0x19
 /* Per peer 11ax/11ac MU enable or disable */
 #define WMI_PEER_PARAM_MU_ENABLE                        0x1a
+/** Set peer fixed rate used in UL Trigger
+ * The top nibble is used to select which format to use for encoding
+ * the rate specification: 0xVXXXXXXX, V must be 1 for this parameter.
+ * If V == 0b0001: format is: 0x1000RRRR.
+ *                 This will be output of WMI_ASSEMBLE_RATECODE_V1
+ *
+ * This parameter controls the UL OFDMA and UL MU-MIMO peer fixed rate.
+ */
+#define WMI_PEER_PARAM_UL_FIXED_RATE                    0x1b
 
 /** mimo ps values for the parameter WMI_PEER_MIMO_PS_STATE  */
 #define WMI_PEER_MIMO_PS_NONE                          0x0
@@ -10051,6 +10154,9 @@ typedef struct {
 #define WMI_PEER_DYN_MIMOPS     0x00020000  /* Dynamic MIMO PS Enabled */
 #define WMI_PEER_STATIC_MIMOPS  0x00040000  /* Static MIMO PS enabled */
 #define WMI_PEER_SPATIAL_MUX    0x00200000  /* SM Enabled */
+#define WMI_PEER_TWT_REQ        0x00400000  /* TWT Requester Support bit in Extended Capabilities element */
+#define WMI_PEER_TWT_RESP       0x00800000  /* TWT Responder Support bit in Extended Capabilities element */
+#define WMI_PEER_MULTI_BSSID    0x01000000  /* Multiple BSSID Support bit in Extended Capabilities element */
 #define WMI_PEER_VHT            0x02000000  /* VHT Enabled */
 #define WMI_PEER_80MHZ          0x04000000  /* 80MHz enabld */
 #define WMI_PEER_PMF            0x08000000  /* Robust Management Frame Protection enabled */
@@ -13268,6 +13374,12 @@ typedef enum
     WMI_VENDOR_OUI_ACTION_CCKM_1X1 = 2,       /* TX (only) CCKM rates with 1 chain only */
     WMI_VENDOR_OUI_ACTION_ALT_ITO = 3, /* inactivity time-out */
     WMI_VENDOR_OUI_ACTION_SWITCH_TO_11N_MODE = 4, /* Switch from 11ac to 11n mode to avoid IOT issues with ONM frame */
+    /* WMI_VENDOR_OUI_ACTION_CONNECTION_1X1_NUM_TX_RX_CHAINS_1
+     * Connect in 1x1 only and Use only one chain for both Tx and Rx
+     * to avoid IOT issues due to change in number of Tx and Rx chains
+     */
+    WMI_VENDOR_OUI_ACTION_CONNECTION_1X1_NUM_TX_RX_CHAINS_1 = 5,
+
     /* Add any action before this line */
     WMI_VENDOR_OUI_ACTION_MAX_ACTION_ID
 } wmi_vendor_oui_action_id;
@@ -22344,9 +22456,13 @@ typedef enum {
 #define WLM_FLAGS_ROAM_SUPPRESS  1
 #define WLM_FLAGS_ALLOW_FINAL_BMISS_ROAM 2
 
-/* bit 8-9: reserved for roaming */
+/* bit 8: reserved for roaming */
 
-/* bit 10-11 of flags is used for powersave operation */
+/* bit 9-11 of flags is used for powersave operation */
+/* bit 9: WLM_FLAGS_PS_DISABLE_BMPS, disable BMPS if bit is set */
+
+#define WLM_FLAGS_PS_DISABLE_BMPS 1 /* disable BMPS */
+
 /* bit 10: WLM_FLAGS_PS_DISABLE_CSS_COLLAPSE, disable css power collapse if bit is set */
 
 #define WLM_FLAGS_PS_DISABLE_CSS_COLLAPSE  1  /* disable css power collapse */
@@ -22366,6 +22482,7 @@ typedef enum {
 #define WLM_FLAGS_SCAN_SET_DWELL_TIME_POLICY(flag, val)   WMI_SET_BITS(flag, 2, 2, val)
 #define WLM_FLAGS_ROAM_GET_POLICY(flag)                   WMI_GET_BITS(flag, 6, 2)
 #define WLM_FLAGS_ROAM_SET_POLICY(flag, val)              WMI_SET_BITS(flag, 6, 2, val)
+#define WLM_FLAGS_PS_IS_BMPS_DISABLED(flag)               WMI_GET_BITS(flag, 9, 1)
 #define WLM_FLAGS_PS_IS_CSS_CLPS_DISABLED(flag)           WMI_GET_BITS(flag, 10, 1)
 #define WLM_FLAGS_PS_SET_CSS_CLPS_DISABLE(flag, val)      WMI_SET_BITS(flag, 10, 1, val)
 #define WLM_FLAGS_PS_IS_SYS_SLP_DISABLED(flag)            WMI_GET_BITS(flag, 11, 1)
