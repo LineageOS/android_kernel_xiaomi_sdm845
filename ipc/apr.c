@@ -25,8 +25,10 @@
 #include <linux/platform_device.h>
 #include <linux/sysfs.h>
 #include <linux/device.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/ipc_logging.h>
+#include <linux/of_platform.h>
 #include <soc/qcom/subsystem_restart.h>
 #include <soc/qcom/scm.h>
 #include <dsp/apr_audio-v2.h>
@@ -42,7 +44,7 @@ static void *apr_pkt_ctx;
 static wait_queue_head_t dsp_wait;
 static wait_queue_head_t modem_wait;
 static bool is_modem_up;
-static bool is_initial_boot;
+static char *subsys_name = NULL;
 /* Subsystem restart: QDSP6 data, functions */
 static struct workqueue_struct *apr_reset_workqueue;
 static void apr_reset_deregister(struct work_struct *work);
@@ -52,6 +54,19 @@ struct apr_reset_work {
 	struct work_struct work;
 };
 
+struct apr_chld_device {
+	struct platform_device *pdev;
+	struct list_head node;
+};
+
+struct apr_private {
+	struct device *dev;
+	spinlock_t apr_lock;
+	bool is_initial_boot;
+	struct work_struct add_chld_dev_work;
+};
+
+static struct apr_private *apr_priv;
 static bool apr_cf_debug;
 
 #ifdef CONFIG_DEBUG_FS
@@ -261,15 +276,33 @@ enum apr_subsys_state apr_cmpxchg_q6_state(enum apr_subsys_state prev,
 
 static void apr_adsp_down(unsigned long opcode)
 {
+	pr_debug("%s: Q6 is Down\n", __func__);
 	apr_set_q6_state(APR_SUBSYS_DOWN);
 	dispatch_event(opcode, APR_DEST_QDSP6);
 }
 
+static void apr_add_child_devices(struct work_struct *work)
+{
+	int ret;
+
+	ret = of_platform_populate(apr_priv->dev->of_node,
+			NULL, NULL, apr_priv->dev);
+	 if (ret)
+		dev_dbg(apr_priv->dev, "%s: failed to add child nodes, ret=%d\n",
+			 __func__, ret);
+}
+
 static void apr_adsp_up(void)
 {
+	pr_debug("%s: Q6 is Up\n", __func__);
 	if (apr_cmpxchg_q6_state(APR_SUBSYS_DOWN, APR_SUBSYS_LOADED) ==
 							APR_SUBSYS_DOWN)
 		wake_up(&dsp_wait);
+
+	spin_lock(&apr_priv->apr_lock);
+	if (apr_priv->is_initial_boot)
+		schedule_work(&apr_priv->add_chld_dev_work);
+	spin_unlock(&apr_priv->apr_lock);
 }
 
 int apr_wait_for_device_up(int dest_id)
@@ -970,21 +1003,25 @@ static int apr_notifier_service_cb(struct notifier_block *this,
 		 * recovery notifications during initial boot
 		 * up since everything is expected to be down.
 		 */
-		if (is_initial_boot) {
-			is_initial_boot = false;
+		spin_lock(&apr_priv->apr_lock);
+		if (apr_priv->is_initial_boot) {
+			spin_unlock(&apr_priv->apr_lock);
 			break;
 		}
+		spin_unlock(&apr_priv->apr_lock);
 		if (cb_data->domain == AUDIO_NOTIFIER_MODEM_DOMAIN)
 			apr_modem_down(opcode);
 		else
 			apr_adsp_down(opcode);
 		break;
 	case AUDIO_NOTIFIER_SERVICE_UP:
-		is_initial_boot = false;
 		if (cb_data->domain == AUDIO_NOTIFIER_MODEM_DOMAIN)
 			apr_modem_up();
 		else
 			apr_adsp_up();
+		spin_lock(&apr_priv->apr_lock);
+		apr_priv->is_initial_boot = false;
+		spin_unlock(&apr_priv->apr_lock);
 		break;
 	default:
 		break;
@@ -1003,9 +1040,55 @@ static struct notifier_block modem_service_nb = {
 	.priority = 0,
 };
 
-static int __init apr_init(void)
+#ifdef CONFIG_DEBUG_FS
+static int __init apr_debug_init(void)
+{
+	debugfs_apr_debug = debugfs_create_file("msm_apr_debug",
+						 S_IFREG | 0444, NULL, NULL,
+						 &apr_debug_ops);
+	return 0;
+}
+#else
+static int __init apr_debug_init(void)
+(
+	return 0;
+)
+#endif
+
+static void apr_cleanup(void)
 {
 	int i, j, k;
+
+	of_platform_depopulate(apr_priv->dev);
+	if (apr_reset_workqueue) {
+		flush_workqueue(apr_reset_workqueue);
+		destroy_workqueue(apr_reset_workqueue);
+	}
+	mutex_destroy(&q6.lock);
+	for (i = 0; i < APR_DEST_MAX; i++) {
+		for (j = 0; j < APR_CLIENT_MAX; j++) {
+			mutex_destroy(&client[i][j].m_lock);
+			for (k = 0; k < APR_SVC_MAX; k++)
+				mutex_destroy(&client[i][j].svc[k].m_lock);
+		}
+	}
+	debugfs_remove(debugfs_apr_debug);
+}
+
+static int apr_probe(struct platform_device *pdev)
+{
+	int i, j, k, ret = 0;
+
+	init_waitqueue_head(&dsp_wait);
+	init_waitqueue_head(&modem_wait);
+
+	apr_priv = devm_kzalloc(&pdev->dev, sizeof(*apr_priv), GFP_KERNEL);
+	if (!apr_priv)
+		return -ENOMEM;
+
+	apr_priv->dev = &pdev->dev;
+	spin_lock_init(&apr_priv->apr_lock);
+	INIT_WORK(&apr_priv->add_chld_dev_work, apr_add_child_devices);
 
 	for (i = 0; i < APR_DEST_MAX; i++)
 		for (j = 0; j < APR_CLIENT_MAX; j++) {
@@ -1018,42 +1101,67 @@ static int __init apr_init(void)
 	apr_set_subsys_state();
 	mutex_init(&q6.lock);
 	apr_reset_workqueue = create_singlethread_workqueue("apr_driver");
-	if (!apr_reset_workqueue)
+	if (!apr_reset_workqueue) {
+		apr_priv = NULL;
 		return -ENOMEM;
+	}
 
 	apr_pkt_ctx = ipc_log_context_create(APR_PKT_IPC_LOG_PAGE_CNT,
 						"apr", 0);
 	if (!apr_pkt_ctx)
 		pr_err("%s: Unable to create ipc log context\n", __func__);
 
-	is_initial_boot = true;
-	subsys_notif_register("apr_adsp", AUDIO_NOTIFIER_ADSP_DOMAIN,
-			      &adsp_service_nb);
-	subsys_notif_register("apr_modem", AUDIO_NOTIFIER_MODEM_DOMAIN,
-			      &modem_service_nb);
+	spin_lock(&apr_priv->apr_lock);
+	apr_priv->is_initial_boot = true;
+	spin_unlock(&apr_priv->apr_lock);
+	ret = of_property_read_string(pdev->dev.of_node,
+				      "qcom,subsys-name",
+				      (const char **)(&subsys_name));
+	if (ret) {
+		pr_err("%s: missing subsys-name entry in dt node\n", __func__);
+		return -EINVAL;
+	}
 
+	if (!strcmp(subsys_name, "apr_adsp")) {
+		subsys_notif_register("apr_adsp",
+				       AUDIO_NOTIFIER_ADSP_DOMAIN,
+				       &adsp_service_nb);
+	} else if (!strcmp(subsys_name, "apr_modem")) {
+		subsys_notif_register("apr_modem",
+				       AUDIO_NOTIFIER_MODEM_DOMAIN,
+				       &modem_service_nb);
+	} else {
+		pr_err("%s: invalid subsys-name %s\n", __func__, subsys_name);
+		return -EINVAL;
+	}
+
+	return apr_debug_init();
+}
+
+static int apr_remove(struct platform_device *pdev)
+{
+	apr_cleanup();
+	apr_priv = NULL;
 	return 0;
 }
-device_initcall(apr_init);
 
-static int __init apr_late_init(void)
-{
-	int ret = 0;
+static const struct of_device_id apr_machine_of_match[]  = {
+	{ .compatible = "qcom,msm-audio-apr", },
+	{},
+};
 
-	init_waitqueue_head(&dsp_wait);
-	init_waitqueue_head(&modem_wait);
+static struct platform_driver apr_driver = {
+	.probe = apr_probe,
+	.remove = apr_remove,
+	.driver = {
+		.name = "audio_apr",
+		.owner = THIS_MODULE,
+		.of_match_table = apr_machine_of_match,
+	}
+};
 
-	return ret;
-}
-late_initcall(apr_late_init);
+module_platform_driver(apr_driver);
 
-#ifdef CONFIG_DEBUG_FS
-static int __init apr_debug_init(void)
-{
-	debugfs_apr_debug = debugfs_create_file("msm_apr_debug",
-						 S_IFREG | 0444, NULL, NULL,
-						 &apr_debug_ops);
-	return 0;
-}
-device_initcall(apr_debug_init);
-#endif
+MODULE_DESCRIPTION("APR DRIVER");
+MODULE_LICENSE("GPL v2");
+MODULE_DEVICE_TABLE(of, apr_machine_of_match);
