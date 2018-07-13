@@ -400,6 +400,16 @@ QDF_STATUS send_wow_sta_ra_filter_cmd_tlv(wmi_unified_t wmi_handle,
 
 QDF_STATUS send_nat_keepalive_en_cmd_tlv(wmi_unified_t wmi_handle, uint8_t vdev_id);
 
+/**
+ * send_wlm_latency_level_cmd_tlv() - confige WLM parameters
+ * @wmi_handle: wmi handle
+ * @params: wlm parameters
+ *
+ * Return: QDF_STATUS_SUCCESS for success or error code
+ */
+QDF_STATUS send_wlm_latency_level_cmd_tlv(wmi_unified_t wmi_handle,
+					struct wlm_latency_level_param *param);
+
 QDF_STATUS send_csa_offload_enable_cmd_tlv(wmi_unified_t wmi_handle,
 			uint8_t vdev_id);
 
