@@ -4300,12 +4300,6 @@ typedef struct {
 typedef struct {
 	uint32_t requestId;
 	uint8_t sessionId;
-} tSirExtScanResetBssidHotlistReqParams,
-*tpSirExtScanResetBssidHotlistReqParams;
-
-typedef struct {
-	uint32_t requestId;
-	uint8_t sessionId;
 
 	/* Number of samples for averaging RSSI */
 	uint32_t rssiSampleSize;
