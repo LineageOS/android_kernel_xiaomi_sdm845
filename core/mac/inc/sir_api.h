@@ -3903,7 +3903,6 @@ struct sir_wisa_params {
 
 #define WLAN_EXTSCAN_MAX_CHANNELS                 36
 #define WLAN_EXTSCAN_MAX_BUCKETS                  16
-#define WLAN_EXTSCAN_MAX_HOTLIST_APS              128
 #define WLAN_EXTSCAN_MAX_SIGNIFICANT_CHANGE_APS   64
 
 typedef enum {
@@ -4318,23 +4317,6 @@ typedef struct {
 	uint32_t requestId;
 	uint8_t sessionId;
 } tSirExtScanStopReqParams, *tpSirExtScanStopReqParams;
-
-/**
- * struct tSirExtScanSetBssidHotListReqParams - set hotlist request
- * @requestId: request identifier
- * @sessionId: session identifier
- * @lost_ap_sample_size: number of samples to confirm AP loss
- * @numAp: Number of hotlist APs
- * @ap: hotlist APs
- */
-typedef struct {
-	uint32_t  requestId;
-	uint8_t   sessionId;
-
-	uint32_t  lost_ap_sample_size;
-	uint32_t  numAp;
-	tSirAPThresholdParam ap[WLAN_EXTSCAN_MAX_HOTLIST_APS];
-} tSirExtScanSetBssidHotListReqParams, *tpSirExtScanSetBssidHotListReqParams;
 
 typedef struct {
 	uint32_t requestId;
