@@ -528,6 +528,8 @@ struct csr_config {
 	uint8_t max_amsdu_num;
 	uint8_t nSelect5GHzMargin;
 	uint32_t ho_delay_for_rx;
+	uint32_t roam_preauth_retry_count;
+	uint32_t roam_preauth_no_ack_timeout;
 	uint32_t min_delay_btw_roam_scans;
 	uint32_t roam_trigger_reason_bitmask;
 	uint8_t isCoalesingInIBSSAllowed;

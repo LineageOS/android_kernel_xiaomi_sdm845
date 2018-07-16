@@ -2866,6 +2866,8 @@ typedef struct sSirRoamOffloadScanReq {
 	uint32_t R0KH_ID_Length;
 	uint8_t RoamKeyMgmtOffloadEnabled;
 	struct pmkid_mode_bits pmkid_modes;
+	uint32_t roam_preauth_retry_count;
+	uint32_t roam_preauth_no_ack_timeout;
 #endif
 	struct roam_ext_params roam_params;
 	uint8_t  middle_of_roaming;

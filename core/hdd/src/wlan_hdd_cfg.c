@@ -5631,6 +5631,23 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_SET_BT_INTERFERENCE_HIGH_UL_DEFAULT,
 		     CFG_SET_BT_INTERFERENCE_HIGH_UL_MIN,
 		     CFG_SET_BT_INTERFERENCE_HIGH_UL_MAX),
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+	REG_VARIABLE(CFG_ROAM_PREAUTH_RETRY_COUNT_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, roam_preauth_retry_count,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ROAM_PREAUTH_RETRY_COUNT_DEFAULT,
+		     CFG_ROAM_PREAUTH_RETRY_COUNT_MIN,
+		     CFG_ROAM_PREAUTH_RETRY_COUNT_MAX),
+
+	REG_VARIABLE(CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_NAME,
+		     WLAN_PARAM_Integer,
+		     struct hdd_config, roam_preauth_no_ack_timeout,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_DEFAULT,
+		     CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_MIN,
+		     CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_MAX),
+#endif
 };
 
 
@@ -6551,6 +6568,28 @@ static void hdd_cfg_print_dp_trace_params(struct hdd_context *hdd_ctx)
 }
 #else
 static void hdd_cfg_print_dp_trace_params(struct hdd_context *hdd_ctx)
+{
+}
+#endif
+
+/**
+ * hdd_cfg_print_roam_preauth() - Print the roam preauth cfg params
+ * @hdd_ctx: Pointer to the HDD context
+ *
+ * Return: None
+ */
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+static inline void hdd_cfg_print_roam_preauth(struct hdd_context *hdd_ctx)
+{
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ROAM_PREAUTH_RETRY_COUNT_NAME,
+		  hdd_ctx->config->roam_preauth_retry_count);
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_NAME,
+		  hdd_ctx->config->roam_preauth_no_ack_timeout);
+}
+#else
+static inline void hdd_cfg_print_roam_preauth(struct hdd_context *hdd_ctx)
 {
 }
 #endif
@@ -7618,11 +7657,10 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		  CFG_ROAM_FORCE_RSSI_TRIGGER_NAME,
 		  hdd_ctx->config->roam_force_rssi_trigger);
-
 	hdd_cfg_print_action_oui(hdd_ctx);
 	hdd_cfg_print_btc_params(hdd_ctx);
+	hdd_cfg_print_roam_preauth(hdd_ctx);
 }
-
 
 /**
  * hdd_update_mac_config() - update MAC address from cfg file
@@ -8908,6 +8946,29 @@ void hdd_update_11k_offload_params(struct hdd_config *config,
 		config->neighbor_report_offload_max_req_cap;
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+/**
+ * sme_update_roam_preauth_params() - Update the roam preauth params
+ * @sme_config - The SME config handle
+ * @hdd_ctx - The HDD CTX handle
+ *
+ * Return: None
+ */
+static void sme_update_roam_preauth_params(tSmeConfigParams *sme_config,
+					   struct hdd_context *hdd_ctx)
+{
+	sme_config->csrConfig.roam_preauth_no_ack_timeout =
+		hdd_ctx->config->roam_preauth_no_ack_timeout;
+	sme_config->csrConfig.roam_preauth_retry_count =
+		hdd_ctx->config->roam_preauth_retry_count;
+}
+#else
+static void sme_update_roam_preauth_params(tSmeConfigParams *sme_config,
+					   struct hdd_context *hdd_ctx)
+{
+}
+#endif
+
 /**
  * hdd_set_sme_config() -initializes the sme configuration parameters
  *
@@ -9236,6 +9297,9 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 		hdd_ctx->config->roam_bad_rssi_thresh_offset_2g;
 	smeConfig->csrConfig.ho_delay_for_rx =
 		hdd_ctx->config->ho_delay_for_rx;
+
+	sme_update_roam_preauth_params(smeConfig, hdd_ctx);
+
 	smeConfig->csrConfig.min_delay_btw_roam_scans =
 		hdd_ctx->config->min_delay_btw_roam_scans;
 	smeConfig->csrConfig.roam_trigger_reason_bitmask =

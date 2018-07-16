@@ -2698,6 +2698,53 @@ void csr_set_11k_offload_config_param(struct csr_config *csr_config,
 		max_neighbor_report_req_cap;
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+
+/**
+ * csr_get_roam_preauth_config_param() - Get the roam preauth params
+ *
+ * @csr_config: pointer to csr_config in MAC context
+ * @pParam: pointer to config params from HDD
+ *
+ * Return: none
+ */
+
+static void csr_get_roam_preauth_config_param(tCsrConfigParam *pparam,
+					      struct csr_config *cfg_params)
+{
+	pparam->roam_preauth_no_ack_timeout =
+		cfg_params->roam_preauth_no_ack_timeout;
+	pparam->roam_preauth_retry_count = cfg_params->roam_preauth_retry_count;
+}
+
+/**
+ * csr_change_default_roam_preauth_params() - Update roam preauth params
+ *
+ * @pmac: pointer to MAC context
+ * @pParam: pointer to config params from HDD
+ *
+ * Return: none
+ */
+static void csr_change_default_roam_preauth_params(tpAniSirGlobal pmac,
+						   tCsrConfigParam *pparam)
+{
+		pmac->roam.configParam.roam_preauth_retry_count =
+			pparam->roam_preauth_retry_count;
+		pmac->roam.configParam.roam_preauth_no_ack_timeout =
+			pparam->roam_preauth_no_ack_timeout;
+}
+#else
+static void csr_change_default_roam_preauth_params(tpAniSirGlobal pmac,
+						   tCsrConfigParam *pparam)
+{
+}
+
+static void csr_get_roam_preauth_config_param(tCsrConfigParam *pparam,
+					      struct csr_config *cfg_params)
+{
+}
+#endif
+
 QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 					   tCsrConfigParam *pParam)
 {
@@ -3025,6 +3072,7 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->nSelect5GHzMargin;
 		pMac->roam.configParam.ho_delay_for_rx =
 			pParam->ho_delay_for_rx;
+		csr_change_default_roam_preauth_params(pMac, pParam);
 		pMac->roam.configParam.min_delay_btw_roam_scans =
 			pParam->min_delay_btw_roam_scans;
 		pMac->roam.configParam.roam_trigger_reason_bitmask =
@@ -3391,6 +3439,9 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->max_amsdu_num = cfg_params->max_amsdu_num;
 	pParam->nSelect5GHzMargin = cfg_params->nSelect5GHzMargin;
 	pParam->ho_delay_for_rx = cfg_params->ho_delay_for_rx;
+
+	csr_get_roam_preauth_config_param(pParam, cfg_params);
+
 	pParam->min_delay_btw_roam_scans = cfg_params->min_delay_btw_roam_scans;
 	pParam->roam_trigger_reason_bitmask =
 			cfg_params->roam_trigger_reason_bitmask;
@@ -18447,6 +18498,10 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	req_buf->RoamRssiCatGap = mac_ctx->roam.configParam.bCatRssiOffset;
 	req_buf->Select5GHzMargin = mac_ctx->roam.configParam.nSelect5GHzMargin;
 	req_buf->ho_delay_for_rx = mac_ctx->roam.configParam.ho_delay_for_rx;
+	req_buf->roam_preauth_retry_count =
+		mac_ctx->roam.configParam.roam_preauth_retry_count;
+	req_buf->roam_preauth_no_ack_timeout =
+		mac_ctx->roam.configParam.roam_preauth_no_ack_timeout;
 	req_buf->min_delay_btw_roam_scans =
 			mac_ctx->roam.configParam.min_delay_btw_roam_scans;
 	req_buf->roam_trigger_reason_bitmask =

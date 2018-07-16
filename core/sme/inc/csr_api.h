@@ -1200,6 +1200,8 @@ typedef struct tagCsrConfigParam {
 #endif
 	uint8_t allowDFSChannelRoam;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+	uint32_t roam_preauth_retry_count;
+	uint32_t roam_preauth_no_ack_timeout;
 	bool isRoamOffloadEnabled;
 #endif
 	bool obssEnabled;
