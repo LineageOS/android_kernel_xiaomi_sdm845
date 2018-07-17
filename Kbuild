@@ -1795,6 +1795,9 @@ cppflags-y += -DANI_BIG_BYTE_ENDIAN
 cppflags-y += -DBIG_ENDIAN_HOST
 endif
 
+#Enable MWS COEX support for 4G quick TDM and 5G NR pwr limit
+cppflags-y += -DMWS_COEX
+
 #Enable TX reclaim support
 cppflags-$(CONFIG_TX_CREDIT_RECLAIM_SUPPORT) += -DTX_CREDIT_RECLAIM_SUPPORT
 
