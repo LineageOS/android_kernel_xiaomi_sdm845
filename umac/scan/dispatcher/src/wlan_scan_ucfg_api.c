@@ -93,7 +93,7 @@ QDF_STATUS ucfg_scan_init(void)
 		scm_err("Failed to create psoc delete handler");
 		goto fail_psoc_destroy;
 	}
-	scm_info("scan psoc create and delete handler registered with objmgr");
+	scm_debug("scan psoc create and delete handler registered with objmgr");
 
 	status = wlan_objmgr_register_vdev_create_handler(WLAN_UMAC_COMP_SCAN,
 		wlan_scan_vdev_created_notification, NULL);
@@ -105,7 +105,7 @@ QDF_STATUS ucfg_scan_init(void)
 	status = wlan_objmgr_register_vdev_destroy_handler(WLAN_UMAC_COMP_SCAN,
 		wlan_scan_vdev_destroyed_notification, NULL);
 	if (QDF_IS_STATUS_SUCCESS(status)) {
-		scm_info("scan vdev create and delete handler registered with objmgr");
+		scm_debug("scan vdev create and delete handler registered with objmgr");
 		return QDF_STATUS_SUCCESS;
 	}
 
@@ -372,7 +372,7 @@ ucfg_scan_register_pno_cb(struct wlan_objmgr_psoc *psoc,
 	scan->pno_cfg.pno_cb.func = event_cb;
 	scan->pno_cfg.pno_cb.arg = arg;
 	qdf_spin_unlock_bh(&scan->lock);
-	scm_info("event_cb: 0x%pK, arg: 0x%pK", event_cb, arg);
+	scm_debug("event_cb: 0x%pK, arg: 0x%pK", event_cb, arg);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -943,11 +943,11 @@ ucfg_scan_start(struct scan_start_request *req)
 	}
 
 	scm_info("request to scan %d channels",
-		req->scan_req.chan_list.num_chan);
+		 req->scan_req.chan_list.num_chan);
 	for (idx = 0; idx < req->scan_req.chan_list.num_chan; idx++)
-		scm_info("chan[%d]: freq:%d, phymode:%d", idx,
-				req->scan_req.chan_list.chan[idx].freq,
-				req->scan_req.chan_list.chan[idx].phymode);
+		scm_debug("chan[%d]: freq:%d, phymode:%d", idx,
+			  req->scan_req.chan_list.chan[idx].freq,
+			  req->scan_req.chan_list.chan[idx].phymode);
 
 	msg.bodyptr = req;
 	msg.callback = scm_scan_start_req;
@@ -1052,9 +1052,9 @@ ucfg_scan_cancel(struct scan_cancel_request *req)
 			qdf_mem_free(req);
 		return QDF_STATUS_E_NULL_VALUE;
 	}
-	scm_info("reqid: %d, scanid: %d, vdevid: %d, type: %d",
-		req->cancel_req.requester, req->cancel_req.scan_id,
-		req->cancel_req.vdev_id, req->cancel_req.req_type);
+	scm_debug("reqid: %d, scanid: %d, vdevid: %d, type: %d",
+		  req->cancel_req.requester, req->cancel_req.scan_id,
+		  req->cancel_req.vdev_id, req->cancel_req.req_type);
 
 	status = wlan_objmgr_vdev_try_get_ref(req->vdev, WLAN_SCAN_ID);
 	if (QDF_IS_STATUS_ERROR(status)) {
@@ -1185,8 +1185,8 @@ ucfg_scan_register_requester(struct wlan_objmgr_psoc *psoc,
 		}
 	}
 	qdf_spin_unlock_bh(&scan->lock);
-	scm_info("module: %s, event_cb: 0x%pK, arg: 0x%pK, reqid: %d",
-		name, event_cb, arg, requester);
+	scm_debug("module: %s, event_cb: 0x%pK, arg: 0x%pK, reqid: %d",
+		  name, event_cb, arg, requester);
 
 	return requester;
 }
@@ -1210,7 +1210,7 @@ ucfg_scan_unregister_requester(struct wlan_objmgr_psoc *psoc,
 	}
 	scan = wlan_psoc_get_scan_obj(psoc);
 	requesters = scan->requesters;
-	scm_info("reqid: %d", requester);
+	scm_debug("reqid: %d", requester);
 
 	qdf_spin_lock_bh(&scan->lock);
 	requesters[idx].requester = 0;
@@ -1262,7 +1262,7 @@ ucfg_scan_get_scan_id(struct wlan_objmgr_psoc *psoc)
 	 * by setting WLAN_HOST_SCAN_REQ_ID_PREFIX flag.
 	 */
 	id =  id | WLAN_HOST_SCAN_REQ_ID_PREFIX;
-	scm_info("scan_id: 0x%x", id);
+	scm_debug("scan_id: 0x%x", id);
 
 	return id;
 }
@@ -1298,7 +1298,7 @@ ucfg_scan_register_event_handler(struct wlan_objmgr_pdev *pdev,
 		return QDF_STATUS_E_NULL_VALUE;
 	}
 
-	scm_info("pdev: %pK, event_cb: %pK, arg: %pK\n", pdev, event_cb, arg);
+	scm_debug("pdev: %pK, event_cb: %pK, arg: %pK\n", pdev, event_cb, arg);
 
 	scan = wlan_pdev_get_scan_obj(pdev);
 	pdev_ev_handler = wlan_pdev_get_pdev_scan_ev_handlers(pdev);
@@ -1329,7 +1329,7 @@ ucfg_scan_register_event_handler(struct wlan_objmgr_pdev *pdev,
 	scm_add_scan_event_handler(pdev_ev_handler, event_cb, arg);
 	qdf_spin_unlock_bh(&scan->lock);
 
-	scm_info("event_cb: 0x%pK, arg: 0x%pK", event_cb, arg);
+	scm_debug("event_cb: 0x%pK, arg: 0x%pK", event_cb, arg);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -1417,7 +1417,8 @@ ucfg_scan_unregister_event_handler(struct wlan_objmgr_pdev *pdev,
 	struct cb_handler *cb_handler;
 	struct pdev_scan_ev_handler *pdev_ev_handler;
 
-	scm_info("pdev: %pK, event_cb: 0x%pK, arg: 0x%pK", pdev, event_cb, arg);
+	scm_debug("pdev: %pK, event_cb: 0x%pK, arg: 0x%pK", pdev, event_cb,
+		  arg);
 	if (!pdev) {
 		scm_err("null pdev");
 		return;
@@ -1450,8 +1451,8 @@ ucfg_scan_unregister_event_handler(struct wlan_objmgr_pdev *pdev,
 	}
 	qdf_spin_unlock_bh(&scan->lock);
 
-	scm_info("event handler %s, remaining handlers: %d",
-		(found ? "removed" : "not found"), handler_cnt);
+	scm_debug("event handler %s, remaining handlers: %d",
+		  (found ? "removed" : "not found"), handler_cnt);
 }
 
 QDF_STATUS
@@ -1808,7 +1809,7 @@ static void ucfg_scan_assign_rssi_category(struct scan_default_params *params,
 {
 	int i;
 
-	scm_info("best AP RSSI:%d, cat offset: %d", best_ap_rssi, cat_offset);
+	scm_debug("best AP RSSI:%d, cat offset: %d", best_ap_rssi, cat_offset);
 	if (cat_offset)
 		for (i = 0; i < SCM_NUM_RSSI_CAT; i++) {
 			params->rssi_cat[SCM_NUM_RSSI_CAT - i - 1] =
@@ -1989,7 +1990,7 @@ ucfg_scan_psoc_open(struct wlan_objmgr_psoc *psoc)
 {
 	struct wlan_scan_obj *scan_obj;
 
-	scm_info("psoc open: 0x%pK", psoc);
+	scm_debug("psoc open: 0x%pK", psoc);
 	if (!psoc) {
 		scm_err("null psoc");
 		return QDF_STATUS_E_FAILURE;
@@ -2013,7 +2014,7 @@ ucfg_scan_psoc_close(struct wlan_objmgr_psoc *psoc)
 {
 	struct wlan_scan_obj *scan_obj;
 
-	scm_info("psoc close: 0x%pK", psoc);
+	scm_debug("psoc close: 0x%pK", psoc);
 	if (!psoc) {
 		scm_err("null psoc");
 		return QDF_STATUS_E_FAILURE;
@@ -2038,18 +2039,18 @@ static bool scm_serialization_scan_rules_cb(
 	switch (comp_id) {
 	case WLAN_UMAC_COMP_TDLS:
 		if (comp_info->scan_info.is_tdls_in_progress) {
-			scm_info("Cancel scan. Tdls in progress");
+			scm_debug("Cancel scan. Tdls in progress");
 			return false;
 		}
 		break;
 	case WLAN_UMAC_COMP_DFS:
 		if (comp_info->scan_info.is_cac_in_progress) {
-			scm_info("Cancel scan. CAC in progress");
+			scm_debug("Cancel scan. CAC in progress");
 			return false;
 		}
 		break;
 	default:
-		scm_info("not handled comp_id %d", comp_id);
+		scm_debug("not handled comp_id %d", comp_id);
 		break;
 	}
 
@@ -2061,7 +2062,7 @@ ucfg_scan_psoc_enable(struct wlan_objmgr_psoc *psoc)
 {
 	QDF_STATUS status;
 
-	scm_info("psoc enable: 0x%pK", psoc);
+	scm_debug("psoc enable: 0x%pK", psoc);
 	if (!psoc) {
 		scm_err("null psoc");
 		return QDF_STATUS_E_FAILURE;
@@ -2084,7 +2085,7 @@ ucfg_scan_psoc_disable(struct wlan_objmgr_psoc *psoc)
 {
 	QDF_STATUS status;
 
-	scm_info("psoc disable: 0x%pK", psoc);
+	scm_debug("psoc disable: 0x%pK", psoc);
 	if (!psoc) {
 		scm_err("null psoc");
 		return QDF_STATUS_E_FAILURE;
