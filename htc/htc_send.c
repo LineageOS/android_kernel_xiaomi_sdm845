@@ -2062,25 +2062,28 @@ void htc_flush_endpoint_tx(HTC_TARGET *target, HTC_ENDPOINT *pEndpoint,
 	UNLOCK_HTC_TX(target);
 }
 
-/* flush endpoint TX Lookup queue */
-void htc_flush_endpoint_txlookupQ(HTC_TARGET *target)
+/* flush pending entries in endpoint TX Lookup queue */
+void htc_flush_endpoint_txlookupQ(HTC_TARGET *target,
+				  HTC_ENDPOINT_ID endpoint_id,
+				  bool call_ep_callback)
 {
-	int i;
 	HTC_PACKET *packet;
 	HTC_ENDPOINT *endpoint;
 
-	for (i = 0; i < ENDPOINT_MAX; i++) {
-		endpoint = &target->endpoint[i];
+	endpoint = &target->endpoint[endpoint_id];
 
-		if (!endpoint && endpoint->service_id == 0)
-			continue;
+	if (!endpoint && endpoint->service_id == 0)
+		return;
 
-		while (HTC_PACKET_QUEUE_DEPTH(&endpoint->TxLookupQueue)) {
-			packet = htc_packet_dequeue(&endpoint->TxLookupQueue);
+	while (HTC_PACKET_QUEUE_DEPTH(&endpoint->TxLookupQueue)) {
+		packet = htc_packet_dequeue(&endpoint->TxLookupQueue);
 
-			if (packet) {
+		if (packet) {
+			if (call_ep_callback == true) {
 				packet->Status = QDF_STATUS_E_CANCELED;
 				send_packet_completion(target, packet);
+			} else {
+				qdf_mem_free(packet);
 			}
 		}
 	}
