@@ -778,6 +778,7 @@ enum p2p_scan_type {
  * @scan_events: variable to read and set scan_ev_* flags in one shot
  *               can be used to dump all scan_ev_* flags for debug
  * @dwell_time_active: active dwell time
+ * @dwell_time_active_2g: active dwell time for 2G channels, if it's not zero
  * @dwell_time_passive: passive dwell time
  * @min_rest_time: min rest time
  * @max_rest_time: max rest time
@@ -854,6 +855,7 @@ struct scan_req_params {
 		uint32_t scan_events;
 	};
 	uint32_t dwell_time_active;
+	uint32_t dwell_time_active_2g;
 	uint32_t dwell_time_passive;
 	uint32_t min_rest_time;
 	uint32_t max_rest_time;
@@ -1282,6 +1284,7 @@ struct pno_user_cfg {
 /**
  * struct scan_user_cfg - user configuration required for for scan
  * @active_dwell: default active dwell time
+ * @active_dwell_2g: default active dwell time for 2G channels
  * @passive_dwell:default passive dwell time
  * @conc_active_dwell: default concurrent active dwell time
  * @conc_passive_dwell: default concurrent passive dwell time
@@ -1309,6 +1312,7 @@ struct pno_user_cfg {
  */
 struct scan_user_cfg {
 	uint32_t active_dwell;
+	uint32_t active_dwell_2g;
 	uint32_t passive_dwell;
 	uint32_t conc_active_dwell;
 	uint32_t conc_passive_dwell;
