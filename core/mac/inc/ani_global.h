@@ -880,7 +880,6 @@ typedef struct sAniSirGlobal {
 	csr_readyToExtWoWCallback readyToExtWoWCallback;
 	void *readyToExtWoWContext;
 #endif
-	hdd_ftm_msg_processor ftm_msg_processor_callback;
 	struct vdev_type_nss vdev_type_nss_2g;
 	struct vdev_type_nss vdev_type_nss_5g;
 
