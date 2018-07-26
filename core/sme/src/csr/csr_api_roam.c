@@ -9922,6 +9922,7 @@ csr_roaming_state_config_cnf_processor(tpAniSirGlobal mac_ctx,
 	uint32_t session_id;
 	struct csr_roam_session *session;
 	tDot11fBeaconIEs *local_ies = NULL;
+	bool is_ies_malloced = false;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 	if (NULL == cmd) {
@@ -10031,6 +10032,7 @@ csr_roaming_state_config_cnf_processor(tpAniSirGlobal mac_ctx,
 							    &local_ies);
 		if (!QDF_IS_STATUS_SUCCESS(status))
 			return;
+		is_ies_malloced = true;
 	}
 
 	if (csr_is_conn_state_connected_infra(mac_ctx, session_id)) {
@@ -10100,7 +10102,7 @@ csr_roaming_state_config_cnf_processor(tpAniSirGlobal mac_ctx,
 			csr_roam(mac_ctx, cmd);
 		}
 	}
-	if (!scan_result->Result.pvIes) {
+	if (is_ies_malloced) {
 		/* Locally allocated */
 		qdf_mem_free(local_ies);
 	}
