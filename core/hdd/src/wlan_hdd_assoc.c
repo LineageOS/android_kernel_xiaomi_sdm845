@@ -1591,12 +1591,12 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 	if ((eConnectionState_Disconnecting ==
 	    pHddStaCtx->conn_info.connState) ||
 	    (eConnectionState_NotConnected ==
+	    pHddStaCtx->conn_info.connState) ||
+	    (eConnectionState_Connecting ==
 	    pHddStaCtx->conn_info.connState)) {
 		hdd_debug("HDD has initiated a disconnect, no need to send disconnect indication to kernel");
 		sendDisconInd = false;
-	}
-
-	if (pHddStaCtx->conn_info.connState != eConnectionState_Disconnecting) {
+	} else {
 		INIT_COMPLETION(pAdapter->disconnect_comp_var);
 		hdd_conn_set_connection_state(pAdapter,
 					      eConnectionState_Disconnecting);
@@ -1727,7 +1727,15 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 	}
 	/* Clear saved connection information in HDD */
 	hdd_conn_remove_connect_info(pHddStaCtx);
-	hdd_conn_set_connection_state(pAdapter, eConnectionState_NotConnected);
+	/*
+	 * eConnectionState_Connecting state mean that connection is in
+	 * progress so no need to set state to eConnectionState_NotConnected
+	 */
+	if ((eConnectionState_Connecting !=
+	    pHddStaCtx->conn_info.connState)) {
+		hdd_conn_set_connection_state(pAdapter,
+					      eConnectionState_NotConnected);
+	}
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
 	if ((QDF_STA_MODE == pAdapter->device_mode) ||
 	    (QDF_P2P_CLIENT_MODE == pAdapter->device_mode)) {
@@ -2503,6 +2511,14 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 		hdd_err("config is NULL");
 		return QDF_STATUS_E_NULL_VALUE;
 	}
+
+	/*
+	 * Enable roaming on other STA iface except this one.
+	 * Firmware dosent support connection on one STA iface while
+	 * roaming on other STA iface
+	 */
+	wlan_hdd_enable_roaming(pAdapter);
+
 	/* HDD has initiated disconnect, do not send connect result indication
 	 * to kernel as it will be handled by __cfg80211_disconnect.
 	 */

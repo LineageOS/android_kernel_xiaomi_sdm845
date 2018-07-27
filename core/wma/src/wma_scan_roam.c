@@ -5075,7 +5075,7 @@ int wma_extscan_cached_results_event_handler(void *handle,
 	struct extscan_cached_scan_results empty_cachelist;
 	wmi_extscan_wlan_descriptor *src_hotlist;
 	wmi_extscan_rssi_info *src_rssi;
-	int i, moredata, scan_ids_cnt, buf_len;
+	int i, moredata, scan_ids_cnt, buf_len, status;
 	tpAniSirGlobal pMac = cds_get_context(QDF_MODULE_ID_PE);
 	uint32_t total_len;
 	bool excess_data = false;
@@ -5173,19 +5173,24 @@ int wma_extscan_cached_results_event_handler(void *handle,
 
 	dest_result = dest_cachelist->result;
 	wma_fill_num_results_per_scan_id(cmd_param_info, dest_result);
-	wma_group_num_bss_to_scan_id(cmd_param_info, dest_cachelist);
 
-	pMac->sme.pExtScanIndCb(pMac->hHdd,
+	status = wma_group_num_bss_to_scan_id(cmd_param_info, dest_cachelist);
+	if (!status)
+		pMac->sme.pExtScanIndCb(pMac->hHdd,
 				eSIR_EXTSCAN_CACHED_RESULTS_IND,
 				dest_cachelist);
+	else
+		WMA_LOGD("wma_group_num_bss_to_scan_id failed, not calling callback");
+
 	dest_result = dest_cachelist->result;
 	for (i = 0; i < dest_cachelist->num_scan_ids; i++) {
-		qdf_mem_free(dest_result->ap);
+		if (dest_result->ap)
+			qdf_mem_free(dest_result->ap);
 		dest_result++;
 	}
 	qdf_mem_free(dest_cachelist->result);
 	qdf_mem_free(dest_cachelist);
-	return 0;
+	return status;
 
 noresults:
 	empty_cachelist.request_id = event->request_id;
@@ -5325,12 +5330,14 @@ int wma_extscan_change_results_event_handler(void *handle,
 						   src_rssi[count++];
 			}
 		}
-		dest_ap += dest_ap->numOfRssi * sizeof(int32_t);
+		dest_ap = (tSirWifiSignificantChange *)((char *)dest_ap +
+					dest_ap->numOfRssi * sizeof(int32_t) +
+					sizeof(*dest_ap));
 		src_chglist++;
 	}
 	dest_chglist->requestId = event->request_id;
 	dest_chglist->moreData = moredata;
-	dest_chglist->numResults = event->total_entries;
+	dest_chglist->numResults = numap;
 
 	pMac->sme.pExtScanIndCb(pMac->hHdd,
 			eSIR_EXTSCAN_SIGNIFICANT_WIFI_CHANGE_RESULTS_IND,

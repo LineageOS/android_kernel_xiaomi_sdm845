@@ -2930,7 +2930,7 @@ bool cds_is_connection_in_progress(uint8_t *session_id,
 				sme_neighbor_middle_of_roaming(
 					WLAN_HDD_GET_HAL_CTX(adapter),
 					adapter->sessionId)) ||
-				hdd_is_roaming_in_progress(adapter)) {
+				hdd_is_roaming_in_progress(hdd_ctx)) {
 			cds_debug("%pK(%d) Reassociation in progress",
 				WLAN_HDD_GET_STATION_CTX_PTR(adapter),
 				adapter->sessionId);
@@ -6125,6 +6125,11 @@ bool cds_allow_concurrency(enum cds_con_mode mode,
 
 	if (!cds_allow_sap_go_concurrency(mode, channel)) {
 		hdd_err("This concurrency combination is not allowed");
+		goto done;
+	}
+
+	if (!cds_check_privacy_with_concurrency()) {
+		hdd_err("Privacy setting not allowed with current concurrency setting!");
 		goto done;
 	}
 
@@ -10720,3 +10725,46 @@ bool cds_is_valid_channel_for_channel_switch(uint8_t channel)
 	cds_debug("Invalid channel for channel switch");
 	return false;
 }
+
+#ifdef FEATURE_WLAN_WAPI
+bool cds_check_privacy_with_concurrency(void)
+{
+	bool ret = true;
+	uint32_t con_count;
+	hdd_adapter_t *adapter;
+	hdd_context_t *hdd_ctx;
+	hdd_adapter_list_node_t *adapter_node, *next;
+	QDF_STATUS status;
+	bool wapi_sta_present = false;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (NULL == hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return false;
+	}
+
+	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
+	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
+		adapter = adapter_node->pAdapter;
+		if (adapter &&
+		    (QDF_STA_MODE == adapter->device_mode) &&
+		    adapter->wapi_info.nWapiMode &&
+		    (adapter->wapi_info.wapiAuthMode != WAPI_AUTH_MODE_OPEN)) {
+				wapi_sta_present = true;
+				break;
+		}
+		status = hdd_get_next_adapter(hdd_ctx, adapter_node, &next);
+		adapter_node = next;
+	}
+
+	con_count = cds_get_connection_count();
+	cds_debug("No. of concurrent connections: %d", con_count);
+
+	if (wapi_sta_present && con_count) {
+		cds_err("STA with WAPI not allowed when concurrent session(s) exist!");
+		ret = false;
+	}
+
+	return ret;
+}
+#endif

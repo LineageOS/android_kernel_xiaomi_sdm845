@@ -14491,18 +14491,23 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	pConfig = pHddCtx->config;
+	wdev = ndev->ieee80211_ptr;
+
+	/* Reset the current device mode bit mask */
+	cds_clear_concurrency_mode(pAdapter->device_mode);
+
+	/*
+	 * must be called after cds_clear_concurrency_mode's invocation so the
+	 * current adapter's old device mode mapping is removed from our
+	 * internal records.
+	 */
 	if (!cds_allow_concurrency(
 				wlan_hdd_convert_nl_iftype_to_hdd_type(type),
 				0, HW_MODE_20_MHZ)) {
 		hdd_debug("This concurrency combination is not allowed");
 		return -EINVAL;
 	}
-
-	pConfig = pHddCtx->config;
-	wdev = ndev->ieee80211_ptr;
-
-	/* Reset the current device mode bit mask */
-	cds_clear_concurrency_mode(pAdapter->device_mode);
 
 	hdd_update_tdls_ct_and_teardown_links(pHddCtx);
 	if ((pAdapter->device_mode == QDF_STA_MODE) ||
@@ -16536,6 +16541,11 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 		goto ret_status;
 	}
 
+	/*
+	 * Disable roaming on all other adapters before connect start
+	 */
+	wlan_hdd_disable_roaming(pAdapter);
+
 	disable_fw_tdls_state = true;
 	wlan_hdd_check_conc_and_update_tdls_state(pHddCtx,
 						  disable_fw_tdls_state);
@@ -16749,7 +16759,7 @@ static int wlan_hdd_cfg80211_connect_start(hdd_adapter_t *pAdapter,
 			cds_handle_conc_rule1(pAdapter, pRoamProfile);
 			if (true != cds_handle_conc_rule2(
 					pAdapter, pRoamProfile, &roamId)) {
-				status = 0;
+				status = -EINVAL;
 				goto conn_failure;
 			}
 		}
@@ -16861,6 +16871,13 @@ conn_failure:
 ret_status:
 	if (disable_fw_tdls_state)
 		wlan_hdd_check_conc_and_update_tdls_state(pHddCtx, false);
+
+	/*
+	 * Enable roaming on other STA adapter for failure case.
+	 * For success case, it is enabled in assoc completion handler
+	 */
+	if (status)
+		wlan_hdd_enable_roaming(pAdapter);
 
 	EXIT();
 	return status;
@@ -17686,12 +17703,25 @@ static int wlan_hdd_cfg80211_set_ie(hdd_adapter_t *pAdapter, const uint8_t *ie,
 			/* Setting WAPI Mode to ON=1 */
 			pAdapter->wapi_info.nWapiMode = 1;
 			hdd_debug("WAPI MODE IS %u", pAdapter->wapi_info.nWapiMode);
-			tmp = (uint8_t *)ie;
-			tmp = tmp + 4;  /* Skip element Id and Len, Version */
+			/* genie is pointing to data field of WAPI IE's buffer */
+			tmp = (uint8_t *)genie;
+			/* Validate length for Version(2 bytes) and Number
+			 * of AKM suite (2 bytes) in WAPI IE buffer, coming from
+			 * supplicant*/
+			if (eLen < 4) {
+				hdd_err("Invalid IE Len: %u", eLen);
+				return -EINVAL;
+			}
+			tmp = tmp + 2;  /* Skip Version */
 			/* Get the number of AKM suite */
 			akmsuiteCount = WPA_GET_LE16(tmp);
 			/* Skip the number of AKM suite */
 			tmp = tmp + 2;
+			/* Validate total length for WAPI IE's buffer */
+			if (eLen < (4 + (akmsuiteCount * sizeof(uint32_t)))) {
+				hdd_err("Invalid IE Len: %u", eLen);
+				return -EINVAL;
+			}
 			/* AKM suite list, each OUI contains 4 bytes */
 			akmlist = (uint32_t *)(tmp);
 			if (akmsuiteCount <= MAX_NUM_AKM_SUITES) {
@@ -17944,10 +17974,12 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 {
 	unsigned long rc;
 	hdd_station_ctx_t *pHddStaCtx;
+	hdd_context_t *hdd_ctx;
 	int status, result = 0;
 	tHalHandle hal;
 	uint32_t wait_time = WLAN_WAIT_TIME_DISCONNECT;
 
+	hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
 	pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 	hal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 	if (pAdapter->device_mode ==  QDF_STA_MODE) {
@@ -17961,7 +17993,7 @@ int wlan_hdd_try_disconnect(hdd_adapter_t *pAdapter)
 		 *
 		 */
 		INIT_COMPLETION(pAdapter->roaming_comp_var);
-		if (hdd_is_roaming_in_progress(pAdapter)) {
+		if (hdd_is_roaming_in_progress(hdd_ctx)) {
 			rc = wait_for_completion_timeout(
 				&pAdapter->roaming_comp_var,
 				msecs_to_jiffies(WLAN_WAIT_TIME_STOP_ROAM));
@@ -18046,20 +18078,18 @@ disconnected:
  * wlan_hdd_reassoc_bssid_hint() - Start reassociation if bssid is present
  * @adapter: Pointer to the HDD adapter
  * @req: Pointer to the structure cfg_connect_params receieved from user space
- * @status: out variable for status of reassoc request
  *
  * This function will start reassociation if prev_bssid is set and bssid/
  * bssid_hint, channel/channel_hint parameters are present in connect request.
  *
- * Return: true if connect was for ReAssociation, false otherwise
+ * Return: 0 if connect was for ReAssociation, non-zero error code otherwise
  */
 #if defined(CFG80211_CONNECT_PREV_BSSID) || \
 	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0))
-static bool wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
-					struct cfg80211_connect_params *req,
-					int *status)
+static int wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
+					struct cfg80211_connect_params *req)
 {
-	bool reassoc = false;
+	int status = -EINVAL;
 	const uint8_t *bssid = NULL;
 	uint16_t channel = 0;
 	hdd_wext_state_t *wext_state = WLAN_HDD_GET_WEXT_STATE_PTR(adapter);
@@ -18072,7 +18102,7 @@ static bool wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
 	if (CSR_IS_AUTH_TYPE_FILS(
 	   wext_state->roamProfile.AuthType.authType[0])) {
 		hdd_info("connection is FILS, dropping roaming..");
-		return reassoc;
+		return status;
 	}
 
 	if (req->channel)
@@ -18081,7 +18111,6 @@ static bool wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
 		channel = req->channel_hint->hw_value;
 
 	if (bssid && channel && req->prev_bssid) {
-		reassoc = true;
 		hdd_debug(FL("REASSOC Attempt on channel %d to "MAC_ADDRESS_STR),
 				channel, MAC_ADDR_ARRAY(bssid));
 		/*
@@ -18093,18 +18122,17 @@ static bool wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
 		qdf_mem_copy(wext_state->req_bssId.bytes, bssid,
 			     QDF_MAC_ADDR_SIZE);
 
-		*status = hdd_reassoc(adapter, bssid, channel,
+		status = hdd_reassoc(adapter, bssid, channel,
 				      CONNECT_CMD_USERSPACE);
-		hdd_debug("hdd_reassoc: status: %d", *status);
+		hdd_debug("hdd_reassoc: status: %d", status);
 	}
-	return reassoc;
+	return status;
 }
 #else
-static bool wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
-					struct cfg80211_connect_params *req,
-					int *status)
+static int wlan_hdd_reassoc_bssid_hint(hdd_adapter_t *adapter,
+					struct cfg80211_connect_params *req)
 {
-	return false;
+	return -EINVAL;
 }
 #endif
 
@@ -18230,8 +18258,14 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (true == wlan_hdd_reassoc_bssid_hint(pAdapter, req, &status))
+	/*
+	 * Check if this is reassoc to same bssid, if reassoc is success, return
+	 */
+	status = wlan_hdd_reassoc_bssid_hint(pAdapter, req);
+	if (!status) {
+		hdd_set_roaming_in_progress(true);
 		return status;
+	}
 
 	/* Try disconnecting if already in connected state */
 	status = wlan_hdd_try_disconnect(pAdapter);
@@ -18240,7 +18274,20 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 		return -EALREADY;
 	}
 
-	/* Check for max concurrent connections after doing disconnect if any */
+	/*initialise security parameters */
+	status = wlan_hdd_cfg80211_set_privacy(pAdapter, req);
+
+	if (0 > status) {
+		hdd_err("Failed to set security params");
+		return status;
+	}
+
+	/*
+	 * Check for max concurrent connections after doing disconnect if any,
+	 * must be called after the invocation of wlan_hdd_cfg80211_set_privacy
+	 * so privacy is already set for the current adapter before it's
+	 * checked against concurrency.
+	 */
 	if (req->channel) {
 		if (!cds_allow_concurrency(
 				cds_convert_device_mode_to_qdf_type(
@@ -18256,14 +18303,6 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 			hdd_warn("This concurrency combination is not allowed");
 			return -ECONNREFUSED;
 		}
-	}
-
-	/*initialise security parameters */
-	status = wlan_hdd_cfg80211_set_privacy(pAdapter, req);
-
-	if (0 > status) {
-		hdd_err("Failed to set security params");
-		return status;
 	}
 
 	if (req->channel)
@@ -18332,7 +18371,7 @@ int wlan_hdd_disconnect(hdd_adapter_t *pAdapter, u16 reason)
 		 *
 		 */
 		INIT_COMPLETION(pAdapter->roaming_comp_var);
-		if (hdd_is_roaming_in_progress(pAdapter)) {
+		if (hdd_is_roaming_in_progress(pHddCtx)) {
 			rc = wait_for_completion_timeout(
 				&pAdapter->roaming_comp_var,
 				msecs_to_jiffies(WLAN_WAIT_TIME_STOP_ROAM));

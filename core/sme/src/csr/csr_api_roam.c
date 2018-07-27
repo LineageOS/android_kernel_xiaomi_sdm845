@@ -3600,12 +3600,12 @@ static void csr_roam_remove_duplicate_cmd_from_list(tpAniSirGlobal mac_ctx,
 		next_entry = csr_ll_next(list, entry, LL_ACCESS_NOLOCK);
 		dup_cmd = GET_BASE_ADDR(entry, tSmeCmd, Link);
 		/*
-		 * Remove the previous command if..
-		 * - the new roam command is for the same RoamReason...
-		 * - the new roam command is a NewProfileList.
-		 * - the new roam command is a Forced Dissoc
-		 * - the new roam command is from an 802.11 OID
-		 *   (OID_SSID or OID_BSSID).
+		 * If pCommand is not NULL remove the similar duplicate cmd for
+		 * same reason as pCommand. If pCommand is NULL then check if
+		 * eRoamReason is eCsrForcedDisassoc (disconnect) and remove
+		 * all roam command for the sessionId, else if eRoamReason is
+		 * eCsrHddIssued (connect) remove all connect (non disconenct)
+		 * commands.
 		 */
 		if ((command && (command->sessionId == dup_cmd->sessionId) &&
 			((command->command == dup_cmd->command) &&
@@ -3628,7 +3628,8 @@ static void csr_roam_remove_duplicate_cmd_from_list(tpAniSirGlobal mac_ctx,
 			((session_id == dup_cmd->sessionId) &&
 			(eSmeCommandRoam == dup_cmd->command) &&
 			((eCsrForcedDisassoc == roam_reason) ||
-			(eCsrHddIssued == roam_reason)))) {
+			(eCsrHddIssued == roam_reason &&
+			!CSR_IS_DISCONNECT_COMMAND(dup_cmd))))) {
 			sme_debug("RoamReason: %d",
 					dup_cmd->u.roamCmd.roamReason);
 			/* Remove the roam command from the pending list */
@@ -6032,7 +6033,7 @@ static QDF_STATUS csr_roam_trigger_reassociate(tpAniSirGlobal mac_ctx,
 
 QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 {
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	QDF_STATUS lock_status, status = QDF_STATUS_SUCCESS;
 	tCsrRoamInfo roamInfo;
 	uint32_t sessionId = pCommand->sessionId;
 	tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
@@ -6050,7 +6051,18 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 	case eCsrForcedDisassoc:
 		status = csr_roam_process_disassoc_deauth(pMac, pCommand,
 				true, false);
+		lock_status = sme_acquire_global_lock(&pMac->sme);
+		if (!QDF_IS_STATUS_SUCCESS(lock_status)) {
+			csr_roam_complete(pMac, eCsrNothingToJoin, NULL);
+			/*
+			 * Return success so that caller will not remove cmd
+			 * again from smeCmdActiveList as it is already removed
+			 * as part of csr_roam_complete.
+			 */
+			return QDF_STATUS_SUCCESS;
+		}
 		csr_free_roam_profile(pMac, sessionId);
+		sme_release_global_lock(&pMac->sme);
 		break;
 	case eCsrSmeIssuedDisassocForHandoff:
 		/* Not to free pMac->roam.pCurRoamProfile (via
@@ -6063,12 +6075,34 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 	case eCsrForcedDisassocMICFailure:
 		status = csr_roam_process_disassoc_deauth(pMac, pCommand,
 				true, true);
+		lock_status = sme_acquire_global_lock(&pMac->sme);
+		if (!QDF_IS_STATUS_SUCCESS(lock_status)) {
+			csr_roam_complete(pMac, eCsrNothingToJoin, NULL);
+			/*
+			 * Return success so that caller will not remove cmd
+			 * again from smeCmdActiveList as it is already removed
+			 * as part of csr_roam_complete.
+			 */
+			return QDF_STATUS_SUCCESS;
+		}
 		csr_free_roam_profile(pMac, sessionId);
+		sme_release_global_lock(&pMac->sme);
 		break;
 	case eCsrForcedDeauth:
 		status = csr_roam_process_disassoc_deauth(pMac, pCommand,
 				false, false);
+		lock_status = sme_acquire_global_lock(&pMac->sme);
+		if (!QDF_IS_STATUS_SUCCESS(lock_status)) {
+			csr_roam_complete(pMac, eCsrNothingToJoin, NULL);
+			/*
+			 * Return success so that caller will not remove cmd
+			 * again from smeCmdActiveList as it is already removed
+			 * as part of csr_roam_complete.
+			 */
+			return QDF_STATUS_SUCCESS;
+		}
 		csr_free_roam_profile(pMac, sessionId);
+		sme_release_global_lock(&pMac->sme);
 		break;
 	case eCsrHddIssuedReassocToSameAP:
 	case eCsrSmeIssuedReassocToSameAP:
@@ -6128,6 +6162,17 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 
 		if (pCommand->u.roamCmd.fUpdateCurRoamProfile) {
 			/* Remember the roaming profile */
+			lock_status = sme_acquire_global_lock(&pMac->sme);
+			if (!QDF_IS_STATUS_SUCCESS(lock_status)) {
+				csr_roam_complete(pMac,
+					eCsrNothingToJoin, NULL);
+				/*
+				 * Return success so that caller will not remove
+				 * cmd again from smeCmdActiveList as it is
+				 * already removed as part of csr_roam_complete.
+				 */
+				return QDF_STATUS_SUCCESS;
+			}
 			csr_free_roam_profile(pMac, sessionId);
 			pSession->pCurRoamProfile =
 					qdf_mem_malloc(sizeof(tCsrRoamProfile));
@@ -6136,6 +6181,7 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 					pSession->pCurRoamProfile,
 					&pCommand->u.roamCmd.roamProfile);
 			}
+			sme_release_global_lock(&pMac->sme);
 		}
 		/*
 		 * At this point original uapsd_mask is saved in
@@ -9670,12 +9716,17 @@ static void csr_roam_roaming_state_reassoc_rsp_processor(tpAniSirGlobal pMac,
 						tpSirSmeJoinRsp pSmeJoinRsp)
 {
 	enum csr_roamcomplete_result result;
-	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
-		&pMac->roam.neighborRoamInfo[pSmeJoinRsp->sessionId];
+	tpCsrNeighborRoamControlInfo pNeighborRoamInfo = NULL;
 	tCsrRoamInfo roamInfo;
 	uint32_t roamId = 0;
 	tCsrRoamSession *csr_session;
 
+	if (pSmeJoinRsp->sessionId >= CSR_ROAM_SESSION_MAX) {
+		sme_err("Invalid session ID received %d", pSmeJoinRsp->sessionId);
+		return;
+	}
+	pNeighborRoamInfo =
+		&pMac->roam.neighborRoamInfo[pSmeJoinRsp->sessionId];
 	if (eSIR_SME_SUCCESS == pSmeJoinRsp->statusCode) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			 "CSR SmeReassocReq Successful");
@@ -14896,7 +14947,6 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	uint32_t value = 0, value1 = 0;
 	QDF_STATUS packetdump_timer_status;
 	enum hw_mode_dbs_capab hw_mode_to_use;
-	tDot11fIEVHTCaps *vht_caps = NULL;
 
 	if (!pSession) {
 		sme_err("session %d not found", sessionId);
@@ -15429,12 +15479,8 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		csr_join_req->vht_config.su_beam_formee = value;
 
-		if (pIes->VHTCaps.present)
-			vht_caps = &pIes->VHTCaps;
-		else if (pIes->vendor_vht_ie.VHTCaps.present)
-			vht_caps = &pIes->vendor_vht_ie.VHTCaps;
 		/* Set BF CSN value only if SU Bformee is enabled */
-		if (vht_caps && csr_join_req->vht_config.su_beam_formee) {
+		if (csr_join_req->vht_config.su_beam_formee) {
 			txBFCsnValue = (uint8_t)value1;
 			/*
 			 * Certain commercial AP display a bad behavior when
@@ -15444,11 +15490,18 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			 * CSN cap of less than 4. To avoid such issues, take a
 			 * min of self and peer CSN while sending ASSOC request.
 			 */
-			if (pIes->Vendor1IE.present &&
-					vht_caps->csnofBeamformerAntSup < 4) {
-				if (vht_caps->csnofBeamformerAntSup)
+			if (txBFCsnValue < 4) {
+				if (IS_BSS_VHT_CAPABLE(pIes->VHTCaps) &&
+					pIes->VHTCaps.csnofBeamformerAntSup)
 					txBFCsnValue = QDF_MIN(txBFCsnValue,
-					  vht_caps->csnofBeamformerAntSup);
+					  pIes->VHTCaps.csnofBeamformerAntSup);
+				else if (IS_BSS_VHT_CAPABLE(
+					pIes->vendor_vht_ie.VHTCaps)
+					&& pIes->vendor_vht_ie.VHTCaps.
+					csnofBeamformerAntSup)
+					txBFCsnValue = QDF_MIN(txBFCsnValue,
+					  pIes->vendor_vht_ie.
+					  VHTCaps.csnofBeamformerAntSup);
 			}
 		}
 		csr_join_req->vht_config.csnof_beamformer_antSup = txBFCsnValue;
@@ -19395,6 +19448,21 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 		session->pCurRoamProfile->supplicant_disabled_roaming)) {
 		sme_debug("Supplicant disabled driver roaming");
 		return QDF_STATUS_E_FAILURE;
+	}
+
+	if ((command == ROAM_SCAN_OFFLOAD_START) &&
+	    (session->pCurRoamProfile &&
+	    session->pCurRoamProfile->driver_disabled_roaming)) {
+		if (reason == REASON_DRIVER_ENABLED) {
+			session->pCurRoamProfile->
+				driver_disabled_roaming = false;
+			sme_debug("driver_disabled_roaming reset for session %d",
+				  session_id);
+		} else {
+			sme_debug("Roam start received for session %d on which driver has disabled roaming",
+				  session_id);
+			return QDF_STATUS_E_FAILURE;
+		}
 	}
 
 	if (0 == csr_roam_is_roam_offload_scan_enabled(mac_ctx)) {
