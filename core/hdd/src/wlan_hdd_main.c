@@ -13478,6 +13478,7 @@ static int hdd_update_scan_config(struct hdd_context *hdd_ctx)
 	QDF_STATUS status;
 
 	scan_cfg.active_dwell = cfg->nActiveMaxChnTime;
+	scan_cfg.active_dwell_2g = cfg->active_dwell_2g;
 	scan_cfg.passive_dwell = cfg->nPassiveMaxChnTime;
 	scan_cfg.conc_active_dwell = cfg->nActiveMaxChnTimeConc;
 	scan_cfg.conc_passive_dwell = cfg->nPassiveMaxChnTimeConc;

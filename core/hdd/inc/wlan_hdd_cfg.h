@@ -863,6 +863,31 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * active_max_channel_time_2g - Set max time for active 2G channel scan
+ * @Min: 0
+ * @Max: 10000
+ * @Default: 80
+ *
+ * This ini is used to set maximum time in msecs spent in active 2G channel scan
+ * if it's not zero, in case of zero, CFG_ACTIVE_MAX_CHANNEL_TIME is used for 2G
+ * channels also.
+ *
+ * Related: None
+ *
+ * Supported Feature: Scan
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ACTIVE_MAX_2G_CHANNEL_TIME_NAME       "active_max_channel_time_2g"
+#define CFG_ACTIVE_MAX_2G_CHANNEL_TIME_MIN        (0)
+#define CFG_ACTIVE_MAX_2G_CHANNEL_TIME_MAX        (10000)
+#define CFG_ACTIVE_MAX_2G_CHANNEL_TIME_DEFAULT    (80)
+
+
+/*
+ * <ini>
  * gActiveMinChannelTime - Set min channel time for active scan
  * @Min: 0
  * @Max: 10000
@@ -14750,6 +14775,7 @@ struct hdd_config {
 	uint32_t nPassiveMaxChnTime;    /* in units of milliseconds */
 	uint32_t nActiveMinChnTime;     /* in units of milliseconds */
 	uint32_t nActiveMaxChnTime;     /* in units of milliseconds */
+	uint32_t active_dwell_2g;       /* in units of milliseconds */
 	uint32_t scan_probe_repeat_time;
 	uint32_t scan_num_probes;
 
