@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -424,6 +424,7 @@ static struct platform_driver wcd_pinctrl_driver = {
 	.driver = {
 		   .name = "qcom-wcd-pinctrl",
 		   .of_match_table = wcd_pinctrl_of_match,
+		   .suppress_bind_attrs = true,
 	},
 	.probe = wcd_pinctrl_probe,
 	.remove = wcd_pinctrl_remove,
