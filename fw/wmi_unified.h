@@ -244,6 +244,7 @@ typedef enum {
     WMI_GRP_11K_OFFLOAD,    /* 0x3d */
     WMI_GRP_TWT,            /* 0x3e TWT (Target Wake Time) for STA and AP */
     WMI_GRP_MOTION_DET,     /* 0x3f */
+    WMI_GRP_SPATIAL_REUSE,  /* 0x40 */
 } WMI_GRP_ID;
 
 #define WMI_CMD_GRP_START_ID(grp_id) (((grp_id) << 12) | 0x1)
@@ -1139,6 +1140,9 @@ typedef enum {
     WMI_MOTION_DET_BASE_LINE_CONFIG_PARAM_CMDID,
     WMI_MOTION_DET_START_STOP_CMDID,
     WMI_MOTION_DET_BASE_LINE_START_STOP_CMDID,
+
+    /** WMI commands related to OBSS PD Spatial Reuse **/
+    WMI_PDEV_OBSS_PD_SPATIAL_REUSE_CMDID = WMI_CMD_GRP_START_ID(WMI_GRP_SPATIAL_REUSE),
 } WMI_CMD_ID;
 
 typedef enum {
@@ -4156,6 +4160,14 @@ typedef struct {
     A_UINT32 vdev_id;
     A_UINT32 desc_id;  /* echoed in tx_compl_event */
     A_UINT32 chanfreq; /* MHz units */
+    /* WMI_MGMT_TX_SEND_CMDID is used for both pass by value and
+     * pass by reference WMI management frames.
+     *
+     * a) If the command is for pass by reference,
+     *    paddr_lo and padd_hi will hold the address of remote/host buffer
+     * b) If the command is for pass by value,
+     *    paddr_lo and paddr_hi will be NULL.
+     */
     A_UINT32 paddr_lo;
     A_UINT32 paddr_hi;
     A_UINT32 frame_len;
@@ -5079,6 +5091,19 @@ typedef enum {
     WMI_PDEV_PARAM_SET_UL_BSR_TRIG_INTERVAL,          /* 0xA2 */
     /** Use simplified equal RU allocation for DL and UL OFDMA */
     WMI_PDEV_PARAM_EQUAL_RU_ALLOCATION_ENABLE,        /* 0xA3 */
+    /** Enable/disable MWS-COEX 4G (LTE) Quick FTDM.
+     * 0 - Don't allow quick FTDM Policy (Default)
+     * 1 - Allow quick FTDM policy.
+     */
+    WMI_PDEV_PARAM_MWSCOEX_4G_ALLOW_QUICK_FTDM,       /* 0xA4 */
+    /** Set MWS-COEX 5G-NR power limit.
+     * 0:    Don't apply user specific power limit,
+     *       use internal power limit (Default)
+     * 1-2:  invalid value (ignored)
+     * 3-21: apply the specified value as the external power limit, in dBm
+     * >21:  invalid value (ignored)
+     */
+    WMI_PDEV_PARAM_MWSCOEX_SET_5GNR_PWR_LIMIT,        /* 0xA5 */
 } WMI_PDEV_PARAM;
 
 typedef struct {
@@ -6276,6 +6301,8 @@ typedef struct {
     A_UINT32 pdev_id; /** pdev_id for identifying the MAC.  See macros starting with WMI_PDEV_ID_ for values. In non-DBDC case host should set it to 0. */
     /** number of beacon stats event structures (wmi_bcn_stats) */
     A_UINT32 num_bcn_stats;
+    /** number of extended peer stats event structures (wmi_peer_extd_stats) */
+    A_UINT32 num_peer_extd_stats;
 
 /* This TLV is followed by another TLV of array of bytes
  *   A_UINT8 data[];
@@ -6955,7 +6982,10 @@ typedef struct {
     A_UINT32 last_tx_rate_code;
     /** TX power used by peer - units are 0.5 dBm */
     A_INT32 last_tx_power;
-    A_UINT32 reserved[4]; /** for future use - add new peer stats here */
+
+    /* Total number of received multicast & broadcast data frames corresponding to this peer */
+    A_UINT32 rx_mc_bc_cnt; /* 1 in the MSB of rx_mc_bc_cnt represents a valid data */
+    A_UINT32 reserved[3]; /** for future use - add new peer stats here */
 } wmi_peer_extd_stats;
 
 typedef struct {
@@ -8621,6 +8651,12 @@ typedef enum {
 
     /** Uplink OFDMA PPDU bandwidth (0: 20MHz, 1: 40MHz, 2: 80Mhz, 3: 160MHz)*/
     WMI_VDEV_PARAM_UL_PPDU_BW,                            /* 0x8E */
+
+    /** Enable/Disable FW handling MU EDCA change from AP (1: En, 0:Dis)  */
+    WMI_VDEV_PARAM_MU_EDCA_FW_UPDATE_EN,                  /* 0x8F */
+
+    /** Update dot11ObssNbruToleranceTime in fw. Param value: seconds */
+    WMI_VDEV_PARAM_UPDATE_OBSS_RU_TOLERANCE_TIME,         /* 0x90 */
 
 
     /*=== ADD NEW VDEV PARAM TYPES ABOVE THIS LINE ===
@@ -23129,6 +23165,27 @@ typedef struct {
     A_UINT32 bl_min_corr_reserved; /** min corr value obtained during baselining
                                     * phase (in %); reserved for future */
 } wmi_motion_det_base_line_event;
+
+/* Below structures are related to OBSS_PD_SPATIAL Reuse */
+typedef struct {
+    /** TLV tag and len; tag equals
+    * WMITLV_TAG_STRUC_wmi_obss_set_cmd_fixed_param */
+    A_UINT32 tlv_header;
+    /** Enable/Disable Spatial Reuse */
+    A_UINT32 enable;
+    /*
+     * In the below fields, "OBSS level" refers to the power of the
+     * signals received from "Other BSS".
+     * Spatial reuse will only be permitted if the Other BSS's signal power
+     * is witin the min to max range specified by the below fields.
+     */
+    /** Minimum OBSS level to use */
+    A_INT32 obss_min; /* RSSI in dBm */
+    /** Maximum OBSS level to use */
+    A_INT32 obss_max; /* RSSI in dBm */
+    /** Vdev id*/
+    A_UINT32 vdev_id;
+} wmi_obss_spatial_reuse_set_cmd_fixed_param;
 
 
 /* ADD NEW DEFS HERE */
