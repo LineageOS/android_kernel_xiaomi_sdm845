@@ -3,7 +3,7 @@
  *
  * This code is based on drivers/scsi/ufs/ufshcd.c
  * Copyright (C) 2011-2013 Samsung India Software Operations
- * Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * Authors:
  *	Santosh Yaraganavi <santosh.sy@samsung.com>
@@ -10145,7 +10145,15 @@ static int ufshcd_devfreq_scale(struct ufs_hba *hba, bool scale_up)
 	 * racing during clock frequency scaling sequence.
 	 */
 	if (ufshcd_is_auto_hibern8_supported(hba)) {
+		/*
+		 * Scaling prepare acquires the rw_sem: lock
+		 * h8 may sleep in case of errors.
+		 * e.g. link_recovery. Hence, release the rw_sem
+		 * before hibern8.
+		 */
+		up_write(&hba->lock);
 		ret = ufshcd_uic_hibern8_enter(hba);
+		down_write(&hba->lock);
 		if (ret)
 			/* link will be bad state so no need to scale_up_gear */
 			return ret;
@@ -10271,6 +10279,8 @@ static ssize_t ufshcd_clkscale_enable_store(struct device *dev,
 	cancel_work_sync(&hba->clk_scaling.resume_work);
 
 	hba->clk_scaling.is_allowed = value;
+
+	flush_work(&hba->eh_work);
 
 	if (value) {
 		ufshcd_resume_clkscaling(hba);
