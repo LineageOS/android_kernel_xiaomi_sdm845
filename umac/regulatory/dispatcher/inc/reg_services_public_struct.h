@@ -799,6 +799,7 @@ enum restart_beaconing_on_ch_avoid_rule {
  * @restart_beaconing: control the beaconing entity to move
  * away from active LTE channels
  * @enable_srd_chan_in_master_mode: SRD channel support in master mode
+ * @enable_11d_in_world_mode: enable 11d in world mode
  */
 struct reg_config_vars {
 	uint32_t enable_11d_support;
@@ -810,6 +811,7 @@ struct reg_config_vars {
 	uint32_t force_ssc_disable_indoor_channel;
 	enum restart_beaconing_on_ch_avoid_rule restart_beaconing;
 	bool enable_srd_chan_in_master_mode;
+	bool enable_11d_in_world_mode;
 };
 
 /**
