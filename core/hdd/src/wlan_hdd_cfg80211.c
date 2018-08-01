@@ -16055,6 +16055,7 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 	eCsrRoamBssType LastBSSType;
 	struct hdd_config *pConfig = NULL;
 	int status;
+	bool iff_up = (ndev->flags & IFF_UP);
 
 	hdd_enter();
 
@@ -16124,10 +16125,12 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 						type, status);
 				return status;
 			}
-			if (hdd_start_adapter(adapter)) {
-				hdd_err("Failed to start adapter :%d",
+			if (iff_up) {
+				if (hdd_start_adapter(adapter)) {
+					hdd_err("Failed to start adapter: %d",
 						adapter->device_mode);
-				return -EINVAL;
+					return -EINVAL;
+				}
 			}
 			goto done;
 		case NL80211_IFTYPE_AP:
@@ -16179,9 +16182,12 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 
 			hdd_set_ap_ops(adapter->dev);
 
-			if (hdd_start_adapter(adapter)) {
-				hdd_err("Error initializing the ap mode");
-				return -EINVAL;
+			if (iff_up) {
+				if (hdd_start_adapter(adapter)) {
+					hdd_err("Failed to start adapter: %d",
+						adapter->device_mode);
+					return -EINVAL;
+				}
 			}
 			/* Interface type changed update in wiphy structure */
 			if (wdev) {
@@ -16207,10 +16213,13 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 					type);
 			if (status != QDF_STATUS_SUCCESS)
 				return status;
-			if (hdd_start_adapter(adapter)) {
-				hdd_err("Failed to start adapter: %d",
+
+			if (iff_up) {
+				if (hdd_start_adapter(adapter)) {
+					hdd_err("Failed to start adapter: %d",
 						adapter->device_mode);
-				return -EINVAL;
+					return -EINVAL;
+				}
 			}
 			goto done;
 
