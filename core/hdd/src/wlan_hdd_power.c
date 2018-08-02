@@ -1239,10 +1239,9 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	}
 #endif
 
-	hdd_bus_bandwidth_destroy(hdd_ctx);
-
 	hdd_wlan_stop_modules(hdd_ctx, false);
 
+	hdd_bus_bandwidth_deinit(hdd_ctx);
 	hdd_lpass_notify_stop(hdd_ctx);
 
 	hdd_info("WLAN driver shutdown complete");
@@ -1320,9 +1319,7 @@ QDF_STATUS hdd_wlan_re_init(void)
 		hdd_err("Failed to get adapter");
 
 	hdd_dp_trace_init(hdd_ctx->config);
-
 	hdd_bus_bandwidth_init(hdd_ctx);
-
 
 	ret = hdd_wlan_start_modules(hdd_ctx, true);
 	if (ret) {
@@ -1360,6 +1357,8 @@ QDF_STATUS hdd_wlan_re_init(void)
 	goto success;
 
 err_re_init:
+	hdd_bus_bandwidth_deinit(hdd_ctx);
+
 	/* Allow the phone to go to sleep */
 	hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_DRIVER_REINIT);
 	if (bug_on_reinit_failure)
