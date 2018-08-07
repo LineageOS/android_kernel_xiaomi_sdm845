@@ -455,10 +455,8 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_session_id(adapter->session_id)) {
-		hdd_err("invalid session id: %d", adapter->session_id);
+	if (wlan_hdd_validate_session_id(adapter->session_id))
 		return -EINVAL;
-	}
 
 	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
 			 TRACE_CODE_HDD_CFG80211_TDLS_MGMT,
@@ -637,10 +635,8 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_session_id(adapter->session_id)) {
-		hdd_err("invalid session id: %d", adapter->session_id);
+	if (wlan_hdd_validate_session_id(adapter->session_id))
 		return -EINVAL;
-	}
 
 	if (false == hdd_ctx->config->fEnableTDLSSupport) {
 		hdd_debug("TDLS Disabled in INI OR not enabled in FW. "
