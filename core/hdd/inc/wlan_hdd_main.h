@@ -2157,7 +2157,10 @@ int __wlan_hdd_validate_context(struct hdd_context *hdd_ctx, const char *func);
  *
  * Return: Errno
  */
-int hdd_validate_adapter(struct hdd_adapter *adapter);
+#define hdd_validate_adapter(adapter) \
+	__hdd_validate_adapter(adapter, __func__)
+
+int __hdd_validate_adapter(struct hdd_adapter *adapter, const char *func);
 
 bool hdd_is_valid_mac_address(const uint8_t *pMacAddr);
 QDF_STATUS hdd_issta_p2p_clientconnected(struct hdd_context *hdd_ctx);
