@@ -2687,8 +2687,6 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 	void *hif_ctx;
 	struct target_psoc_info *tgt_hdl;
 
-	hdd_debug("state:%d reinit:%d", hdd_ctx->driver_status, reinit);
-
 	qdf_dev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 	if (!qdf_dev) {
 		hdd_err("QDF Device Context is Invalid return");
@@ -2700,7 +2698,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 	mutex_lock(&hdd_ctx->iface_change_lock);
 	if (hdd_ctx->driver_status == DRIVER_MODULES_ENABLED) {
 		mutex_unlock(&hdd_ctx->iface_change_lock);
-		hdd_info("Driver modules already Enabled");
+		hdd_debug("Driver modules already Enabled");
 		hdd_exit();
 		return 0;
 	}
@@ -2720,7 +2718,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		if (!reinit && !unint) {
 			ret = pld_power_on(qdf_dev->dev);
 			if (ret) {
-				hdd_err("Failed to Powerup the device; errno: %d",
+				hdd_err("Failed to power up device; errno:%d",
 					ret);
 				goto release_lock;
 			}
@@ -2842,7 +2840,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		break;
 
 	default:
-		hdd_err("WLAN start invoked in wrong state! :%d\n",
+		QDF_DEBUG_PANIC("Unknown driver state:%d",
 				hdd_ctx->driver_status);
 		ret = -EINVAL;
 		goto release_lock;
@@ -10662,8 +10660,6 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 	struct target_psoc_info *tgt_hdl;
 
 	hdd_enter();
-	hdd_alert("stop WLAN module: entering driver status=%d",
-		  hdd_ctx->driver_status);
 
 	hdd_deregister_policy_manager_callback(hdd_ctx->hdd_psoc);
 
@@ -10693,21 +10689,20 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 				WIFI_POWER_EVENT_WAKELOCK_IFACE_CHANGE_TIMER);
 			hdd_ctx->stop_modules_in_progress = false;
 			cds_set_module_stop_in_progress(false);
+
 			return 0;
 		}
 	}
-
-	hdd_info("Present Driver Status: %d", hdd_ctx->driver_status);
 
 	/* free user wowl patterns */
 	hdd_free_user_wowl_ptrns();
 
 	switch (hdd_ctx->driver_status) {
 	case DRIVER_MODULES_UNINITIALIZED:
-		hdd_info("Modules not initialized just return");
+		hdd_debug("Modules not initialized just return");
 		goto done;
 	case DRIVER_MODULES_CLOSED:
-		hdd_info("Modules already closed");
+		hdd_debug("Modules already closed");
 		goto done;
 	case DRIVER_MODULES_ENABLED:
 		hdd_info("Wlan transitioning (OPENED <- ENABLED)");
@@ -10728,9 +10723,8 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 		hdd_info("Wlan transitioning (CLOSED <- OPENED)");
 		break;
 	default:
-		hdd_err("Trying to stop wlan in a wrong state: %d",
+		QDF_DEBUG_PANIC("Unknown driver state:%d",
 				hdd_ctx->driver_status);
-		QDF_ASSERT(0);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -10797,9 +10791,9 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 	if (IS_IDLE_STOP && cds_is_target_ready()) {
 		ret = pld_power_off(qdf_ctx->dev);
 		if (ret)
-			hdd_err("CNSS power down failed put device into Low power mode:%d",
-				ret);
+			hdd_err("Failed to power down device; errno:%d", ret);
 	}
+
 	/* Free the cache channels of the command SET_DISABLE_CHANNEL_LIST */
 	wlan_hdd_free_cache_channels(hdd_ctx);
 
@@ -10815,8 +10809,6 @@ done:
 	hdd_ctx->stop_modules_in_progress = false;
 	cds_set_module_stop_in_progress(false);
 	mutex_unlock(&hdd_ctx->iface_change_lock);
-	hdd_alert("stop WLAN module: exit driver status=%d",
-		  hdd_ctx->driver_status);
 
 	hdd_exit();
 
