@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1851,8 +1851,11 @@ static inline int adreno_perfcntr_active_oob_get(
 		ret = gpudev->oob_set(adreno_dev, OOB_PERFCNTR_SET_MASK,
 				OOB_PERFCNTR_CHECK_MASK,
 				OOB_PERFCNTR_CLEAR_MASK);
-		if (ret)
+		if (ret) {
+			adreno_set_gpu_fault(adreno_dev, ADRENO_GMU_FAULT);
+			adreno_dispatcher_schedule(KGSL_DEVICE(adreno_dev));
 			kgsl_active_count_put(KGSL_DEVICE(adreno_dev));
+		}
 	}
 
 	return ret;
