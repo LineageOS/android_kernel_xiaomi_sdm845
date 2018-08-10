@@ -2215,7 +2215,7 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 		goto alloc_packet;
 	}
 
-	pe_info("Sending Auth seq# %d status %d (%d) to "
+	pe_debug("Sending Auth seq# %d status %d (%d) to "
 		MAC_ADDRESS_STR,
 		auth_frame->authTransactionSeqNumber,
 		auth_frame->authStatusCode,
