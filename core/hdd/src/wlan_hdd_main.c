@@ -13693,8 +13693,10 @@ static void hdd_update_score_config(
 
 	score_config->cb_mode_24G = cfg->nChannelBondingMode24GHz;
 	score_config->cb_mode_5G = cfg->nChannelBondingMode5GHz;
-	score_config->nss = cfg->enable2x2 ? 2 : 1;
-
+	score_config->vdev_nss_24g = cfg->enable2x2 ?
+					 CFG_STA_NSS(cfg->vdev_type_nss_2g) : 1;
+	score_config->vdev_nss_5g = cfg->enable2x2 ?
+					 CFG_STA_NSS(cfg->vdev_type_nss_5g) : 1;
 	if (cfg->dot11Mode == eHDD_DOT11_MODE_AUTO ||
 	    cfg->dot11Mode == eHDD_DOT11_MODE_11ax ||
 	    cfg->dot11Mode == eHDD_DOT11_MODE_11ax_ONLY)
