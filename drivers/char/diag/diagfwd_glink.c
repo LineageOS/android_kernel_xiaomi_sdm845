@@ -711,8 +711,8 @@ static void __diag_glink_init(struct diag_glink_info *glink_info)
 	init_waitqueue_head(&glink_info->wait_q);
 	init_waitqueue_head(&glink_info->read_wait_q);
 	mutex_init(&glink_info->lock);
-	strlcpy(wq_name, "DIAG_GLINK_", 12);
-	strlcat(wq_name, glink_info->name, sizeof(glink_info->name));
+	strlcpy(wq_name, "DIAG_GLINK_", sizeof(wq_name));
+	strlcat(wq_name, glink_info->name, sizeof(wq_name));
 	glink_info->wq = create_singlethread_workqueue(wq_name);
 	if (!glink_info->wq) {
 		pr_err("diag: In %s, unable to create workqueue for glink ch:%s\n",
