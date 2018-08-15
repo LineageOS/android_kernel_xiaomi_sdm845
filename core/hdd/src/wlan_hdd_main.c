@@ -1868,15 +1868,18 @@ void hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 	}
 	ret = hdd_objmgr_create_and_store_pdev(hdd_ctx);
 	if (ret) {
-		hdd_err("Failed to create pdev; errno:%d", ret);
-		QDF_BUG(0);
-	} else {
-		hdd_debug("New pdev has been created with pdev_id = %u",
-			  hdd_ctx->hdd_pdev->pdev_objmgr.wlan_pdev_id);
-		if (dispatcher_pdev_open(hdd_ctx->hdd_pdev)) {
-			hdd_err("dispatcher pdev open failed");
-			QDF_BUG(0);
-		}
+		QDF_DEBUG_PANIC("Failed to create pdev; errno:%d", ret);
+		return;
+	}
+
+	hdd_debug("New pdev has been created with pdev_id = %u",
+		  hdd_ctx->hdd_pdev->pdev_objmgr.wlan_pdev_id);
+
+	status = dispatcher_pdev_open(hdd_ctx->hdd_pdev);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		QDF_DEBUG_PANIC("dispatcher pdev open failed; status:%d",
+				status);
+		return;
 	}
 
 	hdd_objmgr_update_tgt_max_vdev_psoc(hdd_ctx, cfg->max_intf_count);
