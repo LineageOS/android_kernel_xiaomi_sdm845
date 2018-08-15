@@ -567,7 +567,6 @@ wma_cdp_vdev_detach(ol_txrx_soc_handle soc,
 	cdp_vdev_detach(soc,
 		iface->handle, NULL, NULL);
 	iface->handle = NULL;
-	iface->is_vdev_valid = false;
 }
 
 static QDF_STATUS wma_handle_vdev_detach(tp_wma_handle wma_handle,
@@ -849,7 +848,6 @@ QDF_STATUS wma_vdev_detach(tp_wma_handle wma_handle,
 
 	if (QDF_IS_STATUS_SUCCESS(status))
 		iface->vdev_active = false;
-
 	return status;
 
 send_fail_rsp:
@@ -1281,12 +1279,10 @@ bool wma_is_vdev_valid(uint32_t vdev_id)
 		return false;
 	}
 
-	WMA_LOGD("%s: vdev_id: %d, vdev_active: %d, is_vdev_valid %d",
-		 __func__, vdev_id, wma_handle->interfaces[vdev_id].vdev_active,
-		 wma_handle->interfaces[vdev_id].is_vdev_valid);
+	WMA_LOGD("%s: vdev_id: %d, vdev_active: %d", __func__, vdev_id,
+		 wma_handle->interfaces[vdev_id].vdev_active);
 
-	return wma_handle->interfaces[vdev_id].vdev_active ||
-		wma_handle->interfaces[vdev_id].is_vdev_valid;
+	return wma_handle->interfaces[vdev_id].vdev_active;
 }
 
 /**
@@ -2378,7 +2374,6 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 	if (ret)
 		WMA_LOGE("Failed to set WMI_VDEV_PARAM_DISCONNECT_TH");
 
-	wma_handle->interfaces[vdev_id].is_vdev_valid = true;
 	ret = wma_vdev_set_param(wma_handle->wmi_handle,
 				self_sta_req->session_id,
 				WMI_VDEV_PARAM_MCC_RTSCTS_PROTECTION_ENABLE,
@@ -5551,7 +5546,7 @@ static void wma_wait_tx_complete(tp_wma_handle wma,
 	uint8_t max_wait_iterations = 0;
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 
-	if (!wma->interfaces[session_id].is_vdev_valid) {
+	if (!wma_is_vdev_valid(session_id)) {
 		WMA_LOGE("%s: Vdev is not valid: %d",
 			 __func__, session_id);
 		return;
