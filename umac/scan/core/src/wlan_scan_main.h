@@ -47,6 +47,17 @@
 		scm_logfl(QDF_TRACE_LEVEL_INFO_HIGH, format, ## args)
 #define scm_debug(format, args...) \
 		scm_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
+/* Rate Limited Logs */
+#define scm_alert_rl(params...) \
+	QDF_TRACE_FATAL_RL(QDF_MODULE_ID_SCAN, params)
+#define scm_err_rl(params...) \
+	QDF_TRACE_ERROR_RL(QDF_MODULE_ID_SCAN, params)
+#define scm_warn_rl(params...) \
+	QDF_TRACE_WARN_RL(QDF_MODULE_ID_SCAN, params)
+#define scm_info_rl(params...) \
+	QDF_TRACE_INFO_RL(QDF_MODULE_ID_SCAN, params)
+#define scm_debug_rl(params...) \
+	QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_SCAN, params)
 
 #define scm_hex_dump(level, data, buf_len) \
 		qdf_trace_hex_dump(QDF_MODULE_ID_SCAN, level, data, buf_len)
