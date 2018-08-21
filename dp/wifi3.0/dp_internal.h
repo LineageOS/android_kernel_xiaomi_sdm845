@@ -364,10 +364,6 @@ int dp_get_peer_state(void *peer_handle);
 void dp_local_peer_id_pool_init(struct dp_pdev *pdev);
 void dp_local_peer_id_alloc(struct dp_pdev *pdev, struct dp_peer *peer);
 void dp_local_peer_id_free(struct dp_pdev *pdev, struct dp_peer *peer);
-bool dp_get_last_mgmt_timestamp(struct cdp_pdev *ppdev, u8 *peer_addr,
-				u8 subtype, qdf_time_t *timestamp);
-bool dp_update_last_mgmt_timestamp(struct cdp_pdev *ppdev, u8 *peer_addr,
-				   qdf_time_t timestamp, u8 subtype);
 #endif
 extern int dp_addba_requestprocess_wifi3(void *peer_handle,
 	uint8_t dialogtoken, uint16_t tid, uint16_t batimeout,
