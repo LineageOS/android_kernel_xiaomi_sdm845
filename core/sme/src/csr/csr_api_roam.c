@@ -1163,8 +1163,10 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 	pChanList->numChan = num_channel;
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
 			 NO_SESSION, msg.type));
-	if (QDF_STATUS_SUCCESS != scheduler_post_msg(QDF_MODULE_ID_WMA,
-						      &msg)) {
+	if (QDF_STATUS_SUCCESS != scheduler_post_message(QDF_MODULE_ID_SME,
+							 QDF_MODULE_ID_WMA,
+							 QDF_MODULE_ID_WMA,
+							 &msg)) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_FATAL,
 			  "%s: Failed to post msg to WMA", __func__);
 		qdf_mem_free(pChanList);
@@ -7056,8 +7058,10 @@ static void csr_roam_synch_clean_up(tpAniSirGlobal mac, uint8_t session_id)
 	msg.type     = WMA_ROAM_OFFLOAD_SYNCH_FAIL;
 	msg.reserved = 0;
 	msg.bodyptr  = roam_offload_failed;
-	if (!QDF_IS_STATUS_SUCCESS(scheduler_post_msg(QDF_MODULE_ID_WMA,
-						       &msg))) {
+	if (!QDF_IS_STATUS_SUCCESS(scheduler_post_message(QDF_MODULE_ID_SME,
+							  QDF_MODULE_ID_WMA,
+							  QDF_MODULE_ID_WMA,
+							  &msg))) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			"%s: Unable to post WMA_ROAM_OFFLOAD_SYNCH_FAIL to WMA",
 			__func__);
@@ -17014,7 +17018,9 @@ QDF_STATUS csr_send_mb_set_context_req_msg(tpAniSirGlobal pMac,
 
 		msg.type = eWNI_SME_SETCONTEXT_REQ;
 		msg.bodyptr = pMsg;
-		status = scheduler_post_msg(QDF_MODULE_ID_PE, &msg);
+		status = scheduler_post_message(QDF_MODULE_ID_SME,
+						QDF_MODULE_ID_PE,
+						QDF_MODULE_ID_PE, &msg);
 		if (QDF_IS_STATUS_ERROR(status))
 			qdf_mem_free(pMsg);
 	} while (0);
@@ -17394,7 +17400,9 @@ QDF_STATUS csr_issue_add_sta_for_session_req(tpAniSirGlobal pMac,
 	sme_debug(
 		"Send WMA_ADD_STA_SELF_REQ for selfMac=" MAC_ADDRESS_STR,
 		 MAC_ADDR_ARRAY(add_sta_self_req->self_mac_addr));
-	status = scheduler_post_msg(QDF_MODULE_ID_WMA, &msg);
+	status = scheduler_post_message(QDF_MODULE_ID_SME,
+					QDF_MODULE_ID_WMA,
+					QDF_MODULE_ID_WMA, &msg);
 
 	if (status != QDF_STATUS_SUCCESS) {
 		sme_err("wma_post_ctrl_msg failed");
@@ -18225,8 +18233,10 @@ QDF_STATUS csr_get_rssi(tpAniSirGlobal pMac,
 	msg.type = eWNI_SME_GET_RSSI_REQ;
 	msg.bodyptr = pMsg;
 	msg.reserved = 0;
-	if (QDF_STATUS_SUCCESS != scheduler_post_msg(QDF_MODULE_ID_SME,
-						      &msg)) {
+	if (QDF_STATUS_SUCCESS != scheduler_post_message(QDF_MODULE_ID_SME,
+							 QDF_MODULE_ID_SME,
+							 QDF_MODULE_ID_SME,
+							 &msg)) {
 		sme_err("scheduler_post_msg failed to post msg to self");
 		qdf_mem_free((void *)pMsg);
 		status = QDF_STATUS_E_FAILURE;
@@ -18266,8 +18276,10 @@ QDF_STATUS csr_get_snr(tpAniSirGlobal pMac,
 	msg.bodyptr = pMsg;
 	msg.reserved = 0;
 
-	if (QDF_STATUS_SUCCESS != scheduler_post_msg(QDF_MODULE_ID_SME,
-						      &msg)) {
+	if (QDF_STATUS_SUCCESS != scheduler_post_message(QDF_MODULE_ID_SME,
+							 QDF_MODULE_ID_SME,
+							 QDF_MODULE_ID_SME,
+							 &msg)) {
 		sme_err("failed to post msg to self");
 		qdf_mem_free((void *)pMsg);
 		status = QDF_STATUS_E_FAILURE;
@@ -19261,7 +19273,10 @@ QDF_STATUS csr_invoke_neighbor_report_request(uint8_t session_id,
 	msg.reserved = 0;
 	msg.bodyptr = invoke_params;
 
-	if (QDF_STATUS_SUCCESS != scheduler_post_msg(QDF_MODULE_ID_WMA, &msg)) {
+	if (QDF_STATUS_SUCCESS != scheduler_post_message(QDF_MODULE_ID_SME,
+							 QDF_MODULE_ID_WMA,
+							 QDF_MODULE_ID_WMA,
+							 &msg)) {
 		sme_err("Not able to post message to WMA");
 		qdf_mem_free(invoke_params);
 		return QDF_STATUS_E_FAILURE;
@@ -19731,8 +19746,10 @@ csr_roam_offload_per_scan(tpAniSirGlobal mac_ctx, uint8_t session_id)
 	msg.type = WMA_SET_PER_ROAM_CONFIG_CMD;
 	msg.reserved = 0;
 	msg.bodyptr = req_buf;
-	if (!QDF_IS_STATUS_SUCCESS(scheduler_post_msg(QDF_MODULE_ID_WMA,
-						       &msg))) {
+	if (!QDF_IS_STATUS_SUCCESS(scheduler_post_message(QDF_MODULE_ID_SME,
+							  QDF_MODULE_ID_WMA,
+							  QDF_MODULE_ID_WMA,
+							  &msg))) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			"%s: Unable to post WMA_SET_PER_ROAM_CONFIG_CMD to WMA",
 			__func__);
@@ -20932,8 +20949,10 @@ QDF_STATUS csr_handoff_request(tpAniSirGlobal pMac,
 	msg.type = eWNI_SME_HANDOFF_REQ;
 	msg.bodyptr = pMsg;
 	msg.reserved = 0;
-	if (QDF_STATUS_SUCCESS != scheduler_post_msg(QDF_MODULE_ID_SME,
-						      &msg)) {
+	if (QDF_STATUS_SUCCESS != scheduler_post_message(QDF_MODULE_ID_SME,
+							 QDF_MODULE_ID_SME,
+							 QDF_MODULE_ID_SME,
+							 &msg)) {
 		sme_err("scheduler_post_msg failed to post msg to self");
 		qdf_mem_free((void *)pMsg);
 		status = QDF_STATUS_E_FAILURE;
