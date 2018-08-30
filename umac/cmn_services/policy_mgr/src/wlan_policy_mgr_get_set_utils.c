@@ -512,7 +512,7 @@ bool policy_mgr_is_hw_dbs_capable(struct wlan_objmgr_psoc *psoc)
 {
 	uint32_t param, i, found = 0;
 	struct policy_mgr_psoc_priv_obj *pm_ctx;
-	void *wmi_handle;
+	struct wmi_unified *wmi_handle;
 
 	pm_ctx = policy_mgr_get_context(psoc);
 
@@ -526,9 +526,9 @@ bool policy_mgr_is_hw_dbs_capable(struct wlan_objmgr_psoc *psoc)
 		return false;
 	}
 
-	wmi_handle = GET_WMI_HDL_FROM_PSOC(psoc);
+	wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
 	if (!wmi_handle) {
-		policy_mgr_debug("Invalid WMA context");
+		policy_mgr_debug("Invalid WMI handle");
 		return false;
 	}
 
@@ -564,7 +564,7 @@ bool policy_mgr_is_hw_sbs_capable(struct wlan_objmgr_psoc *psoc)
 {
 	uint32_t param, i, found = 0;
 	struct policy_mgr_psoc_priv_obj *pm_ctx;
-	void *wmi_handle;
+	struct wmi_unified *wmi_handle;
 
 	pm_ctx = policy_mgr_get_context(psoc);
 	if (!pm_ctx) {
@@ -572,7 +572,11 @@ bool policy_mgr_is_hw_sbs_capable(struct wlan_objmgr_psoc *psoc)
 		return false;
 	}
 
-	wmi_handle = GET_WMI_HDL_FROM_PSOC(psoc);
+	wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
+	if (!wmi_handle) {
+		policy_mgr_debug("Invalid WMI handle");
+		return false;
+	}
 
 	policy_mgr_debug("DBS service bit map: %d",
 		wmi_service_enabled(wmi_handle,
@@ -3107,9 +3111,9 @@ bool policy_mgr_allow_sap_go_concurrency(struct wlan_objmgr_psoc *psoc,
 bool policy_mgr_dual_beacon_on_single_mac_scc_capable(
 		struct wlan_objmgr_psoc *psoc)
 {
-	void *wmi_handle = NULL;
+	struct wmi_unified *wmi_handle;
 
-	wmi_handle = GET_WMI_HDL_FROM_PSOC(psoc);
+	wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
 	if (!wmi_handle) {
 		policy_mgr_debug("Invalid WMI handle");
 		return false;
@@ -3134,9 +3138,9 @@ bool policy_mgr_dual_beacon_on_single_mac_scc_capable(
 bool policy_mgr_dual_beacon_on_single_mac_mcc_capable(
 		struct wlan_objmgr_psoc *psoc)
 {
-	void *wmi_handle = NULL;
+	struct wmi_unified *wmi_handle;
 
-	wmi_handle = GET_WMI_HDL_FROM_PSOC(psoc);
+	wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
 	if (!wmi_handle) {
 		policy_mgr_debug("Invalid WMI handle");
 		return false;
