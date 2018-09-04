@@ -12197,6 +12197,11 @@ static void hdd_qdf_print_deinit(void)
 	qdf_print_ctrl_cleanup(qdf_print_idx);
 }
 
+static inline int hdd_state_query_cb(void)
+{
+	return !!wlan_hdd_validate_context(cds_get_context(QDF_MODULE_ID_HDD));
+}
+
 /**
  * hdd_init() - Initialize Driver
  *
@@ -12217,6 +12222,7 @@ int hdd_init(void)
 		ret = -ENOMEM;
 		goto err_out;
 	}
+	qdf_register_module_state_query_callback(hdd_state_query_cb);
 
 	wlan_init_bug_report_lock();
 
