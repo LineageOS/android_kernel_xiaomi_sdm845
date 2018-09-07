@@ -1214,7 +1214,7 @@ QDF_STATUS hdd_softap_change_sta_state(struct hdd_adapter *adapter,
 	if (QDF_STATUS_SUCCESS == qdf_status) {
 		adapter->sta_info[sta_id].peer_state =
 			OL_TXRX_PEER_STATE_AUTH;
-		p2p_peer_authorized(adapter->hdd_vdev, sta_mac->bytes);
+		p2p_peer_authorized(adapter->vdev, sta_mac->bytes);
 	}
 
 	hdd_exit();
