@@ -178,32 +178,6 @@
 	qcom,switch-freq-khz = <600>;
 };
 
-&red_led {
-	linux,name = "white";
-	qcom,start-idx = <1>;
-	qcom,idx-len = <18>;
-	qcom,duty-pcts = [00 01 02 03 04 05 06 07 08
-			08 07 06 05 04 03 02 01 00];
-	qcom,lut-flags = <3>;
-	qcom,pause-lo = <0>;
-	qcom,pause-hi = <0>;
-	qcom,ramp-step-ms = <142>;
-	qcom,use-blink;
-	status = "okay";
-};
-
-&green_led {
-	status = "disabled";
-};
-
-&blue_led {
-	status = "disabled";
-};
-
-&sde_dp {
-	status = "disabled";
-};
-
 &pmi8998_haptics {
        qcom,vmax-mv = <2812>;
        qcom,lra-auto-mode;
