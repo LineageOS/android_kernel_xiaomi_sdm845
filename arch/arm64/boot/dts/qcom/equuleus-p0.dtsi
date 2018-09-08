@@ -216,28 +216,6 @@
 	qcom,dsi-display-active;
 };
 
-&red_led {
-	linux,name = "white";
-	qcom,start-idx = <1>;
-	qcom,idx-len = <8>;
-	qcom,duty-pcts = [00 01 02 03 03
-			02 01 00];
-	qcom,lut-flags = <3>;
-	qcom,pause-lo = <0>;
-	qcom,pause-hi = <0>;
-	qcom,ramp-step-ms = <255>;
-	qcom,use-blink;
-	status = "okay";
-};
-
-&green_led {
-	status = "disabled";
-};
-
-&blue_led {
-	status = "disabled";
-};
-
 &sde_dp {
 	status = "disabled";
 };
