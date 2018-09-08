@@ -32,3 +32,24 @@
 		};
 	};
 };
+
+&red_led {
+	linux,name = "white";
+	qcom,start-idx = <1>;
+	qcom,idx-len = <11>;
+	qcom,duty-pcts = [00 05 0a 0f 14 1d 28 32 3c 4b 64];
+	qcom,lut-flags = <0x1f>;
+	qcom,pause-lo = <2000>;
+	qcom,pause-hi = <1000>;
+	qcom,ramp-step-ms = <100>;
+	qcom,use-blink;
+	status = "okay";
+};
+
+&green_led {
+	status = "disabled";
+};
+
+&blue_led {
+	status = "disabled";
+};
