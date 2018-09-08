@@ -1,3 +1,151 @@
+ifeq ($(CONFIG_MACH_XIAOMI_SDM845),y)
+ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
+	dtbo-y += \
+		sdm845-mtp-overlay.dtbo \
+		sdm845-v2-mtp-overlay.dtbo \
+		sdm845-v2.1-mtp-overlay.dtbo
+
+	dtbo-$(CONFIG_MACH_XIAOMI_D5X) += \
+		polaris-p0-overlay.dtbo  \
+		polaris-p0-v2-overlay.dtbo \
+		polaris-p1-overlay.dtbo  \
+		polaris-p1-v2-overlay.dtbo \
+		polaris-p1-v2.1-overlay.dtbo \
+		polaris-p2-overlay.dtbo  \
+		polaris-p2-v2-overlay.dtbo \
+		polaris-p2-v2.1-overlay.dtbo \
+		polaris-p3-overlay.dtbo  \
+		polaris-p3-v2-overlay.dtbo \
+		polaris-p3-v2.1-overlay.dtbo
+
+	dtbo-$(CONFIG_MACH_XIAOMI_E1N) += \
+		dipper-p0-v2-overlay.dtbo \
+		dipper-p0-v2.1-overlay.dtbo \
+
+	dtbo-$(CONFIG_MACH_XIAOMI_E10) += \
+		beryllium-p0-v2-overlay.dtbo \
+		beryllium-p0-v2.1-overlay.dtbo
+
+	dtbo-$(CONFIG_MACH_XIAOMI_E5) += \
+		perseus-p0-v2.1-overlay.dtbo \
+		perseus-p1-v2.1-overlay.dtbo \
+		perseus-p1_2-v2.1-overlay.dtbo \
+		perseus-p2-v2.1-overlay.dtbo \
+		perseus-p3-v2.1-overlay.dtbo \
+		perseus-mp-v2.1-overlay.dtbo
+
+sdm845-mtp-overlay.dtbo-base := sdm845.dtb
+sdm845-v2-mtp-overlay.dtbo-base := sdm845-v2.dtb
+sdm845-v2.1-mtp-overlay.dtbo-base := sdm845-v2.1.dtb
+
+polaris-p0-overlay.dtbo-base := sdm845.dtb
+polaris-p0-v2-overlay.dtbo-base := sdm845-v2.dtb
+polaris-p1-overlay.dtbo-base := sdm845.dtb
+polaris-p1-v2-overlay.dtbo-base := sdm845-v2.dtb
+polaris-p1-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+polaris-p2-overlay.dtbo-base := sdm845.dtb
+polaris-p2-v2-overlay.dtbo-base := sdm845-v2.dtb
+polaris-p2-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+polaris-p3-overlay.dtbo-base := sdm845.dtb
+polaris-p3-v2-overlay.dtbo-base := sdm845-v2.dtb
+polaris-p3-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+
+dipper-p0-v2-overlay.dtbo-base := sdm845-v2.dtb
+dipper-p0-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+dipper-p1-v2-overlay.dtbo-base := sdm845-v2.dtb
+dipper-p1-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+dipper-p2-v2-overlay.dtbo-base := sdm845-v2.dtb
+dipper-p2-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+
+beryllium-p0-v2-overlay.dtbo-base := sdm845-v2.dtb
+beryllium-p0-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+
+perseus-p0-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+perseus-p1-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+perseus-p1_2-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+perseus-p2-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+perseus-p3-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+perseus-mp-v2.1-overlay.dtbo-base := sdm845-v2.1.dtb
+else
+dtb-y += \
+	sdm845-sim.dtb \
+	sdm845-rumi.dtb \
+	sdm845-mtp.dtb \
+	sdm845-cdp.dtb \
+	sdm845-v2-rumi.dtb \
+	sdm845-v2-mtp.dtb \
+	sdm845-v2-cdp.dtb \
+	sdm845-qrd.dtb \
+	sdm845-v2-qrd.dtb \
+	sdm845-4k-panel-mtp.dtb \
+	sdm845-4k-panel-cdp.dtb \
+	sdm845-4k-panel-qrd.dtb
+
+dtb-$(CONFIG_MACH_XIAOMI_D5X) += \
+	polaris-p0.dtb \
+	polaris-p0-v2.dtb \
+	polaris-p1.dtb \
+	polaris-p1-v2.dtb \
+	polaris-p1-v2.1.dtb \
+	polaris-p2.dtb \
+	polaris-p2-v2.dtb \
+	polaris-p2-v2.1.dtb \
+	polaris-p3.dtb \
+	polaris-p3-v2.dtb \
+	polaris-p3-v2.1.dtb \
+	polaris-mp.dtb \
+	polaris-mp-v2.dtb \
+	polaris-mp-v2.1.dtb
+
+dtb-$(CONFIG_MACH_XIAOMI_E1N) += \
+	dipper-p0-v2.dtb \
+	dipper-p0-v2.1.dtb \
+	dipper-p1-v2-cn.dtb \
+	dipper-p1-v2.1-cn.dtb \
+	dipper-p1-v2-gb.dtb \
+	dipper-p1-v2.1-gb.dtb \
+	dipper-p1.1-v2.dtb \
+	dipper-p1.1-v2.1.dtb \
+	dipper-p2-v2.dtb \
+	dipper-p2-v2.1.dtb \
+	dipper-mp-v2.dtb \
+	dipper-mp-v2.1.dtb
+
+dtb-$(CONFIG_MACH_XIAOMI_E10) += \
+	beryllium-p0-v2.dtb \
+	beryllium-p0-v2.1.dtb \
+	beryllium-p1-v2.1.dtb \
+	beryllium-p2-v2.1.dtb \
+	beryllium-mp-v2.1.dtb
+
+dtb-$(CONFIG_MACH_XIAOMI_E1S) += \
+	equuleus-p0-v2.dtb \
+	equuleus-p0-v2.1.dtb \
+	equuleus-p1-v2.dtb \
+	equuleus-p1-v2.1.dtb \
+	equuleus-mp-v2.dtb \
+	equuleus-mp-v2.1.dtb
+
+dtb-$(CONFIG_MACH_XIAOMI_E8) += \
+	ursa-p0-v2.dtb \
+	ursa-p0-v2.1.dtb \
+	ursa-p1-v2.dtb \
+	ursa-p1-v2.1.dtb \
+	ursa-p2-v2.dtb \
+	ursa-p2-v2.1.dtb \
+	ursa-mp-v2.dtb \
+	ursa-mp-v2.1.dtb
+
+dtb-$(CONFIG_MACH_XIAOMI_E5) += \
+	perseus-p0-v2.dtb \
+	perseus-p0-v2.1.dtb \
+	perseus-p1-v2.1.dtb \
+	perseus-p1_2-v2.1.dtb \
+	perseus-p2-v2.1.dtb \
+	perseus-p3-v2.1.dtb \
+	perseus-mp-v2.1.dtb
+endif
+else
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc.dtb msm8916-mtp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8996-mtp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8096-db820c.dtb
@@ -113,6 +261,7 @@ dtb-$(CONFIG_ARCH_SDM845) += sdm845-sim.dtb \
 	sdm845-interposer-sdm670-cdp.dtb \
 	sdm845-v2.1-rb3.dtb \
 	sdm845-v2.1-mtp.dtb
+endif
 endif
 
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
