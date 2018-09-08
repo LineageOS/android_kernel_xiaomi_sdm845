@@ -1324,3 +1324,61 @@ source "arch/arm64/crypto/Kconfig"
 endif
 
 source "lib/Kconfig"
+
+# Xiaomi configuration options
+menu "Xiaomi configuration options"
+
+config MACH_XIAOMI
+        bool "Xiaomi device"
+        depends on ARCH_QCOM
+        help
+          Support for Xiaomi products
+
+config MACH_XIAOMI_SDM845
+        bool "Xiaomi SDM845"
+        depends on ARCH_SDM845
+        select MACH_XIAOMI
+        help
+          Support for SDM845-based Xiaomi variants
+
+menu "Xiaomi board selection"
+
+config MACH_XIAOMI_D5X
+        bool "D5X board"
+        select MACH_XIAOMI_SDM845
+        help
+          Support for Xiaomi MIX 2S (polaris)
+
+config MACH_XIAOMI_E1N
+        bool "E1N board"
+        select MACH_XIAOMI_SDM845
+        help
+          Support for Xiaomi Mi 8 (dipper)
+
+config MACH_XIAOMI_E10
+        bool "E10 board"
+        select MACH_XIAOMI_SDM845
+        help
+          Support for Xiaomi Poco F1 (beryllium)
+
+config MACH_XIAOMI_E1S
+        bool "E1S board"
+        select MACH_XIAOMI_SDM845
+        help
+          Support for Xiaomi Mi 8 Pro (equuleus)
+
+config MACH_XIAOMI_E8
+        bool "E8 board"
+        select MACH_XIAOMI_SDM845
+        help
+          Support for Xiaomi Mi 8 Explorer Edition (ursa)
+
+config MACH_XIAOMI_E5
+        bool "E5 board"
+        select MACH_XIAOMI_SDM845
+        help
+          Support for Xiaomi MIX 3 (perseus)
+
+endmenu
+
+endmenu
