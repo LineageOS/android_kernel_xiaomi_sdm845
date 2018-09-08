@@ -184,14 +184,13 @@
 
 &red_led {
 	linux,name = "white";
-	qcom,start-idx = <1>;
-	qcom,idx-len = <18>;
-	qcom,duty-pcts = [00 01 02 03 04 05 06 07 08
-			08 07 06 05 04 03 02 01 00];
-	qcom,lut-flags = <3>;
-	qcom,pause-lo = <0>;
-	qcom,pause-hi = <0>;
-	qcom,ramp-step-ms = <142>;
+	qcom,start-idx = <0>;
+	qcom,idx-len = <8>;
+	qcom,duty-pcts = [ 00 0E 1C 2A 38 46 54 64 ];
+	qcom,lut-flags = <31>; /* loop, ramp up, reverse, pause hi, pause lo */
+	qcom,pause-lo = <500>;
+	qcom,pause-hi = <500>;
+	qcom,ramp-step-ms = <50>;
 	qcom,use-blink;
 	status = "okay";
 };
