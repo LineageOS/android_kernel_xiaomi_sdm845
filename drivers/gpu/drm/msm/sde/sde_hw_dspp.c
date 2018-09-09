@@ -60,11 +60,13 @@ static void _setup_dspp_ops(struct sde_hw_dspp *c, unsigned long features)
 				c->ops.setup_pcc = sde_setup_dspp_pcc_v1_7;
 			else if (c->cap->sblk->pcc.version ==
 					(SDE_COLOR_PROCESS_VER(0x4, 0x0))) {
+#if 0
 				ret = reg_dmav1_init_dspp_op_v4(i, c->idx);
 				if (!ret)
 					c->ops.setup_pcc =
 						reg_dmav1_setup_dspp_pccv4;
 				else
+#endif
 					c->ops.setup_pcc =
 						sde_setup_dspp_pccv4;
 			}
