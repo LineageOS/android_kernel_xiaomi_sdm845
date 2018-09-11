@@ -1189,7 +1189,8 @@ qdf_nbuf_alloc(qdf_device_t osdev,
 
 static inline void qdf_nbuf_free(qdf_nbuf_t buf)
 {
-	__qdf_nbuf_free(buf);
+	if (qdf_likely(buf))
+		__qdf_nbuf_free(buf);
 }
 
 /**
