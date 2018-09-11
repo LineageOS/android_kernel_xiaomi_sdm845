@@ -13588,6 +13588,9 @@ static int hdd_update_scan_config(struct hdd_context *hdd_ctx)
 		hdd_err("failed pmo psoc configuration");
 		return -EINVAL;
 	}
+	ucfg_scan_set_global_config(
+		psoc, SCAN_CFG_DROP_BCN_ON_CHANNEL_MISMATCH,
+		cfg->drop_bcn_on_chan_mismatch);
 
 	return 0;
 }

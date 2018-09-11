@@ -813,6 +813,27 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * drop_bcn_on_chan_mismatch - drop the beacon for chan mismatch
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to decide drop the beacon or not if channel received
+ * in metadata doesn't match the one in beacon.
+ *
+ * Related: None
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DROP_BCN_ON_CHANNEL_MISMATCH      "drop_bcn_on_chan_mismatch"
+#define CFG_DROP_BCN_ON_CHANNEL_MISMATCH_MIN       (0)
+#define CFG_DROP_BCN_ON_CHANNEL_MISMATCH_MAX       (1)
+#define CFG_DROP_BCN_ON_CHANNEL_MISMATCH_DEFAULT   (1)
+
+/*
+ * <ini>
  * gPassiveMaxChannelTime - Set max channel time for passive scan
  * @Min: 0
  * @Max: 10000
@@ -14854,6 +14875,7 @@ struct hdd_config {
 	uint32_t active_dwell_2g;       /* in units of milliseconds */
 	uint32_t scan_probe_repeat_time;
 	uint32_t scan_num_probes;
+	bool drop_bcn_on_chan_mismatch;
 
 	uint32_t nInitialDwellTime;     /* in units of milliseconds */
 	bool initial_scan_no_dfs_chnl;
