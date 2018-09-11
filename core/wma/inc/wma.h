@@ -1726,7 +1726,7 @@ QDF_STATUS wma_set_rssi_monitoring(tp_wma_handle wma,
 					struct rssi_monitor_req *req);
 
 QDF_STATUS wma_send_pdev_set_pcl_cmd(tp_wma_handle wma_handle,
-		struct wmi_pcl_chan_weights *msg);
+				     struct set_pcl_req *msg);
 
 QDF_STATUS wma_send_pdev_set_hw_mode_cmd(tp_wma_handle wma_handle,
 		struct policy_mgr_hw_mode *msg);
