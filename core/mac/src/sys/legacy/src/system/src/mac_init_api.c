@@ -114,8 +114,9 @@ QDF_STATUS mac_open(struct wlan_objmgr_psoc *psoc, tHalHandle *pHalHandle,
 			p_mac->gDriverType = QDF_DRIVER_TYPE_MFG;
 
 		/* Call routine to initialize CFG data structures */
-		if (QDF_STATUS_SUCCESS != cfg_init(p_mac))
-			return QDF_STATUS_E_FAILURE;
+		status = cfg_init(p_mac);
+		if (QDF_IS_STATUS_ERROR(status))
+			goto release_psoc_ref;
 
 		sys_init_globals(p_mac);
 	}
@@ -126,10 +127,16 @@ QDF_STATUS mac_open(struct wlan_objmgr_psoc *psoc, tHalHandle *pHalHandle,
 	p_mac->is_usr_cfg_amsdu_enabled = true;
 
 	status =  pe_open(p_mac, cds_cfg);
-	if (QDF_STATUS_SUCCESS != status) {
+	if (QDF_IS_STATUS_ERROR(status)) {
 		pe_err("pe_open() failure");
 		cfg_de_init(p_mac);
+		goto release_psoc_ref;
 	}
+
+	return status;
+
+release_psoc_ref:
+	wlan_objmgr_psoc_release_ref(psoc, WLAN_LEGACY_MAC_ID);
 
 	return status;
 }
