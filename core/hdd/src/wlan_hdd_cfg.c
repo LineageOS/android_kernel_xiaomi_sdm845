@@ -5547,6 +5547,90 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_MWS_COEX_5G_NR_PWR_LIMIT_MIN,
 		     CFG_MWS_COEX_5G_NR_PWR_LIMIT_MAX),
 #endif
+	REG_VARIABLE(CFG_SET_BTC_MODE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, set_btc_mode,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SET_BTC_MODE_DEFAULT,
+		     CFG_SET_BTC_MODE_MIN,
+		     CFG_SET_BTC_MODE_MAX),
+
+	REG_VARIABLE(CFG_SET_ANTENNA_ISOLATION_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, set_antenna_isolation,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SET_ANTENNA_ISOLATION_DEFAULT,
+		     CFG_SET_ANTENNA_ISOLATION_MIN,
+		     CFG_SET_ANTENNA_ISOLATION_MAX),
+
+	REG_VARIABLE(CFG_SET_MAX_TX_POWER_FOR_BTC_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, set_max_tx_power_for_btc,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SET_MAX_TX_POWER_FOR_BTC_DEFAULT,
+		     CFG_SET_MAX_TX_POWER_FOR_BTC_MIN,
+		     CFG_SET_MAX_TX_POWER_FOR_BTC_MAX),
+
+	REG_VARIABLE(CFG_SET_WLAN_LOW_RSSI_THRESHOLD_NAME,
+		     WLAN_PARAM_SignedInteger,
+		     struct hdd_config, set_wlan_low_rssi_threshold,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SET_WLAN_LOW_RSSI_THRESHOLD_DEFAULT,
+		     CFG_SET_WLAN_LOW_RSSI_THRESHOLD_MIN,
+		     CFG_SET_WLAN_LOW_RSSI_THRESHOLD_MAX),
+
+	REG_VARIABLE(CFG_SET_BT_LOW_RSSI_THRESHOLD_NAME,
+		     WLAN_PARAM_SignedInteger,
+		     struct hdd_config, set_bt_low_rssi_threshold,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SET_BT_LOW_RSSI_THRESHOLD_DEFAULT,
+		     CFG_SET_BT_LOW_RSSI_THRESHOLD_MIN,
+		     CFG_SET_BT_LOW_RSSI_THRESHOLD_MAX),
+
+	REG_VARIABLE(CFG_SET_BT_INTERFERENCE_LOW_LL_NAME,
+		     WLAN_PARAM_SignedInteger,
+		     struct hdd_config, set_bt_interference_low_ll,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_LOW_LL_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_LOW_LL_MIN,
+		     CFG_SET_BT_INTERFERENCE_LOW_LL_MAX),
+
+	REG_VARIABLE(CFG_SET_BT_INTERFERENCE_LOW_UL_NAME,
+		     WLAN_PARAM_SignedInteger,
+		     struct hdd_config, set_bt_interference_low_ul,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_LOW_UL_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_LOW_UL_MIN,
+		     CFG_SET_BT_INTERFERENCE_LOW_UL_MAX),
+
+	REG_VARIABLE(CFG_SET_BT_INTERFERENCE_MEDIUM_LL_NAME,
+		     WLAN_PARAM_SignedInteger,
+		     struct hdd_config, set_bt_interference_medium_ll,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_MEDIUM_LL_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_MEDIUM_LL_MIN,
+		     CFG_SET_BT_INTERFERENCE_MEDIUM_LL_MAX),
+
+	REG_VARIABLE(CFG_SET_BT_INTERFERENCE_MEDIUM_UL_NAME,
+		     WLAN_PARAM_SignedInteger,
+		     struct hdd_config, set_bt_interference_medium_ul,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_MEDIUM_UL_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_MEDIUM_UL_MIN,
+		     CFG_SET_BT_INTERFERENCE_MEDIUM_UL_MAX),
+
+	REG_VARIABLE(CFG_SET_BT_INTERFERENCE_HIGH_LL_NAME,
+		     WLAN_PARAM_SignedInteger,
+		     struct hdd_config, set_bt_interference_high_ll,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_HIGH_LL_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_HIGH_LL_MIN,
+		     CFG_SET_BT_INTERFERENCE_HIGH_LL_MAX),
+
+	REG_VARIABLE(CFG_SET_BT_INTERFERENCE_HIGH_UL_NAME,
+		     WLAN_PARAM_SignedInteger,
+		     struct hdd_config, set_bt_interference_high_ul,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_HIGH_UL_DEFAULT,
+		     CFG_SET_BT_INTERFERENCE_HIGH_UL_MIN,
+		     CFG_SET_BT_INTERFERENCE_HIGH_UL_MAX),
 };
 
 
@@ -6547,6 +6631,49 @@ static void hdd_cfg_print_action_oui(struct hdd_context *hdd_ctx)
 }
 
 /**
+ * hdd_cfg_print_btc_params() - print btc param values
+ * @hdd_ctx: pointer to hdd context
+ *
+ * Return: None
+ */
+static void hdd_cfg_print_btc_params(struct hdd_context *hdd_ctx)
+{
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_SET_BTC_MODE_NAME,
+		  hdd_ctx->config->set_btc_mode);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_SET_ANTENNA_ISOLATION_NAME,
+		  hdd_ctx->config->set_antenna_isolation);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_SET_MAX_TX_POWER_FOR_BTC_NAME,
+		  hdd_ctx->config->set_max_tx_power_for_btc);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_SET_WLAN_LOW_RSSI_THRESHOLD_NAME,
+		  hdd_ctx->config->set_wlan_low_rssi_threshold);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_SET_BT_LOW_RSSI_THRESHOLD_NAME,
+		  hdd_ctx->config->set_bt_low_rssi_threshold);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_SET_BT_INTERFERENCE_LOW_LL_NAME,
+		  hdd_ctx->config->set_bt_interference_low_ll);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_SET_BT_INTERFERENCE_LOW_UL_NAME,
+		  hdd_ctx->config->set_bt_interference_low_ul);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_SET_BT_INTERFERENCE_MEDIUM_LL_NAME,
+		  hdd_ctx->config->set_bt_interference_medium_ll);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_SET_BT_INTERFERENCE_MEDIUM_UL_NAME,
+		  hdd_ctx->config->set_bt_interference_medium_ul);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_SET_BT_INTERFERENCE_HIGH_LL_NAME,
+		  hdd_ctx->config->set_bt_interference_high_ll);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_SET_BT_INTERFERENCE_HIGH_UL_NAME,
+		  hdd_ctx->config->set_bt_interference_high_ul);
+}
+
+/**
  * hdd_cfg_print() - print the hdd configuration
  * @iniTable: pointer to hdd context
  *
@@ -7493,7 +7620,7 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 		  hdd_ctx->config->roam_force_rssi_trigger);
 
 	hdd_cfg_print_action_oui(hdd_ctx);
-
+	hdd_cfg_print_btc_params(hdd_ctx);
 }
 
 

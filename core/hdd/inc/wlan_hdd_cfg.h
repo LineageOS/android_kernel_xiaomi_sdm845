@@ -14770,6 +14770,186 @@ enum hdd_external_acs_policy {
 #endif
 
 /*
+ * <ini>
+ * gSetBTCMode - Config BTC mode
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * 0 - TDD
+ * 1 - FDD
+ * 2 - Hybrid
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_BTC_MODE_NAME     "gSetBTCMode"
+#define CFG_SET_BTC_MODE_MIN      (0)
+#define CFG_SET_BTC_MODE_MAX      (2)
+#define CFG_SET_BTC_MODE_DEFAULT  (0)
+
+/*
+ * <ini>
+ * gSetAntennaIsolation - Set Antenna Isolation
+ * @Min: 0
+ * @Max: 255
+ * @Default: 25
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_ANTENNA_ISOLATION_NAME     "gSetAntennaIsolation"
+#define CFG_SET_ANTENNA_ISOLATION_MIN      (0)
+#define CFG_SET_ANTENNA_ISOLATION_MAX      (255)
+#define CFG_SET_ANTENNA_ISOLATION_DEFAULT  (25)
+
+/*
+ * <ini>
+ * gSetMaxTxPowerForBTC - Set Max WLAN Tx power in COEX scenario
+ * @Min: 0
+ * @Max: 100
+ * @Default: 100
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_MAX_TX_POWER_FOR_BTC_NAME     "gSetMaxTxPowerForBTC"
+#define CFG_SET_MAX_TX_POWER_FOR_BTC_MIN      (0)
+#define CFG_SET_MAX_TX_POWER_FOR_BTC_MAX      (100)
+#define CFG_SET_MAX_TX_POWER_FOR_BTC_DEFAULT  (100)
+
+/*
+ * <ini>
+ * gSetWlanLowRssiThreshold - Set WLAN low RSSI threshold for BTC mode switching
+ * @Min: -100
+ * @Max: 0
+ * @Default: -80
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_WLAN_LOW_RSSI_THRESHOLD_NAME     "gSetWlanLowRssiThreshold"
+#define CFG_SET_WLAN_LOW_RSSI_THRESHOLD_MIN      (-100)
+#define CFG_SET_WLAN_LOW_RSSI_THRESHOLD_MAX      (0)
+#define CFG_SET_WLAN_LOW_RSSI_THRESHOLD_DEFAULT  (-80)
+
+/*
+ * <ini>
+ * gSetBtLowRssiThreshold - Set BT low RSSI threshold for BTC mode switching
+ * @Min: -100
+ * @Max: 0
+ * @Default: -80
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_BT_LOW_RSSI_THRESHOLD_NAME     "gSetBtLowRssiThreshold"
+#define CFG_SET_BT_LOW_RSSI_THRESHOLD_MIN      (-100)
+#define CFG_SET_BT_LOW_RSSI_THRESHOLD_MAX      (0)
+#define CFG_SET_BT_LOW_RSSI_THRESHOLD_DEFAULT  (-80)
+
+/*
+ * <ini>
+ * gSetBtInterferenceLowLL - Set lower limit of low level BT interference
+ * @Min: -100
+ * @Max: 100
+ * @Default: -25
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_BT_INTERFERENCE_LOW_LL_NAME     "gSetBtInterferenceLowLL"
+#define CFG_SET_BT_INTERFERENCE_LOW_LL_MIN      (-100)
+#define CFG_SET_BT_INTERFERENCE_LOW_LL_MAX      (100)
+#define CFG_SET_BT_INTERFERENCE_LOW_LL_DEFAULT  (-25)
+
+/*
+ * <ini>
+ * gSetBtInterferenceLowUL - Set upper limit of low level BT interference
+ * @Min: -100
+ * @Max: 100
+ * @Default: -21
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_BT_INTERFERENCE_LOW_UL_NAME     "gSetBtInterferenceLowUL"
+#define CFG_SET_BT_INTERFERENCE_LOW_UL_MIN      (-100)
+#define CFG_SET_BT_INTERFERENCE_LOW_UL_MAX      (100)
+#define CFG_SET_BT_INTERFERENCE_LOW_UL_DEFAULT  (-21)
+
+/*
+ * <ini>
+ * gSetBtInterferenceMediumLL - Set lower limit of medium level BT interference
+ * @Min: -100
+ * @Max: 100
+ * @Default: -20
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_BT_INTERFERENCE_MEDIUM_LL_NAME     "gSetBtInterferenceMediumLL"
+#define CFG_SET_BT_INTERFERENCE_MEDIUM_LL_MIN      (-100)
+#define CFG_SET_BT_INTERFERENCE_MEDIUM_LL_MAX      (100)
+#define CFG_SET_BT_INTERFERENCE_MEDIUM_LL_DEFAULT  (-20)
+
+/*
+ * <ini>
+ * gSetBtInterferenceMediumUL - Set upper limit of medium level BT interference
+ * @Min: -100
+ * @Max: 100
+ * @Default: -16
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_BT_INTERFERENCE_MEDIUM_UL_NAME     "gSetBtInterferenceMediumUL"
+#define CFG_SET_BT_INTERFERENCE_MEDIUM_UL_MIN      (-100)
+#define CFG_SET_BT_INTERFERENCE_MEDIUM_UL_MAX      (100)
+#define CFG_SET_BT_INTERFERENCE_MEDIUM_UL_DEFAULT  (-16)
+
+/*
+ * <ini>
+ * gSetBtInterferenceHighLL - Set lower limit of high level BT interference
+ * @Min: -100
+ * @Max: 100
+ * @Default: -15
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_BT_INTERFERENCE_HIGH_LL_NAME     "gSetBtInterferenceHighLL"
+#define CFG_SET_BT_INTERFERENCE_HIGH_LL_MIN      (-100)
+#define CFG_SET_BT_INTERFERENCE_HIGH_LL_MAX      (100)
+#define CFG_SET_BT_INTERFERENCE_HIGH_LL_DEFAULT  (-15)
+
+/*
+ * <ini>
+ * gSetBtInterferenceHighUL - Set upper limit of high level BT interference
+ * @Min: -100
+ * @Max: 100
+ * @Default: -11
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_BT_INTERFERENCE_HIGH_UL_NAME     "gSetBtInterferenceHighUL"
+#define CFG_SET_BT_INTERFERENCE_HIGH_UL_MIN      (-100)
+#define CFG_SET_BT_INTERFERENCE_HIGH_UL_MAX      (100)
+#define CFG_SET_BT_INTERFERENCE_HIGH_UL_DEFAULT  (-11)
+
+/*
  * Type declarations
  */
 
@@ -15678,6 +15858,17 @@ struct hdd_config {
 	bool enable_ftopen;
 	bool enable_rtt_mac_randomization;
 	bool roam_force_rssi_trigger;
+	uint8_t set_btc_mode;
+	uint8_t set_antenna_isolation;
+	uint8_t set_max_tx_power_for_btc;
+	int16_t set_wlan_low_rssi_threshold;
+	int16_t set_bt_low_rssi_threshold;
+	int16_t set_bt_interference_low_ll;
+	int16_t set_bt_interference_low_ul;
+	int16_t set_bt_interference_medium_ll;
+	int16_t set_bt_interference_medium_ul;
+	int16_t set_bt_interference_high_ll;
+	int16_t set_bt_interference_high_ul;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
