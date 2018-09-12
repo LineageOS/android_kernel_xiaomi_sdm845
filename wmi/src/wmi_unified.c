@@ -84,6 +84,16 @@ typedef PREPACK struct {
 
 #define WMI_MIN_HEAD_ROOM 64
 
+/* WBUFF pool sizes for WMI */
+/* Allocation of size 256 bytes */
+#define WMI_WBUFF_POOL_0_SIZE 128
+/* Allocation of size 512 bytes */
+#define WMI_WBUFF_POOL_1_SIZE 16
+/* Allocation of size 1024 bytes */
+#define WMI_WBUFF_POOL_2_SIZE 8
+/* Allocation of size 2048 bytes */
+#define WMI_WBUFF_POOL_3_SIZE 8
+
 #ifdef WMI_INTERFACE_EVENT_LOGGING
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0))
 /* TODO Cleanup this backported function */
@@ -1273,10 +1283,13 @@ wmi_buf_alloc_debug(wmi_unified_t wmi_handle, uint16_t len, uint8_t *file_name,
 		return NULL;
 	}
 
-	wmi_buf = qdf_nbuf_alloc_debug(NULL,
-					roundup(len + WMI_MIN_HEAD_ROOM, 4),
-					WMI_MIN_HEAD_ROOM, 4, false, file_name,
-					line_num);
+	wmi_buf = wbuff_buff_get(wmi_handle->wbuff_handle, len);
+	if (!wmi_buf)
+		wmi_buf = qdf_nbuf_alloc_debug(NULL,
+					       roundup(len + WMI_MIN_HEAD_ROOM,
+						       4),
+					       WMI_MIN_HEAD_ROOM, 4, false,
+					       file_name, line_num);
 
 	if (!wmi_buf)
 		return NULL;
@@ -1295,7 +1308,9 @@ qdf_export_symbol(wmi_buf_alloc_debug);
 
 void wmi_buf_free(wmi_buf_t net_buf)
 {
-	qdf_nbuf_free(net_buf);
+	net_buf = wbuff_buff_put(net_buf);
+	if (net_buf)
+		qdf_nbuf_free(net_buf);
 }
 qdf_export_symbol(wmi_buf_free);
 #else
@@ -1310,8 +1325,12 @@ wmi_buf_t wmi_buf_alloc_fl(wmi_unified_t wmi_handle, uint32_t len,
 		return NULL;
 	}
 
-	wmi_buf = qdf_nbuf_alloc_fl(NULL, roundup(len + WMI_MIN_HEAD_ROOM, 4),
-				    WMI_MIN_HEAD_ROOM, 4, false, func, line);
+	wmi_buf = wbuff_buff_get(wmi_handle->wbuff_handle, len);
+	if (!wmi_buf)
+		wmi_buf = qdf_nbuf_alloc_fl(NULL, roundup(len +
+				WMI_MIN_HEAD_ROOM, 4), WMI_MIN_HEAD_ROOM, 4,
+				false, func, line);
+
 	if (!wmi_buf)
 		return NULL;
 
@@ -1328,7 +1347,9 @@ qdf_export_symbol(wmi_buf_alloc_fl);
 
 void wmi_buf_free(wmi_buf_t net_buf)
 {
-	qdf_nbuf_free(net_buf);
+	net_buf = wbuff_buff_put(net_buf);
+	if (net_buf)
+		qdf_nbuf_free(net_buf);
 }
 qdf_export_symbol(wmi_buf_free);
 #endif
@@ -2200,6 +2221,41 @@ void wmi_unified_register_module(enum wmi_target_type target_type,
 qdf_export_symbol(wmi_unified_register_module);
 
 /**
+ * wmi_wbuff_register() - register wmi with wbuff
+ * @wmi_handle: handle to wmi
+ *
+ * @Return: void
+ */
+static void wmi_wbuff_register(struct wmi_unified *wmi_handle)
+{
+	struct wbuff_alloc_request wbuff_alloc[4];
+
+	wbuff_alloc[0].slot = WBUFF_POOL_0;
+	wbuff_alloc[0].size = WMI_WBUFF_POOL_0_SIZE;
+	wbuff_alloc[1].slot = WBUFF_POOL_1;
+	wbuff_alloc[1].size = WMI_WBUFF_POOL_1_SIZE;
+	wbuff_alloc[2].slot = WBUFF_POOL_2;
+	wbuff_alloc[2].size = WMI_WBUFF_POOL_2_SIZE;
+	wbuff_alloc[3].slot = WBUFF_POOL_3;
+	wbuff_alloc[3].size = WMI_WBUFF_POOL_3_SIZE;
+
+	wmi_handle->wbuff_handle = wbuff_module_register(wbuff_alloc, 4,
+							 WMI_MIN_HEAD_ROOM, 4);
+}
+
+/**
+ * wmi_wbuff_deregister() - deregister wmi with wbuff
+ * @wmi_handle: handle to wmi
+ *
+ * @Return: void
+ */
+static inline void wmi_wbuff_deregister(struct wmi_unified *wmi_handle)
+{
+	wbuff_module_deregister(wmi_handle->wbuff_handle);
+	wmi_handle->wbuff_handle = NULL;
+}
+
+/**
  * wmi_unified_attach() -  attach for unified WMI
  * @scn_handle: handle to SCN
  * @osdev: OS device context
@@ -2282,6 +2338,8 @@ void *wmi_unified_attach(void *scn_handle,
 	soc->ops = wmi_handle->ops;
 	soc->wmi_pdev[0] = wmi_handle;
 
+	wmi_wbuff_register(wmi_handle);
+
 	return wmi_handle;
 
 error:
@@ -2303,6 +2361,8 @@ void wmi_unified_detach(struct wmi_unified *wmi_handle)
 	wmi_buf_t buf;
 	struct wmi_soc *soc;
 	uint8_t i;
+
+	wmi_wbuff_deregister(wmi_handle);
 
 	soc = wmi_handle->soc;
 	for (i = 0; i < WMI_MAX_RADIOS; i++) {
@@ -2424,7 +2484,7 @@ static void wmi_htc_tx_complete(void *ctx, HTC_PACKET *htc_pkt)
 	buf_ptr = (u_int8_t *) wmi_buf_data(wmi_cmd_buf);
 	len = qdf_nbuf_len(wmi_cmd_buf);
 	qdf_mem_zero(buf_ptr, len);
-	qdf_nbuf_free(wmi_cmd_buf);
+	wmi_buf_free(wmi_cmd_buf);
 	qdf_mem_free(htc_pkt);
 	qdf_atomic_dec(&wmi_handle->pending_cmds);
 }
