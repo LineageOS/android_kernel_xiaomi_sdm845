@@ -24,6 +24,7 @@
  */
 
 /* Include Files */
+#include <wbuff.h>
 #include <wlan_hdd_includes.h>
 #include <cds_api.h>
 #include <cds_sched.h>
@@ -2853,7 +2854,12 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 
 		hdd_update_cds_ac_specs_params(hdd_ctx);
 
+		status = wbuff_module_init();
+		if (QDF_IS_STATUS_ERROR(status))
+			hdd_err("WBUFF init unsuccessful; status: %d", status);
+
 		status = cds_open(hdd_ctx->psoc);
+
 		if (QDF_IS_STATUS_ERROR(status)) {
 			hdd_err("Failed to Open CDS; status: %d", status);
 			ret = qdf_status_to_os_return(status);
@@ -11017,6 +11023,10 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 		ret = -EINVAL;
 		QDF_ASSERT(0);
 	}
+
+	qdf_status = wbuff_module_deinit();
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
+		hdd_err("WBUFF de-init unsuccessful; status: %d", qdf_status);
 
 	dispatcher_pdev_close(hdd_ctx->pdev);
 	ret = hdd_objmgr_release_and_destroy_pdev(hdd_ctx);
