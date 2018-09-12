@@ -763,16 +763,16 @@ static int tas2557_i2c_probe(struct i2c_client *pClient,
 	{
 
 		int i;
-		for (i = 0; i < 0x10; i++){
+		for(i =0; i<0x10; i++){
 			tas2557_dev_read(pTAS2557, i, &nValue);
-			dev_err(pTAS2557->dev, "address:%x  value: %x\n", i, nValue);
-		}
+			dev_err(pTAS2557->dev, "address:%x  value: %x\n",i, nValue);
+			}
 	}
 	tas2557_dev_read(pTAS2557, TAS2557_REV_PGID_REG, &nValue);
 	pTAS2557->mnPGID = nValue;
 	if (pTAS2557->mnPGID == TAS2557_PG_VERSION_2P1) {
 		dev_info(pTAS2557->dev, "PG2.1 Silicon found\n");
-		pFWName = TAS2557_FW_NAME;
+		pFWName = TAS2557_AAC_FW_NAME;
 	} else if (pTAS2557->mnPGID == TAS2557_PG_VERSION_1P0) {
 		dev_info(pTAS2557->dev, "PG1.0 Silicon found\n");
 		pFWName = TAS2557_PG1P0_FW_NAME;
@@ -781,10 +781,12 @@ static int tas2557_i2c_probe(struct i2c_client *pClient,
 		dev_info(pTAS2557->dev, "unsupport Silicon 0x%x\n", pTAS2557->mnPGID);
 		goto err;
 	}
-	if (pTAS2557->mnSpkType == VENDOR_ID_AAC)
-		pFWName = TAS2557_FW_NAME;
+	if (pTAS2557->mnSpkType == VENDOR_ID_GOER)
+		pFWName = TAS2557_GOER_FW_NAME;
+	else if (pTAS2557->mnSpkType == VENDOR_ID_AAC)
+		pFWName = TAS2557_AAC_FW_NAME;
 	else
-		pFWName = TAS2557_FW_NAME;
+		pFWName = TAS2557_DEFAULT_FW_NAME;
 	if (gpio_is_valid(pTAS2557->mnGpioINT)) {
 		nResult = gpio_request(pTAS2557->mnGpioINT, "TAS2557-IRQ");
 		if (nResult < 0) {
@@ -834,7 +836,7 @@ static int tas2557_i2c_probe(struct i2c_client *pClient,
 #ifdef ENABLE_TILOAD
 	tiload_driver_init(pTAS2557);
 #endif
-
+	dev_dbg(pTAS2557->dev, " firmware name %s\n", pFWName);
 	hrtimer_init(&pTAS2557->mtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pTAS2557->mtimer.function = temperature_timer_func;
 	INIT_WORK(&pTAS2557->mtimerwork, timer_work_routine);

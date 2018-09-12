@@ -45,6 +45,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <soc/qcom/socinfo.h>
 
 #include "tas2557-core.h"
 #include "tas2557-codec.h"
@@ -328,10 +329,11 @@ static int vendor_id_get(struct snd_kcontrol *kcontrol,
 		struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 		struct tas2557_priv *pTAS2557 = snd_soc_codec_get_drvdata(codec);
 
-		ucontrol->value.integer.value[0] = 0;
+		ucontrol->value.integer.value[0] = VENDOR_ID_NONE;
 
 		if (pTAS2557->spk_id_gpio_p)
 			ucontrol->value.integer.value[0] = spk_id_get(pTAS2557->spk_id_gpio_p);
+
 		return 0;
 }
 

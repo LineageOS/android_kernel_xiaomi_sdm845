@@ -45,6 +45,7 @@
 #include "tas2557-core.h"
 #include "tas2557-misc.h"
 #include <linux/dma-mapping.h>
+#include <linux/mfd/spk-id.h>
 
 static int g_logEnable = 1;
 static struct tas2557_priv *g_tas2557;
@@ -457,11 +458,17 @@ static ssize_t tas2557_file_write(struct file *file, const char *buf, size_t cou
 		if (count == 1) {
 			const char *pFWName;
 			if (pTAS2557->mnPGID == TAS2557_PG_VERSION_2P1)
-				pFWName = TAS2557_FW_NAME;
+				pFWName = TAS2557_AAC_FW_NAME;
 			else if (pTAS2557->mnPGID == TAS2557_PG_VERSION_1P0)
 				pFWName = TAS2557_PG1P0_FW_NAME;
 			else
 				break;
+			if (pTAS2557->mnSpkType == VENDOR_ID_GOER)
+				pFWName = TAS2557_GOER_FW_NAME;
+			else if (pTAS2557->mnSpkType == VENDOR_ID_AAC)
+				pFWName = TAS2557_AAC_FW_NAME;
+			else
+				pFWName = TAS2557_DEFAULT_FW_NAME;
 
 			ret = request_firmware_nowait(THIS_MODULE, 1, pFWName,
 				pTAS2557->dev, GFP_KERNEL, pTAS2557, tas2557_fw_ready);

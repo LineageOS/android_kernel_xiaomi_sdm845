@@ -47,7 +47,7 @@
 #define	PPC_DRIVER_MTPLLSRC			0x00000400
 #define	PPC_DRIVER_CFGDEV_NONCRC	0x00000101
 
-#define TAS2557_CAL_NAME    "/data/tas2557_cal.bin"
+#define TAS2557_CAL_NAME    "/persist/audio/tas2557_cal.bin"
 
 
 static int tas2557_load_calibration(struct tas2557_priv *pTAS2557,
@@ -433,6 +433,7 @@ prog_coefficient:
 	}
 end:
 
+	pTAS2557->mnNewConfiguration = pTAS2557->mnCurrentConfiguration;
 	return nResult;
 }
 
@@ -485,6 +486,12 @@ int tas2557_enable(struct tas2557_priv *pTAS2557, bool bEnable)
 	pProgram = &(pTAS2557->mpFirmware->mpPrograms[pTAS2557->mnCurrentProgram]);
 	if (bEnable) {
 		if (!pTAS2557->mbPowerUp) {
+			if (!pTAS2557->mbCalibrationLoaded) {
+				if (tas2557_set_calibration(pTAS2557, 0xFF) < 0)
+					dev_err(pTAS2557->dev, "calibration data load fail!\n");
+				else
+					pTAS2557->mbCalibrationLoaded = true;
+			}
 			if (pTAS2557->mbLoadConfigurationPrePowerUp) {
 				dev_dbg(pTAS2557->dev, "load coefficient before power\n");
 				pTAS2557->mbLoadConfigurationPrePowerUp = false;
@@ -512,6 +519,16 @@ int tas2557_enable(struct tas2557_priv *pTAS2557, bool bEnable)
 			if (nResult < 0)
 				goto end;
 
+			pTAS2557->mbPowerUp = true;
+
+			nResult = tas2557_get_die_temperature(pTAS2557, &nValue);
+			if ((nValue == 0x80000000) || (nResult < 0)) {
+				dev_err(pTAS2557->dev, "%s, thermal sensor is wrong, mute output, mbPower: %d\n", __func__, pTAS2557->mbPowerUp);
+				nResult = tas2557_dev_load_data(pTAS2557, p_tas2557_shutdown_data);
+				pTAS2557->mbPowerUp = false;
+				goto end;
+			}
+
 			if (pProgram->mnAppMode == TAS2557_APP_TUNINGMODE) {
 				/* turn on IRQ */
 				pTAS2557->enableIRQ(pTAS2557, true);
@@ -521,7 +538,6 @@ int tas2557_enable(struct tas2557_priv *pTAS2557, bool bEnable)
 						ns_to_ktime((u64)LOW_TEMPERATURE_CHECK_PERIOD * NSEC_PER_MSEC), HRTIMER_MODE_REL);
 				}
 			}
-			pTAS2557->mbPowerUp = true;
 		}
 	} else {
 		if (pTAS2557->mbPowerUp) {
@@ -1552,6 +1568,47 @@ void tas2557_clear_firmware(struct TFirmware *pFirmware)
 static int tas2557_load_calibration(struct tas2557_priv *pTAS2557,	char *pFileName)
 {
 	int nResult = 0;
+
+	int nFile;
+	mm_segment_t fs;
+	unsigned char pBuffer[1000];
+	int nSize = 0;
+
+	dev_dbg(pTAS2557->dev, "%s:\n", __func__);
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	nFile = sys_open(pFileName, O_RDONLY, 0);
+
+	dev_info(pTAS2557->dev, "TAS2557 calibration file = %s, handle = %d\n",
+		pFileName, nFile);
+
+	if (nFile >= 0) {
+		nSize = sys_read(nFile, pBuffer, 1000);
+		sys_close(nFile);
+	} else {
+		dev_err(pTAS2557->dev, "TAS2557 cannot open calibration file: %s\n",
+			pFileName);
+		nResult = -EINVAL;
+	}
+
+	set_fs(fs);
+
+	if (!nSize)
+		goto end;
+
+	tas2557_clear_firmware(pTAS2557->mpCalFirmware);
+	dev_info(pTAS2557->dev, "TAS2557 calibration file size = %d\n", nSize);
+	nResult = fw_parse(pTAS2557, pTAS2557->mpCalFirmware, pBuffer, nSize);
+
+	if (nResult)
+		dev_err(pTAS2557->dev, "TAS2557 calibration file is corrupt\n");
+	else
+		dev_info(pTAS2557->dev, "TAS2557 calibration: %d calibrations\n",
+			pTAS2557->mpCalFirmware->mnCalibrations);
+
+end:
+
 	return nResult;
 }
 
@@ -1671,8 +1728,7 @@ void tas2557_fw_ready(const struct firmware *pFW, void *pContext)
 	dev_info(pTAS2557->dev, "%s:\n", __func__);
 
 	if (unlikely(!pFW) || unlikely(!pFW->data)) {
-		dev_err(pTAS2557->dev, "%s firmware is not loaded.\n",
-			TAS2557_FW_NAME);
+		dev_err(pTAS2557->dev, "firmware is not loaded.\n");
 		goto end;
 	}
 
@@ -1971,13 +2027,13 @@ int spk_id_get(struct device_node *np)
 
 	switch (state) {
 	case PIN_PULL_DOWN:
-		id = VENDOR_ID_GOER;
+		id = VENDOR_ID_AAC;
 		break;
 	case PIN_PULL_UP:
 		id = VENDOR_ID_UNKNOWN;
 		break;
 	case PIN_FLOAT:
-		id = VENDOR_ID_AAC;
+		id = VENDOR_ID_GOER;
 		break;
 	default:
 		id = VENDOR_ID_UNKNOWN;
@@ -1994,10 +2050,13 @@ int tas2557_parse_dt(struct device *dev, struct tas2557_priv *pTAS2557)
 
 	pTAS2557->spk_id_gpio_p = of_parse_phandle(np,
 					"ti,spk-id-pin", 0);
-	if (!pTAS2557->spk_id_gpio_p)
-			dev_dbg(pTAS2557->dev, "property %s not detected in node %s",
-					"ti,spk-id-pin", np->full_name);
-	pTAS2557->mnSpkType = spk_id_get(pTAS2557->spk_id_gpio_p);
+	if (!pTAS2557->spk_id_gpio_p) {
+		dev_dbg(pTAS2557->dev, "property %s not detected in node %s",
+		"ti,spk-id-pin", np->full_name);
+		pTAS2557->mnSpkType = VENDOR_ID_NONE;
+	} else {
+		pTAS2557->mnSpkType = spk_id_get(pTAS2557->spk_id_gpio_p);
+	}
 	dev_dbg(pTAS2557->dev, "spk is is %d", pTAS2557->mnSpkType);
 
 	pTAS2557->mnResetGPIO = of_get_named_gpio(np, "ti,cdc-reset-gpio", 0);

@@ -289,7 +289,10 @@
 /* B100P0R31 - TAS2557_CLK_MISC_REG */
 #define TAS2557_DSP_CLK_FROM_PLL		(0x1 << 5)
 
-#define TAS2557_FW_NAME     "tas2557_uCDSP.bin"
+#define TAS2557_AAC_FW_NAME     "tas2557_uCDSP_aac.bin"
+#define TAS2557_GOER_FW_NAME     "tas2557_uCDSP_goer.bin"
+#define TAS2557_DEFAULT_FW_NAME     "tas2557_uCDSP.bin"
+
 #define TAS2557_PG1P0_FW_NAME     "tas2557_pg1p0_uCDSP.bin"
 
 #define	TAS2557_APP_ROM1MODE	0
