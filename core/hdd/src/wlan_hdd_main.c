@@ -12391,31 +12391,72 @@ static void wlan_hdd_state_ctrl_param_destroy(void)
 }
 
 /**
- * component_init - API to init cld component's
+ * hdd_component_init() - Initialize all components
  *
- * Return: None
+ * Return: QDF_STATUS
  */
-static void component_init(void)
+static QDF_STATUS hdd_component_init(void)
 {
-	pmo_init();
-	disa_init();
-	ucfg_ocb_init();
-	ipa_init();
-	ucfg_action_oui_init();
+	QDF_STATUS status;
+
+	/* initialize converged components */
+	status = dispatcher_init();
+	if (QDF_IS_STATUS_ERROR(status))
+		return status;
+
+	/* initialize non-converged components */
+	status = disa_init();
+	if (QDF_IS_STATUS_ERROR(status))
+		goto dispatcher_deinit;
+
+	status = pmo_init();
+	if (QDF_IS_STATUS_ERROR(status))
+		goto disa_deinit;
+
+	status = ucfg_ocb_init();
+	if (QDF_IS_STATUS_ERROR(status))
+		goto pmo_deinit;
+
+	status = ipa_init();
+	if (QDF_IS_STATUS_ERROR(status))
+		goto ocb_deinit;
+
+	status = ucfg_action_oui_init();
+	if (QDF_IS_STATUS_ERROR(status))
+		goto ipa_deinit;
+
+	return QDF_STATUS_SUCCESS;
+
+ipa_deinit:
+	ipa_deinit();
+ocb_deinit:
+	ucfg_ocb_deinit();
+pmo_deinit:
+	pmo_deinit();
+disa_deinit:
+	disa_deinit();
+dispatcher_deinit:
+	dispatcher_deinit();
+
+	return status;
 }
 
 /**
- * component_deinit - API to deinit cld component's
+ * hdd_component_deinit() - Deinitialize all components
  *
  * Return: None
  */
-static void component_deinit(void)
+static void hdd_component_deinit(void)
 {
+	/* deinitialize non-converged components */
 	ucfg_action_oui_deinit();
 	ipa_deinit();
 	ucfg_ocb_deinit();
 	pmo_deinit();
 	disa_deinit();
+
+	/* deinitialize converged components */
+	dispatcher_deinit();
 }
 
 void hdd_component_psoc_enable(struct wlan_objmgr_psoc *psoc)
@@ -12439,6 +12480,7 @@ void hdd_component_psoc_disable(struct wlan_objmgr_psoc *psoc)
  */
 static int __hdd_module_init(void)
 {
+	QDF_STATUS status;
 	int ret = 0;
 
 	pr_err("%s: Loading driver v%s (%s)\n",
@@ -12454,10 +12496,11 @@ static int __hdd_module_init(void)
 		goto err_hdd_init;
 	}
 
-	dispatcher_init();
-
-	/* Ensure to call post objmgr init */
-	component_init();
+	status = hdd_component_init();
+	if (QDF_IS_STATUS_ERROR(status)) {
+		ret = qdf_status_to_os_return(status);
+		goto hdd_deinit;
+	}
 
 	qdf_wake_lock_create(&wlan_wake_lock, "wlan");
 
@@ -12479,14 +12522,17 @@ static int __hdd_module_init(void)
 	pr_info("%s: driver loaded\n", WLAN_MODULE_NAME);
 
 	return 0;
+
 out:
 	qdf_wake_lock_destroy(&wlan_wake_lock);
-	component_deinit();
-	dispatcher_deinit();
+	hdd_component_deinit();
+
+hdd_deinit:
 	hdd_deinit();
 
 err_hdd_init:
 	pld_deinit();
+
 	return ret;
 }
 
@@ -12519,10 +12565,7 @@ static void __hdd_module_exit(void)
 
 	qdf_wake_lock_destroy(&wlan_wake_lock);
 
-	/* Ensure to call prior to objmgr deinit */
-	component_deinit();
-
-	dispatcher_deinit();
+	hdd_component_deinit();
 
 	hdd_sysfs_destroy_version_interface();
 
