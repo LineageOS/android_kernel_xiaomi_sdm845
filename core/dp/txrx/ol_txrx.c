@@ -4845,14 +4845,14 @@ static void ol_txrx_disp_peer_stats(ol_txrx_pdev_handle pdev)
 		return;
 
 	for (i = 0; i < OL_TXRX_NUM_LOCAL_PEER_IDS; i++) {
+		qdf_spin_lock_bh(&pdev->peer_ref_mutex);
 		qdf_spin_lock_bh(&pdev->local_peer_ids.lock);
 		peer = pdev->local_peer_ids.map[i];
 		if (peer) {
-			qdf_spin_lock_bh(&pdev->peer_ref_mutex);
 			ol_txrx_peer_get_ref(peer, PEER_DEBUG_ID_OL_INTERNAL);
-			qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 		}
 		qdf_spin_unlock_bh(&pdev->local_peer_ids.lock);
+		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 
 		if (peer) {
 			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
