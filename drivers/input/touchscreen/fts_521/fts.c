@@ -32,6 +32,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
@@ -76,6 +77,8 @@
 #ifdef CONFIG_INPUT_PRESS_NDT
 #include "./../ndt_core.h"
 #endif
+
+#define PROC_SYMLINK_PATH "touchpanel"
 
 /**
  * Event handler installer helpers
@@ -148,6 +151,9 @@ static int fts_init_sensing(struct fts_ts_info *info);
 static int fts_mode_handler(struct fts_ts_info *info, int force);
 static int fts_chip_initialization(struct fts_ts_info *info, int init_type);
 static const char *fts_get_limit(struct fts_ts_info *info);
+
+static ssize_t fts_wake_gesture_store(struct device *dev,
+                struct device_attribute *attr, const char *buf, size_t count);
 
 /**
 * Release all the touches in the linux input subsystem
@@ -2291,6 +2297,7 @@ static DEVICE_ATTR(ss_raw, (S_IRUGO), fts_ss_raw_show, NULL);
 static DEVICE_ATTR(ms_cx_total, (S_IRUGO), fts_ms_cx_total_show, NULL);
 static DEVICE_ATTR(ss_ix_total, (S_IRUGO), fts_ss_ix_total_show, NULL);
 
+static DEVICE_ATTR(wake_gesture, (S_IRUGO | S_IWUSR), fts_gesture_mask_show, fts_wake_gesture_store);
 static DEVICE_ATTR(stm_fts_cmd, (S_IRUGO | S_IWUSR | S_IWGRP), stm_fts_cmd_show,
 		   stm_fts_cmd_store);
 #ifdef USE_ONE_FILE_NODE
@@ -2381,7 +2388,7 @@ static struct attribute *fts_attr_group[] = {
 	&dev_attr_doze_time.attr,
 	&dev_attr_grip_enable.attr,
 	&dev_attr_grip_area.attr,
-
+	&dev_attr_wake_gesture.attr,
 	NULL,
 };
 
@@ -3227,6 +3234,45 @@ static void fts_event_handler(struct work_struct *work)
 }
 
 /**@}*/
+
+static ssize_t fts_wake_gesture_store(struct device *dev,
+                struct device_attribute *attr, const char *buf, size_t count)
+{
+        unsigned int input = 0;
+	static const char *fts_gesture_on = "01 20";
+	static const char *fts_gesture_off = "00 20";
+	struct fts_ts_info *info = dev_get_drvdata(dev);
+	char *gesture_result;
+	int size = 6 * 2 + 1;
+        if (sscanf(buf, "%u", &input) != 1)
+                return -EINVAL;
+
+	if (input == 1) {
+		gesture_result = (u8 *) kzalloc(size, GFP_KERNEL);
+                fts_gesture_mask_store(info->dev, NULL,
+                               fts_gesture_on,
+                               strlen(fts_gesture_on));
+		fts_gesture_mask_show(info->dev, NULL,
+                               gesture_result);
+	}
+	else {
+		gesture_result = (u8 *) kzalloc(size, GFP_KERNEL);
+                fts_gesture_mask_store(info->dev, NULL,
+                                fts_gesture_off,
+                                strlen(fts_gesture_off));
+                fts_gesture_mask_show(info->dev, NULL,
+                                gesture_result);
+	}
+	if (strncmp
+                                    ("{ 00000000 }", gesture_result, size - 1))
+                                        logError(1,
+                                                 "%s %s:store gesture mask error\n",
+                                                 tag, __func__);
+        kfree(gesture_result);
+        gesture_result = NULL;
+        return count;
+}
+
 
 static const char *fts_get_config(struct fts_ts_info *info)
 {
@@ -4469,12 +4515,37 @@ static void fts_switch_mode_work(struct work_struct *work)
 	}
 }
 
+static ssize_t fts_input_symlink(struct fts_ts_info *info) {
+        char *driver_path;
+        int ret = 0;
+        if (info->input_proc) {
+                proc_remove(info->input_proc);
+                info->input_proc = NULL;
+        }
+        driver_path = kzalloc(PATH_MAX, GFP_KERNEL);
+        if (!driver_path) {
+                return -ENOMEM;
+        }
+
+        sprintf(driver_path, "/sys%s",
+                        kobject_get_path(&info->input_dev->dev.kobj, GFP_KERNEL));
+
+        pr_info("%s: driver_path=%s\n", __func__, driver_path);
+        info->input_proc = proc_symlink(PROC_SYMLINK_PATH, NULL, driver_path);
+        if (!info->input_proc) {
+                ret = -ENOMEM;
+        }
+
+        kfree(driver_path);
+
+        return ret;
+}
+
 static int fts_input_event(struct input_dev *dev, unsigned int type,
 			   unsigned int code, int value)
 {
 	struct fts_ts_info *info = input_get_drvdata(dev);
 	struct fts_mode_switch *ms;
-
 	logError(1, "%s %s:set input event value = %d\n", tag, __func__, value);
 
 	if (!info) {
@@ -5010,7 +5081,7 @@ static int fts_probe(struct spi_device *client)
 	info->input_dev->id.version = 0x0100;
 	info->input_dev->event = fts_input_event;
 	input_set_drvdata(info->input_dev, info);
-
+	info->input_proc = NULL;
 	__set_bit(EV_SYN, info->input_dev->evbit);
 	__set_bit(EV_KEY, info->input_dev->evbit);
 	__set_bit(EV_ABS, info->input_dev->evbit);
@@ -5090,6 +5161,10 @@ static int fts_probe(struct spi_device *client)
 		error = -ENODEV;
 		goto ProbeErrorExit_5_1;
 	}
+	retval = fts_input_symlink(info);
+        if (retval < 0) {
+                pr_info("%s fts_ts_info is NULL\n", __func__);
+        }
 
 	skip_5_1 = 1;
 	/* track slots */
@@ -5166,7 +5241,7 @@ static int fts_probe(struct spi_device *client)
 	logError(0, "%s SET Device File Nodes: \n", tag);
 	/* sysfs stuff */
 	info->attrs.attrs = fts_attr_group;
-	error = sysfs_create_group(&client->dev.kobj, &info->attrs);
+	error = sysfs_create_group(&info->input_dev->dev.kobj, &info->attrs);
 	if (error) {
 		logError(1, "%s ERROR: Cannot create sysfs structure!\n", tag);
 		error = -ENODEV;
