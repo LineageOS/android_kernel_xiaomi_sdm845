@@ -1551,7 +1551,7 @@ int wlan_hdd_sap_cfg_dfs_override(struct hdd_adapter *adapter)
 	 * channel secondary AP should always follow primary APs channel
 	 */
 	if (!policy_mgr_concurrent_beaconing_sessions_running(
-		hdd_ctx->hdd_psoc))
+		hdd_ctx->psoc))
 		return 0;
 
 	con_sap_adapter = hdd_get_con_sap_adapter(adapter, true);
@@ -1751,7 +1751,7 @@ int wlan_hdd_cfg80211_start_acs(struct hdd_adapter *adapter)
 	 * then PCL would include only channels from the other
 	 * frequency band on which no connections are active
 	 */
-	if ((policy_mgr_get_connection_count(hdd_ctx->hdd_psoc) == 2) &&
+	if ((policy_mgr_get_connection_count(hdd_ctx->psoc) == 2) &&
 		(sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211ANY)) {
 		struct policy_mgr_conc_connection_info *conc_connection_info;
 		uint32_t i;
@@ -2123,7 +2123,7 @@ int hdd_cfg80211_update_acs_config(struct hdd_adapter *adapter,
 	 * then PCL would include only channels from the other
 	 * frequency band on which no connections are active
 	 */
-	if ((policy_mgr_get_connection_count(hdd_ctx->hdd_psoc) == 2) &&
+	if ((policy_mgr_get_connection_count(hdd_ctx->psoc) == 2) &&
 	    (sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211ANY)) {
 		struct policy_mgr_conc_connection_info	*conc_connection_info;
 
@@ -2566,7 +2566,7 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	hdd_debug("get pcl for DO_ACS vendor command");
 
 	/* consult policy manager to get PCL */
-	qdf_status = policy_mgr_get_pcl(hdd_ctx->hdd_psoc, PM_SAP_MODE,
+	qdf_status = policy_mgr_get_pcl(hdd_ctx->psoc, PM_SAP_MODE,
 				sap_config->acs_cfg.pcl_channels,
 				&sap_config->acs_cfg.pcl_ch_count,
 				sap_config->acs_cfg.pcl_channels_weight_list,
@@ -2586,7 +2586,7 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	}
 
 	if (hw_mode == QCA_ACS_MODE_IEEE80211ANY)
-		policy_mgr_trim_acs_channel_list(hdd_ctx->hdd_psoc,
+		policy_mgr_trim_acs_channel_list(hdd_ctx->psoc,
 			sap_config->acs_cfg.ch_list,
 			&sap_config->acs_cfg.ch_list_count);
 
@@ -2646,7 +2646,7 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 			hdd_debug("%d ", sap_config->acs_cfg.ch_list[i]);
 	}
 
-	conc_channel = policy_mgr_mode_specific_get_channel(hdd_ctx->hdd_psoc,
+	conc_channel = policy_mgr_mode_specific_get_channel(hdd_ctx->psoc,
 							    PM_STA_MODE);
 	if (hdd_ctx->config->external_acs_policy ==
 	    HDD_EXTERNAL_ACS_PCL_MANDATORY) {
@@ -3360,7 +3360,7 @@ __wlan_hdd_cfg80211_get_features(struct wiphy *wiphy,
 
 	wlan_hdd_cfg80211_set_feature(feature_flags,
 				QCA_WLAN_VENDOR_FEATURE_SUPPORT_HW_MODE_ANY);
-	if (policy_mgr_is_scan_simultaneous_capable(hdd_ctx->hdd_psoc))
+	if (policy_mgr_is_scan_simultaneous_capable(hdd_ctx->psoc))
 		wlan_hdd_cfg80211_set_feature(feature_flags,
 			QCA_WLAN_VENDOR_FEATURE_OFFCHANNEL_SIMULTANEOUS);
 
@@ -3397,7 +3397,7 @@ __wlan_hdd_cfg80211_get_features(struct wiphy *wiphy,
 			sizeof(feature_flags), feature_flags))
 		goto nla_put_failure;
 
-	ret = policy_mgr_get_dbs_hw_modes(hdd_ctx->hdd_psoc,
+	ret = policy_mgr_get_dbs_hw_modes(hdd_ctx->psoc,
 					  &one_by_one_dbs, &two_by_two_dbs);
 	if (QDF_STATUS_SUCCESS == ret) {
 		if (one_by_one_dbs)
@@ -6458,7 +6458,7 @@ static int wlan_hdd_handle_restrict_offchan_config(struct hdd_adapter *adapter,
 		wlan_vdev_mlme_cap_set(adapter->vdev,
 				       WLAN_VDEV_C_RESTRICT_OFFCHAN);
 		wlan_vdev_obj_unlock(adapter->vdev);
-		chan = policy_mgr_get_channel(hdd_ctx->hdd_psoc, pmode,
+		chan = policy_mgr_get_channel(hdd_ctx->psoc, pmode,
 					      &vdev_id);
 		if (!chan ||
 		    wlan_hdd_send_avoid_freq_for_dnbs(hdd_ctx, chan)) {
@@ -6740,7 +6740,7 @@ __wlan_hdd_cfg80211_wifi_configuration_set(struct wiphy *wiphy,
 		sme_update_fine_time_measurement_capab(mac_handle,
 			adapter->session_id,
 			hdd_ctx->config->fine_time_meas_cap);
-		ucfg_wifi_pos_set_ftm_cap(hdd_ctx->hdd_psoc,
+		ucfg_wifi_pos_set_ftm_cap(hdd_ctx->psoc,
 			hdd_ctx->config->fine_time_meas_cap);
 		hdd_debug("FTM capability: user value: 0x%x, target value: 0x%x, final value: 0x%x",
 			 ftm_capab, hdd_ctx->fine_time_meas_cap_target,
@@ -8608,7 +8608,7 @@ static int __wlan_hdd_cfg80211_get_preferred_freq_list(struct wiphy *wiphy,
 
 	hdd_debug("Userspace requested pref freq list");
 
-	status = policy_mgr_get_pcl(hdd_ctx->hdd_psoc,
+	status = policy_mgr_get_pcl(hdd_ctx->psoc,
 				intf_mode, pcl, &pcl_len,
 				weight_list, QDF_ARRAY_SIZE(weight_list));
 	if (status != QDF_STATUS_SUCCESS) {
@@ -8746,7 +8746,7 @@ static int __wlan_hdd_cfg80211_set_probable_oper_channel(struct wiphy *wiphy,
 			[QCA_WLAN_VENDOR_ATTR_PROBABLE_OPER_CHANNEL_FREQ]));
 
 	/* check pcl table */
-	if (!policy_mgr_allow_concurrency(hdd_ctx->hdd_psoc, intf_mode,
+	if (!policy_mgr_allow_concurrency(hdd_ctx->psoc, intf_mode,
 					channel_hint, HW_MODE_20_MHZ)) {
 		hdd_err("Set channel hint failed due to concurrency check");
 		return -EINVAL;
@@ -9736,7 +9736,7 @@ int wlan_hdd_sap_get_valid_channellist(struct hdd_adapter *adapter,
 	sap_config = &adapter->session.ap.sap_config;
 
 	status =
-		policy_mgr_get_valid_chans(hdd_ctx->hdd_psoc,
+		policy_mgr_get_valid_chans(hdd_ctx->psoc,
 					   tmp_chan_list,
 					   &chan_count);
 	if (QDF_IS_STATUS_ERROR(status)) {
@@ -9804,13 +9804,13 @@ static int wlan_hdd_validate_and_get_pre_cac_ch(struct hdd_context *hdd_ctx,
 		 * 6. But, we are in need of a DFS channel. So, going with the
 		 * first channel from the valid channel list.
 		 */
-		status = policy_mgr_get_valid_chans(hdd_ctx->hdd_psoc,
+		status = policy_mgr_get_valid_chans(hdd_ctx->psoc,
 				channel_list, &len);
 		if (QDF_IS_STATUS_ERROR(status)) {
 			hdd_err("Failed to get channel list");
 			return -EINVAL;
 		}
-		policy_mgr_update_with_safe_channel_list(hdd_ctx->hdd_psoc,
+		policy_mgr_update_with_safe_channel_list(hdd_ctx->psoc,
 				channel_list, &len, pcl_weights, weight_len);
 		for (i = 0; i < len; i++) {
 			if (wlan_reg_is_dfs_ch(hdd_ctx->pdev,
@@ -9870,7 +9870,7 @@ int wlan_hdd_request_pre_cac(uint8_t channel)
 	if (0 != wlan_hdd_validate_context(hdd_ctx))
 		return -EINVAL;
 
-	if (policy_mgr_get_connection_count(hdd_ctx->hdd_psoc) > 1) {
+	if (policy_mgr_get_connection_count(hdd_ctx->psoc) > 1) {
 		hdd_err("pre cac not allowed in concurrency");
 		return -EINVAL;
 	}
@@ -10020,7 +10020,7 @@ int wlan_hdd_request_pre_cac(uint8_t channel)
 	 * connection update should result in DBS mode
 	 */
 	status = policy_mgr_update_and_wait_for_connection_update(
-					hdd_ctx->hdd_psoc,
+					hdd_ctx->psoc,
 					ap_adapter->session_id,
 					pre_cac_chan,
 					POLICY_MGR_UPDATE_REASON_PRE_CAC);
@@ -10654,7 +10654,7 @@ __wlan_hdd_cfg80211_sap_configuration_set(struct wiphy *wiphy,
 		}
 
 		status = policy_mgr_set_sap_mandatory_channels(
-			hdd_ctx->hdd_psoc, chans, freq_len);
+			hdd_ctx->psoc, chans, freq_len);
 		if (QDF_IS_STATUS_ERROR(status))
 			return -EINVAL;
 	}
@@ -10883,7 +10883,7 @@ nla_put_failure:
 #ifdef QCA_SUPPORT_CP_STATS
 static int wlan_hdd_process_wake_lock_stats(struct hdd_context *hdd_ctx)
 {
-	return wlan_cfg80211_mc_cp_stats_get_wakelock_stats(hdd_ctx->hdd_psoc,
+	return wlan_cfg80211_mc_cp_stats_get_wakelock_stats(hdd_ctx->psoc,
 							    hdd_ctx->wiphy);
 }
 #else
@@ -13437,7 +13437,7 @@ void hdd_bt_activity_cb(hdd_handle_t hdd_handle, uint32_t bt_activity)
 	else
 		return;
 
-	ucfg_scan_set_bt_activity(hdd_ctx->hdd_psoc, hdd_ctx->bt_a2dp_active);
+	ucfg_scan_set_bt_activity(hdd_ctx->psoc, hdd_ctx->bt_a2dp_active);
 	hdd_debug("a2dp_active: %d vo_active: %d", hdd_ctx->bt_a2dp_active,
 		 hdd_ctx->bt_vo_active);
 }
@@ -14102,7 +14102,7 @@ int wlan_hdd_send_mode_change_event(void)
 	if (0 != err)
 		return err;
 
-	conn_count = policy_mgr_get_connection_info(hdd_ctx->hdd_psoc, info);
+	conn_count = policy_mgr_get_connection_info(hdd_ctx->psoc, info);
 	if (!conn_count)
 		return -EINVAL;
 
@@ -16083,7 +16083,7 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (!policy_mgr_allow_concurrency(hdd_ctx->hdd_psoc,
+	if (!policy_mgr_allow_concurrency(hdd_ctx->psoc,
 				wlan_hdd_convert_nl_iftype_to_hdd_type(type),
 				0, HW_MODE_20_MHZ)) {
 		hdd_debug("This concurrency combination is not allowed");
@@ -16094,7 +16094,7 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 	wdev = ndev->ieee80211_ptr;
 
 	/* Reset the current device mode bit mask */
-	policy_mgr_clear_concurrency_mode(hdd_ctx->hdd_psoc,
+	policy_mgr_clear_concurrency_mode(hdd_ctx->psoc,
 		adapter->device_mode);
 
 	hdd_notify_teardown_tdls_links(adapter->vdev);
@@ -16237,7 +16237,7 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 	}
 done:
 	/* Set bitmask based on updated value */
-	policy_mgr_set_concurrency_mode(hdd_ctx->hdd_psoc,
+	policy_mgr_set_concurrency_mode(hdd_ctx->psoc,
 		adapter->device_mode);
 
 	hdd_lpass_notify_mode_change(adapter);
@@ -17669,7 +17669,7 @@ bool wlan_hdd_handle_sap_sta_dfs_conc(struct hdd_adapter *adapter,
 	 * find out by looking in to scan cache where sta is going to
 	 * connect by passing its roam_profile.
 	 */
-	status = policy_mgr_get_channel_from_scan_result(hdd_ctx->hdd_psoc,
+	status = policy_mgr_get_channel_from_scan_result(hdd_ctx->psoc,
 			roam_profile, &channel);
 
 	/*
@@ -17688,9 +17688,9 @@ bool wlan_hdd_handle_sap_sta_dfs_conc(struct hdd_adapter *adapter,
 	 * for 3port MCC scenario.
 	 */
 	if (!channel || wlan_reg_is_dfs_ch(hdd_ctx->pdev, channel) ||
-	    !policy_mgr_is_safe_channel(hdd_ctx->hdd_psoc, channel))
+	    !policy_mgr_is_safe_channel(hdd_ctx->psoc, channel))
 		channel = policy_mgr_get_nondfs_preferred_channel(
-			hdd_ctx->hdd_psoc, PM_SAP_MODE, true);
+			hdd_ctx->psoc, PM_SAP_MODE, true);
 
 	hostapd_state = WLAN_HDD_GET_HOSTAP_STATE_PTR(ap_adapter);
 	qdf_event_reset(&hostapd_state->qdf_event);
@@ -17827,11 +17827,11 @@ static int wlan_hdd_cfg80211_connect_start(struct hdd_adapter *adapter,
 		 * Else set connect_in_progress as true and proceed.
 		 */
 		policy_mgr_restart_opportunistic_timer(
-			hdd_ctx->hdd_psoc, false);
+			hdd_ctx->psoc, false);
 		if (policy_mgr_is_hw_mode_change_in_progress(
-			hdd_ctx->hdd_psoc)) {
+			hdd_ctx->psoc)) {
 			qdf_status = policy_mgr_wait_for_connection_update(
-				hdd_ctx->hdd_psoc);
+				hdd_ctx->psoc);
 			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 				hdd_err("qdf wait for event failed!!");
 				status = -EINVAL;
@@ -18003,7 +18003,7 @@ static int wlan_hdd_cfg80211_connect_start(struct hdd_adapter *adapter,
 				adapter->scan_info.scan_add_ie.length;
 		}
 
-		if ((policy_mgr_is_hw_dbs_capable(hdd_ctx->hdd_psoc) == true)
+		if ((policy_mgr_is_hw_dbs_capable(hdd_ctx->psoc) == true)
 			&& (false == wlan_hdd_handle_sap_sta_dfs_conc(adapter,
 				roam_profile))) {
 			hdd_err("sap-sta conc will fail, can't allow sta");
@@ -18093,16 +18093,16 @@ static int wlan_hdd_cfg80211_connect_start(struct hdd_adapter *adapter,
 		roam_profile->ChannelInfo.numOfChannels = 0;
 
 		if ((QDF_STA_MODE == adapter->device_mode)
-			&& policy_mgr_is_current_hwmode_dbs(hdd_ctx->hdd_psoc)
+			&& policy_mgr_is_current_hwmode_dbs(hdd_ctx->psoc)
 			&& !policy_mgr_is_hw_dbs_2x2_capable(
-			hdd_ctx->hdd_psoc)) {
+			hdd_ctx->psoc)) {
 			policy_mgr_get_channel_from_scan_result(
-				hdd_ctx->hdd_psoc,
+				hdd_ctx->psoc,
 				roam_profile, &channel);
 			hdd_info("Move to single MAC mode(optimization) if applicable");
 			if (channel)
 				policy_mgr_checkn_update_hw_mode_single_mac_mode(
-					hdd_ctx->hdd_psoc, channel);
+					hdd_ctx->psoc, channel);
 		}
 
 	} else {
@@ -19603,7 +19603,7 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 		bool ok = false;
 
 		if (req->channel->hw_value && policy_mgr_is_chan_ok_for_dnbs(
-						hdd_ctx->hdd_psoc,
+						hdd_ctx->psoc,
 						req->channel->hw_value,
 						&ok)) {
 			hdd_warn("Unable to get channel:%d eligibility for DNBS",
@@ -19635,7 +19635,7 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 			return -EINVAL;
 		}
 
-		if (!policy_mgr_allow_concurrency(hdd_ctx->hdd_psoc,
+		if (!policy_mgr_allow_concurrency(hdd_ctx->psoc,
 				policy_mgr_convert_device_mode_to_qdf_type(
 				adapter->device_mode),
 				req->channel->hw_value, HW_MODE_20_MHZ)) {
@@ -19644,7 +19644,7 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 			goto con_chk_failed;
 		}
 	} else {
-		if (!policy_mgr_allow_concurrency(hdd_ctx->hdd_psoc,
+		if (!policy_mgr_allow_concurrency(hdd_ctx->psoc,
 				policy_mgr_convert_device_mode_to_qdf_type(
 				adapter->device_mode), 0, HW_MODE_20_MHZ)) {
 			hdd_warn("This concurrency combination is not allowed");
@@ -20206,17 +20206,17 @@ static int __wlan_hdd_cfg80211_join_ibss(struct wiphy *wiphy,
 		}
 	}
 
-	if (!policy_mgr_allow_concurrency(hdd_ctx->hdd_psoc,
+	if (!policy_mgr_allow_concurrency(hdd_ctx->psoc,
 		PM_IBSS_MODE, channelNum, HW_MODE_20_MHZ)) {
 		hdd_err("This concurrency combination is not allowed");
 		return -ECONNREFUSED;
 	}
 
-	status = policy_mgr_reset_connection_update(hdd_ctx->hdd_psoc);
+	status = policy_mgr_reset_connection_update(hdd_ctx->psoc);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("qdf_reset_connection_update failed status: %d", status);
 
-	status = policy_mgr_current_connections_update(hdd_ctx->hdd_psoc,
+	status = policy_mgr_current_connections_update(hdd_ctx->psoc,
 					adapter->session_id, channelNum,
 					POLICY_MGR_UPDATE_REASON_JOIN_IBSS);
 	if (QDF_STATUS_E_FAILURE == status) {
@@ -20226,7 +20226,7 @@ static int __wlan_hdd_cfg80211_join_ibss(struct wiphy *wiphy,
 
 	if (QDF_STATUS_SUCCESS == status) {
 		status = policy_mgr_wait_for_connection_update(
-			hdd_ctx->hdd_psoc);
+			hdd_ctx->psoc);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			hdd_err("qdf wait for event failed!!");
 			return -EINVAL;
@@ -21820,7 +21820,7 @@ static int __wlan_hdd_cfg80211_testmode(struct wiphy *wiphy,
 
 		qdf_mem_zero(hb_params, sizeof(*hb_params));
 		qdf_mem_copy(hb_params, buf, buf_len);
-		status = pmo_ucfg_lphb_config_req(hdd_ctx->hdd_psoc,
+		status = pmo_ucfg_lphb_config_req(hdd_ctx->psoc,
 					hb_params, (void *)hdd_ctx,
 					    wlan_hdd_cfg80211_lphb_ind_handler);
 		if (status != QDF_STATUS_SUCCESS)
@@ -22074,11 +22074,11 @@ int wlan_hdd_change_hw_mode_for_given_chnl(struct hdd_adapter *adapter,
 	if (0 != wlan_hdd_validate_context(hdd_ctx))
 		return -EINVAL;
 
-	status = policy_mgr_reset_connection_update(hdd_ctx->hdd_psoc);
+	status = policy_mgr_reset_connection_update(hdd_ctx->psoc);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("clearing event failed");
 
-	status = policy_mgr_current_connections_update(hdd_ctx->hdd_psoc,
+	status = policy_mgr_current_connections_update(hdd_ctx->psoc,
 			adapter->session_id, channel, reason);
 	switch (status) {
 	case QDF_STATUS_E_FAILURE:
@@ -22095,7 +22095,7 @@ int wlan_hdd_change_hw_mode_for_given_chnl(struct hdd_adapter *adapter,
 		 * triggered and wait for it to finish.
 		 */
 		status = policy_mgr_wait_for_connection_update(
-						hdd_ctx->hdd_psoc);
+						hdd_ctx->psoc);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			hdd_err("ERROR: qdf wait for event failed!!");
 			return -EINVAL;

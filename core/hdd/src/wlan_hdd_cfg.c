@@ -7907,7 +7907,7 @@ static void hdd_set_fine_time_meas_cap(struct hdd_context *hdd_ctx)
 
 	/* Make sure only supported capabilities are enabled in INI */
 	capability &= CFG_FINE_TIME_MEAS_CAPABILITY_MAX;
-	ucfg_wifi_pos_set_ftm_cap(hdd_ctx->hdd_psoc, capability);
+	ucfg_wifi_pos_set_ftm_cap(hdd_ctx->psoc, capability);
 
 	hdd_debug("fine time meas capability - INI: %04x Enabled: %04x",
 		config->fine_time_meas_cap,
@@ -8613,7 +8613,7 @@ QDF_STATUS hdd_set_policy_mgr_user_cfg(struct hdd_context *hdd_ctx)
 		hdd_ctx->config->channel_select_logic_conc;
 	user_cfg->sta_sap_scc_on_lte_coex_chan =
 		hdd_ctx->config->sta_sap_scc_on_lte_coex_chan;
-	status = policy_mgr_set_user_cfg(hdd_ctx->hdd_psoc, user_cfg);
+	status = policy_mgr_set_user_cfg(hdd_ctx->psoc, user_cfg);
 	qdf_mem_free(user_cfg);
 
 	return status;
