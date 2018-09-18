@@ -299,6 +299,7 @@ struct fts_ts_info {
 	char *current_clicknum_file;
 #endif
 	bool lockdown_is_ok;
+	struct proc_dir_entry *input_proc;
 };
 
 struct fts_mode_switch {
