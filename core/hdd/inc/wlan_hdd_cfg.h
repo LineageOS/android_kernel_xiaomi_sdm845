@@ -13704,7 +13704,7 @@ enum hdd_external_acs_policy {
 #define CFG_OCE_PROBE_REQ_RATE_NAME    "oce_enable_probe_req_rate"
 #define CFG_OCE_PROBE_REQ_RATE_MIN     (0)
 #define CFG_OCE_PROBE_REQ_RATE_MAX     (1)
-#define CFG_OCE_PROBE_REQ_RATE_DEFAULT (0)
+#define CFG_OCE_PROBE_REQ_RATE_DEFAULT (1)
 
 /*
  * <ini>
@@ -13772,7 +13772,7 @@ enum hdd_external_acs_policy {
 #define CFG_ENABLE_PROBE_REQ_DEFERRAL_NAME    "oce_enable_probe_req_deferral"
 #define CFG_ENABLE_PROBE_REQ_DEFERRAL_MIN     (0)
 #define CFG_ENABLE_PROBE_REQ_DEFERRAL_MAX     (1)
-#define CFG_ENABLE_PROBE_REQ_DEFERRAL_DEFAULT (0)
+#define CFG_ENABLE_PROBE_REQ_DEFERRAL_DEFAULT (1)
 
 /*
  * <ini>
@@ -13817,7 +13817,7 @@ enum hdd_external_acs_policy {
 #define CFG_ENABLE_ESP_FEATURE_NAME    "enable_esp_for_roam"
 #define CFG_ENABLE_ESP_FEATURE_MIN     (0)
 #define CFG_ENABLE_ESP_FEATURE_MAX     (1)
-#define CFG_ENABLE_ESP_FEATURE_DEFAULT (0)
+#define CFG_ENABLE_ESP_FEATURE_DEFAULT (1)
 
 /*
  * <ini>
