@@ -15,6 +15,7 @@
 
 #define pr_fmt(fmt)	"msm-dsi-panel:[%s:%d] " fmt, __func__, __LINE__
 #include <linux/delay.h>
+#include <linux/time.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
@@ -540,6 +541,7 @@ static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 	enum dsi_cmd_set_state state;
 	struct dsi_display_mode *mode;
 	const struct mipi_dsi_host_ops *ops = panel->host->ops;
+	struct timespec now_ts;
 
 	if (!panel || !panel->cur_mode)
 		return -EINVAL;
@@ -557,6 +559,13 @@ static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 	}
 
 	for (i = 0; i < count; i++) {
+		get_monotonic_boottime(&now_ts);
+		if (timespec_compare(&mode->priv_info->wait_until_ts, &now_ts) > 0) {
+			const struct timespec diff_ts =
+				timespec_sub(mode->priv_info->wait_until_ts, now_ts);
+			const long long ns = timespec_to_ns(&diff_ts);
+			usleep_range(ns / NSEC_PER_USEC, (ns/ NSEC_PER_USEC) + 10);
+		}
 		if (state == DSI_CMD_SET_STATE_LP)
 			cmds->msg.flags |= MIPI_DSI_MSG_USE_LPM;
 
@@ -569,9 +578,11 @@ static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 			pr_err("failed to set cmds(%d), rc=%d\n", type, rc);
 			goto error;
 		}
-		if (cmds->post_wait_ms)
-			usleep_range(cmds->post_wait_ms*1000,
-					((cmds->post_wait_ms*1000)+10));
+		if (cmds->post_wait_ms) {
+			get_monotonic_boottime(&mode->priv_info->wait_until_ts);
+			timespec_add_ns(&mode->priv_info->wait_until_ts,
+					cmds->post_wait_ms * NSEC_PER_MSEC);
+		}
 		cmds++;
 	}
 error:

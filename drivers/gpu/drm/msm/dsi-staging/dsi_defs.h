@@ -564,6 +564,8 @@ struct dsi_display_mode_priv_info {
 	struct msm_display_dsc_info dsc;
 	bool dsc_enabled;
 	struct msm_roi_caps roi_caps;
+
+	struct timespec wait_until_ts;
 };
 
 /**
