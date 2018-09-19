@@ -175,16 +175,22 @@ static QDF_STATUS target_if_reg_phyerr_events_dfs2(
 	int ret = -1;
 	struct wlan_lmac_if_dfs_rx_ops *dfs_rx_ops;
 	bool is_phyerr_filter_offload;
+	wmi_unified_t wmi_handle;
+
+	wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
+	if (!wmi_handle) {
+		target_if_err("null wmi_handle");
+		return QDF_STATUS_E_INVAL;
+	}
 
 	dfs_rx_ops = target_if_dfs_get_rx_ops(psoc);
-
 	if (dfs_rx_ops && dfs_rx_ops->dfs_is_phyerr_filter_offload)
 		if (QDF_IS_STATUS_SUCCESS(
 			dfs_rx_ops->dfs_is_phyerr_filter_offload(psoc,
 						&is_phyerr_filter_offload)))
 			if (is_phyerr_filter_offload)
 				ret = wmi_unified_register_event(
-						get_wmi_unified_hdl_from_psoc(psoc),
+						wmi_handle,
 						wmi_dfs_radar_event_id,
 						target_if_radar_event_handler);
 
@@ -205,7 +211,15 @@ static QDF_STATUS target_if_reg_phyerr_events_dfs2(
 
 static bool target_if_dfs_offload(struct wlan_objmgr_psoc *psoc)
 {
-	return wmi_service_enabled(get_wmi_unified_hdl_from_psoc(psoc),
+	wmi_unified_t wmi_handle;
+
+	wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
+	if (!wmi_handle) {
+		target_if_err("null wmi_handle");
+		return false;
+	}
+
+	return wmi_service_enabled(wmi_handle,
 				   wmi_service_dfs_phyerr_offload);
 }
 
