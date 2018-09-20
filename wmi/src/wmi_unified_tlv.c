@@ -18888,6 +18888,81 @@ static QDF_STATUS extract_p2p_lo_stop_ev_param_tlv(
 
 	return QDF_STATUS_SUCCESS;
 }
+
+static QDF_STATUS
+send_set_mac_addr_rx_filter_cmd_tlv(wmi_unified_t wmi_handle,
+				    struct p2p_set_mac_filter *param)
+{
+	wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param *cmd;
+	uint32_t len;
+	wmi_buf_t buf;
+	int ret;
+
+	if (!wmi_handle) {
+		WMI_LOGE("WMA context is invald!");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	len = sizeof(*cmd);
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("Failed allocate wmi buffer");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param *)
+		wmi_buf_data(buf);
+
+	WMITLV_SET_HDR(
+	   &cmd->tlv_header,
+	   WMITLV_TAG_STRUC_wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param,
+	WMITLV_GET_STRUCT_TLVLEN(
+			wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param));
+
+	cmd->vdev_id = param->vdev_id;
+	cmd->freq = param->freq;
+	WMI_CHAR_ARRAY_TO_MAC_ADDR(param->mac, &cmd->mac_addr);
+	if (param->set)
+		cmd->enable = 1;
+	else
+		cmd->enable = 0;
+	WMI_LOGD("set random mac rx vdev %d freq %d set %d %pM",
+		 param->vdev_id, param->freq, param->set, param->mac);
+	ret = wmi_unified_cmd_send(wmi_handle, buf, len,
+				   WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_CMDID);
+	if (ret) {
+		WMI_LOGE("Failed to send action frame random mac cmd");
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+static QDF_STATUS extract_mac_addr_rx_filter_evt_param_tlv(
+	wmi_unified_t wmi_handle, void *evt_buf,
+	struct p2p_set_mac_filter_evt *param)
+{
+	WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENTID_param_tlvs *param_buf;
+	wmi_vdev_add_mac_addr_to_rx_filter_status_event_fixed_param *event;
+
+	param_buf =
+		(WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENTID_param_tlvs *)
+		evt_buf;
+	if (!param_buf) {
+		WMI_LOGE("Invalid action frame filter mac event");
+		return QDF_STATUS_E_INVAL;
+	}
+	event = param_buf->fixed_param;
+	if (!event) {
+		WMI_LOGE("Invalid fixed param");
+		return QDF_STATUS_E_INVAL;
+	}
+	param->vdev_id = event->vdev_id;
+	param->status = event->status;
+
+	return QDF_STATUS_SUCCESS;
+}
 #endif /* End of CONVERGED_P2P_ENABLE */
 
 /**
@@ -22878,6 +22953,9 @@ struct wmi_ops tlv_ops =  {
 	.extract_p2p_noa_ev_param = extract_p2p_noa_ev_param_tlv,
 	.extract_p2p_lo_stop_ev_param =
 				extract_p2p_lo_stop_ev_param_tlv,
+	.set_mac_addr_rx_filter = send_set_mac_addr_rx_filter_cmd_tlv,
+	.extract_mac_addr_rx_filter_evt_param =
+				extract_mac_addr_rx_filter_evt_param_tlv,
 #endif
 	.extract_offchan_data_tx_compl_param =
 				extract_offchan_data_tx_compl_param_tlv,
@@ -23103,6 +23181,8 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_p2p_noa_event_id] = WMI_P2P_NOA_EVENTID;
 	event_ids[wmi_p2p_lo_stop_event_id] =
 				WMI_P2P_LISTEN_OFFLOAD_STOPPED_EVENTID;
+	event_ids[wmi_vdev_add_macaddr_rx_filter_event_id] =
+			WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENTID;
 	event_ids[wmi_pdev_resume_event_id] = WMI_PDEV_RESUME_EVENTID;
 	event_ids[wmi_wow_wakeup_host_event_id] = WMI_WOW_WAKEUP_HOST_EVENTID;
 	event_ids[wmi_d0_wow_disable_ack_event_id] =
