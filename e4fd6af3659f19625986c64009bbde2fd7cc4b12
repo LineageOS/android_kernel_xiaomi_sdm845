@@ -22,6 +22,30 @@
       "revId": "e4fd6af3659f19625986c64009bbde2fd7cc4b12",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "d86003c8_2563abc3",
+        "filename": "drivers/gpu/drm/msm/dsi-staging/dsi_panel.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 563,
+      "author": {
+        "id": 11801
+      },
+      "writtenOn": "2018-09-20T03:22:16Z",
+      "side": 1,
+      "message": "No. If a command has a delay, wait_until_ts is updated and the next iteration will wait. If it doesn\u0027t, we\u0027ll jump past the sleeping because wait until_ts will be in the past, so we won\u0027t pass the timespec_compare check.",
+      "parentUuid": "02d90bf4_93d0de57",
+      "range": {
+        "startLine": 563,
+        "startChar": 41,
+        "endLine": 563,
+        "endChar": 54
+      },
+      "revId": "e4fd6af3659f19625986c64009bbde2fd7cc4b12",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
     }
   ]
 }
