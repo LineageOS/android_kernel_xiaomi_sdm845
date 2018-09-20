@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "02d90bf4_93d0de57",
+        "filename": "drivers/gpu/drm/msm/dsi-staging/dsi_panel.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 563,
+      "author": {
+        "id": 2936
+      },
+      "writtenOn": "2018-09-20T02:56:28Z",
+      "side": 1,
+      "message": "Does this need to be reset between iterations? Won\u0027t this just accumulate as the count increases?",
+      "range": {
+        "startLine": 563,
+        "startChar": 41,
+        "endLine": 563,
+        "endChar": 54
+      },
+      "revId": "e4fd6af3659f19625986c64009bbde2fd7cc4b12",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
