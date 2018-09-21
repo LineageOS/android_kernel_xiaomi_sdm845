@@ -43,6 +43,9 @@ static bool tgt_if_regulatory_is_11d_offloaded(struct wlan_objmgr_psoc
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
 
+	if (!wmi_handle)
+		return false;
+
 	return wmi_service_enabled(wmi_handle,
 				   wmi_service_11d_offload);
 }
@@ -52,6 +55,9 @@ static bool tgt_if_regulatory_is_regdb_offloaded(struct wlan_objmgr_psoc
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
 
+	if (!wmi_handle)
+		return false;
+
 	return wmi_service_enabled(wmi_handle,
 				   wmi_service_regulatory_db);
 }
@@ -60,6 +66,9 @@ static bool tgt_if_regulatory_is_there_serv_ready_extn(struct wlan_objmgr_psoc
 						       *psoc)
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
+
+	if (!wmi_handle)
+		return false;
 
 	return wmi_service_enabled(wmi_handle,
 				   wmi_service_ext_msg);
@@ -267,6 +276,9 @@ static QDF_STATUS tgt_if_regulatory_register_master_list_handler(
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
 
+	if (!wmi_handle)
+		return QDF_STATUS_E_FAILURE;
+
 	return wmi_unified_register_event_handler(wmi_handle,
 					       wmi_reg_chan_list_cc_event_id,
 					       tgt_reg_chan_list_update_handler,
@@ -279,6 +291,9 @@ static QDF_STATUS tgt_if_regulatory_unregister_master_list_handler(
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
 
+	if (!wmi_handle)
+		return QDF_STATUS_E_FAILURE;
+
 	return wmi_unified_unregister_event_handler(wmi_handle,
 					       wmi_reg_chan_list_cc_event_id);
 }
@@ -288,6 +303,9 @@ static QDF_STATUS tgt_if_regulatory_set_country_code(
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
 
+	if (!wmi_handle)
+		return QDF_STATUS_E_FAILURE;
+
 	return wmi_unified_set_country_cmd_send(wmi_handle, arg);
 
 }
@@ -296,6 +314,9 @@ static QDF_STATUS tgt_if_regulatory_set_user_country_code(
 	struct wlan_objmgr_psoc *psoc, uint8_t pdev_id, struct cc_regdmn_s *rd)
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
+
+	if (!wmi_handle)
+		return QDF_STATUS_E_FAILURE;
 
 	if (wmi_unified_set_user_country_code_cmd_send(wmi_handle, pdev_id,
 				rd) != QDF_STATUS_SUCCESS) {
@@ -311,6 +332,9 @@ static QDF_STATUS tgt_if_regulatory_register_11d_new_cc_handler(
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
 
+	if (!wmi_handle)
+		return QDF_STATUS_E_FAILURE;
+
 	return wmi_unified_register_event(wmi_handle,
 					  wmi_11d_new_country_event_id,
 					  tgt_reg_11d_new_cc_handler);
@@ -321,6 +345,9 @@ static QDF_STATUS tgt_if_regulatory_unregister_11d_new_cc_handler(
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
 
+	if (!wmi_handle)
+		return QDF_STATUS_E_FAILURE;
+
 	return wmi_unified_unregister_event(wmi_handle,
 					    wmi_11d_new_country_event_id);
 }
@@ -329,6 +356,9 @@ static QDF_STATUS tgt_if_regulatory_register_ch_avoid_event_handler(
 	struct wlan_objmgr_psoc *psoc, void *arg)
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
+
+	if (!wmi_handle)
+		return QDF_STATUS_E_FAILURE;
 
 	return wmi_unified_register_event(wmi_handle,
 					  wmi_wlan_freq_avoid_event_id,
@@ -340,6 +370,9 @@ static QDF_STATUS tgt_if_regulatory_unregister_ch_avoid_event_handler(
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
 
+	if (!wmi_handle)
+		return QDF_STATUS_E_FAILURE;
+
 	return wmi_unified_unregister_event(wmi_handle,
 			wmi_wlan_freq_avoid_event_id);
 }
@@ -348,6 +381,9 @@ static QDF_STATUS tgt_if_regulatory_start_11d_scan(
 		struct reg_start_11d_scan_req *reg_start_11d_scan_req)
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
+
+	if (!wmi_handle)
+		return QDF_STATUS_E_FAILURE;
 
 	return wmi_unified_send_start_11d_scan_cmd(wmi_handle,
 						   reg_start_11d_scan_req);
@@ -358,6 +394,9 @@ static QDF_STATUS tgt_if_regulatory_stop_11d_scan(
 		   struct reg_stop_11d_scan_req *reg_stop_11d_scan_req)
 {
 	wmi_unified_t wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
+
+	if (!wmi_handle)
+		return QDF_STATUS_E_FAILURE;
 
 	return wmi_unified_send_stop_11d_scan_cmd(wmi_handle,
 						  reg_stop_11d_scan_req);
