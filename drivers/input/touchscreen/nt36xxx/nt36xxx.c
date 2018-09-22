@@ -95,6 +95,8 @@ static void nvt_ts_late_resume(struct early_suspend *h);
 #define INPUT_EVENT_PALM_ON		13
 #define INPUT_EVENT_END				13
 
+#define PROC_SYMLINK_PATH "touchpanel"
+
 #if TOUCH_KEY_NUM > 0
 const uint16_t touch_key_array[TOUCH_KEY_NUM] = {
 	KEY_BACK,
@@ -1622,15 +1624,66 @@ static ssize_t nvt_panel_display_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%c\n", ts->lockdown_info[1]);
 }
 
+static ssize_t nvt_panel_wake_gesture_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+        const char c = ts->gesture_enabled ? '1' : '0';
+        return sprintf(buf, "%c\n", c);
+}
+
+static ssize_t nvt_panel_wake_gesture_store(struct device *dev,
+				     struct device_attribute *attr, const char *buf, size_t count)
+{
+	int i;
+
+	if (sscanf(buf, "%u", &i) == 1 && i < 2) {
+		ts->gesture_enabled = i;
+		return count;
+	} else {
+		dev_dbg(dev, "enable_dt2w write error\n");
+		return -EINVAL;
+	}
+}
+
 static DEVICE_ATTR(panel_vendor, (S_IRUGO), nvt_panel_vendor_show, NULL);
 static DEVICE_ATTR(panel_color, (S_IRUGO), nvt_panel_color_show, NULL);
 static DEVICE_ATTR(panel_display, (S_IRUGO), nvt_panel_display_show, NULL);
+static DEVICE_ATTR(wake_gesture, S_IWUSR | S_IRUSR,
+		nvt_panel_wake_gesture_show, nvt_panel_wake_gesture_store);
 
 static struct attribute *nvt_attr_group[] = {
 	&dev_attr_panel_vendor.attr,
 	&dev_attr_panel_color.attr,
 	&dev_attr_panel_display.attr,
+	&dev_attr_wake_gesture.attr,
 };
+
+static ssize_t novatek_input_symlink(struct nvt_ts_data *ts) {
+	char *driver_path;
+	int ret = 0;
+	if (ts->input_proc) {
+		proc_remove(ts->input_proc);
+		ts->input_proc = NULL;
+	}
+	driver_path = kzalloc(PATH_MAX, GFP_KERNEL);
+	if (!driver_path) {
+		pr_err("%s: failed to allocate memory\n", __func__);
+		return -ENOMEM;
+	}
+
+	sprintf(driver_path, "/sys%s",
+			kobject_get_path(&ts->client->dev.kobj, GFP_KERNEL));
+
+	pr_err("%s: driver_path=%s\n", __func__, driver_path);
+
+	ts->input_proc = proc_symlink(PROC_SYMLINK_PATH, NULL, driver_path);
+
+	if (!ts->input_proc) {
+		ret = -ENOMEM;
+	}
+	kfree(driver_path);
+	return ret;
+}
 
 /*******************************************************
 Description:
@@ -1656,6 +1709,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	}
 
 	ts->client = client;
+	ts->input_proc = NULL;
 	i2c_set_clientdata(client, ts);
 
 	/*---parse dts---*/
@@ -1898,6 +1952,11 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	ret = sysfs_create_group(&client->dev.kobj, &ts->attrs);
 	if (ret) {
 		NVT_ERR("Cannot create sysfs structure!\n");
+	}
+
+	ret = novatek_input_symlink(ts);
+	if (ret < 0) {
+		NVT_ERR("Failed to symlink input device!\n");
 	}
 
 #ifdef NVT_TOUCH_COUNT_DUMP
