@@ -172,6 +172,7 @@ struct nvt_ts_data {
 	bool dump_click_count;
 	char *current_clicknum_file;
 #endif
+	struct proc_dir_entry *input_proc;
 
 };
 
