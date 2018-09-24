@@ -257,7 +257,12 @@ typedef  enum  {
     WMI_SERVICE_INFRA_MBSSID=161, /* support infra multi-BSSID feature */
     WMI_SERVICE_OBSS_SPATIAL_REUSE=162, /* support spatial reuse feature */
     WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT=163, /* Support different beacon intervals on different VDEVs */
-
+    WMI_SERVICE_NAN_DBS_SUPPORT=164, /* Support DBS for NAN discovery interface */
+    WMI_SERVICE_NDI_DBS_SUPPORT=165, /* Support DBS for NAN data interface */
+    WMI_SERVICE_NAN_SAP_SUPPORT=166, /* Support SAP Concurrency for NAN Discovery interface */
+    WMI_SERVICE_NDI_SAP_SUPPORT=167, /* Support SAP Concurrency for NAN Data interface */
+    WMI_SERVICE_CFR_CAPTURE_SUPPORT=168, /* Support to capture uncompressed Channel Frequency Response (CFR) */
+    WMI_SERVICE_CFR_CAPTURE_IND_MSG_TYPE_1=169, /* Message type HTT_PEER_CFR_CAPTURE_MSG_TYPE_1 in HTT_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND */
 
     /******* ADD NEW SERVICES HERE *******/
 
