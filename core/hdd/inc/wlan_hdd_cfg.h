@@ -1147,7 +1147,7 @@ enum hdd_dot11_mode {
  * gEnableEarlyStopScan - Set early stop scan
  * @Min: 0
  * @Max: 1
- * @Default: 1
+ * @Default: 0
  *
  * This ini is used to set early stop scan. Early stop
  * scan is a feature for roaming to stop the scans at
@@ -1165,7 +1165,7 @@ enum hdd_dot11_mode {
 #define CFG_EARLY_STOP_SCAN_ENABLE           "gEnableEarlyStopScan"
 #define CFG_EARLY_STOP_SCAN_ENABLE_MIN       (0)
 #define CFG_EARLY_STOP_SCAN_ENABLE_MAX       (1)
-#define CFG_EARLY_STOP_SCAN_ENABLE_DEFAULT   (1)
+#define CFG_EARLY_STOP_SCAN_ENABLE_DEFAULT   (0)
 
 /*
  * <ini>
