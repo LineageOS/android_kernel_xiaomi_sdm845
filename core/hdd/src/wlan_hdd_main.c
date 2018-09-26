@@ -7602,8 +7602,6 @@ static void __hdd_bus_bw_work_handler(struct work_struct *work)
 	bool connected = false;
 	uint32_t ipa_tx_packets = 0, ipa_rx_packets = 0;
 
-	hdd_enter();
-
 	if (wlan_hdd_validate_context(hdd_ctx))
 		return;
 
@@ -7704,8 +7702,6 @@ restart_timer:
 		qdf_timer_mod(&hdd_ctx->bus_bw_timer,
 				hdd_ctx->config->busBandwidthComputeInterval);
 	qdf_spinlock_release(&hdd_ctx->bus_bw_timer_lock);
-
-	hdd_exit();
 }
 
 static void hdd_bus_bw_work_handler(struct work_struct *work)
