@@ -1193,7 +1193,6 @@ static void hdd_ssr_restart_sap(struct hdd_context *hdd_ctx)
 QDF_STATUS hdd_wlan_shutdown(void)
 {
 	struct hdd_context *hdd_ctx;
-	p_cds_sched_context cds_sched_context = NULL;
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 
 	hdd_info("WLAN driver shutting down!");
@@ -1210,6 +1209,20 @@ QDF_STATUS hdd_wlan_shutdown(void)
 
 	hdd_debug("Invoking packetdump deregistration API");
 	wlan_deregister_txrx_packetdump();
+
+	/* resume wlan threads before adapter reset which does vdev destroy */
+	if (hdd_ctx->is_scheduler_suspended) {
+		scheduler_resume();
+		hdd_ctx->is_scheduler_suspended = false;
+		hdd_ctx->is_wiphy_suspended = false;
+	}
+
+#ifdef QCA_CONFIG_SMP
+	if (hdd_ctx->is_ol_rx_thread_suspended) {
+		cds_resume_rx_thread();
+		hdd_ctx->is_ol_rx_thread_suspended = false;
+	}
+#endif
 
 	/*
 	 * After SSR, FW clear its txrx stats. In host,
@@ -1235,20 +1248,6 @@ QDF_STATUS hdd_wlan_shutdown(void)
 
 	/* De-register the HDD callbacks */
 	hdd_deregister_cb(hdd_ctx);
-
-	cds_sched_context = get_cds_sched_ctxt();
-
-	if (hdd_ctx->is_scheduler_suspended) {
-		scheduler_resume();
-		hdd_ctx->is_scheduler_suspended = false;
-		hdd_ctx->is_wiphy_suspended = false;
-	}
-#ifdef QCA_CONFIG_SMP
-	if (true == hdd_ctx->is_ol_rx_thread_suspended) {
-		complete(&cds_sched_context->ol_resume_rx_event);
-		hdd_ctx->is_ol_rx_thread_suspended = false;
-	}
-#endif
 
 	hdd_wlan_stop_modules(hdd_ctx, false);
 
