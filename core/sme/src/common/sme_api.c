@@ -15821,13 +15821,6 @@ uint32_t sme_unpack_rsn_ie(tHalHandle hal, uint8_t *buf,
 	return dot11f_unpack_ie_rsn(mac_ctx, buf, buf_len, rsn_ie, append_ie);
 }
 
-bool sme_is_conn_state_connected(mac_handle_t hal, uint8_t session_id)
-{
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
-
-	return csr_is_conn_state_connected(mac_ctx, session_id);
-}
-
 /**
  * wlan_hdd_get_bss_transition_status() - get bss transition status all cadidates
  * @adapter : Pointer to adapter
@@ -15908,6 +15901,13 @@ free:
 		qdf_mem_free(res);
 
 	return status;
+}
+
+bool sme_is_conn_state_connected(mac_handle_t hal, uint8_t session_id)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+	return csr_is_conn_state_connected(mac_ctx, session_id);
 }
 
 void sme_enable_roaming_on_connected_sta(tHalHandle hal)
