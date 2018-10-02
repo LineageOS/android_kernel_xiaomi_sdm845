@@ -53,7 +53,8 @@
 		mgmt_txrx_logfl(QDF_TRACE_LEVEL_INFO_HIGH, format, ## args)
 #define mgmt_txrx_debug(format, args...) \
 		mgmt_txrx_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
-
+#define mgmt_txrx_err_rl(params...) \
+	QDF_TRACE_ERROR_RL(QDF_MODULE_ID_MGMT_TXRX, params)
 
 /**
  * enum mgmt_subtype - enum of mgmt. subtypes
