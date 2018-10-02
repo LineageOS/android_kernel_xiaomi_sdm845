@@ -343,7 +343,7 @@ void hdd_enable_ns_offload(struct hdd_adapter *adapter,
 			   enum pmo_offload_trigger trigger)
 {
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	struct wlan_objmgr_psoc *psoc = hdd_ctx->hdd_psoc;
+	struct wlan_objmgr_psoc *psoc = hdd_ctx->psoc;
 	struct inet6_dev *in6_dev;
 	struct pmo_ns_req *ns_req;
 	QDF_STATUS status;
@@ -859,7 +859,7 @@ void hdd_enable_arp_offload(struct hdd_adapter *adapter,
 			    enum pmo_offload_trigger trigger)
 {
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	struct wlan_objmgr_psoc *psoc = hdd_ctx->hdd_psoc;
+	struct wlan_objmgr_psoc *psoc = hdd_ctx->psoc;
 	QDF_STATUS status;
 	struct pmo_arp_req *arp_req;
 	struct in_ifaddr *ifa;
@@ -943,7 +943,7 @@ void hdd_enable_mc_addr_filtering(struct hdd_adapter *adapter,
 	if (!hdd_adapter_is_connected_sta(adapter))
 		goto out;
 
-	status = pmo_ucfg_enable_mc_addr_filtering_in_fwr(hdd_ctx->hdd_psoc,
+	status = pmo_ucfg_enable_mc_addr_filtering_in_fwr(hdd_ctx->psoc,
 							  adapter->session_id,
 							  trigger);
 	if (QDF_IS_STATUS_ERROR(status))
@@ -967,7 +967,7 @@ void hdd_disable_mc_addr_filtering(struct hdd_adapter *adapter,
 	if (!hdd_adapter_is_connected_sta(adapter))
 		goto out;
 
-	status = pmo_ucfg_disable_mc_addr_filtering_in_fwr(hdd_ctx->hdd_psoc,
+	status = pmo_ucfg_disable_mc_addr_filtering_in_fwr(hdd_ctx->psoc,
 							   adapter->session_id,
 							   trigger);
 	if (QDF_IS_STATUS_ERROR(status))
@@ -1000,14 +1000,14 @@ void hdd_disable_and_flush_mc_addr_list(struct hdd_adapter *adapter,
 		goto flush_mc_list;
 
 	/* disable mc list first because the mc list is cached in PMO */
-	status = pmo_ucfg_disable_mc_addr_filtering_in_fwr(hdd_ctx->hdd_psoc,
+	status = pmo_ucfg_disable_mc_addr_filtering_in_fwr(hdd_ctx->psoc,
 							   adapter->session_id,
 							   trigger);
 	if (QDF_IS_STATUS_ERROR(status))
 		hdd_err("failed to disable mc list; status:%d", status);
 
 flush_mc_list:
-	status = pmo_ucfg_flush_mc_addr_list(hdd_ctx->hdd_psoc,
+	status = pmo_ucfg_flush_mc_addr_list(hdd_ctx->psoc,
 					     adapter->session_id);
 	if (QDF_IS_STATUS_ERROR(status))
 		hdd_err("failed to flush mc list; status:%d", status);
@@ -1088,7 +1088,7 @@ hdd_suspend_wlan(void)
 		hdd_update_conn_state_mask(adapter, &conn_state_mask);
 	}
 
-	status = pmo_ucfg_psoc_user_space_suspend_req(hdd_ctx->hdd_psoc,
+	status = pmo_ucfg_psoc_user_space_suspend_req(hdd_ctx->psoc,
 			QDF_SYSTEM_SUSPEND);
 	if (status != QDF_STATUS_SUCCESS)
 		return -EAGAIN;
@@ -1147,7 +1147,7 @@ static int hdd_resume_wlan(void)
 	}
 
 	ucfg_ipa_resume(hdd_ctx->pdev);
-	status = pmo_ucfg_psoc_user_space_resume_req(hdd_ctx->hdd_psoc,
+	status = pmo_ucfg_psoc_user_space_resume_req(hdd_ctx->psoc,
 						     QDF_SYSTEM_SUSPEND);
 	if (QDF_IS_STATUS_ERROR(status))
 		return qdf_status_to_os_return(status);
@@ -1205,7 +1205,7 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	}
 
 	hdd_bus_bw_compute_timer_stop(hdd_ctx);
-	policy_mgr_clear_concurrent_session_count(hdd_ctx->hdd_psoc);
+	policy_mgr_clear_concurrent_session_count(hdd_ctx->psoc);
 
 	hdd_debug("Invoking packetdump deregistration API");
 	wlan_deregister_txrx_packetdump();
@@ -1680,8 +1680,8 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 		}
 	}
 	/* p2p cleanup task based on scheduler */
-	ucfg_p2p_cleanup_tx_by_psoc(hdd_ctx->hdd_psoc);
-	ucfg_p2p_cleanup_roc_by_psoc(hdd_ctx->hdd_psoc);
+	ucfg_p2p_cleanup_tx_by_psoc(hdd_ctx->psoc);
+	ucfg_p2p_cleanup_roc_by_psoc(hdd_ctx->psoc);
 
 	/* Stop ongoing scan on each interface */
 	hdd_for_each_adapter(hdd_ctx, adapter) {

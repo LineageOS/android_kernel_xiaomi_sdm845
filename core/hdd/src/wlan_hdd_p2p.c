@@ -1043,7 +1043,7 @@ int wlan_hdd_set_power_save(struct hdd_adapter *adapter,
 	}
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	psoc = hdd_ctx->hdd_psoc;
+	psoc = hdd_ctx->psoc;
 	if (!psoc) {
 		hdd_err("psoc is null");
 		return -EINVAL;
@@ -1076,7 +1076,7 @@ int wlan_hdd_listen_offload_start(struct hdd_adapter *adapter,
 	}
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	psoc = hdd_ctx->hdd_psoc;
+	psoc = hdd_ctx->psoc;
 	if (!psoc) {
 		hdd_err("psoc is null");
 		return -EINVAL;
@@ -1113,7 +1113,7 @@ int wlan_hdd_listen_offload_stop(struct hdd_adapter *adapter)
 
 	vdev_id = (uint32_t)adapter->session_id;
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	psoc = hdd_ctx->hdd_psoc;
+	psoc = hdd_ctx->psoc;
 	if (!psoc) {
 		hdd_err("psoc is null");
 		return -EINVAL;
@@ -1290,7 +1290,7 @@ static uint32_t set_second_connection_operating_channel(
 	uint8_t operating_channel;
 
 	operating_channel = policy_mgr_get_mcc_operating_channel(
-		hdd_ctx->hdd_psoc, vdev_id);
+		hdd_ctx->psoc, vdev_id);
 
 	if (operating_channel == 0) {
 		hdd_err("Second adapter operating channel is invalid");
@@ -1343,7 +1343,7 @@ int wlan_hdd_set_mcc_p2p_quota(struct hdd_adapter *adapter,
 	}
 
 	concurrent_state = policy_mgr_get_concurrency_mode(
-		hdd_ctx->hdd_psoc);
+		hdd_ctx->psoc);
 	/*
 	 * Check if concurrency mode is active.
 	 * Need to modify this code to support MCC modes other than STA/P2P
@@ -1403,7 +1403,7 @@ void wlan_hdd_set_mcc_latency(struct hdd_adapter *adapter, int set_value)
 	}
 
 	concurrent_state = policy_mgr_get_concurrency_mode(
-		hdd_ctx->hdd_psoc);
+		hdd_ctx->psoc);
 	/**
 	 * Check if concurrency mode is active.
 	 * Need to modify this code to support MCC modes other than STA/P2P

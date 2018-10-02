@@ -1721,10 +1721,7 @@ struct hdd_cache_channels {
  * @g_event_flags: a bitmap of hdd_driver_flags
  */
 struct hdd_context {
-	union {
-		struct wlan_objmgr_psoc *psoc;
-		struct wlan_objmgr_psoc *hdd_psoc;
-	};
+	struct wlan_objmgr_psoc *psoc;
 	struct wlan_objmgr_pdev *pdev;
 	mac_handle_t mac_handle;
 	struct wiphy *wiphy;

@@ -368,7 +368,7 @@ static int __wlan_hdd_cfg80211_process_ndp_cmd(struct wiphy *wiphy,
 		return -EPERM;
 	}
 
-	return os_if_nan_process_ndp_cmd(hdd_ctx->hdd_psoc,
+	return os_if_nan_process_ndp_cmd(hdd_ctx->psoc,
 					 data, data_len);
 }
 
