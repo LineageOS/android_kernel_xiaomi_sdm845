@@ -32,9 +32,9 @@ config ANDROID_BINDER_DEVICES
 	  therefore logically separated from the other devices.
 
 config ANDROID_BINDER_IPC_32BIT
-	bool "Android Binder IPC 32BIT Driver"
+	bool
 	depends on !64BIT && ANDROID_BINDER_IPC
-	default n
+	default y
 	---help---
 	  The Binder API has been changed to support both 32 and 64bit
 	  applications in a mixed environment.
