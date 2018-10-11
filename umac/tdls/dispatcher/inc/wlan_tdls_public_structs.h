@@ -196,6 +196,7 @@ enum tdls_feature_mode {
  * @TDLS_CMD_SET_OFFCHANNEL: tdls offchannel
  * @TDLS_CMD_SET_OFFCHANMODE: tdls offchannel mode
  * @TDLS_CMD_SET_SECOFFCHANOFFSET: tdls secondary offchannel offset
+ * @TDLS_DELETE_ALL_PEERS_INDICATION: tdls delete all peers indication
  */
 enum tdls_command_type {
 	TDLS_CMD_TX_ACTION = 1,
@@ -220,7 +221,8 @@ enum tdls_command_type {
 	TDLS_CMD_ANTENNA_SWITCH,
 	TDLS_CMD_SET_OFFCHANNEL,
 	TDLS_CMD_SET_OFFCHANMODE,
-	TDLS_CMD_SET_SECOFFCHANOFFSET
+	TDLS_CMD_SET_SECOFFCHANOFFSET,
+	TDLS_DELETE_ALL_PEERS_INDICATION
 };
 
 /**
@@ -574,6 +576,11 @@ typedef QDF_STATUS
 
 /* This callback is to release vdev ref for tdls offchan param related msg */
 typedef void (*tdls_offchan_parms_callback)(struct wlan_objmgr_vdev *vdev);
+
+/* This callback is to release vdev ref for tdls_delete_all_peers_
+ * callback related msg.
+ */
+typedef void (*tdls_delete_all_peers_callback)(struct wlan_objmgr_vdev *vdev);
 
 /**
  * struct tdls_start_params - tdls start params
@@ -1053,6 +1060,16 @@ struct tdls_sta_notify_params {
 	bool lfr_roam;
 	bool user_disconnect;
 	uint8_t session_id;
+};
+
+/**
+ * struct tdls_delete_all_peers_params - TDLS set mode params
+ * @vdev: vdev object
+ * @callback: callback to release vdev ref
+ */
+struct tdls_delete_all_peers_params {
+	struct wlan_objmgr_vdev *vdev;
+	tdls_delete_all_peers_callback callback;
 };
 
 /**
