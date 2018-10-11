@@ -5015,7 +5015,7 @@ __iw_softap_stopbss(struct net_device *dev,
 			status =
 				qdf_wait_for_event_completion(&hostapd_state->
 					qdf_stop_bss_event,
-					SME_CMD_TIMEOUT_VALUE);
+					SME_CMD_START_STOP_BSS_TIMEOUT);
 
 			if (!QDF_IS_STATUS_SUCCESS(status)) {
 				hdd_err("wait for single_event failed!!");
@@ -8220,7 +8220,7 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 	hdd_debug("Waiting for Scan to complete(auto mode) and BSS to start");
 
 	qdf_status = qdf_wait_for_event_completion(&hostapd_state->qdf_event,
-						SME_CMD_TIMEOUT_VALUE);
+					SME_CMD_START_STOP_BSS_TIMEOUT);
 
 	wlansap_reset_sap_config_add_ie(pConfig, eUPDATE_IE_ALL);
 
@@ -8432,7 +8432,7 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 			qdf_status =
 				qdf_wait_for_event_completion(&hostapd_state->
 					qdf_stop_bss_event,
-					SME_CMD_TIMEOUT_VALUE);
+					SME_CMD_START_STOP_BSS_TIMEOUT);
 
 			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 				hdd_err("qdf wait for single_event failed!!");
