@@ -5454,7 +5454,8 @@ void lim_update_beacon(tpAniSirGlobal mac_ctx)
 			if (false == mac_ctx->sap.SapDfsInfo.
 					is_dfs_cac_timer_running)
 				lim_send_beacon_ind(mac_ctx,
-						&mac_ctx->lim.gpSession[i]);
+						&mac_ctx->lim.gpSession[i],
+						REASON_DEFAULT);
 		}
 	}
 }
@@ -8339,7 +8340,7 @@ lim_send_dfs_chan_sw_ie_update(tpAniSirGlobal mac_ctx, tpPESession session)
 	}
 
 	/* Send update beacon template message */
-	lim_send_beacon_ind(mac_ctx, session);
+	lim_send_beacon_ind(mac_ctx, session, REASON_CHANNEL_SWITCH);
 	pe_debug("Updated CSA IE, IE COUNT: %d",
 		 session->gLimChannelSwitch.switchCount);
 }
@@ -8430,3 +8431,4 @@ void lim_process_ap_ecsa_timeout(void *data)
 		}
 	}
 }
+

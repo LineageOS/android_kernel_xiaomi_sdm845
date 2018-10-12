@@ -2855,11 +2855,13 @@ void wma_send_beacon(tp_wma_handle wma, tpSendbeaconParams bcn_info)
 	struct sAniBeaconStruct *beacon;
 	struct vdev_up_params param = {0};
 
+	WMA_LOGD("Beacon update reason %d", bcn_info->reason);
 	beacon = (struct sAniBeaconStruct *) (bcn_info->beacon);
 	vdev = wma_find_vdev_by_addr(wma, beacon->macHdr.sa, &vdev_id);
 	if (!vdev) {
 		WMA_LOGE("%s : failed to get vdev handle", __func__);
-		return;
+		status = QDF_STATUS_E_INVAL;
+		goto send_rsp;
 	}
 
 	if (wmi_service_enabled(wma->wmi_handle,
@@ -2869,7 +2871,7 @@ void wma_send_beacon(tp_wma_handle wma, tpSendbeaconParams bcn_info)
 		if (QDF_IS_STATUS_ERROR(status)) {
 			WMA_LOGE("%s : wmi_unified_bcn_tmpl_send Failed ",
 				 __func__);
-			return;
+			goto send_rsp;
 		}
 
 		if (bcn_info->p2pIeOffset) {
@@ -2880,14 +2882,15 @@ void wma_send_beacon(tp_wma_handle wma, tpSendbeaconParams bcn_info)
 							 p2p_ie) < 0) {
 				WMA_LOGE("%s : wmi_unified_bcn_tmpl_send Failed ",
 					__func__);
-				return;
+				status = QDF_STATUS_E_INVAL;
+				goto send_rsp;
 			}
 		}
 	}
 	status = wma_store_bcn_tmpl(wma, vdev_id, bcn_info);
 	if (status != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("%s : wma_store_bcn_tmpl Failed", __func__);
-		return;
+		goto send_rsp;
 	}
 	if (!((qdf_atomic_read(
 		&wma->interfaces[vdev_id].vdev_restart_params.
@@ -2902,13 +2905,17 @@ void wma_send_beacon(tp_wma_handle wma, tpSendbeaconParams bcn_info)
 				WMA_LOGE(FL("failed to send vdev up"));
 				policy_mgr_set_do_hw_mode_change_flag(
 					wma->psoc, false);
-				return;
+				goto send_rsp;
 			}
 			wma_vdev_set_mlme_state(wma, vdev_id, WLAN_VDEV_S_RUN);
 			wma_set_sap_keepalive(wma, vdev_id);
 			wma_set_vdev_mgmt_rate(wma, vdev_id);
 		}
 	}
+
+send_rsp:
+	bcn_info->status = status;
+	wma_send_msg(wma, WMA_SEND_BCN_RSP, (void *)bcn_info, 0);
 }
 
 /**

@@ -21982,7 +21982,7 @@ void csr_process_nss_update_req(tpAniSirGlobal mac, tSmeCmd *command)
 	struct sir_nss_update_request *msg;
 	QDF_STATUS status;
 	struct scheduler_msg msg_return = {0};
-	struct sir_beacon_tx_complete_rsp *param;
+	struct sir_bcn_update_rsp *param;
 	struct csr_roam_session *session;
 
 
@@ -22011,11 +22011,10 @@ void csr_process_nss_update_req(tpAniSirGlobal mac, tSmeCmd *command)
 	sme_debug("Posting eWNI_SME_NSS_UPDATE_REQ to PE");
 
 	status = umac_send_mb_message_to_mac(msg);
-	if (QDF_STATUS_SUCCESS != status) {
-		sme_err("Posting to PE failed");
+	if (QDF_IS_STATUS_SUCCESS(status))
 		return;
-	}
-	return;
+
+	sme_err("Posting to PE failed");
 fail:
 	param = qdf_mem_malloc(sizeof(*param));
 	if (!param) {
@@ -22024,8 +22023,9 @@ fail:
 		return;
 	}
 	sme_err("Sending nss update fail response to SME");
-	param->tx_status = QDF_STATUS_E_FAILURE;
-	param->session_id = command->u.nss_update_cmd.session_id;
+	param->status = QDF_STATUS_E_FAILURE;
+	param->vdev_id = command->u.nss_update_cmd.session_id;
+	param->reason = REASON_NSS_UPDATE;
 	msg_return.type = eWNI_SME_NSS_UPDATE_RSP;
 	msg_return.bodyptr = param;
 	msg_return.bodyval = 0;

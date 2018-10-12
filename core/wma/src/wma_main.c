@@ -7901,7 +7901,6 @@ static QDF_STATUS wma_mc_process_msg(struct scheduler_msg *msg)
 		break;
 	case WMA_SEND_BEACON_REQ:
 		wma_send_beacon(wma_handle, (tpSendbeaconParams) msg->bodyptr);
-		qdf_mem_free(msg->bodyptr);
 		break;
 	case WMA_SEND_PROBE_RSP_TMPL:
 		wma_send_probe_rsp_tmpl(wma_handle,
