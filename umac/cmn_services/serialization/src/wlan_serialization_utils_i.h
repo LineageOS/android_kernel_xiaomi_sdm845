@@ -189,6 +189,22 @@ bool wlan_serialization_is_active_cmd_allowed(
 			struct wlan_serialization_command *cmd);
 
 /**
+ * wlan_serialization_is_scan_cmd_allowed() - check if the scan command is
+ *					      allowed to be queued
+ * @psoc: pointer to the PSOC object
+ * @ser_pdev_obj: pointer to the pdev serialization object
+ *
+ * This function checks if the total number of scan commands (active + pending)
+ * is less than the max number of scan commands allowed.
+ *
+ * Return: true if allowed else false
+ */
+bool
+wlan_serialization_is_scan_cmd_allowed(struct wlan_objmgr_psoc *psoc,
+				       struct wlan_serialization_pdev_priv_obj
+				       *ser_pdev_obj);
+
+/**
  * wlan_serialization_cleanup_all_timers() - to clean-up all timers
  *
  * @psoc_ser_ob: pointer to serialization psoc private object

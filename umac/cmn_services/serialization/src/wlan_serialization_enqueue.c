@@ -47,15 +47,24 @@ wlan_serialization_add_cmd_to_given_queue(qdf_list_t *queue,
 	}
 	serialization_debug("add cmd  cmd_id-%d type-%d",
 			    cmd->cmd_id, cmd->cmd_type);
+
+	if ((cmd->cmd_type < WLAN_SER_CMD_NONSCAN) &&
+	    !wlan_serialization_is_scan_cmd_allowed(psoc, ser_pdev_obj)) {
+		serialization_err("Failed to add scan cmd id %d type %d, Scan cmd list is full",
+				  cmd->cmd_id, cmd->cmd_type);
+		return WLAN_SER_CMD_DENIED_LIST_FULL;
+	}
 	if (wlan_serialization_list_empty(&ser_pdev_obj->global_cmd_pool_list,
 					  ser_pdev_obj)) {
-		serialization_err("list is full, can't add more");
+		serialization_err("Failed to add cmd id %d type %d, Cmd list is full",
+				  cmd->cmd_id, cmd->cmd_type);
 		return WLAN_SER_CMD_DENIED_LIST_FULL;
 	}
 	if (wlan_serialization_remove_front(&ser_pdev_obj->global_cmd_pool_list,
 					    &nnode, ser_pdev_obj) !=
 					    QDF_STATUS_SUCCESS) {
-		serialization_err("Failed to get cmd buffer from global pool");
+		serialization_err("Failed to get cmd buffer from pool for cmd id %d type %d",
+				  cmd->cmd_id, cmd->cmd_type);
 		return WLAN_SER_CMD_DENIED_UNSPECIFIED;
 	}
 	cmd_list = qdf_container_of(nnode,

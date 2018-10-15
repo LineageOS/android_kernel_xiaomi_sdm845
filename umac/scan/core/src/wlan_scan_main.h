@@ -124,6 +124,7 @@ struct probe_time_dwell_time {
 #define SCAN_NETWORK_IDLE_TIMEOUT 0
 #define HIDDEN_SSID_TIME (1*60*1000)
 #define SCAN_CHAN_STATS_EVENT_ENAB (false)
+#define MAX_SCAN_COMMANDS 8
 #else
 #define MAX_SCAN_CACHE_SIZE 1024
 #define SCAN_ACTIVE_DWELL_TIME 105
@@ -144,6 +145,7 @@ struct probe_time_dwell_time {
 #define SCAN_NETWORK_IDLE_TIMEOUT 200
 #define HIDDEN_SSID_TIME (0xFFFFFFFF)
 #define SCAN_CHAN_STATS_EVENT_ENAB (true)
+#define MAX_SCAN_COMMANDS 24
 #endif
 
 #define SCAN_TIMEOUT_GRACE_PERIOD 10
