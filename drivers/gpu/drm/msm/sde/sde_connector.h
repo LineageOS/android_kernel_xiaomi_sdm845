@@ -357,6 +357,7 @@ struct sde_connector_evt {
  * @unset_bl_level: BL level that needs to be set later
  * @allow_bl_update: Flag to indicate if BL update is allowed currently or not
  * @last_cmd_tx_sts: status of the last command transfer
+ * @hdr_capable: external hdr support present
  */
 struct sde_connector {
 	struct drm_connector base;
@@ -404,6 +405,7 @@ struct sde_connector {
 	bool allow_bl_update;
 
 	bool last_cmd_tx_sts;
+	bool hdr_capable;
 	bool panel_dead_skip;
 };
 
