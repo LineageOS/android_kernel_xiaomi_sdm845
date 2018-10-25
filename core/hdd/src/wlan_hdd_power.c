@@ -1307,7 +1307,15 @@ static void hdd_send_default_scan_ies(struct hdd_context *hdd_ctx)
 	}
 }
 
-void hdd_is_interface_down_during_ssr(struct hdd_context *hdd_ctx)
+/**
+ * hdd_is_interface_down_during_ssr - Check if the interface went down during
+ * SSR
+ * @hdd_ctx: HDD context
+ *
+ * Check if any of the interface went down while the device is recovering.
+ * If the interface went down close the session.
+ */
+static void hdd_is_interface_down_during_ssr(struct hdd_context *hdd_ctx)
 {
 	struct hdd_adapter *adapter = NULL, *pnext = NULL;
 	QDF_STATUS status;
@@ -1315,9 +1323,11 @@ void hdd_is_interface_down_during_ssr(struct hdd_context *hdd_ctx)
 	hdd_enter();
 
 	status = hdd_get_front_adapter(hdd_ctx, &adapter);
-	while (NULL != adapter && QDF_STATUS_SUCCESS == status) {
+	while (adapter && status == QDF_STATUS_SUCCESS) {
 		if (test_bit(DOWN_DURING_SSR, &adapter->event_flags)) {
+			clear_bit(DOWN_DURING_SSR, &adapter->event_flags);
 			hdd_stop_adapter(hdd_ctx, adapter);
+			hdd_deinit_adapter(hdd_ctx, adapter, true);
 			clear_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 		}
 		status = hdd_get_next_adapter(hdd_ctx, adapter, &pnext);
