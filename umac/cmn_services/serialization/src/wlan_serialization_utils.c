@@ -27,6 +27,7 @@
 #include "wlan_objmgr_pdev_obj.h"
 #include "qdf_mc_timer.h"
 #include "wlan_utility.h"
+#include "wlan_scan_ucfg_api.h"
 #ifdef CONFIG_MCL
 #include "qdf_platform.h"
 #endif
@@ -492,6 +493,39 @@ wlan_serialization_is_active_cmd_allowed(struct wlan_serialization_command *cmd)
 		return wlan_serialization_is_active_scan_cmd_allowed(pdev);
 	else
 		return wlan_serialization_is_active_nonscan_cmd_allowed(pdev);
+}
+
+bool
+wlan_serialization_is_scan_cmd_allowed(struct wlan_objmgr_psoc *psoc,
+				       struct wlan_serialization_pdev_priv_obj
+				       *ser_pdev_obj)
+{
+	uint32_t active_count, pending_count;
+	uint32_t max_scan_commands_allowed;
+
+	if (!psoc || !ser_pdev_obj) {
+		serialization_err("invalid psoc or serialization object");
+		return false;
+	}
+
+	max_scan_commands_allowed = ucfg_scan_get_max_cmd_allowed();
+
+	active_count =
+		wlan_serialization_list_size(&ser_pdev_obj->active_scan_list,
+					     ser_pdev_obj);
+
+	pending_count =
+		wlan_serialization_list_size(&ser_pdev_obj->pending_scan_list,
+					     ser_pdev_obj);
+
+	if ((active_count + pending_count) >= max_scan_commands_allowed) {
+		serialization_debug("active scan cmds %d, pending scan cmds %d max allowed %d",
+				    active_count, pending_count,
+				    max_scan_commands_allowed);
+		return false;
+	}
+
+	return true;
 }
 
 QDF_STATUS wlan_serialization_validate_cmdtype(

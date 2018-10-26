@@ -2281,3 +2281,8 @@ ucfg_scan_get_global_config(struct wlan_objmgr_psoc *psoc,
 
 	return status;
 }
+
+uint32_t ucfg_scan_get_max_cmd_allowed(void)
+{
+	return MAX_SCAN_COMMANDS;
+}

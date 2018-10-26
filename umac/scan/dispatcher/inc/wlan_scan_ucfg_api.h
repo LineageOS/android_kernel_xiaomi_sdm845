@@ -605,4 +605,11 @@ void ucfg_scan_set_vdev_del_in_progress(struct wlan_objmgr_vdev *vdev);
  * Return: none
  */
 void ucfg_scan_clear_vdev_del_in_progress(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * ucfg_scan_get_max_cmd_allowed() - API To get max no. of scan commands allowed
+ *
+ * Return: Max Scan commands allowed count
+ */
+uint32_t ucfg_scan_get_max_cmd_allowed(void);
 #endif
