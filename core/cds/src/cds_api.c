@@ -188,6 +188,7 @@ QDF_STATUS cds_init(void)
 
 	qdf_trace_spin_lock_init();
 	qdf_trace_init();
+	qdf_register_recovering_state_query_callback(cds_is_driver_recovering);
 
 	qdf_register_debugcb_init();
 
@@ -220,7 +221,7 @@ void cds_deinit(void)
 {
 	if (gp_cds_context == NULL)
 		return;
-
+	qdf_register_recovering_state_query_callback(NULL);
 	cds_recovery_work_deinit();
 	qdf_cpuhp_deinit();
 	qdf_mc_timer_manager_exit();
