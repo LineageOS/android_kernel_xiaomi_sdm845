@@ -2750,7 +2750,9 @@ QDF_STATUS reg_send_scheduler_msg_sb(struct wlan_objmgr_psoc *psoc,
 	msg.callback = reg_sched_chan_change_cbks_sb;
 	msg.flush_callback = reg_chan_change_flush_cbk_sb;
 
-	status = scheduler_post_msg(QDF_MODULE_ID_TARGET_IF, &msg);
+	status = scheduler_post_message(QDF_MODULE_ID_REGULATORY,
+					QDF_MODULE_ID_REGULATORY,
+					QDF_MODULE_ID_TARGET_IF, &msg);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		wlan_objmgr_pdev_release_ref(pdev, WLAN_REGULATORY_SB_ID);
 		wlan_objmgr_psoc_release_ref(psoc, WLAN_REGULATORY_SB_ID);
@@ -2792,7 +2794,9 @@ static QDF_STATUS reg_send_scheduler_msg_nb(struct wlan_objmgr_psoc *psoc,
 	msg.callback = reg_sched_chan_change_cbks_nb;
 	msg.flush_callback = reg_chan_change_flush_cbk_nb;
 
-	status = scheduler_post_msg(QDF_MODULE_ID_OS_IF, &msg);
+	status = scheduler_post_message(QDF_MODULE_ID_REGULATORY,
+					QDF_MODULE_ID_REGULATORY,
+					QDF_MODULE_ID_OS_IF, &msg);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		wlan_objmgr_pdev_release_ref(pdev, WLAN_REGULATORY_NB_ID);
 		wlan_objmgr_psoc_release_ref(psoc, WLAN_REGULATORY_NB_ID);
@@ -2861,7 +2865,9 @@ static QDF_STATUS reg_sched_11d_msg(struct wlan_objmgr_psoc *psoc)
 	msg.callback = reg_send_11d_msg_cbk;
 	msg.flush_callback = reg_send_11d_flush_cbk;
 
-	status = scheduler_post_msg(QDF_MODULE_ID_TARGET_IF, &msg);
+	status = scheduler_post_message(QDF_MODULE_ID_REGULATORY,
+					QDF_MODULE_ID_REGULATORY,
+					QDF_MODULE_ID_TARGET_IF, &msg);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		wlan_objmgr_psoc_release_ref(psoc, WLAN_REGULATORY_SB_ID);
 		reg_err("scheduler msg posting failed");
