@@ -1697,10 +1697,13 @@ uint32_t csr_get_rts_thresh(tpAniSirGlobal mac_ctx)
 	return mac_ctx->roam.configParam.RTSThreshold;
 }
 
-static eCsrPhyMode csr_translate_to_phy_mode_from_bss_desc(
-						tSirBssDescription *pSirBssDesc)
+static eCsrPhyMode
+csr_translate_to_phy_mode_from_bss_desc(tpAniSirGlobal mac_ctx,
+					tSirBssDescription *pSirBssDesc,
+					tDot11fBeaconIEs *ies)
 {
 	eCsrPhyMode phyMode;
+	uint8_t i;
 
 	switch (pSirBssDesc->nwType) {
 	case eSIR_11A_NW_TYPE:
@@ -1712,9 +1715,23 @@ static eCsrPhyMode csr_translate_to_phy_mode_from_bss_desc(
 		break;
 
 	case eSIR_11G_NW_TYPE:
-		phyMode = eCSR_DOT11_MODE_11g;
-		break;
+		phyMode = eCSR_DOT11_MODE_11g_ONLY;
 
+		/* Check if the BSS is in b/g mixed mode or g_only mode */
+		if (!ies || !ies->SuppRates.present) {
+			sme_debug("Unable to get rates, assume G only mode");
+			break;
+		}
+
+		for (i = 0; i < ies->SuppRates.num_rates; i++) {
+			if (csr_rates_is_dot11_rate11b_supported_rate(
+			    ies->SuppRates.rates[i])) {
+				sme_debug("One B rate is supported");
+				phyMode = eCSR_DOT11_MODE_11g;
+				break;
+			}
+		}
+		break;
 	case eSIR_11N_NW_TYPE:
 		phyMode = eCSR_DOT11_MODE_11n;
 		break;
@@ -1820,7 +1837,8 @@ QDF_STATUS csr_get_phy_mode_from_bss(tpAniSirGlobal pMac,
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	eCsrPhyMode phyMode =
-		csr_translate_to_phy_mode_from_bss_desc(pBSSDescription);
+		csr_translate_to_phy_mode_from_bss_desc(pMac, pBSSDescription,
+							pIes);
 
 	if (pIes) {
 		if (pIes->HTCaps.present) {
@@ -1850,7 +1868,8 @@ QDF_STATUS csr_get_phy_mode_from_bss(tpAniSirGlobal pMac,
  *
  * Return: true or false
  */
-static bool csr_get_phy_mode_in_use(eCsrPhyMode phyModeIn,
+static bool csr_get_phy_mode_in_use(tpAniSirGlobal mac_ctx,
+				    eCsrPhyMode phyModeIn,
 				    eCsrPhyMode bssPhyMode,
 				    bool f5GhzBand,
 				    enum csr_cfgdot11mode *pCfgDot11ModeToUse)
@@ -1889,21 +1908,16 @@ static bool csr_get_phy_mode_in_use(eCsrPhyMode phyModeIn,
 		break;
 
 	case eCSR_DOT11_MODE_11g_ONLY:
-		if (eCSR_DOT11_MODE_11g == bssPhyMode) {
+		if ((bssPhyMode == eCSR_DOT11_MODE_11g) ||
+		    (bssPhyMode == eCSR_DOT11_MODE_11g_ONLY)) {
 			fMatch = true;
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11G;
 		}
 		break;
 
 	case eCSR_DOT11_MODE_11b:
-		if (!f5GhzBand) {
-			fMatch = true;
-			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11B;
-		}
-		break;
-
 	case eCSR_DOT11_MODE_11b_ONLY:
-		if (eCSR_DOT11_MODE_11b == bssPhyMode) {
+		if (!f5GhzBand && (bssPhyMode != eCSR_DOT11_MODE_11g_ONLY)) {
 			fMatch = true;
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11B;
 		}
@@ -1913,6 +1927,7 @@ static bool csr_get_phy_mode_in_use(eCsrPhyMode phyModeIn,
 		fMatch = true;
 		switch (bssPhyMode) {
 		case eCSR_DOT11_MODE_11g:
+		case eCSR_DOT11_MODE_11g_ONLY:
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11G;
 			break;
 		case eCSR_DOT11_MODE_11b:
@@ -1945,6 +1960,7 @@ static bool csr_get_phy_mode_in_use(eCsrPhyMode phyModeIn,
 		fMatch = true;
 		switch (bssPhyMode) {
 		case eCSR_DOT11_MODE_11g:
+		case eCSR_DOT11_MODE_11g_ONLY:
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11G;
 			break;
 		case eCSR_DOT11_MODE_11b:
@@ -1974,6 +1990,7 @@ static bool csr_get_phy_mode_in_use(eCsrPhyMode phyModeIn,
 		fMatch = true;
 		switch (bssPhyMode) {
 		case eCSR_DOT11_MODE_11g:
+		case eCSR_DOT11_MODE_11g_ONLY:
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11G;
 			break;
 		case eCSR_DOT11_MODE_11b:
@@ -2006,6 +2023,7 @@ static bool csr_get_phy_mode_in_use(eCsrPhyMode phyModeIn,
 		fMatch = true;
 		switch (bssPhyMode) {
 		case eCSR_DOT11_MODE_11g:
+		case eCSR_DOT11_MODE_11g_ONLY:
 			cfgDot11Mode = eCSR_CFG_DOT11_MODE_11G;
 			break;
 		case eCSR_DOT11_MODE_11b:
@@ -2105,19 +2123,21 @@ bool csr_is_phy_mode_match(tpAniSirGlobal pMac, uint32_t phyMode,
 		} else {
 			phyMode2 = phyMode;
 		}
-		fMatch = csr_get_phy_mode_in_use(phyMode2, phyModeInBssDesc,
-				WLAN_REG_IS_5GHZ_CH(pSirBssDesc->channelId),
-				&cfgDot11ModeToUse);
+		fMatch = csr_get_phy_mode_in_use(pMac, phyMode2,
+						 phyModeInBssDesc,
+						 WLAN_REG_IS_5GHZ_CH(
+						 pSirBssDesc->channelId),
+						 &cfgDot11ModeToUse);
 	} else {
 		bitMask = 1;
 		loopCount = 0;
 		while (loopCount < eCSR_NUM_PHY_MODE) {
 			phyMode2 = (phyMode & (bitMask << loopCount++));
-			if (0 != phyMode2 && csr_get_phy_mode_in_use(phyMode2,
-						phyModeInBssDesc,
-						WLAN_REG_IS_5GHZ_CH
-						(pSirBssDesc->channelId),
-						&cfgDot11ModeToUse)) {
+			if (0 != phyMode2 &&
+			    csr_get_phy_mode_in_use(pMac, phyMode2,
+			    phyModeInBssDesc,
+			    WLAN_REG_IS_5GHZ_CH(pSirBssDesc->channelId),
+			    &cfgDot11ModeToUse)) {
 				fMatch = true;
 				break;
 			}
