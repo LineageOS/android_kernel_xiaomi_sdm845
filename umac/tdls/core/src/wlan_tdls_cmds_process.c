@@ -665,6 +665,7 @@ int tdls_validate_mgmt_request(struct tdls_action_frame_request *tdls_mgmt_req)
 	struct tdls_peer *curr_peer;
 	struct tdls_peer *temp_peer;
 	QDF_STATUS status;
+	uint8_t vdev_id;
 
 	struct wlan_objmgr_vdev *vdev = tdls_mgmt_req->vdev;
 	struct tdls_validate_action_req *tdls_validate =
@@ -722,7 +723,8 @@ int tdls_validate_mgmt_request(struct tdls_action_frame_request *tdls_mgmt_req)
 	}
 
 	/*  call hdd_wmm_is_acm_allowed() */
-	if (!tdls_soc->tdls_wmm_cb(&tdls_vdev->vdev)) {
+	vdev_id = wlan_vdev_get_id(vdev);
+	if (!tdls_soc->tdls_wmm_cb(vdev_id)) {
 		tdls_debug("admission ctrl set to VI, send the frame with least AC (BK) for action %d",
 			   tdls_validate->action_code);
 		tdls_mgmt_req->use_default_ac = false;
