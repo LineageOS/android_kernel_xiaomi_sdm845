@@ -949,7 +949,7 @@ util_scan_unpack_beacon_frame(struct wlan_objmgr_pdev *pdev, uint8_t *frame,
 		scan_entry->ie_list.ssid = NULL;
 	} else {
 		qdf_mem_copy(scan_entry->ssid.ssid,
-				ssid->ssid, WLAN_SSID_MAX_LEN);
+				ssid->ssid, ssid->ssid_len);
 		scan_entry->ssid.length = ssid->ssid_len;
 		scan_entry->hidden_ssid_timestamp =
 			scan_entry->scan_entry_time;
