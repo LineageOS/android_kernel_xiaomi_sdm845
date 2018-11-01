@@ -217,6 +217,7 @@ int hdd_sap_context_init(struct hdd_context *hdd_ctx)
 /**
  * hdd_hostapd_init_sap_session() - To init the sap session completely
  * @adapter: SAP/GO adapter
+ * @reinit: if called as part of reinit
  *
  * This API will do
  * 1) sap_init_ctx()
@@ -224,7 +225,7 @@ int hdd_sap_context_init(struct hdd_context *hdd_ctx)
  * Return: 0 if success else non-zero value.
  */
 static struct sap_context *
-hdd_hostapd_init_sap_session(struct hdd_adapter *adapter)
+hdd_hostapd_init_sap_session(struct hdd_adapter *adapter, bool reinit)
 {
 	struct sap_context *sap_ctx;
 	QDF_STATUS status;
@@ -242,7 +243,7 @@ hdd_hostapd_init_sap_session(struct hdd_adapter *adapter)
 	}
 	status = sap_init_ctx(sap_ctx, adapter->device_mode,
 			       adapter->mac_addr.bytes,
-			       adapter->session_id);
+			       adapter->session_id, reinit);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("wlansap_start failed!! status: %d", status);
 		adapter->session.ap.sap_context = NULL;
@@ -6105,7 +6106,7 @@ QDF_STATUS hdd_init_ap_mode(struct hdd_adapter *adapter, bool reinit)
 	hdd_info("SSR in progress: %d", reinit);
 	qdf_atomic_init(&adapter->session.ap.acs_in_progress);
 
-	sapContext = hdd_hostapd_init_sap_session(adapter);
+	sapContext = hdd_hostapd_init_sap_session(adapter, reinit);
 	if (!sapContext) {
 		hdd_err("Invalid sap_ctx");
 		goto error_release_vdev;
