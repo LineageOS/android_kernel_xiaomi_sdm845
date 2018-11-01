@@ -1269,7 +1269,7 @@ void lim_ibss_add_bss_rsp_when_coalescing(tpAniSirGlobal pMac, void *msg,
 					  infoLen, pSessionEntry->smeSessionId);
 	{
 		/* Configure beacon and send beacons to HAL */
-		lim_send_beacon_ind(pMac, pSessionEntry);
+		lim_send_beacon_ind(pMac, pSessionEntry, REASON_DEFAULT);
 	}
 
 end:
