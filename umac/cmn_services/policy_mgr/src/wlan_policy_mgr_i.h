@@ -472,7 +472,8 @@ void policy_mgr_reg_chan_change_callback(struct wlan_objmgr_psoc *psoc,
 
 QDF_STATUS policy_mgr_nss_update(struct wlan_objmgr_psoc *psoc,
 		uint8_t  new_nss, uint8_t next_action,
-		enum policy_mgr_conn_update_reason reason);
+		enum policy_mgr_conn_update_reason reason,
+		uint32_t original_vdev_id);
 
 /**
  * policy_mgr_is_concurrency_allowed() - Check for allowed
