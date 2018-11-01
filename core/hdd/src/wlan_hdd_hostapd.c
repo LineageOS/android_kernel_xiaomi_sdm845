@@ -8642,6 +8642,7 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 	uint8_t channel;
 	bool sta_sap_scc_on_dfs_chan;
 	uint16_t sta_cnt;
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
 	hdd_enter();
 
@@ -8893,6 +8894,9 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 			goto err_start_bss;
 		}
 
+		if (wdev->chandef.chan->center_freq !=
+				params->chandef.chan->center_freq)
+			params->chandef = wdev->chandef;
 		/*
 		 * If Do_Not_Break_Stream enabled send avoid channel list
 		 * to application.
