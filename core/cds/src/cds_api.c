@@ -2218,7 +2218,7 @@ bool cds_is_ptp_rx_opt_enabled(void)
 		return false;
 	}
 
-	return HDD_TSF_IS_RX_SET(hdd_ctx);
+	return hdd_tsf_is_rx_set(hdd_ctx);
 }
 
 bool cds_is_ptp_tx_opt_enabled(void)
@@ -2238,7 +2238,7 @@ bool cds_is_ptp_tx_opt_enabled(void)
 		return false;
 	}
 
-	return HDD_TSF_IS_TX_SET(hdd_ctx);
+	return hdd_tsf_is_tx_set(hdd_ctx);
 }
 #endif
 
