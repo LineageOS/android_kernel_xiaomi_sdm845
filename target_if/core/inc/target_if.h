@@ -54,6 +54,8 @@
 #define TARGET_IF_ENTER() target_if_logfl(QDF_TRACE_LEVEL_DEBUG, "enter")
 #define TARGET_IF_EXIT() target_if_logfl(QDF_TRACE_LEVEL_DEBUG, "exit")
 
+#define target_if_err_rl(params...) \
+	QDF_TRACE_ERROR_RL(QDF_MODULE_ID_TARGET_IF, params)
 
 #ifdef CONFIG_MCL
 #define TARGET_TYPE_AR900B    9  /* Beeliner */
