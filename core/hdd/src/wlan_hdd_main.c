@@ -9357,13 +9357,15 @@ static int hdd_open_concurrent_interface(struct hdd_context *hdd_ctx,
 static int hdd_open_interfaces(struct hdd_context *hdd_ctx, bool rtnl_held)
 {
 	struct hdd_adapter *adapter;
+	enum QDF_GLOBAL_MODE curr_mode;
 	int ret;
 
+	curr_mode = hdd_get_conparam();
 	/* open monitor mode adapter if con_mode is monitor mode */
-	if (con_mode == QDF_GLOBAL_MONITOR_MODE ||
-	    con_mode == QDF_GLOBAL_FTM_MODE) {
-		uint8_t session_type = (con_mode == QDF_GLOBAL_MONITOR_MODE) ?
-						QDF_MONITOR_MODE : QDF_FTM_MODE;
+	if (curr_mode == QDF_GLOBAL_MONITOR_MODE ||
+	    curr_mode == QDF_GLOBAL_FTM_MODE) {
+		uint8_t session_type = (curr_mode == QDF_GLOBAL_MONITOR_MODE) ?
+					QDF_MONITOR_MODE : QDF_FTM_MODE;
 
 		adapter = hdd_open_adapter(hdd_ctx, session_type, "wlan%d",
 					   wlan_hdd_get_intf_addr(hdd_ctx),
