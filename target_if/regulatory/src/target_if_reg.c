@@ -29,9 +29,6 @@
 #include <target_if.h>
 #include <target_if_reg.h>
 #include <wmi_unified_reg_api.h>
-#ifdef CONFIG_MCL
-#include <qdf_platform.h>
-#endif
 
 static inline uint32_t get_chan_list_cc_event_id(void)
 {
@@ -113,13 +110,6 @@ static int tgt_reg_chan_list_update_handler(ol_scn_t handle,
 	int ret_val = 0;
 
 	TARGET_IF_ENTER();
-
-#ifdef CONFIG_MCL
-	if (qdf_is_recovering()) {
-		target_if_debug("ignore chan list update evt in ssr");
-		return 0;
-	}
-#endif
 
 	psoc = target_if_get_psoc_from_scn_hdl(handle);
 	if (!psoc) {
