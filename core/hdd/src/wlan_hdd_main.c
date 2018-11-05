@@ -3180,7 +3180,7 @@ static int __hdd_stop(struct net_device *dev)
 			 adapter->session_id, adapter->device_mode));
 
 	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret) {
+	if (ret) {
 		set_bit(DOWN_DURING_SSR, &adapter->event_flags);
 		return ret;
 	}
