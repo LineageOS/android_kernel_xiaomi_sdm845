@@ -823,7 +823,7 @@ QDF_STATUS tdls_process_add_peer(struct tdls_add_peer_request *req)
 	cmd.umac_cmd = req;
 	cmd.source = WLAN_UMAC_COMP_TDLS;
 	cmd.is_high_priority = false;
-	cmd.cmd_timeout_duration = WAIT_TIME_TDLS_ADD_STA;
+	cmd.cmd_timeout_duration = TDLS_DEFAULT_SERIALIZE_CMD_TIMEOUT;
 	cmd.vdev = vdev;
 
 	ser_cmd_status = wlan_serialization_request(&cmd);
@@ -1032,7 +1032,7 @@ QDF_STATUS tdls_process_update_peer(struct tdls_update_peer_request *req)
 	cmd.umac_cmd = req;
 	cmd.source = WLAN_UMAC_COMP_TDLS;
 	cmd.is_high_priority = false;
-	cmd.cmd_timeout_duration = WAIT_TIME_TDLS_ADD_STA;
+	cmd.cmd_timeout_duration = TDLS_DEFAULT_SERIALIZE_CMD_TIMEOUT;
 	cmd.vdev = req->vdev;
 
 	ser_cmd_status = wlan_serialization_request(&cmd);
@@ -1185,7 +1185,7 @@ QDF_STATUS tdls_process_del_peer(struct tdls_oper_request *req)
 	cmd.umac_cmd = req;
 	cmd.source = WLAN_UMAC_COMP_TDLS;
 	cmd.is_high_priority = false;
-	cmd.cmd_timeout_duration = WAIT_TIME_TDLS_DEL_STA;
+	cmd.cmd_timeout_duration = TDLS_DEFAULT_SERIALIZE_CMD_TIMEOUT;
 	cmd.vdev = vdev;
 
 	ser_cmd_status = wlan_serialization_request(&cmd);
