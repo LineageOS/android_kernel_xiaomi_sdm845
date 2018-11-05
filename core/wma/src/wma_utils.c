@@ -57,6 +57,7 @@
 #include "wmi_unified_param.h"
 #include "linux/ieee80211.h"
 #include <cdp_txrx_handle.h>
+#include <cdp_txrx_peer_ops.h>
 #include "cds_reg_service.h"
 #include "target_if.h"
 
@@ -4763,4 +4764,32 @@ QDF_STATUS wma_get_roam_scan_stats(WMA_HANDLE handle,
 	WMA_LOGD("%s: Exit", __func__);
 
 	return QDF_STATUS_SUCCESS;
+}
+
+void wma_remove_peer_on_add_bss_failure(tpAddBssParams add_bss_params)
+{
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+	struct cdp_pdev *pdev;
+	void *peer = NULL;
+	uint8_t peer_id;
+	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+
+	WMA_LOGE("%s: ADD BSS failure %d", __func__, add_bss_params->status);
+
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (NULL == pdev)
+		WMA_LOGE("%s: Failed to get pdev", __func__);
+
+	if (pdev)
+		peer = cdp_peer_find_by_addr(soc, pdev,
+					     add_bss_params->bssId,
+					     &peer_id);
+
+	if (!peer)
+		WMA_LOGE("%s Failed to find peer %pM",
+			 __func__, add_bss_params->bssId);
+
+	if (peer)
+		wma_remove_peer(wma, add_bss_params->bssId,
+				add_bss_params->bssIdx, peer, false);
 }
