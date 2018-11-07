@@ -1277,7 +1277,7 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	struct hdd_context *hdd_ctx;
 	int ret;
 
-	hdd_enter_dev(dev);
+	hdd_enter();
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
@@ -1341,8 +1341,6 @@ int wlan_hdd_sched_scan_stop(struct net_device *dev)
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	struct hdd_context *hdd_ctx;
 
-	hdd_enter_dev(dev);
-
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
 		return -EINVAL;
@@ -1380,7 +1378,13 @@ static int __wlan_hdd_cfg80211_sched_scan_stop(struct net_device *dev)
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	int errno;
 
-	hdd_enter_dev(dev);
+	hdd_enter();
+
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+		hdd_err_rl("Command not allowed in FTM mode");
+		return -EINVAL;
+	}
+
 
 	/* The return 0 is intentional when Recovery and Load/Unload in
 	 * progress. We did observe a crash due to a return of
