@@ -1361,11 +1361,15 @@ static QDF_STATUS dfs_msg_processor(tpAniSirGlobal mac,
 		struct scheduler_msg *msg)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	struct csr_roam_info roam_info = { 0 };
+	struct csr_roam_info *roam_info;
 	tSirSmeCSAIeTxCompleteRsp *csa_ie_tx_complete_rsp;
 	uint32_t session_id = 0;
 	eRoamCmdStatus roam_status;
 	eCsrRoamResult roam_result;
+
+	roam_info = qdf_mem_malloc(sizeof(*roam_info));
+	if (!roam_info)
+		return QDF_STATUS_E_NOMEM;
 
 	switch (msg->type) {
 	case eWNI_SME_DFS_RADAR_FOUND:
@@ -1383,6 +1387,7 @@ static QDF_STATUS dfs_msg_processor(tpAniSirGlobal mac,
 			(tSirSmeCSAIeTxCompleteRsp *) msg->bodyptr;
 		if (!csa_ie_tx_complete_rsp) {
 			sme_err("eWNI_SME_DFS_CSAIE_TX_COMPLETE_IND null msg");
+			qdf_mem_free(roam_info);
 			return QDF_STATUS_E_FAILURE;
 		}
 		session_id = csa_ie_tx_complete_rsp->sessionId;
@@ -1406,14 +1411,16 @@ static QDF_STATUS dfs_msg_processor(tpAniSirGlobal mac,
 	default:
 	{
 		sme_err("Invalid DFS message: 0x%x", msg->type);
+		qdf_mem_free(roam_info);
 		status = QDF_STATUS_E_FAILURE;
 		return status;
 	}
 	}
 
 	/* Indicate Radar Event to SAP */
-	csr_roam_call_callback(mac, session_id, &roam_info, 0,
+	csr_roam_call_callback(mac, session_id, roam_info, 0,
 			       roam_status, roam_result);
+	qdf_mem_free(roam_info);
 	return status;
 }
 
@@ -1428,16 +1435,22 @@ sme_unprotected_mgmt_frm_ind(tpAniSirGlobal mac,
 			     tpSirSmeUnprotMgmtFrameInd pSmeMgmtFrm)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	struct csr_roam_info roam_info = { 0 };
+	struct csr_roam_info *roam_info;
 	uint32_t SessionId = pSmeMgmtFrm->sessionId;
 
-	roam_info.nFrameLength = pSmeMgmtFrm->frameLen;
-	roam_info.pbFrames = pSmeMgmtFrm->frameBuf;
-	roam_info.frameType = pSmeMgmtFrm->frameType;
+	roam_info = qdf_mem_malloc(sizeof(*roam_info));
+	if (!roam_info)
+		return QDF_STATUS_E_NOMEM;
+
+	roam_info->nFrameLength = pSmeMgmtFrm->frameLen;
+	roam_info->pbFrames = pSmeMgmtFrm->frameBuf;
+	roam_info->frameType = pSmeMgmtFrm->frameType;
 
 	/* forward the mgmt frame to HDD */
-	csr_roam_call_callback(mac, SessionId, &roam_info, 0,
+	csr_roam_call_callback(mac, SessionId, roam_info, 0,
 			       eCSR_ROAM_UNPROT_MGMT_FRAME_IND, 0);
+
+	qdf_mem_free(roam_info);
 
 	return status;
 }
@@ -1489,7 +1502,7 @@ static QDF_STATUS sme_extended_change_channel_ind(tpAniSirGlobal mac_ctx,
 	struct sir_sme_ext_cng_chan_ind *ext_chan_ind;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	uint32_t session_id = 0;
-	struct csr_roam_info roamInfo = {0};
+	struct csr_roam_info *roam_info;
 	eRoamCmdStatus roam_status;
 	eCsrRoamResult roam_result;
 
@@ -1498,16 +1511,20 @@ static QDF_STATUS sme_extended_change_channel_ind(tpAniSirGlobal mac_ctx,
 		sme_err("ext_chan_ind is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
+	roam_info = qdf_mem_malloc(sizeof(*roam_info));
+	if (!roam_info)
+		return QDF_STATUS_E_NOMEM;
 	session_id = ext_chan_ind->session_id;
-	roamInfo.target_channel = ext_chan_ind->new_channel;
+	roam_info->target_channel = ext_chan_ind->new_channel;
 	roam_status = eCSR_ROAM_EXT_CHG_CHNL_IND;
 	roam_result = eCSR_ROAM_EXT_CHG_CHNL_UPDATE_IND;
 	sme_debug("sapdfs: Received eWNI_SME_EXT_CHANGE_CHANNEL_IND for session id [%d]",
 		 session_id);
 
 	/* Indicate Ext Channel Change event to SAP */
-	csr_roam_call_callback(mac_ctx, session_id, &roamInfo, 0,
-					roam_status, roam_result);
+	csr_roam_call_callback(mac_ctx, session_id, roam_info, 0,
+			       roam_status, roam_result);
+	qdf_mem_free(roam_info);
 	return status;
 }
 
@@ -1673,15 +1690,20 @@ static QDF_STATUS sme_tsm_ie_ind(tpAniSirGlobal mac,
 				 tSirSmeTsmIEInd *pSmeTsmIeInd)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	struct csr_roam_info roam_info = { 0 };
+	struct csr_roam_info *roam_info;
 	uint32_t SessionId = pSmeTsmIeInd->sessionId;
 
-	roam_info.tsmIe.tsid = pSmeTsmIeInd->tsmIe.tsid;
-	roam_info.tsmIe.state = pSmeTsmIeInd->tsmIe.state;
-	roam_info.tsmIe.msmt_interval = pSmeTsmIeInd->tsmIe.msmt_interval;
+	roam_info = qdf_mem_malloc(sizeof(*roam_info));
+	if (!roam_info)
+		return QDF_STATUS_E_NOMEM;
+
+	roam_info->tsmIe.tsid = pSmeTsmIeInd->tsmIe.tsid;
+	roam_info->tsmIe.state = pSmeTsmIeInd->tsmIe.state;
+	roam_info->tsmIe.msmt_interval = pSmeTsmIeInd->tsmIe.msmt_interval;
 	/* forward the tsm ie information to HDD */
-	csr_roam_call_callback(mac, SessionId, &roam_info, 0,
+	csr_roam_call_callback(mac, SessionId, roam_info, 0,
 			       eCSR_ROAM_TSM_IE_IND, 0);
+	qdf_mem_free(roam_info);
 	return status;
 }
 
@@ -10548,41 +10570,44 @@ static QDF_STATUS sme_process_channel_change_resp(tpAniSirGlobal pMac,
 					   uint16_t msg_type, void *pMsgBuf)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	struct csr_roam_info proam_info = { 0 };
+	struct csr_roam_info *roam_info;
 	eCsrRoamResult roamResult;
 	tpSwitchChannelParams pChnlParams = (tpSwitchChannelParams) pMsgBuf;
 	uint32_t SessionId = pChnlParams->peSessionId;
 
-	proam_info.channelChangeRespEvent =
-		(tSirChanChangeResponse *)
+	roam_info = qdf_mem_malloc(sizeof(*roam_info));
+	if (!roam_info)
+		return QDF_STATUS_E_NOMEM;
+
+	roam_info->channelChangeRespEvent =
 		qdf_mem_malloc(sizeof(tSirChanChangeResponse));
-	if (NULL == proam_info.channelChangeRespEvent) {
+	if (!roam_info->channelChangeRespEvent) {
 		status = QDF_STATUS_E_NOMEM;
-		sme_err("Channel Change Event Allocation Failed: %d\n", status);
+		qdf_mem_free(roam_info);
 		return status;
 	}
 	if (msg_type == eWNI_SME_CHANNEL_CHANGE_RSP) {
-		proam_info.channelChangeRespEvent->sessionId = SessionId;
-		proam_info.channelChangeRespEvent->newChannelNumber =
+		roam_info->channelChangeRespEvent->sessionId = SessionId;
+		roam_info->channelChangeRespEvent->newChannelNumber =
 			pChnlParams->channelNumber;
 
 		if (pChnlParams->status == QDF_STATUS_SUCCESS) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				  "sapdfs: Received success eWNI_SME_CHANNEL_CHANGE_RSP for sessionId[%d]",
 				  SessionId);
-			proam_info.channelChangeRespEvent->channelChangeStatus =
+			roam_info->channelChangeRespEvent->channelChangeStatus =
 				1;
 			roamResult = eCSR_ROAM_RESULT_CHANNEL_CHANGE_SUCCESS;
 		} else {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				  "sapdfs: Received failure eWNI_SME_CHANNEL_CHANGE_RSP for sessionId[%d]",
 				  SessionId);
-			proam_info.channelChangeRespEvent->channelChangeStatus =
+			roam_info->channelChangeRespEvent->channelChangeStatus =
 				0;
 			roamResult = eCSR_ROAM_RESULT_CHANNEL_CHANGE_FAILURE;
 		}
 
-		csr_roam_call_callback(pMac, SessionId, &proam_info, 0,
+		csr_roam_call_callback(pMac, SessionId, roam_info, 0,
 				       eCSR_ROAM_SET_CHANNEL_RSP, roamResult);
 
 	} else {
@@ -10590,7 +10615,8 @@ static QDF_STATUS sme_process_channel_change_resp(tpAniSirGlobal pMac,
 		sme_err("Invalid Channel Change Resp Message: %d",
 			status);
 	}
-	qdf_mem_free(proam_info.channelChangeRespEvent);
+	qdf_mem_free(roam_info->channelChangeRespEvent);
+	qdf_mem_free(roam_info);
 
 	return status;
 }
