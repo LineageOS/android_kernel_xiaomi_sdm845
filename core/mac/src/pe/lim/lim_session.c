@@ -847,6 +847,13 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 
 	lim_reset_bcn_probe_filter(mac_ctx, session);
 
+	/* Restore default failure timeout */
+	if (session->defaultAuthFailureTimeout) {
+		pe_debug("Restore default failure timeout");
+		cfg_set_int(mac_ctx, WNI_CFG_AUTHENTICATE_FAILURE_TIMEOUT,
+				session->defaultAuthFailureTimeout);
+	}
+
 	for (n = 0; n < (mac_ctx->lim.maxStation + 1); n++) {
 		timer_ptr = &mac_ctx->lim.limTimers.gpLimCnfWaitTimer[n];
 		if (session->peSessionId == timer_ptr->sessionId)
