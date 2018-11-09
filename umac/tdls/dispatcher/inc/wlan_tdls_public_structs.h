@@ -569,9 +569,6 @@ typedef QDF_STATUS
 				      uint32_t vdev_param,
 				      bool is_link_up);
 
-/* This callback is to release vdev ref for tdls sta notify msg */
-typedef void (*tdls_sta_notify_callback)(struct wlan_objmgr_vdev *vdev);
-
 /* This callback is to release vdev ref for tdls offchan param related msg */
 typedef void (*tdls_offchan_parms_callback)(struct wlan_objmgr_vdev *vdev);
 
@@ -1053,7 +1050,6 @@ struct tdls_sta_notify_params {
 	bool lfr_roam;
 	bool user_disconnect;
 	uint8_t session_id;
-	tdls_sta_notify_callback callback;
 };
 
 /**
