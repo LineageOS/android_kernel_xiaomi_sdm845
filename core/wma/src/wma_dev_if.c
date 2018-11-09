@@ -883,10 +883,6 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 			       resp_event)
 {
 	struct beacon_info *bcn;
-	struct cdp_pdev *pdev;
-	void *peer = NULL;
-	uint8_t peer_id;
-	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 
 #ifdef QCA_IBSS_SUPPORT
 	WMA_LOGD("%s: vdev start response received for %s mode", __func__,
@@ -943,30 +939,14 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 	}
 	add_bss->smpsMode = host_map_smps_mode(resp_event->smps_mode);
 send_fail_resp:
-	if (add_bss->status != QDF_STATUS_SUCCESS) {
-		WMA_LOGE("%s: ADD BSS failure %d", __func__, add_bss->status);
-
-		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-		if (NULL == pdev)
-			WMA_LOGE("%s: Failed to get pdev", __func__);
-
-		if (pdev)
-			peer = cdp_peer_find_by_addr(soc, pdev,
-				add_bss->bssId, &peer_id);
-		if (!peer)
-			WMA_LOGE("%s Failed to find peer %pM", __func__,
-				add_bss->bssId);
-
-		if (peer)
-			wma_remove_peer(wma, add_bss->bssId,
-				resp_event->vdev_id, peer, false);
-	}
-
 	/* Send vdev stop if vdev start was success */
-	if ((add_bss->status != QDF_STATUS_SUCCESS) &&
-	   !resp_event->status)
-		if (wma_send_vdev_stop_to_fw(wma, resp_event->vdev_id))
-			WMA_LOGE("%s: %d Failed to send vdev stop", __func__, __LINE__);
+	if (QDF_IS_STATUS_ERROR(add_bss->status)) {
+		if (!resp_event->status)
+			if (wma_send_vdev_stop_to_fw(wma, resp_event->vdev_id))
+				WMA_LOGE(FL("Failed to send vdev stop"));
+
+		wma_remove_peer_on_add_bss_failure(add_bss);
+	}
 
 	WMA_LOGD("%s: Sending add bss rsp to umac(vdev %d status %d)",
 		 __func__, resp_event->vdev_id, add_bss->status);
@@ -3551,13 +3531,11 @@ void wma_vdev_resp_timer(void *data)
 			wma_trigger_recovery_assert_on_fw_timeout(
 				WMA_ADD_BSS_REQ);
 		} else {
-			peer = cdp_peer_find_by_addr(soc, pdev, params->bssId,
-						     &peer_id);
-			if (peer)
-				wma_remove_peer(wma, params->bssId,
-						tgt_req->vdev_id, peer, false);
-			else
-				WMA_LOGE("%s: Failed to find peer", __func__);
+			if (wma_send_vdev_stop_to_fw(wma, tgt_req->vdev_id))
+				WMA_LOGE("%s: Failed to send vdev stop to fw",
+					 __func__);
+
+			wma_remove_peer_on_add_bss_failure(params);
 
 			wma_send_msg_high_priority(wma, WMA_ADD_BSS_RSP,
 						   (void *)params, 0);
