@@ -9244,6 +9244,483 @@ enum dot11p_mode {
 
 /*
  * <ini>
+ * num_tx_chains_2g - Config Param to change number of tx
+ * chains per vdev for 2.4ghz frequency connections
+ * @Min: 0x01249249
+ * @Max: 0x02492492
+ * @Default: 0x02492492
+ *
+ * This ini is used to change the num of chains for eg:-
+ * 0x01249249 - change all vdev's num tx chains for 2.4ghz connection to 1 each
+ * 0x02492492 - change all vdev's num tx chains for 2.4ghz connection to 2 each
+ * Bits          VDEV Type
+ * BIT[0:2]        STA
+ * BIT[3:5]        SAP
+ * BIT[6:8]        P2P GO
+ * BIT[9:11]       P2P Client
+ * BIT[12:14]      TDLS
+ * BIT[15:17]      IBSS
+ * BIT[18:20]      P2P device
+ * BIT[21:23]      OCB
+ * BIT[24:26]      NAN
+ * BIT[27:31]      Reserved
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NUM_TX_CHAINS_2G           "num_tx_chains_2g"
+#define CFG_NUM_TX_CHAINS_2G_MIN       0x01249249
+#define CFG_NUM_TX_CHAINS_2G_MAX       0x02492492
+#define CFG_NUM_TX_CHAINS_2G_DEF       0x02492492
+
+/*
+ * <ini>
+ * num_tx_chains_5g - Config Param to change number of tx
+ * chains per vdev for 5 ghz frequency connections
+ * @Min: 0x01249249
+ * @Max: 0x02492492
+ * @Default: 0x02492492
+ *
+ * This ini is used to change the num of chains for eg:-
+ * 0x01249249- change all vdev's tx num chains for 5ghz connection to 1 each
+ * 0x02492492 - change all vdev's tx num chains for 5ghz connection to 2 each
+ * Bits          VDEV Type
+ * BIT[0:2]        STA
+ * BIT[3:5]        SAP
+ * BIT[6:8]        P2P GO
+ * BIT[9:11]       P2P Client
+ * BIT[12:14]      TDLS
+ * BIT[15:17]      IBSS
+ * BIT[18:20]      P2P device
+ * BIT[21:23]      OCB
+ * BIT[24:26]      NAN
+ * BIT[27:31]      Reserved
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NUM_TX_CHAINS_5G           "num_tx_chains_5g"
+#define CFG_NUM_TX_CHAINS_5G_MIN       0x01249249
+#define CFG_NUM_TX_CHAINS_5G_MAX       0x02492492
+#define CFG_NUM_TX_CHAINS_5G_DEF       0x02492492
+
+/*
+ * <ini>
+ * num_rx_chains_2g - Config Param to change number of rx
+ * chains per vdev for 2.4 ghz frequency connections
+ * @Min: 0x01249249
+ * @Max: 0x02492492
+ * @Default: 0x02492492
+ *
+ * This ini is used to change the num of chains for eg:-
+ * 0x01249249 - change all vdev's rx num chains for 2.4ghz connections to 1 each
+ * 0x02492492 - change all vdev's rx num chains for 2.4ghz connections to 2 each
+ * Bits          VDEV Type
+ * BIT[0:2]        STA
+ * BIT[3:5]        SAP
+ * BIT[6:8]        P2P GO
+ * BIT[9:11]       P2P Client
+ * BIT[12:14]      TDLS
+ * BIT[15:17]      IBSS
+ * BIT[18:20]      P2P device
+ * BIT[21:23]      OCB
+ * BIT[24:26]      NAN
+ * BIT[27:31]      Reserved
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NUM_RX_CHAINS_2G           "num_rx_chains_2g"
+#define CFG_NUM_RX_CHAINS_2G_MIN       0x01249249
+#define CFG_NUM_RX_CHAINS_2G_MAX       0x02492492
+#define CFG_NUM_RX_CHAINS_2G_DEF       0x02492492
+
+/*
+ * <ini>
+ * num_rx_chains_5g - Config Param to change number of rx
+ * chains per vdev for 5 ghz frequency connections
+ * @Min: 0x01249249
+ * @Max: 0x02492492
+ * @Default: 0x02492492
+ *
+ * This ini is used to change the num of chains for eg:-
+ * 0x01249249 - change all vdev's rx num chains for 5ghz connections to 1 each
+ * 0x02492492 - change all vdev's rx num chains for 5ghz connections to 2 each
+ * Bits          VDEV Type
+ * BIT[0:2]        STA
+ * BIT[3:5]        SAP
+ * BIT[6:8]        P2P GO
+ * BIT[9:11]       P2P Client
+ * BIT[12:14]      TDLS
+ * BIT[15:17]      IBSS
+ * BIT[18:20]      P2P device
+ * BIT[21:23]      OCB
+ * BIT[24:26]      NAN
+ * BIT[27:31]      Reserved
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NUM_RX_CHAINS_5G           "num_rx_chains_5g"
+#define CFG_NUM_RX_CHAINS_5G_MIN       0x01249249
+#define CFG_NUM_RX_CHAINS_5G_MAX       0x02492492
+#define CFG_NUM_RX_CHAINS_5G_DEF       0x02492492
+
+/*
+ * <ini>
+ * tx_nss_2g - Config Param to change tx nss
+ * per vdev for 2.4ghz frequency connections
+ * @Min: 0x01249249
+ * @Max: 0x02492492
+ * @Default: 0x02492492
+ *
+ * This ini is used to change the num of tx spatial streams for eg:-
+ * 0x01249249 - change all vdev's tx nss for 2.4ghz connections to 1 each
+ * 0x02492492 - change all vdev's tx nss for 2.4ghz connections to 2 each
+ * Bits          VDEV Type
+ * BIT[0:2]        STA
+ * BIT[3:5]        SAP
+ * BIT[6:8]        P2P GO
+ * BIT[9:11]       P2P Client
+ * BIT[12:14]      TDLS
+ * BIT[15:17]      IBSS
+ * BIT[18:20]      P2P device
+ * BIT[21:23]      OCB
+ * BIT[24:26]      NAN
+ * BIT[27:31]      Reserved
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_TX_NSS_2G           "tx_nss_2g"
+#define CFG_TX_NSS_2G_MIN       0x01249249
+#define CFG_TX_NSS_2G_MAX       0x02492492
+#define CFG_TX_NSS_2G_DEF       0x02492492
+
+/*
+ * <ini>
+ * tx_nss_5g - Config Param to change tx nss
+ * per vdev for 5ghz frequency connections
+ * @Min: 0x01249249
+ * @Max: 0x02492492
+ * @Default: 0x02492492
+ *
+ * This ini is used to change the num of tx spatial streams for eg:-
+ * 0x01249249 - change all vdev's tx nss for 5ghz connections to 1 each
+ * 0x02492492 - change all vdev's tx nss for 5ghz connections to 2 each
+ * Bits          VDEV Type
+ * BIT[0:2]        STA
+ * BIT[3:5]        SAP
+ * BIT[6:8]        P2P GO
+ * BIT[9:11]       P2P Client
+ * BIT[12:14]      TDLS
+ * BIT[15:17]      IBSS
+ * BIT[18:20]      P2P device
+ * BIT[21:23]      OCB
+ * BIT[24:26]      NAN
+ * BIT[27:31]      Reserved
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_TX_NSS_5G           "tx_nss_5g"
+#define CFG_TX_NSS_5G_MIN       0x01249249
+#define CFG_TX_NSS_5G_MAX       0x02492492
+#define CFG_TX_NSS_5G_DEF       0x02492492
+
+/*
+ * <ini>
+ * rx_nss_2g - Config Param to change rx nss
+ * per vdev for 2.4ghz frequency connections
+ *
+ * @Min: 0x01249249
+ * @Max: 0x02492492
+ * @Default: 0x02492492
+ *
+ * This ini is used to change the num of rx spatial streams for eg:-
+ * 0x01249249 - change all vdev's rx nss for 2.4ghz connections to 1 each
+ * 0x02492492 - change all vdev's rx nss for 2.4ghz connections to 2 each
+ * Bits          VDEV Type
+ * BIT[0:2]        STA
+ * BIT[3:5]        SAP
+ * BIT[6:8]        P2P GO
+ * BIT[9:11]       P2P Client
+ * BIT[12:14]      TDLS
+ * BIT[15:17]      IBSS
+ * BIT[18:20]      P2P device
+ * BIT[21:23]      OCB
+ * BIT[24:26]      NAN
+ * BIT[27:31]      Reserved
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_RX_NSS_2G           "rx_nss_2g"
+#define CFG_RX_NSS_2G_MIN       0x01249249
+#define CFG_RX_NSS_2G_MAX       0x02492492
+#define CFG_RX_NSS_2G_DEF       0x02492492
+
+/*
+ * <ini>
+ * rx_nss_5g - Config Param to change rx nss
+ * per vdev for 5ghz frequency connections
+ * @Min: 0x01249249
+ * @Max: 0x02492492
+ * @Default: 0x02492492
+ *
+ * This ini is used to change the num of rx spatial streams for eg:-
+ * 0x01249249 - change all vdev's rx nss for 5ghz connections to 1 each
+ * 0x02492492 - change all vdev's rx nss for 5ghz connections to 2 each
+ * Bits          VDEV Type
+ * BIT[0:2]        STA
+ * BIT[3:5]        SAP
+ * BIT[6:8]        P2P GO
+ * BIT[9:11]       P2P Client
+ * BIT[12:14]      TDLS
+ * BIT[15:17]      IBSS
+ * BIT[18:20]      P2P device
+ * BIT[21:23]      OCB
+ * BIT[24:26]      NAN
+ * BIT[27:31]      Reserved
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_RX_NSS_5G           "rx_nss_5g"
+#define CFG_RX_NSS_5G_MIN       0x01249249
+#define CFG_RX_NSS_5G_MAX       0x02492492
+#define CFG_RX_NSS_5G_DEF       0x02492492
+
+/*
+ * <ini>
+ * num_tx_chains_11b - Config Param to change number of tx
+ * chains per vdev for 2.4ghz 11b mode connections
+ * @Min: 0x01249249
+ * @Max: 0x02492492
+ * @Default: 0x02492492
+ *
+ * This ini is used to change the num of chains for eg:-
+ * 0x01249249 - change all vdev's num chains for 11b connections to 1 each
+ * 0x02492492 - change all vdev's num chains for 11b connections to 2 each
+ * Bits          VDEV Type
+ * BIT[0:2]        STA
+ * BIT[3:5]        SAP
+ * BIT[6:8]        P2P GO
+ * BIT[9:11]       P2P Client
+ * BIT[12:14]      TDLS
+ * BIT[15:17]      IBSS
+ * BIT[18:20]      P2P device
+ * BIT[21:23]      OCB
+ * BIT[24:26]      NAN
+ * BIT[27:31]      Reserved
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NUM_TX_CHAINS_11b          "num_tx_chains_11b"
+#define CFG_NUM_TX_CHAINS_11b_MIN       0x01249249
+#define CFG_NUM_TX_CHAINS_11b_MAX       0x02492492
+#define CFG_NUM_TX_CHAINS_11b_DEF       0x02492492
+
+/*
+ * <ini>
+ * num_tx_chains_11g - Config Param to change number of tx
+ * chains per vdev for 2.4ghz 11g mode connections
+ * @Min: 0x01249249
+ * @Max: 0x02492492
+ * @Default: 0x02492492
+ *
+ * This ini is used to change the num of chains for eg:-
+ * 0x01249249 - change all vdev's num chains for 11g connections to 1 each
+ * 0x02492492 - change all vdev's num chains for 11g connections to 2 each
+ * Bits          VDEV Type
+ * BIT[0:2]        STA
+ * BIT[3:5]        SAP
+ * BIT[6:8]        P2P GO
+ * BIT[9:11]       P2P Client
+ * BIT[12:14]      TDLS
+ * BIT[15:17]      IBSS
+ * BIT[18:20]      P2P device
+ * BIT[21:23]      OCB
+ * BIT[24:26]      NAN
+ * BIT[27:31]      Reserved
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NUM_TX_CHAINS_11g          "num_tx_chains_11g"
+#define CFG_NUM_TX_CHAINS_11g_MIN       0x01249249
+#define CFG_NUM_TX_CHAINS_11g_MAX       0x02492492
+#define CFG_NUM_TX_CHAINS_11g_DEF       0x02492492
+
+/*
+ * <ini>
+ * num_tx_chains_11a - Config Param to change number of tx
+ * chains per vdev for 5ghz 11a mode connections
+ * @Min: 0x01249249
+ * @Max: 0x02492492
+ * @Default: 0x02492492
+ *
+ * This ini is used to change the num of chains for eg:-
+ * 0x01249249 - change all vdev's num chains for 11a connections to 1 each
+ * 0x02492492 - change all vdev's num chains for 11a connections to 2 each
+ * Bits          VDEV Type
+ * BIT[0:2]        STA
+ * BIT[3:5]        SAP
+ * BIT[6:8]        P2P GO
+ * BIT[9:11]       P2P Client
+ * BIT[12:14]      TDLS
+ * BIT[15:17]      IBSS
+ * BIT[18:20]      P2P device
+ * BIT[21:23]      OCB
+ * BIT[24:26]      NAN
+ * BIT[27:31]      Reserved
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NUM_TX_CHAINS_11a          "num_tx_chains_11a"
+#define CFG_NUM_TX_CHAINS_11a_MIN       0x01249249
+#define CFG_NUM_TX_CHAINS_11a_MAX       0x02492492
+#define CFG_NUM_TX_CHAINS_11a_DEF       0x02492492
+
+/*
+ * <ini>
+ * disable_tx_mrc_2g - Config Param to disable 2 chains in 1x1 nss mode
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DISABLE_TX_MRC_2G             "disable_tx_mrc_2g"
+#define CFG_DISABLE_TX_MRC_2G_MIN         0
+#define CFG_DISABLE_TX_MRC_2G_MAX         1
+#define CFG_DISABLE_TX_MRC_2G_DEF         0
+
+/*
+ * <ini>
+ * disable_rx_mrc_2g - Config Param to disable 2 chains in 1x1 nss mode
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DISABLE_RX_MRC_2G            "disable_rx_mrc_2g"
+#define CFG_DISABLE_RX_MRC_2G_MIN        0
+#define CFG_DISABLE_RX_MRC_2G_MAX        1
+#define CFG_DISABLE_RX_MRC_2G_DEF        0
+
+/*
+ * <ini>
+ * disable_tx_mrc_5g - Config Param to disable 2 chains in 1x1 nss mode
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DISABLE_TX_MRC_5G           "disable_tx_mrc_5g"
+#define CFG_DISABLE_TX_MRC_5G_MIN        0
+#define CFG_DISABLE_TX_MRC_5G_MAX        1
+#define CFG_DISABLE_TX_MRC_5G_DEF        0
+
+/*
+ * <ini>
+ * disable_rx_mrc_5g - Config Param to disable 2 chains in 1x1 nss mode
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Related: STA/SAP/P2P/IBSS/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DISABLE_RX_MRC_5G           "disable_rx_mrc_5g"
+#define CFG_DISABLE_RX_MRC_5G_MIN        0
+#define CFG_DISABLE_RX_MRC_5G_MAX        1
+#define CFG_DISABLE_RX_MRC_5G_DEF        0
+
+/*
+ * <ini>
  * gEnable_go_cts2self_for_sta - Indicate firmware to stop NOA and
  * start using cts2self
  * @Min: 1
@@ -16036,6 +16513,7 @@ struct hdd_config {
 	uint32_t roam_preauth_retry_count;
 	uint32_t roam_preauth_no_ack_timeout;
 #endif
+
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
