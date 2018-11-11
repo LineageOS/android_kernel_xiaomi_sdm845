@@ -16513,6 +16513,21 @@ struct hdd_config {
 	uint32_t roam_preauth_retry_count;
 	uint32_t roam_preauth_no_ack_timeout;
 #endif
+	uint32_t num_tx_chains_2g;
+	uint32_t num_tx_chains_5g;
+	uint32_t num_rx_chains_2g;
+	uint32_t num_rx_chains_5g;
+	uint32_t tx_nss_2g;
+	uint32_t tx_nss_5g;
+	uint32_t rx_nss_2g;
+	uint32_t rx_nss_5g;
+	uint32_t num_tx_chains_11b;
+	uint32_t num_tx_chains_11g;
+	uint32_t num_tx_chains_11a;
+	bool disable_tx_mrc_2g;
+	bool disable_rx_mrc_2g;
+	bool disable_tx_mrc_5g;
+	bool disable_rx_mrc_5g;
 
 };
 
