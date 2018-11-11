@@ -661,6 +661,42 @@ struct vdev_up_params {
 };
 
 /**
+ * enum nss_chains_band_info - Band info for dynamic nss, chains change feature
+ * @NSS_CHAINS_BAND_2GHZ: 2.4Ghz band
+ * @NSS_CHAINS_BAND_5GHZ: 5Ghz band
+ * @NSS_CHAINS_BAND_MAX: Max bands supported
+ */
+enum nss_chains_band_info {
+	NSS_CHAINS_BAND_2GHZ = 0,
+	NSS_CHAINS_BAND_5GHZ,
+	NSS_CHAINS_BAND_MAX,
+};
+
+/**
+ * struct mlme_nss_chains -          MLME vdev config of nss, and chains
+ * @num_tx_chains:                   tx chains of vdev config
+ * @num_rx_chains:                   rx chains of vdev config
+ * @tx_nss:                          tx nss of vdev config
+ * @rx_nss:                          rx nss of vdev config
+ * @num_tx_chains_11b:               number of tx chains in 11b mode
+ * @num_tx_chains_11g:               number of tx chains in 11g mode
+ * @num_tx_chains_11a:               number of tx chains in 11a mode
+ * @disable_rx_mrc:                  disable 2 rx chains, in rx nss 1 mode
+ * @disable_tx_mrc:                  disable 2 tx chains, in tx nss 1 mode
+ */
+struct mlme_nss_chains {
+	uint32_t num_tx_chains[NSS_CHAINS_BAND_MAX];
+	uint32_t num_rx_chains[NSS_CHAINS_BAND_MAX];
+	uint32_t tx_nss[NSS_CHAINS_BAND_MAX];
+	uint32_t rx_nss[NSS_CHAINS_BAND_MAX];
+	uint32_t num_tx_chains_11b;
+	uint32_t num_tx_chains_11g;
+	uint32_t num_tx_chains_11a;
+	bool disable_rx_mrc[NSS_CHAINS_BAND_MAX];
+	bool disable_tx_mrc[NSS_CHAINS_BAND_MAX];
+};
+
+/**
  * struct vdev_down_params - vdev down cmd parameter
  * @vdev_id: vdev id
  */
@@ -5960,7 +5996,7 @@ typedef enum {
 	wmi_service_twt_requestor,
 	wmi_service_twt_responder,
 	wmi_service_listen_interval_offload_support,
-
+	wmi_service_per_vdev_chain_support,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF

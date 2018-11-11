@@ -523,6 +523,7 @@ typedef enum {
  * @QDF_WDS_MODE: WDS mode
  * @QDF_BTAMP_MODE: BTAMP mode
  * @QDF_AHDEMO_MODE: AHDEMO mode
+ * @QDF_TDLS_MODE: TDLS MODE
  * @QDF_MAX_NO_OF_MODE: Max place holder
  *
  * These are generic IDs that identify the various roles
@@ -544,7 +545,8 @@ enum QDF_OPMODE {
 	QDF_WDS_MODE,
 	QDF_BTAMP_MODE,
 	QDF_AHDEMO_MODE,
-	QDF_MAX_NO_OF_MODE
+	QDF_MAX_NO_OF_MODE,
+	QDF_TDLS_MODE,
 };
 
 /**
