@@ -180,6 +180,7 @@ struct board_info {
  * @obss_detection_offloaded: obss detection offloaded to firmware
  * @obss_color_collision_offloaded: obss color collision offloaded to firmware
  * @sar_version: Version of SAR supported by firmware
+ * @dynamic_nss_chains_support: per vdev dynamic nss, chains update
  */
 struct wma_tgt_cfg {
 	uint32_t target_fw_version;
@@ -219,5 +220,6 @@ struct wma_tgt_cfg {
 	uint32_t hw_bd_id;
 	struct board_info hw_bd_info;
 	enum sar_version sar_version;
+	bool dynamic_nss_chains_support;
 };
 #endif /* WMA_TGT_CFG_H */

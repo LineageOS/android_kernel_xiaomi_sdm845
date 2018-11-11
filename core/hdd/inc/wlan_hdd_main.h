@@ -1713,6 +1713,7 @@ struct hdd_cache_channels {
  * @psoc: object manager psoc context
  * @pdev: object manager pdev context
  * @g_event_flags: a bitmap of hdd_driver_flags
+ * @dynamic_nss_chains_support: Per vdev dynamic nss chains update capability
  */
 struct hdd_context {
 	struct wlan_objmgr_psoc *psoc;
@@ -1985,6 +1986,8 @@ struct hdd_context {
 	bool apf_enabled_v2;
 #endif
 	struct qdf_mac_addr dynamic_mac_list[QDF_MAX_CONCURRENCY_PERSONA];
+	bool dynamic_nss_chains_support;
+
 };
 
 /**
