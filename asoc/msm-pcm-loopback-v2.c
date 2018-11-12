@@ -517,7 +517,7 @@ static int msm_pcm_volume_ctl_get(struct snd_kcontrol *kcontrol,
 
 	pr_debug("%s\n", __func__);
 	if ((!substream) || (!substream->runtime)) {
-		pr_err("%s substream or runtime not found\n", __func__);
+		pr_debug("%s substream or runtime not found\n", __func__);
 		rc = -ENODEV;
 		goto exit;
 	}
