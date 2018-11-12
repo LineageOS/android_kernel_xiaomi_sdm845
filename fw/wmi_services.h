@@ -263,6 +263,12 @@ typedef  enum  {
     WMI_SERVICE_NDI_SAP_SUPPORT=167, /* Support SAP Concurrency for NAN Data interface */
     WMI_SERVICE_CFR_CAPTURE_SUPPORT=168, /* Support to capture uncompressed Channel Frequency Response (CFR) */
     WMI_SERVICE_CFR_CAPTURE_IND_MSG_TYPE_1=169, /* Message type HTT_PEER_CFR_CAPTURE_MSG_TYPE_1 in HTT_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND */
+    WMI_SERVICE_ESP_SUPPORT=170, /* Support for Estimated Service Params IE */
+    WMI_SERVICE_PEER_CHWIDTH_CHANGE = 171, /* Support for host to update/re-intersect the node capability */
+    WMI_SERVICE_WLAN_HPCS_PULSE=172, /* Support for High Precision Clock Synchronization feature */
+    WMI_SERVICE_PER_VDEV_CHAINMASK_CONFIG_SUPPORT=173, /* Support for configuring chainmask per VDEV */
+    WMI_SERVICE_TX_DATA_MGMT_ACK_RSSI=174, /* ACK RSSI indication to host for host TX data and mgmt frame */
+    WMI_SERVICE_NAN_DISABLE_SUPPORT=175, /* indicates firmware is dependent on host to disable NAN incase of concurrencies */
 
     /******* ADD NEW SERVICES HERE *******/
 
