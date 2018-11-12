@@ -1367,9 +1367,9 @@ void wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
 
 	if (!wma->interfaces[vdev_id].peer_count) {
 		WMA_LOGE("%s: Can't remove peer with peer_addr %pM vdevid %d peer_count %d",
-			__func__, bssid, vdev_id,
-			wma->interfaces[vdev_id].peer_count);
-		QDF_BUG(0);
+			 __func__, bssid, vdev_id,
+			 wma->interfaces[vdev_id].peer_count);
+		cds_trigger_recovery(QDF_REASON_UNSPECIFIED);
 		return;
 	}
 
