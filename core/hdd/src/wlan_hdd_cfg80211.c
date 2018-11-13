@@ -16159,14 +16159,15 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 					type);
 			if (status) {
 				hdd_err("Failed to change iface to new mode:%d status %d",
-						type, status);
-				return status;
+					type, status);
+				goto err;
 			}
 			if (iff_up) {
 				if (hdd_start_adapter(adapter)) {
 					hdd_err("Failed to start adapter: %d",
 						adapter->device_mode);
-					return -EINVAL;
+					status = -EINVAL;
+					goto err;
 				}
 			}
 			goto done;
@@ -16223,7 +16224,8 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 				if (hdd_start_adapter(adapter)) {
 					hdd_err("Failed to start adapter: %d",
 						adapter->device_mode);
-					return -EINVAL;
+					status = -EINVAL;
+					goto err;
 				}
 			}
 			/* Interface type changed update in wiphy structure */
@@ -16231,14 +16233,16 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 				wdev->iftype = type;
 			} else {
 				hdd_err("Wireless dev is NULL");
-				return -EINVAL;
+				status = -EINVAL;
+				goto err;
 			}
 			goto done;
 		}
 
 		default:
 			hdd_err("Unsupported interface type: %d", type);
-			return -EOPNOTSUPP;
+			status = -EOPNOTSUPP;
+			goto err;
 		}
 	} else if ((adapter->device_mode == QDF_SAP_MODE) ||
 		   (adapter->device_mode == QDF_P2P_GO_MODE)) {
@@ -16248,14 +16252,17 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 		case NL80211_IFTYPE_ADHOC:
 			status = wlan_hdd_change_client_iface_to_new_mode(ndev,
 					type);
-			if (status != QDF_STATUS_SUCCESS)
-				return status;
-
+			if (status) {
+				hdd_err("Failed change iface to new mode:%d status %d",
+					type, status);
+				goto err;
+			}
 			if (iff_up) {
 				if (hdd_start_adapter(adapter)) {
 					hdd_err("Failed to start adapter: %d",
 						adapter->device_mode);
-					return -EINVAL;
+					status = -EINVAL;
+					goto err;
 				}
 			}
 			goto done;
@@ -16269,22 +16276,24 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 
 		default:
 			hdd_err("Unsupported interface type: %d", type);
-			return -EOPNOTSUPP;
+			status = -EOPNOTSUPP;
+			goto err;
 		}
 	} else {
 		hdd_err("Unsupported device mode: %d",
 		       adapter->device_mode);
-		return -EOPNOTSUPP;
+		status = -EOPNOTSUPP;
+		goto err;
 	}
 done:
+	hdd_lpass_notify_mode_change(adapter);
+err:
 	/* Set bitmask based on updated value */
 	policy_mgr_set_concurrency_mode(hdd_ctx->psoc,
 		adapter->device_mode);
 
-	hdd_lpass_notify_mode_change(adapter);
-
 	hdd_exit();
-	return 0;
+	return status;
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
