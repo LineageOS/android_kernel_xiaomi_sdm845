@@ -105,6 +105,17 @@ ol_tx_target_credit_incr_int(struct ol_txrx_pdev_t *pdev, int delta)
 }
 #endif
 
+#ifdef DESC_TIMESTAMP_DEBUG_INFO
+static inline void ol_tx_desc_update_comp_ts(struct ol_tx_desc_t *tx_desc)
+{
+	tx_desc->desc_debug_info.last_comp_ts = qdf_get_log_timestamp();
+}
+#else
+static inline void ol_tx_desc_update_comp_ts(struct ol_tx_desc_t *tx_desc)
+{
+}
+#endif
+
 #if defined(QCA_LL_LEGACY_TX_FLOW_CONTROL)
 void ol_txrx_flow_control_cb(struct cdp_vdev *pvdev, bool tx_resume)
 {
@@ -827,6 +838,7 @@ ol_tx_completion_handler(ol_txrx_pdev_handle pdev,
 		}
 		tx_desc = ol_tx_desc_find(pdev, tx_desc_id);
 		qdf_assert(tx_desc);
+		ol_tx_desc_update_comp_ts(tx_desc);
 		tx_desc->status = status;
 		netbuf = tx_desc->netbuf;
 
@@ -1152,6 +1164,7 @@ ol_tx_inspect_handler(ol_txrx_pdev_handle pdev,
 		}
 		tx_desc = ol_tx_desc_find(pdev, tx_desc_id);
 		qdf_assert(tx_desc);
+		ol_tx_desc_update_comp_ts(tx_desc);
 		netbuf = tx_desc->netbuf;
 
 		/* find the "vdev" this tx_desc belongs to */
@@ -1178,7 +1191,6 @@ ol_tx_inspect_handler(ol_txrx_pdev_handle pdev,
 					    lcl_freelist, tx_desc_last,
 					    htt_tx_status_ok,
 					    is_tx_desc_freed);
-
 #ifdef QCA_SUPPORT_TXDESC_SANITY_CHECKS
 			if (!is_tx_desc_freed) {
 				tx_desc->pkt_type = ol_tx_frm_freed;
