@@ -1432,6 +1432,7 @@ wlan_scan_global_init(struct wlan_scan_obj *scan_obj)
 	/* the ini is disallow DFS channel scan if ini is 1, so negate that */
 	scan_obj->scan_def.allow_dfs_chan_in_first_scan = true;
 	scan_obj->scan_def.allow_dfs_chan_in_scan = true;
+	scan_obj->scan_def.use_wake_lock_in_user_scan = false;
 	scan_obj->scan_def.max_rest_time = SCAN_MAX_REST_TIME;
 	scan_obj->scan_def.sta_miracast_mcc_rest_time =
 					SCAN_STA_MIRACAST_MCC_REST_TIME;
@@ -1934,6 +1935,8 @@ QDF_STATUS ucfg_scan_update_user_config(struct wlan_objmgr_psoc *psoc,
 	scan_def->allow_dfs_chan_in_first_scan =
 		scan_cfg->allow_dfs_chan_in_first_scan;
 	scan_def->allow_dfs_chan_in_scan = scan_cfg->allow_dfs_chan_in_scan;
+	scan_def->use_wake_lock_in_user_scan =
+					scan_cfg->use_wake_lock_in_user_scan;
 	scan_def->active_dwell = scan_cfg->active_dwell;
 	scan_def->active_dwell_2g = scan_cfg->active_dwell_2g;
 	scan_def->passive_dwell = scan_cfg->passive_dwell;
@@ -2311,6 +2314,17 @@ void ucfg_scan_clear_vdev_del_in_progress(struct wlan_objmgr_vdev *vdev)
 		return;
 	}
 	scan_vdev_obj->is_vdev_delete_in_progress = false;
+}
+
+bool ucfg_scan_wake_lock_in_user_scan(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj)
+		return false;
+
+	return scan_obj->scan_def.use_wake_lock_in_user_scan;
 }
 
 QDF_STATUS
