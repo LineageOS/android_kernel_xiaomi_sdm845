@@ -2904,7 +2904,9 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		hdd_register_policy_manager_callback(
 			hdd_ctx->psoc);
 
+		hdd_sysfs_create_driver_root_obj();
 		hdd_sysfs_create_version_interface(hdd_ctx->psoc);
+		hdd_sysfs_create_powerstats_interface();
 		hdd_update_hw_sw_info(hdd_ctx);
 
 		if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
@@ -2916,7 +2918,7 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		ret = hdd_configure_cds(hdd_ctx);
 		if (ret) {
 			hdd_err("Failed to Enable cds modules; errno: %d", ret);
-			goto post_disable;
+			goto destroy_driver_sysfs;
 		}
 
 		hdd_enable_power_management();
@@ -2941,7 +2943,10 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 
 	return 0;
 
-post_disable:
+destroy_driver_sysfs:
+	hdd_sysfs_destroy_powerstats_interface();
+	hdd_sysfs_destroy_version_interface();
+	hdd_sysfs_destroy_driver_root_obj();
 	cds_post_disable();
 
 cds_txrx_free:
@@ -11041,7 +11046,9 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 		goto done;
 	}
 
+	hdd_sysfs_destroy_powerstats_interface();
 	hdd_sysfs_destroy_version_interface();
+	hdd_sysfs_destroy_driver_root_obj();
 	hdd_debug("Closing CDS modules!");
 
 	qdf_status = cds_post_disable();
