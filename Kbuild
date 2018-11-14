@@ -63,7 +63,6 @@ HDD_OBJS := 	$(HDD_SRC_DIR)/wlan_hdd_assoc.o \
 		$(HDD_SRC_DIR)/wlan_hdd_scan.o \
 		$(HDD_SRC_DIR)/wlan_hdd_softap_tx_rx.o \
 		$(HDD_SRC_DIR)/wlan_hdd_stats.o \
-		$(HDD_SRC_DIR)/wlan_hdd_sysfs.o \
 		$(HDD_SRC_DIR)/wlan_hdd_trace.o \
 		$(HDD_SRC_DIR)/wlan_hdd_tx_rx.o \
 		$(HDD_SRC_DIR)/wlan_hdd_wext.o \
@@ -165,6 +164,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_NUD_TRACKING), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_nud_tracking.o
+endif
+
+ifeq ($(CONFIG_WLAN_SYSFS), y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_sysfs.o
 endif
 
 ########### HOST DIAG LOG ###########
@@ -1891,6 +1894,7 @@ cppflags-$(CONFIG_QCACLD_FEATURE_GREEN_AP) += -DWLAN_SUPPORT_GREEN_AP
 cppflags-$(CONFIG_QCACLD_FEATURE_APF) += -DFEATURE_WLAN_APF
 
 cppflags-$(CONFIG_WLAN_FEATURE_SARV1_TO_SARV2) += -DWLAN_FEATURE_SARV1_TO_SARV2
+cppflags-$(CONFIG_WLAN_SYSFS) += -DWLAN_SYSFS
 
 #Stats & Quota Metering feature
 ifeq ($(CONFIG_IPA_OFFLOAD), y)
