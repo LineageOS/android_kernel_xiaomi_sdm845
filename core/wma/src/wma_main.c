@@ -108,6 +108,22 @@ bool wma_get_fw_wlan_feat_caps(enum cap_bitmap feature)
 	return (g_fw_wlan_feat_caps & (1 << feature)) ? true : false;
 }
 
+QDF_STATUS
+wma_vdev_nss_chain_params_send(uint8_t vdev_id,
+			       struct mlme_nss_chains *user_cfg)
+{
+	tp_wma_handle wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!wma_handle) {
+		WMA_LOGE("%s: wma_handle is NULL", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return wmi_unified_vdev_nss_chain_params_send(wma_handle->wmi_handle,
+						      vdev_id,
+						      user_cfg);
+}
+
 /**
  * wma_set_fw_wlan_feat_caps() - set fw feature capablity
  * @feature: feature enum value

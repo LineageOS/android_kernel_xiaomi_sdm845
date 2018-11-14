@@ -4851,6 +4851,226 @@ QDF_STATUS sme_close_session(tHalHandle hal, uint8_t session_id)
 	return status;
 }
 
+static void
+sme_populate_user_config(struct mlme_nss_chains *dynamic_cfg,
+			 struct mlme_nss_chains *user_cfg,
+			 enum nss_chains_band_info band)
+{
+	if (!user_cfg->num_rx_chains[band])
+		user_cfg->num_rx_chains[band] =
+			dynamic_cfg->num_rx_chains[band];
+
+	if (!user_cfg->num_tx_chains[band])
+		user_cfg->num_tx_chains[band] =
+			dynamic_cfg->num_tx_chains[band];
+
+	if (!user_cfg->rx_nss[band])
+		user_cfg->rx_nss[band] =
+			dynamic_cfg->rx_nss[band];
+
+	if (!user_cfg->tx_nss[band])
+		user_cfg->tx_nss[band] =
+			dynamic_cfg->tx_nss[band];
+
+	if (!user_cfg->num_tx_chains_11a)
+		user_cfg->num_tx_chains_11a =
+			dynamic_cfg->num_tx_chains_11a;
+
+	if (!user_cfg->num_tx_chains_11b)
+		user_cfg->num_tx_chains_11b =
+			dynamic_cfg->num_tx_chains_11b;
+
+	if (!user_cfg->num_tx_chains_11g)
+		user_cfg->num_tx_chains_11g =
+			dynamic_cfg->num_tx_chains_11g;
+
+	if (!user_cfg->disable_rx_mrc[band])
+		user_cfg->disable_rx_mrc[band] =
+			dynamic_cfg->disable_rx_mrc[band];
+
+	if (!user_cfg->disable_tx_mrc[band])
+		user_cfg->disable_tx_mrc[band] =
+			dynamic_cfg->disable_tx_mrc[band];
+}
+
+static QDF_STATUS
+sme_validate_from_ini_config(struct mlme_nss_chains *user_cfg,
+			     struct mlme_nss_chains *ini_cfg,
+			     enum nss_chains_band_info band)
+{
+	if (user_cfg->num_rx_chains[band] >
+	    ini_cfg->num_rx_chains[band])
+		return QDF_STATUS_E_FAILURE;
+
+	if (user_cfg->num_tx_chains[band] >
+	    ini_cfg->num_tx_chains[band])
+		return QDF_STATUS_E_FAILURE;
+
+	if (user_cfg->rx_nss[band] >
+	    ini_cfg->rx_nss[band])
+		return QDF_STATUS_E_FAILURE;
+
+	if (user_cfg->tx_nss[band] >
+	    ini_cfg->tx_nss[band])
+		return QDF_STATUS_E_FAILURE;
+
+	if (user_cfg->num_tx_chains_11a >
+	    ini_cfg->num_tx_chains_11a)
+		return QDF_STATUS_E_FAILURE;
+
+	if (user_cfg->num_tx_chains_11b >
+	    ini_cfg->num_tx_chains_11b)
+		return QDF_STATUS_E_FAILURE;
+
+	if (user_cfg->num_tx_chains_11g >
+	    ini_cfg->num_tx_chains_11g)
+		return QDF_STATUS_E_FAILURE;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+static QDF_STATUS
+sme_validate_user_nss_chain_params(struct mlme_nss_chains *user_cfg,
+				   enum nss_chains_band_info band)
+{
+	/* Reject as 2x1 modes are not supported in chains yet */
+
+	if (user_cfg->num_tx_chains[band] >
+	    user_cfg->num_rx_chains[band])
+		return QDF_STATUS_E_FAILURE;
+
+	/* Also if mode is 2x2, we cant have chains as 1x1, or 1x2, or 2x1 */
+
+	if (user_cfg->tx_nss[band] >
+	    user_cfg->num_tx_chains[band])
+		user_cfg->num_tx_chains[band] =
+			user_cfg->tx_nss[band];
+
+	if (user_cfg->rx_nss[band] >
+	    user_cfg->num_rx_chains[band])
+		user_cfg->num_rx_chains[band] =
+			user_cfg->rx_nss[band];
+
+	/*
+	 * It may happen that already chains are in 1x1 mode and nss too
+	 * is in 1x1 mode, but the tx 11a/b/g chains in user config comes
+	 * as 2x1, or 1x2 which cannot support respective mode, as tx chains
+	 * for respective band have max of 1x1 only, so these cannot exceed
+	 * respective band num tx chains.
+	 */
+
+	if (user_cfg->num_tx_chains_11a >
+	    user_cfg->num_tx_chains[NSS_CHAINS_BAND_5GHZ])
+		user_cfg->num_tx_chains_11a =
+			user_cfg->num_tx_chains[NSS_CHAINS_BAND_5GHZ];
+
+	if (user_cfg->num_tx_chains_11b >
+	    user_cfg->num_tx_chains[NSS_CHAINS_BAND_2GHZ])
+		user_cfg->num_tx_chains_11b =
+			user_cfg->num_tx_chains[NSS_CHAINS_BAND_2GHZ];
+
+	if (user_cfg->num_tx_chains_11g >
+	    user_cfg->num_tx_chains[NSS_CHAINS_BAND_2GHZ])
+		user_cfg->num_tx_chains_11g =
+			user_cfg->num_tx_chains[NSS_CHAINS_BAND_2GHZ];
+
+	return QDF_STATUS_SUCCESS;
+}
+
+static QDF_STATUS
+sme_validate_nss_chains_config(struct wlan_objmgr_vdev *vdev,
+			       struct mlme_nss_chains *user_cfg,
+			       struct mlme_nss_chains *dynamic_cfg)
+{
+	enum nss_chains_band_info band;
+	struct mlme_nss_chains *ini_cfg;
+	QDF_STATUS status;
+
+	ini_cfg = mlme_get_ini_vdev_config(vdev);
+	if (!ini_cfg) {
+		sme_err("nss chain ini config NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	for (band = NSS_CHAINS_BAND_2GHZ; band < NSS_CHAINS_BAND_MAX; band++) {
+		sme_populate_user_config(dynamic_cfg,
+					 user_cfg, band);
+		status = sme_validate_from_ini_config(user_cfg,
+						      ini_cfg,
+						      band);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			sme_err("Validation from ini config failed");
+			return QDF_STATUS_E_FAILURE;
+		}
+		status = sme_validate_user_nss_chain_params(user_cfg,
+							    band);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			sme_err("User cfg validation failed");
+			return QDF_STATUS_E_FAILURE;
+		}
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS
+sme_nss_chains_update(mac_handle_t mac_handle,
+		      struct mlme_nss_chains *user_cfg,
+		      uint8_t vdev_id)
+{
+	struct sAniSirGlobal *mac_ctx = MAC_CONTEXT(mac_handle);
+	QDF_STATUS status;
+	struct mlme_nss_chains *dynamic_cfg;
+	struct wlan_objmgr_vdev *vdev =
+		       wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
+							    vdev_id,
+							    WLAN_LEGACY_SME_ID);
+	if (!vdev) {
+		sme_err("Got NULL vdev obj, returning");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_ERROR(status))
+		goto release_ref;
+
+	dynamic_cfg = mlme_get_dynamic_vdev_config(vdev);
+	if (!dynamic_cfg) {
+		sme_err("nss chain dynamic config NULL");
+		status = QDF_STATUS_E_FAILURE;
+		goto release_lock;
+	}
+
+	status = sme_validate_nss_chains_config(vdev, user_cfg,
+						dynamic_cfg);
+	if (QDF_IS_STATUS_ERROR(status))
+		goto release_lock;
+
+	if (!qdf_mem_cmp(dynamic_cfg, user_cfg,
+			 sizeof(struct mlme_nss_chains))) {
+		sme_debug("current config same as user config");
+		status = QDF_STATUS_SUCCESS;
+		goto release_lock;
+	}
+	sme_debug("User params verified, sending to fw vdev id %d", vdev_id);
+
+	status = wma_vdev_nss_chain_params_send(vdev->vdev_objmgr.vdev_id,
+						user_cfg);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		sme_err("params sent failed to fw vdev id %d", vdev_id);
+		goto release_lock;
+	}
+
+	*dynamic_cfg = *user_cfg;
+
+release_lock:
+	sme_release_global_lock(&mac_ctx->sme);
+
+release_ref:
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+	return status;
+}
+
 /*
  * sme_change_mcc_beacon_interval() -
  * To update P2P-GO beaconInterval. This function should be called after

@@ -1902,6 +1902,19 @@ wma_set_apf_instructions(tp_wma_handle wma,
 }
 #endif /* FEATURE_WLAN_APF */
 
+/**
+ * wma_vdev_nss_chain_params_send() - send vdev nss chain params to fw.
+ * @vdev_id: vdev_id
+ * @user_cfg: pointer to the params structure
+ *
+ * This function sends nss chain params to the fw
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_FAILURE on error
+ */
+QDF_STATUS
+wma_vdev_nss_chain_params_send(uint8_t vdev_id,
+			       struct mlme_nss_chains *user_cfg);
+
 void wma_process_set_pdev_ie_req(tp_wma_handle wma,
 		struct set_ie_param *ie_params);
 void wma_process_set_pdev_ht_ie_req(tp_wma_handle wma,

@@ -9750,6 +9750,58 @@ next_token:
 	return 0;
 }
 
+static void
+hdd_populate_vdev_nss(struct mlme_nss_chains *user_cfg,
+		      uint8_t tx_nss,
+		      uint8_t rx_nss,
+		      enum nss_chains_band_info  band)
+{
+	user_cfg->rx_nss[band] = rx_nss;
+	user_cfg->tx_nss[band] = tx_nss;
+}
+
+static QDF_STATUS
+hdd_set_nss_params(struct hdd_adapter *adapter,
+		   uint8_t tx_nss,
+		   uint8_t rx_nss)
+{
+	enum nss_chains_band_info band;
+	struct mlme_nss_chains user_cfg;
+	mac_handle_t mac_handle;
+	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	qdf_mem_zero(&user_cfg, sizeof(user_cfg));
+
+	mac_handle = hdd_ctx->mac_handle;
+	if (!mac_handle) {
+		hdd_err("NULL MAC handle");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!hdd_is_vdev_in_conn_state(adapter)) {
+		hdd_debug("Vdev (id %d) not in connected/started state, cannot accept command",
+				adapter->session_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	for (band = NSS_CHAINS_BAND_2GHZ; band < NSS_CHAINS_BAND_MAX; band++)
+		hdd_populate_vdev_nss(&user_cfg, tx_nss,
+				      rx_nss, band);
+	if (QDF_IS_STATUS_ERROR(
+		sme_nss_chains_update(mac_handle,
+				      &user_cfg,
+				      adapter->session_id)))
+		return QDF_STATUS_E_FAILURE;
+
+	/* Check TDLS status and update antenna mode */
+	if ((adapter->device_mode == QDF_STA_MODE ||
+	     adapter->device_mode == QDF_P2P_CLIENT_MODE) &&
+	     policy_mgr_is_sta_active_connection_exists(hdd_ctx->psoc))
+		wlan_hdd_tdls_antenna_switch(hdd_ctx, adapter, rx_nss);
+
+	return QDF_STATUS_SUCCESS;
+}
+
 /**
  * hdd_update_nss() - Update the number of spatial streams supported.
  * Ensure that nss is either 1 or 2 before calling this.
@@ -9777,6 +9829,7 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 	uint16_t val16;
 	uint8_t enable2x2;
 	mac_handle_t mac_handle;
+	uint8_t tx_nss, rx_nss;
 
 	if ((nss == 2) && (hdd_ctx->num_rf_chains != 2)) {
 		hdd_err("No support for 2 spatial streams");
@@ -9790,7 +9843,24 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 		return QDF_STATUS_SUCCESS;
 	}
 
+	if (nss > MAX_VDEV_NSS) {
+		hdd_debug("Cannot support %d nss streams", nss);
+		return QDF_STATUS_E_INVAL;
+	}
+
 	mac_handle = hdd_ctx->mac_handle;
+	if (!mac_handle) {
+		hdd_err("NULL MAC handle");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	/* Till now we dont have support for different rx, tx nss values */
+	tx_nss = nss;
+	rx_nss = nss;
+
+	if (hdd_ctx->dynamic_nss_chains_support)
+		return hdd_set_nss_params(adapter, tx_nss, rx_nss);
+
 	if (sme_is_any_session_in_connected_state(mac_handle)) {
 		hdd_err("Connected sessions present, Do not change NSS");
 		return QDF_STATUS_E_INVAL;

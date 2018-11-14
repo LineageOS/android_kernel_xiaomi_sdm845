@@ -592,6 +592,23 @@ sme_store_nss_chains_cfg_in_vdev(struct wlan_objmgr_vdev *vdev,
 				 struct mlme_nss_chains *vdev_ini_cfg);
 
 /**
+ * sme_nss_chains_update() - validate and send the user params to fw
+ * @mac_handle: The handle returned by mac_open.
+ * @user_cfg: pointer to the structure to be validated and sent to fw
+ * @vdev_id: vdev id
+ *
+ *
+ * This API will validate the config, and if found correct will update the
+ * config in dynamic config, and send to the fw.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+sme_nss_chains_update(mac_handle_t mac_handle,
+		      struct mlme_nss_chains *user_cfg,
+		      uint8_t vdev_id);
+
+/**
  * sme_update_channel_list() - Update configured channel list to fwr
  * This is a synchronous API.
  * @hal: HAL handle returned by mac_open.

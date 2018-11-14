@@ -2388,6 +2388,18 @@ void hdd_fill_nss_chain_params(struct hdd_context *hdd_ctx,
 			       struct mlme_nss_chains *vdev_ini_cfg,
 			       uint8_t device_mode);
 
+/**
+ * hdd_is_vdev_in_conn_state() - Check whether the vdev is in
+ * connected/started state.
+ * @adapter: hdd adapter of the vdev
+ *
+ * This function will give whether the vdev in the adapter is in
+ * connected/started state.
+ *
+ * Return: True/false
+ */
+bool hdd_is_vdev_in_conn_state(struct hdd_adapter *adapter);
+
 struct hdd_adapter *
 hdd_get_con_sap_adapter(struct hdd_adapter *this_sap_adapter,
 			bool check_start_bss);
