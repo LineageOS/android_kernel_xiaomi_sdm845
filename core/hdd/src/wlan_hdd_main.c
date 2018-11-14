@@ -1182,8 +1182,10 @@ static int hdd_update_tdls_config(struct hdd_context *hdd_ctx)
 		 1 << TDLS_FEAUTRE_IMPLICIT_TRIGGER : 0) |
 		(cfg->fTDLSExternalControl ?
 		 1 << TDLS_FEATURE_EXTERNAL_CONTROL : 0));
-	config->tdls_vdev_nss_2g = CFG_TDLS_NSS(cfg->vdev_type_nss_2g);
-	config->tdls_vdev_nss_5g = CFG_TDLS_NSS(cfg->vdev_type_nss_5g);
+	config->tdls_vdev_nss_2g = GET_VDEV_NSS_CHAIN(cfg->rx_nss_2g,
+						      QDF_TDLS_MODE);
+	config->tdls_vdev_nss_5g = GET_VDEV_NSS_CHAIN(cfg->rx_nss_5g,
+						      QDF_TDLS_MODE);
 
 	tdls_cfg.tdls_send_mgmt_req = eWNI_SME_TDLS_SEND_MGMT_REQ;
 	tdls_cfg.tdls_add_sta_req = eWNI_SME_TDLS_ADD_STA_REQ;
@@ -1279,16 +1281,14 @@ static void hdd_update_vdev_nss(struct hdd_context *hdd_ctx)
 
 	if (cfg_ini->enable2x2 && !cds_is_sub_20_mhz_enabled())
 		max_supp_nss = 2;
-	hdd_debug("max nss %d vdev_type_nss_2g %x vdev_type_nss_5g %x",
-		  max_supp_nss, cfg_ini->vdev_type_nss_2g,
-		  cfg_ini->vdev_type_nss_5g);
+	hdd_debug("max nss %d", max_supp_nss);
 
 	mac_handle = hdd_ctx->mac_handle;
 	sme_update_vdev_type_nss(mac_handle, max_supp_nss,
-				 cfg_ini->vdev_type_nss_2g, BAND_2G);
+				 cfg_ini->rx_nss_2g, BAND_2G);
 
 	sme_update_vdev_type_nss(mac_handle, max_supp_nss,
-				 cfg_ini->vdev_type_nss_5g, BAND_5G);
+				 cfg_ini->rx_nss_5g, BAND_5G);
 }
 
 /**
@@ -13949,10 +13949,17 @@ static void hdd_update_score_config(
 
 	score_config->cb_mode_24G = cfg->nChannelBondingMode24GHz;
 	score_config->cb_mode_5G = cfg->nChannelBondingMode5GHz;
-	score_config->vdev_nss_24g = cfg->enable2x2 ?
-					 CFG_STA_NSS(cfg->vdev_type_nss_2g) : 1;
-	score_config->vdev_nss_5g = cfg->enable2x2 ?
-					 CFG_STA_NSS(cfg->vdev_type_nss_5g) : 1;
+	score_config->vdev_nss_24g =
+			cfg->enable2x2 ?
+				GET_VDEV_NSS_CHAIN(cfg->rx_nss_2g,
+						   STA_NSS_CHAINS_SHIFT) :
+				1;
+	score_config->vdev_nss_5g =
+			cfg->enable2x2 ?
+				GET_VDEV_NSS_CHAIN(cfg->rx_nss_5g,
+						   STA_NSS_CHAINS_SHIFT) :
+				1;
+
 	if (cfg->dot11Mode == eHDD_DOT11_MODE_AUTO ||
 	    cfg->dot11Mode == eHDD_DOT11_MODE_11ax ||
 	    cfg->dot11Mode == eHDD_DOT11_MODE_11ax_ONLY)

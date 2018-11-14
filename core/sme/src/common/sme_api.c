@@ -14709,17 +14709,34 @@ void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
 	else
 		vdev_nss = &mac_ctx->vdev_type_nss_2g;
 
-	vdev_nss->sta = QDF_MIN(max_supp_nss, CFG_STA_NSS(vdev_type_nss));
-	vdev_nss->sap = QDF_MIN(max_supp_nss, CFG_SAP_NSS(vdev_type_nss));
+	vdev_nss->sta = QDF_MIN(max_supp_nss,
+				GET_VDEV_NSS_CHAIN(vdev_type_nss,
+						   STA_NSS_CHAINS_SHIFT));
+	vdev_nss->sap = QDF_MIN(max_supp_nss,
+				GET_VDEV_NSS_CHAIN(vdev_type_nss,
+						   SAP_NSS_CHAINS_SHIFT));
 	vdev_nss->p2p_go = QDF_MIN(max_supp_nss,
-				CFG_P2P_GO_NSS(vdev_type_nss));
+				   GET_VDEV_NSS_CHAIN(vdev_type_nss,
+						      P2P_GO_NSS_CHAINS_SHIFT));
+
 	vdev_nss->p2p_cli = QDF_MIN(max_supp_nss,
-				CFG_P2P_CLI_NSS(vdev_type_nss));
-	vdev_nss->p2p_dev = QDF_MIN(max_supp_nss,
-				CFG_P2P_DEV_NSS(vdev_type_nss));
-	vdev_nss->ibss = QDF_MIN(max_supp_nss, CFG_IBSS_NSS(vdev_type_nss));
-	vdev_nss->tdls = QDF_MIN(max_supp_nss, CFG_TDLS_NSS(vdev_type_nss));
-	vdev_nss->ocb = QDF_MIN(max_supp_nss, CFG_OCB_NSS(vdev_type_nss));
+				    GET_VDEV_NSS_CHAIN(vdev_type_nss,
+						       P2P_CLI_CHAINS_SHIFT));
+
+	vdev_nss->p2p_dev =
+			QDF_MIN(max_supp_nss,
+				GET_VDEV_NSS_CHAIN(vdev_type_nss,
+						   P2P_DEV_NSS_CHAINS_SHIFT));
+
+	vdev_nss->ibss = QDF_MIN(max_supp_nss,
+				 GET_VDEV_NSS_CHAIN(vdev_type_nss,
+						    IBSS_NSS_CHAINS_SHIFT));
+	vdev_nss->tdls = QDF_MIN(max_supp_nss,
+				 GET_VDEV_NSS_CHAIN(vdev_type_nss,
+						    TDLS_NSS_CHAINS_SHIFT));
+	vdev_nss->ocb = QDF_MIN(max_supp_nss,
+				GET_VDEV_NSS_CHAIN(vdev_type_nss,
+						   OCB_NSS_CHAINS_SHIFT));
 
 	sme_debug("band %d NSS:sta %d sap %d cli %d go %d dev %d ibss %d tdls %d ocb %d",
 		band, vdev_nss->sta, vdev_nss->sap, vdev_nss->p2p_cli,

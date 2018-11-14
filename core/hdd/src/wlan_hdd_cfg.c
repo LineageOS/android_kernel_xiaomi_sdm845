@@ -2025,13 +2025,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_DISABLE_HIGH_HT_RX_MCS_2x2_MIN,
 		     CFG_DISABLE_HIGH_HT_RX_MCS_2x2_MAX),
 
-	REG_VARIABLE(CFG_VDEV_TYPE_NSS_2G, WLAN_PARAM_Integer,
-		     struct hdd_config, vdev_type_nss_2g,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_VDEV_TYPE_NSS_2G_DEFAULT,
-		     CFG_VDEV_TYPE_NSS_2G_MIN,
-		     CFG_VDEV_TYPE_NSS_2G_MAX),
-
 	REG_VARIABLE(CFG_ENABLE_BT_CHAIN_SEPARATION, WLAN_PARAM_Integer,
 		     struct hdd_config, enable_bt_chain_separation,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -2045,13 +2038,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_STA_PREFER_80MHZ_OVER_160MHZ_DEFAULT,
 		     CFG_STA_PREFER_80MHZ_OVER_160MHZ_MIN,
 		     CFG_STA_PREFER_80MHZ_OVER_160MHZ_MAX),
-
-	REG_VARIABLE(CFG_VDEV_TYPE_NSS_5G, WLAN_PARAM_Integer,
-		     struct hdd_config, vdev_type_nss_5g,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_VDEV_TYPE_NSS_5G_DEFAULT,
-		     CFG_VDEV_TYPE_NSS_5G_MIN,
-		     CFG_VDEV_TYPE_NSS_5G_MAX),
 
 	REG_VARIABLE(CFG_VHT_ENABLE_MU_BFORMEE_CAP_FEATURE, WLAN_PARAM_Integer,
 		     struct hdd_config, enableMuBformee,
