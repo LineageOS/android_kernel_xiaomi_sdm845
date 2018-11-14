@@ -134,6 +134,7 @@
 #include "wlan_hdd_nud_tracking.h"
 #include "wlan_hdd_apf.h"
 #include "wlan_hdd_twt.h"
+#include "wlan_mlme_ucfg_api.h"
 
 #ifdef CNSS_GENL
 #include <net/cnss_nl.h>
@@ -12639,8 +12640,14 @@ static QDF_STATUS hdd_component_init(void)
 	if (QDF_IS_STATUS_ERROR(status))
 		goto ipa_deinit;
 
+	status = ucfg_mlme_init();
+	if (QDF_IS_STATUS_ERROR(status))
+		goto oui_deinit;
+
 	return QDF_STATUS_SUCCESS;
 
+oui_deinit:
+	ucfg_action_oui_deinit();
 ipa_deinit:
 	ipa_deinit();
 ocb_deinit:
@@ -12663,6 +12670,7 @@ dispatcher_deinit:
 static void hdd_component_deinit(void)
 {
 	/* deinitialize non-converged components */
+	ucfg_mlme_deinit();
 	ucfg_action_oui_deinit();
 	ipa_deinit();
 	ucfg_ocb_deinit();
