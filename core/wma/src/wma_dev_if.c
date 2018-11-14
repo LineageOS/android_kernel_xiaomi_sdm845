@@ -74,6 +74,7 @@
 #include "wlan_ocb_ucfg_api.h"
 #include "init_deinit_lmac.h"
 #include <target_if.h>
+#include "wlan_mlme_main.h"
 
 /**
  * wma_find_vdev_by_addr() - find vdev_id from mac address
@@ -2614,6 +2615,8 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	struct wma_target_req *req_msg;
 	uint32_t chan_mode;
 	enum phy_ch_width ch_width;
+	struct mlme_nss_chains *ini_cfg;
+	struct wlan_objmgr_vdev *vdev;
 
 	mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
 	if (mac_ctx == NULL) {
@@ -2863,6 +2866,26 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 		wma_vdev_update_pause_bitmap(params.vdev_id, 0);
 	}
 
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(wma->psoc, params.vdev_id,
+						    WLAN_LEGACY_WMA_ID);
+	if (!vdev) {
+		WMA_LOGE("%s, vdev_id: %d, failed to get vdev from psoc",
+			 __func__, params.vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	ini_cfg = mlme_get_ini_vdev_config(vdev);
+	if (!ini_cfg) {
+		wma_err("nss chain ini config NULL");
+		goto end;
+	}
+
+	/* Send self capability of nss chain params before vdev start to fw */
+	if (wma->dynamic_nss_chains_support)
+		wma_vdev_nss_chain_params_send(params.vdev_id, ini_cfg);
+
+end:
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_WMA_ID);
 	return wma_send_vdev_start_to_fw(wma, &params);
 }
 

@@ -60,6 +60,7 @@
 #include <cdp_txrx_peer_ops.h>
 #include "cds_reg_service.h"
 #include "target_if.h"
+#include "wlan_mlme_main.h"
 
 /* MCS Based rate table */
 /* HT MCS parameters with Nss = 1 */
@@ -4419,9 +4420,40 @@ QDF_STATUS wma_send_vdev_stop_to_fw(t_wma_handle *wma, uint8_t vdev_id)
 {
 	QDF_STATUS status;
 	struct wma_txrx_node *vdev = &wma->interfaces[vdev_id];
+	struct mlme_nss_chains *ini_cfg;
+	struct mlme_nss_chains *dynamic_cfg;
+	struct wlan_objmgr_vdev *vdev_obj;
+
+	/*
+	 * Reset the dynamic nss chains config to the ini values, as when the
+	 * vdev gets its started again, this would be a fresh connection,
+	 * and we dont want the config of previous connection to affect the
+	 * current connection.
+	 */
+
+	vdev_obj = wlan_objmgr_get_vdev_by_id_from_psoc(wma->psoc, vdev_id,
+							WLAN_LEGACY_WMA_ID);
+	if (!vdev_obj) {
+		WMA_LOGE("%s, vdev_id: %d, failed to get vdev from psoc",
+			 __func__, vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	ini_cfg = mlme_get_ini_vdev_config(vdev_obj);
+	dynamic_cfg = mlme_get_dynamic_vdev_config(vdev_obj);
+
+	if (!dynamic_cfg || !ini_cfg) {
+		wma_err("nss chain dynamic/ini config NULL");
+		goto get_config_failed;
+	}
+	*dynamic_cfg = *ini_cfg;
+
+get_config_failed:
+	wlan_objmgr_vdev_release_ref(vdev_obj, WLAN_LEGACY_WMA_ID);
 
 	wma_acquire_wakelock(&vdev->vdev_stop_wakelock,
 			     WMA_VDEV_STOP_REQUEST_TIMEOUT);
+
 	status = wmi_unified_vdev_stop_send(wma->wmi_handle, vdev_id);
 	if (QDF_IS_STATUS_ERROR(status))
 		wma_release_wakelock(&vdev->vdev_stop_wakelock);
