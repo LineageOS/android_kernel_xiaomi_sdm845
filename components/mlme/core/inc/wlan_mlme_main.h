@@ -23,12 +23,41 @@
 #define _WLAN_MLME_MAIN_H_
 
 #include <wlan_objmgr_vdev_obj.h>
+#include <wmi_unified_param.h>
 
 #define mlme_fatal(params...) QDF_TRACE_FATAL(QDF_MODULE_ID_MLME, params)
 #define mlme_err(params...) QDF_TRACE_ERROR(QDF_MODULE_ID_MLME, params)
 #define mlme_warn(params...) QDF_TRACE_WARN(QDF_MODULE_ID_MLME, params)
 #define mlme_info(params...) QDF_TRACE_INFO(QDF_MODULE_ID_MLME, params)
 #define mlme_debug(params...) QDF_TRACE_DEBUG(QDF_MODULE_ID_MLME, params)
+
+/**
+ * struct vdev_mlme_obj - VDEV MLME component object
+ * @dynamic_cfg: current configuration of nss, chains for vdev.
+ * @ini_cfg: Max configuration of nss, chains supported for vdev.
+ */
+struct vdev_mlme_priv_obj {
+	struct mlme_nss_chains dynamic_cfg;
+	struct mlme_nss_chains ini_cfg;
+};
+
+/**
+ * mlme_get_dynamic_vdev_config() - get the vdev dynamic config params
+ * @vdev: vdev pointer
+ *
+ * Return: pointer to the dynamic vdev config structure
+ */
+struct mlme_nss_chains *mlme_get_dynamic_vdev_config(
+					struct wlan_objmgr_vdev *vdev);
+
+/**
+ * mlme_get_ini_vdev_config() - get the vdev ini config params
+ * @vdev: vdev pointer
+ *
+ * Return: pointer to the ini vdev config structure
+ */
+struct mlme_nss_chains *mlme_get_ini_vdev_config(
+					struct wlan_objmgr_vdev *vdev);
 
 /**
  * mlme_vdev_object_created_notification(): mlme vdev create handler

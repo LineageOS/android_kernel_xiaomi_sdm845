@@ -57,6 +57,7 @@
 #include "net/cfg80211.h"
 #include <qca_vendor.h>
 #include <wlan_spectral_utils_api.h>
+#include <wlan_mlme_main.h>
 
 static tSelfRecoveryStats g_self_recovery_stats;
 
@@ -88,6 +89,26 @@ QDF_STATUS sme_acquire_global_lock(tSmeStruct *psSme)
 	}
 
 	return status;
+}
+
+void
+sme_store_nss_chains_cfg_in_vdev(struct wlan_objmgr_vdev *vdev,
+				 struct mlme_nss_chains *vdev_ini_cfg)
+{
+	struct mlme_nss_chains *ini_cfg;
+	struct mlme_nss_chains *dynamic_cfg;
+
+	ini_cfg = mlme_get_ini_vdev_config(vdev);
+	dynamic_cfg = mlme_get_dynamic_vdev_config(vdev);
+
+	if (!ini_cfg || !dynamic_cfg) {
+		sme_err("Nss chains ini/dynamic config NULL vdev_id %d",
+			vdev->vdev_objmgr.vdev_id);
+		return;
+	}
+
+	*ini_cfg = *vdev_ini_cfg;
+	*dynamic_cfg = *vdev_ini_cfg;
 }
 
 QDF_STATUS sme_release_global_lock(tSmeStruct *psSme)

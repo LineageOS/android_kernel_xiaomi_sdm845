@@ -882,6 +882,20 @@ typedef struct sAniTrafStrmMetrics {
 	uint16_t RoamingDly;
 } tAniTrafStrmMetrics, *tpAniTrafStrmMetrics;
 
+#define STA_NSS_CHAINS_SHIFT               0
+#define SAP_NSS_CHAINS_SHIFT               3
+#define P2P_GO_NSS_CHAINS_SHIFT            6
+#define P2P_CLI_CHAINS_SHIFT               9
+#define TDLS_NSS_CHAINS_SHIFT              12
+#define IBSS_NSS_CHAINS_SHIFT              15
+#define P2P_DEV_NSS_CHAINS_SHIFT           18
+#define OCB_NSS_CHAINS_SHIFT               21
+#define NAN_NSS_CHAIN_SHIFT                24
+#define NSS_CHAIN_MASK                     0x7
+#define GET_VDEV_NSS_CHAIN(x, y)         (((x) >> (y)) & NSS_CHAIN_MASK)
+#define MAX_VDEV_NSS                       2
+#define MAX_VDEV_CHAINS                    2
+
 typedef struct sAniGetTsmStatsReq {
 	/* Common for all types are requests */
 	uint16_t msgType;       /* message type is same as the request type */

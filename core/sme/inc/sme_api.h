@@ -577,6 +577,19 @@ bool sme_is_wmm_supported(tHalHandle hHal);
 QDF_STATUS sme_generic_change_country_code(tHalHandle hHal,
 					   uint8_t *pCountry);
 
+/**
+ * sme_store_nss_chains_cfg_in_vdev() - fill vdev nss chain params from ini
+ * @vdev: Pointer to vdev obj
+ * @vdev_ini_cfg: pointer to the structure the values are to be filled from
+ *
+ * This API will copy the nss chain params for the particular vdev from ini
+ * configuration to the respective vdev's dynamic, and ini config.
+ *
+ * Return: none
+ */
+void
+sme_store_nss_chains_cfg_in_vdev(struct wlan_objmgr_vdev *vdev,
+				 struct mlme_nss_chains *vdev_ini_cfg);
 
 /**
  * sme_update_channel_list() - Update configured channel list to fwr

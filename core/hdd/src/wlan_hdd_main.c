@@ -4015,6 +4015,146 @@ static int hdd_set_sme_session_param(struct hdd_adapter *adapter,
 	return 0;
 }
 
+static uint8_t hdd_get_nss_chain_shift(enum QDF_OPMODE device_mode)
+{
+	switch (device_mode) {
+	case QDF_STA_MODE:
+		return STA_NSS_CHAINS_SHIFT;
+	case QDF_SAP_MODE:
+		return SAP_NSS_CHAINS_SHIFT;
+	case QDF_P2P_GO_MODE:
+		return P2P_GO_NSS_CHAINS_SHIFT;
+	case QDF_P2P_CLIENT_MODE:
+		return P2P_CLI_CHAINS_SHIFT;
+	case QDF_IBSS_MODE:
+		return IBSS_NSS_CHAINS_SHIFT;
+	case QDF_P2P_DEVICE_MODE:
+		return P2P_DEV_NSS_CHAINS_SHIFT;
+	case QDF_OCB_MODE:
+		return OCB_NSS_CHAINS_SHIFT;
+	case QDF_TDLS_MODE:
+		return TDLS_NSS_CHAINS_SHIFT;
+
+	default:
+		hdd_err("Device mode %d invalid", device_mode);
+		return STA_NSS_CHAINS_SHIFT;
+	}
+}
+
+static void
+hdd_check_nss_chains_ini_params(struct mlme_nss_chains *vdev_ini_cfg,
+				uint8_t rf_chains_supported)
+{
+	enum nss_chains_band_info band;
+
+	for (band = NSS_CHAINS_BAND_2GHZ; band < NSS_CHAINS_BAND_MAX; band++) {
+		vdev_ini_cfg->rx_nss[band] = QDF_MIN(vdev_ini_cfg->rx_nss[band],
+						     rf_chains_supported);
+		vdev_ini_cfg->tx_nss[band] = QDF_MIN(vdev_ini_cfg->tx_nss[band],
+						     rf_chains_supported);
+	}
+}
+
+void hdd_fill_nss_chain_params(struct hdd_context *hdd_ctx,
+			       struct mlme_nss_chains *vdev_ini_cfg,
+			       uint8_t device_mode)
+{
+	uint8_t nss_chain_shift;
+	uint8_t max_supported_nss;
+	struct hdd_config *config = hdd_ctx->config;
+	uint8_t rf_chains_supported = hdd_ctx->num_rf_chains;
+
+	nss_chain_shift = hdd_get_nss_chain_shift(device_mode);
+	max_supported_nss = config->enable2x2 ? MAX_VDEV_NSS : 1;
+
+	/* If the fw doesn't support two chains, num rf chains can max be 1 */
+	vdev_ini_cfg->num_rx_chains[NSS_CHAINS_BAND_2GHZ] =
+			QDF_MIN(GET_VDEV_NSS_CHAIN(config->num_rx_chains_2g,
+						   nss_chain_shift),
+				rf_chains_supported);
+
+	vdev_ini_cfg->num_tx_chains[NSS_CHAINS_BAND_2GHZ] =
+		QDF_MIN(GET_VDEV_NSS_CHAIN(config->num_tx_chains_2g,
+					   nss_chain_shift),
+			rf_chains_supported);
+
+	/* If 2x2 mode is disabled, then max rx, tx nss can be 1 */
+	vdev_ini_cfg->rx_nss[NSS_CHAINS_BAND_2GHZ] =
+		QDF_MIN(GET_VDEV_NSS_CHAIN(config->rx_nss_2g,
+					   nss_chain_shift),
+			max_supported_nss);
+
+	vdev_ini_cfg->tx_nss[NSS_CHAINS_BAND_2GHZ] =
+		QDF_MIN(GET_VDEV_NSS_CHAIN(config->tx_nss_2g,
+					   nss_chain_shift),
+			max_supported_nss);
+
+	vdev_ini_cfg->num_tx_chains_11a =
+		QDF_MIN(GET_VDEV_NSS_CHAIN(config->num_tx_chains_11a,
+					   nss_chain_shift),
+			rf_chains_supported);
+
+	/* If the fw doesn't support two chains, num rf chains can max be 1 */
+	vdev_ini_cfg->num_tx_chains_11b =
+		QDF_MIN(GET_VDEV_NSS_CHAIN(config->num_tx_chains_11b,
+					   nss_chain_shift),
+			rf_chains_supported);
+
+	vdev_ini_cfg->num_tx_chains_11g =
+		QDF_MIN(GET_VDEV_NSS_CHAIN(config->num_tx_chains_11g,
+					   nss_chain_shift),
+			rf_chains_supported);
+
+	vdev_ini_cfg->disable_rx_mrc[NSS_CHAINS_BAND_2GHZ] =
+						config->disable_rx_mrc_2g;
+
+	vdev_ini_cfg->disable_tx_mrc[NSS_CHAINS_BAND_2GHZ] =
+						config->disable_tx_mrc_2g;
+
+	/* config for 5ghz ini values */
+
+	vdev_ini_cfg->num_rx_chains[NSS_CHAINS_BAND_5GHZ] =
+			QDF_MIN(GET_VDEV_NSS_CHAIN(config->num_rx_chains_2g,
+						   nss_chain_shift),
+				rf_chains_supported);
+
+	vdev_ini_cfg->num_tx_chains[NSS_CHAINS_BAND_5GHZ] =
+		QDF_MIN(GET_VDEV_NSS_CHAIN(config->num_tx_chains_2g,
+					   nss_chain_shift),
+			rf_chains_supported);
+
+	/* If 2x2 mode is disabled, then max rx, tx nss can be 1 */
+	vdev_ini_cfg->rx_nss[NSS_CHAINS_BAND_5GHZ] =
+		QDF_MIN(GET_VDEV_NSS_CHAIN(config->rx_nss_2g,
+					   nss_chain_shift),
+			max_supported_nss);
+
+	vdev_ini_cfg->tx_nss[NSS_CHAINS_BAND_5GHZ] =
+		QDF_MIN(GET_VDEV_NSS_CHAIN(config->tx_nss_2g,
+					   nss_chain_shift),
+			max_supported_nss);
+
+	vdev_ini_cfg->disable_rx_mrc[NSS_CHAINS_BAND_5GHZ] =
+						config->disable_rx_mrc_2g;
+
+	vdev_ini_cfg->disable_tx_mrc[NSS_CHAINS_BAND_5GHZ] =
+						config->disable_tx_mrc_2g;
+	hdd_check_nss_chains_ini_params(vdev_ini_cfg, rf_chains_supported);
+}
+
+static void
+hdd_store_nss_chains_cfg_in_vdev(struct hdd_adapter *adapter)
+{
+	struct mlme_nss_chains vdev_ini_cfg;
+	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	/* Populate the nss chain params from ini for this vdev type */
+	hdd_fill_nss_chain_params(hdd_ctx, &vdev_ini_cfg, adapter->device_mode);
+
+	/* Store the nss chain config into the vdev */
+	sme_store_nss_chains_cfg_in_vdev(adapter->vdev, &vdev_ini_cfg);
+}
+
 int hdd_vdev_create(struct hdd_adapter *adapter,
 		    csr_roam_complete_cb callback, void *ctx)
 {
@@ -4106,6 +4246,9 @@ int hdd_vdev_create(struct hdd_adapter *adapter,
 	    adapter->device_mode == QDF_P2P_CLIENT_MODE)
 		wlan_vdev_set_max_peer_count(adapter->vdev,
 					     HDD_MAX_VDEV_PEER_COUNT);
+
+	/* store the ini and dynamic nss chain params to the vdev object */
+	hdd_store_nss_chains_cfg_in_vdev(adapter);
 
 	hdd_info("vdev %d created successfully", adapter->session_id);
 

@@ -16528,7 +16528,6 @@ struct hdd_config {
 	bool disable_rx_mrc_2g;
 	bool disable_tx_mrc_5g;
 	bool disable_rx_mrc_5g;
-
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

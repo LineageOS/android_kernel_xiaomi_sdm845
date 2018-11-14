@@ -2374,6 +2374,20 @@ void wlan_hdd_send_svc_nlink_msg(int radio, int type, void *data, int len);
 void wlan_hdd_auto_shutdown_enable(struct hdd_context *hdd_ctx, bool enable);
 #endif
 
+/**
+ * hdd_fill_nss_chain_params() - Fill nss chains ini params
+ * @hdd_ctx: hdd context
+ * @vdev_ini_cfg: structure to be filled
+ * @device_mode: device mode for which the inis are to be filled
+ *
+ * This function fills nss chains ini params for the respective device mode.
+ *
+ * Return: none
+ */
+void hdd_fill_nss_chain_params(struct hdd_context *hdd_ctx,
+			       struct mlme_nss_chains *vdev_ini_cfg,
+			       uint8_t device_mode);
+
 struct hdd_adapter *
 hdd_get_con_sap_adapter(struct hdd_adapter *this_sap_adapter,
 			bool check_start_bss);
