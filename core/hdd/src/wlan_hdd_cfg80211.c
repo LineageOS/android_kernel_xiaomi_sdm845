@@ -2480,7 +2480,8 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	wlan_hdd_undo_acs(adapter);
 
 	qdf_mem_zero(&sap_config->acs_cfg, sizeof(struct sap_acs_cfg));
-
+	sap_config->acs_cfg.dfs_master_mode =
+			hdd_ctx->config->enableDFSMasterCap;
 	hdd_debug("channel width =%d", ch_width);
 	if (ch_width == 160)
 		sap_config->acs_cfg.ch_width = CH_WIDTH_160MHZ;
@@ -2648,13 +2649,13 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 	conc_channel = policy_mgr_mode_specific_get_channel(hdd_ctx->psoc,
 							    PM_STA_MODE);
-	if (hdd_ctx->config->external_acs_policy ==
-	    HDD_EXTERNAL_ACS_PCL_MANDATORY) {
+	if ((hdd_ctx->config->external_acs_policy ==
+	    HDD_EXTERNAL_ACS_PCL_MANDATORY) && conc_channel) {
 		if ((conc_channel >= WLAN_REG_CH_NUM(CHAN_ENUM_36) &&
 		     sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211A) ||
 		     (conc_channel <= WLAN_REG_CH_NUM(CHAN_ENUM_14) &&
 		      (sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211B ||
-		       sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211A))) {
+		       sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211G))) {
 			sap_config->acs_cfg.pri_ch = conc_channel;
 			wlan_sap_set_sap_ctx_acs_cfg(
 				WLAN_HDD_GET_SAP_CTX_PTR(adapter), sap_config);
