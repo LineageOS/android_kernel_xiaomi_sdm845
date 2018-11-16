@@ -3301,8 +3301,9 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 		 */
 		if (wlan_reg_is_dfs_ch(mac_ctx->pdev,
 		    WLAN_REG_CH_NUM(loop_count)) &&
-		    policy_mgr_disallow_mcc(mac_ctx->psoc,
-		    WLAN_REG_CH_NUM(loop_count)))
+		    (policy_mgr_disallow_mcc(mac_ctx->psoc,
+		    WLAN_REG_CH_NUM(loop_count)) ||
+		    !sap_ctx->acs_cfg->dfs_master_mode))
 			continue;
 
 		/* Dont scan ETSI13 SRD channels if the ETSI13 SRD channels
