@@ -9822,13 +9822,6 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 		return QDF_STATUS_E_INVAL;
 	}
 
-	enable2x2 = (nss == 1) ? 0 : 1;
-
-	if (hdd_config->enable2x2 == enable2x2) {
-		hdd_debug("NSS same as requested");
-		return QDF_STATUS_SUCCESS;
-	}
-
 	if (nss > MAX_VDEV_NSS) {
 		hdd_debug("Cannot support %d nss streams", nss);
 		return QDF_STATUS_E_INVAL;
@@ -9847,6 +9840,12 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 	if (hdd_ctx->dynamic_nss_chains_support)
 		return hdd_set_nss_params(adapter, tx_nss, rx_nss);
 
+	enable2x2 = (nss == 1) ? 0 : 1;
+
+	if (hdd_config->enable2x2 == enable2x2) {
+		hdd_debug("NSS same as requested");
+		return QDF_STATUS_SUCCESS;
+	}
 	if (sme_is_any_session_in_connected_state(mac_handle)) {
 		hdd_err("Connected sessions present, Do not change NSS");
 		return QDF_STATUS_E_INVAL;
