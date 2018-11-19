@@ -14400,53 +14400,16 @@ QDF_STATUS sme_get_apf_capabilities(tHalHandle hal,
 QDF_STATUS sme_set_apf_instructions(tHalHandle hal,
 				    struct sir_apf_set_offload *req)
 {
-	QDF_STATUS          status     = QDF_STATUS_SUCCESS;
-	tpAniSirGlobal      mac_ctx    = PMAC_STRUCT(hal);
-	struct scheduler_msg           cds_msg = {0};
-	struct sir_apf_set_offload *set_offload;
+	void *wma_handle;
 
-	set_offload = qdf_mem_malloc(sizeof(*set_offload) +
-					req->current_length);
-
-	if (NULL == set_offload) {
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma_handle) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			FL("Failed to alloc set_offload"));
-		return QDF_STATUS_E_NOMEM;
+				"wma handle is NULL");
+		return QDF_STATUS_E_FAILURE;
 	}
 
-	set_offload->session_id = req->session_id;
-	set_offload->filter_id = req->filter_id;
-	set_offload->current_offset = req->current_offset;
-	set_offload->total_length = req->total_length;
-	set_offload->current_length = req->current_length;
-	if (set_offload->total_length) {
-		set_offload->program = ((uint8_t *)set_offload) +
-					sizeof(*set_offload);
-		qdf_mem_copy(set_offload->program, req->program,
-				set_offload->current_length);
-	}
-	status = sme_acquire_global_lock(&mac_ctx->sme);
-	if (QDF_STATUS_SUCCESS == status) {
-		/* Serialize the req through MC thread */
-		cds_msg.bodyptr = set_offload;
-		cds_msg.type = WDA_APF_SET_INSTRUCTIONS_REQ;
-		status = scheduler_post_message(QDF_MODULE_ID_SME,
-						QDF_MODULE_ID_WMA,
-						QDF_MODULE_ID_WMA, &cds_msg);
-
-		if (!QDF_IS_STATUS_SUCCESS(status)) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				FL("Post APF set offload msg fail"));
-			status = QDF_STATUS_E_FAILURE;
-			qdf_mem_free(set_offload);
-		}
-		sme_release_global_lock(&mac_ctx->sme);
-	} else {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				FL("sme_acquire_global_lock failed"));
-		qdf_mem_free(set_offload);
-	}
-	return status;
+	return wma_set_apf_instructions(wma_handle, req);
 }
 
 QDF_STATUS sme_set_apf_enable_disable(tHalHandle hal, uint8_t vdev_id,
