@@ -178,6 +178,10 @@
 	qcom,switch-freq-khz = <600>;
 };
 
+&sde_dp {
+	status = "disabled";
+};
+
 &pmi8998_haptics {
        qcom,vmax-mv = <2812>;
        qcom,lra-auto-mode;
