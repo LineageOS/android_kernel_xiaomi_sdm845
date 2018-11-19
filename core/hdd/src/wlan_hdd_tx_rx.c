@@ -1662,10 +1662,7 @@ void hdd_disable_rx_ol_in_concurrency(bool disable)
 			hdd_info("Enable TCP delack as LRO disabled in concurrency");
 			rx_tp_data.rx_tp_flags = TCP_DEL_ACK_IND;
 			rx_tp_data.level = GET_CUR_RX_LVL(hdd_ctx);
-			wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
-						    WLAN_SVC_WLAN_TP_IND,
-						    &rx_tp_data,
-						    sizeof(rx_tp_data));
+			wlan_hdd_update_tcp_rx_param(hdd_ctx, &rx_tp_data);
 			hdd_ctx->en_tcp_delack_no_lro = 1;
 		}
 		qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 1);
@@ -2518,7 +2515,6 @@ void hdd_reset_tcp_delack(struct hdd_context *hdd_ctx)
 	rx_tp_data.rx_tp_flags |= TCP_DEL_ACK_IND;
 	rx_tp_data.level = next_level;
 	hdd_ctx->rx_high_ind_cnt = 0;
-	wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index, WLAN_SVC_WLAN_TP_IND,
-				    &rx_tp_data, sizeof(rx_tp_data));
+	wlan_hdd_update_tcp_rx_param(hdd_ctx, &rx_tp_data);
 }
 #endif /* MSM_PLATFORM */

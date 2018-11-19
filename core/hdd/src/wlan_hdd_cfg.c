@@ -3073,6 +3073,12 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_PERIODIC_STATS_DISPLAY_TIME_DEFAULT,
 		     CFG_PERIODIC_STATS_DISPLAY_TIME_MIN,
 		     CFG_PERIODIC_STATS_DISPLAY_TIME_MAX),
+	REG_VARIABLE(CFG_ENABLE_TCP_PARAM_UPDATE, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_tcp_param_update,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_TCP_PARAM_UPDATE_DEFAULT,
+		     CFG_ENABLE_TCP_PARAM_UPDATE_MIN,
+		     CFG_ENABLE_TCP_PARAM_UPDATE_MAX),
 #endif
 
 	REG_VARIABLE(CFG_ENABLE_FW_LOG_TYPE, WLAN_PARAM_Integer,
@@ -7226,6 +7232,9 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] Value = [%u] ",
 		  CFG_PERIODIC_STATS_DISPLAY_TIME_NAME,
 		  hdd_ctx->config->periodic_stats_disp_time);
+	hdd_debug("Name = [%s] Value = [%u] ",
+		  CFG_ENABLE_TCP_PARAM_UPDATE,
+		  hdd_ctx->config->enable_tcp_param_update);
 #endif
 
 	hdd_debug("Name = [gIgnoreCAC] Value = [%u] ",
