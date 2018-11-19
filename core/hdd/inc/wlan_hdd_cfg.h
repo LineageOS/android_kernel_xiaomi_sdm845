@@ -7914,6 +7914,25 @@ enum hdd_link_speed_rpt_type {
 #define CFG_ENABLE_TCP_DELACK_MIN                  (0)
 #define CFG_ENABLE_TCP_DELACK_MAX                  (1)
 
+/*
+ * <ini>
+ * enable_tcp_param_update - Configure TCP param through Wi-Fi HAL
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to configure TCP param through Wi-Fi HAL
+ *
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_TCP_PARAM_UPDATE                      "enable_tcp_param_update"
+#define CFG_ENABLE_TCP_PARAM_UPDATE_DEFAULT              (0)
+#define CFG_ENABLE_TCP_PARAM_UPDATE_MIN                  (0)
+#define CFG_ENABLE_TCP_PARAM_UPDATE_MAX                  (1)
+
 
 /*
  * <ini>
@@ -15969,6 +15988,7 @@ struct hdd_config {
 	uint32_t tcpDelackThresholdLow;
 	uint32_t tcp_tx_high_tput_thres;
 	uint32_t tcp_delack_timer_count;
+	bool     enable_tcp_param_update;
 	u8  periodic_stats_disp_time;
 #endif /* MSM_PLATFORM */
 
