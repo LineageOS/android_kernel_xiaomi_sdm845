@@ -168,6 +168,7 @@ QDF_STATUS mac_close(tHalHandle hHal)
 	}
 	wlan_objmgr_psoc_release_ref(pMac->psoc, WLAN_LEGACY_MAC_ID);
 	pMac->psoc = NULL;
+	qdf_mem_zero(pMac, sizeof(*pMac));
 
 	return QDF_STATUS_SUCCESS;
 }
