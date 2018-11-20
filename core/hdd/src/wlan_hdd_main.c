@@ -3586,6 +3586,7 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 				  pmo_ucfg_max_mc_addr_supported(psoc));
 			hdd_disable_and_flush_mc_addr_list(adapter,
 				pmo_mc_list_change_notify);
+			adapter->mc_addr_list.mc_cnt = 0;
 			goto free_req;
 		}
 		netdev_for_each_mc_addr(ha, dev) {
@@ -3603,6 +3604,7 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 		}
 	}
 
+	adapter->mc_addr_list.mc_cnt = mc_count;
 	mc_list_request->psoc = psoc;
 	mc_list_request->vdev_id = adapter->session_id;
 	mc_list_request->count = mc_count;
