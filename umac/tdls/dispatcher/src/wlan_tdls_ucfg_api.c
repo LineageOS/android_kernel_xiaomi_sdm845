@@ -419,6 +419,7 @@ dec_ref:
 	return status;
 }
 
+#ifdef WLAN_DEBUG
 static char *tdls_get_oper_str(enum tdls_command_type cmd_type)
 {
 	switch (cmd_type) {
@@ -434,6 +435,7 @@ static char *tdls_get_oper_str(enum tdls_command_type cmd_type)
 		return "ERR:UNKNOWN OPER";
 	}
 }
+#endif
 
 QDF_STATUS ucfg_tdls_oper(struct wlan_objmgr_vdev *vdev,
 			  const uint8_t *macaddr, enum tdls_command_type cmd)

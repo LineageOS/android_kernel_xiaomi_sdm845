@@ -889,8 +889,11 @@ int dfs_bin_pri_check(
 	uint32_t averagerefpri = 0, MatchCount = 0;
 	uint32_t prev_good_timestamp = 0;
 	int dindex;
-	uint32_t i, primargin, durmargin, highscore = score;
+	uint32_t i, primargin, durmargin;
+#ifdef WLAN_DEBUG
+	uint32_t highscore = score;
 	uint32_t highscoreindex = 0;
+#endif
 	/*
 	 * First pulse in the burst is most likely being filtered out based on
 	 * maxfilterlen.

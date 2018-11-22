@@ -261,7 +261,9 @@ static os_timer_func(dfs_remove_from_nol)
 void dfs_print_nol(struct wlan_dfs *dfs)
 {
 	struct dfs_nolelem *nol;
+#ifdef WLAN_DEBUG
 	int i = 0;
+#endif
 	uint32_t diff_ms, remaining_sec;
 
 	if (!dfs) {
