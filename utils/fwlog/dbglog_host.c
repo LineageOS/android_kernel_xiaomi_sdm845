@@ -1761,7 +1761,9 @@ send_diag_netlink_data(const uint8_t *buffer, uint32_t len, uint32_t cmd)
 		slot->timestamp = cpu_to_le32(jiffies);
 		slot->length = cpu_to_le32(len);
 		/* Version mapped to get_version here */
+#ifdef WLAN_DEBUG
 		slot->dropped = get_version;
+#endif
 		memcpy(slot->payload, buffer, len);
 
 		/* Need to pad each record to fixed length
@@ -1859,7 +1861,9 @@ static int diag_fw_handler(ol_scn_t scn, uint8_t *data, uint32_t datalen)
 	WMI_DIAG_EVENTID_param_tlvs *param_buf;
 	uint8_t *datap;
 	uint32_t len = 0;
+#ifdef WLAN_DEBUG
 	uint32_t *buffer;
+#endif
 
 	if (!wma) {
 		AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("NULL Pointer assigned\n"));
@@ -1881,6 +1885,7 @@ static int diag_fw_handler(ol_scn_t scn, uint8_t *data, uint32_t datalen)
 		datap = param_buf->bufp;
 		len = param_buf->num_bufp;
 
+#ifdef WLAN_DEBUG
 		if (!get_version) {
 			if (len < 2*(sizeof(uint32_t))) {
 				AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
@@ -1908,13 +1913,16 @@ static int diag_fw_handler(ol_scn_t scn, uint8_t *data, uint32_t datalen)
 				}
 			}
 		}
+#endif
 	}
 	if (dbglog_process_type == DBGLOG_PROCESS_PRINT_RAW) {
+#ifdef WLAN_DEBUG
 		if (!gprint_limiter) {
 			AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
 					("NOT Supported only supports net link socket\n"));
 			gprint_limiter = true;
 		}
+#endif
 		return 0;
 	}
 
@@ -1924,19 +1932,23 @@ static int diag_fw_handler(ol_scn_t scn, uint8_t *data, uint32_t datalen)
 	}
 #ifdef WLAN_OPEN_SOURCE
 	if (dbglog_process_type == DBGLOG_PROCESS_POOL_RAW) {
+#ifdef WLAN_DEBUG
 		if (!gprint_limiter) {
 			AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
 					("NOT Supported only supports net link socket\n"));
 			gprint_limiter = true;
 		}
+#endif
 		return 0;
 	}
 #endif /* WLAN_OPEN_SOURCE */
+#ifdef WLAN_DEBUG
 	if (!gprint_limiter) {
 		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
 				("NOT Supported only supports net link socket\n"));
 		gprint_limiter = true;
 	}
+#endif
 	/* Always returns zero */
 	return 0;
 }
@@ -4179,12 +4191,14 @@ static void cnss_diag_handle_crash_inject(struct dbglog_slot *slot)
 				("%s : DIAG_TYPE_CRASH_INJECT: %d %d\n",
 				 __func__, slot->payload[0],
 				 slot->payload[1]));
+#ifdef WLAN_DEBUG
 		if (!tgt_assert_enable) {
 			AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
 					("%s: tgt Assert Disabled\n",
 					  __func__));
 			return;
 		}
+#endif
 		wma_cli_set2_command(0, (int)GEN_PARAM_CRASH_INJECT,
 					slot->payload[0],
 					slot->payload[1], GEN_CMD);
@@ -4460,7 +4474,9 @@ int dbglog_parser_type_init(wmi_unified_t wmi_handle, int type)
 		return A_ERROR;
 
 	dbglog_process_type = type;
+#ifdef WLAN_DEBUG
 	gprint_limiter = false;
+#endif
 
 	return A_OK;
 }
@@ -4490,7 +4506,9 @@ int dbglog_init(wmi_unified_t wmi_handle)
 	dbglog_reg_modprint(WLAN_MODULE_PCIELP, dbglog_pcielp_print_handler);
 	dbglog_reg_modprint(WLAN_MODULE_IBSS_PWRSAVE,
 			    dbglog_ibss_powersave_print_handler);
+#ifdef WLAN_DEBUG
 	tgt_assert_enable = wmi_handle->tgt_force_assert_enable;
+#endif
 
 	/* Register handler for F3 or debug messages */
 	res =
@@ -4540,7 +4558,9 @@ int dbglog_deinit(wmi_unified_t wmi_handle)
 	/* Deinitialize the debugfs */
 	dbglog_debugfs_remove(wmi_handle);
 #endif /* WLAN_OPEN_SOURCE */
+#ifdef WLAN_DEBUG
 	tgt_assert_enable = 0;
+#endif
 	res =
 		wmi_unified_unregister_event_handler(wmi_handle,
 						     wmi_dbg_msg_event_id);

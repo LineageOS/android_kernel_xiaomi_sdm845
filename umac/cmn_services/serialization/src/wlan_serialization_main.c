@@ -338,7 +338,9 @@ static QDF_STATUS wlan_serialization_vdev_obj_create_notification(
 static QDF_STATUS wlan_serialization_vdev_obj_destroy_notification(
 		struct wlan_objmgr_vdev *vdev, void *arg_list)
 {
+#ifdef WLAN_DEBUG
 	uint8_t vdev_id = wlan_vdev_get_id(vdev);
+#endif
 
 	if (!ser_legacy_cb.serialization_purge_cmd_list)
 		return QDF_STATUS_SUCCESS;

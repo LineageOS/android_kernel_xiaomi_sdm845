@@ -103,6 +103,7 @@ qdf_export_symbol(wlan_roam_debug_log);
  *
  * Return: printable string for the operation
  */
+#ifdef WLAN_DEBUG
 static char *wlan_roam_debug_string(uint32_t op)
 {
 	switch (op) {
@@ -142,6 +143,7 @@ static char *wlan_roam_debug_string(uint32_t op)
 		return "unknown";
 	}
 }
+#endif
 
 /**
  * wlan_roam_debug_dump_table() - Print the wlan roam debug log records

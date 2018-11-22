@@ -64,7 +64,9 @@ static inline void htc_add_emulation_delay(void)
 
 void htc_dump_counter_info(HTC_HANDLE HTCHandle)
 {
+#ifdef WLAN_DEBUG
 	HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+#endif
 
 	AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
 			("\n%s: ce_send_cnt = %d, TX_comp_cnt = %d\n",

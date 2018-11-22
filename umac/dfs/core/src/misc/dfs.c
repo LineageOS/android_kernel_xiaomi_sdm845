@@ -280,7 +280,9 @@ int dfs_control(struct wlan_dfs *dfs,
 	struct wlan_dfs_phyerr_param peout;
 	struct dfs_ioctl_params *dfsparams;
 	int error = 0;
+#ifdef WLAN_DEBUG
 	uint32_t val = 0;
+#endif
 	struct dfsreq_nolinfo *nol;
 	uint32_t *data = NULL;
 	int i;

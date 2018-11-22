@@ -1745,8 +1745,10 @@ void qdf_dp_display_mgmt_pkt(struct qdf_dp_trace_record_s *record,
 {
 	int loc;
 	char prepend_str[QDF_DP_TRACE_PREPEND_STR_SIZE];
+#ifdef WLAN_DEBUG
 	struct qdf_dp_trace_mgmt_buf *buf =
 		(struct qdf_dp_trace_mgmt_buf *)record->data;
+#endif
 
 	qdf_mem_set(prepend_str, 0, sizeof(prepend_str));
 	loc = qdf_dp_trace_fill_meta_str(prepend_str, sizeof(prepend_str),
@@ -1786,8 +1788,10 @@ void qdf_dp_display_event_record(struct qdf_dp_trace_record_s *record,
 			      uint16_t index, uint8_t pdev_id, uint8_t info)
 {
 	char prepend_str[QDF_DP_TRACE_PREPEND_STR_SIZE];
+#ifdef WLAN_DEBUG
 	struct qdf_dp_trace_event_buf *buf =
 		(struct qdf_dp_trace_event_buf *)record->data;
+#endif
 
 	qdf_mem_set(prepend_str, 0, sizeof(prepend_str));
 	qdf_dp_trace_fill_meta_str(prepend_str, sizeof(prepend_str),
@@ -1838,8 +1842,10 @@ void qdf_dp_display_proto_pkt(struct qdf_dp_trace_record_s *record,
 {
 	int loc;
 	char prepend_str[QDF_DP_TRACE_PREPEND_STR_SIZE];
+#ifdef WLAN_DEBUG
 	struct qdf_dp_trace_proto_buf *buf =
 		(struct qdf_dp_trace_proto_buf *)record->data;
+#endif
 
 	qdf_mem_set(prepend_str, 0, sizeof(prepend_str));
 	loc = qdf_dp_trace_fill_meta_str(prepend_str, sizeof(prepend_str),
