@@ -4213,7 +4213,9 @@ static int __wlan_hdd_cfg80211_disable_dfs_chan_scan(struct wiphy *wiphy,
 						     const void *data,
 						     int data_len)
 {
+#ifdef WLAN_DEBUG
 	struct net_device *dev = wdev->netdev;
+#endif
 	struct hdd_context *hdd_ctx  = wiphy_priv(wiphy);
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_SET_NO_DFS_FLAG_MAX + 1];
 	int ret_val;
@@ -19866,6 +19868,7 @@ disconnected:
  * Return: string conversion of reason code, if match found;
  *         "Unknown" otherwise.
  */
+#ifdef WLAN_DEBUG
 static const char *hdd_ieee80211_reason_code_to_str(uint16_t reason)
 {
 	switch (reason) {
@@ -19920,6 +19923,7 @@ static const char *hdd_ieee80211_reason_code_to_str(uint16_t reason)
 		return "Unknown";
 	}
 }
+#endif
 
 /**
  * hdd_print_netdev_txq_status() - print netdev tx queue status
@@ -19937,7 +19941,9 @@ static void hdd_print_netdev_txq_status(struct net_device *dev)
 		return;
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
+#ifdef WLAN_DEBUG
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+#endif
 
 		hdd_debug("netdev tx queue[%u] state: 0x%lx", i, txq->state);
 	}

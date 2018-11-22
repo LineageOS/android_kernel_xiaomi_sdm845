@@ -1434,8 +1434,10 @@ lim_update_short_preamble(tpAniSirGlobal mac_ctx, tSirMacAddr peer_mac_addr,
 	}
 
 	if (i >= LIM_PROT_STA_CACHE_SIZE) {
+#ifdef WLAN_DEBUG
 		tLimNoShortParams *lim_params =
 				&psession_entry->gLimNoShortParams;
+#endif
 		if (LIM_IS_AP_ROLE(psession_entry)) {
 			pe_err("No space in Short cache active: %d sta: %d for sta",
 				i, lim_params->numNonShortPreambleSta);

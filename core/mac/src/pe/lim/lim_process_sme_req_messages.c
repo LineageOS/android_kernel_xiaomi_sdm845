@@ -4650,8 +4650,10 @@ bool lim_process_sme_req_messages(tpAniSirGlobal pMac,
 		break;
 
 	case eWNI_SME_ASSOC_CNF:
+#ifdef WLAN_DEBUG
 		if (pMsg->type == eWNI_SME_ASSOC_CNF)
 			pe_debug("Received ASSOC_CNF message");
+#endif
 			__lim_process_sme_assoc_cnf_new(pMac, pMsg->type,
 							pMsgBuf);
 		break;

@@ -6778,7 +6778,9 @@ void hdd_cfg_print_11k_offload_params(struct hdd_context *hdd_ctx)
  */
 static void hdd_cfg_print_action_oui(struct hdd_context *hdd_ctx)
 {
+#ifdef WLAN_DEBUG
 	struct hdd_config *config = hdd_ctx->config;
+#endif
 
 	hdd_debug("Name = [%s] value = [%u]",
 		  CFG_ENABLE_ACTION_OUI,

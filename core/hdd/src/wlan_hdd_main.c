@@ -2687,6 +2687,7 @@ static void hdd_register_policy_manager_callback(
 }
 #endif
 
+#ifdef WLAN_FEATURE_NAN_CONVERGENCE
 static void hdd_nan_register_callbacks(struct hdd_context *hdd_ctx)
 {
 	struct nan_callbacks cb_obj = {0};
@@ -2704,6 +2705,7 @@ static void hdd_nan_register_callbacks(struct hdd_context *hdd_ctx)
 
 	os_if_nan_register_hdd_callbacks(hdd_ctx->psoc, &cb_obj);
 }
+#endif
 
 #ifdef CONFIG_LEAK_DETECTION
 /**
@@ -2892,7 +2894,9 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		 * close adapter, etc. to be initiated by HDD, for those
 		 * register HDD callbacks with UMAC's NAN componenet.
 		 */
+#ifdef WLAN_FEATURE_NAN_CONVERGENCE
 		hdd_nan_register_callbacks(hdd_ctx);
+#endif
 
 		hdd_ctx->mac_handle = cds_get_context(QDF_MODULE_ID_SME);
 
@@ -7714,7 +7718,9 @@ static void hdd_pld_request_bus_bandwidth(struct hdd_context *hdd_ctx,
 			hdd_disable_rx_ol_for_low_tput(hdd_ctx, false);
 	}
 
+#ifdef CONFIG_DP_TRACE
 	qdf_dp_trace_apply_tput_policy(dptrace_high_tput_req);
+#endif
 
 	/*
 	 * Includes tcp+udp, if perf core is required for tcp, then
@@ -8034,6 +8040,7 @@ void wlan_hdd_deinit_tx_rx_histogram(struct hdd_context *hdd_ctx)
 	hdd_ctx->hdd_txrx_hist = NULL;
 }
 
+#ifdef WLAN_DEBUG
 static uint8_t *convert_level_to_string(uint32_t level)
 {
 	switch (level) {
@@ -8050,6 +8057,7 @@ static uint8_t *convert_level_to_string(uint32_t level)
 		return "INVAL";
 	}
 }
+#endif
 
 
 /**

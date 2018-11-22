@@ -4196,6 +4196,7 @@ static void csr_roam_populate_channels(tDot11fBeaconIEs *beacon_ies,
 }
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
+#ifdef WLAN_DEBUG
 static const char *csr_get_ch_width_str(uint8_t ch_width)
 {
 	switch (ch_width) {
@@ -4262,6 +4263,7 @@ static const char *csr_get_encr_type_str(uint8_t encr_type)
 		return "Unknown";
 	}
 }
+#endif
 
 static void csr_dump_connection_stats(tpAniSirGlobal mac_ctx,
 		struct csr_roam_session *session,
@@ -13128,9 +13130,11 @@ static QDF_STATUS csr_roam_start_wait_for_key_timer(
 		tpAniSirGlobal pMac, uint32_t interval)
 {
 	QDF_STATUS status;
+#ifdef WLAN_DEBUG
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
 		&pMac->roam.neighborRoamInfo[pMac->roam.WaitForKeyTimerInfo.
 					     sessionId];
+#endif
 	if (csr_neighbor_roam_is_handoff_in_progress(pMac,
 				     pMac->roam.WaitForKeyTimerInfo.
 				     sessionId)) {
@@ -13152,9 +13156,11 @@ static QDF_STATUS csr_roam_start_wait_for_key_timer(
 
 QDF_STATUS csr_roam_stop_wait_for_key_timer(tpAniSirGlobal pMac)
 {
+#ifdef WLAN_DEBUG
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
 		&pMac->roam.neighborRoamInfo[pMac->roam.WaitForKeyTimerInfo.
 					     sessionId];
+#endif
 
 	sme_debug("WaitForKey timer stopped in state: %s sub-state: %s",
 		mac_trace_get_neighbour_roam_state(pNeighborRoamInfo->

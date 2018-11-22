@@ -1161,8 +1161,10 @@ static void ol_txrx_stats_display_tso(ol_txrx_pdev_handle pdev)
 			 ((seg_idx < TXRX_STATS_TSO_MSDU_NUM_SEG(pdev,
 			   msdu_idx)) && (seg_idx < NUM_MAX_TSO_SEGS));
 			 seg_idx++) {
+#ifdef WLAN_DEBUG
 			struct qdf_tso_seg_t tso_seg =
 				 TXRX_STATS_TSO_SEG(pdev, msdu_idx, seg_idx);
+#endif
 
 			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
 				  "seg idx: %d", seg_idx);
@@ -2274,7 +2276,9 @@ static void ol_txrx_pdev_detach(struct cdp_pdev *ppdev, int force)
 {
 	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
 	struct ol_txrx_stats_req_internal *req, *temp_req;
+#ifdef WLAN_DEBUG
 	int i = 0;
+#endif
 
 	/*checking to ensure txrx pdev structure is not NULL */
 	if (!pdev) {
@@ -4874,11 +4878,13 @@ static void ol_txrx_disp_peer_stats(ol_txrx_pdev_handle pdev)
 void ol_txrx_stats_display(ol_txrx_pdev_handle pdev,
 			   enum qdf_stats_verbosity_level level)
 {
+#ifdef WLAN_DEBUG
 	u64 tx_dropped =
 		pdev->stats.pub.tx.dropped.download_fail.pkts
 		  + pdev->stats.pub.tx.dropped.target_discard.pkts
 		  + pdev->stats.pub.tx.dropped.no_ack.pkts
 		  + pdev->stats.pub.tx.dropped.others.pkts;
+#endif
 
 	if (level == QDF_STATS_VERBOSITY_LEVEL_LOW) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
@@ -6349,8 +6355,10 @@ static struct cdp_cmn_ops ol_ops_cmn = {
 };
 
 static struct cdp_misc_ops ol_ops_misc = {
+#ifdef QCA_IBSS_SUPPORT
 	.set_ibss_vdev_heart_beat_timer =
 		ol_txrx_set_ibss_vdev_heart_beat_timer,
+#endif
 #ifdef CONFIG_HL_SUPPORT
 	.set_wmm_param = ol_txrx_set_wmm_param,
 #endif /* CONFIG_HL_SUPPORT */
@@ -6486,8 +6494,10 @@ static struct cdp_peer_ops ol_ops_peer = {
 	.peer_get_peer_mac_addr = ol_txrx_peer_get_peer_mac_addr,
 	.get_peer_state = ol_txrx_get_peer_state,
 	.get_vdev_for_peer = ol_txrx_get_vdev_for_peer,
+#ifdef QCA_IBSS_SUPPORT
 	.update_ibss_add_peer_num_of_vdev =
 		ol_txrx_update_ibss_add_peer_num_of_vdev,
+#endif
 	.remove_peers_for_vdev = ol_txrx_remove_peers_for_vdev,
 	.remove_peers_for_vdev_no_lock = ol_txrx_remove_peers_for_vdev_no_lock,
 #if defined(CONFIG_HL_SUPPORT) && defined(FEATURE_WLAN_TDLS)

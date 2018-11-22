@@ -4358,7 +4358,9 @@ static int wlan_hdd_get_sta_stats(struct wiphy *wiphy,
 	struct hdd_context *hdd_ctx = (struct hdd_context *) wiphy_priv(wiphy);
 	struct hdd_config *pCfg = hdd_ctx->config;
 	mac_handle_t mac_handle;
+#ifdef WLAN_DEBUG
 	uint16_t maxRate = 0;
+#endif
 	int8_t snr = 0;
 	uint16_t my_tx_rate, my_rx_rate;
 	uint8_t tx_nss = 1, rx_nss = 1;
