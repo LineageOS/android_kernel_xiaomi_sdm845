@@ -587,6 +587,7 @@ QDF_STATUS cds_open(struct wlan_objmgr_psoc *psoc)
 		hdd_ctx->config->maxNumberOfPeers = cds_cfg->max_station;
 
 	HTCHandle = cds_get_context(QDF_MODULE_ID_HTC);
+	gp_cds_context->cfg_ctx = NULL;
 	if (!HTCHandle) {
 		cds_alert("HTCHandle is null!");
 
