@@ -5386,6 +5386,7 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 	hdd_nud_ignore_tracking(adapter, true);
 	hdd_nud_reset_tracking(adapter);
 	hdd_nud_flush_work(adapter);
+	hdd_stop_tsf_sync(adapter);
 
 	hdd_debug("Disabling queues");
 	wlan_hdd_netif_queue_control(adapter,
@@ -5772,6 +5773,7 @@ QDF_STATUS hdd_reset_all_adapters(struct hdd_context *hdd_ctx)
 		hdd_nud_reset_tracking(adapter);
 		hdd_nud_flush_work(adapter);
 		hdd_set_disconnect_status(adapter, false);
+		hdd_stop_tsf_sync(adapter);
 
 		hdd_softap_deinit_tx_rx(adapter);
 		hdd_deregister_tx_flow_control(adapter);
