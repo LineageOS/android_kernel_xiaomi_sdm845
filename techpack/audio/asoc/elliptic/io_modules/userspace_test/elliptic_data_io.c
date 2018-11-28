@@ -22,30 +22,26 @@
 #include "elliptic_data_io.h"
 #include "elliptic_device.h"
 
+
+#define USE_IRQ 11
+
 static struct task_struct *simulating_task;
 static atomic_t cancel;
 
-struct elliptic_data_io_state {
+struct elliptic_data_io_state
+{
 };
+#define BUFFER_SIZE 128
 
-struct data_packet_header {
-	int32_t  t1;
-	union {
-		uint32_t t2;
-		uint8_t  t2s[4];
-	};
-	union {
-		uint32_t s1;
-		uint8_t  s1s[4];
-	};
-};
+static int32_t output_buffer[BUFFER_SIZE];
 
+irqreturn_t irq_handler(int irq, void *dev_id) {
+    int result;
 
-#define APR_TEST_SIZE 460
-struct elliptic_message {
-	struct data_packet_header header;
-	uint8_t data[APR_TEST_SIZE - (sizeof(struct data_packet_header))];
-};
+    result = elliptic_data_push(ELLIPTIC_ALL_DEVICES, (const char*)output_buffer, BUFFER_SIZE * sizeof(int32_t));
+    return 0;
+}
+
 
 static void fill_buffer(int32_t *buffer, size_t len, int32_t value)
 {
@@ -56,37 +52,31 @@ static void fill_buffer(int32_t *buffer, size_t len, int32_t value)
 }
 
 
-static struct elliptic_message output_message;
 int simulating_thread(void *context)
 {
-	static int32_t count;
-	int result;
+    static int32_t count;
+    int result;
 
-	count = 0;
-	msleep(20);
+    count = 0;
+    msleep(100);
 
-	pr_debug("%s\n", __func__);
-	output_message.header.t2s[0] = (1<<4) | 3;
-	output_message.header.s1s[0] = 100;
+    pr_debug("%s\n", __func__);
+    while (atomic_read(&cancel) == 0)
+    {
+        if (kthread_should_stop())
+            do_exit(0);
 
-	while (atomic_read(&cancel) == 0) {
-		if (kthread_should_stop())
-			do_exit(0);
+        fill_buffer(output_buffer, BUFFER_SIZE, count);
 
-		output_message.header.t1 = count;
-
-
-		fill_buffer((int32_t *)output_message.data, 100, count);
-		result = elliptic_data_push((const char *)&output_message,
-			APR_TEST_SIZE);
-
-		++count;
-		if (result != 0)
-			pr_warn("failed to push data\n");
-
-		msleep(20);
-	}
-	return 0;
+        ++count;
+        if (result != 0)
+        {
+            pr_warn("failed to push data\n");
+        }
+        asm("int $0x3B");  // Corresponding to irq 11
+        msleep(0);
+    }
+    return 0;
 }
 
 int32_t elliptic_data_io_write(uint32_t message_id, const char *data,
@@ -103,23 +93,30 @@ int32_t elliptic_data_io_transact(uint32_t message_id, const char *data,
 void elliptic_data_io_cancel(struct elliptic_data *elliptic_data)
 {
 	atomic_set(&elliptic_data->abort_io, 1);
-	wake_up_interruptible(&elliptic_data->fifo_usp_not_empty);
+	wake_up_interruptible(&elliptic_data->fifo_isr_not_empty);
 }
 
 
-int elliptic_data_io_initialize(void)
+int elliptic_data_io_initialize()
 {
-	pr_debug("%s\n", __func__);
-	atomic_set(&cancel, 0);
-	simulating_task = kthread_run(&simulating_thread, NULL,
-		"el_simulating_thread");
-	return 0;
+    pr_debug("%s\n", __func__);
+    atomic_set(&cancel, 0);
+    simulating_task = kthread_run(&simulating_thread, NULL, "el_simulating_thread");
+
+
+    if (request_irq(USE_IRQ, irq_handler, IRQF_SHARED, "my_device", (void *)(irq_handler))) {
+        printk(KERN_INFO "my_device: cannot register IRQ ");
+        return -1;
+    }
+
+    return 0;
 }
 
-int elliptic_data_io_cleanup(void)
+int elliptic_data_io_cleanup()
 {
-	kthread_stop(simulating_task);
-	atomic_set(&cancel, 1);
-	msleep(200);
-	return 0;
+    free_irq(USE_IRQ, (void *)(irq_handler));
+    kthread_stop(simulating_task);
+    atomic_set(&cancel, 1);
+    msleep(200);
+    return 0;
 }

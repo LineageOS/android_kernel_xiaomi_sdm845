@@ -44,11 +44,15 @@
 #include <asm/uaccess.h>
 #include <linux/errno.h>
 
-#include "elliptic_data_io.h"
+#include <elliptic/elliptic_data_io.h>
 #include "elliptic_device.h"
 
-#include <asoc/apr_elliptic.h>
+#include <dsp/apr_elliptic.h>
+#include <dsp/q6afe-v2.h>
+
 #define IO_PING_PONG_BUFFER_SIZE 512
+#define AFE_MSM_RX_PSEUDOPORT_ID 0x8001
+#define AFE_MSM_TX_PSEUDOPORT_ID 0x8002
 
 struct elliptic_msm_io_device {
 };
@@ -65,22 +69,33 @@ int elliptic_data_io_cleanup(void)
 {
 	return 0;
 }
+int elliptic_io_open_port(int portid){
+	if (portid == ULTRASOUND_RX_PORT_ID)
+		return afe_start_pseudo_port(AFE_MSM_RX_PSEUDOPORT_ID);
+	else
+		return afe_start_pseudo_port(AFE_MSM_TX_PSEUDOPORT_ID);
+}
 
-void elliptic_data_io_cancel(struct elliptic_data *elliptic_data)
-{
-	atomic_set(&elliptic_data->abort_io, 1);
-	wake_up_interruptible(&elliptic_data->fifo_usp_not_empty);
-
+int elliptic_io_close_port(int portid){
+	if (portid == ULTRASOUND_RX_PORT_ID)
+		return afe_stop_pseudo_port(AFE_MSM_RX_PSEUDOPORT_ID);
+	else
+		return afe_stop_pseudo_port(AFE_MSM_TX_PSEUDOPORT_ID);
 }
 
 int32_t elliptic_data_io_write(uint32_t message_id, const char *data,
 	size_t data_size)
 {
-	uint32_t port_id;
+	int32_t result = 0;
 
-	port_id = ELLIPTIC_PORT_ID;
-	return ultrasound_apr_set(port_id, &message_id, (u8 *)data,
+	/* msm_pcm_routing_acquire_lock(); */
+
+	result = ultrasound_apr_set_parameter(ELLIPTIC_PORT_ID,
+		message_id, (u8 *)data,
 		(int32_t)data_size);
+
+	/* msm_pcm_routing_release_lock();*/
+	return result;
 }
 
 int32_t elliptic_data_io_transact(uint32_t message_id, const char *data,
@@ -89,5 +104,3 @@ int32_t elliptic_data_io_transact(uint32_t message_id, const char *data,
 	pr_err("%s : unimplemented\n", __func__);
 	return -EINVAL;
 }
-
-

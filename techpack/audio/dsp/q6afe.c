@@ -21,12 +21,12 @@
 #include <linux/delay.h>
 #include <dsp/msm_audio_ion.h>
 #include <dsp/apr_audio-v2.h>
+#include <dsp/apr_elliptic.h>
 #include <dsp/audio_cal_utils.h>
 #include <dsp/q6afe-v2.h>
 #include <dsp/q6audio-v2.h>
 #include <ipc/apr_tal.h>
 #include "adsp_err.h"
-#include <asoc/apr_elliptic.h>
 
 #define WAKELOCK_TIMEOUT	5000
 enum {
@@ -111,7 +111,6 @@ struct afe_ctl {
 	u16 dtmf_gen_rx_portid;
 	struct audio_cal_info_spk_prot_cfg	prot_cfg;
 	struct afe_spkr_prot_calib_get_resp	calib_data;
-	struct afe_ultrasound_calib_get_resp    ultrasound_calib_data;
 	struct audio_cal_info_sp_th_vi_ftm_cfg	th_ftm_cfg;
 	struct audio_cal_info_sp_ex_vi_ftm_cfg	ex_ftm_cfg;
 	struct afe_sp_th_vi_get_param_resp	th_vi_resp;
@@ -1107,8 +1106,8 @@ afe_ultrasound_state_t elus_afe = {
        .ptr_state = &this_afe.state,
        .ptr_wait = this_afe.wait,
        .timeout_ms = TIMEOUT_MS,
-       .ptr_ultrasound_calib_data = &this_afe.ultrasound_calib_data
 };
+EXPORT_SYMBOL(elus_afe);
 
 static void afe_send_cal_spkr_prot_tx(int port_id)
 {
