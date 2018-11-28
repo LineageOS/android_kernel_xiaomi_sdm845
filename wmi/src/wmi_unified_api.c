@@ -243,6 +243,29 @@ QDF_STATUS wmi_unified_peer_delete_send(void *wmi_hdl,
 }
 
 /**
+ * wmi_unified_peer_unmap_conf_send() - send PEER unmap conf command to fw
+ * @wmi: wmi handle
+ * @vdev_id: vdev id
+ * @peer_id_cnt: number of peer id
+ * @peer_id_list: list of peer ids
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_peer_unmap_conf_send(void *wmi_hdl,
+					    uint8_t vdev_id,
+					    uint32_t peer_id_cnt,
+					    uint16_t *peer_id_list)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t)wmi_hdl;
+
+	if (wmi_handle->ops->send_peer_unmap_conf_cmd)
+		return wmi_handle->ops->send_peer_unmap_conf_cmd(wmi_handle,
+				  vdev_id, peer_id_cnt, peer_id_list);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+/**
  * wmi_set_peer_param() - set peer parameter in fw
  * @wmi_ctx: wmi handle
  * @peer_addr: peer mac address

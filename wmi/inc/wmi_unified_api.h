@@ -463,6 +463,11 @@ QDF_STATUS wmi_unified_peer_delete_send(void *wmi_hdl,
 				    peer_addr[IEEE80211_ADDR_LEN],
 				    uint8_t vdev_id);
 
+QDF_STATUS wmi_unified_peer_unmap_conf_send(void *wmi_hdl,
+					    uint8_t vdev_id,
+					    uint32_t peer_id_cnt,
+					    uint16_t *peer_id_list);
+
 QDF_STATUS wmi_unified_peer_flush_tids_send(void *wmi_hdl,
 					 uint8_t peer_addr[IEEE80211_ADDR_LEN],
 					 struct peer_flush_params *param);

@@ -708,6 +708,76 @@ static QDF_STATUS send_peer_flush_tids_cmd_tlv(wmi_unified_t wmi,
 }
 
 /**
+ * send_peer_unmap_conf_cmd_tlv() - send PEER UNMAP conf command to fw
+ * @wmi: wmi handle
+ * @vdev_id: vdev id
+ * @peer_id_cnt: no. of peer ids
+ * @peer_id_list: list of peer ids
+ *
+ * Return: QDF_STATUS_SUCCESS for success or error code
+ */
+static QDF_STATUS send_peer_unmap_conf_cmd_tlv(wmi_unified_t wmi,
+					       uint8_t vdev_id,
+					       uint32_t peer_id_cnt,
+					       uint16_t *peer_id_list)
+{
+	int i;
+	wmi_buf_t buf;
+	uint8_t *buf_ptr;
+	A_UINT32 *peer_ids;
+	wmi_peer_unmap_response_cmd_fixed_param *cmd;
+	uint32_t peer_id_list_len;
+	uint32_t len = sizeof(*cmd);
+
+	if (!peer_id_cnt || !peer_id_list)
+		return QDF_STATUS_E_FAILURE;
+
+	len += WMI_TLV_HDR_SIZE;
+
+	peer_id_list_len = peer_id_cnt * sizeof(A_UINT32);
+
+	len += peer_id_list_len;
+
+	buf = wmi_buf_alloc(wmi, len);
+
+	if (!buf) {
+		WMI_LOGP("%s: wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_peer_unmap_response_cmd_fixed_param *)wmi_buf_data(buf);
+	buf_ptr = (uint8_t *)wmi_buf_data(buf);
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		       WMITLV_TAG_STRUC_wmi_peer_unmap_response_cmd_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN
+			       (wmi_peer_unmap_response_cmd_fixed_param));
+
+	buf_ptr += sizeof(wmi_peer_unmap_response_cmd_fixed_param);
+
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_UINT32,
+		       peer_id_list_len);
+
+	peer_ids = (A_UINT32 *)(buf_ptr + WMI_TLV_HDR_SIZE);
+
+	for (i = 0; i < peer_id_cnt; i++)
+		peer_ids[i] = peer_id_list[i];
+
+	WMI_LOGD("%s: vdev_id %d peer_id_cnt %d", __func__,
+		 vdev_id, peer_id_cnt);
+	wmi_mtrace(WMI_PEER_UNMAP_RESPONSE_CMDID, vdev_id, 0);
+	if (wmi_unified_cmd_send(wmi, buf, len,
+				 WMI_PEER_UNMAP_RESPONSE_CMDID)) {
+		WMI_LOGP("%s: Failed to send peer delete conf command",
+			 __func__);
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
  * send_peer_delete_cmd_tlv() - send PEER delete command to fw
  * @wmi: wmi handle
  * @peer_addr: peer mac addr
@@ -12938,6 +13008,10 @@ void wmi_copy_resource_config(wmi_resource_config *resource_cfg,
 			resource_cfg->flag1, 1);
 	}
 
+	if (tgt_res_cfg->peer_unmap_conf_support)
+		WMI_RSRC_CFG_FLAG_PEER_UNMAP_RESPONSE_SUPPORT_SET(
+						resource_cfg->flag1, 1);
+
 	wmi_copy_twt_resource_config(resource_cfg, tgt_res_cfg);
 }
 
@@ -22552,6 +22626,7 @@ struct wmi_ops tlv_ops =  {
 	.send_vdev_stop_cmd = send_vdev_stop_cmd_tlv,
 	.send_peer_create_cmd = send_peer_create_cmd_tlv,
 	.send_peer_delete_cmd = send_peer_delete_cmd_tlv,
+	.send_peer_unmap_conf_cmd = send_peer_unmap_conf_cmd_tlv,
 	.send_peer_rx_reorder_queue_setup_cmd =
 		send_peer_rx_reorder_queue_setup_cmd_tlv,
 	.send_peer_rx_reorder_queue_remove_cmd =
@@ -23549,7 +23624,8 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_PER_VDEV_CHAINMASK_CONFIG_SUPPORT;
 	wmi_service[wmi_service_new_htt_msg_format] =
 			WMI_SERVICE_HTT_H2T_NO_HTC_HDR_LEN_IN_MSG_LEN;
-
+	wmi_service[wmi_service_peer_unmap_cnf_support] =
+			WMI_SERVICE_PEER_UNMAP_RESPONSE_SUPPORT;
 }
 
 #ifndef CONFIG_MCL
