@@ -578,6 +578,28 @@ wma_cdp_vdev_detach(ol_txrx_soc_handle soc,
 	iface->handle = NULL;
 }
 
+/**
+ * wma_handle_monitor_mode_vdev_detach() - Stop and down monitor mode vdev
+ * @wma_handle: wma handle
+ * @vdev_id: used to get wma interface txrx node
+ *
+ * Monitor mode is unconneted mode, so do explicit vdev stop and down
+ *
+ * Return: None
+ */
+static void wma_handle_monitor_mode_vdev_detach(tp_wma_handle wma,
+						uint8_t vdev_id)
+{
+	if (wma_send_vdev_stop_to_fw(wma, vdev_id)) {
+		WMA_LOGE("%s: %d Failed to send vdev stop", __func__, __LINE__);
+		wma_remove_vdev_req(wma, vdev_id,
+				    WMA_TARGET_REQ_TYPE_VDEV_STOP);
+	}
+
+	if (wma_send_vdev_down_to_fw(wma, vdev_id) != QDF_STATUS_SUCCESS)
+		WMA_LOGE("Failed to send vdev down cmd: vdev %d", vdev_id);
+}
+
 static QDF_STATUS wma_handle_vdev_detach(tp_wma_handle wma_handle,
 			struct del_sta_self_params *del_sta_self_req_param,
 			uint8_t generate_rsp)
@@ -594,6 +616,8 @@ static QDF_STATUS wma_handle_vdev_detach(tp_wma_handle wma_handle,
 		goto out;
 	}
 
+	if (cds_get_conparam() == QDF_GLOBAL_MONITOR_MODE)
+		wma_handle_monitor_mode_vdev_detach(wma_handle, vdev_id);
 
 	status = wmi_unified_vdev_delete_send(wma_handle->wmi_handle, vdev_id);
 	if (QDF_IS_STATUS_ERROR(status)) {
@@ -2020,6 +2044,10 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 	QDF_STATUS qdf_status;
 
 	WMA_LOGD("%s: Enter", __func__);
+
+	/* Ignore stop_response in Monitor mode */
+	if (cds_get_conparam() == QDF_GLOBAL_MONITOR_MODE)
+		return QDF_STATUS_SUCCESS;
 
 	param_buf = (WMI_VDEV_STOPPED_EVENTID_param_tlvs *) cmd_param_info;
 	if (!param_buf) {
