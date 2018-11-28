@@ -2870,6 +2870,8 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 			goto deinit_config;
 		}
 
+		hdd_ctx->mac_handle = cds_get_context(QDF_MODULE_ID_SME);
+
 		if (hdd_ctx->config->rx_thread_affinity_mask)
 			cds_set_rx_thread_cpu_mask(
 				hdd_ctx->config->rx_thread_affinity_mask);
@@ -2904,8 +2906,6 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 #ifdef WLAN_FEATURE_NAN_CONVERGENCE
 		hdd_nan_register_callbacks(hdd_ctx);
 #endif
-
-		hdd_ctx->mac_handle = cds_get_context(QDF_MODULE_ID_SME);
 
 		status = cds_pre_enable();
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
