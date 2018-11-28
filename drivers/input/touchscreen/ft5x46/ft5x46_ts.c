@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011 XiaoMi, Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -13,7 +14,6 @@
  */
 #include <linux/input/ft5x46_ts.h>
 #include <linux/hwinfo.h>
-#include <asm/hwconf_manager.h>
 #include <linux/input/touch_common_info.h>
 #include "ft8716_pramboot.h"
 
@@ -183,8 +183,9 @@
 #define FT5X46_INPUT_EVENT_END				5
 
 #define LEN_FLASH_ECC_MAX		0xFFFE
+#define FT5X46_ESD_CHECK_PERIOD	5000
 
-
+static bool lcd_need_reset;
 static unsigned char proc_operate_mode = FT5X46_PROC_UPGRADE;
 static struct proc_dir_entry *ft5x46_proc_entry;
 #endif
@@ -783,6 +784,28 @@ static int ft5x46_load_firmware(struct ft5x46_data *ft5x46,
 
 		ft5x46_wait_for_ready(ft5x46, (u8)((0x1000 + i) >> 8), (u8)((0x1000 + i) & 0xFF), 30, 1);
 	}
+#if 0
+	for (i = 0; i < firmware->size; i += length) {
+		length = min(FT5X0X_PACKET_LENGTH,
+				firmware->size - i);
+
+		packet.offset = cpu_to_be16(i);
+		packet.length = cpu_to_be16(length);
+
+		for (j = 0; j < length; j++) {
+			packet.payload[j] = firmware->data[i + j];
+			ecc ^= firmware->data[i + j];
+		}
+
+		error = ft5x46_send_block(ft5x46, &packet,
+					FT5X0X_PACKET_HEADER + length);
+		if (error)
+			return error;
+
+		ft5x46_wait_for_ready(ft5x46, (u8)((0x1000 + packet_num) >> 8), (u8)((0x1000 + packet_num) & 0xFF), 30, 1);
+		packet_num ++;
+	}
+#endif
 	dev_info(ft5x46->dev, "[FTS] step6a: Send data in 128 bytes chunk each time.\n");
 
 	/* step 6b: send the last bytes */
@@ -1282,8 +1305,6 @@ static int ft8716_load_firmware(struct ft5x46_data *ft5x46,
 		if (tp_maker == NULL)
 			dev_err(ft5x46->dev, "fail to alloc vendor name memory\n");
 		else {
-			strlcpy(tp_maker, update_hw_component_touch_module_info(ft5x46->lockdown_info[0]), 20);
-			add_hw_component_info(HWCOMPONENT_NAME_TOUCH, HWCOMPONENT_KEY_MODULE, tp_maker);
 			kfree(tp_maker);
 			tp_maker = NULL;
 		}
@@ -1710,7 +1731,6 @@ static int ft5x46_read_gesture(struct ft5x46_data *ft5x46)
 		input_sync(ft5x46->input);
 		ft5x46->dbclick_count++;
 		snprintf(ch, sizeof(ch), "%d", ft5x46->dbclick_count);
-		/* update_hw_monitor_info(HWMON_CONPONENT_NAME, HWMON_KEY_DBCLICK_COUNT, ch); */
 	}
 
 	return 0;
@@ -1803,6 +1823,7 @@ int ft5x46_suspend(struct ft5x46_data *ft5x46)
 	mutex_unlock(&ft5x46->mutex);
 
 	cancel_delayed_work_sync(&ft5x46->noise_filter_delayed_work);
+	cancel_delayed_work_sync(&ft5x46->lcd_esdcheck_work);
 #ifdef CONFIG_TOUCHSCREEN_FT5X46P_PROXIMITY
 	cancel_delayed_work_sync(&ft5x46->prox_enable_delayed_work);
 #endif
@@ -1868,6 +1889,9 @@ int ft5x46_resume(struct ft5x46_data *ft5x46)
 
 	mutex_lock(&ft5x46->mutex);
 	ft5x46->in_suspend = false;
+
+	schedule_delayed_work(&ft5x46->lcd_esdcheck_work,
+				msecs_to_jiffies(FT5X46_ESD_CHECK_PERIOD));
 
 out:
 	mutex_unlock(&ft5x46->mutex);
@@ -2204,6 +2228,8 @@ static int ft5x46_enter_factory(struct ft5x46_data *ft5x46_ts)
 	u8 reg_val;
 	int error;
 
+	cancel_delayed_work_sync(&ft5x46_ts->lcd_esdcheck_work);
+
 	error = ft5x46_write_byte(ft5x46_ts, FT5X0X_REG_DEVIDE_MODE,
 							FT5X0X_DEVICE_MODE_TEST);
 	if (error)
@@ -2236,6 +2262,9 @@ static int ft5x46_enter_work(struct ft5x46_data *ft5x46_ts)
 		dev_info(ft5x46_ts->dev, "ERROR: The Touch Panel was not put in Normal Mode.\n");
 		return -EPERM;
 	}
+
+	schedule_delayed_work(&ft5x46_ts->lcd_esdcheck_work,
+				msecs_to_jiffies(FT5X46_ESD_CHECK_PERIOD));
 
 	return 0;
 }
@@ -2668,6 +2697,27 @@ static ssize_t ft5x46_panel_vendor_show(struct device *dev,
 	return count;
 }
 
+static ssize_t ft5x46_lcd_esd_test(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int error;
+	unsigned long val;
+
+	error = kstrtoul(buf, 0, &val);
+
+	if (error) {
+		pr_err("Invalid data\n");
+		return -EINVAL;
+	}
+	if (val)
+		lcd_need_reset = true;
+	else
+		lcd_need_reset = false;
+
+	return error ? : count;
+}
+
 /* sysfs */
 #ifdef FT5X46_DEBUG_PERMISSION
 static DEVICE_ATTR(tpfwver, 0666, ft5x46_tpfwver_show, NULL);
@@ -2704,6 +2754,7 @@ static DEVICE_ATTR(prox_rawdata, 0444, ft5x46_prox_rawdata_show, NULL);
 static DEVICE_ATTR(irq_enable, 0644, ft5x46_irq_enable_show, ft5x46_irq_enable_store);
 static DEVICE_ATTR(panel_vendor, 0644, ft5x46_panel_vendor_show, NULL);
 #endif
+static DEVICE_ATTR(esd_test, 0644, NULL, ft5x46_lcd_esd_test);
 
 static struct attribute *ft5x46_attrs[] = {
 	&dev_attr_tpfwver.attr,
@@ -2722,6 +2773,7 @@ static struct attribute *ft5x46_attrs[] = {
 #endif
 	&dev_attr_irq_enable.attr,
 	&dev_attr_panel_vendor.attr,
+	&dev_attr_esd_test.attr,
 	NULL
 };
 
@@ -2729,7 +2781,7 @@ static const struct attribute_group ft5x46_attr_group = {
 	.attrs = ft5x46_attrs
 };
 
-static int ft5x46_power_on(struct ft5x46_data *data, bool on)
+static int ft5x46_panel_power(struct ft5x46_data *data, bool on)
 {
 	static bool status;
 	int rc = 0;
@@ -2740,20 +2792,6 @@ static int ft5x46_power_on(struct ft5x46_data *data, bool on)
 	}
 
 	if (on) {
-		rc = regulator_enable(data->vdd);
-		if (rc) {
-			dev_err(data->dev,
-				"Regulator vdd enable failed rc=%d\n", rc);
-			return rc;
-		}
-
-		rc = regulator_enable(data->vddio);
-		if (rc) {
-			dev_err(data->dev,
-				"Regulator vddio enable failed rc=%d\n", rc);
-			return rc;
-		}
-
 		rc = regulator_enable(data->lab);
 		if (rc) {
 			dev_err(data->dev,
@@ -2781,7 +2819,37 @@ static int ft5x46_power_on(struct ft5x46_data *data, bool on)
 				"Regulator lab disable failed rc=%d\n", rc);
 			return rc;
 		}
+	}
+	status = on;
 
+	return rc;
+}
+
+static int ft5x46_panel_vddio_power(struct ft5x46_data *data, bool on)
+{
+	static bool status;
+	int rc = 0;
+
+	if (on == status) {
+		pr_info("Regulator is already %s\n", on?"on":"off");
+		return 0;
+	}
+
+	if (on) {
+		rc = regulator_enable(data->vdd);
+		if (rc) {
+			dev_err(data->dev,
+				"Regulator vdd enable failed rc=%d\n", rc);
+			return rc;
+		}
+
+		rc = regulator_enable(data->vddio);
+		if (rc) {
+			dev_err(data->dev,
+				"Regulator vddio enable failed rc=%d\n", rc);
+			return rc;
+		}
+	} else {
 		rc = regulator_disable(data->vddio);
 		if (rc) {
 			dev_err(data->dev,
@@ -2795,6 +2863,40 @@ static int ft5x46_power_on(struct ft5x46_data *data, bool on)
 				"Regulator vdd disable failed rc=%d\n", rc);
 			return rc;
 		}
+	}
+	status = on;
+
+	return rc;
+}
+
+
+static int ft5x46_power_on(struct ft5x46_data *data, bool on)
+{
+	static bool status;
+	int rc = 0;
+
+	if (on == status) {
+		pr_info("Regulator is already %s\n", on?"on":"off");
+		return 0;
+	}
+
+	if (on) {
+		rc = ft5x46_panel_vddio_power(data, on);
+		if (rc)
+			return rc;
+
+		rc = ft5x46_panel_power(data, on);
+		if (rc)
+			return rc;
+
+	} else {
+		rc = ft5x46_panel_power(data, on);
+		if (rc)
+			return rc;
+
+		rc = ft5x46_panel_vddio_power(data, on);
+		if (rc)
+			return rc;
 	}
 	status = on;
 
@@ -2945,6 +3047,7 @@ static int fb_notifier_cb(struct notifier_block *self,
 	unsigned long event, void *data)
 {
 	int *blank;
+	int rc = 0;
 	struct drm_notify_data *evdata = data;
 	struct ft5x46_data *ft5x46 =
 		container_of(self, struct ft5x46_data, drm_notifier);
@@ -2956,7 +3059,8 @@ static int fb_notifier_cb(struct notifier_block *self,
 			if (*blank == DRM_BLANK_UNBLANK) {
 				dev_dbg(ft5x46->dev, "##### UNBLANK SCREEN #####\n");
 				ft5x46_input_enable(ft5x46->input);
-				ft5x46_power_on(ft5x46, true);
+				if (!ft5x46->wakeup_mode)
+					rc = ft5x46_panel_power(ft5x46, true);
 				drm_dsi_ulps_enable(false);
 			} else if (*blank == DRM_BLANK_POWERDOWN) {
 				dev_dbg(ft5x46->dev, "##### BLANK SCREEN #####\n");
@@ -2966,7 +3070,7 @@ static int fb_notifier_cb(struct notifier_block *self,
 #else
 				if (!ft5x46->wakeup_mode)
 #endif
-					ft5x46_power_on(ft5x46, false);
+					rc = ft5x46_panel_power(ft5x46, false);
 			}
 		} else if (event == DRM_EARLY_EVENT_BLANK) {
 			blank = evdata->data;
@@ -2982,7 +3086,7 @@ static int fb_notifier_cb(struct notifier_block *self,
 		}
 	}
 
-	return 0;
+	return rc;
 }
 
 static int ft5x46_configure_sleep(struct ft5x46_data *ft5x46, bool enable)
@@ -3268,7 +3372,7 @@ static int ft5x46_parse_dt(struct device *dev,
 			return rc;
 		}
 
-		j++;
+		j ++;
 	}
 
 	ft5x46_dt_dump(dev, pdata);
@@ -3319,7 +3423,6 @@ static void ft5x46_switch_mode_work(struct work_struct *work)
 				ft5x46_wakeup_reconfigure(ft5x46,
 					(bool)(value - FT5X46_INPUT_EVENT_WAKUP_MODE_OFF));
 			snprintf(ch, sizeof(ch), "%s", ft5x46->wakeup_mode ? "enabled" : "disabled");
-			/* update_hw_monitor_info(HWMON_CONPONENT_NAME, HWMON_KEY_DBCLICK_SWITCH, ch); */
 		}
 	}
 
@@ -3356,7 +3459,6 @@ static int ft5x46_input_event(struct input_dev *dev,
 
 	return 0;
 }
-
 
 #ifdef FT5X46_APK_DEBUG_CHANNEL
 static ssize_t ft5x46_apk_debug_read(struct file *file, char __user *buffer,
@@ -3605,6 +3707,10 @@ void ft5x46_hw_init_work(struct work_struct *work)
 
 	ft5x46_enable_irq(ft5x46);
 	ft5x46->hw_is_ready = true;
+
+	queue_delayed_work(ft5x46->lcd_esdcheck_workqueue,
+						&ft5x46->lcd_esdcheck_work,
+						msecs_to_jiffies(FT5X46_ESD_CHECK_PERIOD));
 	return;
 
 failed:
@@ -3823,6 +3929,47 @@ static ssize_t ft5x46_lockdown_info_read(struct file *file, char __user *buf, si
 static const struct file_operations ft5x46_lockdown_info_ops = {
 	.read		= ft5x46_lockdown_info_read,
 };
+
+int idc_esdcheck_lcderror(struct ft5x46_data *ft5x46)
+{
+	u8 val;
+	int ret;
+
+	ret = ft5x46_read_byte(ft5x46, 0xED, &val);
+	if (ret) {
+		dev_err(ft5x46->dev, "[ESD] Failed to read 0xaa\n");
+		return -EIO;
+	}
+
+	if (val == 0xAA) {
+		dev_err(ft5x46->dev, "[ESD] LCD esd, Need Execute LCD reset\n");
+		lcd_need_reset = true;
+	}
+	dev_dbg(ft5x46->dev, "%s ESD:0x%x\n", __func__, val);
+
+	if (lcd_need_reset == true) {
+		report_esd_panel_dead();
+		lcd_need_reset = false;
+	}
+
+	return 0;
+}
+
+static void esdcheck_func(struct work_struct *work)
+{
+
+	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct ft5x46_data *ft5x46 = container_of(delayed_work, struct ft5x46_data, lcd_esdcheck_work);
+	if (!ft5x46)
+		return;
+
+	if (!ft5x46->in_suspend) {
+		idc_esdcheck_lcderror(ft5x46);
+		queue_delayed_work(ft5x46->lcd_esdcheck_workqueue,
+							&ft5x46->lcd_esdcheck_work,
+							msecs_to_jiffies(FT5X46_ESD_CHECK_PERIOD));
+	}
+}
 
 struct ft5x46_data *ft5x46_probe(struct device *dev,
 				const struct ft5x46_bus_ops *bops)
@@ -4115,6 +4262,13 @@ struct ft5x46_data *ft5x46_probe(struct device *dev,
 
 	INIT_DELAYED_WORK(&ft5x46->noise_filter_delayed_work,
 				ft5x46_noise_filter_delayed_work);
+
+	INIT_DELAYED_WORK(&ft5x46->lcd_esdcheck_work, esdcheck_func);
+	ft5x46->lcd_esdcheck_workqueue = create_workqueue("touch_lcd_esdcheck_wq");
+	if (!ft5x46->lcd_esdcheck_workqueue) {
+		dev_err(dev, "Failed to create lcd esd workqueue\n");
+		goto err_sysfs_create_virtualkeys;
+	}
 #ifdef CONFIG_TOUCHSCREEN_FT5X46P_PROXIMITY
 	INIT_DELAYED_WORK(&ft5x46->prox_enable_delayed_work,
 				ft5x46_prox_enable_delayed_work);
@@ -4136,13 +4290,6 @@ struct ft5x46_data *ft5x46_probe(struct device *dev,
 	init_waitqueue_head(&ft5x46->lockdown_info_acquired_wq);
 	schedule_work(&ft5x46->work);
 	ft5x46->dbclick_count = 0;
-	/* register_hw_monitor_info(HWMON_CONPONENT_NAME);
-	*add_hw_monitor_info(HWMON_CONPONENT_NAME, HWMON_KEY_DBCLICK_SWITCH, "0");
-	*add_hw_monitor_info(HWMON_CONPONENT_NAME, HWMON_KEY_DBCLICK_COUNT, "0");
-	update_hardware_info(TYPE_TOUCH, 3);
-	*/ /* Focaltech */
-	register_hw_component_info(HWCOMPONENT_NAME_TOUCH);
-	add_hw_component_info(HWCOMPONENT_NAME_TOUCH, HWCOMPONENT_KEY_IC, "Focaltech");
 	return ft5x46;
 
 #ifdef FT5X46_APK_DEBUG_CHANNEL
@@ -4214,8 +4361,6 @@ void ft5x46_remove(struct ft5x46_data *ft5x46)
 {
 	struct ft5x46_ts_platform_data *pdata = ft5x46->dev->platform_data;
 
-	/*unregister_hw_monitor_info(HWMON_CONPONENT_NAME);*/
-	unregister_hw_component_info(HWCOMPONENT_NAME_TOUCH);
 	cancel_work_sync(&ft5x46->work);
 	if (!ft5x46->hw_is_ready) {
 		kfree(ft5x46);
@@ -4230,6 +4375,7 @@ void ft5x46_remove(struct ft5x46_data *ft5x46)
 	cancel_delayed_work_sync(&ft5x46->prox_enable_delayed_work);
 #endif
 	cancel_delayed_work_sync(&ft5x46->noise_filter_delayed_work);
+	cancel_delayed_work_sync(&ft5x46->lcd_esdcheck_work);
 	power_supply_unreg_notifier(&ft5x46->power_supply_notifier);
 	if (ft5x46->vkeys_dir)
 		sysfs_remove_file(ft5x46->vkeys_dir, &ft5x46->vkeys_attr.attr);

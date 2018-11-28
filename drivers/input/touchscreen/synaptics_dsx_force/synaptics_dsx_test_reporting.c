@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2012 Alexandra Chin <alexandra.chin@tw.synaptics.com>
  * Copyright (C) 2012 Scott Lin <scott.lin@tw.synaptics.com>
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1621,6 +1622,20 @@ static struct attribute *attrs[] = {
 static struct attribute_group attr_group = {
 	.attrs = attrs,
 };
+/*
+static ssize_t test_sysfs_data_read(struct file *data_file,
+		struct kobject *kobj, struct bin_attribute *attributes,
+		char *buf, loff_t pos, size_t count);
+
+static struct bin_attribute test_report_data = {
+	.attr = {
+		.name = "report_data",
+		.mode = S_IRUGO,
+	},
+	.size = 0,
+	.read = test_sysfs_data_read,
+};
+*/
 static struct synaptics_rmi4_f54_handle *f54;
 static struct synaptics_rmi4_f55_handle *f55;
 
@@ -1674,7 +1689,8 @@ static bool test_report_type_valid(enum f54_report_types report_type)
 	case F54_ABS_DOZE_NO_CBC_INCELL:
 		if (f54->query_65.has_ctrl225) {
 			return true;
-		} else {
+		}
+		else {
 			return false;
 		}
 		break;
@@ -3594,7 +3610,8 @@ static int tddi_ratio_calculation(signed short *p_image)
 				p_right_column_buf[i * right_size + j] = p_data_16[j * rx_num + i];
 			}
 		}
-	} else {
+	}
+	else {
 
 		p_data_16 = p_image;
 		for (i = 0; i < rx_num; i++) {
@@ -3627,11 +3644,13 @@ static int tddi_ratio_calculation(signed short *p_image)
 				if (i < left_size) {
 					temp = (signed int) p_image[i * rx_num + j];
 					temp = temp * 100 / p_left_median[j];
-				} else {
+				}
+				else {
 					temp = (signed int) p_image[i * rx_num + j];
 					temp = temp * 100 / p_right_median[j];
 				}
-			} else {
+			}
+			else {
 
 				if (i < right_size) {
 					temp = (signed int) p_image[i * rx_num + j];
@@ -3818,7 +3837,8 @@ static ssize_t test_sysfs_tddi_extend_ee_short_store(struct device *dev,
 						__func__, i, j, tddi_rt95_part_one[i*rx_num + j], factory_param->tddi_extend_ee_short_test_limit_part1);
 
 				tddi_rt95_part_one[i*rx_num + j] = 1;
-			} else {
+			}
+			else {
 				tddi_rt95_part_one[i*rx_num + j] = 0;
 			}
 		}
@@ -3849,7 +3869,8 @@ static ssize_t test_sysfs_tddi_extend_ee_short_store(struct device *dev,
 						__func__, i, j, tddi_rt95_part_two[i*rx_num + j], factory_param->tddi_extend_ee_short_test_limit_part2);
 
 				tddi_rt95_part_two[i*rx_num + j] = 1;
-			} else {
+			}
+			else {
 				tddi_rt95_part_two[i*rx_num + j] = 0;
 			}
 		}
@@ -4412,7 +4433,8 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 				p_right_column_buf[i * right_size + j] = p_data_16[j * rx_num + i];
 			}
 		}
-	} else {
+	}
+	else {
 
 		p_data_16 = p_image;
 		for (i = 0; i < rx_num; i++) {
@@ -4449,7 +4471,8 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 					temp = (signed int) p_image[i * rx_num + j];
 					temp = temp * 100 / p_right_median[j];
 				}
-			} else {
+			}
+			else {
 
 				if (i < right_size) {
 					temp = (signed int) p_image[i * rx_num + j];
@@ -4472,7 +4495,8 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 						pr_info("%s : phase 2 failed at (tx%-2d, rx%-2d), data = %d\n",
 								__func__, i, j, temp);
 				}
-			} else {
+			}
+			else {
 				 if (temp < factory_param->tddi_b7_open_test_limit_phase2_lower) {
 					p_result[i * rx_num + j] =  1;
 
@@ -5594,7 +5618,8 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 						__func__, i, j, p_rt92_delta_image[i*rx_num + j], factory_param->elec_open_test_limit_one);
 
 				p_rt92_image_1[i*rx_num + j] = TEST_FAILED;
-			} else {
+			}
+			else {
 				p_rt92_image_1[i*rx_num + j] = TEST_OK;
 			}
 		}
@@ -5620,7 +5645,8 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 						__func__, i, j, p_rt92_delta_image[i*rx_num + j], factory_param->elec_open_test_limit_two);
 
 				p_rt92_image_2[i*rx_num + j] = TEST_FAILED;
-			} else {
+			}
+			else {
 				p_rt92_image_2[i*rx_num + j] = TEST_OK;
 			}
 		}
@@ -6857,7 +6883,7 @@ static int test_set_controls(void)
 	/* controls 180 to 181 reserved */
 
 	/* control 182 */
-	if (f54->query_47.has_ctrl182) {
+	if (f54->query_47.has_ctrl182){
 		control->reg_182 = kzalloc(sizeof(*(control->reg_182)),
 				GFP_KERNEL);
 		if (!control->reg_182)

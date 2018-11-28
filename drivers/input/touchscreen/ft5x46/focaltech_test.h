@@ -1,6 +1,7 @@
 
 /************************************************************************
 * Copyright (C) 2012-2015, Focaltech Systems (R)，All Rights Reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
 *
 * File Name: focaltech_test_main.h
 *

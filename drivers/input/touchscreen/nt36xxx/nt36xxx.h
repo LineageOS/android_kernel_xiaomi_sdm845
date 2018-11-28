@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 - 2017 Novatek, Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * $Revision: 21600 $
  * $Date: 2018-01-12 15:21:45 +0800 (週五, 12 一月 2018) $
@@ -161,6 +162,9 @@ struct nvt_ts_data {
 	size_t config_array_size;
 	int current_index;
 	bool dev_pm_suspend;
+	struct work_struct suspend_work;
+	struct work_struct resume_work;
+	struct workqueue_struct *event_wq;
 	struct completion dev_pm_suspend_completion;
 #ifdef NVT_TOUCH_COUNT_DUMP
 	struct class *nvt_tp_class;

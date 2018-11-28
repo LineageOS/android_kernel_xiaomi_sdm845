@@ -4,6 +4,7 @@
  * FTS Capacitive touch screen controller (FingerTipS)
  *
  * Copyright (C) 2016, STMicroelectronics Limited.
+ * Copyright (C) 2018 XiaoMi, Inc.
  * Authors: AMG(Analog Mems Group)
  *
  *		marco.cali@st.com
@@ -56,7 +57,7 @@
 #define Y_AXIS_MIN                          0
 
 #define PRESSURE_MIN                        0
-#define PRESSURE_MAX                        127
+#define PRESSURE_MAX                        2048
 
 #define FINGER_MAX                          10
 #define STYLUS_MAX                          1
@@ -120,12 +121,19 @@
 #define FTS_RESULT_INVALID 0
 #define FTS_RESULT_PASS 2
 #define FTS_RESULT_FAIL 1
+#define CONFIG_FTS_TOUCH_COUNT_DUMP
+#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
+#define TOUCH_COUNT_FILE_MAXSIZE 50
+#endif
 struct fts_config_info {
 	u8 tp_vendor;
 	u8 tp_color;
 	u8 tp_hw_version;
 	const char *fts_cfg_name;
 	const char *fts_limit_name;
+#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
+	const char *clicknum_file_name;
+#endif
 };
 struct fts_i2c_platform_data {
 	int (*power)(bool on);
@@ -147,6 +155,9 @@ struct fts_i2c_platform_data {
 #ifdef PHONE_KEY
 	size_t nbuttons;
 	int *key_code;
+#endif
+#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
+	bool dump_click_count;
 #endif
 	unsigned long keystates;
 };
@@ -264,6 +275,12 @@ struct fts_ts_info {
 #ifdef CONFIG_TOUCHSCREEN_ST_DEBUG_FS
 	struct dentry *debugfs;
 #endif
+	int dbclick_count;
+#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
+	struct class *fts_tp_class;
+	struct device *fts_touch_dev;
+	char *current_clicknum_file;
+#endif
 };
 
 struct fts_mode_switch {
@@ -312,13 +329,18 @@ extern struct attribute_group i2c_cmd_attr_group;
 #ifdef DRIVER_TEST
 extern struct attribute_group test_cmd_attr_group;
 #endif
+
 #if defined(CONFIG_INPUT_PRESS_NEXTINPUT) || defined(CONFIG_INPUT_PRESS_NDT)
-#define X_LEFT 287
-#define Y_LEFT 1025
-#define X_RIGHT 887
-#define Y_RIGHT 1825
+#define X_LEFT 434
+#define Y_LEFT 1470
+#define X_RIGHT 656
+#define Y_RIGHT 1692
+#define CENTER_X 545
+#define CENTER_Y 1581
+#define CIRCLE_R 111
 bool fts_is_infod(void);
 void fts_senseon_without_cal(void);
 void fts_senseoff_without_cal(void);
 #endif
+
 #endif

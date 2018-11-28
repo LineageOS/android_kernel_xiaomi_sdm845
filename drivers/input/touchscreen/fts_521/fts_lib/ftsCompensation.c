@@ -188,6 +188,7 @@ int readMutualSenseNodeData(u64 address, MutualSenseData *node)
 			 "%s %s: error while reading node data ERROR %08X \n",
 			 tag, __func__, ret);
 		kfree(node->node_data);
+		node->node_data = NULL;
 		return ret;
 	}
 	node->node_data_size = size;
@@ -511,6 +512,7 @@ int readTotMutualSenseNodeData(u64 address, TotMutualSenseData *node)
 			 "%s %s: error while reading node data ERROR %08X \n",
 			 tag, __func__, ret);
 		kfree(node->node_data);
+		node->node_data = NULL;
 		return ret;
 	}
 	node->node_data_size = size;

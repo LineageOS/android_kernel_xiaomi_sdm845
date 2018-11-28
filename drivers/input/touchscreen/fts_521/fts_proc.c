@@ -1787,8 +1787,10 @@ static ssize_t fts_driver_test_write(struct file *file, const char __user *buf,
 							     "\n");
 						index += j;
 					}
-					if (frameMS.node_data != NULL)
+					if (frameMS.node_data != NULL) {
 						kfree(frameMS.node_data);
+						frameMS.node_data = NULL;
+					}
 				}
 				for (addr = 0; addr < 3; addr++) {
 					switch (addr) {
@@ -2037,6 +2039,7 @@ END:
 				}
 
 				kfree(frameMS.node_data);
+				frameMS.node_data = NULL;
 				break;
 
 			case CMD_GETSSFRAME:
@@ -2094,6 +2097,7 @@ END:
 				}
 
 				kfree(compData.node_data);
+				compData.node_data = NULL;
 				break;
 
 			case CMD_READSSCOMPDATA:
@@ -2187,6 +2191,7 @@ END:
 				}
 
 				kfree(totCompData.node_data);
+				totCompData.node_data = NULL;
 				break;
 
 			case CMD_READTOTSSCOMPDATA:

@@ -1,5 +1,6 @@
 /************************************************************************
 * Copyright (C) 2012-2017, Focaltech Systems (R)，All Rights Reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
 *
 * File Name: focaltech_test_detail_threshold.c
 *
@@ -1061,6 +1062,8 @@ void OnInit_DThreshold_ForceTouch_SCapRawDataTest(char *strIniFile)
 	MaxValue = fts_atoi(str);
 
 
+	读取阈值，若无特殊设置，则以Basic_Threshold替代
+
 
 	for (i = 0; i < 1; i++) {
 		for (j = 0; j < test_data.screen_param.used_max_rx_num; j++) {
@@ -1141,6 +1144,9 @@ void OnInit_DThreshold_ForceTouch_SCapCbTest(char *strIniFile)
 	MinValue = fts_atoi(str);
 	GetPrivateProfileString("Basic_Threshold", "ForceTouch_SCapCbTest_ON_Max", "240", str, strIniFile);
 	MaxValue = fts_atoi(str);
+
+
+	读取阈值，若无特殊设置，则以Basic_Threshold替代
 
 
 	for (i = 0; i < 1; i++) {

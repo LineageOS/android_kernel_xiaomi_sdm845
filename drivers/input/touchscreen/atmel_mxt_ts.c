@@ -2,6 +2,7 @@
  * Atmel maXTouch Touchscreen driver
  *
  * Copyright (C) 2010 Samsung Electronics Co.Ltd
+ * Copyright (C) 2018 XiaoMi, Inc.
  * Copyright (C) 2011 Atmel Corporation
  * Author: Joonyoung Shim <jy0922.shim@samsung.com>
  *
@@ -26,6 +27,7 @@
 #include <linux/gpio.h>
 #include <linux/string.h>
 #include <linux/of_gpio.h>
+#include <linux/hwinfo.h>
 #include <linux/power_supply.h>
 #include <linux/notifier.h>
 #include <linux/fb.h>
@@ -34,6 +36,7 @@
 #endif
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
+#include <linux/input/touch_common_info.h>
 
 /* Version */
 #define MXT_VER_20		20
@@ -1704,9 +1707,8 @@ static void mxt_proc_t93_message(struct mxt_data *data, u8 *msg)
 {
 	struct device *dev = &data->client->dev;
 	struct input_dev *input_dev = data->input_dev;
-#if 0
 	char ch[64] = {0x0,};
-#endif
+
 	if (!input_dev)
 		return;
 
@@ -1721,6 +1723,7 @@ static void mxt_proc_t93_message(struct mxt_data *data, u8 *msg)
 		input_sync(input_dev);
 
 		data->dbclick_count++;
+		snprintf(ch, sizeof(ch), "%d", data->dbclick_count);
 	}
 }
 
@@ -2099,7 +2102,7 @@ static int mxt_download_config(struct mxt_data *data, const char *fn)
 		if (type == 35) {
 			if (instance == 0) {
 				type = 150 + add_num;
-				add_num++;
+				add_num ++;
 			} else
 				type = 150 + add_num - 1;
 		}
@@ -2550,9 +2553,7 @@ static int mxt_check_reg_init(struct mxt_data *data)
 	int ret = 0;
 	const char *config_name = NULL;
 	bool is_recheck = false, use_default_cfg = false;
-#if 0
 	u8 *tp_maker = NULL;
-#endif
 
 	if (data->firmware_updated)
 		use_default_cfg = true;
@@ -2625,6 +2626,14 @@ start:
 		} else {
 			dev_err(dev, "No lockdown info stored\n");
 		}
+	}
+	update_hardware_info(TYPE_TP_MAKER, data->panel_id - 0x31);
+	tp_maker = kzalloc(20, GFP_KERNEL);
+	if (tp_maker == NULL)
+		dev_err(dev, "fail to alloc vendor name memory\n");
+	else {
+		kfree(tp_maker);
+		tp_maker = NULL;
 	}
 	config_name = mxt_get_config(data, use_default_cfg);
 
@@ -2715,7 +2724,7 @@ static int mxt_get_object_table(struct mxt_data *data)
 		object->type = buf[i][0];
 		if (object->type == 35) {
 			object->type = 150 + add_num;
-			add_num++;
+			add_num ++;
 		}
 		object->start_address = (buf[i][2] << 8) | buf[i][1];
 		object->size = buf[i][3] + 1;
@@ -3452,7 +3461,7 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 		ret = mxt_check_bootloader(data, MXT_FRAME_CRC_PASS);
 
 		if (ret) {
-			retry++;
+			retry ++;
 
 			/* Back off by 20ms per retry */
 			msleep(retry * 20);
@@ -3462,9 +3471,9 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 				goto release_firmware;
 			}
 		} else {
-				retry++;
+				retry ++;
 				pos += frame_size;
-				frame++;
+				frame ++;
 		}
 
 		if (frame % 10 == 0) {
@@ -4198,7 +4207,7 @@ static ssize_t mxt_diagnostic_show(struct device *dev,
 		i += row_size;
 		len = strlen(buf);
 		buf[len] = '\n';
-		len++;
+		len ++;
 	}
 
 	if (remain_size != 0)
@@ -4918,6 +4927,7 @@ static void mxt_switch_mode_work(struct work_struct *work)
 	const struct mxt_platform_data *pdata = data->pdata;
 	int index = data->current_index;
 	u8 value = ms->mode;
+	char ch[16] = {0x0,};
 	if (value == MXT_INPUT_EVENT_STYLUS_MODE_ON ||
 				value == MXT_INPUT_EVENT_STYLUS_MODE_OFF)
 		mxt_stylus_mode_switch(data, (bool)(value - MXT_INPUT_EVENT_STYLUS_MODE_OFF));
@@ -4925,6 +4935,7 @@ static void mxt_switch_mode_work(struct work_struct *work)
 				value == MXT_INPUT_EVENT_WAKUP_MODE_OFF) {
 		if (pdata->config_array[index].wake_up_self_adcx != 0) {
 			mxt_set_wakeup_mode(data, value - MXT_INPUT_EVENT_WAKUP_MODE_OFF);
+			snprintf(ch, sizeof(ch), "%s", (value - MXT_INPUT_EVENT_WAKUP_MODE_OFF) ? "enabled" : "disabled");
 
 		}
 	} else if (value == MXT_INPUT_EVENT_COVER_MODE_ON ||
@@ -6731,6 +6742,7 @@ static int mxt_probe(struct i2c_client *client,
 	mxt_debugfs_init(data);
 
 	normal_mode_reg_save(data);
+	update_hardware_info(TYPE_TOUCH, 2);
 	data->finish_init = 1;
 
 	proc_create("tp_selftest", 0, NULL, &mxt_selftest_ops);

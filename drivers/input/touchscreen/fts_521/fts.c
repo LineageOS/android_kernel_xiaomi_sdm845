@@ -4,6 +4,7 @@
  * FTS Capacitive touch screen controller (FingerTipS)
  *
  * Copyright (C) 2016, STMicroelectronics Limited.
+ * Copyright (C) 2018 XiaoMi, Inc.
  * Authors: AMG(Analog Mems Group)
  *
  * 		marco.cali@st.com
@@ -61,6 +62,7 @@
 #ifdef KERNEL_ABOVE_2_6_38
 #include <linux/input/mt.h>
 #endif
+#include <linux/input/touch_common_info.h>
 
 #include "fts.h"
 #include "fts_lib/ftsCompensation.h"
@@ -1474,7 +1476,7 @@ END:
 			}
 
 			kfree(frameMS.node_data);
-
+			frameMS.node_data = NULL;
 			break;
 
 		case 0x15:
@@ -1525,6 +1527,7 @@ END:
 			}
 
 			kfree(compData.node_data);
+			compData.node_data = NULL;
 
 			break;
 
@@ -2164,6 +2167,7 @@ static ssize_t fts_strength_frame_show(struct device *dev,
 			}
 
 			kfree(frame.node_data);
+			frame.node_data = NULL;
 		}
 
 		count = snprintf(buf, PAGE_SIZE, "%s\n", all_strbuff);
@@ -2288,8 +2292,7 @@ static ssize_t fts_wake_gesture_store(struct device *dev,
 	int size = 6 * 2 + 1;
 	if (sscanf(buf, "%u", &input) != 1)
 		return -EINVAL;
-
-	if (input == 1) {
+ 	if (input == 1) {
 		gesture_result = (u8 *) kzalloc(size, GFP_KERNEL);
 		fts_gesture_mask_store(info->dev, NULL,
 				fts_gesture_on, strlen(fts_gesture_on));
@@ -2302,14 +2305,11 @@ static ssize_t fts_wake_gesture_store(struct device *dev,
 		fts_gesture_mask_show(info->dev, NULL,
 				gesture_result);
 	}
-
-	if (strncmp("{ 00000000 }", gesture_result, size - 1))
+ 	if (strncmp("{ 00000000 }", gesture_result, size - 1))
 		logError(1, "%s %s: store gesture mask error\n", tag, __func__);
-
-	kfree(gesture_result);
+ 	kfree(gesture_result);
 	gesture_result = NULL;
-
-	return count;
+ 	return count;
 }
 
 static DEVICE_ATTR(fts_lockdown, (S_IRUGO | S_IWUSR | S_IWGRP),
@@ -2523,12 +2523,6 @@ static void fts_enter_pointer_event_handler(struct fts_ts_info *info,
 
 	z = 1;
 	distance = 0;
-
-	if (x == X_AXIS_MAX)
-		x--;
-
-	if (y == Y_AXIS_MAX)
-		y--;
 
 #ifdef CONFIG_INPUT_PRESS_NDT
 	if (fts_is_in_fodarea(x, y)) {
@@ -3271,8 +3265,8 @@ static void fts_event_handler(struct work_struct *work)
 
 static const char *fts_get_config(struct fts_ts_info *info)
 {
-	int i = 0, ret = 0;
 	struct fts_hw_platform_data *pdata = info->board;
+	int i = 0, ret = 0;
 
 	ret = fts_get_lockdown_info(info->lockdown_info, info);
 
@@ -4349,6 +4343,17 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
 		return retval;
 	else
 		bdata->irq_flags = temp_val;
+	retval = of_property_read_u32(np, "fts,x-max", &temp_val);
+	if (retval < 0)
+		bdata->x_max = X_AXIS_MAX;
+	else
+		bdata->x_max = temp_val;
+
+	retval = of_property_read_u32(np, "fts,y-max", &temp_val);
+	if (retval < 0)
+		bdata->y_max = Y_AXIS_MAX;
+	else
+		bdata->y_max = temp_val;
 	retval = of_property_read_string(np, "fts,default-fw-name",
 					 &bdata->default_fw_name);
 
@@ -4513,29 +4518,23 @@ static void fts_switch_mode_work(struct work_struct *work)
 static ssize_t fts_input_symlink(struct fts_ts_info *info) {
 	char *driver_path;
 	int ret = 0;
-
-	if (info->input_proc) {
+ 	if (info->input_proc) {
 		proc_remove(info->input_proc);
 		info->input_proc = NULL;
 	}
-
-	driver_path = kzalloc(PATH_MAX, GFP_KERNEL);
+ 	driver_path = kzalloc(PATH_MAX, GFP_KERNEL);
 	if (!driver_path) {
 		return -ENOMEM;
 	}
-
-	sprintf(driver_path, "/sys%s",
+ 	sprintf(driver_path, "/sys%s",
 			kobject_get_path(&info->input_dev->dev.kobj, GFP_KERNEL));
-
-	pr_info("%s: driver_path=%s\n", __func__, driver_path);
+ 	pr_info("%s: driver_path=%s\n", __func__, driver_path);
 	info->input_proc = proc_symlink(PROC_SYMLINK_PATH, NULL, driver_path);
 	if (!info->input_proc) {
 		ret = -ENOMEM;
 	}
-
-	kfree(driver_path);
-
-	return ret;
+ 	kfree(driver_path);
+ 	return ret;
 }
 
 static int fts_input_event(struct input_dev *dev, unsigned int type,
@@ -4580,16 +4579,81 @@ static int fts_input_event(struct input_dev *dev, unsigned int type,
 
 static int fts_short_open_test(void)
 {
-	int ret;
-	char buf[13] = { 0 };
-	ret = stm_fts_cmd_store(fts_info->dev, NULL, "01", 2);
+	TestToDo selftests;
+	int res = -1;
+	int init_type = SPECIAL_PANEL_INIT;
 
-	if (ret == 0)
-		return FTS_RESULT_INVALID;
+	selftests.MutualRawAdjITO = 0;
+	selftests.MutualRaw = 0;
+	selftests.MutualRawEachNode = 1;
+	selftests.MutualRawGap = 0;
+	selftests.MutualRawAdj = 0;
+	selftests.MutualRawLP = 0;
+	selftests.MutualRawGapLP = 0;
+	selftests.MutualRawAdjLP = 0;
+	selftests.MutualCx1 = 0;
+	selftests.MutualCx2 = 0;
+	selftests.MutualCx2Adj = 0;
+	selftests.MutualCxTotal = 0;
+	selftests.MutualCxTotalAdj = 0;
+	selftests.MutualCx1LP = 0;
+	selftests.MutualCx2LP = 0;
+	selftests.MutualCx2AdjLP = 0;
+	selftests.MutualCxTotalLP = 0;
+	selftests.MutualCxTotalAdjLP = 0;
+#ifdef PHONE_KEY
+	selftests.MutualKeyRaw = 0;
+#else
+	selftests.MutualKeyRaw = 0;
+#endif
+	selftests.MutualKeyCx1 = 0;
+	selftests.MutualKeyCx2 = 0;
+#ifdef PHONE_KEY
+	selftests.MutualKeyCxTotal = 0;
+#else
+	selftests.MutualKeyCxTotal = 0;
+#endif
+	selftests.SelfForceRaw = 1;
+	selftests.SelfForceRawGap = 0;
+	selftests.SelfForceRawLP = 0;
+	selftests.SelfForceRawGapLP = 0;
+	selftests.SelfForceIx1 = 0;
+	selftests.SelfForceIx2 = 0;
+	selftests.SelfForceIx2Adj = 0;
+	selftests.SelfForceIxTotal = 0;
+	selftests.SelfForceIxTotalAdj = 0;
+	selftests.SelfForceCx1 = 0;
+	selftests.SelfForceCx2 = 0;
+	selftests.SelfForceCx2Adj = 0;
+	selftests.SelfForceCxTotal = 0;
+	selftests.SelfForceCxTotalAdj = 0;
+	selftests.SelfSenseRaw = 1;
+	selftests.SelfSenseRawGap = 0;
+	selftests.SelfSenseRawLP = 0;
+	selftests.SelfSenseRawGapLP = 0;
+	selftests.SelfSenseIx1 = 0;
+	selftests.SelfSenseIx2 = 0;
+	selftests.SelfSenseIx2Adj = 0;
+	selftests.SelfSenseIxTotal = 0;
+	selftests.SelfSenseIxTotalAdj = 0;
+	selftests.SelfSenseCx1 = 0;
+	selftests.SelfSenseCx2 = 0;
+	selftests.SelfSenseCx2Adj = 0;
+	selftests.SelfSenseCxTotal = 0;
+	selftests.SelfSenseCxTotalAdj = 0;
 
-	stm_fts_cmd_show(fts_info->dev, NULL, buf);
-
-	if (!strncmp("{ 00000000 }", buf, 12))
+	res = fts_disableInterrupt();
+	if (res < 0) {
+		logError(0, "%s fts_disableInterrupt: ERROR %08X \n",
+			 tag, res);
+		res = (res | ERROR_DISABLE_INTER);
+		goto END;
+	}
+	res = production_test_main(LIMITS_FILE, 1, init_type, &selftests);
+END:
+	fts_mode_handler(fts_info, 1);
+	fts_enableInterrupt();
+	if (res == OK)
 		return FTS_RESULT_PASS;
 	else
 		return FTS_RESULT_FAIL;
@@ -5094,9 +5158,9 @@ static int fts_probe(struct spi_device *client)
 	/*input_mt_init_slots(info->input_dev, TOUCH_ID_MAX); */
 
 	input_set_abs_params(info->input_dev, ABS_MT_POSITION_X, X_AXIS_MIN,
-			     X_AXIS_MAX, 0, 0);
+		     info->board->x_max, 0, 0);
 	input_set_abs_params(info->input_dev, ABS_MT_POSITION_Y, Y_AXIS_MIN,
-			     Y_AXIS_MAX, 0, 0);
+		     info->board->y_max, 0, 0);
 	input_set_abs_params(info->input_dev, ABS_MT_TOUCH_MAJOR, AREA_MIN,
 			     AREA_MAX, 0, 0);
 	input_set_abs_params(info->input_dev, ABS_MT_TOUCH_MINOR, AREA_MIN,
@@ -5298,7 +5362,7 @@ static int fts_probe(struct spi_device *client)
 	info->tp_lockdown_info_proc =
 	    proc_create("tp_lockdown_info", 0, NULL, &fts_lockdown_info_ops);
 	info->tp_selftest_proc =
-	    proc_create("tp_selftest", 0, NULL, &fts_selftest_ops);
+	    proc_create("tp_selftest", 0644, NULL, &fts_selftest_ops);
 	info->tp_data_dump_proc =
 	    proc_create("tp_data_dump", 0, NULL, &fts_datadump_ops);
 	info->tp_fw_version_proc =

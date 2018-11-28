@@ -3,6 +3,7 @@
  * FocalTech TouchScreen driver.
  *
  * Copyright (c) 2010-2017, FocalTech Systems, Ltd., all rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -40,6 +41,7 @@
 #include <linux/earlysuspend.h>
 #define FTS_SUSPEND_LEVEL 1	/* Early-suspend level */
 #endif
+#include <linux/hwinfo.h>
 
 /*****************************************************************************
 * Private constant and macro definitions using #define
@@ -82,6 +84,8 @@ struct fts_ts_data *fts_data;
 static void fts_release_all_finger(void);
 static int fts_ts_suspend(struct device *dev);
 static int fts_ts_resume(struct device *dev);
+static void fts_resume_work(struct work_struct *work);
+static void fts_suspend_work(struct work_struct *work);
 
 /*****************************************************************************
 *  Name: fts_wait_tp_to_valid
@@ -692,7 +696,11 @@ static int fts_input_report_b(struct fts_ts_data *data)
 			   events[i].y, events[i].p, events[i].area); */
 		} else {
 			uppoint++;
-			input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
+#if FTS_REPORT_PRESSURE_EN
+			input_report_abs(data->input_dev, ABS_MT_PRESSURE, 0);
+#endif
+			input_mt_report_slot_state(data->input_dev,
+						MT_TOOL_FINGER, false);
 			data->touchs &= ~BIT(events[i].id);
 			/*FTS_DEBUG("[B]P%d UP!", events[i].id); */
 		}
@@ -1514,10 +1522,12 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 
 	if (evdata && evdata->data && event == DRM_EVENT_BLANK && fts_data && fts_data->client) {
 		blank = evdata->data;
+		flush_workqueue(fts_data->event_wq);
+
 		if (*blank == DRM_BLANK_UNBLANK)
-			fts_ts_resume(&fts_data->client->dev);
+			queue_work(fts_data->event_wq, &fts_data->resume_work);
 		else if (*blank == DRM_BLANK_POWERDOWN)
-			fts_ts_suspend(&fts_data->client->dev);
+			queue_work(fts_data->event_wq, &fts_data->suspend_work);
 	}
 
 	return 0;
@@ -1568,6 +1578,7 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	int ret = 0;
 	struct fts_ts_platform_data *pdata;
 	struct fts_ts_data *ts_data;
+	struct dentry *tp_debugfs;
 
 	FTS_FUNC_ENTER();
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -1667,12 +1678,16 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 		FTS_ERROR("create tp_debug fail");
 		goto err_sysfs_create_group;
 	}
-	debugfs_create_file("switch_state", 0660, ts_data->debugfs, ts_data, &tpdbg_operations);
-
+	tp_debugfs = debugfs_create_file("switch_state", 0660, ts_data->debugfs, ts_data, &tpdbg_operations);
+	if (!tp_debugfs) {
+		FTS_ERROR("create debugfs fail");
+		goto err_sysfs_create_group;
+	}
 #if FTS_APK_NODE_EN
 	ret = fts_create_apk_debug_channel(ts_data);
 	if (ret) {
 		FTS_ERROR("create apk debug node fail");
+		goto err_debugfs_create;
 	}
 #endif
 
@@ -1680,6 +1695,7 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	ret = fts_create_sysfs(client);
 	if (ret) {
 		FTS_ERROR("create sysfs node fail");
+		goto err_debugfs_create;
 	}
 #endif
 
@@ -1687,17 +1703,20 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	ret = fts_point_report_check_init(ts_data);
 	if (ret) {
 		FTS_ERROR("init point report check fail");
+		goto err_debugfs_create;
 	}
 #endif
 
 	ret = fts_ex_mode_init(client);
 	if (ret) {
 		FTS_ERROR("init glove/cover/charger fail");
+		goto err_debugfs_create;
 	}
 #if FTS_GESTURE_EN
 	ret = fts_gesture_init(ts_data);
 	if (ret) {
 		FTS_ERROR("init gesture fail");
+		goto err_debugfs_create;
 	}
 #endif
 
@@ -1705,6 +1724,7 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	ret = fts_test_init(client);
 	if (ret) {
 		FTS_ERROR("init production test fail");
+		goto err_debugfs_create;
 	}
 #endif
 
@@ -1712,13 +1732,24 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	ret = fts_esdcheck_init(ts_data);
 	if (ret) {
 		FTS_ERROR("init esd check fail");
+		goto err_debugfs_create;
 	}
 #endif
+
+	ts_data->event_wq =
+	    alloc_workqueue("fts-event-queue",
+			    WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
+	if (!ts_data->event_wq) {
+		FTS_ERROR("ERROR: Cannot create work thread\n");
+		goto err_debugfs_create;
+	}
+	INIT_WORK(&ts_data->resume_work, fts_resume_work);
+	INIT_WORK(&ts_data->suspend_work, fts_suspend_work);
 
 	ret = fts_irq_registration(ts_data);
 	if (ret) {
 		FTS_ERROR("request irq failed");
-		goto err_irq_req;
+		goto err_event_wq;
 	}
 #if FTS_AUTO_UPGRADE_EN
 	ret = fts_fwupg_init(ts_data);
@@ -1743,10 +1774,18 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	ts_data->early_suspend.resume = fts_ts_late_resume;
 	register_early_suspend(&ts_data->early_suspend);
 #endif
+	update_hardware_info(TYPE_TOUCH, 3);
+	update_hardware_info(TYPE_TP_MAKER, ts_data->lockdown_info[0] - 0x30);
 
 	FTS_FUNC_EXIT();
 	return 0;
 
+err_event_wq:
+	if (ts_data->event_wq)
+		destroy_workqueue(ts_data->event_wq);
+err_debugfs_create:
+	if (tp_debugfs)
+		debugfs_remove(tp_debugfs);
 err_sysfs_create_group:
 	sysfs_remove_group(&client->dev.kobj, &fts_attr_group);
 err_irq_req:
@@ -1802,6 +1841,7 @@ static int fts_ts_remove(struct i2c_client *client)
 #if FTS_SYSFS_NODE_EN
 	fts_remove_sysfs(client);
 #endif
+	destroy_workqueue(ts_data->event_wq);
 
 	fts_ex_mode_exit(client);
 
@@ -2001,6 +2041,21 @@ static const struct dev_pm_ops fts_dev_pm_ops = {
 	.suspend = fts_pm_suspend,
 	.resume = fts_pm_resume,
 };
+
+static void fts_resume_work(struct work_struct *work)
+{
+	struct fts_ts_data *ts;
+	ts = container_of(work, struct fts_ts_data, resume_work);
+	fts_ts_resume(&ts->client->dev);
+}
+
+static void fts_suspend_work(struct work_struct *work)
+{
+	struct fts_ts_data *ts;
+	ts = container_of(work, struct fts_ts_data, suspend_work);
+	fts_ts_suspend(&ts->client->dev);
+}
+
 
 /*****************************************************************************
 * I2C Driver

@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2012 Alexandra Chin <alexandra.chin@tw.synaptics.com>
  * Copyright (C) 2012 Scott Lin <scott.lin@tw.synaptics.com>
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +42,7 @@
 #include <linux/platform_device.h>
 #include <linux/input/synaptics_dsx.h>
 #include "synaptics_dsx_core.h"
+#include <linux/hwinfo.h>
 #include <linux/proc_fs.h>
 #include <linux/input/touch_common_info.h>
 #include <linux/uaccess.h>
@@ -2194,6 +2196,8 @@ static int fwu_read_f34_v5v6_queries(void)
 static int fwu_read_f34_queries(void)
 {
 	int retval;
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
+	u8 *tp_maker;
 
 	memset(&fwu->blkcount, 0x00, sizeof(fwu->blkcount));
 	memset(&fwu->phyaddr, 0x00, sizeof(fwu->phyaddr));
@@ -2203,6 +2207,17 @@ static int fwu_read_f34_queries(void)
 	else
 		retval = fwu_read_f34_v5v6_queries();
 
+
+	tp_maker = kzalloc(20, GFP_KERNEL);
+	if (tp_maker == NULL)
+		dev_err(rmi4_data->pdev->dev.parent,
+			"%s fail to alloc vendor name memory\n", __func__);
+	else {
+		kfree(tp_maker);
+		tp_maker = NULL;
+	}
+
+	update_hardware_info(TYPE_TP_MAKER, rmi4_data->lockdown_info[0] - 0x30);
 	return retval;
 }
 
@@ -4149,7 +4164,8 @@ static const char *fwu_get_firmware_name(struct synaptics_rmi4_data *rmi4_data)
 	bool found = false;
 
 	if (bdata->tp_id_num != 0) {
-		for (i = 0; i < bdata->config_array_size; i++) {
+		for (i = 0; i < bdata->config_array_size; i++)
+		{
 			found = true;
 			if (rmi4_data->chip_id != bdata->config_array[i].chip_id)
 				continue;
@@ -5251,19 +5267,43 @@ static ssize_t synaptics_fw_version_read(struct file *file, char __user *buf, si
 {
 	int cnt = 0;
 	int ret = 0;
+
 	char tmp[TP_INFO_MAX_LENGTH];
 	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
 
-	if (*pos != 0)
+	if (*pos != 0 || !rmi4_data)
 		return 0;
 
+	if (rmi4_data->sensor_sleep) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Sensor sleeping\n",
+				__func__);
+		ret = -ENODEV;
+		goto end;
+	}
+
+	/* Get device config ID */
+	ret = fwu_get_device_config_id();
+	if (ret < 0) {
+		dev_err(rmi4_data->pdev->dev.parent,
+				"%s: Failed to read device config ID\n",
+				__func__);
+		ret = -EINVAL;
+		goto end;
+	}
+
+	dev_info(rmi4_data->pdev->dev.parent,
+			"%s: Device firmware Config ID = %02x%02x%02x%02x\n",
+			__func__, fwu->config_id[0], fwu->config_id[1], fwu->config_id[2], fwu->config_id[3]);
+
 	cnt = snprintf(tmp, TP_INFO_MAX_LENGTH, "%d.%02x%02x%02x%02x\n", rmi4_data->firmware_id,
-			fwu->img.ui_config.data[0], fwu->img.ui_config.data[1],
-			fwu->img.ui_config.data[2], fwu->img.ui_config.data[3]);
+			fwu->config_id[0], fwu->config_id[1],
+			fwu->config_id[2], fwu->config_id[3]);
 
 	ret = copy_to_user(buf, tmp, cnt);
 	*pos += cnt;
 
+end:
 	if (ret != 0)
 		return 0;
 	else
@@ -5279,15 +5319,16 @@ static ssize_t synaptics_lockdown_info_read(struct file *file, char __user *buf,
 	int retval = 0;
 	int cnt = 0;
 	char tmp[TP_INFO_MAX_LENGTH];
+	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
 
 	if (*pos != 0)
 		return 0;
 
 	cnt = snprintf(tmp, TP_INFO_MAX_LENGTH, "0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",
-					fwu->read_config_buf[4], fwu->read_config_buf[5],
-					fwu->read_config_buf[6], fwu->read_config_buf[7],
-					fwu->read_config_buf[8], fwu->read_config_buf[9],
-					fwu->read_config_buf[10], fwu->read_config_buf[11]);
+					rmi4_data->lockdown_info[0], rmi4_data->lockdown_info[1],
+					rmi4_data->lockdown_info[2], rmi4_data->lockdown_info[3],
+					rmi4_data->lockdown_info[4], rmi4_data->lockdown_info[5],
+					rmi4_data->lockdown_info[6], rmi4_data->lockdown_info[7]);
 
 	retval = copy_to_user(buf, tmp, cnt);
 
@@ -5396,7 +5437,9 @@ static int synaptics_rmi4_fwu_init(struct synaptics_rmi4_data *rmi4_data)
 		}
 	}
 
+	rmi4_data->tp_fw_version_proc =
 	proc_create("tp_fw_version", 0444, NULL, &synaptics_fw_version_ops);
+	rmi4_data->tp_lockdown_info_proc =
 	proc_create("tp_lockdown_info", 0444, NULL, &synaptics_lockdown_info_ops);
 
 #ifdef DO_STARTUP_FW_UPDATE
@@ -5448,6 +5491,15 @@ static void synaptics_rmi4_fwu_remove(struct synaptics_rmi4_data *rmi4_data)
 	flush_workqueue(fwu->fwu_workqueue);
 	destroy_workqueue(fwu->fwu_workqueue);
 #endif
+	if (rmi4_data->tp_fw_version_proc) {
+		proc_remove(rmi4_data->tp_fw_version_proc);
+		rmi4_data->tp_fw_version_proc = NULL;
+	}
+
+	if (rmi4_data->tp_lockdown_info_proc) {
+		proc_remove(rmi4_data->tp_lockdown_info_proc);
+		rmi4_data->tp_lockdown_info_proc = NULL;
+	}
 
 	for (attr_count = 0; attr_count < ARRAY_SIZE(attrs); attr_count++) {
 		sysfs_remove_file(&rmi4_data->input_dev->dev.kobj,

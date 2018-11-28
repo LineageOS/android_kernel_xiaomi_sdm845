@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011 XiaoMi, Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -172,6 +173,14 @@ static int ft5x46_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void ft5x46_i2c_shutdown(struct i2c_client *client)
+{
+	struct ft5x46_data *ft5x0x = i2c_get_clientdata(client);
+	fts_test_module_exit(client);
+	ft5x46_remove(ft5x0x);
+	return;
+}
+
 static const struct i2c_device_id ft5x46_i2c_id[] = {
 	{"ft5x46_i2c", 0},
 	{/* end list */}
@@ -227,6 +236,7 @@ static struct i2c_driver ft5x46_i2c_driver = {
 	},
 	.probe         = ft5x46_i2c_probe,
 	.remove        = ft5x46_i2c_remove,
+	.shutdown      = ft5x46_i2c_shutdown,
 	.id_table      = ft5x46_i2c_id,
 };
 

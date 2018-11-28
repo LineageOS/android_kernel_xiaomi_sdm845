@@ -3,6 +3,7 @@
  * FocalTech TouchScreen driver.
  *
  * Copyright (c) 2010-2017, Focaltech Ltd. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -166,6 +167,9 @@ struct fts_ts_data {
 	u8 lockdown_info[FTS_LOCKDOWN_INFO_SIZE];
 	bool dev_pm_suspend;
 	bool lpwg_mode;
+	struct work_struct suspend_work;
+	struct work_struct resume_work;
+	struct workqueue_struct *event_wq;
 	struct completion dev_pm_suspend_completion;
 #if FTS_PINCTRL_EN
 	struct pinctrl *pinctrl;

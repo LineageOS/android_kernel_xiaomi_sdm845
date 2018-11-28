@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2012 Alexandra Chin <alexandra.chin@tw.synaptics.com>
  * Copyright (C) 2012 Scott Lin <scott.lin@tw.synaptics.com>
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -393,6 +394,7 @@ struct synaptics_rmi4_data {
 	int force_max;
 	int chip_id;
 	int touchs;
+	int dbclick_count;
 	bool flash_prog_mode;
 	bool irq_enabled;
 	bool fingers_on_2d;
@@ -432,6 +434,8 @@ struct synaptics_rmi4_data {
 #ifdef CONFIG_TOUCH_DEBUG_FS
 	struct dentry *debugfs;
 #endif
+	struct proc_dir_entry *tp_fw_version_proc;
+	struct proc_dir_entry *tp_lockdown_info_proc;
 
 #if defined(CONFIG_SECURE_TOUCH)
 	atomic_t st_enabled;

@@ -14,7 +14,6 @@
 #include <linux/hrtimer.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
-#include "ndt_core.h"
 #ifdef CONFIG_TOUCHSCREEN_ST_CORE
 #include "./fts/fts.h"
 #endif
@@ -41,17 +40,16 @@
 #define RELEASE_THRE 70
 #endif
 static struct i2c_client *g_ndt_client;
-struct input_dev *ndt_input_dev;
 static int ndt_read_register(unsigned char reg, unsigned char *datbuf, int byteno);
 static int ndt_write_register(unsigned char reg, unsigned char *datbuf, int byteno);
 #ifdef CONFIG_INPUT_NDT_FWUPDATE
 static int ndt_read_eeprom(unsigned short reg, unsigned char *datbuf, int byteno);
 static int ndt_write_eeprom(unsigned short reg, unsigned char *datbuf, int byteno);
 static void ndt_reset(void);
-static int ndt_update_fw(bool force, char *fw_name);
+static int ndt_update_fw(bool force, char *fw_name, int retry);
 #endif
 #ifdef CONFIG_INPUT_NDT_FWUPDATE
-static int ndt_burn_fw(unsigned char *buf, unsigned int len);
+static int ndt_burn_fw(unsigned char *buf, unsigned int len, int retry);
 static int ndt_eeprom_erase(void);
 static int ndt_eeprom_skip(void);
 static ssize_t pressure_update_fw_show(struct device *dev, struct device_attribute *attr, char *buf);
@@ -183,7 +181,7 @@ static unsigned int g_last_x;
 static unsigned int g_last_y;
 static unsigned char g_touch_flag;
 
-int ndt_get_pressure(int touch_flag, int x, int y)
+int ndt_get_pressure_f60(int touch_flag, int x, int y)
 {
 	int pressure;
 	unsigned char buf[10];
@@ -243,7 +241,7 @@ static void ndt_reset(void)
 
 }
 
-static int ndt_burn_fw(unsigned char *buf, unsigned int len)
+static int ndt_burn_fw(unsigned char *buf, unsigned int len, int retry)
 {
 	unsigned short reg;
 	int byteno = 0;
@@ -316,17 +314,19 @@ static int ndt_burn_fw(unsigned char *buf, unsigned int len)
 		}
 
 		number++;
-	} while (i2c_ok_flag && number < 3 && ret == 0);
+	} while (i2c_ok_flag && number < retry && ret == 0);
 
 	if (i2c_ok_flag == false || ret == 0) {
 		pr_err("ndt:burn eeprom fail!\n");
 		ret = 0;
+		goto fail;
 	} else {
 		pr_info("ndt:burn eeprom succeed!\n");
 	}
 
 	/*exit burn */
 	ndt_eeprom_skip();
+fail:
 	kfree(read_buf);
 	return ret;
 }
@@ -492,7 +492,7 @@ static ssize_t pressure_update_fw_store(struct device *dev, struct device_attrib
 			fw_name[len] = 0;
 	}
 	pr_info("ndt:fw_name%s\n", fw_name);
-	ndt_update_fw(false, fw_name);
+	ndt_update_fw(false, fw_name, 1);
 	return count;
 }
 
@@ -552,7 +552,7 @@ static int ndt_eeprom_skip(void)
 	return 1;
 }
 
-static int ndt_update_fw(bool force, char *fw_name)
+static int ndt_update_fw(bool force, char *fw_name, int retry)
 {
 	loff_t pos = 0;
 	char fw_data_len[4];
@@ -567,7 +567,7 @@ static int ndt_update_fw(bool force, char *fw_name)
 	int ret = 1;
 	int fw_size = 0;
 	const struct firmware *fw_entry = NULL;
-	struct ndt_force_data *ndt_data = NULL;i2c_get_clientdata(g_ndt_client);
+	struct ndt_force_data *ndt_data = NULL;
 
 	if (g_ndt_client == NULL)
 		return -EINVAL;
@@ -581,7 +581,6 @@ static int ndt_update_fw(bool force, char *fw_name)
 	if (ret != 0) {
 		pr_err("%s request firmware failed\n", __func__);
 		enable_irq(g_ndt_client->irq);
-		ndt_threshold_store(&g_ndt_client->dev, NULL, "70", 2);
 		return -EINVAL;
 	}
 
@@ -629,7 +628,7 @@ static int ndt_update_fw(bool force, char *fw_name)
 	data += pos;
 	memcpy(fw_data, data, len);
 
-	if (ndt_burn_fw(fw_data, len) == 0) {
+	if (ndt_burn_fw(fw_data, len, retry) == 0) {
 		pr_err("ndt:Burn FW failed!\n");
 		ret = -EINVAL;
 	}
@@ -644,9 +643,6 @@ FAIL:
 	}
 	release_firmware(fw_entry);
 	enable_irq(g_ndt_client->irq);
-#ifdef CONFIG_INPUT_NDT_INTERRUPT
-	ndt_threshold_store(&g_ndt_client->dev, NULL, "70", 2);
-#endif
 	return ret;
 }
 
@@ -667,23 +663,11 @@ static ssize_t pressure_force_update_fw_store(struct device *dev, struct device_
 			fw_name[len] = 0;
 	}
 	pr_info("ndt:fw_name%s\n", fw_name);
-	ndt_update_fw(true, fw_name);
+	ndt_update_fw(true, fw_name, 1);
 	return count;
 }
 
 #endif
-
-bool ndt_is_pressed(void)
-{
-	struct ndt_force_data *data = NULL;
-
-	if (g_ndt_client == NULL)
-		return false;
-	else {
-		data = i2c_get_clientdata(g_ndt_client);
-		return data->released;
-	}
-}
 
 static ssize_t pressure_pressure_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -691,7 +675,7 @@ static ssize_t pressure_pressure_show(struct device *dev, struct device_attribut
 	int touch_down, x, y;
 
 	fts_get_pointer(&touch_down, &x, &y);
-	pressure = ndt_get_pressure(touch_down, x, y);
+	pressure = ndt_get_pressure_f60(touch_down, x, y);
 
 	count = snprintf(buf, PAGE_SIZE, "Pressure:%d\n", pressure);
 	return count;
@@ -875,7 +859,7 @@ static int ndt_write_eeprom(unsigned short reg, unsigned char *datbuf, int byten
 
 static void ndt_fwupdate_work(struct work_struct *work)
 {
-	ndt_update_fw(false, "ndt_fw.bin");
+	ndt_update_fw(false, "ndt_fw.bin", 3);
 }
 #endif
 
@@ -898,7 +882,7 @@ static void ndt_release_work(struct work_struct *work)
 	int touch_down, x, y;
 
 	fts_get_pointer(&touch_down, &x, &y);
-	pressure =  ndt_get_pressure(touch_down, x, y);
+	pressure =  ndt_get_pressure_f60(touch_down, x, y);
 	pr_info("%s,pressure:%d\n", __func__, pressure);
 	if (pressure < RELEASE_THRE) {
 		input_report_abs(data->input_dev, ABS_MT_PRESSURE, 0);
@@ -929,7 +913,7 @@ static irqreturn_t ndt_force_interrupt(int irq, void *dev_id)
 
 	pr_debug("%s\n", __func__);
 	fts_get_pointer(&touch_down, &x, &y);
-	pressure = ndt_get_pressure(touch_down, x, y);
+	pressure = ndt_get_pressure_f60(touch_down, x, y);
 	if (!ndt_down_flag) {
 		pr_info("ndt down in the fod area,pressure:%d\n", pressure);
 		ndt_down_flag = true;
@@ -1172,7 +1156,7 @@ static int ndt_force_probe(struct i2c_client *client,
 	error = ndt_read_register(0x05, g_ver, 2);
 	if (error < 0) {
 		pr_err("ndt:i2c test error, maybe fw fail, force update fw\n");
-		error = ndt_update_fw(1, "ndt_fw.bin");
+		error = ndt_update_fw(1, "ndt_fw.bin", 1);
 		if (error == -EINVAL) {
 			pr_err("ndt:i2c error after fw update, unregister device\n");
 			goto ndt_free_input_dev;
@@ -1207,7 +1191,6 @@ static int ndt_force_probe(struct i2c_client *client,
 	}
 #endif
 	misc_register(&ndt_misc);
-	ndt_input_dev = data->input_dev;
 	pr_info("%s,probe ok\n", __func__);
 	return 0;
 ndt_free_input_dev:
@@ -1227,12 +1210,12 @@ ndt_free_data:
 }
 
 static const struct i2c_device_id cyt_id[] = {
-	{"ndt_press", 0},
+	{"ndt_press_f60", 0},
 	{ },
 };
 
 static struct of_device_id ndt_match_table[] = {
-	{ .compatible = "ndt,press",},
+	{ .compatible = "ndt,press-f60",},
 	{ },
 };
 
@@ -1260,7 +1243,7 @@ static int ndt_force_remove(struct i2c_client *client)
 
 static struct i2c_driver ndt_force_driver = {
 	.driver = {
-		.name	= "ndt_press",
+		.name	= "ndt_press_f60",
 		.owner	= THIS_MODULE,
 		.of_match_table = ndt_match_table,
 #ifdef CONFIG_PM

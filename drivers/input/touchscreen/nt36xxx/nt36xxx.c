@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 - 2017 Novatek, Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * $Revision: 20544 $
  * $Date: 2017-12-20 11:08:15 +0800 (週三, 20 十二月 2017) $
@@ -28,6 +29,8 @@
 #include <linux/of_irq.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
+#include <linux/input/touch_common_info.h>
+#include <linux/hwinfo.h>
 
 #ifdef CONFIG_DRM
 #include <drm/drm_notifier.h>
@@ -66,6 +69,7 @@ static struct workqueue_struct *nvt_wq;
 static struct workqueue_struct *nvt_fwu_wq;
 extern void Boot_Update_Firmware(struct work_struct *work);
 #endif
+static void nvt_resume_work(struct work_struct *work);
 
 #if defined(CONFIG_DRM)
 static int drm_notifier_callback(struct notifier_block *self, unsigned long event, void *data);
@@ -1178,13 +1182,6 @@ static void nvt_ts_work_func(struct work_struct *work)
 		NVT_ERR("CTP_I2C_READ failed.(%d)\n", ret);
 		goto XFER_ERROR;
 	}
-/*
-	//--- dump I2C buf ---
-	for (i = 0; i < 10; i++) {
-		printk("%02X %02X %02X %02X %02X %02X  ", point_data[1+i*6], point_data[2+i*6], point_data[3+i*6], point_data[4+i*6], point_data[5+i*6], point_data[6+i*6]);
-	}
-	printk("\n");
-*/
 
 #if NVT_TOUCH_ESD_PROTECT
 	if (nvt_fw_recovery(point_data)) {
@@ -1638,8 +1635,7 @@ static ssize_t nvt_panel_wake_gesture_store(struct device *dev,
 				     struct device_attribute *attr, const char *buf, size_t count)
 {
 	int i;
-
-	if (sscanf(buf, "%u", &i) == 1 && i < 2) {
+ 	if (sscanf(buf, "%u", &i) == 1 && i < 2) {
 		ts->gesture_enabled = i;
 		return count;
 	} else {
@@ -1673,15 +1669,11 @@ static ssize_t novatek_input_symlink(struct nvt_ts_data *ts) {
 		pr_err("%s: failed to allocate memory\n", __func__);
 		return -ENOMEM;
 	}
-
-	sprintf(driver_path, "/sys%s",
+ 	sprintf(driver_path, "/sys%s",
 			kobject_get_path(&ts->client->dev.kobj, GFP_KERNEL));
-
-	pr_err("%s: driver_path=%s\n", __func__, driver_path);
-
-	ts->input_proc = proc_symlink(PROC_SYMLINK_PATH, NULL, driver_path);
-
-	if (!ts->input_proc) {
+ 	pr_err("%s: driver_path=%s\n", __func__, driver_path);
+ 	ts->input_proc = proc_symlink(PROC_SYMLINK_PATH, NULL, driver_path);
+ 	if (!ts->input_proc) {
 		ret = -ENOMEM;
 	}
 	kfree(driver_path);
@@ -1861,6 +1853,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 			NVT_LOG("request irq %d succeed\n", client->irq);
 		}
 	}
+	update_hardware_info(TYPE_TOUCH, 5);
 
 	ret = nvt_get_lockdown_info(ts->lockdown_info);
 
@@ -1870,6 +1863,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 		NVT_ERR("Lockdown:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",
 				ts->lockdown_info[0], ts->lockdown_info[1], ts->lockdown_info[2], ts->lockdown_info[3],
 				ts->lockdown_info[4], ts->lockdown_info[5], ts->lockdown_info[6], ts->lockdown_info[7]);
+		update_hardware_info(TYPE_TP_MAKER, ts->lockdown_info[0] - 0x30);
 	}
 	ts->fw_name = nvt_get_config(ts);
 
@@ -1978,10 +1972,21 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 		goto err_register_tp_class;
 	}
 #endif
+	ts->event_wq = alloc_workqueue("nvt-event-queue",
+			    WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
+	if (!ts->event_wq) {
+		NVT_ERR("ERROR: Cannot create work thread\n");
+		goto err_register_tp_class;
+	}
+
+	INIT_WORK(&ts->resume_work, nvt_resume_work);
 
 	ts->debugfs = debugfs_create_dir("tp_debug", NULL);
 	if (ts->debugfs) {
 		debugfs_create_file("switch_state", 0660, ts->debugfs, ts, &tpdbg_operations);
+	} else {
+		NVT_ERR("ERROR: Cannot create tp_debug\n");
+		goto err_pm_workqueue;
 	}
 
 	bTouchIsAwake = 1;
@@ -1991,6 +1996,8 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 
 	return 0;
 
+err_pm_workqueue:
+	destroy_workqueue(ts->event_wq);
 #ifdef NVT_TOUCH_COUNT_DUMP
 err_register_tp_class:
 	device_destroy(ts->nvt_tp_class, 0x62);
@@ -2056,6 +2063,7 @@ static int32_t nvt_ts_remove(struct i2c_client *client)
 	class_destroy(ts->nvt_tp_class);
 	ts->nvt_tp_class = NULL;
 #endif
+	destroy_workqueue(ts->event_wq);
 
 	nvt_get_reg(ts, false);
 
@@ -2211,6 +2219,12 @@ static int32_t nvt_ts_resume(struct device *dev)
 	return 0;
 }
 
+static void nvt_resume_work(struct work_struct *work)
+{
+	struct nvt_ts_data *ts =
+		container_of(work, struct nvt_ts_data, resume_work);
+	nvt_ts_resume(&ts->client->dev);
+}
 
 #if defined(CONFIG_DRM)
 static int drm_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
@@ -2229,6 +2243,7 @@ static int drm_notifier_callback(struct notifier_block *self, unsigned long even
 				/*drm_dsi_ulps_enable(true);*/
 				/*drm_dsi_ulps_suspend_enable(true);*/
 			}
+			flush_workqueue(ts->event_wq);
 			nvt_ts_suspend(&ts->client->dev);
 #ifdef NVT_TOUCH_COUNT_DUMP
 			sysfs_notify(&ts->nvt_touch_dev->kobj, NULL,
@@ -2252,7 +2267,8 @@ static int drm_notifier_callback(struct notifier_block *self, unsigned long even
 				/*drm_dsi_ulps_suspend_enable(false);*/
 				nvt_enable_reg(ts, false);
 			}
-			nvt_ts_resume(&ts->client->dev);
+			flush_workqueue(ts->event_wq);
+			queue_work(ts->event_wq, &ts->resume_work);
 #ifdef NVT_TOUCH_COUNT_DUMP
 			sysfs_notify(&ts->nvt_touch_dev->kobj, NULL,
 					 "touch_suspend_notify");
@@ -2272,7 +2288,6 @@ static int nvt_pm_suspend(struct device *dev)
 	reinit_completion(&ts->dev_pm_suspend_completion);
 
 	return 0;
-
 }
 
 static int nvt_pm_resume(struct device *dev)
@@ -2315,13 +2330,6 @@ static void nvt_ts_late_resume(struct early_suspend *h)
 {
 	nvt_ts_resume(ts->client);
 }
-#endif
-
-#if 0
-static const struct dev_pm_ops nvt_ts_dev_pm_ops = {
-	.suspend = nvt_ts_suspend,
-	.resume  = nvt_ts_resume,
-};
 #endif
 
 static const struct i2c_device_id nvt_ts_id[] = {
