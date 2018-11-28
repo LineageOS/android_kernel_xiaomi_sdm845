@@ -1370,6 +1370,32 @@ QDF_STATUS wma_set_peer_param(void *wma_ctx, uint8_t *peer_addr,
 }
 
 /**
+ * wma_peer_unmap_conf_cb - send peer unmap conf cmnd to fw
+ * @vdev_id: vdev id
+ * @peer_id_cnt: no of peer id
+ * @peer_id_list: list of peer ids
+ *
+ * Return: QDF_STATUS
+ */
+
+QDF_STATUS wma_peer_unmap_conf_cb(uint8_t vdev_id,
+				  uint32_t peer_id_cnt,
+				  uint16_t *peer_id_list)
+{
+	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!wma) {
+		WMA_LOGD("%s: peer_id_cnt: %d, null wma_handle",
+			 __func__, peer_id_cnt);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	return wmi_unified_peer_unmap_conf_send(wma->wmi_handle,
+						vdev_id, peer_id_cnt,
+						peer_id_list);
+}
+
+/**
  * wma_remove_peer() - remove peer information from host driver and fw
  * @wma: wma handle
  * @bssid: mac address
@@ -1394,6 +1420,7 @@ QDF_STATUS wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
 	void *vdev;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	uint32_t bitmap = 1 << CDP_PEER_DELETE_NO_SPECIAL;
+	bool peer_unmap_conf_support_enabled;
 
 	if (!wma->interfaces[vdev_id].peer_count) {
 		WMA_LOGE("%s: Can't remove peer with peer_addr %pM vdevid %d peer_count %d",
@@ -1413,6 +1440,8 @@ QDF_STATUS wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
 		WMA_LOGE("%s: PEER is NULL for vdev_id: %d", __func__, vdev_id);
 		return QDF_STATUS_E_INVAL;
 	}
+	peer_unmap_conf_support_enabled =
+				cdp_cfg_get_peer_unmap_conf_support(soc);
 
 	peer_mac_addr = cdp_peer_get_peer_mac_addr(soc, peer);
 	if (peer_mac_addr == NULL) {
@@ -1459,10 +1488,21 @@ peer_detach:
 		wma->interfaces[vdev_id].peer_count);
 	/* Copy peer mac to find and delete objmgr peer */
 	qdf_mem_copy(peer_mac, peer_mac_addr, QDF_MAC_ADDR_SIZE);
-	if (roam_synch_in_progress)
-		cdp_peer_detach_force_delete(soc, peer);
-	else
-		cdp_peer_delete(soc, peer, bitmap);
+	if (roam_synch_in_progress) {
+		if (!peer_unmap_conf_support_enabled)
+			cdp_peer_detach_force_delete(soc, peer);
+		else
+			cdp_peer_delete_sync(soc, peer,
+					     wma_peer_unmap_conf_cb,
+					     bitmap);
+	} else {
+		if (peer_unmap_conf_support_enabled)
+			cdp_peer_delete_sync(soc, peer,
+					     wma_peer_unmap_conf_cb,
+					     bitmap);
+		else
+			cdp_peer_delete(soc, peer, bitmap);
+	}
 
 	wma_remove_objmgr_peer(wma, vdev_id, peer_mac);
 
@@ -1697,7 +1737,14 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, struct cdp_pdev *pdev,
 	if (wmi_unified_peer_create_send(wma->wmi_handle,
 					 &param) != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("%s : Unable to create peer in Target", __func__);
-		cdp_peer_delete(dp_soc, peer,
+		if (cdp_cfg_get_peer_unmap_conf_support(dp_soc))
+			cdp_peer_delete_sync(
+				dp_soc, peer,
+				wma_peer_unmap_conf_cb,
+				1 << CDP_PEER_DO_NOT_START_UNMAP_TIMER);
+		else
+			cdp_peer_delete(
+				dp_soc, peer,
 				1 << CDP_PEER_DO_NOT_START_UNMAP_TIMER);
 		wlan_objmgr_peer_obj_delete(obj_peer);
 		goto err;
@@ -5614,7 +5661,14 @@ void wma_delete_bss_ho_fail(tp_wma_handle wma, tpDeleteBssParams params)
 		WMA_LOGD("%s: vdev %pK is detaching peer:%pK peer_addr %pM to vdev_id %d, peer_count - %d",
 			 __func__, txrx_vdev, peer, params->bssid,
 			 params->smesessionId, iface->peer_count);
-		cdp_peer_delete(soc, peer, 1 << CDP_PEER_DELETE_NO_SPECIAL);
+		if (cdp_cfg_get_peer_unmap_conf_support(soc))
+			cdp_peer_delete_sync(
+				soc, peer,
+				wma_peer_unmap_conf_cb,
+				1 << CDP_PEER_DELETE_NO_SPECIAL);
+		else
+			cdp_peer_delete(soc, peer,
+					1 << CDP_PEER_DELETE_NO_SPECIAL);
 		wma_remove_objmgr_peer(wma, params->smesessionId,
 							params->bssid);
 	}
