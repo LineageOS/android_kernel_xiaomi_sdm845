@@ -687,7 +687,7 @@ struct sir_mgmt_msg {
 #define SIR_HAL_SEND_ADDBA_REQ              (SIR_HAL_ITC_MSG_TYPES_BEGIN + 398)
 #define SIR_HAL_GET_ROAM_SCAN_STATS         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 399)
 #define SIR_HAL_SEND_BCN_RSP                (SIR_HAL_ITC_MSG_TYPES_BEGIN + 401)
-
+#define SIR_HAL_BEACON_DEBUG_STATS_REQ       (SIR_HAL_ITC_MSG_TYPES_BEGIN + 403)
 #define SIR_HAL_MSG_TYPES_END               (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 
 /* CFG message types */
