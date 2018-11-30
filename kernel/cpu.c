@@ -2274,6 +2274,21 @@ EXPORT_SYMBOL(__cpu_active_mask);
 struct cpumask __cpu_isolated_mask __read_mostly;
 EXPORT_SYMBOL(__cpu_isolated_mask);
 
+/*
+ * This assumes that half of the CPUs are little and that they have lower
+ * CPU numbers than the big CPUs (e.g., on an 8-core system, CPUs 0-3 would be
+ * little and CPUs 4-7 would be big).
+ */
+#define LITTLE_CPU_MASK ((1UL << (NR_CPUS / 2)) - 1)
+#define BIG_CPU_MASK    (((1UL << NR_CPUS) - 1) & ~LITTLE_CPU_MASK)
+static const unsigned long little_cluster_cpus = LITTLE_CPU_MASK;
+const struct cpumask *const cpu_lp_mask = to_cpumask(&little_cluster_cpus);
+EXPORT_SYMBOL(cpu_lp_mask);
+
+static const unsigned long big_cluster_cpus = BIG_CPU_MASK;
+const struct cpumask *const cpu_perf_mask = to_cpumask(&big_cluster_cpus);
+EXPORT_SYMBOL(cpu_perf_mask);
+
 void init_cpu_present(const struct cpumask *src)
 {
 	cpumask_copy(&__cpu_present_mask, src);
