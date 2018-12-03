@@ -690,6 +690,7 @@ static void lim_register_debug_callback(void)
 {
 }
 #endif /* WLAN_FEATURE_MEMDUMP_ENABLE */
+#ifdef WLAN_FEATURE_NAN_CONVERGENCE
 static void lim_nan_register_callbacks(tpAniSirGlobal mac_ctx)
 {
 	struct nan_callbacks cb_obj = {0};
@@ -700,6 +701,7 @@ static void lim_nan_register_callbacks(tpAniSirGlobal mac_ctx)
 
 	ucfg_nan_register_lim_callbacks(mac_ctx->psoc, &cb_obj);
 }
+#endif
 
 /*
  * pe_shutdown_notifier_cb - Shutdown notifier callback
@@ -908,7 +910,9 @@ QDF_STATUS pe_open(tpAniSirGlobal pMac, struct cds_config_info *cds_cfg)
 	MTRACE(lim_trace_init(pMac));
 #endif
 	lim_register_debug_callback();
+#ifdef WLAN_FEATURE_NAN_CONVERGENCE
 	lim_nan_register_callbacks(pMac);
+#endif
 	p2p_register_callbacks(pMac);
 	lim_register_sap_bcn_callback(pMac);
 
@@ -1131,9 +1135,11 @@ static QDF_STATUS pe_drop_pending_rx_mgmt_frames(tpAniSirGlobal mac_ctx,
 	qdf_spin_unlock(&mac_ctx->sys.bbt_mgmt_lock);
 	if (mac_ctx->sys.sys_bbt_pending_mgmt_count ==
 	    (MGMT_RX_PACKETS_THRESHOLD / 4)) {
+#ifdef WLAN_DEBUG
 		if (!(mac_ctx->rx_packet_drop_counter % 100))
 			pe_debug("No.of pending RX management frames reaches to 1/4th of threshold, rx_packet_drop_counter: %d",
 				mac_ctx->rx_packet_drop_counter);
+#endif
 			mac_ctx->rx_packet_drop_counter++;
 	}
 	return QDF_STATUS_SUCCESS;
@@ -1791,8 +1797,6 @@ lim_detect_change_in_ap_capabilities(tpAniSirGlobal pMac,
 	       SIR_MAC_GET_ESS(psessionEntry->limCurrentBssCaps)) ||
 	      (SIR_MAC_GET_PRIVACY(apNewCaps.capabilityInfo) !=
 	       SIR_MAC_GET_PRIVACY(psessionEntry->limCurrentBssCaps)) ||
-	      (SIR_MAC_GET_SHORT_PREAMBLE(apNewCaps.capabilityInfo) !=
-	       SIR_MAC_GET_SHORT_PREAMBLE(psessionEntry->limCurrentBssCaps)) ||
 	      (SIR_MAC_GET_QOS(apNewCaps.capabilityInfo) !=
 	       SIR_MAC_GET_QOS(psessionEntry->limCurrentBssCaps)) ||
 	      ((newChannel != psessionEntry->currentOperChannel) &&

@@ -1429,6 +1429,10 @@ static const struct nl80211_vendor_cmd_info wlan_hdd_cfg80211_vendor_events[] = 
 		.vendor_id = QCA_NL80211_VENDOR_ID,
 		.subcmd = QCA_NL80211_VENDOR_SUBCMD_WLAN_MAC_INFO,
 	},
+	[QCA_NL80211_VENDOR_SUBCMD_THROUGHPUT_CHANGE_EVENT_INDEX] = {
+		.vendor_id = QCA_NL80211_VENDOR_ID,
+		.subcmd = QCA_NL80211_VENDOR_SUBCMD_THROUGHPUT_CHANGE_EVENT,
+	},
 #ifdef WLAN_UMAC_CONVERGENCE
 	COMMON_VENDOR_EVENTS
 #endif
@@ -2480,7 +2484,8 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	wlan_hdd_undo_acs(adapter);
 
 	qdf_mem_zero(&sap_config->acs_cfg, sizeof(struct sap_acs_cfg));
-
+	sap_config->acs_cfg.dfs_master_mode =
+			hdd_ctx->config->enableDFSMasterCap;
 	hdd_debug("channel width =%d", ch_width);
 	if (ch_width == 160)
 		sap_config->acs_cfg.ch_width = CH_WIDTH_160MHZ;
@@ -2648,13 +2653,13 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 	conc_channel = policy_mgr_mode_specific_get_channel(hdd_ctx->psoc,
 							    PM_STA_MODE);
-	if (hdd_ctx->config->external_acs_policy ==
-	    HDD_EXTERNAL_ACS_PCL_MANDATORY) {
+	if ((hdd_ctx->config->external_acs_policy ==
+	    HDD_EXTERNAL_ACS_PCL_MANDATORY) && conc_channel) {
 		if ((conc_channel >= WLAN_REG_CH_NUM(CHAN_ENUM_36) &&
 		     sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211A) ||
 		     (conc_channel <= WLAN_REG_CH_NUM(CHAN_ENUM_14) &&
 		      (sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211B ||
-		       sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211A))) {
+		       sap_config->acs_cfg.band == QCA_ACS_MODE_IEEE80211G))) {
 			sap_config->acs_cfg.pri_ch = conc_channel;
 			wlan_sap_set_sap_ctx_acs_cfg(
 				WLAN_HDD_GET_SAP_CTX_PTR(adapter), sap_config);
@@ -4208,7 +4213,9 @@ static int __wlan_hdd_cfg80211_disable_dfs_chan_scan(struct wiphy *wiphy,
 						     const void *data,
 						     int data_len)
 {
+#ifdef WLAN_DEBUG
 	struct net_device *dev = wdev->netdev;
+#endif
 	struct hdd_context *hdd_ctx  = wiphy_priv(wiphy);
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_SET_NO_DFS_FLAG_MAX + 1];
 	int ret_val;
@@ -16159,14 +16166,15 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 					type);
 			if (status) {
 				hdd_err("Failed to change iface to new mode:%d status %d",
-						type, status);
-				return status;
+					type, status);
+				goto err;
 			}
 			if (iff_up) {
 				if (hdd_start_adapter(adapter)) {
 					hdd_err("Failed to start adapter: %d",
 						adapter->device_mode);
-					return -EINVAL;
+					status = -EINVAL;
+					goto err;
 				}
 			}
 			goto done;
@@ -16223,7 +16231,8 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 				if (hdd_start_adapter(adapter)) {
 					hdd_err("Failed to start adapter: %d",
 						adapter->device_mode);
-					return -EINVAL;
+					status = -EINVAL;
+					goto err;
 				}
 			}
 			/* Interface type changed update in wiphy structure */
@@ -16231,14 +16240,16 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 				wdev->iftype = type;
 			} else {
 				hdd_err("Wireless dev is NULL");
-				return -EINVAL;
+				status = -EINVAL;
+				goto err;
 			}
 			goto done;
 		}
 
 		default:
 			hdd_err("Unsupported interface type: %d", type);
-			return -EOPNOTSUPP;
+			status = -EOPNOTSUPP;
+			goto err;
 		}
 	} else if ((adapter->device_mode == QDF_SAP_MODE) ||
 		   (adapter->device_mode == QDF_P2P_GO_MODE)) {
@@ -16248,14 +16259,17 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 		case NL80211_IFTYPE_ADHOC:
 			status = wlan_hdd_change_client_iface_to_new_mode(ndev,
 					type);
-			if (status != QDF_STATUS_SUCCESS)
-				return status;
-
+			if (status) {
+				hdd_err("Failed change iface to new mode:%d status %d",
+					type, status);
+				goto err;
+			}
 			if (iff_up) {
 				if (hdd_start_adapter(adapter)) {
 					hdd_err("Failed to start adapter: %d",
 						adapter->device_mode);
-					return -EINVAL;
+					status = -EINVAL;
+					goto err;
 				}
 			}
 			goto done;
@@ -16269,22 +16283,24 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 
 		default:
 			hdd_err("Unsupported interface type: %d", type);
-			return -EOPNOTSUPP;
+			status = -EOPNOTSUPP;
+			goto err;
 		}
 	} else {
 		hdd_err("Unsupported device mode: %d",
 		       adapter->device_mode);
-		return -EOPNOTSUPP;
+		status = -EOPNOTSUPP;
+		goto err;
 	}
 done:
+	hdd_lpass_notify_mode_change(adapter);
+err:
 	/* Set bitmask based on updated value */
 	policy_mgr_set_concurrency_mode(hdd_ctx->psoc,
 		adapter->device_mode);
 
-	hdd_lpass_notify_mode_change(adapter);
-
 	hdd_exit();
-	return 0;
+	return status;
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
@@ -19852,6 +19868,7 @@ disconnected:
  * Return: string conversion of reason code, if match found;
  *         "Unknown" otherwise.
  */
+#ifdef WLAN_DEBUG
 static const char *hdd_ieee80211_reason_code_to_str(uint16_t reason)
 {
 	switch (reason) {
@@ -19906,6 +19923,7 @@ static const char *hdd_ieee80211_reason_code_to_str(uint16_t reason)
 		return "Unknown";
 	}
 }
+#endif
 
 /**
  * hdd_print_netdev_txq_status() - print netdev tx queue status
@@ -19923,7 +19941,9 @@ static void hdd_print_netdev_txq_status(struct net_device *dev)
 		return;
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
+#ifdef WLAN_DEBUG
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+#endif
 
 		hdd_debug("netdev tx queue[%u] state: 0x%lx", i, txq->state);
 	}
@@ -20743,8 +20763,6 @@ int __wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 						goto fn_end;
 
 					qdf_event_reset(&hapd_state->qdf_sta_disassoc_event);
-					hdd_softap_sta_disassoc(adapter,
-								pDelStaParams);
 					qdf_status =
 						hdd_softap_sta_deauth(adapter,
 							pDelStaParams);

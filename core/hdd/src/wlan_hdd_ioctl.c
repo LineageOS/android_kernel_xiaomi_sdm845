@@ -35,6 +35,7 @@
 #include <linux/ctype.h>
 #include "wma.h"
 #include "wlan_hdd_napi.h"
+#include "wlan_mlme_ucfg_api.h"
 
 #ifdef FEATURE_WLAN_ESE
 #include <sme_api.h>
@@ -6641,6 +6642,82 @@ wlan_hdd_soc_set_antenna_mode_cb(enum set_antenna_mode_status status,
 	osif_request_put(request);
 }
 
+static QDF_STATUS
+hdd_populate_vdev_chains(struct mlme_nss_chains *nss_chains_cfg,
+			 uint8_t tx_chains,
+			 uint8_t rx_chains,
+			 enum nss_chains_band_info band,
+			 struct wlan_objmgr_vdev *vdev)
+{
+	struct mlme_nss_chains *dynamic_cfg;
+
+	nss_chains_cfg->num_rx_chains[band] = rx_chains;
+	nss_chains_cfg->num_tx_chains[band] = tx_chains;
+
+	dynamic_cfg = ucfg_mlme_get_dynamic_vdev_config(vdev);
+
+	if (!dynamic_cfg) {
+		hdd_err("nss chain dynamic config NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	/*
+	 * If user gives any nss value, then chains will be adjusted based on
+	 * nss (in SME func sme_validate_user_nss_chain_params).
+	 * If Chains are not suitable as per current NSS then, we need to
+	 * return, and the below logic is added for the same.
+	 */
+
+	if ((dynamic_cfg->rx_nss[band] > rx_chains) ||
+	    (dynamic_cfg->tx_nss[band] > tx_chains)) {
+		hdd_err("Chains less than nss, configure correct nss first.");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+static int
+hdd_set_dynamic_antenna_mode(struct hdd_adapter *adapter,
+			     uint8_t num_rx_chains,
+			     uint8_t num_tx_chains)
+{
+	enum nss_chains_band_info band;
+	struct mlme_nss_chains user_cfg;
+	QDF_STATUS status;
+	mac_handle_t mac_handle;
+	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	mac_handle = hdd_ctx->mac_handle;
+	if (!mac_handle) {
+		hdd_err("NULL MAC handle");
+		return -EINVAL;
+	}
+
+	if (!hdd_is_vdev_in_conn_state(adapter)) {
+		hdd_debug("Vdev (id %d) not in connected/started state, cannot accept command",
+			  adapter->session_id);
+		return -EINVAL;
+	}
+
+	qdf_mem_zero(&user_cfg, sizeof(user_cfg));
+	for (band = NSS_CHAINS_BAND_2GHZ; band < NSS_CHAINS_BAND_MAX; band++) {
+		status = hdd_populate_vdev_chains(&user_cfg,
+						  num_rx_chains,
+						  num_tx_chains, band,
+						  adapter->vdev);
+		if (QDF_IS_STATUS_ERROR(status))
+			return -EINVAL;
+	}
+	status = sme_nss_chains_update(mac_handle,
+				       &user_cfg,
+				       adapter->session_id);
+	if (QDF_IS_STATUS_ERROR(status))
+		return -EINVAL;
+
+	return 0;
+}
+
 int hdd_set_antenna_mode(struct hdd_adapter *adapter,
 				  struct hdd_context *hdd_ctx, int mode)
 {
@@ -6654,24 +6731,6 @@ int hdd_set_antenna_mode(struct hdd_adapter *adapter,
 		.timeout_ms = WLAN_WAIT_TIME_ANTENNA_MODE_REQ,
 	};
 
-	if (hdd_ctx->current_antenna_mode == mode) {
-		hdd_err("System already in the requested mode");
-		goto exit;
-	}
-
-	if ((HDD_ANTENNA_MODE_2X2 == mode) &&
-	    (!hdd_is_supported_chain_mask_2x2(hdd_ctx))) {
-		hdd_err("System does not support 2x2 mode");
-		ret = -EPERM;
-		goto exit;
-	}
-
-	if ((HDD_ANTENNA_MODE_1X1 == mode) &&
-	    hdd_is_supported_chain_mask_1x1(hdd_ctx)) {
-		hdd_err("System only supports 1x1 mode");
-		goto exit;
-	}
-
 	switch (mode) {
 	case HDD_ANTENNA_MODE_1X1:
 		params.num_rx_chains = 1;
@@ -6684,6 +6743,29 @@ int hdd_set_antenna_mode(struct hdd_adapter *adapter,
 	default:
 		hdd_err("unsupported antenna mode");
 		ret = -EINVAL;
+		goto exit;
+	}
+
+	if (hdd_ctx->dynamic_nss_chains_support)
+		return hdd_set_dynamic_antenna_mode(adapter,
+						    params.num_rx_chains,
+						    params.num_tx_chains);
+
+	if (hdd_ctx->current_antenna_mode == mode) {
+		hdd_err("System already in the requested mode");
+		return 0;
+	}
+
+	if ((HDD_ANTENNA_MODE_2X2 == mode) &&
+	    (!hdd_is_supported_chain_mask_2x2(hdd_ctx))) {
+		hdd_err("System does not support 2x2 mode");
+		ret = -EPERM;
+		goto exit;
+	}
+
+	if ((HDD_ANTENNA_MODE_1X1 == mode) &&
+	    hdd_is_supported_chain_mask_1x1(hdd_ctx)) {
+		hdd_err("System only supports 1x1 mode");
 		goto exit;
 	}
 
@@ -6765,6 +6847,40 @@ static int drv_cmd_set_antenna_mode(struct hdd_adapter *adapter,
 }
 
 /**
+ * hdd_get_dynamic_antenna_mode() -get the dynamic antenna mode for vdev
+ * @antenna_mode: pointer to antenna mode of vdev
+ * @dynamic_nss_chains_support: feature support for dynamic nss chains update
+ * @vdev: Pointer to vdev
+ *
+ * This API will check for the num of chains configured for the vdev, and fill
+ * that info in the antenna mode if the dynamic chains per vdev are supported.
+ *
+ * Return: None
+ */
+static void
+hdd_get_dynamic_antenna_mode(uint32_t *antenna_mode,
+			     bool dynamic_nss_chains_support,
+			     struct wlan_objmgr_vdev *vdev)
+{
+	struct mlme_nss_chains *nss_chains_dynamic_cfg;
+
+	if (!dynamic_nss_chains_support)
+		return;
+
+	nss_chains_dynamic_cfg = ucfg_mlme_get_dynamic_vdev_config(vdev);
+	if (!nss_chains_dynamic_cfg) {
+		hdd_err("nss chain dynamic config NULL");
+		return;
+	}
+	/*
+	 * At present, this command doesn't include band, so by default
+	 * it will return the band 2ghz present rf chains.
+	 */
+	*antenna_mode =
+		nss_chains_dynamic_cfg->num_rx_chains[NSS_CHAINS_BAND_2GHZ];
+}
+
+/**
  * drv_cmd_get_antenna_mode() - GET ANTENNA MODE driver command
  * handler
  * @adapter: Pointer to hdd adapter
@@ -6786,6 +6902,10 @@ static inline int drv_cmd_get_antenna_mode(struct hdd_adapter *adapter,
 	uint8_t len = 0;
 
 	antenna_mode = hdd_ctx->current_antenna_mode;
+	/* Overwrite this antenna mode if dynamic vdev chains are supported */
+	hdd_get_dynamic_antenna_mode(&antenna_mode,
+				     hdd_ctx->dynamic_nss_chains_support,
+				     adapter->vdev);
 	len = scnprintf(extra, sizeof(extra), "%s %d", command,
 			antenna_mode);
 	len = QDF_MIN(priv_data->total_len, len + 1);

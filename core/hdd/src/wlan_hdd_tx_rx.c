@@ -1158,13 +1158,12 @@ static void __hdd_tx_timeout(struct net_device *dev)
 
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		txq = netdev_get_tx_queue(dev, i);
-		QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_DEBUG,
-			  "Queue: %d status: %d txq->trans_start: %lu",
-			   i, netif_tx_queue_stopped(txq), txq->trans_start);
+		hdd_info("Queue: %d status: %d txq->trans_start: %lu",
+			 i, netif_tx_queue_stopped(txq), txq->trans_start);
 	}
 
-	QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_DEBUG,
-		  "carrier state: %d", netif_carrier_ok(dev));
+	hdd_info("carrier state: %d", netif_carrier_ok(dev));
+
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	wlan_hdd_display_netif_queue_history(hdd_ctx,
 					     QDF_STATS_VERBOSITY_LEVEL_HIGH);
@@ -1459,9 +1458,11 @@ static void hdd_resolve_rx_ol_mode(struct hdd_context *hdd_ctx)
 {
 	if (!(hdd_ctx->config->lro_enable ^
 	    hdd_ctx->config->gro_enable)) {
+#ifdef WLAN_DEBUG
 		hdd_ctx->config->lro_enable && hdd_ctx->config->gro_enable ?
 		hdd_err("Can't enable both LRO and GRO, disabling Rx offload") :
 		hdd_debug("LRO and GRO both are disabled");
+#endif
 		hdd_ctx->ol_enable = 0;
 	} else if (hdd_ctx->config->lro_enable) {
 		hdd_debug("Rx offload LRO is enabled");
@@ -1662,10 +1663,7 @@ void hdd_disable_rx_ol_in_concurrency(bool disable)
 			hdd_info("Enable TCP delack as LRO disabled in concurrency");
 			rx_tp_data.rx_tp_flags = TCP_DEL_ACK_IND;
 			rx_tp_data.level = GET_CUR_RX_LVL(hdd_ctx);
-			wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
-						    WLAN_SVC_WLAN_TP_IND,
-						    &rx_tp_data,
-						    sizeof(rx_tp_data));
+			wlan_hdd_update_tcp_rx_param(hdd_ctx, &rx_tp_data);
 			hdd_ctx->en_tcp_delack_no_lro = 1;
 		}
 		qdf_atomic_set(&hdd_ctx->disable_lro_in_concurrency, 1);
@@ -2518,7 +2516,6 @@ void hdd_reset_tcp_delack(struct hdd_context *hdd_ctx)
 	rx_tp_data.rx_tp_flags |= TCP_DEL_ACK_IND;
 	rx_tp_data.level = next_level;
 	hdd_ctx->rx_high_ind_cnt = 0;
-	wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index, WLAN_SVC_WLAN_TP_IND,
-				    &rx_tp_data, sizeof(rx_tp_data));
+	wlan_hdd_update_tcp_rx_param(hdd_ctx, &rx_tp_data);
 }
 #endif /* MSM_PLATFORM */

@@ -81,6 +81,7 @@ endif
 ifneq ($(CONFIG_MOBILE_ROUTER), y)
 #Flag to enable TDLS feature
 CONFIG_QCOM_TDLS := y
+CONFIG_WLAN_SYSFS := y
 endif
 
 CONFIG_QCACLD_FEATURE_GREEN_AP := y
@@ -563,6 +564,7 @@ ifeq ($(CONFIG_SLUB_DEBUG_ON), y)
 	CONFIG_LEAK_DETECTION := y
 	CONFIG_SCHED_HISTORY_SIZE := 256
 	CONFIG_UNIT_TEST := y
+	CONFIG_DESC_TIMESTAMP_DEBUG_INFO := y
 endif
 
 # enable unit-test suspend for napier builds

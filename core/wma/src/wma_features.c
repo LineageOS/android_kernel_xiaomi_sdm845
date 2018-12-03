@@ -721,6 +721,7 @@ WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
 				else if (bw_val == 40)
 					phymode = MODE_11AC_VHT40_2G;
 				break;
+#if SUPPORT_11AX
 			case WNI_CFG_DOT11_MODE_11AX:
 			case WNI_CFG_DOT11_MODE_11AX_ONLY:
 				if (20 == bw_val)
@@ -728,6 +729,7 @@ WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
 				else if (40 == bw_val)
 					phymode = MODE_11AX_HE40_2G;
 				break;
+#endif
 			default:
 				break;
 			}
@@ -770,6 +772,7 @@ WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
 				else if (chan_width == CH_WIDTH_80P80MHZ)
 					phymode = MODE_11AC_VHT80_80;
 				break;
+#if SUPPORT_11AX
 			case WNI_CFG_DOT11_MODE_11AX:
 			case WNI_CFG_DOT11_MODE_11AX_ONLY:
 				if (20 == bw_val)
@@ -783,6 +786,7 @@ WLAN_PHY_MODE wma_chan_phy_mode(u8 chan, enum phy_ch_width chan_width,
 				else if (CH_WIDTH_80P80MHZ == chan_width)
 					phymode = MODE_11AX_HE80_80;
 				break;
+#endif
 			default:
 				break;
 			}
@@ -1552,6 +1556,7 @@ QDF_STATUS wma_pktlog_wmi_send_cmd(WMA_HANDLE handle,
  *
  * Return: reason code in string format
  */
+#ifdef WLAN_DEBUG
 static const u8 *wma_wow_wake_reason_str(A_INT32 wake_reason)
 {
 	switch (wake_reason) {
@@ -1663,6 +1668,7 @@ static const u8 *wma_wow_wake_reason_str(A_INT32 wake_reason)
 		return "unknown";
 	}
 }
+#endif
 
 #ifdef QCA_SUPPORT_CP_STATS
 static bool wma_wow_reason_has_stats(enum wake_reason_e reason)
@@ -2647,6 +2653,7 @@ wma_wake_reason_ap_assoc_lost(t_wma_handle *wma, void *event, uint32_t len)
 	return 0;
 }
 
+#ifdef WLAN_DEBUG
 static const char *wma_vdev_type_str(uint32_t vdev_type)
 {
 	switch (vdev_type) {
@@ -2668,6 +2675,7 @@ static const char *wma_vdev_type_str(uint32_t vdev_type)
 		return "unknown";
 	}
 }
+#endif
 
 static int wma_wake_event_packet(
 	t_wma_handle *wma,
@@ -4252,6 +4260,7 @@ int wma_update_tdls_peer_state(WMA_HANDLE handle,
 	int ret = 0;
 	uint32_t *ch_mhz = NULL;
 	bool restore_last_peer = false;
+	QDF_STATUS qdf_status;
 
 	if (!wma_handle || !wma_handle->wmi_handle) {
 		WMA_LOGE("%s: WMA is closed, can not issue cmd", __func__);
@@ -4339,8 +4348,13 @@ int wma_update_tdls_peer_state(WMA_HANDLE handle,
 			 " vdevId: %d", __func__,
 			 MAC_ADDR_ARRAY(peer_mac_addr),
 			 peerStateParams->vdevId);
-		wma_remove_peer(wma_handle, peer_mac_addr,
+		qdf_status = wma_remove_peer(wma_handle, peer_mac_addr,
 				peerStateParams->vdevId, peer, false);
+		if (QDF_IS_STATUS_ERROR(qdf_status)) {
+			WMA_LOGE(FL("wma_remove_peer failed"));
+			ret = -EINVAL;
+			goto end_tdls_peer_state;
+		}
 		cdp_peer_update_last_real_peer(soc,
 				pdev, peer, &peer_id,
 				restore_last_peer);
@@ -4659,7 +4673,7 @@ int wma_apf_read_work_memory_event_handler(void *handle, uint8_t *evt_buf,
 	QDF_STATUS status;
 	tpAniSirGlobal pmac = cds_get_context(QDF_MODULE_ID_PE);
 
-	WMA_LOGI(FL("handle:%pK event:%pK len:%u"), handle, evt_buf, len);
+	WMA_LOGD(FL("handle:%pK event:%pK len:%u"), handle, evt_buf, len);
 
 	wma_handle = handle;
 	if (!wma_handle) {

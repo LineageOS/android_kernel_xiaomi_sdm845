@@ -60,6 +60,7 @@
 #include "wlan_utility.h"
 #include "wlan_p2p_ucfg_api.h"
 #include "wlan_ipa_ucfg_api.h"
+#include "wlan_hdd_scan.h"
 
 #include "wlan_hdd_nud_tracking.h"
 /* These are needed to recognize WPA and RSN suite types */
@@ -2064,7 +2065,9 @@ QDF_STATUS hdd_roam_register_sta(struct hdd_adapter *adapter,
 {
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	struct ol_txrx_desc_type staDesc = { 0 };
+#ifdef WLAN_DEBUG
 	struct hdd_station_ctx *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+#endif
 	struct ol_txrx_ops txrx_ops;
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 	void *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
@@ -2735,6 +2738,12 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 		hdd_err("config is NULL");
 		return QDF_STATUS_E_NULL_VALUE;
 	}
+
+	/*
+	 * reset scan reject params if connection is success or we received
+	 * final failure from CSR after trying with all APs.
+	 */
+	hdd_reset_scan_reject_params(hdd_ctx, roamStatus, roamResult);
 
 	/*
 	 * Enable roaming on other STA iface except this one.

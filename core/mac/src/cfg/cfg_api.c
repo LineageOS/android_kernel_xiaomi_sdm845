@@ -269,8 +269,10 @@ QDF_STATUS cfg_set_int(tpAniSirGlobal pMac, uint16_t cfgId, uint32_t value)
 		control = pMac->cfg.gCfgEntry[cfgId].control;
 		/* Update hardware if necessary */
 		mask = control & CFG_CTL_NTF_MASK;
+#ifdef WLAN_DEBUG
 		if ((mask & CFG_CTL_NTF_HW) != 0)
 			pe_debug("CFG notify HW not supported!!!");
+#endif
 			/* notify other modules if necessary */
 			if ((mask & CFG_CTL_NTF_MASK) != 0)
 				notify(pMac, cfgId, mask);

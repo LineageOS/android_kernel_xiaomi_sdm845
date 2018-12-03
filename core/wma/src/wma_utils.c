@@ -57,8 +57,10 @@
 #include "wmi_unified_param.h"
 #include "linux/ieee80211.h"
 #include <cdp_txrx_handle.h>
+#include <cdp_txrx_peer_ops.h>
 #include "cds_reg_service.h"
 #include "target_if.h"
+#include "wlan_mlme_main.h"
 
 /* MCS Based rate table */
 /* HT MCS parameters with Nss = 1 */
@@ -3722,18 +3724,30 @@ WLAN_PHY_MODE wma_peer_phymode(tSirNwType nw_type, uint8_t sta_type,
 		}
 		if (CH_WIDTH_40MHZ < ch_width)
 			WMA_LOGE("80/160 MHz BW sent in 11G, configured 40MHz");
-		if (ch_width)
+		if (ch_width) {
+#if SUPPORT_11AX
 			phymode = (is_he) ? MODE_11AX_HE40_2G : (is_vht) ?
 					MODE_11AC_VHT40_2G : MODE_11NG_HT40;
-		else
+#else
+			phymode = (is_vht) ? MODE_11AC_VHT40_2G :
+				MODE_11NG_HT40;
+#endif
+		} else {
+#if SUPPORT_11AX
 			phymode = (is_he) ? MODE_11AX_HE20_2G : (is_vht) ?
 					MODE_11AC_VHT20_2G : MODE_11NG_HT20;
+#else
+			phymode = (is_vht) ? MODE_11AC_VHT20_2G :
+				MODE_11NG_HT20;
+#endif
+		}
 		break;
 	case eSIR_11A_NW_TYPE:
 		if (!(is_ht || is_vht || is_he)) {
 			phymode = MODE_11A;
 			break;
 		}
+#if SUPPORT_11AX
 		if (is_he) {
 			if (ch_width == CH_WIDTH_160MHZ)
 				phymode = MODE_11AX_HE160;
@@ -3744,7 +3758,9 @@ WLAN_PHY_MODE wma_peer_phymode(tSirNwType nw_type, uint8_t sta_type,
 			else
 				phymode = (ch_width) ?
 					  MODE_11AX_HE40 : MODE_11AX_HE20;
-		} else if (is_vht) {
+		}
+#endif
+		else if (is_vht) {
 			if (ch_width == CH_WIDTH_160MHZ)
 				phymode = MODE_11AC_VHT160;
 			else if (ch_width == CH_WIDTH_80P80MHZ)
@@ -4418,9 +4434,40 @@ QDF_STATUS wma_send_vdev_stop_to_fw(t_wma_handle *wma, uint8_t vdev_id)
 {
 	QDF_STATUS status;
 	struct wma_txrx_node *vdev = &wma->interfaces[vdev_id];
+	struct mlme_nss_chains *ini_cfg;
+	struct mlme_nss_chains *dynamic_cfg;
+	struct wlan_objmgr_vdev *vdev_obj;
+
+	/*
+	 * Reset the dynamic nss chains config to the ini values, as when the
+	 * vdev gets its started again, this would be a fresh connection,
+	 * and we dont want the config of previous connection to affect the
+	 * current connection.
+	 */
+
+	vdev_obj = wlan_objmgr_get_vdev_by_id_from_psoc(wma->psoc, vdev_id,
+							WLAN_LEGACY_WMA_ID);
+	if (!vdev_obj) {
+		WMA_LOGE("%s, vdev_id: %d, failed to get vdev from psoc",
+			 __func__, vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	ini_cfg = mlme_get_ini_vdev_config(vdev_obj);
+	dynamic_cfg = mlme_get_dynamic_vdev_config(vdev_obj);
+
+	if (!dynamic_cfg || !ini_cfg) {
+		wma_err("nss chain dynamic/ini config NULL");
+		goto get_config_failed;
+	}
+	*dynamic_cfg = *ini_cfg;
+
+get_config_failed:
+	wlan_objmgr_vdev_release_ref(vdev_obj, WLAN_LEGACY_WMA_ID);
 
 	wma_acquire_wakelock(&vdev->vdev_stop_wakelock,
 			     WMA_VDEV_STOP_REQUEST_TIMEOUT);
+
 	status = wmi_unified_vdev_stop_send(wma->wmi_handle, vdev_id);
 	if (QDF_IS_STATUS_ERROR(status))
 		wma_release_wakelock(&vdev->vdev_stop_wakelock);
@@ -4763,4 +4810,37 @@ QDF_STATUS wma_get_roam_scan_stats(WMA_HANDLE handle,
 	WMA_LOGD("%s: Exit", __func__);
 
 	return QDF_STATUS_SUCCESS;
+}
+
+void wma_remove_peer_on_add_bss_failure(tpAddBssParams add_bss_params)
+{
+	tp_wma_handle wma;
+	struct cdp_pdev *pdev;
+	void *peer = NULL;
+	uint8_t peer_id;
+	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+
+	WMA_LOGE("%s: ADD BSS failure %d", __func__, add_bss_params->status);
+
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev) {
+		WMA_LOGE("%s: Failed to get pdev", __func__);
+		return;
+	}
+
+	peer = cdp_peer_find_by_addr(soc, pdev, add_bss_params->bssId,
+				     &peer_id);
+	if (!peer) {
+		WMA_LOGE("%s Failed to find peer %pM",
+			 __func__, add_bss_params->bssId);
+		return;
+	}
+
+	wma = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma) {
+		WMA_LOGE("%s wma handle is NULL", __func__);
+		return;
+	}
+	wma_remove_peer(wma, add_bss_params->bssId, add_bss_params->bssIdx,
+			peer, false);
 }

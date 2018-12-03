@@ -4196,6 +4196,7 @@ static void csr_roam_populate_channels(tDot11fBeaconIEs *beacon_ies,
 }
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
+#ifdef WLAN_DEBUG
 static const char *csr_get_ch_width_str(uint8_t ch_width)
 {
 	switch (ch_width) {
@@ -4262,6 +4263,7 @@ static const char *csr_get_encr_type_str(uint8_t encr_type)
 		return "Unknown";
 	}
 }
+#endif
 
 static void csr_dump_connection_stats(tpAniSirGlobal mac_ctx,
 		struct csr_roam_session *session,
@@ -7280,19 +7282,12 @@ static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
 		break;
 	case eCsrForcedDisassoc:
 	case eCsrForcedDeauth:
-	case eCsrSmeIssuedIbssJoinFailure:
 		csr_roam_state_change(mac_ctx, eCSR_ROAMING_STATE_IDLE,
 			session_id);
-
-		if (eCsrSmeIssuedIbssJoinFailure == cmd->u.roamCmd.roamReason)
-			/* notify HDD that IBSS join failed */
-			csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
-				eCSR_ROAM_IBSS_IND,
-				eCSR_ROAM_RESULT_IBSS_JOIN_FAILED);
-		else
-			csr_roam_call_callback(mac_ctx, session_id, NULL,
-				cmd->u.roamCmd.roamId, eCSR_ROAM_DISASSOCIATED,
-				eCSR_ROAM_RESULT_FORCED);
+		csr_roam_call_callback(
+			mac_ctx, session_id, NULL,
+			cmd->u.roamCmd.roamId, eCSR_ROAM_DISASSOCIATED,
+			eCSR_ROAM_RESULT_FORCED);
 #ifndef WLAN_MDM_CODE_REDUCTION_OPT
 		sme_qos_csr_event_ind(mac_ctx, (uint8_t) session_id,
 				SME_QOS_CSR_DISCONNECT_IND,
@@ -9446,10 +9441,6 @@ QDF_STATUS csr_roam_issue_disassociate_cmd(tpAniSirGlobal pMac,
 			break;
 		case eCSR_DISCONNECT_REASON_ROAM_HO_FAIL:
 			pCommand->u.roamCmd.roamReason = eCsrForcedDisassoc;
-			break;
-		case eCSR_DISCONNECT_REASON_IBSS_JOIN_FAILURE:
-			pCommand->u.roamCmd.roamReason =
-				eCsrSmeIssuedIbssJoinFailure;
 			break;
 		case eCSR_DISCONNECT_REASON_IBSS_LEAVE:
 			pCommand->u.roamCmd.roamReason = eCsrForcedIbssLeave;
@@ -12054,6 +12045,7 @@ csr_roam_chk_lnk_swt_ch_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 {
 	struct csr_roam_session *session;
 	uint32_t sessionId = CSR_SESSION_ID_INVALID;
+	uint16_t ie_len;
 	QDF_STATUS status;
 	tpSirSmeSwitchChannelInd pSwitchChnInd;
 	struct csr_roam_info roamInfo;
@@ -12068,63 +12060,62 @@ csr_roam_chk_lnk_swt_ch_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 	 */
 	status = csr_roam_get_session_id_from_bssid(mac_ctx,
 			&pSwitchChnInd->bssid, &sessionId);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		session = CSR_GET_SESSION(mac_ctx, sessionId);
-		if (!session) {
-			sme_err("session %d not found", sessionId);
-			return;
-		}
-		session->connectedProfile.operationChannel =
-			(uint8_t) pSwitchChnInd->newChannelId;
-		if (session->pConnectBssDesc) {
-			session->pConnectBssDesc->channelId =
-				(uint8_t) pSwitchChnInd->newChannelId;
-		}
+	if (QDF_IS_STATUS_ERROR(status))
+		return;
 
+	session = CSR_GET_SESSION(mac_ctx, sessionId);
+	if (!session) {
+		sme_err("session %d not found", sessionId);
+		return;
+	}
+	session->connectedProfile.operationChannel =
+			(uint8_t) pSwitchChnInd->newChannelId;
+	if (session->pConnectBssDesc) {
+		session->pConnectBssDesc->channelId =
+				(uint8_t) pSwitchChnInd->newChannelId;
+
+		ie_len = csr_get_ielen_from_bss_description(
+						session->pConnectBssDesc);
 		ds_params_ie = (tSirMacDsParamSetIE *)wlan_get_ie_ptr_from_eid(
-					DOT11F_EID_DSPARAMS,
-					(uint8_t *)session->pConnectBssDesc->
-						ieFields,
-					csr_get_ielen_from_bss_description(
-						session->pConnectBssDesc));
+				DOT11F_EID_DSPARAMS,
+				(uint8_t *)session->pConnectBssDesc->ieFields,
+				ie_len);
 		if (ds_params_ie)
 			ds_params_ie->channelNumber =
 				(uint8_t)pSwitchChnInd->newChannelId;
 
 		ht_info_ie = (tDot11fIEHTInfo *)wlan_get_ie_ptr_from_eid(
-					DOT11F_EID_HTINFO,
-					(uint8_t *)session->pConnectBssDesc->
-						ieFields,
-					csr_get_ielen_from_bss_description(
-						session->pConnectBssDesc));
+				DOT11F_EID_HTINFO,
+				(uint8_t *)session->pConnectBssDesc->ieFields,
+				ie_len);
 		if (ht_info_ie) {
 			ht_info_ie->primaryChannel =
 				(uint8_t)pSwitchChnInd->newChannelId;
 			ht_info_ie->secondaryChannelOffset =
 				pSwitchChnInd->chan_params.sec_ch_offset;
 		}
-
-		qdf_mem_set(&roamInfo, sizeof(struct csr_roam_info), 0);
-		roamInfo.chan_info.chan_id = pSwitchChnInd->newChannelId;
-		roamInfo.chan_info.ch_width =
-				pSwitchChnInd->chan_params.ch_width;
-		roamInfo.chan_info.sec_ch_offset =
-				pSwitchChnInd->chan_params.sec_ch_offset;
-		roamInfo.chan_info.band_center_freq1 =
-				pSwitchChnInd->chan_params.center_freq_seg0;
-		roamInfo.chan_info.band_center_freq2 =
-				pSwitchChnInd->chan_params.center_freq_seg1;
-		if (CSR_IS_PHY_MODE_11ac(mac_ctx->roam.configParam.phyMode))
-			roamInfo.mode = SIR_SME_PHY_MODE_VHT;
-		else if (CSR_IS_PHY_MODE_11n(mac_ctx->roam.configParam.phyMode))
-			roamInfo.mode = SIR_SME_PHY_MODE_HT;
-		else
-			roamInfo.mode = SIR_SME_PHY_MODE_LEGACY;
-
-		status = csr_roam_call_callback(mac_ctx, sessionId,
-				&roamInfo, 0, eCSR_ROAM_STA_CHANNEL_SWITCH,
-				eCSR_ROAM_RESULT_NONE);
 	}
+
+	qdf_mem_set(&roamInfo, sizeof(struct csr_roam_info), 0);
+	roamInfo.chan_info.chan_id = pSwitchChnInd->newChannelId;
+	roamInfo.chan_info.ch_width = pSwitchChnInd->chan_params.ch_width;
+	roamInfo.chan_info.sec_ch_offset =
+				pSwitchChnInd->chan_params.sec_ch_offset;
+	roamInfo.chan_info.band_center_freq1 =
+				pSwitchChnInd->chan_params.center_freq_seg0;
+	roamInfo.chan_info.band_center_freq2 =
+				pSwitchChnInd->chan_params.center_freq_seg1;
+
+	if (CSR_IS_PHY_MODE_11ac(mac_ctx->roam.configParam.phyMode))
+		roamInfo.mode = SIR_SME_PHY_MODE_VHT;
+	else if (CSR_IS_PHY_MODE_11n(mac_ctx->roam.configParam.phyMode))
+		roamInfo.mode = SIR_SME_PHY_MODE_HT;
+	else
+		roamInfo.mode = SIR_SME_PHY_MODE_LEGACY;
+
+	status = csr_roam_call_callback(mac_ctx, sessionId, &roamInfo, 0,
+					eCSR_ROAM_STA_CHANNEL_SWITCH,
+					eCSR_ROAM_RESULT_NONE);
 }
 
 static void
@@ -13139,9 +13130,11 @@ static QDF_STATUS csr_roam_start_wait_for_key_timer(
 		tpAniSirGlobal pMac, uint32_t interval)
 {
 	QDF_STATUS status;
+#ifdef WLAN_DEBUG
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
 		&pMac->roam.neighborRoamInfo[pMac->roam.WaitForKeyTimerInfo.
 					     sessionId];
+#endif
 	if (csr_neighbor_roam_is_handoff_in_progress(pMac,
 				     pMac->roam.WaitForKeyTimerInfo.
 				     sessionId)) {
@@ -13163,9 +13156,11 @@ static QDF_STATUS csr_roam_start_wait_for_key_timer(
 
 QDF_STATUS csr_roam_stop_wait_for_key_timer(tpAniSirGlobal pMac)
 {
+#ifdef WLAN_DEBUG
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
 		&pMac->roam.neighborRoamInfo[pMac->roam.WaitForKeyTimerInfo.
 					     sessionId];
+#endif
 
 	sme_debug("WaitForKey timer stopped in state: %s sub-state: %s",
 		mac_trace_get_neighbour_roam_state(pNeighborRoamInfo->
@@ -20659,9 +20654,6 @@ static enum wlan_serialization_cmd_type csr_get_roam_cmd_type(
 		cmd_type =
 			WLAN_SER_CMD_SME_ISSUE_ASSOC_TO_SIMILAR_AP;
 		break;
-	case eCsrSmeIssuedIbssJoinFailure:
-		cmd_type = WLAN_SER_CMD_SME_ISSUE_IBSS_JOIN_FAIL;
-		break;
 	case eCsrForcedIbssLeave:
 		cmd_type = WLAN_SER_CMD_FORCE_IBSS_LEAVE;
 		break;
@@ -20707,18 +20699,6 @@ enum wlan_serialization_cmd_type csr_get_cmd_type(tSmeCmd *sme_cmd)
 	case eSmeCommandDelTs:
 		cmd_type = WLAN_SER_CMD_DELTS;
 		break;
-	case eSmeCommandTdlsSendMgmt:
-		cmd_type = WLAN_SER_CMD_TDLS_SEND_MGMT;
-		break;
-	case eSmeCommandTdlsAddPeer:
-		cmd_type = WLAN_SER_CMD_TDLS_ADD_PEER;
-		break;
-	case eSmeCommandTdlsDelPeer:
-		cmd_type = WLAN_SER_CMD_TDLS_DEL_PEER;
-		break;
-	case eSmeCommandTdlsLinkEstablish:
-		cmd_type = WLAN_SER_CMD_TDLS_LINK_EST;
-		break;
 	case e_sme_command_set_hw_mode:
 		cmd_type = WLAN_SER_CMD_SET_HW_MODE;
 		break;
@@ -20730,21 +20710,6 @@ enum wlan_serialization_cmd_type csr_get_cmd_type(tSmeCmd *sme_cmd)
 		break;
 	case e_sme_command_set_antenna_mode:
 		cmd_type = WLAN_SER_CMD_SET_ANTENNA_MODE;
-		break;
-	case eSmeCommandEnterBmps:
-		cmd_type = WLAN_SER_CMD_ENTER_BMPS;
-		break;
-	case eSmeCommandExitBmps:
-		cmd_type = WLAN_SER_CMD_EXIT_BMPS;
-		break;
-	case eSmeCommandEnterUapsd:
-		cmd_type = WLAN_SER_CMD_ENTER_UAPSD;
-		break;
-	case eSmeCommandExitUapsd:
-		cmd_type = WLAN_SER_CMD_EXIT_UAPSD;
-		break;
-	case eSmeCommandExitWowl:
-		cmd_type = WLAN_SER_CMD_EXIT_WOWL;
 		break;
 	default:
 		break;

@@ -2025,13 +2025,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_DISABLE_HIGH_HT_RX_MCS_2x2_MIN,
 		     CFG_DISABLE_HIGH_HT_RX_MCS_2x2_MAX),
 
-	REG_VARIABLE(CFG_VDEV_TYPE_NSS_2G, WLAN_PARAM_Integer,
-		     struct hdd_config, vdev_type_nss_2g,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_VDEV_TYPE_NSS_2G_DEFAULT,
-		     CFG_VDEV_TYPE_NSS_2G_MIN,
-		     CFG_VDEV_TYPE_NSS_2G_MAX),
-
 	REG_VARIABLE(CFG_ENABLE_BT_CHAIN_SEPARATION, WLAN_PARAM_Integer,
 		     struct hdd_config, enable_bt_chain_separation,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -2045,13 +2038,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_STA_PREFER_80MHZ_OVER_160MHZ_DEFAULT,
 		     CFG_STA_PREFER_80MHZ_OVER_160MHZ_MIN,
 		     CFG_STA_PREFER_80MHZ_OVER_160MHZ_MAX),
-
-	REG_VARIABLE(CFG_VDEV_TYPE_NSS_5G, WLAN_PARAM_Integer,
-		     struct hdd_config, vdev_type_nss_5g,
-		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_VDEV_TYPE_NSS_5G_DEFAULT,
-		     CFG_VDEV_TYPE_NSS_5G_MIN,
-		     CFG_VDEV_TYPE_NSS_5G_MAX),
 
 	REG_VARIABLE(CFG_VHT_ENABLE_MU_BFORMEE_CAP_FEATURE, WLAN_PARAM_Integer,
 		     struct hdd_config, enableMuBformee,
@@ -3087,6 +3073,12 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_PERIODIC_STATS_DISPLAY_TIME_DEFAULT,
 		     CFG_PERIODIC_STATS_DISPLAY_TIME_MIN,
 		     CFG_PERIODIC_STATS_DISPLAY_TIME_MAX),
+	REG_VARIABLE(CFG_ENABLE_TCP_PARAM_UPDATE, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_tcp_param_update,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_TCP_PARAM_UPDATE_DEFAULT,
+		     CFG_ENABLE_TCP_PARAM_UPDATE_MIN,
+		     CFG_ENABLE_TCP_PARAM_UPDATE_MAX),
 #endif
 
 	REG_VARIABLE(CFG_ENABLE_FW_LOG_TYPE, WLAN_PARAM_Integer,
@@ -3553,6 +3545,111 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ETSI13_SRD_CHAN_IN_MASTER_MODE_DEF,
 		     CFG_ETSI13_SRD_CHAN_IN_MASTER_MODE_MIN,
 		     CFG_ETSI13_SRD_CHAN_IN_MASTER_MODE_MAX),
+
+	REG_VARIABLE(CFG_NUM_TX_CHAINS_2G, WLAN_PARAM_Integer,
+		     struct hdd_config, num_tx_chains_2g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_NUM_TX_CHAINS_2G_DEF,
+		     CFG_NUM_TX_CHAINS_2G_MIN,
+		     CFG_NUM_TX_CHAINS_2G_MAX),
+
+	REG_VARIABLE(CFG_NUM_TX_CHAINS_5G, WLAN_PARAM_Integer,
+		     struct hdd_config, num_tx_chains_5g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_NUM_TX_CHAINS_5G_DEF,
+		     CFG_NUM_TX_CHAINS_5G_MIN,
+		     CFG_NUM_TX_CHAINS_5G_MAX),
+
+	REG_VARIABLE(CFG_NUM_RX_CHAINS_2G, WLAN_PARAM_Integer,
+		     struct hdd_config, num_rx_chains_2g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_NUM_RX_CHAINS_2G_DEF,
+		     CFG_NUM_RX_CHAINS_2G_MIN,
+		     CFG_NUM_RX_CHAINS_2G_MAX),
+
+	REG_VARIABLE(CFG_NUM_RX_CHAINS_5G, WLAN_PARAM_Integer,
+		     struct hdd_config, num_rx_chains_5g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_NUM_RX_CHAINS_5G_DEF,
+		     CFG_NUM_RX_CHAINS_5G_MIN,
+		     CFG_NUM_RX_CHAINS_5G_MAX),
+
+	REG_VARIABLE(CFG_TX_NSS_2G, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_nss_2g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_NSS_2G_DEF,
+		     CFG_TX_NSS_2G_MIN,
+		     CFG_TX_NSS_2G_MAX),
+
+	REG_VARIABLE(CFG_TX_NSS_5G, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_nss_5g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_NSS_5G_DEF,
+		     CFG_TX_NSS_5G_MIN,
+		     CFG_TX_NSS_5G_MAX),
+
+	REG_VARIABLE(CFG_RX_NSS_2G, WLAN_PARAM_Integer,
+		     struct hdd_config, rx_nss_2g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_RX_NSS_2G_DEF,
+		     CFG_RX_NSS_2G_MIN,
+		     CFG_RX_NSS_2G_MAX),
+
+	REG_VARIABLE(CFG_RX_NSS_5G, WLAN_PARAM_Integer,
+		     struct hdd_config, rx_nss_5g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_RX_NSS_5G_DEF,
+		     CFG_RX_NSS_5G_MIN,
+		     CFG_RX_NSS_5G_MAX),
+
+	REG_VARIABLE(CFG_NUM_TX_CHAINS_11b, WLAN_PARAM_Integer,
+		     struct hdd_config, num_tx_chains_11b,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_NUM_TX_CHAINS_11b_DEF,
+		     CFG_NUM_TX_CHAINS_11b_MIN,
+		     CFG_NUM_TX_CHAINS_11b_MAX),
+
+	REG_VARIABLE(CFG_NUM_TX_CHAINS_11g, WLAN_PARAM_Integer,
+		     struct hdd_config, num_tx_chains_11g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_NUM_TX_CHAINS_11g_DEF,
+		     CFG_NUM_TX_CHAINS_11g_MIN,
+		     CFG_NUM_TX_CHAINS_11g_MAX),
+
+	REG_VARIABLE(CFG_NUM_TX_CHAINS_11a, WLAN_PARAM_Integer,
+		     struct hdd_config, num_tx_chains_11a,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_NUM_TX_CHAINS_11a_DEF,
+		     CFG_NUM_TX_CHAINS_11a_MIN,
+		     CFG_NUM_TX_CHAINS_11a_MAX),
+
+	REG_VARIABLE(CFG_DISABLE_TX_MRC_2G, WLAN_PARAM_Integer,
+		     struct hdd_config, disable_tx_mrc_2g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_DISABLE_TX_MRC_2G_DEF,
+		     CFG_DISABLE_TX_MRC_2G_MIN,
+		     CFG_DISABLE_TX_MRC_2G_MAX),
+
+	REG_VARIABLE(CFG_DISABLE_TX_MRC_5G, WLAN_PARAM_Integer,
+		     struct hdd_config, disable_tx_mrc_5g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_DISABLE_TX_MRC_5G_DEF,
+		     CFG_DISABLE_TX_MRC_5G_MIN,
+		     CFG_DISABLE_TX_MRC_5G_MAX),
+
+	REG_VARIABLE(CFG_DISABLE_RX_MRC_2G, WLAN_PARAM_Integer,
+		     struct hdd_config, disable_rx_mrc_2g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_DISABLE_RX_MRC_2G_DEF,
+		     CFG_DISABLE_RX_MRC_2G_MIN,
+		     CFG_DISABLE_RX_MRC_2G_MAX),
+
+	REG_VARIABLE(CFG_DISABLE_RX_MRC_5G, WLAN_PARAM_Integer,
+		     struct hdd_config, disable_rx_mrc_5g,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_DISABLE_RX_MRC_5G_DEF,
+		     CFG_DISABLE_RX_MRC_5G_MIN,
+		     CFG_DISABLE_RX_MRC_5G_MAX),
 
 #ifdef FEATURE_WLAN_EXTSCAN
 	REG_VARIABLE(CFG_EXTSCAN_ALLOWED_NAME, WLAN_PARAM_Integer,
@@ -5945,14 +6042,16 @@ static int parse_hex_digit(char c)
  *
  * 00AA00BB00CC -> 0x00 0xAA 0x00 0xBB 0x00 0xCC
  *
- * Return: None
+ * Return: QDF_STATUS
  */
-static void update_mac_from_string(struct hdd_context *hdd_ctx,
-				   struct hdd_cfg_entry *macTable, int num)
+static QDF_STATUS update_mac_from_string(struct hdd_context *hdd_ctx,
+					 struct hdd_cfg_entry *macTable,
+					 int num)
 {
 	int i = 0, j = 0, res = 0;
 	char *candidate = NULL;
 	struct qdf_mac_addr macaddr[QDF_MAX_CONCURRENCY_PERSONA];
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	memset(macaddr, 0, sizeof(macaddr));
 
@@ -5970,8 +6069,12 @@ static void update_mac_from_string(struct hdd_context *hdd_ctx,
 				     intfMacAddr[i].bytes[0],
 				     (uint8_t *) &macaddr[i].bytes[0],
 				     QDF_MAC_ADDR_SIZE);
+		} else {
+			status = QDF_STATUS_E_FAILURE;
+			break;
 		}
 	}
+	return status;
 }
 
 /**
@@ -6675,7 +6778,9 @@ void hdd_cfg_print_11k_offload_params(struct hdd_context *hdd_ctx)
  */
 static void hdd_cfg_print_action_oui(struct hdd_context *hdd_ctx)
 {
+#ifdef WLAN_DEBUG
 	struct hdd_config *config = hdd_ctx->config;
+#endif
 
 	hdd_debug("Name = [%s] value = [%u]",
 		  CFG_ENABLE_ACTION_OUI,
@@ -7129,6 +7234,9 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] Value = [%u] ",
 		  CFG_PERIODIC_STATS_DISPLAY_TIME_NAME,
 		  hdd_ctx->config->periodic_stats_disp_time);
+	hdd_debug("Name = [%s] Value = [%u] ",
+		  CFG_ENABLE_TCP_PARAM_UPDATE,
+		  hdd_ctx->config->enable_tcp_param_update);
 #endif
 
 	hdd_debug("Name = [gIgnoreCAC] Value = [%u] ",
@@ -7786,7 +7894,7 @@ QDF_STATUS hdd_update_mac_config(struct hdd_context *hdd_ctx)
 		buffer = line;
 	}
 
-	if (i <= QDF_MAX_CONCURRENCY_PERSONA) {
+	if (i != 0 && i <= QDF_MAX_CONCURRENCY_PERSONA) {
 		hdd_debug("%d Mac addresses provided", i);
 	} else {
 		hdd_err("invalid number of Mac address provided, nMac = %d", i);
@@ -7794,7 +7902,11 @@ QDF_STATUS hdd_update_mac_config(struct hdd_context *hdd_ctx)
 		goto config_exit;
 	}
 
-	update_mac_from_string(hdd_ctx, &macTable[0], i);
+	qdf_status = update_mac_from_string(hdd_ctx, &macTable[0], i);
+	if (QDF_IS_STATUS_ERROR(qdf_status)) {
+		hdd_err("Invalid MAC addresses provided");
+		goto config_exit;
+	}
 	hdd_debug("Populating remaining %d Mac addresses",
 		   max_mac_addr - i);
 	hdd_populate_random_mac_addr(hdd_ctx, max_mac_addr - i);
@@ -9635,6 +9747,58 @@ next_token:
 	return 0;
 }
 
+static void
+hdd_populate_vdev_nss(struct mlme_nss_chains *user_cfg,
+		      uint8_t tx_nss,
+		      uint8_t rx_nss,
+		      enum nss_chains_band_info  band)
+{
+	user_cfg->rx_nss[band] = rx_nss;
+	user_cfg->tx_nss[band] = tx_nss;
+}
+
+static QDF_STATUS
+hdd_set_nss_params(struct hdd_adapter *adapter,
+		   uint8_t tx_nss,
+		   uint8_t rx_nss)
+{
+	enum nss_chains_band_info band;
+	struct mlme_nss_chains user_cfg;
+	mac_handle_t mac_handle;
+	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	qdf_mem_zero(&user_cfg, sizeof(user_cfg));
+
+	mac_handle = hdd_ctx->mac_handle;
+	if (!mac_handle) {
+		hdd_err("NULL MAC handle");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!hdd_is_vdev_in_conn_state(adapter)) {
+		hdd_debug("Vdev (id %d) not in connected/started state, cannot accept command",
+				adapter->session_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	for (band = NSS_CHAINS_BAND_2GHZ; band < NSS_CHAINS_BAND_MAX; band++)
+		hdd_populate_vdev_nss(&user_cfg, tx_nss,
+				      rx_nss, band);
+	if (QDF_IS_STATUS_ERROR(
+		sme_nss_chains_update(mac_handle,
+				      &user_cfg,
+				      adapter->session_id)))
+		return QDF_STATUS_E_FAILURE;
+
+	/* Check TDLS status and update antenna mode */
+	if ((adapter->device_mode == QDF_STA_MODE ||
+	     adapter->device_mode == QDF_P2P_CLIENT_MODE) &&
+	     policy_mgr_is_sta_active_connection_exists(hdd_ctx->psoc))
+		wlan_hdd_tdls_antenna_switch(hdd_ctx, adapter, rx_nss);
+
+	return QDF_STATUS_SUCCESS;
+}
+
 /**
  * hdd_update_nss() - Update the number of spatial streams supported.
  * Ensure that nss is either 1 or 2 before calling this.
@@ -9662,11 +9826,30 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 	uint16_t val16;
 	uint8_t enable2x2;
 	mac_handle_t mac_handle;
+	uint8_t tx_nss, rx_nss;
 
 	if ((nss == 2) && (hdd_ctx->num_rf_chains != 2)) {
 		hdd_err("No support for 2 spatial streams");
 		return QDF_STATUS_E_INVAL;
 	}
+
+	if (nss > MAX_VDEV_NSS) {
+		hdd_debug("Cannot support %d nss streams", nss);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	mac_handle = hdd_ctx->mac_handle;
+	if (!mac_handle) {
+		hdd_err("NULL MAC handle");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	/* Till now we dont have support for different rx, tx nss values */
+	tx_nss = nss;
+	rx_nss = nss;
+
+	if (hdd_ctx->dynamic_nss_chains_support)
+		return hdd_set_nss_params(adapter, tx_nss, rx_nss);
 
 	enable2x2 = (nss == 1) ? 0 : 1;
 
@@ -9674,8 +9857,6 @@ QDF_STATUS hdd_update_nss(struct hdd_adapter *adapter, uint8_t nss)
 		hdd_debug("NSS same as requested");
 		return QDF_STATUS_SUCCESS;
 	}
-
-	mac_handle = hdd_ctx->mac_handle;
 	if (sme_is_any_session_in_connected_state(mac_handle)) {
 		hdd_err("Connected sessions present, Do not change NSS");
 		return QDF_STATUS_E_INVAL;

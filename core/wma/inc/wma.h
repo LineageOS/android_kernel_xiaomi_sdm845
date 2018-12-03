@@ -1120,6 +1120,7 @@ struct wma_valid_channels {
  * @bandcapability: band capability configured through ini
  * @tx_bfee_8ss_enabled: Is Tx Beamformee support for 8x8 enabled?
  * @in_imps: Is device in Idle Mode Power Save?
+ * @dynamic_nss_chains_support: per vdev nss, chains update
  * @ito_repeat_count: Indicates ito repeated count
  * @wma_fw_time_sync_timer: timer used for firmware time sync
  * @critical_events_in_flight: number of suspend-preventing events
@@ -1270,6 +1271,7 @@ typedef struct {
 	uint8_t bandcapability;
 	bool tx_bfee_8ss_enabled;
 	bool in_imps;
+	bool dynamic_nss_chains_support;
 	uint8_t  ito_repeat_count;
 	qdf_mc_timer_t wma_fw_time_sync_timer;
 	qdf_atomic_t critical_events_in_flight;
@@ -1900,6 +1902,19 @@ wma_set_apf_instructions(tp_wma_handle wma,
 }
 #endif /* FEATURE_WLAN_APF */
 
+/**
+ * wma_vdev_nss_chain_params_send() - send vdev nss chain params to fw.
+ * @vdev_id: vdev_id
+ * @user_cfg: pointer to the params structure
+ *
+ * This function sends nss chain params to the fw
+ *
+ * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_FAILURE on error
+ */
+QDF_STATUS
+wma_vdev_nss_chain_params_send(uint8_t vdev_id,
+			       struct mlme_nss_chains *user_cfg);
+
 void wma_process_set_pdev_ie_req(tp_wma_handle wma,
 		struct set_ie_param *ie_params);
 void wma_process_set_pdev_ht_ie_req(tp_wma_handle wma,
@@ -1907,9 +1922,9 @@ void wma_process_set_pdev_ht_ie_req(tp_wma_handle wma,
 void wma_process_set_pdev_vht_ie_req(tp_wma_handle wma,
 		struct set_ie_param *ie_params);
 
-void wma_remove_peer(tp_wma_handle wma, u_int8_t *bssid,
-			u_int8_t vdev_id, void *peer,
-			bool roam_synch_in_progress);
+QDF_STATUS wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
+			   uint8_t vdev_id, void *peer,
+			   bool roam_synch_in_progress);
 
 QDF_STATUS wma_create_peer(tp_wma_handle wma, struct cdp_pdev *pdev,
 			    struct cdp_vdev *vdev, u8 peer_addr[6],

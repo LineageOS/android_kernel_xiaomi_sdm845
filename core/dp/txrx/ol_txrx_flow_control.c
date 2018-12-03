@@ -270,6 +270,7 @@ QDF_STATUS ol_tx_dec_pool_ref(struct ol_tx_flow_pool_t *pool, bool force)
  *
  * Returns: String corresponding to flow pool status
  */
+#ifdef WLAN_DEBUG
 static const char *ol_tx_flow_pool_status_to_str
 					(enum flow_pool_status status)
 {
@@ -283,6 +284,7 @@ static const char *ol_tx_flow_pool_status_to_str
 		return "unknown";
 	}
 }
+#endif
 
 /**
  * ol_tx_dump_flow_pool_info() - dump global_pool and flow_pool info

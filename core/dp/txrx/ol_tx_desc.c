@@ -80,6 +80,19 @@ static inline void ol_tx_desc_reset_timestamp(struct ol_tx_desc_t *tx_desc)
 }
 #endif
 
+#ifdef DESC_TIMESTAMP_DEBUG_INFO
+static inline void ol_tx_desc_update_tx_ts(struct ol_tx_desc_t *tx_desc)
+{
+	tx_desc->desc_debug_info.prev_tx_ts = tx_desc
+						->desc_debug_info.curr_tx_ts;
+	tx_desc->desc_debug_info.curr_tx_ts = qdf_get_log_timestamp();
+}
+#else
+static inline void ol_tx_desc_update_tx_ts(struct ol_tx_desc_t *tx_desc)
+{
+}
+#endif
+
 /**
  * ol_tx_desc_vdev_update() - vedv assign.
  * @tx_desc: tx descriptor pointer
@@ -144,6 +157,7 @@ struct ol_tx_desc_t *ol_tx_desc_alloc(struct ol_txrx_pdev_t *pdev,
 		ol_tx_desc_compute_delay(tx_desc);
 		ol_tx_desc_vdev_update(tx_desc, vdev);
 		ol_tx_desc_count_inc(vdev);
+		ol_tx_desc_update_tx_ts(tx_desc);
 		qdf_atomic_inc(&tx_desc->ref_cnt);
 	}
 	qdf_spin_unlock_bh(&pdev->tx_mutex);
@@ -195,7 +209,6 @@ struct ol_tx_desc_t *ol_tx_desc_alloc(struct ol_txrx_pdev_t *pdev,
 				(pool->avail_desc >= pool->stop_priority_th) &&
 				(pool->status == FLOW_POOL_ACTIVE_UNPAUSED))) {
 			pool->status = FLOW_POOL_NON_PRIO_PAUSED;
-			qdf_spin_unlock_bh(&pool->flow_pool_lock);
 			/* pause network NON PRIORITY queues */
 			pdev->pause_cb(vdev->vdev_id,
 				       WLAN_STOP_NON_PRIORITY_QUEUE,
@@ -204,16 +217,17 @@ struct ol_tx_desc_t *ol_tx_desc_alloc(struct ol_txrx_pdev_t *pdev,
 						pool->stop_priority_th) &&
 				pool->status == FLOW_POOL_NON_PRIO_PAUSED)) {
 			pool->status = FLOW_POOL_ACTIVE_PAUSED;
-			qdf_spin_unlock_bh(&pool->flow_pool_lock);
 			/* pause priority queue */
 			pdev->pause_cb(vdev->vdev_id,
 				       WLAN_NETIF_PRIORITY_QUEUE_OFF,
 				       WLAN_DATA_FLOW_CONTROL_PRIORITY);
-		} else {
-			qdf_spin_unlock_bh(&pool->flow_pool_lock);
 		}
+
+		qdf_spin_unlock_bh(&pool->flow_pool_lock);
+
 		ol_tx_desc_sanity_checks(pdev, tx_desc);
 		ol_tx_desc_compute_delay(tx_desc);
+		ol_tx_desc_update_tx_ts(tx_desc);
 		ol_tx_desc_vdev_update(tx_desc, vdev);
 		qdf_atomic_inc(&tx_desc->ref_cnt);
 	} else {

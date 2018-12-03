@@ -133,6 +133,7 @@ static int sap_start_dfs_cac_timer(struct sap_context *sapContext);
  *
  * Return: string for the @event.
  */
+#ifdef WLAN_DEBUG
 static uint8_t *sap_hdd_event_to_string(eSapHddEvent event)
 {
 	switch (event) {
@@ -167,6 +168,7 @@ static uint8_t *sap_hdd_event_to_string(eSapHddEvent event)
 		return "eSAP_HDD_EVENT_UNKNOWN";
 	}
 }
+#endif
 
 /*----------------------------------------------------------------------------
  * Externalized Function Definitions
@@ -2177,8 +2179,12 @@ sap_goto_starting(struct sap_context *sap_ctx,
 		uint16_t con_ch;
 
 		con_ch = sme_get_concurrent_operation_channel(hal);
-		if (con_ch && wlan_reg_is_dfs_ch(mac_ctx->pdev, con_ch))
+		if (con_ch && wlan_reg_is_dfs_ch(mac_ctx->pdev, con_ch)) {
 			sap_ctx->channel = con_ch;
+			wlan_reg_set_channel_params(mac_ctx->pdev,
+						    sap_ctx->channel, 0,
+						    &sap_ctx->ch_params);
+		}
 	}
 
 	/*
@@ -2740,7 +2746,9 @@ QDF_STATUS sap_fsm(struct sap_context *sap_ctx, ptWLAN_SAPEvent sap_event)
 	 * state var that keeps track of state machine
 	 */
 	enum sap_fsm_state state_var = sap_ctx->fsm_state;
+#ifdef WLAN_DEBUG
 	uint32_t msg = sap_event->event; /* State machine input event message */
+#endif
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	tHalHandle hal = CDS_GET_HAL_CB();
 	tpAniSirGlobal mac_ctx;
@@ -3297,8 +3305,9 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 		 */
 		if (wlan_reg_is_dfs_ch(mac_ctx->pdev,
 		    WLAN_REG_CH_NUM(loop_count)) &&
-		    policy_mgr_disallow_mcc(mac_ctx->psoc,
-		    WLAN_REG_CH_NUM(loop_count)))
+		    (policy_mgr_disallow_mcc(mac_ctx->psoc,
+		    WLAN_REG_CH_NUM(loop_count)) ||
+		    !sap_ctx->acs_cfg->dfs_master_mode))
 			continue;
 
 		/* Dont scan ETSI13 SRD channels if the ETSI13 SRD channels

@@ -1237,6 +1237,11 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	 * increment their counts from 0.
 	 */
 	hdd_reset_all_adapters_connectivity_stats(hdd_ctx);
+	/*
+	 * Purge all active and pending list to avoid vdev destroy timeout and
+	 * thus avoid peer/vdev refcount leak.
+	 */
+	sme_purge_pdev_all_ser_cmd_list(hdd_ctx->mac_handle);
 
 	hdd_reset_all_adapters(hdd_ctx);
 
@@ -1375,10 +1380,7 @@ QDF_STATUS hdd_wlan_re_init(void)
 	/* Restart all adapters */
 	hdd_start_all_adapters(hdd_ctx);
 
-	hdd_ctx->last_scan_reject_session_id = 0xFF;
-	hdd_ctx->last_scan_reject_reason = 0;
-	hdd_ctx->last_scan_reject_timestamp = 0;
-	hdd_ctx->scan_reject_cnt = 0;
+	hdd_init_scan_reject_params(hdd_ctx);
 
 	hdd_set_roaming_in_progress(false);
 	complete(&adapter->roaming_comp_var);
@@ -1497,7 +1499,9 @@ end:
 
 static void wlan_hdd_print_suspend_fail_stats(struct hdd_context *hdd_ctx)
 {
+#ifdef WLAN_DEBUG
 	struct suspend_resume_stats *stats = &hdd_ctx->suspend_resume_stats;
+#endif
 
 	hdd_err("ipa:%d, radar:%d, roam:%d, scan:%d, initial_wakeup:%d",
 		stats->suspend_fail[SUSPEND_FAIL_IPA],

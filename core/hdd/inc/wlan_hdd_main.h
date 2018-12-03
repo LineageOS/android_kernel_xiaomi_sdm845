@@ -233,12 +233,6 @@ enum hdd_driver_flags {
 /** Maximum time(ms) to wait for target to be ready for suspend **/
 #define WLAN_WAIT_TIME_READY_TO_SUSPEND  2000
 
-/** Maximum time(ms) to wait for tdls add sta to complete **/
-#define WAIT_TIME_TDLS_ADD_STA      1500
-
-/** Maximum time(ms) to wait for tdls del sta to complete **/
-#define WAIT_TIME_TDLS_DEL_STA      1500
-
 /** Maximum time(ms) to wait for Link Establish Req to complete **/
 #define WAIT_TIME_TDLS_LINK_ESTABLISH_REQ      1500
 
@@ -1719,6 +1713,7 @@ struct hdd_cache_channels {
  * @psoc: object manager psoc context
  * @pdev: object manager pdev context
  * @g_event_flags: a bitmap of hdd_driver_flags
+ * @dynamic_nss_chains_support: Per vdev dynamic nss chains update capability
  */
 struct hdd_context {
 	struct wlan_objmgr_psoc *psoc;
@@ -1990,6 +1985,9 @@ struct hdd_context {
 	uint32_t apf_version;
 	bool apf_enabled_v2;
 #endif
+	struct qdf_mac_addr dynamic_mac_list[QDF_MAX_CONCURRENCY_PERSONA];
+	bool dynamic_nss_chains_support;
+
 };
 
 /**
@@ -2375,6 +2373,32 @@ void wlan_hdd_send_svc_nlink_msg(int radio, int type, void *data, int len);
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 void wlan_hdd_auto_shutdown_enable(struct hdd_context *hdd_ctx, bool enable);
 #endif
+
+/**
+ * hdd_fill_nss_chain_params() - Fill nss chains ini params
+ * @hdd_ctx: hdd context
+ * @vdev_ini_cfg: structure to be filled
+ * @device_mode: device mode for which the inis are to be filled
+ *
+ * This function fills nss chains ini params for the respective device mode.
+ *
+ * Return: none
+ */
+void hdd_fill_nss_chain_params(struct hdd_context *hdd_ctx,
+			       struct mlme_nss_chains *vdev_ini_cfg,
+			       uint8_t device_mode);
+
+/**
+ * hdd_is_vdev_in_conn_state() - Check whether the vdev is in
+ * connected/started state.
+ * @adapter: hdd adapter of the vdev
+ *
+ * This function will give whether the vdev in the adapter is in
+ * connected/started state.
+ *
+ * Return: True/false
+ */
+bool hdd_is_vdev_in_conn_state(struct hdd_adapter *adapter);
 
 struct hdd_adapter *
 hdd_get_con_sap_adapter(struct hdd_adapter *this_sap_adapter,
@@ -3427,4 +3451,70 @@ struct hdd_context *hdd_handle_to_context(hdd_handle_t hdd_handle)
  */
 void wlan_hdd_free_cache_channels(struct hdd_context *hdd_ctx);
 
+/**
+ * hdd_update_dynamic_mac() - Updates the dynamic MAC list
+ * @hdd_ctx: Pointer to HDD context
+ * @curr_mac_addr: Current interface mac address
+ * @new_mac_addr: New mac address which needs to be updated
+ *
+ * This function updates newly configured MAC address to the
+ * dynamic MAC address list corresponding to the current
+ * adapter MAC address
+ *
+ * Return: None
+ */
+void hdd_update_dynamic_mac(struct hdd_context *hdd_ctx,
+			    struct qdf_mac_addr *curr_mac_addr,
+			    struct qdf_mac_addr *new_mac_addr);
+
+#ifdef MSM_PLATFORM
+/**
+ * wlan_hdd_send_tcp_param_update_event() - Send vendor event to update
+ * TCP parameter through Wi-Fi HAL
+ * @hdd_ctx: Pointer to HDD context
+ * @data: Parameters to update
+ * @dir: Direction(tx/rx) to update
+ *
+ * Return: None
+ */
+void wlan_hdd_send_tcp_param_update_event(struct hdd_context *hdd_ctx,
+					  void *data,
+					  uint8_t dir);
+
+/**
+ * wlan_hdd_update_tcp_rx_param() - update TCP param in RX dir
+ * @hdd_ctx: Pointer to HDD context
+ * @data: Parameters to update
+ *
+ * Return: None
+ */
+void wlan_hdd_update_tcp_rx_param(struct hdd_context *hdd_ctx, void *data);
+
+/**
+ * wlan_hdd_update_tcp_tx_param() - update TCP param in TX dir
+ * @hdd_ctx: Pointer to HDD context
+ * @data: Parameters to update
+ *
+ * Return: None
+ */
+void wlan_hdd_update_tcp_tx_param(struct hdd_context *hdd_ctx, void *data);
+#else
+static inline
+void wlan_hdd_update_tcp_rx_param(struct hdd_context *hdd_ctx, void *data)
+{
+}
+
+static inline
+void wlan_hdd_update_tcp_tx_param(struct hdd_context *hdd_ctx, void *data)
+{
+}
+
+static inline
+void wlan_hdd_send_tcp_param_update_event(struct hdd_context *hdd_ctx,
+					  void *data,
+					  uint8_t dir)
+{
+}
+
+#endif /* MSM_PLATFORM */
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

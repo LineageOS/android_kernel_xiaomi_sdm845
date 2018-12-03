@@ -176,6 +176,7 @@ enum tdls_peer_capability {
 #define TID_AC_VI                  4
 #define TID_AC_BK                  1
 
+#ifdef WLAN_DEBUG
 static const uint8_t *lim_trace_tdls_action_string(uint8_t tdlsActionCode)
 {
 	switch (tdlsActionCode) {
@@ -192,6 +193,7 @@ static const uint8_t *lim_trace_tdls_action_string(uint8_t tdlsActionCode)
 	}
 	return (const uint8_t *)"UNKNOWN";
 }
+#endif
 
 /*
  * initialize TDLS setup list and related data structures.
@@ -1644,9 +1646,11 @@ static QDF_STATUS lim_send_tdls_setup_rsp_frame(tpAniSirGlobal pMac,
 			((pMac->lim.gLimTDLSUapsdMask & 0x04) >> 2);
 		tdlsSetupRsp.WMMInfoStation.acbe_uapsd =
 			((pMac->lim.gLimTDLSUapsdMask & 0x08) >> 3);
+#ifdef WLAN_DEBUG
 		if (wlan_cfg_get_int(pMac, WNI_CFG_MAX_SP_LENGTH, &val) !=
 		    QDF_STATUS_SUCCESS)
 			pe_warn("could not retrieve Max SP Length");
+#endif
 			tdlsSetupRsp.WMMInfoStation.max_sp_length = (uint8_t) val;
 		tdlsSetupRsp.WMMInfoStation.present = 1;
 	} else {

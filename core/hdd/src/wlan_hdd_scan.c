@@ -323,6 +323,28 @@ void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work)
 	cds_ssr_unprotect(__func__);
 }
 
+void hdd_init_scan_reject_params(struct hdd_context *hdd_ctx)
+{
+	if (hdd_ctx) {
+		hdd_ctx->last_scan_reject_timestamp = 0;
+		hdd_ctx->last_scan_reject_session_id = 0xFF;
+		hdd_ctx->last_scan_reject_reason = 0;
+		hdd_ctx->scan_reject_cnt = 0;
+	}
+}
+
+void hdd_reset_scan_reject_params(struct hdd_context *hdd_ctx,
+				  eRoamCmdStatus roam_status,
+				  eCsrRoamResult roam_result)
+{
+	if ((roam_status == eCSR_ROAM_ASSOCIATION_FAILURE) ||
+	    (roam_status == eCSR_ROAM_CANCELLED) ||
+	    (roam_result == eCSR_ROAM_RESULT_ASSOCIATED)) {
+		hdd_debug("Reset scan reject params");
+		hdd_init_scan_reject_params(hdd_ctx);
+	}
+}
+
 /*
  * wlan_hdd_update_scan_ies() - API to update the scan IEs of scan request
  * with already stored default scan IEs
@@ -589,10 +611,8 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		}
 		return -EBUSY;
 	}
-	hdd_ctx->last_scan_reject_timestamp = 0;
-	hdd_ctx->last_scan_reject_session_id = 0xFF;
-	hdd_ctx->last_scan_reject_reason = 0;
-	hdd_ctx->scan_reject_cnt = 0;
+
+	hdd_init_scan_reject_params(hdd_ctx);
 
 	/* Check whether SAP scan can be skipped or not */
 	if (adapter->device_mode == QDF_SAP_MODE &&
@@ -1257,7 +1277,7 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	struct hdd_context *hdd_ctx;
 	int ret;
 
-	hdd_enter_dev(dev);
+	hdd_enter();
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
@@ -1321,8 +1341,6 @@ int wlan_hdd_sched_scan_stop(struct net_device *dev)
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	struct hdd_context *hdd_ctx;
 
-	hdd_enter_dev(dev);
-
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
 		return -EINVAL;
@@ -1360,7 +1378,13 @@ static int __wlan_hdd_cfg80211_sched_scan_stop(struct net_device *dev)
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	int errno;
 
-	hdd_enter_dev(dev);
+	hdd_enter();
+
+	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
+		hdd_err_rl("Command not allowed in FTM mode");
+		return -EINVAL;
+	}
+
 
 	/* The return 0 is intentional when Recovery and Load/Unload in
 	 * progress. We did observe a crash due to a return of

@@ -164,6 +164,15 @@ struct ol_tx_desc_t {
 #ifdef QCA_COMPUTE_TX_DELAY
 	uint32_t entry_timestamp_ticks;
 #endif
+
+#ifdef DESC_TIMESTAMP_DEBUG_INFO
+	struct {
+		uint64_t prev_tx_ts;
+		uint64_t curr_tx_ts;
+		uint64_t last_comp_ts;
+	} desc_debug_info;
+#endif
+
 	/*
 	 * Allow tx descriptors to be stored in (doubly-linked) lists.
 	 * This is mainly used for HL tx queuing and scheduling, but is
@@ -1030,6 +1039,7 @@ struct ol_txrx_pdev_t {
 	void *usr_ctxt;
 	struct ol_txrx_ipa_resources ipa_resource;
 #endif /* IPA_UC_OFFLOAD */
+	bool new_htt_msg_format;
 };
 
 struct ol_txrx_vdev_t {

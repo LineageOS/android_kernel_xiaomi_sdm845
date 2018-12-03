@@ -604,6 +604,15 @@ QDF_STATUS pmo_ucfg_psoc_suspend_target(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS pmo_ucfg_add_wow_user_pattern(struct wlan_objmgr_vdev *vdev,
 		struct pmo_wow_add_pattern *ptrn);
 
+/**
+ * ucfg_pmo_del_wow_pattern() - Delete WoWl patterns
+ * @vdev: objmgr vdev
+ *
+ * Return:QDF_STATUS_SUCCESS on success else error code
+ */
+QDF_STATUS
+ucfg_pmo_del_wow_pattern(struct wlan_objmgr_vdev *vdev);
+
 QDF_STATUS pmo_ucfg_del_wow_user_pattern(struct wlan_objmgr_vdev *vdev,
 		uint8_t pattern_id);
 
@@ -1073,6 +1082,12 @@ static inline QDF_STATUS
 pmo_ucfg_del_wow_user_pattern(
 		struct wlan_objmgr_vdev *vdev,
 		uint8_t pattern_id)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS
+ucfg_pmo_del_wow_pattern(struct wlan_objmgr_vdev *vdev)
 {
 	return QDF_STATUS_SUCCESS;
 }

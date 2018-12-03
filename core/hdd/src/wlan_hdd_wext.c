@@ -3239,7 +3239,9 @@ static QDF_STATUS hdd_wlan_get_ibss_peer_info(struct hdd_adapter *adapter,
 		hdd_debug("pPeerInfo->numIBSSPeers = %d ", pPeerInfo->numPeers);
 		{
 			uint8_t mac_addr[QDF_MAC_ADDR_SIZE];
+#ifdef WLAN_DEBUG
 			uint32_t tx_rate = pPeerInfo->peerInfoParams[0].txRate;
+#endif
 
 			qdf_mem_copy(mac_addr, pPeerInfo->peerInfoParams[0].
 					mac_addr, sizeof(mac_addr));
@@ -7055,7 +7057,7 @@ static int iw_get_policy_manager_ut_ops(struct hdd_context *hdd_ctx,
  *
  * Return: void
  */
-#if WLAN_DEBUG
+#ifdef WLAN_DEBUG
 static void hdd_ch_avoid_unit_cmd(struct hdd_context *hdd_ctx,
 				  int num_args, int *apps_args)
 {
@@ -7217,7 +7219,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
 			hdd_err("Invalid MODULE ID %d", apps_args[0]);
 			return -EINVAL;
 		}
-		if ((apps_args[1] >= (WMA_MAX_NUM_ARGS)) ||
+		if ((apps_args[1] > (WMA_MAX_NUM_ARGS)) ||
 		    (apps_args[1] < 0)) {
 			hdd_err("Too Many/Few args %d", apps_args[1]);
 			return -EINVAL;

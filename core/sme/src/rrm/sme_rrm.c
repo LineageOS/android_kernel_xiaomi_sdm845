@@ -762,15 +762,19 @@ static QDF_STATUS sme_rrm_issue_scan_req(tpAniSirGlobal mac_ctx)
 		req = qdf_mem_malloc(sizeof(*req));
 		if (!req) {
 			sme_debug("Failed to allocate memory");
-			return QDF_STATUS_E_NOMEM;
+			status = QDF_STATUS_E_NOMEM;
+			goto free_ch_lst;
 		}
+
 		vdev = wlan_objmgr_get_vdev_by_id_from_psoc(
 						mac_ctx->psoc,
 						session_id,
 						WLAN_LEGACY_SME_ID);
 		if (!vdev) {
 			sme_err("VDEV is null %d", session_id);
-			return QDF_STATUS_E_INVAL;
+			status = QDF_STATUS_E_INVAL;
+			qdf_mem_free(req);
+			goto free_ch_lst;
 		}
 		ucfg_scan_init_default_params(vdev, req);
 		req->scan_req.dwell_time_active = 0;
@@ -858,6 +862,8 @@ static QDF_STATUS sme_rrm_issue_scan_req(tpAniSirGlobal mac_ctx)
 				req->scan_req.chan_list.chan[0].freq);
 		status = ucfg_scan_start(req);
 		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+		if (QDF_IS_STATUS_ERROR(status))
+			goto free_ch_lst;
 
 		return status;
 	} else if (eSIR_BEACON_TABLE == scan_type) {

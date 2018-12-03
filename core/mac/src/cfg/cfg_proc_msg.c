@@ -1980,13 +1980,18 @@ end:
  */
 static void proc_get_req(tpAniSirGlobal pMac, uint16_t length, uint32_t *pParam)
 {
-	uint16_t cfgId, i;
+	uint16_t cfgId;
+#ifdef WLAN_DEBUG
+	uint16_t i;
+#endif
 	uint32_t value, valueLen, result;
 	uint32_t *pValue;
 
 	pe_debug("Rcvd cfg get request %d bytes", length);
+#ifdef WLAN_DEBUG
 	for (i = 0; i < length / 4; i++)
 		pe_debug("[%2d] 0x%08x", i, pParam[i]);
+#endif
 
 		if (!pMac->cfg.gCfgStatus) {
 			cfgId = (uint16_t) sir_read_u32_n((uint8_t *) pParam);
