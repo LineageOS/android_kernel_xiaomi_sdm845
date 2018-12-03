@@ -1371,10 +1371,12 @@ uint16_t wmi_get_max_msg_len(wmi_unified_t wmi_handle)
 qdf_export_symbol(wmi_get_max_msg_len);
 
 #ifndef WMI_CMD_STRINGS
+#ifdef WLAN_DEBUG
 static uint8_t *wmi_id_to_name(uint32_t wmi_command)
 {
 	return "Invalid WMI cmd";
 }
+#endif
 
 #endif
 

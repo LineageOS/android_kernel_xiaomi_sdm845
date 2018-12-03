@@ -189,7 +189,7 @@ QDF_STATUS ucfg_scan_pno_stop(struct wlan_objmgr_vdev *vdev)
 		return QDF_STATUS_E_INVAL;
 	}
 	if (!scan_vdev_obj->pno_in_progress) {
-		scm_err("pno already stopped");
+		scm_debug("pno already stopped");
 		return QDF_STATUS_E_ALREADY;
 	}
 
@@ -559,8 +559,9 @@ int ucfg_scan_get_burst_duration(int max_ch_time,
 		 * If miracast is not running, accommodate max
 		 * stations to make the scans faster
 		 */
-		burst_duration = SCAN_BURST_SCAN_MAX_NUM_OFFCHANNELS *
-						max_ch_time;
+		burst_duration = SCAN_GO_BURST_SCAN_MAX_NUM_OFFCHANNELS *
+							max_ch_time;
+
 		if (burst_duration > SCAN_GO_MAX_ACTIVE_SCAN_BURST_DURATION) {
 			uint8_t channels = SCAN_P2P_SCAN_MAX_BURST_DURATION /
 								 max_ch_time;
@@ -626,8 +627,10 @@ static void ucfg_scan_req_update_concurrency_params(
 	 * firmware spends more time on home channel which will increase the
 	 * probability of sending beacon at TBTT
 	 */
-	if (ap_present || go_present)
+	if (ap_present || go_present) {
+		req->scan_req.dwell_time_active_2g = 0;
 		req->scan_req.min_rest_time = req->scan_req.max_rest_time;
+	}
 
 	if (req->scan_req.p2p_scan_type == SCAN_NON_P2P_DEFAULT) {
 		/*
@@ -1325,8 +1328,8 @@ ucfg_scan_register_event_handler(struct wlan_objmgr_pdev *pdev,
 		if ((cb_handler->func == event_cb) &&
 			(cb_handler->arg == arg)) {
 			qdf_spin_unlock_bh(&scan->lock);
-			scm_warn("func: %pK, arg: %pK already exists",
-				event_cb, arg);
+			scm_debug("func: %pK, arg: %pK already exists",
+				  event_cb, arg);
 			return QDF_STATUS_SUCCESS;
 		}
 	}
@@ -1922,9 +1925,10 @@ ucfg_scan_cancel_pdev_scan(struct wlan_objmgr_pdev *pdev)
 		return QDF_STATUS_E_NOMEM;
 	}
 
-	vdev = wlan_objmgr_get_vdev_by_id_from_pdev(pdev, 0, WLAN_OSIF_ID);
+	vdev = wlan_objmgr_pdev_get_first_vdev(pdev, WLAN_SCAN_ID);
 	if (!vdev) {
 		scm_err("Failed to get vdev");
+		qdf_mem_free(req);
 		return QDF_STATUS_E_INVAL;
 	}
 	req->vdev = vdev;
@@ -1935,7 +1939,7 @@ ucfg_scan_cancel_pdev_scan(struct wlan_objmgr_pdev *pdev)
 	status = ucfg_scan_cancel_sync(req);
 	if (QDF_IS_STATUS_ERROR(status))
 		scm_err("Cancel scan request failed");
-	wlan_objmgr_vdev_release_ref(vdev, WLAN_OSIF_ID);
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_SCAN_ID);
 
 	return status;
 }
@@ -1947,6 +1951,7 @@ ucfg_scan_suspend_handler(struct wlan_objmgr_psoc *psoc, void *arg)
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	int i;
 
+	ucfg_scan_set_enable(psoc, false);
 	/* Check all pdev */
 	for (i = 0; i < WLAN_UMAC_MAX_PDEVS; i++) {
 		pdev = wlan_objmgr_get_pdev_by_id(psoc, i, WLAN_SCAN_ID);
@@ -1968,6 +1973,7 @@ ucfg_scan_suspend_handler(struct wlan_objmgr_psoc *psoc, void *arg)
 static QDF_STATUS
 ucfg_scan_resume_handler(struct wlan_objmgr_psoc *psoc, void *arg)
 {
+	ucfg_scan_set_enable(psoc, true);
 	return QDF_STATUS_SUCCESS;
 }
 

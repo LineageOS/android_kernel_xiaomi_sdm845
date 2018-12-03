@@ -587,27 +587,31 @@ error:
 int wlan_cfg80211_sched_scan_stop(struct wlan_objmgr_pdev *pdev,
 	struct net_device *dev)
 {
-	int ret = 0;
 	QDF_STATUS status;
 	struct wlan_objmgr_vdev *vdev;
 
 	vdev = wlan_objmgr_get_vdev_by_macaddr_from_pdev(pdev, dev->dev_addr,
 		WLAN_OSIF_ID);
 	if (!vdev) {
+	/*
+	 * cfg80211 expects sched_scan_stop command to always succeed.
+	 * There can be recovery or any other error in the driver between the
+	 * sched_scan_start and sched_scan_stop commands. If driver does
+	 * not return success in this case there is a possibility of further
+	 * sched_scan_start request might not be received again.
+	 */
 		cfg80211_err("vdev object is NULL");
-		return -EIO;
+		return 0;
 	}
 
 	status = ucfg_scan_pno_stop(vdev);
-	if (QDF_IS_STATUS_ERROR(status)) {
+	if (QDF_IS_STATUS_ERROR(status))
 		cfg80211_err("Failed to disabled PNO");
-		ret = -EINVAL;
-	} else {
+	else
 		cfg80211_info("PNO scan disabled");
-	}
 
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_OSIF_ID);
-	return ret;
+	return 0;
 }
 #endif /*FEATURE_WLAN_SCAN_PNO */
 
@@ -1516,8 +1520,7 @@ QDF_STATUS wlan_abort_scan(struct wlan_objmgr_pdev *pdev,
 		return QDF_STATUS_E_FAILURE;
 	}
 	if (vdev_id == INVAL_VDEV_ID)
-		vdev = wlan_objmgr_get_vdev_by_id_from_pdev(pdev,
-				0, WLAN_OSIF_ID);
+		vdev = wlan_objmgr_pdev_get_first_vdev(pdev, WLAN_OSIF_ID);
 	else
 		vdev = wlan_objmgr_get_vdev_by_id_from_pdev(pdev,
 				vdev_id, WLAN_OSIF_ID);

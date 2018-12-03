@@ -289,6 +289,64 @@ static QDF_STATUS send_vdev_delete_cmd_tlv(wmi_unified_t wmi_handle,
 }
 
 /**
+ * send_vdev_nss_chain_params_cmd_tlv() - send VDEV nss chain params to fw
+ * @wmi_handle: wmi handle
+ * @vdev_id: vdev id
+ * @nss_chains_user_cfg: user configured nss chain params
+ *
+ * Return: QDF_STATUS_SUCCESS for success or error code
+ */
+static QDF_STATUS
+send_vdev_nss_chain_params_cmd_tlv(wmi_unified_t wmi_handle,
+				   uint8_t vdev_id,
+				   struct mlme_nss_chains *user_cfg)
+{
+	wmi_vdev_chainmask_config_cmd_fixed_param *cmd;
+	wmi_buf_t buf;
+	QDF_STATUS ret;
+
+	buf = wmi_buf_alloc(wmi_handle, sizeof(*cmd));
+	if (!buf) {
+		WMI_LOGP("%s:wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_vdev_chainmask_config_cmd_fixed_param *)wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		     WMITLV_TAG_STRUC_wmi_vdev_chainmask_config_cmd_fixed_param,
+		     WMITLV_GET_STRUCT_TLVLEN
+			       (wmi_vdev_chainmask_config_cmd_fixed_param));
+	cmd->vdev_id = vdev_id;
+	cmd->disable_rx_mrc_2g = user_cfg->disable_rx_mrc[NSS_CHAINS_BAND_2GHZ];
+	cmd->disable_tx_mrc_2g = user_cfg->disable_tx_mrc[NSS_CHAINS_BAND_2GHZ];
+	cmd->disable_rx_mrc_5g = user_cfg->disable_rx_mrc[NSS_CHAINS_BAND_5GHZ];
+	cmd->disable_tx_mrc_5g = user_cfg->disable_tx_mrc[NSS_CHAINS_BAND_5GHZ];
+	cmd->num_rx_chains_2g = user_cfg->num_rx_chains[NSS_CHAINS_BAND_2GHZ];
+	cmd->num_tx_chains_2g = user_cfg->num_tx_chains[NSS_CHAINS_BAND_2GHZ];
+	cmd->num_rx_chains_5g = user_cfg->num_rx_chains[NSS_CHAINS_BAND_5GHZ];
+	cmd->num_tx_chains_5g = user_cfg->num_tx_chains[NSS_CHAINS_BAND_5GHZ];
+	cmd->rx_nss_2g = user_cfg->rx_nss[NSS_CHAINS_BAND_2GHZ];
+	cmd->tx_nss_2g = user_cfg->tx_nss[NSS_CHAINS_BAND_2GHZ];
+	cmd->rx_nss_5g = user_cfg->rx_nss[NSS_CHAINS_BAND_5GHZ];
+	cmd->tx_nss_5g = user_cfg->tx_nss[NSS_CHAINS_BAND_5GHZ];
+	cmd->num_tx_chains_a = user_cfg->num_tx_chains_11a;
+	cmd->num_tx_chains_b = user_cfg->num_tx_chains_11b;
+	cmd->num_tx_chains_g = user_cfg->num_tx_chains_11g;
+
+	wmi_mtrace(WMI_VDEV_CHAINMASK_CONFIG_CMDID, cmd->vdev_id, 0);
+	ret = wmi_unified_cmd_send(wmi_handle, buf,
+			sizeof(wmi_vdev_chainmask_config_cmd_fixed_param),
+			WMI_VDEV_CHAINMASK_CONFIG_CMDID);
+	if (QDF_IS_STATUS_ERROR(ret)) {
+		WMI_LOGE("Failed to send WMI_VDEV_CHAINMASK_CONFIG_CMDID");
+		wmi_buf_free(buf);
+	}
+	WMI_LOGD("%s: vdev_id %d", __func__, vdev_id);
+
+	return ret;
+}
+
+/**
  * send_vdev_stop_cmd_tlv() - send vdev stop command to fw
  * @wmi: wmi handle
  * @vdev_id: vdev id
@@ -5711,6 +5769,7 @@ static QDF_STATUS get_sar_limit_cmd_tlv(wmi_unified_t wmi_handle)
  * Return: string conversion of sar 2 result, if match found;
  *	   "Unknown response" otherwise.
  */
+#ifdef WLAN_DEBUG
 static const char *wmi_sar2_result_string(uint32_t result)
 {
 	switch (result) {
@@ -5723,6 +5782,7 @@ static const char *wmi_sar2_result_string(uint32_t result)
 		return "Unknown response";
 	}
 }
+#endif
 
 /**
  * extract_sar2_result_event_tlv() -  process sar response event from FW.
@@ -5803,14 +5863,18 @@ static QDF_STATUS extract_sar_limit_event_tlv(wmi_unified_t wmi_handle,
 	}
 
 	row_in = param_buf->sar_get_limits;
-	row_out = &event->sar_limit_row[0];
-	for (row = 0; row < event->num_limit_rows; row++) {
-		row_out->band_id = row_in->band_id;
-		row_out->chain_id = row_in->chain_id;
-		row_out->mod_id = row_in->mod_id;
-		row_out->limit_value = row_in->limit_value;
-		row_out++;
-		row_in++;
+	if (!row_in) {
+		WMI_LOGD("sar_get_limits is NULL");
+	} else {
+		row_out = &event->sar_limit_row[0];
+		for (row = 0; row < event->num_limit_rows; row++) {
+			row_out->band_id = row_in->band_id;
+			row_out->chain_id = row_in->chain_id;
+			row_out->mod_id = row_in->mod_id;
+			row_out->limit_value = row_in->limit_value;
+			row_out++;
+			row_in++;
+		}
 	}
 
 	return QDF_STATUS_SUCCESS;
@@ -6004,7 +6068,7 @@ static QDF_STATUS send_p2p_go_set_beacon_ie_cmd_tlv(wmi_unified_t wmi_handle,
 	buf_ptr += WMI_TLV_HDR_SIZE;
 	qdf_mem_copy(buf_ptr, p2p_ie, ie_len);
 
-	WMI_LOGI("%s: Sending WMI_P2P_GO_SET_BEACON_IE", __func__);
+	WMI_LOGD("%s: Sending WMI_P2P_GO_SET_BEACON_IE", __func__);
 
 	wmi_mtrace(WMI_P2P_GO_SET_BEACON_IE, cmd->vdev_id, 0);
 	ret = wmi_unified_cmd_send(wmi_handle,
@@ -6015,7 +6079,7 @@ static QDF_STATUS send_p2p_go_set_beacon_ie_cmd_tlv(wmi_unified_t wmi_handle,
 		wmi_buf_free(wmi_buf);
 	}
 
-	WMI_LOGI("%s: Successfully sent WMI_P2P_GO_SET_BEACON_IE", __func__);
+	WMI_LOGD("%s: Successfully sent WMI_P2P_GO_SET_BEACON_IE", __func__);
 	return ret;
 }
 
@@ -12869,6 +12933,11 @@ void wmi_copy_resource_config(wmi_resource_config *resource_cfg,
 	if (tgt_res_cfg->cce_disable)
 		WMI_RSRC_CFG_FLAG_TCL_CCE_DISABLE_SET(resource_cfg->flag1, 1);
 
+	if (tgt_res_cfg->new_htt_msg_format) {
+		WMI_RSRC_CFG_FLAG_HTT_H2T_NO_HTC_HDR_LEN_IN_MSG_LEN_SET(
+			resource_cfg->flag1, 1);
+	}
+
 	wmi_copy_twt_resource_config(resource_cfg, tgt_res_cfg);
 }
 
@@ -13244,8 +13313,8 @@ static QDF_STATUS send_enable_specific_fw_logs_cmd_tlv(wmi_unified_t wmi_handle,
 	count = 0;
 
 	if (!wmi_handle->events_logs_list) {
-		WMI_LOGE("%s: Not received event/log list from FW, yet",
-				__func__);
+		WMI_LOGD("%s: Not received event/log list from FW, yet",
+			 __func__);
 		return QDF_STATUS_E_NOMEM;
 	}
 	/* total_len stores the number of events where BITS 17 and 18 are set.
@@ -13356,7 +13425,7 @@ static QDF_STATUS send_flush_logs_to_fw_cmd_tlv(wmi_unified_t wmi_handle)
 		wmi_buf_free(buf);
 		return QDF_STATUS_E_INVAL;
 	}
-	WMI_LOGI("Sent WMI_DEBUG_MESG_FLUSH_CMDID to FW");
+	WMI_LOGD("Sent WMI_DEBUG_MESG_FLUSH_CMDID to FW");
 
 	return ret;
 }
@@ -15747,7 +15816,7 @@ static QDF_STATUS send_roam_scan_offload_ap_profile_cmd_tlv(wmi_unified_t wmi_ha
 		wmi_buf_free(buf);
 	}
 
-	WMI_LOGI("WMI --> WMI_ROAM_AP_PROFILE and other parameters");
+	WMI_LOGD("WMI --> WMI_ROAM_AP_PROFILE and other parameters");
 
 	return status;
 }
@@ -21374,7 +21443,7 @@ static QDF_STATUS send_set_arp_stats_req_cmd_tlv(wmi_unified_t wmi_handle,
 		goto error;
 	}
 
-	WMI_LOGI(FL("set arp stats flag=%d, vdev=%d"),
+	WMI_LOGD(FL("set arp stats flag=%d, vdev=%d"),
 		 req_buf->flag, req_buf->vdev_id);
 	return QDF_STATUS_SUCCESS;
 error:
@@ -22468,6 +22537,7 @@ static QDF_STATUS extract_single_phyerr_tlv(wmi_unified_t wmi_handle,
 struct wmi_ops tlv_ops =  {
 	.send_vdev_create_cmd = send_vdev_create_cmd_tlv,
 	.send_vdev_delete_cmd = send_vdev_delete_cmd_tlv,
+	.send_vdev_nss_chain_params_cmd = send_vdev_nss_chain_params_cmd_tlv,
 	.send_vdev_down_cmd = send_vdev_down_cmd_tlv,
 	.send_vdev_start_cmd = send_vdev_start_cmd_tlv,
 	.send_hidden_ssid_vdev_restart_cmd =
@@ -23471,6 +23541,10 @@ static void populate_tlv_service(uint32_t *wmi_service)
 	wmi_service[wmi_service_twt_responder] = WMI_SERVICE_AP_TWT;
 	wmi_service[wmi_service_listen_interval_offload_support] =
 			WMI_SERVICE_LISTEN_INTERVAL_OFFLOAD_SUPPORT;
+	wmi_service[wmi_service_per_vdev_chain_support] =
+			WMI_SERVICE_PER_VDEV_CHAINMASK_CONFIG_SUPPORT;
+	wmi_service[wmi_service_new_htt_msg_format] =
+			WMI_SERVICE_HTT_H2T_NO_HTC_HDR_LEN_IN_MSG_LEN;
 
 }
 

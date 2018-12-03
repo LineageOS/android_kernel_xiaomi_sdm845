@@ -56,10 +56,14 @@
 
 #ifdef WMI_INTERFACE_EVENT_LOGGING
 
+#ifndef WMI_EVENT_DEBUG_MAX_ENTRY
 #define WMI_EVENT_DEBUG_MAX_ENTRY (1024)
+#endif
 #define WMI_EVENT_DEBUG_ENTRY_MAX_LENGTH (16)
 /* wmi_mgmt commands */
+#ifndef WMI_MGMT_EVENT_DEBUG_MAX_ENTRY
 #define WMI_MGMT_EVENT_DEBUG_MAX_ENTRY (256)
+#endif
 /* wmi diag rx events max buffer */
 #ifndef WMI_DIAG_RX_EVENT_DEBUG_MAX_ENTRY
 #define WMI_DIAG_RX_EVENT_DEBUG_MAX_ENTRY (256)
@@ -223,6 +227,10 @@ QDF_STATUS (*send_vdev_create_cmd)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*send_vdev_delete_cmd)(wmi_unified_t wmi_handle,
 					  uint8_t if_id);
+
+QDF_STATUS (*send_vdev_nss_chain_params_cmd)(wmi_unified_t wmi_handle,
+					 uint8_t vdev_id,
+					 struct mlme_nss_chains *user_cfg);
 
 QDF_STATUS (*send_vdev_stop_cmd)(wmi_unified_t wmi,
 					uint8_t vdev_id);

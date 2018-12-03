@@ -83,6 +83,7 @@ static QDF_STATUS tdls_validate_current_mode(struct tdls_soc_priv_obj *soc_obj)
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef WLAN_DEBUG
 static char *tdls_get_ser_cmd_str(enum  wlan_serialization_cmd_type type)
 {
 	switch (type) {
@@ -96,6 +97,7 @@ static char *tdls_get_ser_cmd_str(enum  wlan_serialization_cmd_type type)
 		return "UNKNOWN";
 	}
 }
+#endif
 
 void
 tdls_release_serialization_command(struct wlan_objmgr_vdev *vdev,
@@ -823,7 +825,7 @@ QDF_STATUS tdls_process_add_peer(struct tdls_add_peer_request *req)
 	cmd.umac_cmd = req;
 	cmd.source = WLAN_UMAC_COMP_TDLS;
 	cmd.is_high_priority = false;
-	cmd.cmd_timeout_duration = WAIT_TIME_TDLS_ADD_STA;
+	cmd.cmd_timeout_duration = TDLS_DEFAULT_SERIALIZE_CMD_TIMEOUT;
 	cmd.vdev = vdev;
 
 	ser_cmd_status = wlan_serialization_request(&cmd);
@@ -1032,7 +1034,7 @@ QDF_STATUS tdls_process_update_peer(struct tdls_update_peer_request *req)
 	cmd.umac_cmd = req;
 	cmd.source = WLAN_UMAC_COMP_TDLS;
 	cmd.is_high_priority = false;
-	cmd.cmd_timeout_duration = WAIT_TIME_TDLS_ADD_STA;
+	cmd.cmd_timeout_duration = TDLS_DEFAULT_SERIALIZE_CMD_TIMEOUT;
 	cmd.vdev = req->vdev;
 
 	ser_cmd_status = wlan_serialization_request(&cmd);
@@ -1185,7 +1187,7 @@ QDF_STATUS tdls_process_del_peer(struct tdls_oper_request *req)
 	cmd.umac_cmd = req;
 	cmd.source = WLAN_UMAC_COMP_TDLS;
 	cmd.is_high_priority = false;
-	cmd.cmd_timeout_duration = WAIT_TIME_TDLS_DEL_STA;
+	cmd.cmd_timeout_duration = TDLS_DEFAULT_SERIALIZE_CMD_TIMEOUT;
 	cmd.vdev = vdev;
 
 	ser_cmd_status = wlan_serialization_request(&cmd);
@@ -1989,6 +1991,7 @@ error:
 	return status;
 }
 
+#ifdef WLAN_DEBUG
 static const char *tdls_evt_to_str(enum tdls_event_msg_type type)
 {
 	switch (type) {
@@ -2004,6 +2007,7 @@ static const char *tdls_evt_to_str(enum tdls_event_msg_type type)
 		return "INVALID_TYPE";
 	}
 }
+#endif
 
 QDF_STATUS tdls_process_should_discover(struct wlan_objmgr_vdev *vdev,
 					struct tdls_event_info *evt)

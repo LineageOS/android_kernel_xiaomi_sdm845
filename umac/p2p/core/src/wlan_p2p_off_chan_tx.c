@@ -507,6 +507,7 @@ static QDF_STATUS p2p_populate_mac_header(
  *
  * Return: command string
  */
+#ifdef WLAN_DEBUG
 static char *p2p_get_frame_type_str(struct p2p_frame_info *frame_info)
 {
 	if (frame_info->type == P2P_FRAME_NOT_SUPPORT)
@@ -562,6 +563,7 @@ static char *p2p_get_frame_type_str(struct p2p_frame_info *frame_info)
 		return "Not support action frame";
 	}
 }
+#endif
 
 /**
  * p2p_init_frame_info() - init frame information structure
@@ -1904,6 +1906,11 @@ QDF_STATUS p2p_process_mgmt_tx_cancel(
 	struct tx_action_context *cur_tx_ctx;
 	struct p2p_roc_context *cur_roc_ctx;
 	struct cancel_roc_context cancel_roc;
+
+	if (!cancel_tx || !(cancel_tx->cookie)) {
+		p2p_info("invalid cancel info");
+		return QDF_STATUS_SUCCESS;
+	}
 
 	p2p_debug("cookie:0x%llx", cancel_tx->cookie);
 

@@ -50,11 +50,14 @@
 
 #define AC_PRIORITY_NUM                 4
 
+/* default tdls serialize timeout is set to 10 secs */
+#define TDLS_DEFAULT_SERIALIZE_CMD_TIMEOUT 10000
+
 /** Maximum time(ms) to wait for tdls add sta to complete **/
-#define WAIT_TIME_TDLS_ADD_STA      1500
+#define WAIT_TIME_TDLS_ADD_STA  (TDLS_DEFAULT_SERIALIZE_CMD_TIMEOUT + 1000)
 
 /** Maximum time(ms) to wait for tdls del sta to complete **/
-#define WAIT_TIME_TDLS_DEL_STA      1500
+#define WAIT_TIME_TDLS_DEL_STA  (TDLS_DEFAULT_SERIALIZE_CMD_TIMEOUT + 1000)
 
 /** Maximum time(ms) to wait for Link Establish Req to complete **/
 #define WAIT_TIME_TDLS_LINK_ESTABLISH_REQ      1500
@@ -569,9 +572,6 @@ typedef QDF_STATUS
 				      uint32_t vdev_param,
 				      bool is_link_up);
 
-/* This callback is to release vdev ref for tdls sta notify msg */
-typedef void (*tdls_sta_notify_callback)(struct wlan_objmgr_vdev *vdev);
-
 /* This callback is to release vdev ref for tdls offchan param related msg */
 typedef void (*tdls_offchan_parms_callback)(struct wlan_objmgr_vdev *vdev);
 
@@ -1053,7 +1053,6 @@ struct tdls_sta_notify_params {
 	bool lfr_roam;
 	bool user_disconnect;
 	uint8_t session_id;
-	tdls_sta_notify_callback callback;
 };
 
 /**

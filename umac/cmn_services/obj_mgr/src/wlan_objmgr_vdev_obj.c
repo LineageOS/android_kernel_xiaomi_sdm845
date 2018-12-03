@@ -281,7 +281,7 @@ static QDF_STATUS wlan_objmgr_vdev_obj_destroy(struct wlan_objmgr_vdev *vdev)
 
 	vdev_id = wlan_vdev_get_id(vdev);
 
-	obj_mgr_info("Physically deleting vdev %d", vdev_id);
+	obj_mgr_debug("Physically deleting vdev %d", vdev_id);
 
 	if (vdev->obj_state != WLAN_OBJ_STATE_LOGICALLY_DELETED) {
 		obj_mgr_err("VDEV object delete is not invoked vdevid:%d objstate:%d",
@@ -293,7 +293,9 @@ static QDF_STATUS wlan_objmgr_vdev_obj_destroy(struct wlan_objmgr_vdev *vdev)
 	for (id = 0; id < WLAN_UMAC_MAX_COMPONENTS; id++) {
 		handler = g_umac_glb_obj->vdev_destroy_handler[id];
 		arg = g_umac_glb_obj->vdev_destroy_handler_arg[id];
-		if (handler != NULL)
+		if (handler &&
+		    (vdev->obj_status[id] == QDF_STATUS_SUCCESS ||
+		     vdev->obj_status[id] == QDF_STATUS_COMP_ASYNC))
 			vdev->obj_status[id] = handler(vdev, arg);
 		else
 			vdev->obj_status[id] = QDF_STATUS_COMP_DISABLED;
@@ -694,9 +696,10 @@ QDF_STATUS wlan_objmgr_vdev_peer_attach(struct wlan_objmgr_vdev *vdev,
 			wlan_vdev_set_bsspeer(vdev, peer);
 	}
 	/* set BSS peer for sta */
-	if ((wlan_vdev_mlme_get_opmode(vdev) == QDF_STA_MODE) &&
-		((wlan_peer_get_peer_type(peer) == WLAN_PEER_AP) ||
-		 (wlan_peer_get_peer_type(peer) == WLAN_PEER_P2P_GO)))
+	if ((wlan_vdev_mlme_get_opmode(vdev) == QDF_STA_MODE ||
+	     wlan_vdev_mlme_get_opmode(vdev) == QDF_P2P_CLIENT_MODE) &&
+	    (wlan_peer_get_peer_type(peer) == WLAN_PEER_AP ||
+	     wlan_peer_get_peer_type(peer) == WLAN_PEER_P2P_GO))
 		wlan_vdev_set_bsspeer(vdev, peer);
 
 	/* Increment vdev ref count to make sure it won't be destroyed before */

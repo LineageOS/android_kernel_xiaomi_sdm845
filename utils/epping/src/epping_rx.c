@@ -104,7 +104,9 @@ void epping_rx(void *ctx, HTC_PACKET *pPacket)
 	epping_adapter_t *adapter = pEpping_ctx->epping_adapter;
 	struct net_device *dev = adapter->dev;
 	QDF_STATUS status = pPacket->Status;
+#ifdef WLAN_DEBUG
 	HTC_ENDPOINT_ID eid = pPacket->Endpoint;
+#endif
 	struct sk_buff *pktSkb = (struct sk_buff *)pPacket->pPktContext;
 
 	EPPING_LOG(QDF_TRACE_LEVEL_INFO,
