@@ -23480,6 +23480,8 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 		WMI_BPF_GET_VDEV_WORK_MEMORY_RESP_EVENTID;
 	event_ids[wmi_wlan_sar2_result_event_id] = WMI_SAR2_RESULT_EVENTID;
 	event_ids[wmi_roam_scan_stats_event_id] = WMI_ROAM_SCAN_STATS_EVENTID;
+	event_ids[wmi_vdev_bcn_reception_stats_event_id] =
+		WMI_VDEV_BCN_RECEPTION_STATS_EVENTID;
 }
 
 /**
@@ -23706,6 +23708,8 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_HTT_H2T_NO_HTC_HDR_LEN_IN_MSG_LEN;
 	wmi_service[wmi_service_peer_unmap_cnf_support] =
 			WMI_SERVICE_PEER_UNMAP_RESPONSE_SUPPORT;
+	wmi_service[wmi_service_beacon_reception_stats] =
+			WMI_SERVICE_BEACON_RECEPTION_STATS;
 }
 
 #ifndef CONFIG_MCL
