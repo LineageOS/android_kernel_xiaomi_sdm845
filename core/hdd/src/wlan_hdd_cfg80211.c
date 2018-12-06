@@ -3009,6 +3009,10 @@ __wlan_hdd_cfg80211_get_supported_features(struct wiphy *wiphy,
 	if (hdd_scan_random_mac_addr_supported())
 		fset |= WIFI_FEATURE_SCAN_RAND;
 
+	if (hdd_ctx->config->wlm_latency_enable &&
+	    sme_is_feature_supported_by_fw(VDEV_LATENCY_CONFIG)) {
+		fset |= WIFI_FEATURE_SET_LATENCY_MODE;
+	}
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, sizeof(fset) +
 						  NLMSG_HDRLEN);
 	if (!skb) {
