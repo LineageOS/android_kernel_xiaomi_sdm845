@@ -166,6 +166,7 @@ void qdf_mem_check_for_leaks(void);
  * @file: file name of the call site
  * @line: line numbe rof the call site
  * @caller: Address of the caller function
+ * @flag: GFP flag
  *
  * Return: pointer of allocated memory or null if memory alloc fails
  */
