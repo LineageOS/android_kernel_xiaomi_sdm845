@@ -15172,7 +15172,51 @@ enum hdd_external_acs_policy {
 #define CFG_ACTION_OUI_CONNECT_1X1_WITH_1_CHAIN_NAME    "gActionOUIConnect1x1with1TxRxChain"
 #define CFG_ACTION_OUI_CONNECT_1X1_WITH_1_CHAIN_DEFAULT "001018 06 02FFF0040000 BC 21 40 001018 06 02FFF0050000 BC 21 40 001018 06 02FFF4050000 BC 21 40"
 
- /* End of action oui inis */
+/*
+ * <ini>
+ * gActionOUIDisableAggressiveTX - Used to specify action OUIs to disable
+ * Aggressive TX feature when operating in softap.
+ *
+ * @Default:
+ * Note: User should strictly add new action OUIs at the end of this
+ * default value.
+ *
+ * Default OUIs:
+ *
+ * OUI 1 : FFFFFF
+ *   OUI data Len : 00
+ *   OUI Data: No data
+ *   OUI data Mask: No data mask
+ *   Info Mask:  2A - Check for mac-addr, HT capability and Band
+ *   Mac-addr: F8:59:71:00:00:00 - first 3 bytes
+ *   Mac-mask: E0 - Match only first 3 bytes of peer mac-addr
+ *   Capabilities: 50 – HT should be enabled, and band should be 2.4GHz
+ *
+ * OUI 2 : FFFFFF
+ *   OUI data Len : 00
+ *   OUI Data: No data
+ *   OUI data Mask: No data mask
+ *   Info Mask:  2A - Check for mac-addr, HT capability and Band
+ *   Mac-addr: 14:AB:C5:00:00:00 - first 3 bytes
+ *   Mac-mask: E0 - Match only first 3 bytes of peer mac-addr
+ *   Capabilities: 50 – HT should be enabled, and band should be 2.4GHz
+ *
+ * When operating in Softap mode, this ini is used to specify
+ * STA (peer) OUIs/mac-addr for which aggressive tx is disabled after
+ * association is successful.
+ *
+ * Related: gEnableActionOUI
+ *
+ * Supported Feature: Action OUIs
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ACTION_OUI_DISABLE_AGGRESSIVE_TX_NAME "gActionOUIDisableAggressiveTX"
+#define CFG_ACTION_OUI_DISABLE_AGGRESSIVE_TX_DEFAULT "FFFFFF 00 2A F85971000000 E0 50 FFFFFF 00 2A 14ABC5000000 E0 50"
+
+/* End of action oui inis */
 
 
 /*
