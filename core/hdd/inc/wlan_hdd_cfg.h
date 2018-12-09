@@ -15601,6 +15601,28 @@ enum hdd_external_acs_policy {
 #define CFG_DERIVED_INTERFACE_POOL_DEFAULT (0xffffffff)
 
 /*
+ * <ini>
+ * gEnablePeerUnmapConfSupport - Set PEER UNMAP confirmation support
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable or disable peer unmap confirmation support
+ * in Host. Host sends this support to FW only if FW support is enabled.
+ *
+ *
+ * Supported Feature: STA/SAP/P2P
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_PEER_UNMAP_CONF_NAME    "gEnablePeerUnmapConfSupport"
+#define CFG_ENABLE_PEER_UNMAP_CONF_MIN     (0)
+#define CFG_ENABLE_PEER_UNMAP_CONF_MAX     (1)
+#define CFG_ENABLE_PEER_UNMAP_CONF_DEFAULT (0)
+
+/*
  * Type declarations
  */
 
@@ -16545,6 +16567,7 @@ struct hdd_config {
 	bool mac_provision;
 	uint32_t provisioned_intf_pool;
 	uint32_t derived_intf_pool;
+	bool enable_peer_unmap_conf_support;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

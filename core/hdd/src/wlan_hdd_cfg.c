@@ -5783,6 +5783,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_DERIVED_INTERFACE_POOL_DEFAULT,
 		     CFG_DERIVED_INTERFACE_POOL_MIN,
 		     CFG_DERIVED_INTERFACE_POOL_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_PEER_UNMAP_CONF_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_peer_unmap_conf_support,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_PEER_UNMAP_CONF_DEFAULT,
+		     CFG_ENABLE_PEER_UNMAP_CONF_MIN,
+		     CFG_ENABLE_PEER_UNMAP_CONF_MAX),
 };
 
 
@@ -7797,6 +7804,9 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		  CFG_ROAM_FORCE_RSSI_TRIGGER_NAME,
 		  hdd_ctx->config->roam_force_rssi_trigger);
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ENABLE_PEER_UNMAP_CONF_NAME,
+		  hdd_ctx->config->enable_peer_unmap_conf_support);
 	hdd_cfg_print_action_oui(hdd_ctx);
 	hdd_cfg_print_btc_params(hdd_ctx);
 	hdd_cfg_print_roam_preauth(hdd_ctx);
