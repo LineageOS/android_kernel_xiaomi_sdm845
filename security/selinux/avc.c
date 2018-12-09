@@ -706,6 +706,7 @@ out:
 	return node;
 }
 
+#ifdef CONFIG_AUDIT
 /**
  * avc_audit_pre_callback - SELinux specific information
  * will be called by generic audit code
@@ -741,7 +742,6 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 	}
 }
 
-#ifdef CONFIG_AUDIT
 /* This is the slow part of avc audit with big stack footprint */
 noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
 		u32 requested, u32 audited, u32 denied, int result,
