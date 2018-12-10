@@ -448,7 +448,6 @@ static ADRENO_SYSFS_BOOL(gpu_llc_slice_enable);
 static ADRENO_SYSFS_BOOL(gpuhtw_llc_slice_enable);
 
 static DEVICE_INT_ATTR(wake_nice, 0644, adreno_wake_nice);
-static DEVICE_INT_ATTR(wake_timeout, 0644, adreno_wake_timeout);
 
 static ADRENO_SYSFS_BOOL(sptp_pc);
 static ADRENO_SYSFS_BOOL(lm);
@@ -466,7 +465,6 @@ static const struct device_attribute *_attr_list[] = {
 	&adreno_attr_ft_long_ib_detect.attr,
 	&adreno_attr_ft_hang_intr_status.attr,
 	&dev_attr_wake_nice.attr,
-	&dev_attr_wake_timeout.attr,
 	&adreno_attr_sptp_pc.attr,
 	&adreno_attr_lm.attr,
 	&adreno_attr_preemption.attr,

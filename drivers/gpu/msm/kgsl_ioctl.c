@@ -17,6 +17,7 @@
 #include <linux/fs.h>
 #include "kgsl_device.h"
 #include "kgsl_sync.h"
+#include "adreno.h"
 
 static const struct kgsl_ioctl kgsl_ioctl_funcs[] = {
 	KGSL_IOCTL_FUNC(IOCTL_KGSL_DEVICE_GETPROPERTY,
@@ -168,7 +169,11 @@ long kgsl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	struct kgsl_device_private *dev_priv = filep->private_data;
 	struct kgsl_device *device = dev_priv->device;
+	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
 	long ret;
+
+	if (cmd == IOCTL_KGSL_GPU_COMMAND)
+		kgsl_schedule_work(&adreno_dev->pwr_on_work);
 
 	ret = kgsl_ioctl_helper(filep, cmd, arg, kgsl_ioctl_funcs,
 		ARRAY_SIZE(kgsl_ioctl_funcs));
