@@ -57,6 +57,19 @@ QDF_STATUS tgt_p2p_register_noa_ev_handler(
 	struct wlan_objmgr_psoc *psoc);
 
 /**
+ * tgt_p2p_register_macaddr_rx_filter_evt_handler() - register add mac rx
+ *    filter status event
+ * @psoc: soc object
+ * @register: register or unregister
+ *
+ * p2p tgt api to register add mac rx filter status event
+ *
+ * Return: QDF_STATUS_SUCCESS - in case of success
+ */
+QDF_STATUS tgt_p2p_register_macaddr_rx_filter_evt_handler(
+	struct wlan_objmgr_psoc *psoc, bool register);
+
+/**
  * tgt_p2p_unregister_lo_ev_handler() - unregister lo event
  * @psoc: soc object
  *
@@ -163,4 +176,15 @@ QDF_STATUS tgt_p2p_noa_event_cb(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS tgt_p2p_lo_event_cb(struct wlan_objmgr_psoc *psoc,
 	struct p2p_lo_event *event_info);
 
+/**
+ * tgt_p2p_add_mac_addr_status_event_cb() - Callback for set mac addr filter evt
+ * @psoc: soc object
+ * @event_info: event information type of p2p_set_mac_filter_evt
+ *
+ * Return: QDF_STATUS_SUCCESS - in case of success
+ */
+QDF_STATUS
+tgt_p2p_add_mac_addr_status_event_cb(
+	struct wlan_objmgr_psoc *psoc,
+	struct p2p_set_mac_filter_evt *event_info);
 #endif /* _WLAN_P2P_TGT_API_H_ */
