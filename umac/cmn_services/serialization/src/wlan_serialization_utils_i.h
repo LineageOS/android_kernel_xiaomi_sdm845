@@ -120,6 +120,7 @@ struct wlan_serialization_psoc_priv_obj {
 	wlan_serialization_apply_rules_cb apply_rules_cb[WLAN_SER_CMD_MAX];
 	struct wlan_serialization_timer *timers;
 	uint8_t max_active_cmds;
+	qdf_spinlock_t timer_lock;
 };
 
 /**
@@ -456,7 +457,7 @@ uint32_t wlan_serialization_list_size(
 			struct wlan_serialization_pdev_priv_obj *ser_pdev_obj);
 /**
  * wlan_serialization_acquire_lock() - to acquire lock for serialization module
- * @obj: pdev private object
+ * @lock: lock that is to be acquired
  *
  * This API will acquire lock for serialization module. Mutex or spinlock will
  * be decided based on the context of the operation.
@@ -464,11 +465,11 @@ uint32_t wlan_serialization_list_size(
  * Return: QDF_STATUS based on outcome of the operation
  */
 QDF_STATUS
-wlan_serialization_acquire_lock(struct wlan_serialization_pdev_priv_obj *obj);
+wlan_serialization_acquire_lock(qdf_spinlock_t *lock);
 
 /**
  * wlan_serialization_release_lock() - to release lock for serialization module
- * @obj: pdev private object
+ * @lock: lock that is to be released
  *
  * This API will release lock for serialization module. Mutex or spinlock will
  * be decided based on the context of the operation.
@@ -476,28 +477,30 @@ wlan_serialization_acquire_lock(struct wlan_serialization_pdev_priv_obj *obj);
  * Return: QDF_STATUS based on outcome of the operation
  */
 QDF_STATUS
-wlan_serialization_release_lock(struct wlan_serialization_pdev_priv_obj *obj);
+wlan_serialization_release_lock(qdf_spinlock_t *lock);
 
 /**
  * wlan_serialization_create_lock() - to create lock for serialization module
- * @obj: pdev private object
+ * @lock: lock that is to be created
  *
  * This API will create a lock for serialization module.
  *
  * Return: QDF_STATUS based on outcome of the operation
  */
 QDF_STATUS
-wlan_serialization_create_lock(struct wlan_serialization_pdev_priv_obj  *obj);
+wlan_serialization_create_lock(qdf_spinlock_t *lock);
 
 /**
  * wlan_serialization_destroy_lock() - to destroy lock for serialization module
+ * @lock: lock that is to be destroyed
  *
  * This API will destroy a lock for serialization module.
  *
  * Return: QDF_STATUS based on outcome of the operation
  */
 QDF_STATUS
-wlan_serialization_destroy_lock(struct wlan_serialization_pdev_priv_obj *obj);
+wlan_serialization_destroy_lock(qdf_spinlock_t *lock);
+
 /**
  * wlan_serialization_match_cmd_scan_id() - Check for a match on given nnode
  * @nnode: The node on which the matching has to be done
