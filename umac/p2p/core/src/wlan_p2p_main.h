@@ -50,6 +50,8 @@
 	p2p_logl(QDF_TRACE_LEVEL_ERROR, format, ## args)
 #define p2p_alert(format, args ...) \
 	p2p_logl(QDF_TRACE_LEVEL_FATAL, format, ## args)
+#define p2p_debug_rl(params...) \
+	QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_P2P, params)
 
 struct scheduler_msg;
 struct p2p_tx_cnf;

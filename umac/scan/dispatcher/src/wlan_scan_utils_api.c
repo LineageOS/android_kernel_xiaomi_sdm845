@@ -128,13 +128,11 @@ bool util_is_scan_entry_match(
 
 	if (entry1->cap_info.wlan_caps.ess &&
 	   !qdf_mem_cmp(entry1->bssid.bytes,
-	   entry2->bssid.bytes, QDF_MAC_ADDR_SIZE) &&
-	   util_scan_scm_chan_to_band(
-	   entry1->channel.chan_idx) ==
-	   util_scan_scm_chan_to_band(entry2->channel.chan_idx)) {
+	   entry2->bssid.bytes, QDF_MAC_ADDR_SIZE)) {
 		/* Check for BSS */
 		if (util_is_ssid_match(&entry1->ssid, &entry2->ssid) ||
-		    util_scan_is_null_ssid(&entry1->ssid))
+		    util_scan_is_null_ssid(&entry1->ssid) ||
+		    util_scan_is_null_ssid(&entry2->ssid))
 			return true;
 	} else if (entry1->cap_info.wlan_caps.ibss &&
 	   (entry1->channel.chan_idx ==
@@ -838,21 +836,21 @@ util_scan_unpack_beacon_frame(struct wlan_objmgr_pdev *pdev, uint8_t *frame,
 	qdf_list_t *scan_list;
 	struct scan_cache_node *scan_node;
 
-	scan_list = qdf_mem_malloc(sizeof(*scan_list));
+	scan_list = qdf_mem_malloc_atomic(sizeof(*scan_list));
 	if (!scan_list) {
 		scm_err("failed to allocate scan_list");
 		return NULL;
 	}
 	qdf_list_create(scan_list, MAX_SCAN_CACHE_SIZE);
 
-	scan_entry = qdf_mem_malloc(sizeof(*scan_entry));
+	scan_entry = qdf_mem_malloc_atomic(sizeof(*scan_entry));
 	if (!scan_entry) {
 		scm_err("failed to allocate memory for scan_entry");
 		qdf_mem_free(scan_list);
 		return NULL;
 	}
 	scan_entry->raw_frame.ptr =
-			qdf_mem_malloc(frame_len);
+			qdf_mem_malloc_atomic(frame_len);
 	if (!scan_entry->raw_frame.ptr) {
 		scm_err("failed to allocate memory for frame");
 		qdf_mem_free(scan_entry);
@@ -967,7 +965,7 @@ util_scan_unpack_beacon_frame(struct wlan_objmgr_pdev *pdev, uint8_t *frame,
 	if (qbss_load)
 		scan_entry->qbss_chan_load = qbss_load->qbss_chan_load;
 
-	scan_node = qdf_mem_malloc(sizeof(*scan_node));
+	scan_node = qdf_mem_malloc_atomic(sizeof(*scan_node));
 	if (!scan_node) {
 		qdf_mem_free(scan_entry->raw_frame.ptr);
 		qdf_mem_free(scan_entry);

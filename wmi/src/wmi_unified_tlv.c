@@ -13595,6 +13595,7 @@ QDF_STATUS send_pdev_set_dual_mac_config_cmd_tlv(wmi_unified_t wmi_handle,
 		WMI_LOGE("%s: Failed to send WMI_PDEV_SET_MAC_CONFIG_CMDID",
 				__func__);
 		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
 	}
 	return QDF_STATUS_SUCCESS;
 }
@@ -19915,6 +19916,9 @@ static QDF_STATUS extract_reg_cap_service_ready_ext_tlv(
 		return QDF_STATUS_E_INVAL;
 
 	if (phy_idx >= reg_caps->num_phy)
+		return QDF_STATUS_E_INVAL;
+
+	if (!param_buf->hal_reg_caps)
 		return QDF_STATUS_E_INVAL;
 
 	ext_reg_cap = &param_buf->hal_reg_caps[phy_idx];

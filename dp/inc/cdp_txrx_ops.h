@@ -124,6 +124,13 @@ struct cdp_cmn_ops {
 	int (*txrx_set_monitor_mode)(struct cdp_vdev *vdev,
 			uint8_t smart_monitor);
 
+	void (*txrx_peer_delete_sync)(void *peer,
+				      QDF_STATUS(*delete_cb)(
+						uint8_t vdev_id,
+						uint32_t peerid_cnt,
+						uint16_t *peerid_list),
+				      uint32_t bitmap);
+
 	uint8_t (*txrx_get_pdev_id_frm_pdev)(struct cdp_pdev *pdev);
 
 	void (*txrx_set_nac)(struct cdp_peer *peer);
@@ -843,11 +850,15 @@ struct cdp_pmf_ops {
  * @set_cfg_packet_log_enabled:
  * @cfg_attach:
  * @vdev_rx_set_intrabss_fwd:
- * @get_opmode:
  * @is_rx_fwd_disabled:
  * @tx_set_is_mgmt_over_wmi_enabled:
  * @is_high_latency:
  * @set_flow_control_parameters:
+ * @set_flow_steering:
+ * @set_ptp_rx_opt_enabled:
+ * @set_new_htt_msg_format:
+ * @set_peer_unmap_conf_support:
+ * @get_peer_unmap_conf_support:
  */
 struct cdp_cfg_ops {
 	void (*set_cfg_rx_fwd_disabled)(struct cdp_cfg *cfg_pdev,
@@ -864,6 +875,8 @@ struct cdp_cfg_ops {
 	void (*set_flow_steering)(struct cdp_cfg *cfg_pdev, uint8_t val);
 	void (*set_ptp_rx_opt_enabled)(struct cdp_cfg *cfg_pdev, uint8_t val);
 	void (*set_new_htt_msg_format)(uint8_t val);
+	void (*set_peer_unmap_conf_support)(bool val);
+	bool (*get_peer_unmap_conf_support)(void);
 };
 
 /**
