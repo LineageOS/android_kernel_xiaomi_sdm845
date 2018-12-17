@@ -2002,6 +2002,8 @@ struct hdd_context {
 #endif
 	struct hdd_dynamic_mac dynamic_mac_list[QDF_MAX_CONCURRENCY_PERSONA];
 	bool dynamic_nss_chains_support;
+	/* Completion variable to indicate that all pdev cmds are flushed */
+	struct completion pdev_cmd_flushed_var;
 
 	struct qdf_mac_addr hw_macaddr;
 	struct qdf_mac_addr provisioned_mac_addr[QDF_MAX_CONCURRENCY_PERSONA];

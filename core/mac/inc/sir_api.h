@@ -2496,6 +2496,21 @@ struct sir_sme_mgmt_frame_cb_req {
 	sir_mgmt_frame_ind_callback callback;
 };
 
+typedef void (*sir_purge_pdev_cmd_cb)(hdd_handle_t hdd_ctx);
+/**
+ * struct sir_purge_pdev_cmd_req - Register a
+ * management frame callback req
+ *
+ * @message_type: message id
+ * @length: msg length
+ * @purge_complete_cb: callback for pdev purge cmd complete
+ */
+struct sir_purge_pdev_cmd_req {
+	uint16_t message_type;
+	uint16_t length;
+	sir_purge_pdev_cmd_cb purge_complete_cb;
+};
+
 #ifdef WLAN_FEATURE_11W
 typedef struct sSirSmeUnprotMgmtFrameInd {
 	uint8_t sessionId;

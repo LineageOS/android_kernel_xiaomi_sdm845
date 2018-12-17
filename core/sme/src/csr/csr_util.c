@@ -424,14 +424,6 @@ void csr_purge_vdev_all_ser_cmd_list(struct sAniSirGlobal *mac_ctx,
 						     true, true);
 }
 
-void csr_purge_vdev_all_scan_ser_cmd_list(struct sAniSirGlobal *mac_ctx,
-					  uint32_t vdev_id)
-{
-	wlan_serialization_purge_cmd_list_by_vdev_id(mac_ctx->psoc, vdev_id,
-						     true, true, false,
-						     false, false);
-}
-
 void csr_purge_pdev_all_ser_cmd_list(struct sAniSirGlobal *mac_ctx)
 {
 	wlan_serialization_purge_cmd_list(mac_ctx->psoc, NULL, true, true,

@@ -277,17 +277,39 @@ static QDF_STATUS sme_process_hw_mode_trans_ind(tpAniSirGlobal mac,
 	return QDF_STATUS_SUCCESS;
 }
 
-void sme_purge_pdev_all_ser_cmd_list(mac_handle_t mac_handle)
+QDF_STATUS sme_purge_pdev_all_ser_cmd_list_sync(mac_handle_t mac_handle,
+						sir_purge_pdev_cmd_cb cb)
 {
 	QDF_STATUS status;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(mac_handle);
+	struct scheduler_msg msg = {0};
+	struct sir_purge_pdev_cmd_req *req;
 
 	status = sme_acquire_global_lock(&mac_ctx->sme);
 	if (QDF_IS_STATUS_ERROR(status))
-		return;
+		return status;
 
-	csr_purge_pdev_all_ser_cmd_list(mac_ctx);
+	req = qdf_mem_malloc(sizeof(*req));
+	if (!req) {
+		sme_release_global_lock(&mac_ctx->sme);
+		sme_err("failed to get req");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	req->message_type = eWNI_SME_PURGE_ALL_PDEV_CMDS_REQ;
+	req->length = (uint16_t) sizeof(tAniGetRssiReq);
+	req->purge_complete_cb = cb;
+	msg.type = eWNI_SME_PURGE_ALL_PDEV_CMDS_REQ;
+	msg.bodyptr = req;
+	status = scheduler_post_message(QDF_MODULE_ID_SME, QDF_MODULE_ID_SME,
+					QDF_MODULE_ID_SME, &msg);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_free(req);
+		sme_err("Failed to post eWNI_SME_PURGE_ALL_PDEV_CMDS_REQ to self");
+	}
 	sme_release_global_lock(&mac_ctx->sme);
+
+	return status;
 }
 
 /**

@@ -1420,17 +1420,6 @@ void csr_purge_vdev_all_ser_cmd_list(struct sAniSirGlobal *mac_ctx,
 				     uint32_t vdev_id);
 
 /**
- * csr_purge_vdev_all_scan_ser_cmd_list() - purge all scan active and pending
- * cmds for the vdev id
- * @mac_ctx: pointer to global MAC context
- * @vdev_id : vdev id for which cmds need to be purged
- *
- * Return : none
- */
-void csr_purge_vdev_all_scan_ser_cmd_list(struct sAniSirGlobal *mac_ctx,
-					  uint32_t vdev_id);
-
-/**
  * csr_purge_pdev_all_ser_cmd_list() - purge all scan and non-scan
  * active and pending cmds for all vdevs in pdev
  * @mac_ctx: pointer to global MAC context

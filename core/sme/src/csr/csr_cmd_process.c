@@ -95,6 +95,9 @@ QDF_STATUS csr_msg_processor(tpAniSirGlobal mac_ctx, void *msg_buf)
 					pGetRssiReq->lastRSSI,
 					pGetRssiReq->staId,
 					pGetRssiReq->pDevContext);
+		} else if (sme_rsp->messageType ==
+			   eWNI_SME_PURGE_ALL_PDEV_CMDS_REQ) {
+			csr_purge_pdev_all_ser_cmd_list_sync(mac_ctx, msg_buf);
 		} else {
 			sme_err("Message 0x%04X is not handled by CSR state is %d session Id %d",
 				sme_rsp->messageType, cur_state,

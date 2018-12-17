@@ -10762,6 +10762,10 @@ void csr_roaming_state_msg_processor(tpAniSirGlobal pMac, void *pMsgBuf)
 		csr_roam_check_for_link_status_change(pMac, pSmeRsp);
 		break;
 
+	case eWNI_SME_PURGE_ALL_PDEV_CMDS_REQ:
+		csr_purge_pdev_all_ser_cmd_list_sync(pMac, pMsgBuf);
+		break;
+
 	default:
 		sme_debug("Unexpected message type: %d[0x%X] received in substate %s",
 			pSmeRsp->messageType, pSmeRsp->messageType,
@@ -12756,6 +12760,15 @@ csr_roam_chk_lnk_max_assoc_exceeded(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 			       eCSR_ROAM_RESULT_MAX_ASSOC_EXCEEDED);
 }
 
+void csr_purge_pdev_all_ser_cmd_list_sync(tpAniSirGlobal mac_ctx,
+					  struct sir_purge_pdev_cmd_req *req)
+{
+	csr_purge_pdev_all_ser_cmd_list(mac_ctx);
+
+	if (req->purge_complete_cb)
+		req->purge_complete_cb(mac_ctx->hdd_handle);
+}
+
 void csr_roam_check_for_link_status_change(tpAniSirGlobal pMac,
 						tSirSmeRsp *pSirMsg)
 {
@@ -12836,7 +12849,10 @@ void csr_roam_check_for_link_status_change(tpAniSirGlobal pMac,
 		sme_debug("Handoff Req from self");
 		csr_neighbor_roam_handoff_req_hdlr(pMac, pSirMsg);
 		break;
-
+	case eWNI_SME_PURGE_ALL_PDEV_CMDS_REQ:
+		csr_purge_pdev_all_ser_cmd_list_sync(pMac,
+			(struct sir_purge_pdev_cmd_req *)pSirMsg);
+		break;
 	default:
 		break;
 	} /* end switch on message type */
@@ -17777,11 +17793,6 @@ QDF_STATUS csr_roam_close_session(tpAniSirGlobal mac_ctx,
 					 session_id);
 	}
 
-	/*
-	 * Flush only scan commands. Non scan commands should go in sequence
-	 * as expected by firmware and should not be flushed.
-	 */
-	csr_purge_vdev_all_scan_ser_cmd_list(mac_ctx, session_id);
 	if (!session->session_close_cb) {
 		sme_err("no close session callback registered");
 		return QDF_STATUS_E_FAILURE;

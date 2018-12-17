@@ -367,13 +367,15 @@ QDF_STATUS sme_ser_cmd_callback(void *buf,
 				enum wlan_serialization_cb_reason reason);
 
 /**
- * sme_purge_pdev_all_ser_cmd_list() - purge all scan and non-scan
+ * sme_purge_pdev_all_ser_cmd_list_sync() - purge all scan and non-scan
  * active and pending cmds for pdev
  * @mac_handle: pointer to global MAC context
+ * @cb: callback to hdd
  *
- * Return : none
+ * Return : QDF_STATUS
  */
-void sme_purge_pdev_all_ser_cmd_list(mac_handle_t mac_handle);
+QDF_STATUS sme_purge_pdev_all_ser_cmd_list_sync(mac_handle_t mac_handle,
+						sir_purge_pdev_cmd_cb cb);
 
 /*
  * sme_process_msg() - The main message processor for SME.
