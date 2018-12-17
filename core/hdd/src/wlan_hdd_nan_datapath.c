@@ -240,8 +240,10 @@ static int hdd_get_random_nan_mac_addr(struct hdd_context *hdd_ctx,
 	struct hdd_adapter *adapter;
 	uint8_t pos, bit_pos, byte_pos, mask;
 	uint8_t i, attempts, max_attempt = 16;
+	bool found;
 
 	for (attempts = 0; attempts < max_attempt; attempts++) {
+		found = false;
 		/* if NDI is present next addr is required to be 1 bit apart  */
 		adapter = hdd_get_adapter(hdd_ctx, QDF_NDI_MODE);
 		if (adapter) {
@@ -271,11 +273,28 @@ static int hdd_get_random_nan_mac_addr(struct hdd_context *hdd_ctx,
 			 */
 			mac_addr->bytes[5] &= 0xFE;
 		}
-		for (i = 0; i < QDF_MAX_CONCURRENCY_PERSONA; i++) {
-			if (!qdf_mem_cmp(hdd_ctx->config->intfMacAddr[i].bytes,
-					 mac_addr, sizeof(*mac_addr)))
-				continue;
+		for (i = 0; i < hdd_ctx->num_provisioned_addr; i++) {
+			if ((!qdf_mem_cmp(hdd_ctx->
+					  provisioned_mac_addr[i].bytes,
+			      mac_addr, sizeof(*mac_addr)))) {
+				found = true;
+				break;
+			}
 		}
+
+		if (found)
+			continue;
+
+		for (i = 0; i < hdd_ctx->num_derived_addr; i++) {
+			if ((!qdf_mem_cmp(hdd_ctx->
+					  derived_mac_addr[i].bytes,
+			      mac_addr, sizeof(*mac_addr)))) {
+				found = true;
+				break;
+			}
+		}
+		if (found)
+			continue;
 
 		adapter = hdd_get_adapter_by_macaddr(hdd_ctx, mac_addr->bytes);
 		if (!adapter)
@@ -353,18 +372,18 @@ static int __wlan_hdd_cfg80211_process_ndp_cmd(struct wiphy *wiphy,
 	}
 
 	if (!WLAN_HDD_IS_NDP_ENABLED(hdd_ctx)) {
-		hdd_err("NAN datapath is not enabled");
+		hdd_err_rl("NAN datapath is not enabled");
 		return -EPERM;
 	}
 	/* NAN data path coexists only with STA interface */
 	if (false == hdd_is_ndp_allowed(hdd_ctx)) {
-		hdd_err("Unsupported concurrency for NAN datapath");
+		hdd_err_rl("Unsupported concurrency for NAN datapath");
 		return -EPERM;
 	}
 
 	/* NAN data path coexists only with STA interface */
 	if (false == hdd_is_ndp_allowed(hdd_ctx)) {
-		hdd_err("Unsupported concurrency for NAN datapath");
+		hdd_err_rl("Unsupported concurrency for NAN datapath");
 		return -EPERM;
 	}
 
@@ -492,7 +511,7 @@ int hdd_ndi_open(char *iface_name)
 		}
 		ndi_mac_addr = &random_ndi_mac.bytes[0];
 	} else {
-		ndi_mac_addr = wlan_hdd_get_intf_addr(hdd_ctx);
+		ndi_mac_addr = wlan_hdd_get_intf_addr(hdd_ctx, QDF_NDI_MODE);
 		if (!ndi_mac_addr) {
 			hdd_err("get intf address failed");
 			return -EFAULT;

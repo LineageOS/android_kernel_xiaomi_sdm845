@@ -1324,9 +1324,9 @@ static QDF_STATUS pe_handle_mgmt_frame(struct wlan_objmgr_psoc *psoc,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	pVosPkt = qdf_mem_malloc(sizeof(*pVosPkt));
+	pVosPkt = qdf_mem_malloc_atomic(sizeof(*pVosPkt));
 	if (!pVosPkt) {
-		pe_err("Failed to allocate rx packet");
+		pe_debug_rl("Failed to allocate rx packet");
 		qdf_nbuf_free(buf);
 		return QDF_STATUS_E_NOMEM;
 	}

@@ -553,26 +553,6 @@ struct reg_table_entry g_registry_table[] = {
 			    VAR_FLAGS_OPTIONAL,
 			    (void *)CFG_IBSS_BSSID_DEFAULT),
 
-	REG_VARIABLE_STRING(CFG_INTF0_MAC_ADDR_NAME, WLAN_PARAM_MacAddr,
-			    struct hdd_config, intfMacAddr[0],
-			    VAR_FLAGS_OPTIONAL,
-			    (void *)CFG_INTF0_MAC_ADDR_DEFAULT),
-
-	REG_VARIABLE_STRING(CFG_INTF1_MAC_ADDR_NAME, WLAN_PARAM_MacAddr,
-			    struct hdd_config, intfMacAddr[1],
-			    VAR_FLAGS_OPTIONAL,
-			    (void *)CFG_INTF1_MAC_ADDR_DEFAULT),
-
-	REG_VARIABLE_STRING(CFG_INTF2_MAC_ADDR_NAME, WLAN_PARAM_MacAddr,
-			    struct hdd_config, intfMacAddr[2],
-			    VAR_FLAGS_OPTIONAL,
-			    (void *)CFG_INTF2_MAC_ADDR_DEFAULT),
-
-	REG_VARIABLE_STRING(CFG_INTF3_MAC_ADDR_NAME, WLAN_PARAM_MacAddr,
-			    struct hdd_config, intfMacAddr[3],
-			    VAR_FLAGS_OPTIONAL,
-			    (void *)CFG_INTF3_MAC_ADDR_DEFAULT),
-
 	REG_VARIABLE(CFG_AP_QOS_UAPSD_MODE_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, apUapsdEnabled,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -5782,6 +5762,27 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_MIN,
 		     CFG_ROAM_PREAUTH_NO_ACK_TIMEOUT_MAX),
 #endif
+
+	REG_VARIABLE(CFG_ENABLE_MAC_PROVISION_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, mac_provision,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_MAC_PROVISION_DEFAULT,
+		     CFG_ENABLE_MAC_PROVISION_MIN,
+		     CFG_ENABLE_MAC_PROVISION_MAX),
+
+	REG_VARIABLE(CFG_PROVISION_INTERFACE_POOL_NAME, WLAN_PARAM_HexInteger,
+		     struct hdd_config, provisioned_intf_pool,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_PROVISION_INTERFACE_POOL_DEFAULT,
+		     CFG_PROVISION_INTERFACE_POOL_MIN,
+		     CFG_PROVISION_INTERFACE_POOL_MAX),
+
+	REG_VARIABLE(CFG_DERIVED_INTERFACE_POOL_NAME, WLAN_PARAM_HexInteger,
+		     struct hdd_config, derived_intf_pool,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_DERIVED_INTERFACE_POOL_DEFAULT,
+		     CFG_DERIVED_INTERFACE_POOL_MIN,
+		     CFG_DERIVED_INTERFACE_POOL_MAX),
 };
 
 
@@ -6065,8 +6066,8 @@ static QDF_STATUS update_mac_from_string(struct hdd_context *hdd_ctx,
 				break;
 		}
 		if (res == 0 && !qdf_is_macaddr_zero(&macaddr[i])) {
-			qdf_mem_copy((uint8_t *) &hdd_ctx->config->
-				     intfMacAddr[i].bytes[0],
+			qdf_mem_copy((uint8_t *)&hdd_ctx->
+				     provisioned_mac_addr[i].bytes[0],
 				     (uint8_t *) &macaddr[i].bytes[0],
 				     QDF_MAC_ADDR_SIZE);
 		} else {
@@ -6862,7 +6863,6 @@ static void hdd_cfg_print_btc_params(struct hdd_context *hdd_ctx)
  */
 void hdd_cfg_print(struct hdd_context *hdd_ctx)
 {
-	int i;
 
 	hdd_debug("*********Config values in HDD Adapter*******");
 	hdd_debug("Name = [RTSThreshold] Value = %u",
@@ -6877,11 +6877,6 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 		  hdd_ctx->config->nVccRssiTrigger);
 	hdd_debug("Name = [gIbssBssid] Value =[" MAC_ADDRESS_STR "]",
 		  MAC_ADDR_ARRAY(hdd_ctx->config->IbssBssid.bytes));
-
-	for (i = 0; i < QDF_MAX_CONCURRENCY_PERSONA; i++) {
-		hdd_debug("Name = [Intf%dMacAddress] Value =[" MAC_ADDRESS_STR "]",
-			  i, MAC_ADDR_ARRAY(hdd_ctx->config->intfMacAddr[i].bytes));
-	}
 
 	hdd_debug("Name = [gApEnableUapsd] value = [%u]",
 		  hdd_ctx->config->apUapsdEnabled);
@@ -7907,13 +7902,20 @@ QDF_STATUS hdd_update_mac_config(struct hdd_context *hdd_ctx)
 		hdd_err("Invalid MAC addresses provided");
 		goto config_exit;
 	}
+	hdd_ctx->num_provisioned_addr = i;
 	hdd_debug("Populating remaining %d Mac addresses",
 		   max_mac_addr - i);
 	hdd_populate_random_mac_addr(hdd_ctx, max_mac_addr - i);
 
-	qdf_mem_copy(&customMacAddr,
-		     &hdd_ctx->config->intfMacAddr[0].bytes[0],
-		     sizeof(tSirMacAddr));
+	if (hdd_ctx->num_provisioned_addr)
+		qdf_mem_copy(&customMacAddr,
+			     &hdd_ctx->provisioned_mac_addr[0].bytes[0],
+			     sizeof(tSirMacAddr));
+	else
+		qdf_mem_copy(&customMacAddr,
+			     &hdd_ctx->derived_mac_addr[0].bytes[0],
+			     sizeof(tSirMacAddr));
+
 	sme_set_custom_mac_addr(customMacAddr);
 
 config_exit:

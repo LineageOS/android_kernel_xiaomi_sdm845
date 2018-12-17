@@ -69,7 +69,7 @@ static int __wlan_hdd_cfg80211_nan_request(struct wiphy *wiphy,
 	}
 
 	if (!hdd_ctx->config->enable_nan_support) {
-		hdd_err("NaN support is not enabled in INI");
+		hdd_err_rl("NaN support is not enabled in INI");
 		return -EPERM;
 	}
 
