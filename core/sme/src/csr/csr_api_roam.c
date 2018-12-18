@@ -1560,6 +1560,21 @@ void csr_release_command_wm_status_change(tpAniSirGlobal pMac,
 	csr_reinit_wm_status_change_cmd(pMac, pCommand);
 }
 
+static void csr_release_command_set_hw_mode(tpAniSirGlobal mac,
+					    tSmeCmd *cmd)
+{
+	struct csr_roam_session *session;
+	uint32_t session_id;
+
+	if (cmd->u.set_hw_mode_cmd.reason ==
+	    POLICY_MGR_UPDATE_REASON_HIDDEN_STA) {
+		session_id = cmd->u.set_hw_mode_cmd.session_id;
+		session = CSR_GET_SESSION(mac, session_id);
+		if (session)
+			csr_saved_scan_cmd_free_fields(mac, session);
+	}
+}
+
 void csr_roam_substate_change(tpAniSirGlobal pMac,
 		enum csr_roam_substate NewSubstate, uint32_t sessionId)
 {
@@ -20621,6 +20636,8 @@ static void csr_free_cmd_memory(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 	case eSmeCommandWmStatusChange:
 		csr_release_command_wm_status_change(pMac, pCommand);
 		break;
+	case e_sme_command_set_hw_mode:
+		csr_release_command_set_hw_mode(pMac, pCommand);
 	default:
 		break;
 	}
