@@ -1656,6 +1656,7 @@ static struct attribute *nvt_attr_group[] = {
 	&dev_attr_panel_color.attr,
 	&dev_attr_panel_display.attr,
 	&dev_attr_wake_gesture.attr,
+	NULL,
 };
 
 static ssize_t novatek_input_symlink(struct nvt_ts_data *ts) {
