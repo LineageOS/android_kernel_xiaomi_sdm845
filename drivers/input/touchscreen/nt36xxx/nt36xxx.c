@@ -1591,6 +1591,7 @@ static struct attribute *nvt_attr_group[] = {
 	&dev_attr_panel_vendor.attr,
 	&dev_attr_panel_color.attr,
 	&dev_attr_panel_display.attr,
+	NULL,
 };
 
 /*******************************************************
