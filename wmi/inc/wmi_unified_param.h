@@ -5568,6 +5568,7 @@ typedef enum {
 	wmi_roam_scan_stats_event_id,
 	wmi_wlan_sar2_result_event_id,
 	wmi_vdev_bcn_reception_stats_event_id,
+	wmi_roam_blacklist_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 
