@@ -9647,7 +9647,7 @@ QDF_STATUS csr_roam_save_connected_information(tpAniSirGlobal pMac,
 			qdf_mem_copy(pConnectProfile->SSID.ssId,
 				     pIesTemp->SSID.ssid,
 				     pIesTemp->SSID.num_ssid);
-		} else if (pProfile->SSIDs.SSIDList) {
+		} else if (pProfile->SSIDs.numOfSSIDs) {
 			pConnectProfile->SSID.length =
 					pProfile->SSIDs.SSIDList[0].SSID.length;
 			qdf_mem_copy(pConnectProfile->SSID.ssId,
@@ -15731,7 +15731,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			csr_join_req->ssId.length = pIes->SSID.num_ssid;
 			qdf_mem_copy(&csr_join_req->ssId.ssId, pIes->SSID.ssid,
 				     pIes->SSID.num_ssid);
-		} else if (pProfile->SSIDs.SSIDList) {
+		} else if (pProfile->SSIDs.numOfSSIDs) {
 			csr_join_req->ssId.length =
 					pProfile->SSIDs.SSIDList[0].SSID.length;
 			qdf_mem_copy(&csr_join_req->ssId.ssId,
