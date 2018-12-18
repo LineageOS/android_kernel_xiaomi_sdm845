@@ -332,6 +332,26 @@ void lim_switch_channel_cback(tpAniSirGlobal pMac, QDF_STATUS status,
 		uint32_t *data, tpPESession psessionEntry);
 
 /**
+ * lim_assoc_rej_get_remaining_delta() - Get remaining time delta for
+ * the rssi based disallowed list entry
+ * @node: rssi based disallowed list entry
+ *
+ * Return: remaining delta, can be -ve if time has already expired.
+ */
+int
+lim_assoc_rej_get_remaining_delta(struct sir_rssi_disallow_lst *node);
+
+/**
+ * lim_rem_blacklist_entry_with_lowest_delta() - Remove the entry with lowest
+ * time delta
+ * @list: rssi based rejected BSSID list
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+lim_rem_blacklist_entry_with_lowest_delta(qdf_list_t *list);
+
+/**
  * lim_get_session_by_macaddr() - api to find session based on MAC
  * @mac_ctx: Pointer to global mac structure.
  * @self_mac: MAC address.
