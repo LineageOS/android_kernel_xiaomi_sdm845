@@ -3515,13 +3515,11 @@ void wma_vdev_resp_timer(void *data)
 		 * Trigger host crash if the flag is set or if the timeout
 		 * is not due to fw down
 		 */
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
 			wma_trigger_recovery_assert_on_fw_timeout(
 				WMA_CHNL_SWITCH_REQ);
-		} else {
-			wma_send_msg_high_priority(wma, WMA_SWITCH_CHANNEL_RSP,
-				    (void *)params, 0);
-		}
+		wma_send_msg_high_priority(wma, WMA_SWITCH_CHANNEL_RSP,
+					   (void *)params, 0);
 		if (wma->interfaces[tgt_req->vdev_id].is_channel_switch) {
 			wma->interfaces[tgt_req->vdev_id].is_channel_switch =
 				false;
@@ -3651,20 +3649,18 @@ void wma_vdev_resp_timer(void *data)
 		WMA_LOGA("%s: WMA_ADD_BSS_REQ timedout", __func__);
 		WMA_LOGD("%s: bssid %pM vdev_id %d", __func__, params->bssId,
 			 tgt_req->vdev_id);
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
 			wma_trigger_recovery_assert_on_fw_timeout(
 				WMA_ADD_BSS_REQ);
-		} else {
-			if (wma_send_vdev_stop_to_fw(wma, tgt_req->vdev_id))
-				WMA_LOGE("%s: Failed to send vdev stop to fw",
-					 __func__);
+		if (wma_send_vdev_stop_to_fw(wma, tgt_req->vdev_id))
+			WMA_LOGE("%s: Failed to send vdev stop to fw",
+				 __func__);
 
-			wma_remove_peer_on_add_bss_failure(params);
+		wma_remove_peer_on_add_bss_failure(params);
 
-			wma_send_msg_high_priority(wma, WMA_ADD_BSS_RSP,
-						   (void *)params, 0);
-			QDF_ASSERT(0);
-		}
+		wma_send_msg_high_priority(wma, WMA_ADD_BSS_RSP,
+					   (void *)params, 0);
+		QDF_ASSERT(0);
 		goto free_tgt_req;
 
 	} else if (tgt_req->msg_type == WMA_OCB_SET_CONFIG_CMD) {
