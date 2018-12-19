@@ -94,7 +94,7 @@ fw-shipped-$(CONFIG_SND_YMFPCI) += yamaha/ds1_ctrl.fw yamaha/ds1_dsp.fw \
 				   yamaha/ds1e_ctrl.fw
 fw-shipped-$(CONFIG_SND_WAVEFRONT) += yamaha/yss225_registers.bin
 fw-shipped-$(CONFIG_TEHUTI) += tehuti/bdx.bin
-fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_MXT) += mXT640U0x1410AA.fw mxt_640u_gov_config.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_MXT) += mXT640U0x1410E8.fw mxt_640u_gov_config.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_ST_FTS_V521) += st_fts_e1.ftb st_fts_e8.ftb st_fts.ftb st_fts_e5.ftb
 fw-shipped-$(CONFIG_TOUCHSCREEN_ST_FTS) += st_fts_e1_old.ftb
 fw-shipped-$(CONFIG_INPUT_PRESS_NDT_F60) += ndt_fw.bin
