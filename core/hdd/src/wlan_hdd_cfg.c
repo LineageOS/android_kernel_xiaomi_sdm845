@@ -5840,6 +5840,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_BTM_DISASSOC_TIMER_THRESHOLD_MIN,
 		     CFG_BTM_DISASSOC_TIMER_THRESHOLD_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_BEACON_RECEPTION_STATS_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_beacon_reception_stats,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_BEACON_RECEPTION_STATS_DEFAULT,
+		     CFG_ENABLE_BEACON_RECEPTION_STATS_MIN,
+		     CFG_ENABLE_BEACON_RECEPTION_STATS_MAX),
+
 	REG_VARIABLE(CFG_ENABLE_BSS_LOAD_TRIGGERED_ROAM, WLAN_PARAM_Integer,
 		     struct hdd_config, enable_bss_load_roam_trigger,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -9208,6 +9215,21 @@ static void sme_update_roam_preauth_params(tSmeConfigParams *sme_config,
 #endif
 
 /**
+ * sme_update_beacon_stats() -  Update enable/disable beacon stats in mac ctx
+ * @mac_handle: Opaque mac handle
+ * @enable_beacon_reception_stats: Enabled/disabled
+ *
+ * Return: None
+ */
+static void sme_update_beacon_stats(mac_handle_t mac_handle,
+				    bool enable_beacon_reception_stats)
+{
+	struct sAniSirGlobal *mac_ctx = MAC_CONTEXT(mac_handle);
+
+	mac_ctx->enable_beacon_reception_stats = enable_beacon_reception_stats;
+}
+
+/**
  * hdd_set_sme_config() -initializes the sme configuration parameters
  *
  * @hdd_ctx: the pointer to hdd context
@@ -9724,6 +9746,8 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 			pConfig->bss_load_sample_time;
 
 
+	sme_update_beacon_stats(mac_handle,
+				hdd_ctx->config->enable_beacon_reception_stats);
 	status = sme_update_config(mac_handle, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		hdd_err("sme_update_config() failure: %d", status);

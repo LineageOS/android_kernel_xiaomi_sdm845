@@ -15810,6 +15810,27 @@ enum hdd_external_acs_policy {
 #define CFG_BTM_VALIDITY_TIMER_MIN        0
 #define CFG_BTM_VALIDITY_TIMER_MAX        0xffffffff
 
+ /*
+ * <ini>
+ * enable_beacon_reception_stats - Enable disable beacon reception stats
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable the beacon reception stats collected per
+ * vdev and then sent to the driver to be displayed in sysfs
+ *
+ * Related: None
+ *
+ * Supported Feature: Stats
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_BEACON_RECEPTION_STATS_NAME   "enable_beacon_reception_stats"
+#define CFG_ENABLE_BEACON_RECEPTION_STATS_MIN     0
+#define CFG_ENABLE_BEACON_RECEPTION_STATS_MAX     1
+#define CFG_ENABLE_BEACON_RECEPTION_STATS_DEFAULT 0
+
 /*
  * <ini>
  * btm_disassoc_timer_threshold - Disassociation timer threshold to wait
@@ -16865,6 +16886,8 @@ struct hdd_config {
 	bool enable_bss_load_roam_trigger;
 	uint32_t bss_load_threshold;
 	uint32_t bss_load_sample_time;
+
+	bool enable_beacon_reception_stats;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

@@ -888,7 +888,11 @@ typedef struct sAniSirGlobal {
 	uint8_t no_ack_policy_cfg[MAX_NUM_AC];
 	uint32_t he_sgi_ltf_cfg_bit_mask;
 	struct mgmt_beacon_probe_filter bcn_filter;
+
+	/* Beacon stats capability from FW */
 	bool bcn_reception_stats;
+	/* Beacon stats enabled/disabled from ini */
+	bool enable_beacon_reception_stats;
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS

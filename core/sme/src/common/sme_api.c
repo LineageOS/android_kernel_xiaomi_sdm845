@@ -12433,8 +12433,9 @@ QDF_STATUS sme_beacon_debug_stats_req(
 			return QDF_STATUS_E_FAILURE;
 		}
 
-		if (!mac_ctx->bcn_reception_stats) {
-			sme_err("Beacon Reception stats not supported by FW");
+		if (!mac_ctx->bcn_reception_stats &&
+		    !mac_ctx->enable_beacon_reception_stats) {
+			sme_err("Beacon Reception stats not supported");
 			sme_release_global_lock(&mac_ctx->sme);
 			return QDF_STATUS_E_NOSUPPORT;
 		}
