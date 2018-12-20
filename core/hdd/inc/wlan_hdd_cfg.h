@@ -15759,6 +15759,9 @@ enum hdd_external_acs_policy {
 #define CFG_PREFER_BTM_QUERY_MIN        0
 #define CFG_PREFER_BTM_QUERY_MAX        1
 
+#define BTM_OFFLOAD_CONFIG_BIT_8    8
+#define BTM_OFFLOAD_CONFIG_BIT_7    7
+
 /*
  * <ini>
  * prefer_roam_score_for_candidate_selection - choose to sort the candidates on

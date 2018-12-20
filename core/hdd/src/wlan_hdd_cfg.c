@@ -9107,6 +9107,9 @@ static void hdd_update_bss_score_params(struct hdd_config *config,
 	score_params->band_weight_per_index =
 		hdd_limit_max_per_index_score(config->band_weight_per_index);
 
+	score_params->roam_score_delta = config->roam_score_delta;
+	score_params->roam_score_delta_bitmap = config->roam_score_delta_bitmap;
+
 	score_params->rssi_score.best_rssi_threshold =
 				config->best_rssi_threshold;
 	score_params->rssi_score.good_rssi_threshold =
@@ -9700,6 +9703,26 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 
 	hdd_update_11k_offload_params(hdd_ctx->config,
 					&smeConfig->csrConfig);
+
+	if (pConfig->prefer_btm_query) {
+		smeConfig->csrConfig.btm_offload_config &=
+				(1 << BTM_OFFLOAD_CONFIG_BIT_8);
+	}
+
+	if (pConfig->btm_abridge_config) {
+		smeConfig->csrConfig.btm_offload_config &=
+			(1 << BTM_OFFLOAD_CONFIG_BIT_7);
+	}
+
+	smeConfig->csrConfig.btm_validity_timer = pConfig->btm_validity_timer;
+	smeConfig->csrConfig.btm_disassoc_timer_threshold =
+			pConfig->btm_disassoc_timer_threshold;
+	smeConfig->csrConfig.enable_bss_load_roam_trigger =
+			pConfig->enable_bss_load_roam_trigger;
+	smeConfig->csrConfig.bss_load_threshold = pConfig->bss_load_threshold;
+	smeConfig->csrConfig.bss_load_sample_time =
+			pConfig->bss_load_sample_time;
+
 
 	status = sme_update_config(mac_handle, smeConfig);
 	if (!QDF_IS_STATUS_SUCCESS(status))

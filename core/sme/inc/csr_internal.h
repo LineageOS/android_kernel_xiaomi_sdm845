@@ -616,6 +616,11 @@ struct csr_config {
 	struct csr_neighbor_report_offload_params neighbor_report_offload;
 	bool enable_ftopen;
 	bool roam_force_rssi_trigger;
+	uint32_t btm_validity_timer;
+	uint32_t btm_disassoc_timer_threshold;
+	bool enable_bss_load_roam_trigger;
+	uint32_t bss_load_threshold;
+	uint32_t bss_load_sample_time;
 };
 
 struct csr_channel_powerinfo {

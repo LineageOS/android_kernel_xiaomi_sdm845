@@ -3311,6 +3311,17 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		pMac->roam.configParam.btm_sticky_time =
 			pParam->btm_sticky_time;
 
+		pMac->roam.configParam.btm_validity_timer =
+				pParam->btm_validity_timer;
+		pMac->roam.configParam.btm_disassoc_timer_threshold =
+				pParam->btm_disassoc_timer_threshold;
+		pMac->roam.configParam.enable_bss_load_roam_trigger =
+				pParam->enable_bss_load_roam_trigger;
+		pMac->roam.configParam.bss_load_threshold =
+				pParam->bss_load_threshold;
+		pMac->roam.configParam.bss_load_sample_time =
+				pParam->bss_load_sample_time;
+
 		csr_update_he_config_param(pMac, pParam);
 		csr_set_11k_offload_config_param(&pMac->roam.configParam,
 						 pParam);
@@ -3645,6 +3656,16 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		pMac->roam.configParam.mbo_thresholds.
 		mbo_candidate_rssi_btc_thres;
 
+	pParam->btm_validity_timer =
+			pMac->roam.configParam.btm_validity_timer;
+	pParam->btm_disassoc_timer_threshold =
+			pMac->roam.configParam.btm_disassoc_timer_threshold;
+	pParam->enable_bss_load_roam_trigger =
+			pMac->roam.configParam.enable_bss_load_roam_trigger;
+	pParam->bss_load_threshold =
+			pMac->roam.configParam.bss_load_threshold;
+	pParam->bss_load_sample_time =
+			pMac->roam.configParam.bss_load_sample_time;
 	csr_get_he_config_param(pParam, pMac);
 
 	csr_get_11k_offload_config_param(&pMac->roam.configParam, pParam);
@@ -19993,6 +20014,10 @@ static void csr_update_score_params(tpAniSirGlobal mac_ctx,
 		bss_score_params->band_weight_per_index;
 	req_score_params->nss_index_score =
 		bss_score_params->nss_weight_per_index;
+	req_score_params->roam_score_delta =
+		bss_score_params->roam_score_delta;
+	req_score_params->roam_trigger_bitmap =
+		bss_score_params->roam_score_delta_bitmap;
 
 	req_rssi_score->best_rssi_threshold = rssi_score->best_rssi_threshold;
 	req_rssi_score->good_rssi_threshold = rssi_score->good_rssi_threshold;
