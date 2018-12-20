@@ -6568,6 +6568,8 @@ static QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 			req_offload_params->roam_preauth_no_ack_timeout;
 		roam_offload_params->reassoc_failure_timeout =
 			roam_req->reassoc_failure_timeout;
+		roam_offload_params->roam_candidate_validity_time =
+			roam_req->rct_validity_timer;
 
 		/* Fill the capabilities */
 		roam_offload_params->capability =

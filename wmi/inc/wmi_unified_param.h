@@ -1973,6 +1973,8 @@ struct roam_fils_params {
  * @assoc_ie: Assoc IE buffer
  * @add_fils_tlv: add FILS TLV boolean
  * @roam_fils_params: roam fils params
+ * @rct_validity_timer: duration value for which the entries in
+ * roam candidate table are valid
  */
 struct roam_offload_scan_params {
 	uint8_t is_roam_req_valid;
@@ -1994,6 +1996,7 @@ struct roam_offload_scan_params {
 	int auth_mode;
 	bool fw_okc;
 	bool fw_pmksa_cache;
+	uint32_t rct_validity_timer;
 #endif
 	uint32_t min_delay_btw_roam_scans;
 	uint32_t roam_trigger_reason_bitmask;
@@ -8107,6 +8110,8 @@ struct wmi_mawc_roam_params {
  * @btm_solicited_timeout: Timeout value for waiting BTM request
  * @btm_max_attempt_cnt: Maximum attempt for sending BTM query to ESS
  * @btm_sticky_time: Stick time after roaming to new AP by BTM
+ * @disassoc_timer_threshold: threshold value till which the firmware can
+ * wait before triggering the roam scan after receiving the disassoc iminent
  */
 struct wmi_btm_config {
 	uint8_t vdev_id;
@@ -8114,6 +8119,7 @@ struct wmi_btm_config {
 	uint32_t btm_solicited_timeout;
 	uint32_t btm_max_attempt_cnt;
 	uint32_t btm_sticky_time;
+	uint32_t disassoc_timer_threshold;
 };
 
 /**
