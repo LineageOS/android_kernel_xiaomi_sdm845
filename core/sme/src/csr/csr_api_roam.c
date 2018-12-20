@@ -18610,6 +18610,16 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	req_buf->roam_force_rssi_trigger =
 			mac_ctx->roam.configParam.roam_force_rssi_trigger;
 
+	/* fill bss load triggered roam related configs */
+	req_buf->bss_load_trig_enabled =
+			mac_ctx->roam.configParam.enable_bss_load_roam_trigger;
+	req_buf->bss_load_config.bss_load_threshold =
+			mac_ctx->roam.configParam.bss_load_threshold;
+	req_buf->bss_load_config.bss_load_sample_time =
+			mac_ctx->roam.configParam.bss_load_sample_time;
+	req_buf->bss_load_config.vdev_id = session->sessionId;
+
+
 	if (wlan_cfg_get_int(mac_ctx, WNI_CFG_REASSOCIATION_FAILURE_TIMEOUT,
 			     (uint32_t *) &req_buf->ReassocFailureTimeout)
 	    != QDF_STATUS_SUCCESS) {

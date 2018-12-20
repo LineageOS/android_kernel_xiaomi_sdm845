@@ -1368,6 +1368,37 @@ static QDF_STATUS wma_roam_scan_btm_offload(tp_wma_handle wma_handle,
 }
 
 /**
+ * wma_send_roam_bss_load_config() - API to send load bss trigger
+ * related parameters to fw
+ *
+ * @handle: WMA handle
+ * @roam_req: bss load config parameters from csr to be sent to fw
+ *
+ * Return: None
+ */
+static
+void wma_send_roam_bss_load_config(WMA_HANDLE handle,
+				   struct wmi_bss_load_config *params)
+{
+	QDF_STATUS status;
+	tp_wma_handle wma_handle = (tp_wma_handle) handle;
+
+	if (!wma_handle || !wma_handle->wmi_handle) {
+		WMA_LOGE("WMA is closed, cannot send bss load config");
+		return;
+	}
+
+	WMA_LOGD("%s: Sending bss load trigger parameters to fw vdev %u bss_load_threshold %u bss_load_sample_time:%u",
+		 __func__, params->vdev_id, params->bss_load_threshold,
+		 params->bss_load_sample_time);
+
+	status = wmi_unified_send_bss_load_config(wma_handle->wmi_handle,
+						  params);
+	if (QDF_IS_STATUS_ERROR(status))
+		WMA_LOGE("failed to send bss load trigger config command");
+}
+
+/**
  * wma_send_offload_11k_params() - API to send 11k offload params to FW
  * @handle: WMA handle
  * @params: Pointer to 11k offload params
@@ -1427,6 +1458,7 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 	tpAniSirGlobal pMac = cds_get_context(QDF_MODULE_ID_PE);
 	uint32_t mode = 0;
 	struct wma_txrx_node *intr = NULL;
+	struct wmi_bss_load_config *bss_load_cfg;
 
 	if (NULL == pMac) {
 		WMA_LOGE("%s: pMac is NULL", __func__);
@@ -1566,6 +1598,11 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 					 qdf_status);
 				break;
 			}
+		}
+
+		if (roam_req->bss_load_trig_enabled) {
+			bss_load_cfg = &roam_req->bss_load_config;
+			wma_send_roam_bss_load_config(wma_handle, bss_load_cfg);
 		}
 		break;
 
