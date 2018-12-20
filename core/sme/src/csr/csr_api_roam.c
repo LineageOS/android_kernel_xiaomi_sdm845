@@ -19199,6 +19199,10 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		mac_ctx->roam.configParam.btm_max_attempt_cnt;
 	req_buf->btm_sticky_time =
 		mac_ctx->roam.configParam.btm_sticky_time;
+	req_buf->rct_validity_timer =
+			mac_ctx->roam.configParam.btm_validity_timer;
+	req_buf->disassoc_timer_threshold =
+			mac_ctx->roam.configParam.btm_disassoc_timer_threshold;
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
