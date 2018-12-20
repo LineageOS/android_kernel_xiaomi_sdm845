@@ -583,6 +583,9 @@ static void ucfg_scan_req_update_concurrency_params(
 		req->scan_req.idle_time = scan_obj->scan_def.conc_idle_time;
 	}
 
+	if (!wlan_vdev_is_up(req->vdev))
+		req->scan_req.adaptive_dwell_time_mode =
+			scan_obj->scan_def.adaptive_dwell_time_mode_nc;
 	/*
 	 * If AP is active set min rest time same as max rest time, so that
 	 * firmware spends more time on home channel which will increase the
@@ -1340,6 +1343,8 @@ wlan_scan_global_init(struct wlan_scan_obj *scan_obj)
 	scan_obj->scan_def.scan_priority = SCAN_PRIORITY;
 	scan_obj->scan_def.idle_time = SCAN_NETWORK_IDLE_TIMEOUT;
 	scan_obj->scan_def.adaptive_dwell_time_mode = SCAN_DWELL_MODE_DEFAULT;
+	scan_obj->scan_def.adaptive_dwell_time_mode_nc =
+					SCAN_DWELL_MODE_DEFAULT;
 	/* scan contrl flags */
 	scan_obj->scan_def.scan_f_passive = true;
 	scan_obj->scan_def.scan_f_ofdm_rates = true;
@@ -1829,6 +1834,8 @@ QDF_STATUS ucfg_scan_update_user_config(struct wlan_objmgr_psoc *psoc,
 	scan_def->prefer_5ghz = scan_cfg->prefer_5ghz;
 	scan_def->select_5ghz_margin = scan_cfg->select_5ghz_margin;
 	scan_def->adaptive_dwell_time_mode = scan_cfg->scan_dwell_time_mode;
+	scan_def->adaptive_dwell_time_mode_nc =
+				scan_cfg->scan_dwell_time_mode_nc;
 	scan_def->scan_f_chan_stat_evnt = scan_cfg->is_snr_monitoring_enabled;
 	scan_obj->ie_whitelist = scan_cfg->ie_whitelist;
 	scan_def->repeat_probe_time = scan_cfg->usr_cfg_probe_rpt_time;

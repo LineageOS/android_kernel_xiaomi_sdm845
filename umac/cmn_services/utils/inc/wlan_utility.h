@@ -167,6 +167,14 @@ struct wlan_objmgr_vdev *wlan_util_get_vdev_by_ifname(
 uint8_t *wlan_util_vdev_get_if_name(struct wlan_objmgr_vdev *vdev);
 
 /*
+ * wlan_vdev_is_up() - Check for vdev is in UP state
+ * @vdev: vdev pointer
+ *
+ * @Return: true in case of vdev is in UP state
+ */
+bool wlan_vdev_is_up(struct wlan_objmgr_vdev *vdev);
+
+/*
  * wlan_util_is_vap_active() - Check for vap active
  * @pdev: pdev pointer
  * @dbg_id: debug id for ref counting
