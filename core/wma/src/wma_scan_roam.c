@@ -1588,7 +1588,8 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 		}
 
 		/*
-		 * Send 11k offload enable to FW as part of RSO Start
+		 * Send 11k offload enable and bss load trigger parameters
+		 * to FW as part of RSO Start
 		 */
 		if (roam_req->reason == REASON_CTX_INIT) {
 			qdf_status = wma_send_offload_11k_params(wma_handle,
@@ -1598,11 +1599,12 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 					 qdf_status);
 				break;
 			}
-		}
 
-		if (roam_req->bss_load_trig_enabled) {
-			bss_load_cfg = &roam_req->bss_load_config;
-			wma_send_roam_bss_load_config(wma_handle, bss_load_cfg);
+			if (roam_req->bss_load_trig_enabled) {
+				bss_load_cfg = &roam_req->bss_load_config;
+				wma_send_roam_bss_load_config(wma_handle,
+							      bss_load_cfg);
+			}
 		}
 		break;
 

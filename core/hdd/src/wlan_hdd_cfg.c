@@ -9705,12 +9705,12 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 					&smeConfig->csrConfig);
 
 	if (pConfig->prefer_btm_query) {
-		smeConfig->csrConfig.btm_offload_config &=
+		smeConfig->csrConfig.btm_offload_config |=
 				(1 << BTM_OFFLOAD_CONFIG_BIT_8);
 	}
 
 	if (pConfig->btm_abridge_config) {
-		smeConfig->csrConfig.btm_offload_config &=
+		smeConfig->csrConfig.btm_offload_config |=
 			(1 << BTM_OFFLOAD_CONFIG_BIT_7);
 	}
 
