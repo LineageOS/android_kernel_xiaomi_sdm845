@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "e4000be5_71e555bd",
+        "filename": "firmware/Makefile",
+        "patchSetId": 5
+      },
+      "lineNbr": 97,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2018-12-25T23:11:10Z",
+      "side": 1,
+      "message": "bgcngm@digital:~/android/lineage/kernel/xiaomi/sdm845$ grep mXT640U0x1410AA -r .\n./arch/arm64/boot/dts/qcom/dipper-p0.dtsi:\t\tatmel,mxt-fw-name \u003d \"mXT640U0x1410AA.fw\";",
+      "revId": "77a604652d2892805cc2bcacfb6b8469e8b2cabb",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
