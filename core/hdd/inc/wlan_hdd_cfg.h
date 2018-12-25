@@ -15690,8 +15690,8 @@ enum hdd_external_acs_policy {
 #define CFG_ROAM_SCORE_DELTA           "roam_score_delta"
 
 #define CFG_ROAM_SCORE_DELTA_DEFAULT    0
-#define CFG_ROAM_SCORE_DELTA_MIN        100
-#define CFG_ROAM_SCORE_DELTA_MAX        0
+#define CFG_ROAM_SCORE_DELTA_MIN        0
+#define CFG_ROAM_SCORE_DELTA_MAX        100
 
 /*
  * <ini>
