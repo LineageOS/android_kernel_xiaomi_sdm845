@@ -776,7 +776,7 @@ static struct device_attribute attrs[] = {
 #if defined(CONFIG_SECURE_TOUCH)
 static DEVICE_ATTR(secure_touch_enable, (S_IRUGO | S_IWUSR | S_IWGRP), synaptics_secure_touch_enable_show, synaptics_secure_touch_enable_store);
 static DEVICE_ATTR(secure_touch, S_IRUGO , synaptics_secure_touch_show, NULL);
-
+#if 0
 static int synaptics_secure_touch_clk_prepare_enable(
 		struct synaptics_rmi4_data *rmi4_data)
 {
@@ -804,14 +804,15 @@ static void synaptics_secure_touch_clk_disable_unprepare(
 	clk_disable_unprepare(rmi4_data->core_clk);
 	clk_disable_unprepare(rmi4_data->iface_clk);
 }
-
+#endif
 static void synaptics_secure_touch_init(struct synaptics_rmi4_data *data)
 {
-	int ret = 0;
+	//int ret = 0;
 
 	data->st_initialized = 0;
 	init_completion(&data->st_powerdown);
 	init_completion(&data->st_irq_processed);
+#if 0
 	/* Get clocks */
 	data->core_clk = clk_get(data->pdev->dev.parent, "core_clk");
 	if (IS_ERR(data->core_clk)) {
@@ -828,13 +829,14 @@ static void synaptics_secure_touch_init(struct synaptics_rmi4_data *data)
 			"%s: error on clk_get(iface_clk)\n", __func__);
 		goto err_iface_clk;
 	}
-
+#endif
 	data->st_initialized = 1;
 	return;
-
+#if 0
 err_iface_clk:
 		clk_put(data->core_clk);
 		data->core_clk = NULL;
+#endif
 }
 static void synaptics_secure_touch_notify(struct synaptics_rmi4_data *data)
 {
@@ -925,7 +927,7 @@ static ssize_t synaptics_secure_touch_enable_store(struct device *dev,
 		if (atomic_read(&data->st_enabled) == 0)
 			break;
 
-		synaptics_secure_touch_clk_disable_unprepare(data);
+		//synaptics_secure_touch_clk_disable_unprepare(data);
 		pm_runtime_put_sync(adapter);
 		atomic_set(&data->st_enabled, 0);
 		synaptics_secure_touch_notify(data);
@@ -946,12 +948,13 @@ static ssize_t synaptics_secure_touch_enable_store(struct device *dev,
 			err = -EIO;
 			break;
 		}
-
+#if 0
 		if (synaptics_secure_touch_clk_prepare_enable(data) < 0) {
 			pm_runtime_put_sync(adapter);
 			err = -EIO;
 			break;
 		}
+#endif
 		reinit_completion(&data->st_powerdown);
 		reinit_completion(&data->st_irq_processed);
 		atomic_set(&data->st_enabled, 1);
@@ -963,6 +966,7 @@ static ssize_t synaptics_secure_touch_enable_store(struct device *dev,
 		err = -EINVAL;
 		break;
 	}
+	dev_err(data->pdev->dev.parent, "synaptics_secure_touch_enable_store err=%x\n", err);
 	return err;
 }
 
@@ -3699,6 +3703,8 @@ static void synaptics_rmi4_set_params(struct synaptics_rmi4_data *rmi4_data)
 			ABS_MT_TOUCH_MINOR, 0,
 			rmi4_data->max_touch_width, 0, 0);
 #endif
+	set_bit(KEY_SLEEP, rmi4_data->input_dev->keybit);
+	input_set_capability(rmi4_data->input_dev, EV_KEY, KEY_SLEEP);
 
 #ifdef REPORT_2D_PRESSURE
 	if (rmi4_data->report_pressure) {
