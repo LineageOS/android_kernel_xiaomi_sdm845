@@ -2196,7 +2196,6 @@ static int fwu_read_f34_queries(void)
 {
 	int retval;
 	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
-	u8 *tp_maker;
 
 	memset(&fwu->blkcount, 0x00, sizeof(fwu->blkcount));
 	memset(&fwu->phyaddr, 0x00, sizeof(fwu->phyaddr));
@@ -2205,16 +2204,6 @@ static int fwu_read_f34_queries(void)
 		retval = fwu_read_f34_v7_queries();
 	else
 		retval = fwu_read_f34_v5v6_queries();
-
-
-	tp_maker = kzalloc(20, GFP_KERNEL);
-	if (tp_maker == NULL)
-		dev_err(rmi4_data->pdev->dev.parent,
-			"%s fail to alloc vendor name memory\n", __func__);
-	else {
-		kfree(tp_maker);
-		tp_maker = NULL;
-	}
 
 	update_hardware_info(TYPE_TP_MAKER, rmi4_data->lockdown_info[0] - 0x30);
 	return retval;
