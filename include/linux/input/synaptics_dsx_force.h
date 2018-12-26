@@ -185,6 +185,11 @@ struct synaptics_dsx_board_data {
 	unsigned int reset_active_ms;
 	unsigned int byte_delay_us;
 	unsigned int block_delay_us;
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	unsigned int palm_rx_channel;
+	unsigned int palm_rx_area;
+	unsigned int palm_tx_disable;
+#endif
 	bool cut_off_power;
 	bool power_ctrl;
 	bool panel_is_incell;

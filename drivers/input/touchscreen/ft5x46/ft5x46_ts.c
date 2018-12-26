@@ -16,6 +16,7 @@
 #include <linux/hwinfo.h>
 
 #include "ft8716_pramboot.h"
+#include <../palm_sensor.h>
 
 /* #define FT5X46_DEBUG_PERMISSION */
 #define FT5X46_APK_DEBUG_CHANNEL
@@ -1772,6 +1773,19 @@ static irqreturn_t ft5x46_interrupt(int irq, void *dev_id)
 
 	mutex_lock(&ft5x46->mutex);
 
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	if (ft5x46->palm_enabled) {
+		error = ft5x46_read_byte(ft5x46, 0x9B, &val);
+		if (error) {
+			dev_err(ft5x46->dev, "Error reading register 0x9B\n");
+			goto out;
+		}
+		palmsensor_update_data(!!val);
+		if (val)
+			goto out;
+	}
+#endif
+
 	if (ft5x46->wakeup_mode && ft5x46->in_suspend) {
 		error = ft5x46_read_byte(ft5x46, 0xD0, &val);
 		if (error)
@@ -1895,6 +1909,9 @@ out:
 	ft5x46_enable_irq(ft5x46);
 #ifdef CONFIG_TOUCHSCREEN_FT5X46P_PROXIMITY
 	wake_up(&ft5x46->resume_wq);
+#endif
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	wake_up(&ft5x46->palm_wq);
 #endif
 
 	return 0;
@@ -2715,6 +2732,81 @@ static ssize_t ft5x46_lcd_esd_test(struct device *dev,
 	return error ? : count;
 }
 
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+static int ft5x46_palm_enable(struct ft5x46_data *ft5x46, unsigned int on)
+{
+	int retval;
+	unsigned char enable;
+	unsigned char palm_on = 0x05;
+	unsigned char palm_off = 0x00;
+/*
+	if (rmi4_data->palm_enabled == on) {
+		dev_info(rmi4_data->pdev->dev.parent,
+		"%s don't need update :%d\n", __func__, on);
+		return 0;
+	} else {
+		dev_info(rmi4_data->pdev->dev.parent,
+		"%s enable:%d\n", __func__, on);
+	}
+*/
+	enable = on > 0 ? 1 : 0;
+
+	if (enable && !wait_event_timeout(ft5x46->palm_wq, !ft5x46->in_suspend , HZ/2)) {
+		dev_err(ft5x46->dev, "%s wait tp resume timeout\n", __func__);
+			return -EINVAL;
+	} else if (!enable && ft5x46->in_suspend) {
+		dev_err(ft5x46->dev, "%s tp had suspended\n", __func__);
+		return 0;
+	}
+
+	dev_info(ft5x46->dev, "%s: on:%d\n", __func__, on);
+
+	if (on)
+		retval = ft5x46_write_byte(ft5x46, 0x9A, palm_on);
+	else
+		retval = ft5x46_write_byte(ft5x46, 0x9A, palm_off);
+
+	if (retval < 0)
+		return -EINVAL;
+
+	ft5x46->palm_enabled = enable;
+
+	return 0;
+}
+
+int ft5x46_palmsensor_enable(bool on)
+{
+	struct ft5x46_data *ft5x46 = ft_data;
+
+	if (ft5x46)
+		return ft5x46_palm_enable(ft5x46, on);
+	else
+		return -EINVAL;
+}
+
+static ssize_t ft5x46_palm_enable_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct ft5x46_data *ft5x46 = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", ft5x46->palm_enabled);
+}
+
+static ssize_t ft5x46_palm_enable_store(struct device *dev,
+				struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+	struct ft5x46_data *ft5x46 = dev_get_drvdata(dev);
+
+	if (sscanf(buf, "%d", &input) != 1 || ft5x46->in_suspend)
+			return -EINVAL;
+
+	ft5x46_palm_enable(ft5x46, !!input);
+
+	return count;
+}
+#endif
+
 /* sysfs */
 #ifdef FT5X46_DEBUG_PERMISSION
 static DEVICE_ATTR(tpfwver, 0666, ft5x46_tpfwver_show, NULL);
@@ -2752,6 +2844,9 @@ static DEVICE_ATTR(irq_enable, 0644, ft5x46_irq_enable_show, ft5x46_irq_enable_s
 static DEVICE_ATTR(panel_vendor, 0644, ft5x46_panel_vendor_show, NULL);
 #endif
 static DEVICE_ATTR(esd_test, 0644, NULL, ft5x46_lcd_esd_test);
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+static DEVICE_ATTR(palm_enable, 0644, ft5x46_palm_enable_show, ft5x46_palm_enable_store);
+#endif
 
 static struct attribute *ft5x46_attrs[] = {
 	&dev_attr_tpfwver.attr,
@@ -2771,6 +2866,9 @@ static struct attribute *ft5x46_attrs[] = {
 	&dev_attr_irq_enable.attr,
 	&dev_attr_panel_vendor.attr,
 	&dev_attr_esd_test.attr,
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	&dev_attr_palm_enable.attr,
+#endif
 	NULL
 };
 
@@ -4284,6 +4382,12 @@ struct ft5x46_data *ft5x46_probe(struct device *dev,
 	ft5x46->hw_is_ready = false;
 	init_waitqueue_head(&ft5x46->lockdown_info_acquired_wq);
 	schedule_work(&ft5x46->work);
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	dev_dbg(dev, "ft5x46 register touch screen palm_enable\n");
+	palmsensor_register_switch(ft5x46_palmsensor_enable);
+	init_waitqueue_head(&ft5x46->palm_wq);
+#endif
+
 	return ft5x46;
 
 #ifdef FT5X46_APK_DEBUG_CHANNEL

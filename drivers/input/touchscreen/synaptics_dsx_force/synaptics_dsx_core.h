@@ -384,6 +384,16 @@ struct synaptics_rmi4_data {
 	int force_max;
 	int chip_id;
 	int touchs;
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	unsigned int palm_tx_grip_disable;
+	unsigned int palm_tx_area_threshold;
+	unsigned int palm_tx_channel_threshold;
+	unsigned int palm_rx_area_threshold;
+	unsigned int palm_rx_channel_threshold;
+	wait_queue_head_t palm_wq;
+	bool palm_enabled;
+	bool report_palm;
+#endif
 	bool flash_prog_mode;
 	bool irq_enabled;
 	bool fingers_on_2d;

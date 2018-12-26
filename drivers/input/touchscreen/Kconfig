@@ -1346,4 +1346,10 @@ config INPUT_PRESS_NDT_M65
 	help
 	  Say Y here if you have a press ic ndt.
 
+config TOUCHSCREEN_PALM_SENSOR
+	bool "palm sensor"
+	depends on I2C
+	help
+	  Say Y here if you have a palm sensor.
+
 endif

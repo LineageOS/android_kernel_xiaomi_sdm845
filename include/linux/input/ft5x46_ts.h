@@ -144,6 +144,10 @@ struct ft5x46_data {
 
 	int touchs;
 	int keys;
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	wait_queue_head_t palm_wq;
+	bool palm_enabled;
+#endif
 #ifdef CONFIG_DRM
 	struct notifier_block drm_notifier;
 #endif
