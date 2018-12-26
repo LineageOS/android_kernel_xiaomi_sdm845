@@ -167,6 +167,7 @@ struct fts_ts_data {
 	u8 lockdown_info[FTS_LOCKDOWN_INFO_SIZE];
 	bool dev_pm_suspend;
 	bool lpwg_mode;
+	bool fw_forceupdate;
 	struct work_struct suspend_work;
 	struct work_struct resume_work;
 	struct workqueue_struct *event_wq;
@@ -241,6 +242,12 @@ int fts_esdcheck_proc_busy(bool proc_debug);
 int fts_esdcheck_set_intr(bool intr);
 int fts_esdcheck_suspend(void);
 int fts_esdcheck_resume(void);
+#endif
+
+/* Production test */
+#if FTS_TEST_EN
+int fts_test_init(struct i2c_client *client);
+int fts_test_exit(struct i2c_client *client);
 #endif
 
 /* Point Report Check*/
