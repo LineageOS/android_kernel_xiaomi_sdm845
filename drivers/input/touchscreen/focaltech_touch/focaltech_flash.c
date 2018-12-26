@@ -517,6 +517,12 @@ int fts_fwupg_get_boot_state(struct i2c_client *client, enum FW_STATUS *fw_sts)
 	} else if ((val[0] == ids.bl_idh) && (val[1] == ids.bl_idl)) {
 		FTS_INFO("tp run in bootloader");
 		*fw_sts = FTS_RUN_IN_BOOTLOADER;
+	} else if ((val[0] == 0x87) && (val[1] == 0xA9)) {
+		FTS_INFO("tp run in pramboot");
+		*fw_sts = FTS_RUN_IN_PRAM;
+	} else if ((val[0] == 0x87) && (val[1] == 0x19)) {
+		FTS_INFO("tp run in romboot");
+		*fw_sts = FTS_RUN_IN_ROM;
 	}
 
 	return 0;
@@ -654,12 +660,16 @@ int fts_fwupg_enter_into_boot(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	fwvalid = fts_fwupg_check_fw_valid(client);
-	if (fwvalid) {
-		ret = fts_fwupg_reset_to_boot(client);
-		if (ret < 0) {
-			FTS_ERROR("enter into romboot/bootloader fail");
-			return ret;
+	if (fts_data->fw_forceupdate)
+		fts_reset_proc(10);
+	else {
+		fwvalid = fts_fwupg_check_fw_valid(client);
+		if (fwvalid) {
+			ret = fts_fwupg_reset_to_boot(client);
+			if (ret < 0) {
+				FTS_ERROR("enter into romboot/bootloader fail");
+				return ret;
+			}
 		}
 	}
 
@@ -1547,7 +1557,11 @@ int fts_fwupg_upgrade(struct i2c_client *client, struct fts_upgrade *upg)
 		return -EINVAL;
 	}
 
-	upgrade_flag = fts_fwupg_need_upgrade(client);
+	if (fts_data->fw_forceupdate)
+			upgrade_flag = true;
+	else
+		upgrade_flag = fts_fwupg_need_upgrade(client);
+
 	FTS_INFO("fw upgrade flag:%d", upgrade_flag);
 	do {
 		upgrade_count++;

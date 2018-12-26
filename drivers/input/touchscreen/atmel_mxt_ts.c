@@ -2547,7 +2547,6 @@ static int mxt_check_reg_init(struct mxt_data *data)
 	int ret = 0;
 	const char *config_name = NULL;
 	bool is_recheck = false, use_default_cfg = false;
-	u8 *tp_maker = NULL;
 
 	if (data->firmware_updated)
 		use_default_cfg = true;
@@ -2622,13 +2621,6 @@ start:
 		}
 	}
 	update_hardware_info(TYPE_TP_MAKER, data->panel_id - 0x31);
-	tp_maker = kzalloc(20, GFP_KERNEL);
-	if (tp_maker == NULL)
-		dev_err(dev, "fail to alloc vendor name memory\n");
-	else {
-		kfree(tp_maker);
-		tp_maker = NULL;
-	}
 	config_name = mxt_get_config(data, use_default_cfg);
 
 	if (data->config_info[0] >= 0x65) {
@@ -3120,6 +3112,7 @@ static int mxt_get_init_setting(struct mxt_data *data)
 	u8 intthr;
 	u8 glovectrl;
 	u8 atchthr;
+	u8 local_restore_val = 0;
 	int i;
 	struct device *dev = &data->client->dev;
 	const struct mxt_platform_data *pdata = data->pdata;
@@ -3164,11 +3157,12 @@ static int mxt_get_init_setting(struct mxt_data *data)
 
 	for (i = 0; i < ARRAY_SIZE(mxt_save); i++) {
 		error = mxt_read_object(data, MXT_GEN_POWER_T7,
-					i, &mxt_save[i].restore_val);
+					i, &local_restore_val);
 		if (error) {
 			dev_err(dev, "Failed to read T7 byte %d\n", i);
 			return error;
 		}
+		mxt_save[i].restore_val = local_restore_val;
 	}
 
 	if (mxt_get_object(data, MXT_PROCG_NOISESUPSELFCAP_T108) != NULL) {
@@ -5092,6 +5086,18 @@ static void mxt_set_gesture_wake_up(struct mxt_data *data, bool enable)
 	int error = 0;
 	struct device *dev = &data->client->dev;
 
+	if (enable) {
+		error = mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
+				MXT_MULTITOUCH_CTRL, 0, MXT_T100_CTRL_RPTEN);
+	} else {
+		error = mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
+				MXT_MULTITOUCH_CTRL, MXT_T100_CTRL_RPTEN, 0);
+	}
+	if (error) {
+		dev_err(dev, "write to t100 failed!\n");
+		return;
+	}
+
 	error = mxt_write_object(data, MXT_PROCG_NOISESUPSELFCAP_T108, MXT_T108_CTRL, (int)enable);
 	if (error) {
 		dev_err(&data->client->dev, "write to t08 ctrl reg failed!\n");
@@ -5108,23 +5114,6 @@ static void mxt_set_gesture_wake_up(struct mxt_data *data, bool enable)
 
 	if (error) {
 		dev_err(dev, "write to t72 failed!\n");
-		return;
-	}
-
-	if (enable) {
-		error = mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
-				MXT_MULTITOUCH_CTRL, 0, MXT_T100_CTRL_RPTEN);
-		error |= mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
-				MXT_MULTITOUCH_CFG1, 0, MXT_T100_CFG1_SWITCHXY);
-	} else {
-		error = mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
-				MXT_MULTITOUCH_CTRL, MXT_T100_CTRL_RPTEN, 0);
-		error |= mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
-				MXT_MULTITOUCH_CFG1, MXT_T100_CFG1_SWITCHXY, 0);
-	}
-
-	if (error) {
-		dev_err(dev, "write to t100 failed!\n");
 		return;
 	}
 
@@ -6552,6 +6541,33 @@ static const struct file_operations mxt_selftest_ops = {
 	.release	= mxt_selftest_release,
 };
 
+#define TP_INFO_MAX_LENGTH 50
+static ssize_t mxt_lockdown_info_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
+{
+	char tmp[TP_INFO_MAX_LENGTH] = { 0 };
+
+	if (*pos != 0 && g_mxt_data)
+		return 0;
+
+	snprintf(tmp, TP_INFO_MAX_LENGTH,
+			"0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",
+			g_mxt_data->lockdown_info[0], g_mxt_data->lockdown_info[1],
+			g_mxt_data->lockdown_info[2], g_mxt_data->lockdown_info[3],
+			g_mxt_data->lockdown_info[4], g_mxt_data->lockdown_info[5],
+			g_mxt_data->lockdown_info[6], g_mxt_data->lockdown_info[7]);
+	if (copy_to_user(buf, tmp, strlen(tmp))) {
+		return -EFAULT;
+	}
+
+	*pos += strlen(tmp);
+
+	return strlen(tmp);
+}
+
+static const struct file_operations mxt_lockdown_info_ops = {
+	.read		= mxt_lockdown_info_read,
+};
+
 static int mxt_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -6737,7 +6753,8 @@ static int mxt_probe(struct i2c_client *client,
 	update_hardware_info(TYPE_TOUCH, 2);
 	data->finish_init = 1;
 
-	proc_create("tp_selftest", 0, NULL, &mxt_selftest_ops);
+	proc_create("tp_selftest", 0664, NULL, &mxt_selftest_ops);
+	proc_create("tp_lockdown_info", 0664, NULL, &mxt_lockdown_info_ops);
 
 	return 0;
 
