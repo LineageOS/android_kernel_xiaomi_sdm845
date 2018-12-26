@@ -2,8 +2,8 @@
  * Atmel maXTouch Touchscreen driver
  *
  * Copyright (C) 2010 Samsung Electronics Co.Ltd
- * Copyright (C) 2018 XiaoMi, Inc.
  * Author: Joonyoung Shim <jy0922.shim@samsung.com>
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -48,7 +48,7 @@ struct mxt_config_info {
 	u8 panel_id;
 	u8 rev_id;
 	/* Points to the firmware name to be upgraded to */
-	const char *mxt_cfg_name;
+	const char* mxt_cfg_name;
 	int *key_codes;
 	int key_num;
 	u8 selfintthr_stylus;
@@ -87,7 +87,7 @@ struct mxt_config_info {
 /* The platform data for the Atmel maXTouch touchscreen driver */
 struct mxt_platform_data {
 	struct mxt_config_info *config_array;
-	const char *mxt_fw_name;
+	const char* mxt_fw_name;
 	size_t config_array_size;
 	unsigned long irqflags;
 	int reset_gpio;
