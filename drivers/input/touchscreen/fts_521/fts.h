@@ -3,8 +3,8 @@
  *
  * FTS Capacitive touch screen controller (FingerTipS)
  *
- * Copyright (C) 2017, STMicroelectronics
  * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2017, STMicroelectronics
  * Authors: AMG(Analog Mems Group)
  *
  * 		marco.cali@st.com
@@ -38,6 +38,7 @@
 #include <linux/mutex.h>
 #include "fts_lib/ftsSoftware.h"
 #include "fts_lib/ftsHardware.h"
+#include <linux/completion.h>
 /****************** CONFIGURATION SECTION ******************/
 /** @defgroup conf_section	 Driver Configuration Section
 * Settings of the driver code in order to suit the HW set up and the application behavior
@@ -148,11 +149,6 @@ do {\
 
 #define TSP_BUF_SIZE						PAGE_SIZE
 
-#define CONFIG_FTS_TOUCH_COUNT_DUMP
-
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-#define TOUCH_COUNT_FILE_MAXSIZE 50
-#endif
 
 /**
  * Struct which contains information about the HW platform and set up
@@ -168,9 +164,6 @@ struct fts_config_info {
 	u8 tp_hw_version;
 	const char *fts_cfg_name;
 	const char *fts_limit_name;
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-		const char *clicknum_file_name;
-#endif
 };
 
 struct fts_hw_platform_data {
@@ -189,9 +182,6 @@ struct fts_hw_platform_data {
 #ifdef PHONE_KEY
 	size_t nbuttons;
 	int *key_code;
-#endif
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-	bool dump_click_count;
 #endif
 	unsigned long keystates;
 };
@@ -251,7 +241,6 @@ struct fts_ts_info {
 	struct delayed_work fwu_work;
 	struct workqueue_struct *fwu_workqueue;
 #endif
-	struct delayed_work reg_restore_work;
 	event_dispatch_handler_t *event_dispatch_table;
 
 	struct attribute_group attrs;
@@ -295,13 +284,14 @@ struct fts_ts_info {
 #ifdef CONFIG_TOUCHSCREEN_ST_DEBUG_FS
 	struct dentry *debugfs;
 #endif
-	int dbclick_count;
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
 	struct class *fts_tp_class;
 	struct device *fts_touch_dev;
 	char *current_clicknum_file;
-#endif
+
 	bool lockdown_is_ok;
+	struct completion tp_reset_completion;
+	atomic_t system_is_resetting;
+	unsigned int fod_status;
 	struct proc_dir_entry *input_proc;
 };
 
