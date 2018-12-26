@@ -102,6 +102,7 @@ struct ndt_force_data {
 	struct regulator *ndt_vddio;
 	bool fw_updated;
 	struct work_struct       fwupdate_work;
+	bool is_fw_updating;
 };
 
 struct ndt_platform_data {
@@ -178,9 +179,16 @@ int ndt_get_pressure_m65(int touch_flag, int x, int y)
 {
 	int pressure;
 	unsigned char buf[10];
+	struct ndt_force_data *data;
 
 	if (g_ndt_client == NULL)
 		return 1;
+
+	data = i2c_get_clientdata(g_ndt_client);
+	if (data->is_fw_updating) {
+		pr_info("%s is updating fw\n", __func__);
+		return 1;
+	}
 
 	pr_debug("%s,touch_flag:%d,g_touch_flag:%d,x:%d,y:%d\n", __func__, touch_flag, g_touch_flag, x, y);
 	if (touch_flag == 0 && g_touch_flag == 0) {
@@ -446,7 +454,7 @@ static ssize_t ndt_reset_and_read_store(struct device *dev, struct device_attrib
 	int yes_no;
 	int error = 0;
 	struct ndt_force_data *data = i2c_get_clientdata(g_ndt_client);
-	static unsigned char g_ver[2] = {0};
+	unsigned char g_ver[2] = {0};
 
 	yes_no = simple_strtoul(buf, NULL, 10);
 
@@ -511,9 +519,11 @@ static int ndt_update_fw(bool force, char *fw_name, int retry)
 		return ret;
 	}
 	disable_irq(g_ndt_client->irq);
+	ndt_data->is_fw_updating = true;
 	ret = request_firmware(&fw_entry, fw_name, &(g_ndt_client->dev));
 	if (ret != 0) {
 		pr_err("%s request firmware failed\n", __func__);
+		ndt_data->is_fw_updating = false;
 		enable_irq(g_ndt_client->irq);
 		return -EINVAL;
 	}
@@ -535,6 +545,8 @@ static int ndt_update_fw(bool force, char *fw_name, int retry)
 	byteno = 2;
 	ic_fw_ver[0] = 0;
 	ic_fw_ver[1] = 0;
+	/* to ensure ic goto app mode */
+	msleep(120);
 	if (ndt_read_register(reg, ic_fw_ver, byteno) > 0) {
 		pr_info("ndt:ic_fw_ver: %02x%02x\n", ic_fw_ver[0], ic_fw_ver[1]);
 	} else
@@ -577,6 +589,7 @@ FAIL:
 		fw_data = NULL;
 	}
 	release_firmware(fw_entry);
+	ndt_data->is_fw_updating = false;
 	enable_irq(g_ndt_client->irq);
 	return ret;
 }
@@ -994,7 +1007,7 @@ static int ndt_force_probe(struct i2c_client *client,
 {
 	struct ndt_force_data *data;
 	int error = -EINVAL;
-	static unsigned char g_ver[2] = {0};
+	unsigned char g_ver[2] = {0};
 
 
 	dev_err(&client->dev, "%s\n", __func__);
@@ -1064,6 +1077,7 @@ static int ndt_force_probe(struct i2c_client *client,
 	i2c_set_clientdata(data->client, data);
 	g_ndt_client = client;
 	data->fw_updated = false;
+	data->is_fw_updating = false;
 
 	/* Initialize input device */
 	data->input_dev = input_allocate_device();

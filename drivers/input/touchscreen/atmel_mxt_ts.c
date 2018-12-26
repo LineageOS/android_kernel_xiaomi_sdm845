@@ -2,7 +2,6 @@
  * Atmel maXTouch Touchscreen driver
  *
  * Copyright (C) 2010 Samsung Electronics Co.Ltd
- * Copyright (C) 2018 XiaoMi, Inc.
  * Copyright (C) 2011 Atmel Corporation
  * Author: Joonyoung Shim <jy0922.shim@samsung.com>
  *
@@ -27,7 +26,6 @@
 #include <linux/gpio.h>
 #include <linux/string.h>
 #include <linux/of_gpio.h>
-#include <linux/hwinfo.h>
 #include <linux/power_supply.h>
 #include <linux/notifier.h>
 #include <linux/fb.h>
@@ -36,7 +34,6 @@
 #endif
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
-#include <linux/input/touch_common_info.h>
 
 /* Version */
 #define MXT_VER_20		20
@@ -732,7 +729,6 @@ struct mxt_data {
 	u8 config_info[MXT_CONFIG_INFO_SIZE];
 	u8 is_usb_plug_in;
 
-	int dbclick_count;
 	bool is_suspend;
 	struct mutex ts_lock;
 	/* Slowscan parameters	*/
@@ -1078,7 +1074,7 @@ static void mxt_esd_reset(struct mxt_data *data)
 	mxt_chip_reset(data);
 }
 
-static void mxt_esd_work(struct work_struct *work)
+static void mxt_esd_work(struct work_struct* work)
 {
 	struct mxt_data *data = container_of(work, struct mxt_data, esd_work);
 
@@ -1707,7 +1703,6 @@ static void mxt_proc_t93_message(struct mxt_data *data, u8 *msg)
 {
 	struct device *dev = &data->client->dev;
 	struct input_dev *input_dev = data->input_dev;
-	char ch[64] = {0x0,};
 
 	if (!input_dev)
 		return;
@@ -1722,8 +1717,6 @@ static void mxt_proc_t93_message(struct mxt_data *data, u8 *msg)
 		input_event(input_dev, EV_KEY, KEY_WAKEUP, 0);
 		input_sync(input_dev);
 
-		data->dbclick_count++;
-		snprintf(ch, sizeof(ch), "%d", data->dbclick_count);
 	}
 }
 
@@ -1778,7 +1771,7 @@ static int mxt_proc_message(struct mxt_data *data, u8 *msg)
 	u8 report_id = msg[0];
 
 	if (report_id == MXT_RPTID_NOMSG)
-		return -EPERM;
+		return -1;
 
 	if (data->debug_enabled)
 		print_hex_dump(KERN_DEBUG, "MXT MSG:", DUMP_PREFIX_NONE, 16, 1,
@@ -2382,7 +2375,7 @@ static const char *mxt_get_config(struct mxt_data *data, bool is_default)
 	}
 
 	for (i = 0; i < pdata->config_array_size; i++) {
-		if (data->info.family_id == pdata->config_array[i].family_id &&
+		if (data->info.family_id== pdata->config_array[i].family_id &&
 			data->info.variant_id == pdata->config_array[i].variant_id &&
 			data->info.version == pdata->config_array[i].version &&
 			data->info.build == pdata->config_array[i].build &&
@@ -2551,9 +2544,8 @@ static int mxt_check_reg_init(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
 	int ret = 0;
-	const char *config_name = NULL;
+	const char* config_name = NULL;
 	bool is_recheck = false, use_default_cfg = false;
-	u8 *tp_maker = NULL;
 
 	if (data->firmware_updated)
 		use_default_cfg = true;
@@ -2626,14 +2618,6 @@ start:
 		} else {
 			dev_err(dev, "No lockdown info stored\n");
 		}
-	}
-	update_hardware_info(TYPE_TP_MAKER, data->panel_id - 0x31);
-	tp_maker = kzalloc(20, GFP_KERNEL);
-	if (tp_maker == NULL)
-		dev_err(dev, "fail to alloc vendor name memory\n");
-	else {
-		kfree(tp_maker);
-		tp_maker = NULL;
 	}
 	config_name = mxt_get_config(data, use_default_cfg);
 
@@ -3126,6 +3110,7 @@ static int mxt_get_init_setting(struct mxt_data *data)
 	u8 intthr;
 	u8 glovectrl;
 	u8 atchthr;
+	u8 local_restore_val = 0;
 	int i;
 	struct device *dev = &data->client->dev;
 	const struct mxt_platform_data *pdata = data->pdata;
@@ -3170,11 +3155,12 @@ static int mxt_get_init_setting(struct mxt_data *data)
 
 	for (i = 0; i < ARRAY_SIZE(mxt_save); i++) {
 		error = mxt_read_object(data, MXT_GEN_POWER_T7,
-					i, &mxt_save[i].restore_val);
+					i, &local_restore_val);
 		if (error) {
 			dev_err(dev, "Failed to read T7 byte %d\n", i);
 			return error;
 		}
+		mxt_save[i].restore_val = local_restore_val;
 	}
 
 	if (mxt_get_object(data, MXT_PROCG_NOISESUPSELFCAP_T108) != NULL) {
@@ -3349,7 +3335,7 @@ static int mxt_check_firmware_format(struct device *dev, const struct firmware *
 	  * xxd -r -p mXTXXX__APP_VX-X-XX.enc > maxtouch.fw */
 	dev_err(dev, "Aborting: firmware file must be in binary format\n");
 
-	return -EPERM;
+	return -1;
 }
 
 static void mxt_reset_toggle(struct mxt_data *data)
@@ -3889,7 +3875,7 @@ static bool mxt_self_tune_pass(struct mxt_data *data, bool is_hover_mode)
 	return true;
 }
 
-static void mxt_hover_loading_work(struct work_struct *work)
+static void mxt_hover_loading_work(struct work_struct* work)
 {
 	struct mxt_data *data = container_of(work, struct mxt_data, hover_loading_work);
 	int error = 0;
@@ -3902,7 +3888,7 @@ static void mxt_hover_loading_work(struct work_struct *work)
 	}
 }
 
-static void mxt_self_tuning_work(struct work_struct *work)
+static void mxt_self_tuning_work(struct work_struct* work)
 {
 	struct mxt_data *data = container_of(work, struct mxt_data, self_tuning_work);
 
@@ -4498,12 +4484,12 @@ static ssize_t  mxt_wakeup_mode_store(struct device *dev,
 	if (error)
 		return error;
 
-	if (data->is_suspend) {
-		if (data->wakeup_gesture_mode == 0 && val != 0) {
+	if(data->is_suspend) {
+		if(data->wakeup_gesture_mode == 0 && val != 0) {
 			data->wakeup_gesture_mode = (u8)val;
 			mxt_enable_irq(data);
 			mxt_stop(data);
-		} else if (data->wakeup_gesture_mode != 0 && val == 0) {
+		} else if(data->wakeup_gesture_mode != 0 && val == 0) {
 			mxt_disable_irq(data);
 			mxt_start(data);
 			data->wakeup_gesture_mode = (u8)val;
@@ -4676,7 +4662,7 @@ static ssize_t mxt_mutual_ref_show(struct device *dev,
 	struct mxt_data *data = dev_get_drvdata(dev);
 	int ret, i, j, chan_x, chan_y, max_nodes;
 	u8 x_size, y_size;
-	u16 *ref_buf;
+	u16* ref_buf;
 	ssize_t count;
 
 	if (data->info.family_id == 0xA4 && data->info.variant_id == 0x15) {
@@ -4737,7 +4723,7 @@ static ssize_t mxt_self_ref_show(struct device *dev,
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
 	int ret, i, chan_x, chan_y, max_nodes, even_x_start, odd_x_start;
-	u16 *ref_buf;
+	u16* ref_buf;
 	ssize_t count;
 
 	if (data->info.family_id == 0xA4 && data->info.variant_id == 0x15) {
@@ -4868,7 +4854,7 @@ static ssize_t mxt_irq_enable_store(struct device *dev,
 
 	error = kstrtoul(buf, 0, &val);
 	if (!error) {
-	if (!val)
+	if(!val)
 		disable_irq(data->irq);
 	else
 		enable_irq(data->irq);
@@ -4905,12 +4891,12 @@ static ssize_t mxt_chg_state_show(struct device *dev,
 
 static void mxt_set_wakeup_mode(struct mxt_data *data, u8 val)
 {
-	if (data->is_suspend) {
-		if (data->wakeup_gesture_mode == 0 && val != 0) {
+	if(data->is_suspend) {
+		if(data->wakeup_gesture_mode == 0 && val != 0) {
 			data->wakeup_gesture_mode = (u8)val;
 			mxt_enable_irq(data);
 			mxt_stop(data);
-		} else if (data->wakeup_gesture_mode != 0 && val == 0) {
+		} else if(data->wakeup_gesture_mode != 0 && val == 0) {
 			mxt_disable_irq(data);
 			mxt_start(data);
 			data->wakeup_gesture_mode = (u8)val;
@@ -4927,7 +4913,6 @@ static void mxt_switch_mode_work(struct work_struct *work)
 	const struct mxt_platform_data *pdata = data->pdata;
 	int index = data->current_index;
 	u8 value = ms->mode;
-	char ch[16] = {0x0,};
 	if (value == MXT_INPUT_EVENT_STYLUS_MODE_ON ||
 				value == MXT_INPUT_EVENT_STYLUS_MODE_OFF)
 		mxt_stylus_mode_switch(data, (bool)(value - MXT_INPUT_EVENT_STYLUS_MODE_OFF));
@@ -4935,7 +4920,6 @@ static void mxt_switch_mode_work(struct work_struct *work)
 				value == MXT_INPUT_EVENT_WAKUP_MODE_OFF) {
 		if (pdata->config_array[index].wake_up_self_adcx != 0) {
 			mxt_set_wakeup_mode(data, value - MXT_INPUT_EVENT_WAKUP_MODE_OFF);
-			snprintf(ch, sizeof(ch), "%s", (value - MXT_INPUT_EVENT_WAKUP_MODE_OFF) ? "enabled" : "disabled");
 
 		}
 	} else if (value == MXT_INPUT_EVENT_COVER_MODE_ON ||
@@ -5100,6 +5084,18 @@ static void mxt_set_gesture_wake_up(struct mxt_data *data, bool enable)
 	int error = 0;
 	struct device *dev = &data->client->dev;
 
+	if (enable) {
+		error = mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
+				MXT_MULTITOUCH_CTRL, 0, MXT_T100_CTRL_RPTEN);
+	} else {
+		error = mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
+				MXT_MULTITOUCH_CTRL, MXT_T100_CTRL_RPTEN, 0);
+	}
+	if (error) {
+		dev_err(dev, "write to t100 failed!\n");
+		return;
+	}
+
 	error = mxt_write_object(data, MXT_PROCG_NOISESUPSELFCAP_T108, MXT_T108_CTRL, (int)enable);
 	if (error) {
 		dev_err(&data->client->dev, "write to t08 ctrl reg failed!\n");
@@ -5116,23 +5112,6 @@ static void mxt_set_gesture_wake_up(struct mxt_data *data, bool enable)
 
 	if (error) {
 		dev_err(dev, "write to t72 failed!\n");
-		return;
-	}
-
-	if (enable) {
-		error = mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
-				MXT_MULTITOUCH_CTRL, 0, MXT_T100_CTRL_RPTEN);
-		error |= mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
-				MXT_MULTITOUCH_CFG1, 0, MXT_T100_CFG1_SWITCHXY);
-	} else {
-		error = mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
-				MXT_MULTITOUCH_CTRL, MXT_T100_CTRL_RPTEN, 0);
-		error |= mxt_set_clr_reg(data, MXT_TOUCH_MULTI_T100,
-				MXT_MULTITOUCH_CFG1, MXT_T100_CFG1_SWITCHXY, 0);
-	}
-
-	if (error) {
-		dev_err(dev, "write to t100 failed!\n");
 		return;
 	}
 
@@ -6325,7 +6304,7 @@ static void charger_noise_set(struct mxt_data *data)
 		}
 	}
 }
-static void mxt_noise_work(struct work_struct *work)
+static void mxt_noise_work(struct work_struct* work)
 {
 	struct mxt_data *data = container_of(work, struct mxt_data, noise_work);
 	charger_noise_set(data);
@@ -6560,6 +6539,33 @@ static const struct file_operations mxt_selftest_ops = {
 	.release	= mxt_selftest_release,
 };
 
+#define TP_INFO_MAX_LENGTH 50
+static ssize_t mxt_lockdown_info_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
+{
+	char tmp[TP_INFO_MAX_LENGTH] = { 0 };
+
+	if (*pos != 0 && g_mxt_data)
+		return 0;
+
+	snprintf(tmp, TP_INFO_MAX_LENGTH,
+			"0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",
+			g_mxt_data->lockdown_info[0], g_mxt_data->lockdown_info[1],
+			g_mxt_data->lockdown_info[2], g_mxt_data->lockdown_info[3],
+			g_mxt_data->lockdown_info[4], g_mxt_data->lockdown_info[5],
+			g_mxt_data->lockdown_info[6], g_mxt_data->lockdown_info[7]);
+	if (copy_to_user(buf, tmp, strlen(tmp))) {
+		return -EFAULT;
+	}
+
+	*pos += strlen(tmp);
+
+	return strlen(tmp);
+}
+
+static const struct file_operations mxt_lockdown_info_ops = {
+	.read		= mxt_lockdown_info_read,
+};
+
 static int mxt_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -6742,12 +6748,11 @@ static int mxt_probe(struct i2c_client *client,
 	mxt_debugfs_init(data);
 
 	normal_mode_reg_save(data);
-	update_hardware_info(TYPE_TOUCH, 2);
 	data->finish_init = 1;
 
-	proc_create("tp_selftest", 0, NULL, &mxt_selftest_ops);
+	proc_create("tp_selftest", 0664, NULL, &mxt_selftest_ops);
+	proc_create("tp_lockdown_info", 0664, NULL, &mxt_lockdown_info_ops);
 
-	data->dbclick_count = 0;
 	return 0;
 
 err_remove_sysfs_group:

@@ -2,10 +2,10 @@
  * Synaptics DSX touchscreen driver
  *
  * Copyright (C) 2012-2015 Synaptics Incorporated. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * Copyright (C) 2012 Alexandra Chin <alexandra.chin@tw.synaptics.com>
  * Copyright (C) 2012 Scott Lin <scott.lin@tw.synaptics.com>
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 #include <linux/types.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
-#include <linux/input/synaptics_dsx_force.h>
+#include <linux/input/synaptics_dsx.h>
 #include "synaptics_dsx_core.h"
 
 #define SYN_I2C_RETRY_TIMES 4
@@ -171,7 +171,7 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 
 	retval = of_property_read_string(np, "synaptics,power-gpio-name", &name);
 	if (retval == -EINVAL)
-		bdata->power_gpio_name = NULL;
+		bdata->power_gpio_name= NULL;
 	else if (retval < 0)
 		return retval;
 	else
@@ -179,7 +179,7 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 
 	retval = of_property_read_string(np, "synaptics,reset-gpio-name", &name);
 	if (retval == -EINVAL)
-		bdata->reset_gpio_name = NULL;
+		bdata->reset_gpio_name= NULL;
 	else if (retval < 0)
 		return retval;
 	else
@@ -187,7 +187,7 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 
 	retval = of_property_read_string(np, "synaptics,irq-gpio-name", &name);
 	if (retval == -EINVAL)
-		bdata->irq_gpio_name = NULL;
+		bdata->irq_gpio_name= NULL;
 	else if (retval < 0)
 		return retval;
 	else
@@ -206,6 +206,27 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 			bdata->power_on_state = value;
 	} else
 		bdata->power_gpio = -1;
+
+	retval = of_property_read_u32(np, "synaptics,palm-rx-channel",
+			&value);
+	if (retval < 0)
+		bdata->palm_rx_channel = 0;
+	else
+		bdata->palm_rx_channel = value;
+
+	retval = of_property_read_u32(np, "synaptics,palm-rx-area",
+			&value);
+	if (retval < 0)
+		bdata->palm_rx_area = 0;
+	else
+		bdata->palm_rx_area = value;
+
+	retval = of_property_read_u32(np, "synaptics,palm-tx-disable",
+			&value);
+	if (retval < 0)
+		bdata->palm_tx_disable = 0;
+	else
+		bdata->palm_tx_disable = value;
 
 	retval = of_property_read_u32(np, "synaptics,power-delay-ms",
 			&value);
@@ -371,7 +392,6 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 		return retval;
 	}
 
-	bdata->dump_click_count = of_property_read_bool(np, "synaptics,dump-click-count");
 
 	bdata->config_array = devm_kzalloc(dev, bdata->config_array_size *
 					sizeof(struct synaptics_dsx_config_info), GFP_KERNEL);
@@ -394,15 +414,6 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 		if (retval && (retval != -EINVAL)) {
 			dev_err(dev, "Unable to read chip id name\n");
 			return retval;
-		}
-
-		if (bdata->dump_click_count) {
-			retval = of_property_read_string(temp, "synaptics,clicknum-file-name",
-						&config_info->clicknum_file_name);
-			if (retval && (retval != -EINVAL)) {
-				dev_err(dev, "Unable to read click count file name\n");
-			} else
-				dev_err(dev, "click file name %s\n", config_info->clicknum_file_name);
 		}
 
 		config_info->chip_is_tddi = of_property_read_bool(temp, "synaptics,chip-is-tddi");
@@ -1128,7 +1139,7 @@ MODULE_DEVICE_TABLE(of, synaptics_rmi4_of_match_table_force);
 
 static struct i2c_driver synaptics_rmi4_i2c_driver = {
 	.driver = {
-		.name = "synaptics_dsi_force",
+		.name = "synaptics_dsi_force",//I2C_DRIVER_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = synaptics_rmi4_of_match_table_force,
 	},

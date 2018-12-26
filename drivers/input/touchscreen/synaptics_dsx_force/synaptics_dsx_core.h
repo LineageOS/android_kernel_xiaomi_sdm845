@@ -2,10 +2,10 @@
  * Synaptics DSX touchscreen driver
  *
  * Copyright (C) 2012-2015 Synaptics Incorporated. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * Copyright (C) 2012 Alexandra Chin <alexandra.chin@tw.synaptics.com>
  * Copyright (C) 2012 Scott Lin <scott.lin@tw.synaptics.com>
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -124,12 +124,6 @@
 
 #define PINCTRL_STATE_ACTIVE	"pmx_ts_active"
 #define PINCTRL_STATE_SUSPEND	"pmx_ts_suspend"
-#ifndef CONFIG_SYNA_TOUCH_COUNT_DUMP
-#define CONFIG_SYNA_TOUCH_COUNT_DUMP
-#endif
-#ifdef CONFIG_SYNA_TOUCH_COUNT_DUMP
-#define TOUCH_COUNT_FILE_MAXSIZE 50
-#endif
 enum exp_fn {
 	RMI_DEV = 0,
 	RMI_FW_UPDATER,
@@ -358,11 +352,6 @@ struct synaptics_rmi4_data {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
-#ifdef CONFIG_SYNA_TOUCH_COUNT_DUMP
-	struct class *syna_tp_class;
-	struct device *syna_touch_dev;
-	char *current_clicknum_file;
-#endif
 	unsigned char current_page;
 	unsigned char button_0d_enabled;
 	unsigned char num_of_tx;
@@ -394,7 +383,12 @@ struct synaptics_rmi4_data {
 	int force_max;
 	int chip_id;
 	int touchs;
-	int dbclick_count;
+	unsigned int palm_tx_grip_disable;
+	unsigned int palm_tx_area_threshold;
+	unsigned int palm_tx_channel_threshold;
+	unsigned int palm_rx_area_threshold;
+	unsigned int palm_rx_channel_threshold;
+	wait_queue_head_t palm_wq;
 	bool flash_prog_mode;
 	bool irq_enabled;
 	bool fingers_on_2d;
@@ -412,6 +406,8 @@ struct synaptics_rmi4_data {
 	bool external_afe_buttons;
 	bool fw_updating;
 	bool wakeup_en;
+	bool palm_enabled;
+	bool report_palm;
 	bool chip_is_tddi;
 	bool open_test_b7;
 	bool short_test_extend;

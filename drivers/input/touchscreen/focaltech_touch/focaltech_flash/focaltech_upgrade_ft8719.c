@@ -51,7 +51,7 @@ u8 pb_file_ft8719[] = {
  * fts_ft8719_upgrade_mode -
  * Return: return 0 if success, otherwise return error code
  ***********************************************************************/
-static int fts_ft8719_upgrade_mode(struct i2c_client *client, enum FW_FLASH_MODE mode, u8 *buf, u32 len)
+static int fts_ft8719_upgrade_mode(struct i2c_client *client, enum FW_FLASH_MODE mode, u8 * buf, u32 len)
 {
 	int ret = 0;
 	u32 start_addr = 0;
@@ -129,7 +129,7 @@ fw_reset:
 * Output:
 * Return: return 0 if success, otherwise return error code
 ***********************************************************************/
-static int fts_ft8719_upgrade(struct i2c_client *client, u8 *buf, u32 len)
+static int fts_ft8719_upgrade(struct i2c_client *client, u8 * buf, u32 len)
 {
 	int ret = 0;
 	u8 *tmpbuf = NULL;
