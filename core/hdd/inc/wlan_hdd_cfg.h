@@ -1380,7 +1380,7 @@ enum hdd_dot11_mode {
  * during host scan without connection
  * @Min: 0
  * @Max: 4
- * @Default: 1
+ * @Default: 4
  *
  * This ini will set the algo used in dwell time optimization
  * during host scan without connection.
@@ -1403,7 +1403,7 @@ enum hdd_dot11_mode {
 #define CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_NAME    "hostscan_adaptive_dwell_mode_no_conn"
 #define CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_MIN     (0)
 #define CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_MAX     (4)
-#define CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_DEFAULT (1)
+#define CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_DEFAULT (4)
 
 /*
  * <ini>
