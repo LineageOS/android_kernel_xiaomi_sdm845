@@ -1660,7 +1660,6 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 #if ((TOUCH_KEY_NUM > 0) || WAKEUP_GESTURE)
 	int32_t retry = 0;
 #endif
-	char *tp_maker = NULL;
 
 	NVT_LOG("start\n");
 
@@ -1820,7 +1819,6 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 			NVT_LOG("request irq %d succeed\n", client->irq);
 		}
 	}
-	update_hardware_info(TYPE_TOUCH, 5);
 
 	ret = nvt_get_lockdown_info(ts->lockdown_info);
 
@@ -1830,18 +1828,10 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 		NVT_ERR("Lockdown:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n",
 				ts->lockdown_info[0], ts->lockdown_info[1], ts->lockdown_info[2], ts->lockdown_info[3],
 				ts->lockdown_info[4], ts->lockdown_info[5], ts->lockdown_info[6], ts->lockdown_info[7]);
-		update_hardware_info(TYPE_TP_MAKER, ts->lockdown_info[0] - 0x30);
 	}
 	ts->fw_name = nvt_get_config(ts);
 
-	tp_maker = kzalloc(20, GFP_KERNEL);
-	if (tp_maker == NULL)
-		NVT_ERR("fail to alloc vendor name memory\n");
-	else {
-		kfree(tp_maker);
-		tp_maker = NULL;
-	}
-
+	
 	device_init_wakeup(&client->dev, 1);
 	ts->dev_pm_suspend = false;
 	init_completion(&ts->dev_pm_suspend_completion);

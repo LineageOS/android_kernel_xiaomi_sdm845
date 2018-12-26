@@ -13,8 +13,6 @@
  *
  */
 #include <linux/input/ft5x46_ts.h>
-#include <linux/hwinfo.h>
-
 #include "ft8716_pramboot.h"
 
 /* #define FT5X46_DEBUG_PERMISSION */
@@ -185,7 +183,7 @@
 #define LEN_FLASH_ECC_MAX		0xFFFE
 #define FT5X46_ESD_CHECK_PERIOD	5000
 
-static bool lcd_need_reset;
+static bool lcd_need_reset = false;
 static unsigned char proc_operate_mode = FT5X46_PROC_UPGRADE;
 static struct proc_dir_entry *ft5x46_proc_entry;
 #endif
@@ -1261,7 +1259,6 @@ static int ft8716_load_firmware(struct ft5x46_data *ft5x46,
 	u32 check_off = 0x20;
 	u32 start_addr = 0x00;
 	u8 packet_buf[16 + FT5X0X_PACKET_LENGTH];
-	u8 *tp_maker = NULL;
 
 	const struct firmware *fw;
 	int packet_num;
@@ -1299,14 +1296,6 @@ static int ft8716_load_firmware(struct ft5x46_data *ft5x46,
 		if (error) {
 			ft8716_reset_firmware(ft5x46);
 			return error;
-		}
-		update_hardware_info(TYPE_TP_MAKER, ft5x46->lockdown_info[0] - 0x30);
-		tp_maker = kzalloc(20, GFP_KERNEL);
-		if (tp_maker == NULL)
-			dev_err(ft5x46->dev, "fail to alloc vendor name memory\n");
-		else {
-			kfree(tp_maker);
-			tp_maker = NULL;
 		}
 		ft5x46->lockdown_info_acquired = true;
 		wake_up(&ft5x46->lockdown_info_acquired_wq);
@@ -1896,7 +1885,7 @@ out:
 #ifdef CONFIG_TOUCHSCREEN_FT5X46P_PROXIMITY
 	wake_up(&ft5x46->resume_wq);
 #endif
-
+	
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ft5x46_resume);
@@ -2780,7 +2769,7 @@ static const struct attribute_group ft5x46_attr_group = {
 
 static int ft5x46_panel_power(struct ft5x46_data *data, bool on)
 {
-	static bool status;
+	static bool status = false;
 	int rc = 0;
 
 	if (on == status) {
@@ -3049,6 +3038,10 @@ static int fb_notifier_cb(struct notifier_block *self,
 	struct ft5x46_data *ft5x46 =
 		container_of(self, struct ft5x46_data, drm_notifier);
 
+	if (!ft5x46->hw_is_ready) {
+		dev_err(ft5x46->dev, "Touch Hardware is not ready, skip");
+		return rc;
+	}
 	/* Receive notifications from primary panel only */
 	if (evdata && evdata->data && ft5x46 && evdata->is_primary) {
 		if (event == DRM_EVENT_BLANK) {
@@ -3661,6 +3654,8 @@ void ft5x46_hw_init_work(struct work_struct *work)
 	gpio_set_value_cansleep(pdata->reset_gpio, 1);
 	msleep(300);
 
+	set_skip_panel_dead(true);
+
 	/* For ft5x46, must swith to stdI2C mode before enter into firmware
 	 * loading state. But this operation is not needed for ft8716/fte716.
 	 */
@@ -3706,6 +3701,9 @@ void ft5x46_hw_init_work(struct work_struct *work)
 	queue_delayed_work(ft5x46->lcd_esdcheck_workqueue,
 						&ft5x46->lcd_esdcheck_work,
 						msecs_to_jiffies(FT5X46_ESD_CHECK_PERIOD));
+
+	set_skip_panel_dead(false);
+
 	return;
 
 failed:
@@ -3752,6 +3750,8 @@ failed:
 		pdata->power_init(false);
 	else
 		ft5x46_power_init(ft5x46, false);
+
+	set_skip_panel_dead(false);
 
 	return;
 }
