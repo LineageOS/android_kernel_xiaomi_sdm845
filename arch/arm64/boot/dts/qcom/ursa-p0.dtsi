@@ -524,12 +524,10 @@
 //		fts,y-offset = <300>;
 //		fts,y-skip = <240>;
 		fts,config-array-size = <1>;
-		fts,dump-click-count;
 		fts,cfg_0 {
 			fts,tp-vendor = <0x48>;
 			fts,fw-name = "st_fts_e8.ftb";
 			fts,limit-name = "stm_fts_production_limits.csv";
-			fts,clicknum-file-name = "fts+sdc";
 		};
 	};
 	atmel_mxt_ts_640u@4a {

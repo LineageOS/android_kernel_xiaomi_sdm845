@@ -581,7 +581,6 @@
 				pins = "gpio6", "gpio10";
 				drive-strength = <2>;  /* 2 mA */
 				bias-pull-down;  /* PULL DOWN */
-				output-low;
 			};
 		};
 	};
