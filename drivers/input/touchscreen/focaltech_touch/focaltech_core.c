@@ -1566,6 +1566,40 @@ static void fts_ts_late_resume(struct early_suspend *handler)
 }
 #endif
 
+static int check_is_focal_touch(struct fts_ts_data *ts_data)
+{
+	int ret = false;
+	u8 cmd[4] = { 0 };
+	u32 cmd_len = 0;
+	u8 val[2] = { 0 };
+
+	fts_reset_proc(10);
+	cmd[0] = FTS_CMD_START1;
+	cmd[1] = FTS_CMD_START2;
+	ret = fts_i2c_write(ts_data->client, cmd, 2);
+
+	if (ret < 0) {
+		FTS_ERROR("write 55 aa cmd fail");
+		return false;
+	}
+
+	msleep(FTS_CMD_START_DELAY);
+	cmd[0] = FTS_CMD_READ_ID;
+	cmd[1] = cmd[2] = cmd[3] = 0x00;
+
+	cmd_len = FTS_CMD_READ_ID_LEN_INCELL;
+
+	ret = fts_i2c_read(ts_data->client, cmd, cmd_len, val, 2);
+	if (ret < 0) {
+		FTS_ERROR("write 90 cmd fail");
+		return false;
+	}
+
+	FTS_INFO("read boot id:0x%02x%02x", val[0], val[1]);
+
+	return true;
+}
+
 /*****************************************************************************
 *  Name: fts_ts_probe
 *  Brief:
@@ -1660,8 +1694,14 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	ret = fts_get_ic_information(ts_data);
 	if (ret) {
-		FTS_ERROR("not focal IC, unregister driver");
-		goto err_irq_req;
+		FTS_ERROR("can't get ic information");
+		ret = check_is_focal_touch(ts_data);
+		if (ret)
+			ts_data->fw_forceupdate = true;
+		else {
+			FTS_ERROR("No focal touch found");
+			goto err_irq_req;
+		}
 	}
 
 	ret = sysfs_create_group(&client->dev.kobj, &fts_attr_group);
