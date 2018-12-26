@@ -169,6 +169,29 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 	} else
 		bdata->power_gpio = -1;
 
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	retval = of_property_read_u32(np, "synaptics,palm-rx-channel",
+			&value);
+	if (retval < 0)
+		bdata->palm_rx_channel = 0;
+	else
+		bdata->palm_rx_channel = value;
+
+	retval = of_property_read_u32(np, "synaptics,palm-rx-area",
+			&value);
+	if (retval < 0)
+		bdata->palm_rx_area = 0;
+	else
+		bdata->palm_rx_area = value;
+
+	retval = of_property_read_u32(np, "synaptics,palm-tx-disable",
+			&value);
+	if (retval < 0)
+		bdata->palm_tx_disable = 0;
+	else
+		bdata->palm_tx_disable = value;
+#endif
+
 	retval = of_property_read_u32(np, "synaptics,power-delay-ms",
 			&value);
 	if (retval < 0)

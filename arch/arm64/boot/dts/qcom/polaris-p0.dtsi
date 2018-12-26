@@ -153,6 +153,12 @@
 		thermal,batt-level-screen-off = "0 1 1 1 3 4 5 5 5 7 9 14 16";
 	};
 
+	palm_sensor {
+		compatible = "palm-sensor";
+		status = "ok";
+		ps,name = "palm-sensor";
+	};
+
 };
 
 &labibb {
