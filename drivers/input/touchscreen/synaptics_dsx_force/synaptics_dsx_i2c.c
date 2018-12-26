@@ -133,7 +133,7 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 
 	retval = of_property_read_string(np, "synaptics,power-gpio-name", &name);
 	if (retval == -EINVAL)
-		bdata->power_gpio_name = NULL;
+		bdata->power_gpio_name= NULL;
 	else if (retval < 0)
 		return retval;
 	else
@@ -141,7 +141,7 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 
 	retval = of_property_read_string(np, "synaptics,reset-gpio-name", &name);
 	if (retval == -EINVAL)
-		bdata->reset_gpio_name = NULL;
+		bdata->reset_gpio_name= NULL;
 	else if (retval < 0)
 		return retval;
 	else
@@ -149,7 +149,7 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 
 	retval = of_property_read_string(np, "synaptics,irq-gpio-name", &name);
 	if (retval == -EINVAL)
-		bdata->irq_gpio_name = NULL;
+		bdata->irq_gpio_name= NULL;
 	else if (retval < 0)
 		return retval;
 	else
@@ -168,6 +168,27 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 			bdata->power_on_state = value;
 	} else
 		bdata->power_gpio = -1;
+
+	retval = of_property_read_u32(np, "synaptics,palm-rx-channel",
+			&value);
+	if (retval < 0)
+		bdata->palm_rx_channel = 0;
+	else
+		bdata->palm_rx_channel = value;
+
+	retval = of_property_read_u32(np, "synaptics,palm-rx-area",
+			&value);
+	if (retval < 0)
+		bdata->palm_rx_area = 0;
+	else
+		bdata->palm_rx_area = value;
+
+	retval = of_property_read_u32(np, "synaptics,palm-tx-disable",
+			&value);
+	if (retval < 0)
+		bdata->palm_tx_disable = 0;
+	else
+		bdata->palm_tx_disable = value;
 
 	retval = of_property_read_u32(np, "synaptics,power-delay-ms",
 			&value);
@@ -332,6 +353,7 @@ static int parse_dt(struct device *dev, struct synaptics_dsx_board_data *bdata)
 		dev_err(dev, "Cannot get config array size\n");
 		return retval;
 	}
+
 
 	bdata->config_array = devm_kzalloc(dev, bdata->config_array_size *
 					sizeof(struct synaptics_dsx_config_info), GFP_KERNEL);
@@ -1078,7 +1100,7 @@ MODULE_DEVICE_TABLE(of, synaptics_rmi4_of_match_table_force);
 
 static struct i2c_driver synaptics_rmi4_i2c_driver = {
 	.driver = {
-		.name = "synaptics_dsi_force",
+		.name = "synaptics_dsi_force",//I2C_DRIVER_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = synaptics_rmi4_of_match_table_force,
 	},

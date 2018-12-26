@@ -877,9 +877,9 @@ static ssize_t udg_sysfs_trace_data_show(struct file *data_file,
 		return -EINVAL;
 
 	if (count < trace_data_size) {
-
-
-
+//		dev_err(rmi4_data->pdev->dev.parent,
+//				"%s: Not enough space (%d bytes) in buffer\n",
+//				__func__, count);
 		return -EINVAL;
 	}
 
@@ -954,9 +954,9 @@ static ssize_t udg_sysfs_template_data_show(struct file *data_file,
 	struct synaptics_rmi4_data *rmi4_data = udg->rmi4_data;
 
 	if (count < udg->template_data_size) {
-
-
-
+//		dev_err(rmi4_data->pdev->dev.parent,
+//				"%s: Not enough space (%d bytes) in buffer\n",
+//				__func__, count);
 		return -EINVAL;
 	}
 

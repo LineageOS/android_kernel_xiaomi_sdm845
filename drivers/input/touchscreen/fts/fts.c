@@ -45,11 +45,9 @@
 #ifdef CONFIG_TOUCHSCREEN_ST_DEBUG_FS
 #include <linux/debugfs.h>
 #endif
-#include <linux/hwinfo.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
-
 #include "fts.h"
 #include "fts_lib/ftsCompensation.h"
 #include "fts_lib/ftsIO.h"
@@ -1391,6 +1389,7 @@ static struct attribute *fts_attr_group[] = {
 	&dev_attr_ss_ix_total.attr,
 	NULL,
 };
+
 
 static int fts_command(struct fts_ts_info *info, unsigned char cmd)
 {
@@ -3048,7 +3047,6 @@ static int parse_dt(struct device *dev, struct fts_i2c_platform_data *bdata)
 		} else {
 			log_debug("%s %s:limit_name: %s", tag, __func__, config_info->fts_limit_name);
 		}
-
 		config_info++;
 	}
 #ifdef PHONE_KEY
@@ -3526,7 +3524,6 @@ static int fts_probe(struct i2c_client *client, const struct i2c_device_id *idp)
 #ifdef PHONE_KEY
 	int i = 0;
 #endif
-	u8 *tp_maker;
 	openChannel(client);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -3708,7 +3705,6 @@ static int fts_probe(struct i2c_client *client, const struct i2c_device_id *idp)
 		goto ProbeErrorExit_7;
 	}
 
-	update_hardware_info(TYPE_TOUCH, 4);
 
 	error = fts_get_lockdown_info(info->lockdown_info);
 
@@ -3718,74 +3714,12 @@ static int fts_probe(struct i2c_client *client, const struct i2c_device_id *idp)
 		log_error("%s Lockdown:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x\n", tag,
 				info->lockdown_info[0], info->lockdown_info[1], info->lockdown_info[2], info->lockdown_info[3],
 				info->lockdown_info[4], info->lockdown_info[5], info->lockdown_info[6], info->lockdown_info[7]);
-		update_hardware_info(TYPE_TP_MAKER, info->lockdown_info[0] - 0x30);
 	}
 
-	tp_maker = kzalloc(20, GFP_KERNEL);
-	if (tp_maker == NULL)
-		log_error("%s fail to alloc vendor name memory\n", tag);
-	else {
-		kfree(tp_maker);
-		tp_maker = NULL;
-	}
-	dev_set_drvdata(&client->dev, info);
-	device_init_wakeup(&client->dev, 1);
-#ifdef CONFIG_TOUCHSCREEN_ST_DEBUG_FS
-	info->debugfs = debugfs_create_dir("tp_debug", NULL);
-	if (info->debugfs) {
-		debugfs_create_file("switch_state", 0660, info->debugfs, info, &tpdbg_operations);
-	}
-#endif
-	fts_info = info;
-#ifdef SCRIPTLESS
-
-	if (fts_cmd_class == NULL)
-		fts_cmd_class = class_create(THIS_MODULE, FTS_TS_DRV_NAME);
-
-	info->i2c_cmd_dev = device_create(fts_cmd_class, NULL, DCHIP_ID_0, info, "fts_i2c");
-
-	if (IS_ERR(info->i2c_cmd_dev)) {
-		log_error("%s ERROR: Failed to create device for the sysfs!\n", tag);
-		goto ProbeErrorExit_8;
-	}
-
-	dev_set_drvdata(info->i2c_cmd_dev, info);
-	error = sysfs_create_group(&info->i2c_cmd_dev->kobj, &i2c_cmd_attr_group);
-
-	if (error) {
-		log_error("%s ERROR: Failed to create sysfs group!\n", tag);
-		goto ProbeErrorExit_9;
-	}
-
-#endif
 #ifdef DRIVER_TEST
-
-	if (fts_cmd_class == NULL)
-		fts_cmd_class = class_create(THIS_MODULE, FTS_TS_DRV_NAME);
-
-	info->test_cmd_dev = device_create(fts_cmd_class, NULL, DCHIP_ID_1, info, "fts_driver_test");
-
-	if (IS_ERR(info->test_cmd_dev)) {
-		log_error("%s ERROR: Failed to create device for the sysfs!\n", tag);
-		goto ProbeErrorExit_10;
-	}
-
-	dev_set_drvdata(info->test_cmd_dev, info);
-	error = sysfs_create_group(&info->test_cmd_dev->kobj,  &test_cmd_attr_group);
-
-	if (error) {
-		log_error("%s ERROR: Failed to create sysfs group!\n", tag);
-		goto ProbeErrorExit_11;
-	}
-
+ProbeErrorExit_12:
+	sysfs_remove_group(&info->test_cmd_dev->kobj,  &test_cmd_attr_group);
 #endif
-	info->tp_selftest_proc = proc_create("tp_selftest", 0, NULL, &fts_selftest_ops);
-	info->tp_data_dump_proc = proc_create("tp_data_dump", 0, NULL, &fts_datadump_ops);
-	info->tp_fw_version_proc = proc_create("tp_fw_version", 0, NULL, &fts_fw_version_ops);
-	info->tp_lockdown_info_proc = proc_create("tp_lockdown_info", 0, NULL, &fts_lockdown_info_ops);
-	queue_delayed_work(info->fwu_workqueue, &info->fwu_work, msecs_to_jiffies(EXP_FN_WORK_DELAY_MS));
-
-	return OK;
 #ifdef DRIVER_TEST
 ProbeErrorExit_11:
 	device_destroy(fts_cmd_class, DCHIP_ID_1);

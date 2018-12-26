@@ -717,7 +717,7 @@ static int rmidev_release(struct inode *inp, struct file *filp)
 	if (dev_data->ref_count < 0)
 		dev_data->ref_count = 0;
 
-
+//	rmi4_data->reset_device(rmi4_data, false);
 	rmi4_data->irq_enable(rmi4_data, true, false);
 
 	rmi4_data->stay_awake = false;
