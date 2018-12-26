@@ -3,7 +3,6 @@
  * FocalTech TouchScreen driver.
  *
  * Copyright (c) 2010-2017, FocalTech Systems, Ltd., all rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -41,7 +40,6 @@
 #include <linux/earlysuspend.h>
 #define FTS_SUSPEND_LEVEL 1	/* Early-suspend level */
 #endif
-#include <linux/hwinfo.h>
 
 /*****************************************************************************
 * Private constant and macro definitions using #define
@@ -561,7 +559,7 @@ static int fts_pinctrl_select_release(struct fts_ts_data *ts)
 #if (FTS_DEBUG_EN && (FTS_DEBUG_LEVEL == 2))
 char g_sz_debug[1024] = { 0 };
 
-static void fts_show_touch_buffer(u8 *buf, int point_num)
+static void fts_show_touch_buffer(u8 * buf, int point_num)
 {
 	int len = point_num * FTS_ONE_TCH_LEN;
 	int count = 0;
@@ -1369,7 +1367,7 @@ static const struct attribute_group fts_attr_group = {
 };
 
 #define TP_INFO_MAX_LENGTH 50
-static ssize_t fts_lockdown_info_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
+static ssize_t fts_lockdown_info_read(struct file *file, char __user * buf, size_t count, loff_t * pos)
 {
 	int cnt = 0, ret = 0;
 	char tmp[TP_INFO_MAX_LENGTH];
@@ -1396,7 +1394,7 @@ static const struct file_operations fts_lockdown_info_ops = {
 	.read = fts_lockdown_info_read,
 };
 
-static ssize_t fts_fw_version_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
+static ssize_t fts_fw_version_read(struct file *file, char __user * buf, size_t count, loff_t * pos)
 {
 	int cnt = 0, ret = 0;
 	char tmp[TP_INFO_MAX_LENGTH];
@@ -1432,7 +1430,7 @@ static int tpdbg_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t tpdbg_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
+static ssize_t tpdbg_read(struct file *file, char __user * buf, size_t size, loff_t * ppos)
 {
 
 	const char *str = "cmd support as below:\n \
@@ -1456,7 +1454,7 @@ static ssize_t tpdbg_read(struct file *file, char __user *buf, size_t size, loff
 	return len;
 }
 
-static ssize_t tpdbg_write(struct file *file, const char __user *buf, size_t size, loff_t *ppos)
+static ssize_t tpdbg_write(struct file *file, const char __user * buf, size_t size, loff_t * ppos)
 {
 	struct fts_ts_data *ts_data = file->private_data;
 	char *cmd = kzalloc(size + 1, GFP_KERNEL);
@@ -1566,6 +1564,40 @@ static void fts_ts_late_resume(struct early_suspend *handler)
 }
 #endif
 
+static int check_is_focal_touch(struct fts_ts_data *ts_data)
+{
+	int ret = false;
+	u8 cmd[4] = { 0 };
+	u32 cmd_len = 0;
+	u8 val[2] = { 0 };
+
+	fts_reset_proc(10);
+	cmd[0] = FTS_CMD_START1;
+	cmd[1] = FTS_CMD_START2;
+	ret = fts_i2c_write(ts_data->client, cmd, 2);
+
+	if (ret < 0) {
+		FTS_ERROR("write 55 aa cmd fail");
+		return false;
+	}
+
+	msleep(FTS_CMD_START_DELAY);
+	cmd[0] = FTS_CMD_READ_ID;
+	cmd[1] = cmd[2] = cmd[3] = 0x00;
+
+	cmd_len = FTS_CMD_READ_ID_LEN_INCELL;
+
+	ret = fts_i2c_read(ts_data->client, cmd, cmd_len, val, 2);
+	if (ret < 0) {
+		FTS_ERROR("write 90 cmd fail");
+		return false;
+	}
+
+	FTS_INFO("read boot id:0x%02x%02x", val[0], val[1]);
+
+	return true;
+}
+
 /*****************************************************************************
 *  Name: fts_ts_probe
 *  Brief:
@@ -1660,8 +1692,14 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	ret = fts_get_ic_information(ts_data);
 	if (ret) {
-		FTS_ERROR("not focal IC, unregister driver");
-		goto err_irq_req;
+		FTS_ERROR("can't get ic information");
+		ret = check_is_focal_touch(ts_data);
+		if (ret)
+			ts_data->fw_forceupdate = true;
+		else {
+			FTS_ERROR("No focal touch found");
+			goto err_irq_req;
+		}
 	}
 
 	ret = sysfs_create_group(&client->dev.kobj, &fts_attr_group);
@@ -1720,6 +1758,14 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	}
 #endif
 
+#if FTS_TEST_EN
+	ret = fts_test_init(client);
+	if (ret) {
+		FTS_ERROR("init production test fail");
+		goto err_debugfs_create;
+	}
+#endif
+
 #if FTS_ESDCHECK_EN
 	ret = fts_esdcheck_init(ts_data);
 	if (ret) {
@@ -1766,8 +1812,6 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	ts_data->early_suspend.resume = fts_ts_late_resume;
 	register_early_suspend(&ts_data->early_suspend);
 #endif
-	update_hardware_info(TYPE_TOUCH, 3);
-	update_hardware_info(TYPE_TP_MAKER, ts_data->lockdown_info[0] - 0x30);
 
 	FTS_FUNC_EXIT();
 	return 0;
@@ -1839,6 +1883,10 @@ static int fts_ts_remove(struct i2c_client *client)
 
 #if FTS_AUTO_UPGRADE_EN
 	fts_fwupg_exit(ts_data);
+#endif
+
+#if FTS_TEST_EN
+	fts_test_exit(client);
 #endif
 
 #if FTS_ESDCHECK_EN

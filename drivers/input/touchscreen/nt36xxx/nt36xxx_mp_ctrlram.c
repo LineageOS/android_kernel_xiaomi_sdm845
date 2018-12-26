@@ -47,44 +47,44 @@
 		printk(fmt, ##args);	\
 } while (0)
 
-static uint8_t *RecordResult_Short;
-static uint8_t *RecordResult_Short_Diff;
-static uint8_t *RecordResult_Short_Base;
-static uint8_t *RecordResult_Open;
-static uint8_t *RecordResult_FWMutual;
-static uint8_t *RecordResult_FW_CC;
-static uint8_t *RecordResult_FW_CC_I;
-static uint8_t *RecordResult_FW_CC_Q;
-static uint8_t *RecordResult_FW_DiffMax;
-static uint8_t *RecordResult_FW_DiffMin;
+static uint8_t *RecordResult_Short = NULL;
+static uint8_t *RecordResult_Short_Diff = NULL;
+static uint8_t *RecordResult_Short_Base = NULL;
+static uint8_t *RecordResult_Open = NULL;
+static uint8_t *RecordResult_FWMutual = NULL;
+static uint8_t *RecordResult_FW_CC = NULL;
+static uint8_t *RecordResult_FW_CC_I = NULL;
+static uint8_t *RecordResult_FW_CC_Q = NULL;
+static uint8_t *RecordResult_FW_DiffMax = NULL;
+static uint8_t *RecordResult_FW_DiffMin = NULL;
 
-static int32_t TestResult_Short;
-static int32_t TestResult_Short_Diff;
-static int32_t TestResult_Short_Base;
-static int32_t TestResult_Open;
-static int32_t TestResult_FW_Rawdata;
-static int32_t TestResult_FWMutual;
-static int32_t TestResult_FW_CC;
-static int32_t TestResult_FW_CC_I;
-static int32_t TestResult_FW_CC_Q;
-static int32_t TestResult_Noise;
-static int32_t TestResult_FW_DiffMax;
-static int32_t TestResult_FW_DiffMin;
+static int32_t TestResult_Short = 0;
+static int32_t TestResult_Short_Diff = 0;
+static int32_t TestResult_Short_Base = 0;
+static int32_t TestResult_Open = 0;
+static int32_t TestResult_FW_Rawdata = 0;
+static int32_t TestResult_FWMutual = 0;
+static int32_t TestResult_FW_CC = 0;
+static int32_t TestResult_FW_CC_I = 0;
+static int32_t TestResult_FW_CC_Q = 0;
+static int32_t TestResult_Noise = 0;
+static int32_t TestResult_FW_DiffMax = 0;
+static int32_t TestResult_FW_DiffMin = 0;
 
-static int32_t *RawData_Short;
-static int32_t *RawData_Short_Diff;
-static int32_t *RawData_Short_Base;
-static int32_t *RawData_Open;
-static int32_t *RawData_Diff;
-static int32_t *RawData_Diff_Min;
-static int32_t *RawData_Diff_Max;
-static int32_t *RawData_FWMutual;
-static int32_t *RawData_FW_CC;
-static int32_t *RawData_FW_CC_I;
-static int32_t *RawData_FW_CC_Q;
+static int32_t *RawData_Short = NULL;
+static int32_t *RawData_Short_Diff = NULL;
+static int32_t *RawData_Short_Base = NULL;
+static int32_t *RawData_Open = NULL;
+static int32_t *RawData_Diff = NULL;
+static int32_t *RawData_Diff_Min = NULL;
+static int32_t *RawData_Diff_Max = NULL;
+static int32_t *RawData_FWMutual = NULL;
+static int32_t *RawData_FW_CC = NULL;
+static int32_t *RawData_FW_CC_I = NULL;
+static int32_t *RawData_FW_CC_Q = NULL;
 
-static struct proc_dir_entry *NVT_proc_selftest_entry;
-static int8_t nvt_mp_test_result_printed;
+static struct proc_dir_entry *NVT_proc_selftest_entry = NULL;
+static int8_t nvt_mp_test_result_printed = 0;
 
 extern void nvt_change_mode(uint8_t mode);
 extern uint8_t nvt_get_fw_pipe(void);
@@ -242,7 +242,7 @@ static void nvt_print_lmt_array(int32_t *array, int32_t x_ch, int32_t y_ch)
 
 	for (j = 0; j < y_ch; j++) {
 		ret = 0;
-		for (i = 0; i < x_ch; i++) {
+		for(i = 0; i < x_ch; i++) {
 			ret += snprintf(buf + ret, 8, "%5d, ", array[j * x_ch + i]);
 		}
 		buf[ret] = '\0';
@@ -324,108 +324,9 @@ static void nvt_print_criteria(void)
 	NVT_LOG("--\n");
 }
 
-static int32_t nvt_save_rawdata_to_csv(int32_t *rawdata, uint8_t x_ch, uint8_t y_ch, const char *file_path, uint32_t offset)
+static int32_t nvt_save_rawdata_to_csv(int32_t *rawdata, uint8_t x_ch,
+	uint8_t y_ch, const char *file_path, uint32_t offset)
 {
-	int32_t x = 0;
-	int32_t y = 0;
-	int32_t cnt = 0;
-	int32_t iArrayIndex = 0;
-	struct file *fp = NULL;
-	char *fbufp = NULL;
-	char *buf = NULL;
-	mm_segment_t org_fs;
-	int32_t write_ret = 0;
-	uint32_t output_len = 0;
-	loff_t pos = 0;
-#if TOUCH_KEY_NUM > 0
-	int32_t k = 0;
-	int32_t keydata_output_offset = 0;
-#endif /* #if TOUCH_KEY_NUM > 0 */
-
-	printk("%s:++\n", __func__);
-	fbufp = (char *)kzalloc(PAGE_SIZE * 2, GFP_KERNEL);
-	if (!fbufp) {
-		NVT_ERR("kzalloc for fbufp failed!\n");
-		return -ENOMEM;
-	}
-	buf = (char *)kzalloc(PAGE_SIZE * 2, GFP_KERNEL);
-	if (!buf) {
-		NVT_ERR("kzalloc for buf failed!\n");
-		return -ENOMEM;
-	}
-
-	for (y = 0; y < y_ch; y++) {
-		cnt = 0;
-		for (x = 0; x < x_ch; x++) {
-			iArrayIndex = y * x_ch + x;
-			sprintf(fbufp + iArrayIndex * 7 + y * 2, "%5d, ", rawdata[iArrayIndex]);
-			cnt += snprintf(buf + cnt, 8, "%5d, ", rawdata[iArrayIndex]);
-		}
-		buf[cnt] = '\0';
-		printk("%s\n", buf);
-		sprintf(fbufp + (iArrayIndex + 1) * 7 + y * 2,"\r\n");
-	}
-#if TOUCH_KEY_NUM > 0
-	keydata_output_offset = y_ch * x_ch * 7 + y_ch * 2;
-	for (k = 0; k < Key_Channel; k++) {
-		iArrayIndex = y_ch * x_ch + k;
-		printk("%5d, ", rawdata[iArrayIndex]);
-		sprintf(fbufp + keydata_output_offset + k * 7, "%5d, ", rawdata[iArrayIndex]);
-	}
-	printk("\n");
-	sprintf(fbufp + y_ch * x_ch * 7 + y_ch * 2 + Key_Channel * 7, "\r\n");
-#endif /* #if TOUCH_KEY_NUM > 0 */
-
-	org_fs = get_fs();
-	set_fs(KERNEL_DS);
-	fp = filp_open(file_path, O_RDWR | O_CREAT, 0644);
-	if (fp == NULL || IS_ERR(fp)) {
-		NVT_ERR("open %s failed\n", file_path);
-		set_fs(org_fs);
-		if (fbufp) {
-			kfree(fbufp);
-			fbufp = NULL;
-		}
-		return -EPERM;
-	}
-
-#if TOUCH_KEY_NUM > 0
-	output_len = y_ch * x_ch * 7 + y_ch * 2 + Key_Channel * 7 + 2;
-#else
-	output_len = y_ch * x_ch * 7 + y_ch * 2;
-#endif /* #if TOUCH_KEY_NUM > 0 */
-	pos = offset;
-	write_ret = vfs_write(fp, (char __user *)fbufp, output_len, &pos);
-	if (write_ret <= 0) {
-		NVT_ERR("write %s failed\n", file_path);
-		set_fs(org_fs);
-		if (fp) {
-			filp_close(fp, NULL);
-			fp = NULL;
-		}
-		if (fbufp) {
-			kfree(fbufp);
-			fbufp = NULL;
-		}
-		return -EPERM;
-	}
-
-	set_fs(org_fs);
-	if (fp) {
-		filp_close(fp, NULL);
-		fp = NULL;
-	}
-	if (fbufp) {
-		kfree(fbufp);
-		fbufp = NULL;
-	}
-	if (buf) {
-		kfree(buf);
-		buf = NULL;
-	}
-
-	printk("%s:--\n", __func__);
-
 	return 0;
 }
 
@@ -471,7 +372,7 @@ static int32_t nvt_polling_hand_shake_status(void)
 		CTP_I2C_READ(ts->client, I2C_FW_Address, buf, 6);
 		NVT_ERR("Read back 5 bytes from offset EVENT_MAP_HOST_CMD: 0x%02X, 0x%02X, 0x%02X, 0x%02X, 0x%02X\n", buf[1], buf[2], buf[3], buf[4], buf[5]);
 
-		return -EPERM;
+		return -1;
 	} else {
 		return 0;
 	}
@@ -1094,10 +995,10 @@ static int32_t RawDataTest_SinglePoint_Sub(int32_t rawdata[], uint8_t RecordResu
 
 			RecordResult[iArrayIndex] = 0x00; /* default value for PASS */
 
-			if (rawdata[iArrayIndex] > Rawdata_Limit_Postive[iArrayIndex])
+			if(rawdata[iArrayIndex] > Rawdata_Limit_Postive[iArrayIndex])
 				RecordResult[iArrayIndex] |= 0x01;
 
-			if (rawdata[iArrayIndex] < Rawdata_Limit_Negative[iArrayIndex])
+			if(rawdata[iArrayIndex] < Rawdata_Limit_Negative[iArrayIndex])
 				RecordResult[iArrayIndex] |= 0x02;
 		}
 	}
@@ -1107,10 +1008,10 @@ static int32_t RawDataTest_SinglePoint_Sub(int32_t rawdata[], uint8_t RecordResu
 
 		RecordResult[iArrayIndex] = 0x00; /* default value for PASS */
 
-		if (rawdata[iArrayIndex] > Rawdata_Limit_Postive[iArrayIndex])
+		if(rawdata[iArrayIndex] > Rawdata_Limit_Postive[iArrayIndex])
 			RecordResult[iArrayIndex] |= 0x01;
 
-		if (rawdata[iArrayIndex] < Rawdata_Limit_Negative[iArrayIndex])
+		if(rawdata[iArrayIndex] < Rawdata_Limit_Negative[iArrayIndex])
 			RecordResult[iArrayIndex] |= 0x02;
 	}
 #endif /* #if TOUCH_KEY_NUM > 0 */
@@ -1135,7 +1036,7 @@ static int32_t RawDataTest_SinglePoint_Sub(int32_t rawdata[], uint8_t RecordResu
 #endif /* #if TOUCH_KEY_NUM > 0 */
 
 	if (isPass == false) {
-		return -EPERM; /* FAIL */
+		return -1; /* FAIL */
 	} else {
 		return 0; /* PASS */
 	}
@@ -1380,7 +1281,7 @@ static int32_t nvt_selftest_open(struct inode *inode, struct file *file)
 	}
 
 	/* Parsing criteria from dts */
-	if (of_property_read_bool(np, "novatek,mp-support-dt")) {
+	if(of_property_read_bool(np, "novatek,mp-support-dt")) {
 		/*
 		 * Parsing Criteria by Novatek PID
 		 * The string rule is "novatek-mp-criteria-<nvt_pid>"
@@ -1997,11 +1898,11 @@ int32_t nvt_mp_proc_init(void)
 	NVT_proc_selftest_entry = proc_create("nvt_selftest", 0444, NULL, &nvt_selftest_fops);
 	if (NVT_proc_selftest_entry == NULL) {
 		NVT_ERR("create /proc/nvt_selftest Failed!\n");
-		return -EPERM;
+		return -1;
 	} else {
-		if (nvt_mp_buffer_init()) {
+		if(nvt_mp_buffer_init()) {
 			NVT_ERR("Allocate mp memory failed\n");
-			return -EPERM;
+			return -1;
 		}
 		else {
 			NVT_LOG("create /proc/nvt_selftest Succeeded!\n");

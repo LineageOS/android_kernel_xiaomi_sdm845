@@ -3,8 +3,8 @@
  * FocalTech ft5x46 TouchScreen driver header file.
  *
  * Copyright (c) 2010  Focal tech Ltd.
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
  * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -144,6 +144,10 @@ struct ft5x46_data {
 
 	int touchs;
 	int keys;
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	wait_queue_head_t palm_wq;
+	bool palm_enabled;
+#endif
 #ifdef CONFIG_DRM
 	struct notifier_block drm_notifier;
 #endif
