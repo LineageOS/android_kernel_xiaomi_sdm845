@@ -125,7 +125,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			qcom,qpnp-rtc-write = <0>;
-			qcom,qpnp-rtc-alarm-pwrup = <0>;
+			qcom,qpnp-rtc-alarm-pwrup = <1>;
 
 			qcom,pm8998_rtc_rw@6000 {
 				reg = <0x6000 0x100>;

@@ -59,8 +59,11 @@
 
 		qcom,dispparam-enabled;
 		qcom,mdss-panel-on-dimming-delay = <120>;
+		qcom,disp-doze-backlight-threshold = <8>;
 		/* IRQF_ONESHOT | IRQF_TRIGGER_HIGH */
 		/* qcom,esd-err-irq-gpio = <&tlmm 52 0x2004>; */
+
+		qcom,bl-update-flag = "delay_until_first_frame";
 
 		qcom,mdss-dsi-display-timings {
 			timing@0{
@@ -86,7 +89,7 @@
 					/* TE OUT(Vsync On) */
 					39 00 00 00 00 00 03 F0 5A 5A
 					39 00 00 00 00 00 02 35 00
-					39 00 00 00 00 00 03 B7 01 43
+					39 00 00 00 00 00 03 B7 01 4B
 					39 01 00 00 00 00 03 F0 A5 A5
 					/* Page Address Set */
 					39 01 00 00 00 00 05 2B 00 00 09 23
@@ -101,10 +104,15 @@
 					39 00 00 00 00 00 0C E9 11 55 A6 75 A3 B8 BB 2A 00 1A B8
 					39 00 00 00 00 00 03 F0 A5 A5
 					39 01 00 00 00 00 03 FC A5 A5
+					/* Edge Dimming */
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 B0 09
+					39 00 00 00 00 00 02 D8 00
+					39 01 00 00 00 00 03 F0 A5 A5
 					/* Brightness Control */
 					39 00 00 00 00 00 02 53 20
 					39 00 00 00 00 00 03 51 00 00
-					39 01 00 00 6E 00 02 55 00
+					39 01 00 00 43 00 02 55 00
 					/* Display On */
 					05 01 00 00 00 00 02 29 00];
 				qcom,mdss-dsi-off-command = [
@@ -135,7 +143,7 @@
 					39 01 00 00 00 00 03 F0 A5 A5];
 				qcom,mdss-dsi-nolp-command = [
 					/* AOD OFF Sequence (AOD To Normal) */
-					05 01 00 00 10 00 02 28 00
+					05 01 00 00 22 00 02 28 00
 					39 01 00 00 00 00 02 53 20
 					05 01 00 00 00 00 02 29 00];
 				qcom,mdss-dsi-doze-hbm-command-state = "dsi_lp_mode";
