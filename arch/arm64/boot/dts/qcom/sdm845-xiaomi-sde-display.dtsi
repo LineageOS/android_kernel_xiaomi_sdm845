@@ -21,6 +21,8 @@
 #include "dsi-panel-ebbg-fhd-ft8716-video.dtsi"
 #include "dsi-panel-ebbg-fhd-ft8719-video.dtsi"
 #include "dsi-panel-samsung-fhd-ea8076-cmd.dtsi"
+#include "dsi-panel-visionox-fhd-r66455-cmd.dtsi"
+#include "dsi-panel-visionox-fhd-r66455-vid.dtsi"
 
 &soc {
 	dsi_amoled_panel_pwr_supply: dsi_amoled_panel_pwr_supply {
@@ -42,6 +44,58 @@
 			qcom,supply-name = "vci";
 			qcom,supply-min-voltage = <3000000>;
 			qcom,supply-max-voltage = <3000000>;
+			qcom,supply-enable-load = <62000>;
+			qcom,supply-disable-load = <80>;
+			qcom,supply-post-on-sleep = <10>;
+			qcom,supply-pre-off-sleep = <10>;
+		};
+	};
+
+	dsi_amoled_samsung_ea8076_panel_pwr_supply: dsi_amoled_samsung_ea8076_panel_pwr_supply {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "vddio";
+			qcom,supply-min-voltage = <1900000>;
+			qcom,supply-max-voltage = <1900000>;
+			qcom,supply-enable-load = <62000>;
+			qcom,supply-disable-load = <80>;
+			//qcom,supply-post-on-sleep = <20>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <1>;
+			qcom,supply-name = "vci";
+			qcom,supply-min-voltage = <3000000>;
+			qcom,supply-max-voltage = <3000000>;
+			qcom,supply-enable-load = <62000>;
+			qcom,supply-disable-load = <80>;
+			qcom,supply-post-on-sleep = <10>;
+			qcom,supply-pre-off-sleep = <10>;
+		};
+	};
+
+	dsi_amoled_visionox_r66455_panel_pwr_supply: dsi_amoled_visionox_r66455_panel_pwr_supply {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "vddio";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <62000>;
+			qcom,supply-disable-load = <80>;
+			//qcom,supply-post-on-sleep = <20>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <1>;
+			qcom,supply-name = "vci";
+			qcom,supply-min-voltage = <2800000>;
+			qcom,supply-max-voltage = <2800000>;
 			qcom,supply-enable-load = <62000>;
 			qcom,supply-disable-load = <80>;
 			qcom,supply-post-on-sleep = <10>;
@@ -94,7 +148,7 @@
 			qcom,supply-max-voltage = <1800000>;
 			qcom,supply-enable-load = <62000>;
 			qcom,supply-disable-load = <80>;
-			qcom,supply-post-on-sleep = <2>;
+			qcom,supply-post-on-sleep = <1>;
 		};
 
 		qcom,panel-supply-entry@1 {
@@ -113,7 +167,6 @@
 			qcom,supply-max-voltage = <5500000>;
 			qcom,supply-enable-load = <100000>;
 			qcom,supply-disable-load = <100>;
-			qcom,supply-pre-off-sleep = <2>;
 		};
 	};
 
@@ -135,18 +188,18 @@
 		qcom,panel-supply-entry@1 {
 			reg = <2>;
 			qcom,supply-name = "lab";
-			qcom,supply-min-voltage = <5800000>;
-			qcom,supply-max-voltage = <5800000>;
+			qcom,supply-min-voltage = <5500000>;
+			qcom,supply-max-voltage = <5500000>;
 			qcom,supply-enable-load = <100000>;
 			qcom,supply-disable-load = <100>;
-			qcom,supply-post-on-sleep = <4>;
+			qcom,supply-post-on-sleep = <3>;
 		};
 
 		qcom,panel-supply-entry@2 {
 			reg = <3>;
 			qcom,supply-name = "ibb";
-			qcom,supply-min-voltage = <5800000>;
-			qcom,supply-max-voltage = <5800000>;
+			qcom,supply-min-voltage = <5500000>;
+			qcom,supply-max-voltage = <55000000>;
 			qcom,supply-enable-load = <100000>;
 			qcom,supply-disable-load = <100>;
 			qcom,supply-pre-off-sleep = <4>;
@@ -382,6 +435,52 @@
 		vddio-supply = <&pm8998_l14>;
 		vci-supply = <&disp_vci_vreg>;
 	};
+
+	dsi_visionox_fhd_r66455_cmd_display: qcom,dsi-display@26 {
+		compatible = "qcom,dsi-display";
+		label = "dsi_visionox_fhd_r66455_cmd_display";
+		qcom,display-type = "primary";
+
+		qcom,dsi-ctrl = <&mdss_dsi0>;
+		qcom,dsi-phy = <&mdss_dsi_phy0>;
+		clocks = <&mdss_dsi0_pll BYTECLK_MUX_0_CLK>,
+			<&mdss_dsi0_pll PCLK_MUX_0_CLK>;
+		clock-names = "src_byte_clk", "src_pixel_clk";
+
+		pinctrl-names = "panel_active", "panel_suspend";
+		pinctrl-0 = <&sde_dsi_active &sde_te_active>;
+		pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend>;
+		qcom,platform-te-gpio = <&tlmm 10 0>;
+		qcom,platform-reset-gpio = <&tlmm 6 0>;
+		/* qcom,panel-errfg-gpio = <&tlmm 52 0>; */
+
+		qcom,dsi-panel = <&dsi_visionox_fhd_r66455_cmd>;
+		vddio-supply = <&pm8998_l14>;
+		vci-supply = <&disp_vci_vreg>;
+	};
+
+	dsi_visionox_fhd_r66455_vid_display: qcom,dsi-display@27 {
+		compatible = "qcom,dsi-display";
+		label = "dsi_visionox_fhd_r66455_vid_display";
+		qcom,display-type = "primary";
+
+		qcom,dsi-ctrl = <&mdss_dsi0>;
+		qcom,dsi-phy = <&mdss_dsi_phy0>;
+		clocks = <&mdss_dsi0_pll BYTECLK_MUX_0_CLK>,
+			<&mdss_dsi0_pll PCLK_MUX_0_CLK>;
+		clock-names = "src_byte_clk", "src_pixel_clk";
+
+		pinctrl-names = "panel_active", "panel_suspend";
+		pinctrl-0 = <&sde_dsi_active &sde_te_active>;
+		pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend>;
+		qcom,platform-te-gpio = <&tlmm 10 0>;
+		qcom,platform-reset-gpio = <&tlmm 6 0>;
+		/* qcom,panel-errfg-gpio = <&tlmm 52 0>; */
+
+		qcom,dsi-panel = <&dsi_visionox_fhd_r66455_vid>;
+		vddio-supply = <&pm8998_l14>;
+		vci-supply = <&disp_vci_vreg>;
+	};
 };
 
 
@@ -439,6 +538,34 @@
 		timing@0{
 			qcom,mdss-dsi-panel-phy-timings = [00 24 0A 0A 26 25 09
 				0A 06 02 04 00];
+			qcom,display-topology = <1 0 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};
+
+&dsi_visionox_fhd_r66455_cmd {
+	qcom,mdss-dsi-t-clk-post = <0x0E>;
+	qcom,mdss-dsi-t-clk-pre = <0x36>;
+
+	qcom,mdss-dsi-display-timings {
+		timing@0{
+			qcom,mdss-dsi-panel-phy-timings = [00 23 09 09 26 24 09
+				09 06 02 04 00];
+			qcom,display-topology = <1 0 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};
+
+&dsi_visionox_fhd_r66455_vid {
+	qcom,mdss-dsi-t-clk-post = <0x0E>;
+	qcom,mdss-dsi-t-clk-pre = <0x36>;
+
+	qcom,mdss-dsi-display-timings {
+		timing@0{
+			qcom,mdss-dsi-panel-phy-timings = [00 23 09 09 26 24 09
+				09 06 02 04 00];
 			qcom,display-topology = <1 0 1>;
 			qcom,default-topology-index = <0>;
 		};
@@ -513,11 +640,14 @@
 
 	qcom,esd-check-enabled;
 	qcom,mdss-dsi-panel-status-check-mode = "reg_read";
-	qcom,mdss-dsi-panel-status-command = [06 01 00 01 00 00 01 0A];
+	qcom,mdss-dsi-panel-status-command = [
+						06 01 00 01 00 00 01 0A
+						06 01 00 01 00 00 01 0B
+						06 01 00 01 00 00 01 0D
+						];
 	qcom,mdss-dsi-panel-status-command-state = "dsi_hs_mode";
-	qcom,mdss-dsi-panel-status-value = <0x9c>;
-	qcom,mdss-dsi-panel-on-check-value = <0x9c>;
-	qcom,mdss-dsi-panel-status-read-length = <1>;
+	qcom,mdss-dsi-panel-status-value = <0x9c 0x00 0x00>;
+	qcom,mdss-dsi-panel-status-read-length = <1 1 1>;
 
 	qcom,mdss-dsi-display-timings {
 		timing@0{
