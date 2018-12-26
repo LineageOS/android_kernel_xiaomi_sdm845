@@ -38,6 +38,7 @@
 #include <linux/mutex.h>
 #include "fts_lib/ftsSoftware.h"
 #include "fts_lib/ftsHardware.h"
+#include <linux/completion.h>
 /****************** CONFIGURATION SECTION ******************/
 /** @defgroup conf_section	 Driver Configuration Section
 * Settings of the driver code in order to suit the HW set up and the application behavior
@@ -239,7 +240,6 @@ struct fts_ts_info {
 	struct delayed_work fwu_work;
 	struct workqueue_struct *fwu_workqueue;
 #endif
-	struct delayed_work reg_restore_work;
 	event_dispatch_handler_t *event_dispatch_table;
 
 	struct attribute_group attrs;
@@ -283,7 +283,13 @@ struct fts_ts_info {
 #ifdef CONFIG_TOUCHSCREEN_ST_DEBUG_FS
 	struct dentry *debugfs;
 #endif
+	struct class *fts_tp_class;
+	struct device *fts_touch_dev;
+
 	bool lockdown_is_ok;
+	struct completion tp_reset_completion;
+	atomic_t system_is_resetting;
+	unsigned int fod_status;
 	struct proc_dir_entry *input_proc;
 };
 
