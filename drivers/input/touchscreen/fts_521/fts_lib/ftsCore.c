@@ -31,6 +31,7 @@
 #include "ftsTime.h"
 #include "ftsTool.h"
 
+extern struct fts_ts_info *fts_info;
 /** @addtogroup system_info
 * @{
 */
@@ -89,7 +90,11 @@ int fts_system_reset(void)
 	u8 data[1] = { SYSTEM_RESET_VALUE };
 	event_to_search = (int)EVT_ID_CONTROLLER_READY;
 
-	logError(0, "%s System resetting...\n", tag);
+	logError(1, "%s System resetting...\n", tag);
+	if (fts_info) {
+		reinit_completion(&fts_info->tp_reset_completion);
+		atomic_set(&fts_info->system_is_resetting, 1);
+	}
 	for (i = 0; i < RETRY_SYSTEM_RESET && res < 0; i++) {
 		resetErrorList();
 		fts_disableInterrupt();
@@ -109,7 +114,6 @@ int fts_system_reset(void)
 			logError(1, "%s fts_system_reset: ERROR %08X\n", tag,
 				 ERROR_BUS_W);
 		} else {
-			fts_restore_regvalues();
 			res =
 			    pollForEvent(&event_to_search, 1, readData,
 					 GENERAL_TIMEOUT);
@@ -119,13 +123,17 @@ int fts_system_reset(void)
 			}
 		}
 	}
+	if (fts_info) {
+		complete(&fts_info->tp_reset_completion);
+		atomic_set(&fts_info->system_is_resetting, 0);
+	}
 	if (res < OK) {
 		logError(1,
 			 "%s fts_system_reset...failed after 3 attempts: ERROR %08X\n",
 			 tag, (res | ERROR_SYSTEM_RESET_FAIL));
 		return (res | ERROR_SYSTEM_RESET_FAIL);
 	} else {
-		logError(0, "%s System reset DONE!\n", tag);
+		logError(1, "%s System reset DONE!\n", tag);
 		system_reseted_down = 1;
 		system_reseted_up = 1;
 		return OK;

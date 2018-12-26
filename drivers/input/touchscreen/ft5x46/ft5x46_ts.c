@@ -13,9 +13,8 @@
  *
  */
 #include <linux/input/ft5x46_ts.h>
-#include <linux/hwinfo.h>
-
 #include "ft8716_pramboot.h"
+#include <../palm_sensor.h>
 
 /* #define FT5X46_DEBUG_PERMISSION */
 #define FT5X46_APK_DEBUG_CHANNEL
@@ -185,7 +184,7 @@
 #define LEN_FLASH_ECC_MAX		0xFFFE
 #define FT5X46_ESD_CHECK_PERIOD	5000
 
-static bool lcd_need_reset;
+static bool lcd_need_reset = false;
 static unsigned char proc_operate_mode = FT5X46_PROC_UPGRADE;
 static struct proc_dir_entry *ft5x46_proc_entry;
 #endif
@@ -618,7 +617,7 @@ static int ft5x46_load_firmware(struct ft5x46_data *ft5x46,
 	for (i = 0; i < pdata->cfg_size; i++, firmware++) {
 		if (vid == firmware->vendor) {
 			if (ft5x46->dev->of_node)
-				if (ft5x46->chip_id == firmware->chip) {
+				if(ft5x46->chip_id == firmware->chip) {
 					dev_info(ft5x46->dev, "chip id = 0x%x, found it!\n",
 						ft5x46->chip_id);
 					ft5x46->current_index = i;
@@ -1261,7 +1260,6 @@ static int ft8716_load_firmware(struct ft5x46_data *ft5x46,
 	u32 check_off = 0x20;
 	u32 start_addr = 0x00;
 	u8 packet_buf[16 + FT5X0X_PACKET_LENGTH];
-	u8 *tp_maker = NULL;
 
 	const struct firmware *fw;
 	int packet_num;
@@ -1299,14 +1297,6 @@ static int ft8716_load_firmware(struct ft5x46_data *ft5x46,
 		if (error) {
 			ft8716_reset_firmware(ft5x46);
 			return error;
-		}
-		update_hardware_info(TYPE_TP_MAKER, ft5x46->lockdown_info[0] - 0x30);
-		tp_maker = kzalloc(20, GFP_KERNEL);
-		if (tp_maker == NULL)
-			dev_err(ft5x46->dev, "fail to alloc vendor name memory\n");
-		else {
-			kfree(tp_maker);
-			tp_maker = NULL;
 		}
 		ft5x46->lockdown_info_acquired = true;
 		wake_up(&ft5x46->lockdown_info_acquired_wq);
@@ -1771,7 +1761,18 @@ static irqreturn_t ft5x46_interrupt(int irq, void *dev_id)
 	u8 val = 0;
 
 	mutex_lock(&ft5x46->mutex);
-
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	if (ft5x46->palm_enabled) {
+		error = ft5x46_read_byte(ft5x46, 0x9B, &val);
+		if (error) {
+			dev_err(ft5x46->dev, "Error reading register 0x9B\n");
+			goto out;
+		}
+		palmsensor_update_data(!!val);
+		if (val)
+			goto out;
+	}
+#endif
 	if (ft5x46->wakeup_mode && ft5x46->in_suspend) {
 		error = ft5x46_read_byte(ft5x46, 0xD0, &val);
 		if (error)
@@ -1896,7 +1897,9 @@ out:
 #ifdef CONFIG_TOUCHSCREEN_FT5X46P_PROXIMITY
 	wake_up(&ft5x46->resume_wq);
 #endif
-
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	wake_up(&ft5x46->palm_wq);
+#endif
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ft5x46_resume);
@@ -2160,8 +2163,8 @@ static ssize_t ft5x46_dbgdump_store(struct device *dev,
 	return error ? : count;
 }
 
-static int ft5x46_updatefw_with_filename(struct ft5x46_data *ft5x46,
-		const char *filename, bool *upgraded)
+static int ft5x46_updatefw_with_filename(struct ft5x46_data* ft5x46,
+		const char* filename, bool *upgraded)
 {
 	struct ft5x46_firmware_data firmware;
 	const struct firmware *fw;
@@ -2230,14 +2233,14 @@ static int ft5x46_enter_factory(struct ft5x46_data *ft5x46_ts)
 	error = ft5x46_write_byte(ft5x46_ts, FT5X0X_REG_DEVIDE_MODE,
 							FT5X0X_DEVICE_MODE_TEST);
 	if (error)
-		return -EPERM;
+		return -1;
 	msleep(100);
 	error = ft5x46_read_byte(ft5x46_ts, FT5X0X_REG_DEVIDE_MODE, &reg_val);
 	if (error)
-		return -EPERM;
+		return -1;
 	if ((reg_val & 0x70) != FT5X0X_DEVICE_MODE_TEST) {
 		dev_info(ft5x46_ts->dev, "ERROR: The Touch Panel was not put in Factory Mode.");
-		return -EPERM;
+		return -1;
 	}
 
 	return 0;
@@ -2250,14 +2253,14 @@ static int ft5x46_enter_work(struct ft5x46_data *ft5x46_ts)
 	error = ft5x46_write_byte(ft5x46_ts, FT5X0X_REG_DEVIDE_MODE,
 							FT5X0X_DEVICE_MODE_NORMAL);
 	if (error)
-		return -EPERM;
+		return -1;
 	msleep(100);
 	error = ft5x46_read_byte(ft5x46_ts, FT5X0X_REG_DEVIDE_MODE, &reg_val);
 	if (error)
-		return -EPERM;
+		return -1;
 	if ((reg_val & 0x70) != FT5X0X_DEVICE_MODE_NORMAL) {
 		dev_info(ft5x46_ts->dev, "ERROR: The Touch Panel was not put in Normal Mode.\n");
-		return -EPERM;
+		return -1;
 	}
 
 	schedule_delayed_work(&ft5x46_ts->lcd_esdcheck_work,
@@ -2438,7 +2441,7 @@ static ssize_t ft5x46_selftest_store(struct device *dev,
 	unsigned long val;
 
 	error = kstrtoul(buf, 0, &val);
-	if (error)
+	if (error )
 		return error;
 	if (val != 1)
 		return -EINVAL;
@@ -2668,7 +2671,7 @@ static ssize_t ft5x46_irq_enable_store(struct device *dev,
 		pr_err("Invalid data\n");
 		return -EINVAL;
 	}
-	if (val)
+	if(val)
 		enable_irq(ft5x46->irq);
 	else
 		disable_irq(ft5x46->irq);
@@ -2707,13 +2710,88 @@ static ssize_t ft5x46_lcd_esd_test(struct device *dev,
 		pr_err("Invalid data\n");
 		return -EINVAL;
 	}
-	if (val)
+	if(val)
 		lcd_need_reset = true;
 	else
 		lcd_need_reset = false;
 
 	return error ? : count;
 }
+
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+static int ft5x46_palm_enable(struct ft5x46_data *ft5x46, unsigned int on)
+{
+	int retval;
+	unsigned char enable;
+	unsigned char palm_on = 0x05;
+	unsigned char palm_off = 0x00;
+/*
+	if (rmi4_data->palm_enabled == on) {
+		dev_info(rmi4_data->pdev->dev.parent,
+		"%s don't need update :%d\n", __func__, on);
+		return 0;
+	} else {
+		dev_info(rmi4_data->pdev->dev.parent,
+		"%s enable:%d\n", __func__, on);
+	}
+*/
+	enable = on > 0 ? 1 : 0;
+
+	if (enable && !wait_event_timeout(ft5x46->palm_wq, !ft5x46->in_suspend , HZ/2)) {
+		dev_err(ft5x46->dev, "%s wait tp resume timeout\n", __func__);
+			return -EINVAL;
+	} else if (!enable && ft5x46->in_suspend) {
+		dev_err(ft5x46->dev, "%s tp had suspended\n", __func__);
+		return 0;
+	}
+
+	dev_info(ft5x46->dev, "%s: on:%d\n", __func__, on);
+
+	if (on)
+		retval = ft5x46_write_byte(ft5x46, 0x9A, palm_on);
+	else
+		retval = ft5x46_write_byte(ft5x46, 0x9A, palm_off);
+
+	if (retval < 0)
+		return -EINVAL;
+
+	ft5x46->palm_enabled = enable;
+
+	return 0;
+}
+
+int ft5x46_palmsensor_enable(bool on)
+{
+	struct ft5x46_data *ft5x46 = ft_data;
+
+	if (ft5x46)
+		return ft5x46_palm_enable(ft5x46, on);
+	else
+		return -EINVAL;
+}
+
+static ssize_t ft5x46_palm_enable_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct ft5x46_data *ft5x46 = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", ft5x46->palm_enabled);
+}
+
+static ssize_t ft5x46_palm_enable_store(struct device *dev,
+				struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int input;
+	struct ft5x46_data *ft5x46 = dev_get_drvdata(dev);
+
+	if (sscanf(buf, "%d", &input) != 1 || ft5x46->in_suspend)
+			return -EINVAL;
+
+	ft5x46_palm_enable(ft5x46, !!input);
+
+	return count;
+}
+#endif
 
 /* sysfs */
 #ifdef FT5X46_DEBUG_PERMISSION
@@ -2752,6 +2830,9 @@ static DEVICE_ATTR(irq_enable, 0644, ft5x46_irq_enable_show, ft5x46_irq_enable_s
 static DEVICE_ATTR(panel_vendor, 0644, ft5x46_panel_vendor_show, NULL);
 #endif
 static DEVICE_ATTR(esd_test, 0644, NULL, ft5x46_lcd_esd_test);
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+static DEVICE_ATTR(palm_enable, 0644, ft5x46_palm_enable_show, ft5x46_palm_enable_store);
+#endif
 
 static struct attribute *ft5x46_attrs[] = {
 	&dev_attr_tpfwver.attr,
@@ -2771,6 +2852,9 @@ static struct attribute *ft5x46_attrs[] = {
 	&dev_attr_irq_enable.attr,
 	&dev_attr_panel_vendor.attr,
 	&dev_attr_esd_test.attr,
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	&dev_attr_palm_enable.attr,
+#endif
 	NULL
 };
 
@@ -2780,7 +2864,7 @@ static const struct attribute_group ft5x46_attr_group = {
 
 static int ft5x46_panel_power(struct ft5x46_data *data, bool on)
 {
-	static bool status;
+	static bool status = false;
 	int rc = 0;
 
 	if (on == status) {
@@ -3049,6 +3133,10 @@ static int fb_notifier_cb(struct notifier_block *self,
 	struct ft5x46_data *ft5x46 =
 		container_of(self, struct ft5x46_data, drm_notifier);
 
+	if (!ft5x46->hw_is_ready) {
+		dev_err(ft5x46->dev, "Touch Hardware is not ready, skip");
+		return rc;
+	}
 	/* Receive notifications from primary panel only */
 	if (evdata && evdata->data && ft5x46 && evdata->is_primary) {
 		if (event == DRM_EVENT_BLANK) {
@@ -3661,6 +3749,8 @@ void ft5x46_hw_init_work(struct work_struct *work)
 	gpio_set_value_cansleep(pdata->reset_gpio, 1);
 	msleep(300);
 
+	set_skip_panel_dead(true);
+
 	/* For ft5x46, must swith to stdI2C mode before enter into firmware
 	 * loading state. But this operation is not needed for ft8716/fte716.
 	 */
@@ -3706,6 +3796,9 @@ void ft5x46_hw_init_work(struct work_struct *work)
 	queue_delayed_work(ft5x46->lcd_esdcheck_workqueue,
 						&ft5x46->lcd_esdcheck_work,
 						msecs_to_jiffies(FT5X46_ESD_CHECK_PERIOD));
+
+	set_skip_panel_dead(false);
+
 	return;
 
 failed:
@@ -3752,6 +3845,8 @@ failed:
 		pdata->power_init(false);
 	else
 		ft5x46_power_init(ft5x46, false);
+
+	set_skip_panel_dead(false);
 
 	return;
 }
@@ -4284,6 +4379,12 @@ struct ft5x46_data *ft5x46_probe(struct device *dev,
 	ft5x46->hw_is_ready = false;
 	init_waitqueue_head(&ft5x46->lockdown_info_acquired_wq);
 	schedule_work(&ft5x46->work);
+#ifdef CONFIG_TOUCHSCREEN_PALM_SENSOR
+	dev_err(dev, "ft5x46 register touch screen  palm_enable\n");
+	palmsensor_register_switch(ft5x46_palmsensor_enable);
+	init_waitqueue_head(&ft5x46->palm_wq);
+#endif
+
 	return ft5x46;
 
 #ifdef FT5X46_APK_DEBUG_CHANNEL

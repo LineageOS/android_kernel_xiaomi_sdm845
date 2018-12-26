@@ -2,10 +2,10 @@
  * Synaptics DSX touchscreen driver
  *
  * Copyright (C) 2012-2015 Synaptics Incorporated. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * Copyright (C) 2012 Alexandra Chin <alexandra.chin@tw.synaptics.com>
  * Copyright (C) 2012 Scott Lin <scott.lin@tw.synaptics.com>
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,9 +40,8 @@
 #include <linux/input.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
-#include <linux/input/synaptics_dsx_force.h>
+#include <linux/input/synaptics_dsx.h>
 #include "synaptics_dsx_core.h"
-#include <linux/hwinfo.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 
@@ -2195,8 +2194,6 @@ static int fwu_read_f34_v5v6_queries(void)
 static int fwu_read_f34_queries(void)
 {
 	int retval;
-	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
-	u8 *tp_maker;
 
 	memset(&fwu->blkcount, 0x00, sizeof(fwu->blkcount));
 	memset(&fwu->phyaddr, 0x00, sizeof(fwu->phyaddr));
@@ -2206,17 +2203,6 @@ static int fwu_read_f34_queries(void)
 	else
 		retval = fwu_read_f34_v5v6_queries();
 
-
-	tp_maker = kzalloc(20, GFP_KERNEL);
-	if (tp_maker == NULL)
-		dev_err(rmi4_data->pdev->dev.parent,
-			"%s fail to alloc vendor name memory\n", __func__);
-	else {
-		kfree(tp_maker);
-		tp_maker = NULL;
-	}
-
-	update_hardware_info(TYPE_TP_MAKER, rmi4_data->lockdown_info[0] - 0x30);
 	return retval;
 }
 
@@ -4202,7 +4188,7 @@ static int fwu_start_reflash(void)
 	bool do_rebuild = false;
 	const struct firmware *fw_entry = NULL;
 	struct synaptics_rmi4_data *rmi4_data = fwu->rmi4_data;
-	const char *fw_name;
+	const char* fw_name;
 
 	if (rmi4_data->sensor_sleep) {
 		dev_err(rmi4_data->pdev->dev.parent,
