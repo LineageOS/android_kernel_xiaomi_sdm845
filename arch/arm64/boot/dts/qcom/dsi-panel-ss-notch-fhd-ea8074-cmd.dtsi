@@ -167,6 +167,9 @@
 				qcom,mdss-dsi-dispparam-dimmingon-command = [39 01 00 00 01 00 02 53 28];
 				qcom,mdss-dsi-dispparam-dimmingon-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-panel-jitter = <0x1 0x1>;
+				qcom,mdss-dsi-read-panel-id-command = [
+					06 01 00 01 05 00 02 DB 00];
+				qcom,mdss-dsi-read-panel-id-command-state = "dsi_hs_mode";
 				qcom,mdss-dsi-h-sync-pulse = <0>;
 			};
 		};
