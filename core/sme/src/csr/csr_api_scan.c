@@ -1486,7 +1486,7 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 		status = csr_roam_copy_profile(mac_ctx,
 					session->scan_info.profile,
 					profile);
-	if (!QDF_IS_STATUS_SUCCESS(status))
+	if (QDF_IS_STATUS_ERROR(status))
 		goto error;
 	scan_id = ucfg_scan_get_scan_id(mac_ctx->psoc);
 	session->scan_info.scan_id = scan_id;
@@ -1496,6 +1496,7 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 	if (!req) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  FL("Failed to allocate memory"));
+		status = QDF_STATUS_E_NOMEM;
 		goto error;
 	}
 
@@ -1573,7 +1574,7 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 	status = ucfg_scan_start(req);
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 error:
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (QDF_IS_STATUS_ERROR(status)) {
 		sme_err("failed to initiate scan with status: %d", status);
 		csr_release_profile(mac_ctx, session->scan_info.profile);
 		qdf_mem_free(session->scan_info.profile);
