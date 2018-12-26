@@ -46,7 +46,7 @@ int32_t update_firmware_request(char *filename)
 	int32_t ret = 0;
 
 	if (NULL == filename) {
-		return -EPERM;
+		return -1;
 	}
 
 	NVT_LOG("filename is %s\n", filename);
@@ -85,7 +85,7 @@ void update_firmware_release(void)
 	if (fw_entry) {
 		release_firmware(fw_entry);
 	}
-	fw_entry = NULL;
+	fw_entry=NULL;
 }
 
 /*******************************************************
@@ -178,7 +178,7 @@ int32_t Resume_PD(void)
 		retry++;
 		if (unlikely(retry > 20)) {
 			NVT_ERR("Check 0xAA (Resume Command) error!! status=0x%02X\n", buf[1]);
-			return -EPERM;
+			return -1;
 		}
 	}
 	msleep(10);
@@ -256,7 +256,7 @@ int32_t Check_CheckSum(void)
 				retry++;
 				if (unlikely(retry > 5)) {
 					NVT_ERR("Check 0xAA (Fast Read Command) failed, buf[1]=0x%02X, retry=%d\n", buf[1], retry);
-					return -EPERM;
+					return -1;
 				}
 			}
 			/* Read Checksum (write addr high byte & middle byte) */
@@ -336,7 +336,7 @@ int32_t Init_BootLoader(void)
 		retry++;
 		if (unlikely(retry > 20)) {
 			NVT_ERR("Check 0xAA (Inittial Flash Block) error!! status=0x%02X\n", buf[1]);
-			return -EPERM;
+			return -1;
 		}
 	}
 
@@ -388,7 +388,7 @@ int32_t Erase_Flash(void)
 		retry++;
 		if (unlikely(retry > 20)) {
 			NVT_ERR("Check 0xAA (Write Enable for Write Status Register) error!! status=0x%02X\n", buf[1]);
-			return -EPERM;
+			return -1;
 		}
 	}
 
@@ -418,7 +418,7 @@ int32_t Erase_Flash(void)
 		retry++;
 		if (unlikely(retry > 20)) {
 			NVT_ERR("Check 0xAA (Write Status Register) error!! status=0x%02X\n", buf[1]);
-			return -EPERM;
+			return -1;
 		}
 	}
 
@@ -449,7 +449,7 @@ int32_t Erase_Flash(void)
 		retry++;
 		if (unlikely(retry > 100)) {
 			NVT_ERR("Check 0xAA (Read Status for Write Status Register) failed, buf[1]=0x%02X, buf[2]=0x%02X, retry=%d\n", buf[1], buf[2], retry);
-			return -EPERM;
+			return -1;
 		}
 	}
 
@@ -458,7 +458,7 @@ int32_t Erase_Flash(void)
 	else
 		count = fw_entry->size / FLASH_SECTOR_SIZE;
 
-	for (i = 0; i < count; i++) {
+	for(i = 0; i < count; i++) {
 		/* Write Enable */
 		buf[0] = 0x00;
 		buf[1] = 0x06;
@@ -484,7 +484,7 @@ int32_t Erase_Flash(void)
 			retry++;
 			if (unlikely(retry > 20)) {
 				NVT_ERR("Check 0xAA (Write Enable) error!! status=0x%02X\n", buf[1]);
-				return -EPERM;
+				return -1;
 			}
 		}
 
@@ -518,7 +518,7 @@ int32_t Erase_Flash(void)
 			retry++;
 			if (unlikely(retry > 20)) {
 				NVT_ERR("Check 0xAA (Sector Erase) failed, buf[1]=0x%02X, retry=%d\n", buf[1], retry);
-				return -EPERM;
+				return -1;
 			}
 		}
 
@@ -549,7 +549,7 @@ int32_t Erase_Flash(void)
 			retry++;
 			if (unlikely(retry > 100)) {
 				NVT_ERR("Check 0xAA (Read Status) failed, buf[1]=0x%02X, buf[2]=0x%02X, retry=%d\n", buf[1], buf[2], retry);
-				return -EPERM;
+				return -1;
 			}
 		}
 	}
@@ -619,7 +619,7 @@ int32_t Write_Flash(void)
 			retry++;
 			if (unlikely(retry > 20)) {
 				NVT_ERR("Check 0xAA (Write Enable) error!! status=0x%02X\n", buf[1]);
-				return -EPERM;
+				return -1;
 			}
 		}
 
@@ -636,11 +636,11 @@ int32_t Write_Flash(void)
 			}
 		}
 		if (fw_entry->size - Flash_Address >= 256)
-			tmpvalue = (Flash_Address >> 16) + ((Flash_Address >> 8) & 0xFF) + (Flash_Address & 0xFF) + 0x00 + (255);
+			tmpvalue=(Flash_Address >> 16) + ((Flash_Address >> 8) & 0xFF) + (Flash_Address & 0xFF) + 0x00 + (255);
 		else
-			tmpvalue = (Flash_Address >> 16) + ((Flash_Address >> 8) & 0xFF) + (Flash_Address & 0xFF) + 0x00 + (fw_entry->size - Flash_Address - 1);
+			tmpvalue=(Flash_Address >> 16) + ((Flash_Address >> 8) & 0xFF) + (Flash_Address & 0xFF) + 0x00 + (fw_entry->size - Flash_Address - 1);
 
-		for (k = 0; k < min(fw_entry->size - Flash_Address,(size_t)256); k++)
+		for (k = 0;k < min(fw_entry->size - Flash_Address,(size_t)256); k++)
 			tmpvalue += fw_entry->data[Flash_Address + k];
 
 		tmpvalue = 255 - tmpvalue + 1;
@@ -676,7 +676,7 @@ int32_t Write_Flash(void)
 			retry++;
 			if (unlikely(retry > 20)) {
 				NVT_ERR("Check 0xAA (Page Program) failed, buf[1]=0x%02X, retry=%d\n", buf[1], retry);
-				return -EPERM;
+				return -1;
 			}
 		}
 		if (buf[1] == 0xEA) {
@@ -711,7 +711,7 @@ int32_t Write_Flash(void)
 			retry++;
 			if (unlikely(retry > 100)) {
 				NVT_ERR("Check 0xAA (Read Status) failed, buf[1]=0x%02X, buf[2]=0x%02X, retry=%d\n", buf[1], buf[2], retry);
-				return -EPERM;
+				return -1;
 			}
 		}
 		if (buf[1] == 0xEA) {
@@ -790,7 +790,7 @@ int32_t Verify_Flash(void)
 				retry++;
 				if (unlikely(retry > 5)) {
 					NVT_ERR("Check 0xAA (Fast Read Command) failed, buf[1]=0x%02X, retry=%d\n", buf[1], retry);
-					return -EPERM;
+					return -1;
 				}
 			}
 			/* Read Checksum (write addr high byte & middle byte) */
@@ -816,7 +816,7 @@ int32_t Verify_Flash(void)
 			if (WR_Filechksum[i] != RD_Filechksum[i]) {
 				NVT_ERR("Verify Fail%d!!\n", i);
 				NVT_ERR("RD_Filechksum[%d]=0x%04X, WR_Filechksum[%d]=0x%04X\n", i, RD_Filechksum[i], i, WR_Filechksum[i]);
-				return -EPERM;
+				return -1;
 			}
 		}
 	}
@@ -938,7 +938,7 @@ int32_t nvt_check_flash_end_flag(void)
 	}
 	if (buf[1] != 0xAA) {
 		NVT_ERR("Check 0xAA (Read Command) error!! status=0x%02X\n", buf[1]);
-		return -EPERM;
+		return -1;
 	}
 
 	msleep(10);

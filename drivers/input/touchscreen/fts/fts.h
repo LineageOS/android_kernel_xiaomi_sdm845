@@ -121,19 +121,12 @@
 #define FTS_RESULT_INVALID 0
 #define FTS_RESULT_PASS 2
 #define FTS_RESULT_FAIL 1
-#define CONFIG_FTS_TOUCH_COUNT_DUMP
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-#define TOUCH_COUNT_FILE_MAXSIZE 50
-#endif
 struct fts_config_info {
 	u8 tp_vendor;
 	u8 tp_color;
 	u8 tp_hw_version;
 	const char *fts_cfg_name;
 	const char *fts_limit_name;
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-	const char *clicknum_file_name;
-#endif
 };
 struct fts_i2c_platform_data {
 	int (*power)(bool on);
@@ -155,9 +148,6 @@ struct fts_i2c_platform_data {
 #ifdef PHONE_KEY
 	size_t nbuttons;
 	int *key_code;
-#endif
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-	bool dump_click_count;
 #endif
 	unsigned long keystates;
 };
@@ -274,12 +264,6 @@ struct fts_ts_info {
 	struct work_struct resume_work;
 #ifdef CONFIG_TOUCHSCREEN_ST_DEBUG_FS
 	struct dentry *debugfs;
-#endif
-	int dbclick_count;
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-	struct class *fts_tp_class;
-	struct device *fts_touch_dev;
-	char *current_clicknum_file;
 #endif
 };
 

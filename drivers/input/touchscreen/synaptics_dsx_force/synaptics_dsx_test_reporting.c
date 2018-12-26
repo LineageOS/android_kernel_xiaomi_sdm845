@@ -2,10 +2,10 @@
  * Synaptics DSX touchscreen driver
  *
  * Copyright (C) 2012-2015 Synaptics Incorporated. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * Copyright (C) 2012 Alexandra Chin <alexandra.chin@tw.synaptics.com>
  * Copyright (C) 2012 Scott Lin <scott.lin@tw.synaptics.com>
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 #include <linux/ctype.h>
 #include <linux/hrtimer.h>
 #include <linux/platform_device.h>
-#include <linux/input/synaptics_dsx_force.h>
+#include <linux/input/synaptics_dsx.h>
 #include "synaptics_dsx_core.h"
 #include <linux/proc_fs.h>
 #include <linux/vmalloc.h>
@@ -3565,7 +3565,7 @@ static int tddi_ratio_calculation(signed short *p_image)
 		goto exit;
 	}
 
-
+	// allocate the buffer for the median value in left/right half
 	p_right_median = (signed short *) kzalloc(rx_num * sizeof(short), GFP_KERNEL);
 	if (!p_right_median) {
 		dev_err(rmi4_data->pdev->dev.parent, "%s: Failed to alloc mem for p_right_median\n", __func__);
@@ -3581,29 +3581,29 @@ static int tddi_ratio_calculation(signed short *p_image)
 	}
 
 	p_right_column_buf = (signed short *) kzalloc(right_size * rx_num * sizeof(short), GFP_KERNEL);
-	if (!p_right_column_buf) {
+	if (!p_right_column_buf ) {
 		dev_err(rmi4_data->pdev->dev.parent, "%s: Failed to alloc mem for p_right_column_buf\n", __func__);
 		retval = -ENOMEM;
 		goto exit;
 	}
 
 	p_left_column_buf = (signed short *) kzalloc(left_size * rx_num * sizeof(short), GFP_KERNEL);
-	if (!p_left_column_buf) {
+	if (!p_left_column_buf ) {
 		dev_err(rmi4_data->pdev->dev.parent, "%s: Failed to alloc mem for p_left_column_buf\n", __func__);
 		retval = -ENOMEM;
 		goto exit;
 	}
 
-
+	// divide the input image into left/right parts
 	if (f54->swap_sensor_side) {
-
+		// first row is left side data
 		p_data_16 = p_image;
 		for (i = 0; i < rx_num; i++) {
 			for (j = 0; j < left_size; j++) {
 				p_left_column_buf[i * left_size + j] = p_data_16[j * rx_num + i];
 			}
 		}
-
+		// right side data
 		p_data_16 = p_image + left_size * rx_num;
 		for (i = 0; i < rx_num; i++) {
 			for (j = 0; j < right_size; j++) {
@@ -3612,14 +3612,14 @@ static int tddi_ratio_calculation(signed short *p_image)
 		}
 	}
 	else {
-
+		// first row is right side data
 		p_data_16 = p_image;
 		for (i = 0; i < rx_num; i++) {
 			for (j = 0; j < right_size; j++) {
 				p_right_column_buf[i * right_size + j] = p_data_16[j * rx_num + i];
 			}
 		}
-
+		// left side data
 		p_data_16 = p_image + right_size * rx_num;
 		for (i = 0; i < rx_num; i++) {
 			for (j = 0; j < left_size; j++) {
@@ -3628,19 +3628,19 @@ static int tddi_ratio_calculation(signed short *p_image)
 		}
 	}
 
-
+	// find the median in every column
 	for (i = 0; i < rx_num; i++) {
 		p_left_median[i] = FindMedian(p_left_column_buf + i * left_size, left_size);
 		p_right_median[i] = FindMedian(p_right_column_buf + i * right_size, right_size);
 	}
 
-
-
+	// walk through the image of all data
+	// and calculate the ratio by using the median
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
-
+			// calcueate the ratio
 			if (f54->swap_sensor_side) {
-
+				// first row is left side
 				if (i < left_size) {
 					temp = (signed int) p_image[i * rx_num + j];
 					temp = temp * 100 / p_left_median[j];
@@ -3651,7 +3651,7 @@ static int tddi_ratio_calculation(signed short *p_image)
 				}
 			}
 			else {
-
+				// first row is right side
 				if (i < right_size) {
 					temp = (signed int) p_image[i * rx_num + j];
 					temp = temp * 100 / p_right_median[j];
@@ -3662,7 +3662,7 @@ static int tddi_ratio_calculation(signed short *p_image)
 				}
 			}
 
-
+			// replace the original data with the calculated ratio
 			p_image[i * rx_num + j] = temp;
 		}
 	}
@@ -3712,7 +3712,7 @@ static ssize_t test_sysfs_tddi_extend_ee_short_store(struct device *dev,
 		return -ENOMEM;
 	}
 
-
+	// allocate the internal buffer
 	tddi_rt95_part_one = kzalloc(buffer_size, GFP_KERNEL);
 	if (!tddi_rt95_part_one) {
 		dev_err(rmi4_data->pdev->dev.parent,
@@ -3828,7 +3828,7 @@ static ssize_t test_sysfs_tddi_extend_ee_short_store(struct device *dev,
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 			if ((i == tx_num-1) && (f55->extended_amp_btn)) {
-				break;
+				break; // if f55->extended_amp_btn is set, didn't validate the last row data
 			}
 
 			if (tddi_rt95_part_one[i*rx_num + j] > factory_param->tddi_extend_ee_short_test_limit_part1) {
@@ -3836,7 +3836,7 @@ static ssize_t test_sysfs_tddi_extend_ee_short_store(struct device *dev,
 						"%s: fail at (tx%-2d, rx%-2d) = %-4d in part 1 image (limit = %d)\n",
 						__func__, i, j, tddi_rt95_part_one[i*rx_num + j], factory_param->tddi_extend_ee_short_test_limit_part1);
 
-				tddi_rt95_part_one[i*rx_num + j] = 1;
+				tddi_rt95_part_one[i*rx_num + j] = 1; // 1: fail
 			}
 			else {
 				tddi_rt95_part_one[i*rx_num + j] = 0;
@@ -3854,13 +3854,13 @@ static ssize_t test_sysfs_tddi_extend_ee_short_store(struct device *dev,
 		offset += 2;
 	}
 
-
+	// calculate the ratio
 	tddi_ratio_calculation(tddi_rt95_part_two);
 
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 			if ((i == tx_num-1) && (f55->extended_amp_btn)) {
-				break;
+				break; // if f55->extended_amp_btn is set, didn't validate the last row data
 			}
 
 			if (tddi_rt95_part_two[i*rx_num + j] < factory_param->tddi_extend_ee_short_test_limit_part2) {
@@ -3868,7 +3868,7 @@ static ssize_t test_sysfs_tddi_extend_ee_short_store(struct device *dev,
 						"%s: fail at (tx%-2d, rx%-2d) = %-4d in part 2 image (limit = %d)\n",
 						__func__, i, j, tddi_rt95_part_two[i*rx_num + j], factory_param->tddi_extend_ee_short_test_limit_part2);
 
-				tddi_rt95_part_two[i*rx_num + j] = 1;
+				tddi_rt95_part_two[i*rx_num + j] = 1; // 1: fail
 			}
 			else {
 				tddi_rt95_part_two[i*rx_num + j] = 0;
@@ -3882,7 +3882,7 @@ static ssize_t test_sysfs_tddi_extend_ee_short_store(struct device *dev,
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 			if ((i == tx_num-1) && (f55->extended_amp_btn)) {
-				break;
+				break; // if f55->extended_amp_btn is set, didn't validate the last row data
 			}
 
 			td43xx_ee_short_data[i * rx_num + j] =
@@ -3948,8 +3948,8 @@ static ssize_t test_sysfs_tddi_extend_ee_short_show(struct device *dev,
 	if (!td43xx_ee_short_data)
 		return -EINVAL;
 
-
-
+	// check the special code if failed to get report image
+	// output the error message
 	if (1 == g_flag_read_report_fail) {
 		kfree(td43xx_ee_short_data);
 		td43xx_ee_short_data = NULL;
@@ -4079,7 +4079,7 @@ static ssize_t test_sysfs_td43xx_ee_short_show(struct device *dev,
 	if (!td43xx_ee_short_data)
 		return -EINVAL;
 
-
+	// check the special code if the failure of report image reading
 	if (1 == g_flag_read_report_fail) {
 		kfree(td43xx_ee_short_data);
 		td43xx_ee_short_data = NULL;
@@ -4381,7 +4381,7 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 		tx_num -= 1;
 	}
 
-
+	// allocate the buffer for the median calculation in left/right half
 	p_right_median = (signed short *) kzalloc(rx_num * sizeof(short), GFP_KERNEL);
 	if (!p_right_median) {
 		dev_err(rmi4_data->pdev->dev.parent,
@@ -4401,7 +4401,7 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 	}
 
 	p_right_column_buf = (signed short *) kzalloc(right_size * rx_num * sizeof(short), GFP_KERNEL);
-	if (!p_right_column_buf) {
+	if (!p_right_column_buf ) {
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to alloc mem for left_column_buf\n",
 				__func__);
@@ -4410,7 +4410,7 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 	}
 
 	p_left_column_buf = (signed short *) kzalloc(left_size * rx_num * sizeof(short), GFP_KERNEL);
-	if (!p_left_column_buf) {
+	if (!p_left_column_buf ) {
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: Failed to alloc mem for left_column_buf\n",
 				__func__);
@@ -4419,14 +4419,14 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 	}
 
 	if (f54->swap_sensor_side) {
-
+		// first row is left side data
 		p_data_16 = p_image;
 		for (i = 0; i < rx_num; i++) {
 			for (j = 0; j < left_size; j++) {
 				p_left_column_buf[i * left_size + j] = p_data_16[j * rx_num + i];
 			}
 		}
-
+		// right side data
 		p_data_16 = p_image + left_size * rx_num;
 		for (i = 0; i < rx_num; i++) {
 			for (j = 0; j < right_size; j++) {
@@ -4435,14 +4435,14 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 		}
 	}
 	else {
-
+		// first row is right side data
 		p_data_16 = p_image;
 		for (i = 0; i < rx_num; i++) {
 			for (j = 0; j < right_size; j++) {
 				p_right_column_buf[i * right_size + j] = p_data_16[j * rx_num + i];
 			}
 		}
-
+		// left side data
 		p_data_16 = p_image + right_size * rx_num;
 		for (i = 0; i < rx_num; i++) {
 			for (j = 0; j < left_size; j++) {
@@ -4451,19 +4451,19 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 		}
 	}
 
-
+	// calculate the median value from each column in right/left half
 	for (i = 0; i < rx_num; i++) {
 		p_left_median[i] = FindMedian(p_left_column_buf + i * left_size, left_size);
 		p_right_median[i] = FindMedian(p_right_column_buf + i * right_size, right_size);
 	}
 
 
-
+	// data testing algorithm
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 
 			if (f54->swap_sensor_side) {
-
+				// first row is left side
 				if (i < left_size) {
 					temp = (signed int) p_image[i * rx_num + j];
 					temp = temp * 100 / p_left_median[j];
@@ -4473,7 +4473,7 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 				}
 			}
 			else {
-
+				// first row is right side
 				if (i < right_size) {
 					temp = (signed int) p_image[i * rx_num + j];
 					temp = temp * 100 / p_right_median[j];
@@ -4483,14 +4483,14 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 				}
 			}
 
-			p_result[i * rx_num + j] =  0;
+			p_result[i * rx_num + j] =  0; // pass
 
-
-
+			// phase 2 comparison
+			// the ratio should be within the ph2 lower and upper limit
 			if (is_b7) {
 				if ((temp < factory_param->tddi_b7_open_test_limit_phase2_lower) ||
 					(temp > factory_param->tddi_b7_open_test_limit_phase2_upper)) {
-						p_result[i * rx_num + j] =  1;
+						p_result[i * rx_num + j] =  1; // fail
 
 						pr_info("%s : phase 2 failed at (tx%-2d, rx%-2d), data = %d\n",
 								__func__, i, j, temp);
@@ -4498,7 +4498,7 @@ static int tddi_amp_open_data_testing_b7(signed short *p_image,
 			}
 			else {
 				 if (temp < factory_param->tddi_b7_open_test_limit_phase2_lower) {
-					p_result[i * rx_num + j] =  1;
+					p_result[i * rx_num + j] =  1; // fail
 
 					pr_info("%s : phase 2 failed at (tx%-2d, rx%-2d), data = %d\n",
 							__func__, i, j, temp);
@@ -4556,7 +4556,7 @@ static ssize_t test_sysfs_td4722_b7_amp_open_store(struct device *dev,
 		return -ENOMEM;
 	}
 
-
+	// allocate the buffer
 	p_report_data_8 = kzalloc(tx_num * rx_num * 2, GFP_KERNEL);
 	if (!p_report_data_8) {
 		dev_err(rmi4_data->pdev->dev.parent,
@@ -4601,7 +4601,7 @@ static ssize_t test_sysfs_td4722_b7_amp_open_store(struct device *dev,
 	}
 
 
-
+	// keep the original integration duration
 	if (f54->query.touch_controller_family != 2) {
 		dev_err(rmi4_data->pdev->dev.parent,
 				"%s: not support touch controller family = 0 or 1 \n",
@@ -4609,8 +4609,8 @@ static ssize_t test_sysfs_td4722_b7_amp_open_store(struct device *dev,
 		retval = -EINVAL;
 		goto exit;
 	}
-
-
+	// touch controller family = 2
+	// read the original integration duration
 	retval = synaptics_rmi4_reg_read(rmi4_data,
 			control.reg_99->address,
 			original_data_f54_ctrl99,
@@ -4650,7 +4650,7 @@ static ssize_t test_sysfs_td4722_b7_amp_open_store(struct device *dev,
 		retval = -EIO;
 		goto exit;
 	}
-
+	// grep the report image 92
 	retval = test_sysfs_read_report_td43xx(dev, attr, "92", count,
 				false, false);
 	if (retval < 0) {
@@ -4665,18 +4665,18 @@ static ssize_t test_sysfs_td4722_b7_amp_open_store(struct device *dev,
 	secure_memcpy(p_report_data_8, tx_num * rx_num * 2,
 		f54->report_data, f54->report_size, f54->report_size);
 
-
+	// normalize the rt92 image with 16-bit
 	k = 0;
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 			p_rt92_image_1[i * rx_num + j] =
-				(signed short)(p_report_data_8[k] & 0xff) | (signed short)(p_report_data_8[k + 1] << 8);
+				(signed short)(p_report_data_8[k] & 0xff ) | (signed short)(p_report_data_8[k + 1] << 8);
 
 			k += 2;
 		}
 	}
 
-
+	// verified the data
 	tddi_amp_open_data_testing_b7(p_rt92_image_1,
 								p_result_1,
 								true);
@@ -4708,7 +4708,7 @@ static ssize_t test_sysfs_td4722_b7_amp_open_store(struct device *dev,
 		retval = -EIO;
 		goto exit;
 	}
-
+	// grep the report image 92
 	retval = test_sysfs_read_report_td43xx(dev, attr, "92", count,
 				false, false);
 	if (retval < 0) {
@@ -4723,18 +4723,18 @@ static ssize_t test_sysfs_td4722_b7_amp_open_store(struct device *dev,
 	secure_memcpy(p_report_data_8, tx_num * rx_num * 2,
 		f54->report_data, f54->report_size, f54->report_size);
 
-
+	// normalize the rt92 image with 16-bit
 	k = 0;
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 			p_rt92_image_2[i * rx_num + j] =
-				(signed short)(p_report_data_8[k] & 0xff) | (signed short)(p_report_data_8[k + 1] << 8);
+				(signed short)(p_report_data_8[k] & 0xff ) | (signed short)(p_report_data_8[k + 1] << 8);
 
 			k += 2;
 		}
 	}
 
-
+	// verified the data
 	tddi_amp_open_data_testing_b7(p_rt92_image_2,
 								p_result_2,
 								true);
@@ -4769,9 +4769,9 @@ static ssize_t test_sysfs_td4722_b7_amp_open_store(struct device *dev,
 		for (j = 0; j < rx_num; j++) {
 
 			if ((1 == p_result_1[i * rx_num + j]) || (1 == p_result_2[i * rx_num + j]))
-				td43xx_amp_open_data[i * rx_num + j] = 1;
+				td43xx_amp_open_data[i * rx_num + j] = 1; // 1: fail
 			else
-				td43xx_amp_open_data[i * rx_num + j] = 0;
+				td43xx_amp_open_data[i * rx_num + j] = 0; // 0: pass
 		}
 	}
 
@@ -4779,7 +4779,7 @@ static ssize_t test_sysfs_td4722_b7_amp_open_store(struct device *dev,
 
 
 exit:
-
+	// release resource
 	kfree(p_rt92_image_1);
 	kfree(p_rt92_image_2);
 	kfree(p_report_data_8);
@@ -4808,7 +4808,7 @@ static ssize_t test_sysfs_td4722_b7_amp_open_show(struct device *dev,
 	if (!td43xx_amp_open_data)
 		return -EINVAL;
 
-
+	// check the special code if the failure of report image reading
 	if (1 == g_flag_read_report_fail) {
 		kfree(td43xx_amp_open_data);
 		td43xx_amp_open_data = NULL;
@@ -4818,7 +4818,7 @@ static ssize_t test_sysfs_td4722_b7_amp_open_show(struct device *dev,
 		for (j = 0; j < rx_num; j++) {
 			if (td43xx_amp_open_data[i * rx_num + j] != 0) {
 
-				result = 0;
+				result = 0; // 0: fail
 				break;
 			}
 		}
@@ -5235,7 +5235,7 @@ static ssize_t test_sysfs_td43xx_amp_open_show(struct device *dev,
 	if (!td43xx_amp_open_data)
 		return -EINVAL;
 
-
+	// check the special code if the failure of report image reading
 	if (1 == g_flag_read_report_fail) {
 		kfree(td43xx_amp_open_data);
 		td43xx_amp_open_data = NULL;
@@ -5286,7 +5286,7 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 	if (setting != 1 || !factory_param)
 		return -EINVAL;
 
-
+	// allocate the td43xx_amp_open_data
 	if (td43xx_amp_open_data)
 		kfree(td43xx_amp_open_data);
 	td43xx_amp_open_data = kzalloc(tx_num * rx_num, GFP_KERNEL);
@@ -5297,7 +5297,7 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 		return -ENOMEM;
 	}
 
-
+	// allocate the internal buffer
 	p_report_data_8 = kzalloc(tx_num * rx_num * 2, GFP_KERNEL);
 	if (!p_report_data_8) {
 		dev_err(rmi4_data->pdev->dev.parent,
@@ -5482,7 +5482,7 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 			p_rt92_image_1[i * rx_num + j] =
-				(signed short)(p_report_data_8[k] & 0xff) | (signed short)(p_report_data_8[k + 1] << 8);
+				(signed short)(p_report_data_8[k] & 0xff ) | (signed short)(p_report_data_8[k + 1] << 8);
 
 			k += 2;
 		}
@@ -5544,7 +5544,7 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 			p_rt92_image_2[i * rx_num + j] =
-				(signed short)(p_report_data_8[k] & 0xff) | (signed short)(p_report_data_8[k + 1] << 8);
+				(signed short)(p_report_data_8[k] & 0xff ) | (signed short)(p_report_data_8[k + 1] << 8);
 
 			k += 2;
 		}
@@ -5609,7 +5609,7 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 			if ((i == tx_num-1) && (f55->extended_amp_btn)) {
-				break;
+				break; // if f55->extended_amp_btn is set, didn't validate the last row data
 			}
 			if (p_rt92_delta_image[i * rx_num + j] < factory_param->elec_open_test_limit_one) {
 
@@ -5617,7 +5617,7 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 						"%s: fail at (tx%-2d, rx%-2d) = %-4d at phase 1 (limit = %d)\n",
  						__func__, i, j, p_rt92_delta_image[i*rx_num + j], factory_param->elec_open_test_limit_one);
 
-				p_rt92_image_1[i*rx_num + j] = TEST_FAILED;
+				p_rt92_image_1[i*rx_num + j] = TEST_FAILED; // 1: fail
 			}
 			else {
 				p_rt92_image_1[i*rx_num + j] = TEST_OK;
@@ -5631,12 +5631,12 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 	/* phase 2, data calculation and verification */
 	/* the calculated ratio should be lower than the test limit */
 
-
+	// calculate the ratio
 	tddi_ratio_calculation(p_rt92_delta_image);
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 			if ((i == tx_num-1) && (f55->extended_amp_btn)) {
-				break;
+				break; // if f55->extended_amp_btn is set, didn't validate the last row data
 			}
 			if (p_rt92_delta_image[i * rx_num + j] < factory_param->elec_open_test_limit_two) {
 
@@ -5644,7 +5644,7 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 						"%s: fail at (tx%-2d, rx%-2d) = %-4d at phase 2 (limit = %d)\n",
 						__func__, i, j, p_rt92_delta_image[i*rx_num + j], factory_param->elec_open_test_limit_two);
 
-				p_rt92_image_2[i*rx_num + j] = TEST_FAILED;
+				p_rt92_image_2[i*rx_num + j] = TEST_FAILED; // 1: fail
 			}
 			else {
 				p_rt92_image_2[i*rx_num + j] = TEST_OK;
@@ -5658,7 +5658,7 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 			if ((i == tx_num-1) && (f55->extended_amp_btn)) {
-				break;
+				break; // if f55->extended_amp_btn is set, didn't validate the last row data
 			}
 			td43xx_amp_open_data[i * rx_num + j] =
 				(unsigned char)(p_rt92_image_1[i * rx_num + j]) & p_rt92_image_2[i * rx_num + j];
@@ -5666,7 +5666,7 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_store(struct device *dev,
 	}
 
 exit:
-
+	// release resource
 	kfree(p_report_data_8);
 	kfree(p_rt92_image_1);
 	kfree(p_rt92_image_2);
@@ -5692,7 +5692,7 @@ static ssize_t test_sysfs_tddi_amp_electrode_open_show(struct device *dev,
 	for (i = 0; i < tx_num; i++) {
 		for (j = 0; j < rx_num; j++) {
 			if ((i == tx_num-1) && (f55->extended_amp_btn)) {
-				break;
+				break; // if f55->extended_amp_btn is set, didn't validate the last row data
 			}
 			if (td43xx_amp_open_data[i * rx_num + j] != TEST_OK) {
 				fail_count += 1;
@@ -8400,7 +8400,7 @@ static ssize_t syna_factory_param_read(struct file *file, char __user *buf, size
 		return 0;
 
 	buffer = vmalloc(PAGE_SIZE);
-	if (!buffer)
+	if(!buffer)
 		return -ENOMEM;
 
 	pbuf = buffer;

@@ -1,6 +1,5 @@
 /************************************************************************
 * Copyright (C) 2010-2017, Focaltech Systems (R)£¬All Rights Reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
 *
 * File Name: focaltech_flash.h
 *
@@ -163,6 +162,6 @@ int fts_fwupg_reset_to_romboot(struct i2c_client *client);
 int fts_fwupg_enter_into_boot(struct i2c_client *client);
 int fts_fwupg_erase(struct i2c_client *client, u32 delay);
 int fts_fwupg_ecc_cal(struct i2c_client *client, u32 saddr, u32 len);
-int fts_flash_write_buf(struct i2c_client *client, u32 saddr, u8 *buf, u32 len, u32 delay);
+int fts_flash_write_buf(struct i2c_client *client, u32 saddr, u8 * buf, u32 len, u32 delay);
 int fts_fwupg_upgrade(struct i2c_client *client, struct fts_upgrade *upg);
 #endif
