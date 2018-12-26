@@ -177,8 +177,8 @@
 	status = "okay";
 	qcom,fs-curr-ua = <20000>;
 	qcom,led-strings-list = [00 01];
-	//qcom,ovp-mv = <19600>;
-	//qcom,en-cabc;
+	qcom,ovp-mv = <29600>;
+	qcom,en-cabc;
 	qcom,switch-freq-khz = <600>;
 };
 
@@ -492,18 +492,15 @@
 		pinctrl-0 = <&ts_int_active &ts_reset_active>;
 		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
 		novatek,config-array-size = <2>;
-		novatek,dump-click-count;
 		novatek,cfg_0 {
 			novatek,tp-vendor = <0x46>;
 			novatek,hw-version = <0x1>;
 			novatek,fw-name = "novatek_nt36672_e10_hw01.fw";
-			novatek,clicknum-file-name = "nvt+tianma";
 		};
 		novatek,cfg_1 {
 			novatek,tp-vendor = <0x46>;
 			novatek,hw-version = <0x2>;
 			novatek,fw-name = "novatek_nt36672_e10_hw02.fw";
-			novatek,clicknum-file-name = "nvt+tianma";
 		};
 
 		/* MP */

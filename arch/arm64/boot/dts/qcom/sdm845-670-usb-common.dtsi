@@ -127,7 +127,7 @@
 
 		qcom,efuse-bit-pos = <25>;
 		qcom,efuse-num-bits = <3>;
-		qcom,tune-efuse-correction = <0x00000000>;	/* can adjust this from 0xffff,fff9(-7) to 0x0000,0007(+7), 80-P6348-5D*/
+		qcom,tune-efuse-correction = <0x00000000>;	/* you can adjust this from 0xffff,fff9(-7) to 0x0000,0007(+7), 80-P6348-5D*/
 		vdd-supply = <&pm8998_l1>;
 		vdda18-supply = <&pm8998_l12>;
 		vdda33-supply = <&pm8998_l24>;
@@ -143,9 +143,7 @@
 			 0x198 /* PLL_BIAS_CONTROL_2 */
 			 0x228 /* QUSB2PHY_SQ_CTRL1 */
 			 0x22c /* QUSB2PHY_SQ_CTRL2 */
-			 0x27c /* QUSB2PHY_DEBUG_CTRL1 */
-			 0x280 /* QUSB2PHY_DEBUG_CTRL2 */
-			 0x2a0>; /* QUSB2PHY_STAT5 */
+			 0x27c>; /* QUSB2PHY_DEBUG_CTRL1 */
 
 		qcom,qusb-phy-init-seq =
 			/* <value reg_offset> */
@@ -435,9 +433,7 @@
 			 0x198 /* PLL_BIAS_CONTROL_2 */
 			 0x228 /* QUSB2PHY_SQ_CTRL1 */
 			 0x22c /* QUSB2PHY_SQ_CTRL2 */
-			 0x27c /* QUSB2PHY_DEBUG_CTRL1 */
-			 0x280 /* QUSB2PHY_DEBUG_CTRL2 */
-			 0x2a0>; /* QUSB2PHY_STAT5 */
+			 0x27c>; /* QUSB2PHY_DEBUG_CTRL1 */
 
 		qcom,qusb-phy-init-seq =
 			/* <value reg_offset> */

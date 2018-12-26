@@ -88,6 +88,7 @@
 			debounce-interval = <39>;
 		};
 	};
+
 	disp_vci_vreg: disp_vci_vreg {
 		compatible = "regulator-fixed";
 		regulator-name = "disp_vci_vreg";
@@ -156,20 +157,29 @@
 	status = "disabled";
 };
 
-&dsi_ss_notch_fhd_ea8074_cmd {
-	qcom,panel-supply-entries = <&dsi_amoled_panel_pwr_supply>;
+&dsi_samsung_fhd_ea8076_cmd {
+	qcom,panel-supply-entries = <&dsi_amoled_samsung_ea8076_panel_pwr_supply>;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
 	qcom,mdss-dsi-bl-min-level = <2>;
-	qcom,mdss-dsi-bl-max-level = <1023>;
+	qcom,mdss-dsi-bl-max-level = <2047>;
 	qcom,platform-reset-gpio = <&tlmm 6 0>;
 	qcom,platform-te-gpio = <&tlmm 10 0>;
 };
 
-&dsi_samsung_fhd_ea8076_cmd {
-	qcom,panel-supply-entries = <&dsi_amoled_panel_pwr_supply>;
+&dsi_visionox_fhd_r66455_cmd {
+	qcom,panel-supply-entries = <&dsi_amoled_visionox_r66455_panel_pwr_supply>;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
 	qcom,mdss-dsi-bl-min-level = <2>;
-	qcom,mdss-dsi-bl-max-level = <2047>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
+	qcom,platform-reset-gpio = <&tlmm 6 0>;
+	qcom,platform-te-gpio = <&tlmm 10 0>;
+};
+
+&dsi_visionox_fhd_r66455_vid {
+	qcom,panel-supply-entries = <&dsi_amoled_visionox_r66455_panel_pwr_supply>;
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
+	qcom,mdss-dsi-bl-min-level = <2>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
 	qcom,platform-reset-gpio = <&tlmm 6 0>;
 	qcom,platform-te-gpio = <&tlmm 10 0>;
 };
@@ -198,14 +208,6 @@
 	regulator-max-microvolt = <2000000>;
 	qcom,init-voltage = <1900000>;
 	regulator-boot-on;
-};
-
-&dsi_amoled_panel_pwr_supply {
-	qcom,panel-supply-entry@0 {
-		qcom,supply-name = "vddio";
-		qcom,supply-min-voltage = <1900000>;
-		qcom,supply-max-voltage = <1900000>;
-	};
 };
 
 &sde_dp {
@@ -312,6 +314,7 @@
 	qcom,auto-recharge-soc;
         qcom,sw-jeita-enable;
 	qcom,use-ext-boost;
+	qcom,wireless-support;
 	qcom,thermal-mitigation
 				= <1800000 1600000 1400000 1200000 1000000 1000000 1000000>;
 	qcom,thermal-mitigation-dc
@@ -460,13 +463,11 @@
 		fts,key-num = <2>;
 		fts,key-codes = <158 139>;
 		fts,config-array-size = <1>;
-		fts,dump-click-count;
 		fts,default-fw-name = "st_fts_e5.ftb";
 		fts,cfg_0 {
 			fts,tp-vendor = <0x52>;
 			fts,fw-name = "st_fts_e5.ftb";
 			fts,limit-name = "stm_fts_production_limits.csv";
-			fts,clicknum-file-name = "fts+sdc";
 		};
 	};
 	atmel_mxt_ts_640u@4a {

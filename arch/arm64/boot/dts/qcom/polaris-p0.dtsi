@@ -304,6 +304,7 @@
 	qcom,auto-recharge-soc;
         qcom,sw-jeita-enable;
 	qcom,wireless-flag;
+	qcom,wireless-support;
 	qcom,thermal-mitigation
 				= <1800000 1600000 1400000 1200000 1000000 1000000 1000000>;
 	qcom,thermal-mitigation-dc
@@ -467,7 +468,6 @@
 		synaptics,reset-on-state = <0>;
 		synaptics,drm-reset-state = <1>;
 		synaptics,panel-is-incell;
-		synaptics,dump-click-count;
 		synaptics,short-jdi-25 = "000: 0xff\n001: 0xff\n002: 0xff\n003: 0xf7\n004: 0x03\n005: 0x00\n006: 0x00";
 		synaptics,short-jdi-26 = "000: 0x03\n001: 0x00\n002: 0x00\n003: 0x00\n004: 0x03\n005: 0x00\n006: 0x00";
 		/*clock-names = "iface_clk", "core_clk";
@@ -482,7 +482,6 @@
 			synaptics,chip-id-name = "S3330";
 			synaptics,tp-id = /bits/ 8 <0x31>;
 			synaptics,fw-name = "synaptics_jdi_3330_d5x.fw";
-			synaptics,clicknum-file-name = "syna+jdi";
 		};
 	};
 	ft5x46_i2c@38 {
@@ -878,7 +877,7 @@
 			    0x08 0x220 /* IMP_CTRL1 */
 			    0x58 0x224 /* IMP_CTRL2 */
 			    0x07 0x240 /* TUNE1 */
-			    0x29 0x244 /* TUNE2 */
+			    0x2b 0x244 /* TUNE2 */
 			    0xca 0x248 /* TUNE3 */
 			    0x04 0x24c /* TUNE4 */
 			    0x03 0x250 /* TUNE5 */
