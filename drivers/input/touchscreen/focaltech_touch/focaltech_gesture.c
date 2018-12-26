@@ -334,7 +334,7 @@ static void fts_gesture_report(struct input_dev *input_dev, int gesture_id)
 * Output:
 * Return: fail <0
 ***********************************************************************/
-static int fts_gesture_read_buffer(struct i2c_client *client, u8 *buf, int read_bytes)
+static int fts_gesture_read_buffer(struct i2c_client *client, u8 * buf, int read_bytes)
 {
 	int remain_bytes;
 	int ret;

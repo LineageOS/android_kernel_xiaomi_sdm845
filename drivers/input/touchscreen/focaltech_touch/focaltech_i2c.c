@@ -181,7 +181,7 @@ int fts_i2c_write_reg(struct i2c_client *client, u8 regaddr, u8 regvalue)
 * Output: get reg value
 * Return: fail <0
 ***********************************************************************/
-int fts_i2c_read_reg(struct i2c_client *client, u8 regaddr, u8 *regvalue)
+int fts_i2c_read_reg(struct i2c_client *client, u8 regaddr, u8 * regvalue)
 {
 	return fts_i2c_read(client, &regaddr, 1, regvalue, 1);
 }
