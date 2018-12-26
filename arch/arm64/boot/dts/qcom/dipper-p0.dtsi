@@ -505,12 +505,10 @@
 //		fts,y-offset = <300>;
 //		fts,y-skip = <240>;
 		fts,config-array-size = <1>;
-		fts,dump-click-count;
 		fts,cfg_0 {
 			fts,tp-vendor = <0x48>;
 			fts,fw-name = "st_fts_e1.ftb";
 			fts,limit-name = "stm_fts_production_limits.csv";
-			fts,clicknum-file-name = "fts+sdc";
 		};
 	};
 	atmel_mxt_ts_640u@4a {
@@ -527,7 +525,7 @@
 		atmel,reset-gpio = <&tlmm 32 0x00>;
 		atmel,reset-low-prepower;
 		atmel,irq-gpio = <&tlmm 31 0x2008>;
-		atmel,mxt-fw-name = "mXT640U0x1410AA.fw";
+		atmel,mxt-fw-name = "mXT640U0x1410E8.fw";
 		atmel,config-array-size = <1>;
 		atmel,default-config = <0>;
 		atmel,default-panel-id = <0x51>;
@@ -537,12 +535,12 @@
 		atmel,no-keys;
 		atmel,use-ta-gpio;
 		atmel,raw-min = <3000>;
-		atmel,raw-max = <7000>;
+		atmel,raw-max = <7500>;
 		atmel,cfg_1 {
 			atmel,family-id = <0xA6>;
 			atmel,variant-id = <0x14>;
 			atmel,version = <0x10>;
-			atmel,build = <0xAA>;
+			atmel,build = <0xE8>;
 			atmel,rev-id = <0x12>;
 			atmel,mxt-cfg-name = "mxt_640u_gov_config.fw";
 			atmel,vendor-id = <0x0C>;
