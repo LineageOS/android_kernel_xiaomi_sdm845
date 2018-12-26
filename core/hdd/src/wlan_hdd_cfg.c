@@ -5867,6 +5867,12 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_BSS_LOAD_SAMPLE_TIME_DEFAULT,
 		CFG_BSS_LOAD_SAMPLE_TIME_MIN,
 		CFG_BSS_LOAD_SAMPLE_TIME_MAX),
+	REG_VARIABLE(CFG_ENABLE_RTT_SUPPORT, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_rtt_support,
+		     VAR_FLAGS_OPTIONAL,
+		     CFG_ENABLE_RTT_SUPPORT_DEFAULT,
+		     CFG_ENABLE_RTT_SUPPORT_MIN,
+		     CFG_ENABLE_RTT_SUPPORT_MAX),
 };
 
 

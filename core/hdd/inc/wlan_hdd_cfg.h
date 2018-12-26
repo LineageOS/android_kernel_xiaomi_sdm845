@@ -15931,6 +15931,19 @@ enum hdd_external_acs_policy {
 #define CFG_BSS_LOAD_SAMPLE_TIME_MAX        0xffffffff
 
 /*
+ * gEnableRTTsupport
+ * @Min: 0 - Disabled
+ * @Max: 1 - Enabled
+ * @Default: 1 - Enabled
+ *
+ * The param is used to enable/disable support for RTT
+ */
+#define CFG_ENABLE_RTT_SUPPORT            "gEnableRTTSupport"
+#define CFG_ENABLE_RTT_SUPPORT_DEFAULT    (1)
+#define CFG_ENABLE_RTT_SUPPORT_MIN        (0)
+#define CFG_ENABLE_RTT_SUPPORT_MAX        (1)
+
+/*
  * Type declarations
  */
 
@@ -16876,6 +16889,7 @@ struct hdd_config {
 	uint32_t provisioned_intf_pool;
 	uint32_t derived_intf_pool;
 	bool enable_peer_unmap_conf_support;
+	uint8_t enable_rtt_support;
 
 	uint32_t roam_score_delta;
 	uint32_t roam_score_delta_bitmap;
