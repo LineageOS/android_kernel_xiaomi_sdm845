@@ -28,12 +28,12 @@ int gf_parse_dts(struct gf_dev *gf_dev)
        gf_dev->pwr_gpio = of_get_named_gpio(gf_dev->spi->dev.of_node,"fp-gpio-pwr",0);
        if (!gpio_is_valid(gf_dev->pwr_gpio)) {
                pr_info("PWR GPIO is invalid.\n");
-               return -EPERM;
+               return -1;
        }
        rc = gpio_request(gf_dev->pwr_gpio, "goodix_pwr");
        if (rc) {
                dev_err(&gf_dev->spi->dev, "Failed to request PWR GPIO. rc = %d\n", rc);
-               return -EPERM;
+               return -1;
        }
 #endif
 
@@ -53,7 +53,7 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 	}
 
 #ifdef GF_PW_CTL
-
+	//power on
 	gpio_direction_output(gf_dev->pwr_gpio, 1);
 	pr_info("goodix output pwr_gpio 1.\n");
 #endif

@@ -554,7 +554,6 @@ static ssize_t screen_status_get(struct device *dev, struct device_attribute *at
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", retval);
 }
-
 static DEVICE_ATTR(screen_status, S_IRUSR | S_IRGRP, screen_status_get, NULL);
 
 static struct attribute *attributes[] = {

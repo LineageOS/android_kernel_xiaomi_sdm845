@@ -9,6 +9,7 @@
  *****************************************************************************
  **
  **  Copyright (C) 2011-2016 Synaptics Incorporated. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  **
  **
  ** This file contains information that is proprietary to Synaptics
@@ -101,9 +102,9 @@ struct vfsspi_devData {
 	struct cdev cdev;
 	spinlock_t vfsSpiLock;
 #ifndef CONFIG_FINGERPRINT_IN_QSEE
-	struct spi_device *spi;
+    struct spi_device *spi;
 #else
-	struct platform_device *spi;
+    struct platform_device *spi;
 #endif
 	struct class *devClass;
 	struct list_head deviceEntry;
@@ -112,22 +113,22 @@ struct vfsspi_devData {
 	unsigned char *rxBuffer;
 	unsigned char *txBuffer;
 	unsigned int drdyPin;
-	unsigned int hbmReqPin;
-	unsigned int hbmReadyPin;
+    unsigned int hbmReqPin;
+    unsigned int hbmReadyPin;
 	unsigned int resetPin;
-#if REMOVE_TS_IN_PIN
+#if REMOVE_TS_IN_PIN	
 	unsigned int tsInPin;
-#endif
+#endif	
 	int gpio_irq;
-	int gpio_irqHbmReq;
-	int drdyUserPID;
+    int gpio_irqHbmReq;
+    int drdyUserPID;
 	int drdySignalID;
-	int hbmReqUserPID;
-	int hbmReqSignalID;
+    int hbmReqUserPID;
+    int hbmReqSignalID;
 	unsigned int curSpiSpeed;
 	unsigned int isDrdyIrqEnabled;
-	unsigned int isHbmReqIrqEnabled;
-	unsigned int hbmReqType;
+    unsigned int isHbmReqIrqEnabled;
+    unsigned int hbmReqType;
 	struct regulator *vreg;
 	struct pinctrl         *fp_pinctrl;
 	struct pinctrl_state   *gpio_state_reset;
@@ -183,7 +184,7 @@ static void vfsspi_disableIrqHbmReq(struct vfsspi_devData *vfsSpiDev);
 static int vfsspi_sendDrdyNotify(struct vfsspi_devData *vfsSpiDev);
 static int vfsspi_sendHbmReqNotify(struct vfsspi_devData *vfsSpiDev);
 
-#ifndef CONFIG_FINGERPRINT_IN_QSEE
+#ifndef CONFIG_FINGERPRINT_IN_QSEE	
 static ssize_t vfsspi_read(struct file *filp, char __user *buf,
 	size_t count, loff_t *fPos);
 static ssize_t vfsspi_write(struct file *filp, const char __user *buf,
@@ -208,7 +209,7 @@ static long vfsspi_ioctl(struct file *filp, unsigned int cmd,
 						 unsigned long arg, int compat);
 static void vfsspi_hardReset(struct vfsspi_devData *vfsSpiDev);
 static int vfsspi_setHbmReady(struct vfsspi_devData *vfsSpiDev,
-	unsigned long arg);
+    unsigned long arg);
 static void vfsspi_suspend(struct vfsspi_devData *vfsSpiDev);
 
 static int vfsspi_setClk(struct vfsspi_devData *vfsSpiDev,
@@ -216,7 +217,7 @@ static int vfsspi_setClk(struct vfsspi_devData *vfsSpiDev,
 static int vfsspi_registerDrdySignal(struct vfsspi_devData *vfsSpiDev,
 	unsigned long arg);
 static int vfsspi_registerHbmReqSignal(struct vfsspi_devData *vfsSpiDev,
-	unsigned long arg);
+    unsigned long arg);
 static int vfsspi_setDrdyInt(struct vfsspi_devData *vfsSpiDev,
 	unsigned long arg);
 static int vfsspi_setHbmReqInt(struct vfsspi_devData *vfsSpiDev,
@@ -225,6 +226,37 @@ static int vfsspi_selectDrdyNtfType(struct vfsspi_devData *vfsSpiDev,
 	unsigned long arg);
 
 static inline void shortToLittleEndian(char *buf, size_t len);
+
+
+#if 0
+int pinctrl_init(struct vfsspi_devData* fp_dev)
+{
+	int ret = 0;
+	struct device *dev = &fp_dev->spi->dev;
+
+	fp_dev->fp_pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR_OR_NULL(fp_dev->fp_pinctrl)) {
+		dev_err(dev, "Target does not use pinctrl\n");
+		ret = PTR_ERR(fp_dev->fp_pinctrl);
+		goto err;
+	}
+
+	fp_dev->gpio_state_reset =
+		pinctrl_lookup_state(fp_dev->fp_pinctrl, "fp_reset_init");
+	if (IS_ERR_OR_NULL(fp_dev->gpio_state_reset)) {
+		dev_err(dev, "Cannot get active pinstate\n");
+		ret = PTR_ERR(fp_dev->gpio_state_reset);
+		goto err;
+	}
+	pinctrl_select_state(fp_dev->fp_pinctrl,
+				fp_dev->gpio_state_reset);
+	return 0;
+err:
+	fp_dev->fp_pinctrl = NULL;
+	fp_dev->gpio_state_reset= NULL;
+	return ret;
+}
+#endif
 
 
 static struct of_device_id synaptics_fingerprint_table[] = {
@@ -249,10 +281,10 @@ struct platform_driver vfsspi_spi = {
 /* file operations associated with device */
 const struct file_operations vfsspi_fops = {
 	.owner = THIS_MODULE,
-#ifndef CONFIG_FINGERPRINT_IN_QSEE
+#ifndef CONFIG_FINGERPRINT_IN_QSEE		
 	.write = vfsspi_write,
 	.read = vfsspi_read,
-#endif
+#endif	
 	.unlocked_ioctl = vfsspi_unlockedIoctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = vfsspi_compatIoctl,
@@ -271,13 +303,13 @@ static ssize_t hbm_pin_set_enable(struct device *dev,
 {
 
 	struct vfsspi_devData *vfsSpiDev = dev_get_drvdata(dev);
-	if (vfsSpiDev != NULL) {
-	if (*buf == '1') {
+	if(vfsSpiDev != NULL) {
+	if ( *buf == '1' ) {
 		gpio_direction_output(vfsSpiDev->hbmReadyPin, 1);
 		msleep(10);
 		printk("%s: HBN READY  GPIO 01   up VALUE=%d\n", __func__, gpio_get_value(vfsSpiDev->hbmReadyPin));
 
-	}else if (*buf == '0'){
+	}else if(*buf == '0' ){
 		gpio_direction_output(vfsSpiDev->hbmReadyPin, 0);
 		msleep(10);
 		printk("%s: HBN READY  GPIO 01  down VALUE=%d\n", __func__, gpio_get_value(vfsSpiDev->hbmReadyPin));
@@ -327,12 +359,12 @@ inline void shortToLittleEndian(char *buf, size_t len)
 /*
  * parse device tree -
  */
-static int vfsspi_parse_dt(struct device *dev,
-				            struct vfsspi_devData *spiDev)
+static int vfsspi_parse_dt(struct device *dev, 
+                            struct vfsspi_devData *spiDev)
 {
 
-	PR_INFO("%s: Entering vfsspi_parse_dt...\n",__FUNCTION__);
-
+	PR_INFO("%s: Entering vfsspi_parse_dt...\n",__FUNCTION__ );
+	
 	if ((NULL == dev) || (NULL == spiDev))
 		return -EFAULT;
 
@@ -342,14 +374,14 @@ static int vfsspi_parse_dt(struct device *dev,
 
 	spiDev->drdyPin  = of_get_named_gpio_flags(dev->of_node,"synaptics,gpio-ready", 0, NULL);
 	printk("drdypin %d \n", spiDev->drdyPin);
-
+	
 #if REMOVE_GPIO_00_01
-	spiDev->hbmReqPin = of_get_named_gpio_flags(dev->of_node,"synaptics,gp0-ctrl", 0, NULL);
-
-	spiDev->hbmReadyPin = of_get_named_gpio_flags(dev->of_node,"synaptics,gp1-ctrl", 0, NULL);
+	spiDev->hbmReqPin= of_get_named_gpio_flags(dev->of_node,"synaptics,gp0-ctrl", 0, NULL);
+	
+	spiDev->hbmReadyPin= of_get_named_gpio_flags(dev->of_node,"synaptics,gp1-ctrl", 0, NULL);
 #endif
 #if REMOVE_TS_IN_PIN
-	spiDev->tsInPin = of_get_named_gpio_flags(dev->of_node,"synaptics,ts-in", 0, NULL);
+	spiDev->tsInPin= of_get_named_gpio_flags(dev->of_node,"synaptics,ts-in", 0, NULL);
 #endif
 	return 0;
 } /* vfsspi_parse_dt */
@@ -364,7 +396,7 @@ static int vfsspi_devInit(struct platform_device *spi,
 {
 	int status;
 	struct vfsspi_devData *vfsSpiDev;
-
+	
 
 	PR_INFO("vfsspi_devInit\n");
 	vfsSpiDev = kzalloc(sizeof(*vfsSpiDev), GFP_KERNEL);
@@ -375,11 +407,11 @@ static int vfsspi_devInit(struct platform_device *spi,
 	}
 
 	/* Initialize driver data. */
-	vfsSpiDev->curSpiSpeed = SPI_BAUD_RATE;
+    vfsSpiDev->curSpiSpeed = SPI_BAUD_RATE;
 	spin_lock_init(&vfsSpiDev->vfsSpiLock);
 	mutex_init(&vfsSpiDev->bufferMutex);
 	INIT_LIST_HEAD(&vfsSpiDev->deviceEntry);
-
+	
 #ifndef CONFIG_FINGERPRINT_IN_QSEE
 	spi->bits_per_word = BITS_PER_WORD;
 	spi->max_speed_hz = SPI_BAUD_RATE;
@@ -403,7 +435,7 @@ static int vfsspi_devInit(struct platform_device *spi,
 	platform_set_drvdata(spi, vfsSpiDev);
 #endif
 
-
+	
 	*spiDev = vfsSpiDev;
 	status = 0;
 
@@ -535,9 +567,9 @@ static int vfsspi_gpioInit(struct vfsspi_devData *vfsSpiDev)
 	int status = 0;
 	int drdyPinInitalized = 0;
 	int resetPinInitalized = 0;
-#if REMOVE_GPIO_00_01
-	int hbmReadyPinInitalized = 0;
-	int hbmReqPinInitalized = 0;
+#if REMOVE_GPIO_00_01	
+    int hbmReadyPinInitalized = 0;
+    int hbmReqPinInitalized = 0;
 #endif
 	PR_INFO("vfsspi_gpioInit\n");
 
@@ -563,29 +595,29 @@ static int vfsspi_gpioInit(struct vfsspi_devData *vfsSpiDev)
 	}
 	resetPinInitalized = 1;
 #if REMOVE_GPIO_00_01
-	status = gpio_request(vfsSpiDev->hbmReadyPin, "vfsspi_hbmReadyPin");
-	if (status < 0) {
-		PR_ERR("gpio_request(hbmReadyPin)is failed! status=%d\n", status);
-		status = -EBUSY;
-		goto cleanup;
-	}
-	hbmReadyPinInitalized = 1;
+    status = gpio_request(vfsSpiDev->hbmReadyPin, "vfsspi_hbmReadyPin");
+    if (status < 0) {
+        PR_ERR("gpio_request(hbmReadyPin)is failed! status=%d\n", status);
+        status = -EBUSY;
+        goto cleanup;
+    }
+    hbmReadyPinInitalized = 1;
 
-	status = gpio_request(vfsSpiDev->hbmReqPin, "vfsspi_hbmReqPin");
-	if (status < 0) {
-		PR_ERR("gpio_request(hbmReqPin)is failed! status=%d\n", status);
-		status = -EBUSY;
-		goto cleanup;
-	}
-	hbmReqPinInitalized = 1;
-#endif
+    status = gpio_request(vfsSpiDev->hbmReqPin, "vfsspi_hbmReqPin");
+    if (status < 0) {
+        PR_ERR("gpio_request(hbmReqPin)is failed! status=%d\n", status);
+        status = -EBUSY;
+        goto cleanup;
+    }
+    hbmReqPinInitalized = 1;
+#endif	
 #if REMOVE_TS_IN_PIN
-	status = gpio_request(vfsSpiDev->tsInPin, "vfsspi_tsInPin");
-	if (status < 0) {
-		PR_ERR("gpio_request(tsInPin)is failed! status=%d\n", status);
-		status = -EBUSY;
-		goto cleanup;
-	}
+    status = gpio_request(vfsSpiDev->tsInPin, "vfsspi_tsInPin");
+    if (status < 0) {
+        PR_ERR("gpio_request(tsInPin)is failed! status=%d\n", status);
+        status = -EBUSY;
+        goto cleanup;
+    }
 #endif
 	status = gpio_direction_output(vfsSpiDev->resetPin, 1);
 	if (status < 0) {
@@ -594,21 +626,21 @@ static int vfsspi_gpioInit(struct vfsspi_devData *vfsSpiDev)
 		goto cleanup;
 	}
 #if REMOVE_GPIO_00_01
-	status = gpio_direction_output(vfsSpiDev->hbmReadyPin, 1);
-	if (status < 0) {
-		PR_ERR("gpio_direction_output is failed! status=%d\n", status);
-		status = -EBUSY;
-		goto cleanup;
-	}
+    status = gpio_direction_output(vfsSpiDev->hbmReadyPin, 1);
+    if (status < 0) {
+        PR_ERR("gpio_direction_output is failed! status=%d\n", status);
+        status = -EBUSY;
+        goto cleanup;
+    }
 
 #endif
 #if REMOVE_TS_IN_PIN
-	status = gpio_direction_output(vfsSpiDev->tsInPin, 0);
-	if (status < 0) {
-		PR_ERR("gpio_direction_output is failed! status=%d\n", status);
-		status = -EBUSY;
-		goto cleanup;
-	}
+    status = gpio_direction_output(vfsSpiDev->tsInPin, 0);
+    if (status < 0) {
+        PR_ERR("gpio_direction_output is failed! status=%d\n", status);
+        status = -EBUSY;
+        goto cleanup;
+    }
 #endif
 	status = gpio_direction_input(vfsSpiDev->drdyPin);
 	if (status < 0) {
@@ -617,12 +649,12 @@ static int vfsspi_gpioInit(struct vfsspi_devData *vfsSpiDev)
 		goto cleanup;
 	}
 #if REMOVE_GPIO_00_01
-	status = gpio_direction_input(vfsSpiDev->hbmReqPin);
-	if (status < 0) {
-		PR_ERR("gpio_direction_input is failed! status=%d\n", status);
-		status = -EBUSY;
-		goto cleanup;
-	}
+    status = gpio_direction_input(vfsSpiDev->hbmReqPin);
+    if (status < 0) {
+        PR_ERR("gpio_direction_input is failed! status=%d\n", status);
+        status = -EBUSY;
+        goto cleanup;
+    }
 #endif
 	vfsSpiDev->gpio_irq = gpio_to_irq(vfsSpiDev->drdyPin);
 	if (vfsSpiDev->gpio_irq < 0) {
@@ -632,13 +664,13 @@ static int vfsspi_gpioInit(struct vfsspi_devData *vfsSpiDev)
 		goto cleanup;
 	}
 #if REMOVE_GPIO_00_01
-	vfsSpiDev->gpio_irqHbmReq = gpio_to_irq(vfsSpiDev->hbmReqPin);
-	if (vfsSpiDev->gpio_irqHbmReq < 0) {
-		PR_ERR("gpio_to_irq failed! gpio_irq=%d\n",
-			vfsSpiDev->gpio_irqHbmReq);
-		status = -EBUSY;
-		goto cleanup;
-	}
+    vfsSpiDev->gpio_irqHbmReq = gpio_to_irq(vfsSpiDev->hbmReqPin);
+    if (vfsSpiDev->gpio_irqHbmReq < 0) {
+        PR_ERR("gpio_to_irq failed! gpio_irq=%d\n",
+            vfsSpiDev->gpio_irqHbmReq);
+        status = -EBUSY;
+        goto cleanup;
+    }
 #endif
 	status = request_irq(vfsSpiDev->gpio_irq, vfsspi_irq,
 		IRQF_TRIGGER_RISING, "vfsspi_irq", vfsSpiDev);
@@ -647,18 +679,18 @@ static int vfsspi_gpioInit(struct vfsspi_devData *vfsSpiDev)
 		status = -EBUSY;
 		goto cleanup;
 	}
-	disable_irq_nosync(vfsSpiDev->gpio_irq);
+    disable_irq_nosync(vfsSpiDev->gpio_irq);
 	vfsSpiDev->isDrdyIrqEnabled = DRDY_IRQ_DISABLE;
 #if REMOVE_GPIO_00_01
-	status = request_irq(vfsSpiDev->gpio_irqHbmReq, vfsspi_irqHbmReq,
-		HBM_REQ_IRQ_FLAG, "vfsspi_irqHbmReq", vfsSpiDev);
-	if (status < 0) {
-		PR_ERR("request_irq failed! status=%d\n", status);
-		status = -EBUSY;
-		goto cleanup;
-	}
-	disable_irq_nosync(vfsSpiDev->gpio_irqHbmReq);
-	vfsSpiDev->isHbmReqIrqEnabled = HBM_REQ_IRQ_DISABLE;
+    status = request_irq(vfsSpiDev->gpio_irqHbmReq, vfsspi_irqHbmReq,
+        HBM_REQ_IRQ_FLAG, "vfsspi_irqHbmReq", vfsSpiDev);
+    if (status < 0) {
+        PR_ERR("request_irq failed! status=%d\n", status);
+        status = -EBUSY;
+        goto cleanup;
+    }
+    disable_irq_nosync(vfsSpiDev->gpio_irqHbmReq);
+    vfsSpiDev->isHbmReqIrqEnabled = HBM_REQ_IRQ_DISABLE;
 #endif
 	status = 0;
 
@@ -670,11 +702,11 @@ cleanup:
 		if (0 != resetPinInitalized)
 			gpio_free(vfsSpiDev->resetPin);
 #if REMOVE_GPIO_00_01
-		if (0 != hbmReadyPinInitalized)
-			gpio_free(vfsSpiDev->hbmReadyPin);
-		if (0 != hbmReqPinInitalized)
-			gpio_free(vfsSpiDev->hbmReqPin);
-#endif
+        if (0 != hbmReadyPinInitalized)
+            gpio_free(vfsSpiDev->hbmReadyPin);
+        if (0 != hbmReqPinInitalized)
+            gpio_free(vfsSpiDev->hbmReqPin);
+#endif		
 	}
 	return status;
 }
@@ -687,35 +719,35 @@ static void vfsspi_gpioUnInit(struct vfsspi_devData *vfsSpiDev)
 		free_irq(vfsSpiDev->gpio_irq, vfsSpiDev);
 		vfsSpiDev->isDrdyIrqEnabled = DRDY_IRQ_DISABLE;
 
-		free_irq(vfsSpiDev->gpio_irqHbmReq, vfsSpiDev);
-		vfsSpiDev->isHbmReqIrqEnabled = HBM_REQ_IRQ_DISABLE;
+        free_irq(vfsSpiDev->gpio_irqHbmReq, vfsSpiDev);
+        vfsSpiDev->isHbmReqIrqEnabled = HBM_REQ_IRQ_DISABLE;
 
 		gpio_free(vfsSpiDev->resetPin);
 		gpio_free(vfsSpiDev->drdyPin);
-		gpio_free(vfsSpiDev->hbmReqPin);
-		gpio_free(vfsSpiDev->hbmReadyPin);
+        gpio_free(vfsSpiDev->hbmReqPin);
+        gpio_free(vfsSpiDev->hbmReadyPin);
 	}
 }
 
 static void vfsspi_enableIrqHbmReq(
-	struct vfsspi_devData *vfsSpiDev,
-	unsigned int type)
+    struct vfsspi_devData *vfsSpiDev,
+    unsigned int type)
 {
-	PR_INFO("vfsspi_enableIrqHbmReq\n");
-	spin_lock_irq(&vfsSpiDev->vfsSpiLock);
-	if (vfsSpiDev->isHbmReqIrqEnabled == HBM_REQ_IRQ_ENABLE)
+    PR_INFO("vfsspi_enableIrqHbmReq\n");
+    spin_lock_irq(&vfsSpiDev->vfsSpiLock);
+    if (vfsSpiDev->isHbmReqIrqEnabled == HBM_REQ_IRQ_ENABLE)
 		PR_DEBUG("HbmReq Irq is already enabled\n");
-	else
-	{
+    else
+    {
 		if (VFSSPI_HBMREQ_TYPE_TRIGGER_HIGH == type)
-			irq_set_irq_type(vfsSpiDev->gpio_irqHbmReq, IRQ_TYPE_EDGE_RISING); /*IRQF_TRIGGER_RISING*/
-		else
-			irq_set_irq_type(vfsSpiDev->gpio_irqHbmReq, IRQ_TYPE_EDGE_FALLING);
+            irq_set_irq_type(vfsSpiDev->gpio_irqHbmReq, IRQ_TYPE_EDGE_RISING); /*IRQF_TRIGGER_RISING*/
+        else
+            irq_set_irq_type(vfsSpiDev->gpio_irqHbmReq, IRQ_TYPE_EDGE_FALLING);
 
-		vfsSpiDev->isHbmReqIrqEnabled = HBM_REQ_IRQ_ENABLE;
-		enable_irq(vfsSpiDev->gpio_irqHbmReq);
-	}
-	spin_unlock_irq(&vfsSpiDev->vfsSpiLock);
+        vfsSpiDev->isHbmReqIrqEnabled = HBM_REQ_IRQ_ENABLE;
+        enable_irq(vfsSpiDev->gpio_irqHbmReq);
+    }
+    spin_unlock_irq(&vfsSpiDev->vfsSpiLock);
 }
 
 static void vfsspi_enableIrq(struct vfsspi_devData *vfsSpiDev)
@@ -732,14 +764,14 @@ static void vfsspi_enableIrq(struct vfsspi_devData *vfsSpiDev)
 
 static void vfsspi_disableIrqHbmReq(struct vfsspi_devData *vfsSpiDev)
 {
-	PR_INFO("vfsspi_disableIrqHbmReq\n");
+    PR_INFO("vfsspi_disableIrqHbmReq\n");
 
-	if (vfsSpiDev->isHbmReqIrqEnabled == HBM_REQ_IRQ_DISABLE)
+    if (vfsSpiDev->isHbmReqIrqEnabled == HBM_REQ_IRQ_DISABLE)
 		PR_DEBUG("HBM REQ irq already disabled\n");
-	else {
-		disable_irq_nosync(vfsSpiDev->gpio_irqHbmReq);
-		vfsSpiDev->isHbmReqIrqEnabled = HBM_REQ_IRQ_DISABLE;
-	}
+    else {
+        disable_irq_nosync(vfsSpiDev->gpio_irqHbmReq);
+        vfsSpiDev->isHbmReqIrqEnabled = HBM_REQ_IRQ_DISABLE;
+    }
 }
 
 static void vfsspi_disableIrq(struct vfsspi_devData *vfsSpiDev)
@@ -756,23 +788,23 @@ static void vfsspi_disableIrq(struct vfsspi_devData *vfsSpiDev)
 #if REMOVE_GPIO_00_01
 static irqreturn_t vfsspi_irqHbmReq(int irq, void *context)
 {
-	struct vfsspi_devData *vfsSpiDev = context;
+    struct vfsspi_devData *vfsSpiDev = context;
 
-	PR_INFO("vfsspi_irqHbmReq\n");
+    PR_INFO("vfsspi_irqHbmReq\n");
 
-	/* Linux kernel is designed so that when you disable
-	an edge-triggered interrupt, and the edge happens while
-	the interrupt is disabled, the system will re-play the
-	interrupt at enable time.
-	Therefore, we are checking DRDY GPIO pin state to make sure
-	if the interrupt handler has been called actually by DRDY
-	interrupt and it's not a previous interrupt re-play */
-	if (gpio_get_value(vfsSpiDev->hbmReqPin) == vfsSpiDev->hbmReqType) {
-		vfsspi_disableIrqHbmReq(vfsSpiDev);
-	  vfsspi_sendHbmReqNotify(vfsSpiDev);
-	}
+    /* Linux kernel is designed so that when you disable
+    an edge-triggered interrupt, and the edge happens while
+    the interrupt is disabled, the system will re-play the
+    interrupt at enable time.
+    Therefore, we are checking DRDY GPIO pin state to make sure
+    if the interrupt handler has been called actually by DRDY
+    interrupt and it's not a previous interrupt re-play */
+    if (gpio_get_value(vfsSpiDev->hbmReqPin) == vfsSpiDev->hbmReqType) {
+        vfsspi_disableIrqHbmReq(vfsSpiDev);
+      vfsspi_sendHbmReqNotify(vfsSpiDev);
+    }
 
-	return IRQ_HANDLED;
+    return IRQ_HANDLED;
 }
 #endif
 static irqreturn_t vfsspi_irq(int irq, void *context)
@@ -789,9 +821,9 @@ static irqreturn_t vfsspi_irq(int irq, void *context)
 	if the interrupt handler has been called actually by DRDY
 	interrupt and it's not a previous interrupt re-play */
 	if (gpio_get_value(vfsSpiDev->drdyPin) == DRDY_ACTIVE_STATUS) {
-		vfsspi_disableIrq(vfsSpiDev);
+        vfsspi_disableIrq(vfsSpiDev);
 		vfsspi_sendDrdyNotify(vfsSpiDev);
-	}
+    }
 
 	return IRQ_HANDLED;
 }
@@ -805,12 +837,12 @@ static int vfsspi_sendDrdyNotify(struct vfsspi_devData *vfsSpiDev)
 
 	PR_INFO("vfsspi_sendDrdyNotify\n");
 
-	if (vfsSpiDev->drdyUserPID != 0) {
+    if (vfsSpiDev->drdyUserPID != 0) {
 		/* find the task_struct associated with userpid */
-		PR_INFO("Searching task with PID=%08x\n", vfsSpiDev->drdyUserPID);
+        PR_INFO("Searching task with PID=%08x\n", vfsSpiDev->drdyUserPID);
 
 		rcu_read_lock();
-		t = pid_task(find_pid_ns(vfsSpiDev->drdyUserPID, &init_pid_ns),
+        t = pid_task(find_pid_ns(vfsSpiDev->drdyUserPID, &init_pid_ns),
 			PIDTYPE_PID);
 		if (t == NULL) {
 			rcu_read_unlock();
@@ -819,7 +851,7 @@ static int vfsspi_sendDrdyNotify(struct vfsspi_devData *vfsSpiDev)
 			goto cleanup;
 		}
 
-		efd_file = fcheck_files(t->files, vfsSpiDev->drdySignalID);
+        efd_file = fcheck_files(t->files, vfsSpiDev->drdySignalID);
 		rcu_read_unlock();
 
 		if (efd_file == NULL) {
@@ -848,52 +880,52 @@ cleanup:
 
 static int vfsspi_sendHbmReqNotify(struct vfsspi_devData *vfsSpiDev)
 {
-	struct task_struct *t;
-	struct file *efd_file = NULL;
-	struct eventfd_ctx *efd_ctx = NULL;
-	int status = 0;
+    struct task_struct *t;
+    struct file *efd_file = NULL;
+    struct eventfd_ctx *efd_ctx = NULL;
+    int status = 0;
 
-	PR_INFO("vfsspi_sendHbmReqNotify\n");
+    PR_INFO("vfsspi_sendHbmReqNotify\n");
 
-	if (vfsSpiDev->hbmReqUserPID != 0) {
-		/* find the task_struct associated with userpid */
-		PR_INFO("Searching task with PID=%08x\n", vfsSpiDev->hbmReqUserPID);
+    if (vfsSpiDev->hbmReqUserPID != 0) {
+        /* find the task_struct associated with userpid */
+        PR_INFO("Searching task with PID=%08x\n", vfsSpiDev->hbmReqUserPID);
 
-		rcu_read_lock();
-		t = pid_task(find_pid_ns(vfsSpiDev->hbmReqUserPID, &init_pid_ns),
-			PIDTYPE_PID);
-		if (t == NULL) {
-			rcu_read_unlock();
-			PR_DEBUG("No such pid\n");
-			status = -ENODEV;
-			goto cleanup;
-		}
+        rcu_read_lock();
+        t = pid_task(find_pid_ns(vfsSpiDev->hbmReqUserPID, &init_pid_ns),
+            PIDTYPE_PID);
+        if (t == NULL) {
+            rcu_read_unlock();
+            PR_DEBUG("No such pid\n");
+            status = -ENODEV;
+            goto cleanup;
+        }
 
-		efd_file = fcheck_files(t->files, vfsSpiDev->hbmReqSignalID);
-		rcu_read_unlock();
+        efd_file = fcheck_files(t->files, vfsSpiDev->hbmReqSignalID);
+        rcu_read_unlock();
 
-		if (efd_file == NULL) {
-			PR_DEBUG("No such efd_file\n");
-			status = -ENODEV;
-			goto cleanup;
-		}
+        if (efd_file == NULL) {
+            PR_DEBUG("No such efd_file\n");
+            status = -ENODEV;
+            goto cleanup;
+        }
 
-		efd_ctx = eventfd_ctx_fileget(efd_file);
-		if (efd_ctx == NULL) {
-			PR_ERR("eventfd_ctx_fileget is failed\n");
-			status = -ENODEV;
-			goto cleanup;
-		}
+        efd_ctx = eventfd_ctx_fileget(efd_file);
+        if (efd_ctx == NULL) {
+            PR_ERR("eventfd_ctx_fileget is failed\n");
+            status = -ENODEV;
+            goto cleanup;
+        }
 
-		/* notify HBM_REQ eventfd to user process */
-		eventfd_signal(efd_ctx, 1);
+        /* notify HBM_REQ eventfd to user process */
+        eventfd_signal(efd_ctx, 1);
 
-		/* Release eventfd context */
-		eventfd_ctx_put(efd_ctx);
-	}
+        /* Release eventfd context */
+        eventfd_ctx_put(efd_ctx);
+    }
 
 cleanup:
-	return status;
+    return status;
 }
 #ifndef CONFIG_FINGERPRINT_IN_QSEE
 /* Return no.of bytes written to device. Negative number for errors */
@@ -1160,21 +1192,21 @@ long vfsspi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg,
 		PR_INFO("VFSSPI_IOCTL_DEVICE_RESET:");
 		vfsspi_hardReset(vfsSpiDev);
 		break;
-	}
-	case VFSSPI_IOCTL_SET_HBM_READY:
-	{
-		PR_INFO("VFSSPI_IOCTL_SET_HBM_READY:");
-		status = vfsspi_setHbmReady(vfsSpiDev, arg);
-		break;
-	}
-#ifndef CONFIG_FINGERPRINT_IN_QSEE
+    }
+    case VFSSPI_IOCTL_SET_HBM_READY:
+    {
+        PR_INFO("VFSSPI_IOCTL_SET_HBM_READY:");
+        status = vfsspi_setHbmReady(vfsSpiDev, arg);
+        break;
+    }
+#ifndef CONFIG_FINGERPRINT_IN_QSEE		
 	case VFSSPI_IOCTL_RW_SPI_MESSAGE:
 	{
 		PR_INFO("VFSSPI_IOCTL_RW_SPI_MESSAGE:");
 		status = vfsspi_transferSpiData(vfsSpiDev, arg, compat);
 		break;
 	}
-#endif
+#endif	
 	case VFSSPI_IOCTL_SET_CLK:
 	{
 		PR_INFO("VFSSPI_IOCTL_SET_CLK:");
@@ -1187,12 +1219,12 @@ long vfsspi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg,
 		status = vfsspi_registerDrdySignal(vfsSpiDev, arg);
 		break;
 	}
-	case VFSSPI_IOCTL_REGISTER_HBM_REQ_SIGNAL:
-	{
-		PR_INFO("VFSSPI_IOCTL_REGISTER_HBM_REQ_SIGNAL:");
-		status = vfsspi_registerHbmReqSignal(vfsSpiDev, arg);
-		break;
-	}
+    case VFSSPI_IOCTL_REGISTER_HBM_REQ_SIGNAL:
+    {
+        PR_INFO("VFSSPI_IOCTL_REGISTER_HBM_REQ_SIGNAL:");
+        status = vfsspi_registerHbmReqSignal(vfsSpiDev, arg);
+        break;
+    }
 	case VFSSPI_IOCTL_SET_DRDY_INT:
 	{
 		PR_INFO("VFSSPI_IOCTL_SET_DRDY_INT:");
@@ -1211,34 +1243,34 @@ long vfsspi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg,
 		status = vfsspi_selectDrdyNtfType(vfsSpiDev, arg);
 		break;
 	}
-	case VFSSPI_IOCTL_POWER_ON:
+    case VFSSPI_IOCTL_POWER_ON:
 	{
-		/* Add code here to turn on sensor power, if need */
+        /* Add code here to turn on sensor power, if need */
 		break;
 	}
-	case VFSSPI_IOCTL_POWER_OFF:
+    case VFSSPI_IOCTL_POWER_OFF:
 	{
-		/* Add code here to turn off sensor power, if need */
+        /* Add code here to turn off sensor power, if need */
 		break;
 	}
-	case VFSSPI_IOCTL_SET_SPI_CONFIGURATION:
+    case VFSSPI_IOCTL_SET_SPI_CONFIGURATION:
 	{
-		/* Perform SPI core initialization and/or SPI clock enabling
-		from power consumption perspective */
+        /* Perform SPI core initialization and/or SPI clock enabling
+        from power consumption perspective */
 		break;
 	}
-	case VFSSPI_IOCTL_RESET_SPI_CONFIGURATION:
+    case VFSSPI_IOCTL_RESET_SPI_CONFIGURATION:
 	{
-		/* Perform SPI clock disabling and/or SPI core un-initialization
-		from power consumption perspective */
+        /* Perform SPI clock disabling and/or SPI core un-initialization
+        from power consumption perspective */
 		break;
 	}
-	default:
-	{
+    default:
+    {
 		PR_DEBUG("Unknown cmd=0x%X\n", cmd);
 		status = -EFAULT;
 		break;
-	}
+    }
 
 	}
 	mutex_unlock(&vfsSpiDev->bufferMutex);
@@ -1264,24 +1296,24 @@ void vfsspi_hardReset(struct vfsspi_devData *vfsSpiDev)
 
 static int vfsspi_setHbmReady(struct vfsspi_devData *vfsSpiDev, unsigned long arg)
 {
-
-	int hbmReadyFlag;
-	int status = 0;
-
-	PR_INFO("vfsspi_setHbmReady\n");
-
-	if (copy_from_user(&hbmReadyFlag, (void *)arg,
-		sizeof(hbmReadyFlag)) != 0) {
-		PR_ERR("Failed copy from user.\n");
-		status = -EFAULT;
-	}
-	else {
-		spin_lock(&vfsSpiDev->vfsSpiLock);
+   
+    int hbmReadyFlag;
+    int status = 0;	
+	
+    PR_INFO("vfsspi_setHbmReady\n");
+	
+    if (copy_from_user(&hbmReadyFlag, (void *)arg,
+        sizeof(hbmReadyFlag)) != 0) {
+        PR_ERR("Failed copy from user.\n");
+        status = -EFAULT;
+    }
+    else {
+        spin_lock(&vfsSpiDev->vfsSpiLock);
 		gpio_set_value(vfsSpiDev->hbmReadyPin, hbmReadyFlag);
-		spin_unlock(&vfsSpiDev->vfsSpiLock);
-		PR_INFO("vfsspi_setHbmReady set to %d\n", hbmReadyFlag);
-	}
-	return status;
+        spin_unlock(&vfsSpiDev->vfsSpiLock);
+        PR_INFO("vfsspi_setHbmReady set to %d\n", hbmReadyFlag);
+    }
+    return status;
 }
 
 void vfsspi_suspend(struct vfsspi_devData *vfsSpiDev)
@@ -1416,22 +1448,22 @@ static int vfsspi_setClk(struct vfsspi_devData *vfsSpiDev,
 }
 
 static int vfsspi_registerHbmReqSignal(struct vfsspi_devData *vfsSpiDev,
-	unsigned long arg)
+    unsigned long arg)
 {
-	struct vfsspi_iocRegSignal usrSignal;
-	int status = 0;
+    struct vfsspi_iocRegSignal usrSignal;
+    int status = 0;
 
-	if (copy_from_user(&usrSignal, (void *)arg,
-		sizeof(usrSignal)) != 0) {
-		PR_ERR("copy from user failed.\n");
-		status = -EFAULT;
-	}
-	else {
-		vfsSpiDev->hbmReqUserPID = usrSignal.userPID;
-		vfsSpiDev->hbmReqSignalID = usrSignal.signalID;
-	}
+    if (copy_from_user(&usrSignal, (void *)arg,
+        sizeof(usrSignal)) != 0) {
+        PR_ERR("copy from user failed.\n");
+        status = -EFAULT;
+    }
+    else {
+        vfsSpiDev->hbmReqUserPID = usrSignal.userPID;
+        vfsSpiDev->hbmReqSignalID = usrSignal.signalID;
+    }
 
-	return status;
+    return status;
 }
 
 static int vfsspi_registerDrdySignal(struct vfsspi_devData *vfsSpiDev,
@@ -1445,8 +1477,8 @@ static int vfsspi_registerDrdySignal(struct vfsspi_devData *vfsSpiDev,
 		PR_ERR("copy from user failed.\n");
 		status = -EFAULT;
 	} else {
-		vfsSpiDev->drdyUserPID = usrSignal.userPID;
-		vfsSpiDev->drdySignalID = usrSignal.signalID;
+        vfsSpiDev->drdyUserPID = usrSignal.userPID;
+        vfsSpiDev->drdySignalID = usrSignal.signalID;
 	}
 
 	return status;
@@ -1473,8 +1505,8 @@ static int vfsspi_setDrdyInt(struct vfsspi_devData *vfsSpiDev,
 			if (gpio_get_value(vfsSpiDev->drdyPin) ==
 				DRDY_ACTIVE_STATUS)
 				vfsspi_sendDrdyNotify(vfsSpiDev);
-			else
-				vfsspi_enableIrq(vfsSpiDev);
+            else
+                vfsspi_enableIrq(vfsSpiDev);
 		}
 	}
 
@@ -1482,35 +1514,35 @@ static int vfsspi_setDrdyInt(struct vfsspi_devData *vfsSpiDev,
 }
 
 static int vfsspi_setHbmReqInt(struct vfsspi_devData *vfsSpiDev,
-	unsigned long arg)
+    unsigned long arg)
 {
-	int status = 0;
-	vfsspi_ioctlSetHbmReqInt_t hbmReqIntData;
+    int status = 0;
+    vfsspi_ioctlSetHbmReqInt_t hbmReqIntData;
 
-	if (copy_from_user(&hbmReqIntData, (void *)arg,
-		sizeof(hbmReqIntData)) != 0) {
-		PR_ERR("Failed copy from user.\n");
-		status = -EFAULT;
-	}
-	else {
-		if (hbmReqIntData.enable == 0)
-			vfsspi_disableIrqHbmReq(vfsSpiDev);
-		else {
-			/* Workaround the issue where the system
-			misses HBM_REQ notification to host when
-			HBM_REQ pin was asserted before enabling
-			device.*/
-			if (gpio_get_value(vfsSpiDev->hbmReqPin) ==
-				hbmReqIntData.type)
-				vfsspi_sendHbmReqNotify(vfsSpiDev);
-			else {
-				vfsSpiDev->hbmReqType = hbmReqIntData.type;
-				vfsspi_enableIrqHbmReq(vfsSpiDev, hbmReqIntData.type);
-			}
-		}
-	}
+    if (copy_from_user(&hbmReqIntData, (void *)arg,
+        sizeof(hbmReqIntData)) != 0) {
+        PR_ERR("Failed copy from user.\n");
+        status = -EFAULT;
+    }
+    else {
+        if (hbmReqIntData.enable == 0)
+            vfsspi_disableIrqHbmReq(vfsSpiDev);
+        else {
+            /* Workaround the issue where the system
+            misses HBM_REQ notification to host when
+            HBM_REQ pin was asserted before enabling
+            device.*/
+            if (gpio_get_value(vfsSpiDev->hbmReqPin) ==
+                hbmReqIntData.type)
+                vfsspi_sendHbmReqNotify(vfsSpiDev);
+            else {
+                vfsSpiDev->hbmReqType = hbmReqIntData.type;
+                vfsspi_enableIrqHbmReq(vfsSpiDev, hbmReqIntData.type);
+            }
+        }
+    }
 
-	return status;
+    return status;
 }
 
 static int vfsspi_selectDrdyNtfType(struct vfsspi_devData *vfsSpiDev,
@@ -1707,8 +1739,8 @@ int vfsspi_open(struct inode *inode, struct file *filp)
 		if (vfsSpiDev->isOpened != 0) {
 			status = -EBUSY;
 		} else {
-			vfsSpiDev->drdyUserPID = 0;
-			vfsSpiDev->hbmReqUserPID = 0;
+            vfsSpiDev->drdyUserPID = 0;
+            vfsSpiDev->hbmReqUserPID = 0;
 			if (vfsSpiDev->rxBuffer == NULL) {
 				vfsSpiDev->txBuffer =
 					kmalloc(DEFAULT_BUFFER_SIZE,
@@ -1734,26 +1766,26 @@ int vfsspi_open(struct inode *inode, struct file *filp)
 #endif
 
 #ifdef CONFIG_FINGERPRINT_XIAOMI_NEW_FEATURE
-	status = vfsspi_gpioInit(vfsSpiDev);
+    status = vfsspi_gpioInit(vfsSpiDev);
 	if (0 != status) {
 		PR_ERR("vfsspi_gpioInit is failed! status= %d\n", status);
-		/*because there is vfsspi_devUnInit() call in the vfsspi_remove(),
-		we don't have called vfsspi_devUnInit() in this place. that is to say,
+		/*because there is vfsspi_devUnInit() call in the vfsspi_remove(), 
+		we don't have called vfsspi_devUnInit() in this place. that is to say, 
 		if vfsspi_gpioInit() is failed and vfsspi_open() failed , we don't need
 		to call vfsspi_devUnInit() to release resources.*/
-
+		//vfsspi_devUnInit(vfsSpiDev); 
 		return status;
 	}
-
+	//reset
 	vfsspi_hardReset(vfsSpiDev);
-
+	
 	printk("%s: Set voltage on vcc_spi for sync fingerprint\n", __func__);
 #if 0
 #ifdef VFSSPI_TEST_SPI_COMMUNICATION
-	vfsspi_hardReset(vfsSpiDev);
-	mdelay(40);
-	vfsspi_test(spi);
-	vfsspi_hardReset(vfsSpiDev);
+    vfsspi_hardReset(vfsSpiDev);
+    mdelay(40);
+    vfsspi_test(spi);
+    vfsspi_hardReset(vfsSpiDev);
 #endif /* VFSSPI_TEST_SPI_COMMUNICATION */
 #endif
 #endif
@@ -1784,7 +1816,7 @@ int vfsspi_release(struct inode *inode, struct file *filp)
 		}
 	}
 	mutex_unlock(&deviceListMutex);
-
+	
 #ifdef CONFIG_FINGERPRINT_XIAOMI_NEW_FEATURE
 	vfsspi_gpioUnInit(vfsSpiDev);
 #endif
@@ -1824,15 +1856,15 @@ static int vfsspi_probe(struct platform_device *spi)
 		vfsspi_devUnInit(vfsSpiDev);
 		goto cleanup;
 	}
-
-
+	//reset
+	//pinctrl_init(vfsSpiDev);
 	vfsspi_hardReset(vfsSpiDev);
 	/*vfsSpiDev->vreg = regulator_get(&spi->dev,"vcc_spi");
 	if (!vfsSpiDev->vreg) {
 		printk("%s: Unable to get vcc_spi\n", __func__);
 		return -1;
 	}
-
+	
 	if (regulator_count_voltages(vfsSpiDev->vreg) > 0) {
 		status = regulator_set_voltage(vfsSpiDev->vreg, 3300000,3300000);
 			if (status){
@@ -1849,10 +1881,10 @@ static int vfsspi_probe(struct platform_device *spi)
 	printk("%s: Set voltage on vcc_spi for sync fingerprint\n", __func__);
 
 #ifdef VFSSPI_TEST_SPI_COMMUNICATION
-	vfsspi_hardReset(vfsSpiDev);
-	mdelay(40);
-	vfsspi_test(spi);
-	vfsspi_hardReset(vfsSpiDev);
+    vfsspi_hardReset(vfsSpiDev);
+    mdelay(40);
+    vfsspi_test(spi);
+    vfsspi_hardReset(vfsSpiDev);
 #endif /* VFSSPI_TEST_SPI_COMMUNICATION */
 #endif
 
@@ -1882,7 +1914,7 @@ static int vfsspi_remove(struct platform_device *spi)
 #ifndef CONFIG_FINGERPRINT_IN_QSEE
 	vfsSpiDev = spi_get_drvdata(spi);
 #else
-	vfsSpiDev = platform_get_drvdata(spi);
+    vfsSpiDev = platform_get_drvdata(spi);
 #endif
 
 	if (NULL != vfsSpiDev) {
@@ -1909,10 +1941,10 @@ static int __init vfsspi_init(void)
 	status = platform_driver_register(&vfsspi_spi);
 #endif
 	if (status < 0) {
-		printk("%s: register driver() is failed\n", __func__);
+        printk("%s: register driver() is failed\n", __func__);
 		return status;
 	}
-	printk("%s: init is successful\n", __func__);
+    printk("%s: init is successful\n", __func__);
 	return status;
 }
 module_init(vfsspi_init);

@@ -4,8 +4,8 @@
 config FINGERPRINT_FP_VREG_CONTROL
     bool "fingerprint fp_vdd_reg regulator control"
     default n
-       ---help---
-         Say Y here to enable fp_vdd_vreg regulator by device driver
+	---help---
+	  Say Y here to enable fp_vdd_vreg regulator by device driver
 
 menuconfig INPUT_FINGERPRINT
 	bool "Fingerprints"
@@ -17,8 +17,10 @@ menuconfig INPUT_FINGERPRINT
 
 if INPUT_FINGERPRINT
 
-source "drivers/input/fingerprint/fpc_tee/Kconfig"
 source "drivers/input/fingerprint/goodix_ta/Kconfig"
+source "drivers/input/fingerprint/fpc_tee/Kconfig"
 source "drivers/input/fingerprint/synaptics/Kconfig"
 
 endif
+
+
