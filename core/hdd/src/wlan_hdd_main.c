@@ -13812,7 +13812,7 @@ void hdd_clean_up_pre_cac_interface(struct hdd_context *hdd_ctx)
  */
 static void hdd_update_ol_config(struct hdd_context *hdd_ctx)
 {
-	struct ol_config_info cfg;
+	struct ol_config_info cfg = {0};
 	struct ol_context *ol_ctx = cds_get_context(QDF_MODULE_ID_BMI);
 
 	if (!ol_ctx)
@@ -13857,7 +13857,7 @@ static void hdd_populate_runtime_cfg(struct hdd_context *hdd_ctx,
 static void hdd_update_hif_config(struct hdd_context *hdd_ctx)
 {
 	struct hif_opaque_softc *scn = cds_get_context(QDF_MODULE_ID_HIF);
-	struct hif_config_info cfg;
+	struct hif_config_info cfg = {0};
 
 	if (!scn)
 		return;
@@ -13879,7 +13879,7 @@ static void hdd_update_hif_config(struct hdd_context *hdd_ctx)
  */
 static int hdd_update_dp_config(struct hdd_context *hdd_ctx)
 {
-	struct cdp_config_params params;
+	struct cdp_config_params params = {0};
 	QDF_STATUS status;
 
 	params.tso_enable = hdd_ctx->config->tso_enable;
@@ -13961,7 +13961,7 @@ static inline void hdd_ra_populate_pmo_config(
  */
 static int hdd_update_pmo_config(struct hdd_context *hdd_ctx)
 {
-	struct pmo_psoc_cfg psoc_cfg;
+	struct pmo_psoc_cfg psoc_cfg = {0};
 	QDF_STATUS status;
 
 	/*
@@ -14229,7 +14229,7 @@ static int hdd_update_dfs_config(struct hdd_context *hdd_ctx)
 {
 	struct wlan_objmgr_psoc *psoc = hdd_ctx->psoc;
 	struct hdd_config *cfg = hdd_ctx->config;
-	struct dfs_user_config dfs_cfg;
+	struct dfs_user_config dfs_cfg = {0};
 	QDF_STATUS status;
 
 	dfs_cfg.dfs_is_phyerr_filter_offload = !!cfg->fDfsPhyerrFilterOffload;
@@ -14251,7 +14251,7 @@ static int hdd_update_dfs_config(struct hdd_context *hdd_ctx)
 static int hdd_update_scan_config(struct hdd_context *hdd_ctx)
 {
 	struct wlan_objmgr_psoc *psoc = hdd_ctx->psoc;
-	struct scan_user_cfg scan_cfg;
+	struct scan_user_cfg scan_cfg = {0};
 	struct hdd_config *cfg = hdd_ctx->config;
 	QDF_STATUS status;
 
