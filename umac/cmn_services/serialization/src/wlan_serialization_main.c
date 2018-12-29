@@ -31,8 +31,6 @@
 #include "wlan_serialization_rules_i.h"
 #include "wlan_serialization_utils_i.h"
 
-struct serialization_legacy_callback ser_legacy_cb;
-
 QDF_STATUS wlan_serialization_psoc_close(struct wlan_objmgr_psoc *psoc)
 {
 	QDF_STATUS status;
@@ -371,11 +369,6 @@ QDF_STATUS wlan_serialization_init(void)
 	}
 
 	serialization_debug("serialization handlers registered with obj mgr");
-	/*
-	 * Initialize the structure so all callbacks are registered
-	 * initially as NULL.
-	 */
-	qdf_mem_zero(&ser_legacy_cb, sizeof(ser_legacy_cb));
 
 	return QDF_STATUS_SUCCESS;
 
@@ -439,11 +432,6 @@ QDF_STATUS wlan_serialization_deinit(void)
 	}
 
 	serialization_alert("deregistered callbacks with obj mgr successfully");
-	/*
-	 * Initialize the structure so all callbacks are registered
-	 * initially as NULL.
-	 */
-	qdf_mem_zero(&ser_legacy_cb, sizeof(ser_legacy_cb));
 
 	return ret_status;
 }
