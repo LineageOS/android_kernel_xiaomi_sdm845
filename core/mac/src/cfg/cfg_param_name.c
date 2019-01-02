@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -127,7 +127,6 @@ const char *cfg_get_string(uint16_t cfg_id)
 	CASE_RETURN_STRING(WNI_CFG_ADMIT_POLICY);
 	CASE_RETURN_STRING(WNI_CFG_ADMIT_BWFACTOR);
 	CASE_RETURN_STRING(WNI_CFG_CHANNEL_BONDING_MODE);
-	CASE_RETURN_STRING(WNI_CFG_SCAN_CONTROL_LIST);
 	CASE_RETURN_STRING(WNI_CFG_BLOCK_ACK_ENABLED);
 	CASE_RETURN_STRING(WNI_CFG_HT_CAP_INFO);
 	CASE_RETURN_STRING(WNI_CFG_HT_AMPDU_PARAMS);

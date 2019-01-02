@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -71,12 +71,6 @@
 #include <wlan_scan_public_structs.h>
 #include <wlan_p2p_ucfg_api.h>
 #include "wlan_utility.h"
-
-
-static void __lim_init_scan_vars(tpAniSirGlobal pMac)
-{
-	qdf_mem_set(&pMac->lim.dfschannelList, sizeof(tSirDFSChannelList), 0);
-}
 
 static void __lim_init_bss_vars(tpAniSirGlobal pMac)
 {
@@ -518,7 +512,6 @@ QDF_STATUS lim_initialize(tpAniSirGlobal pMac)
 	__lim_init_states(pMac);
 	__lim_init_stats_vars(pMac);
 	__lim_init_bss_vars(pMac);
-	__lim_init_scan_vars(pMac);
 	__lim_init_ht_vars(pMac);
 
 	/* Initializations for maintaining peers in IBSS */

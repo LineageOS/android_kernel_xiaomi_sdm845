@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -62,11 +62,6 @@
 #include "wni_cfg.h"
 #endif
 #define ASCII_SPACE_CHARACTER 0x20
-
-/* A DFS channel can be ACTIVE for max 9000 msec, from the last
-   received Beacon/Prpbe Resp. */
-#define   MAX_TIME_TO_BE_ACTIVE_CHANNEL 9000
-
 
 /** -------------------------------------------------------------
    \fn lim_delete_dialogue_token_list
@@ -612,9 +607,6 @@ void lim_deactivate_timers(tpAniSirGlobal mac_ctx)
 	}
 	tx_timer_deactivate(&lim_timer->gLimDeauthAckTimer);
 
-	tx_timer_deactivate(&lim_timer->
-			gLimActiveToPassiveChannelTimer);
-
 	tx_timer_deactivate(&lim_timer->sae_auth_timer);
 }
 
@@ -689,9 +681,6 @@ void lim_cleanup_mlm(tpAniSirGlobal mac_ctx)
 		tx_timer_delete(&lim_timer->gLimDisassocAckTimer);
 
 		tx_timer_delete(&lim_timer->gLimDeauthAckTimer);
-
-		tx_timer_delete(&lim_timer->
-				gLimActiveToPassiveChannelTimer);
 
 		tx_timer_delete(&lim_timer->sae_auth_timer);
 
@@ -2035,10 +2024,6 @@ void lim_process_channel_switch_timeout(tpAniSirGlobal pMac)
 			return;
 		}
 	}
-	lim_covert_channel_scan_type(pMac, psessionEntry->currentOperChannel,
-				     false);
-	pMac->lim.dfschannelList.timeStamp[psessionEntry->currentOperChannel] =
-		0;
 	switch (psessionEntry->gLimChannelSwitch.state) {
 	case eLIM_CHANNEL_SWITCH_PRIMARY_ONLY:
 		pe_warn("CHANNEL_SWITCH_PRIMARY_ONLY");
@@ -8351,45 +8336,6 @@ enum rateid lim_get_min_session_txrate(tpPESession session)
 	}
 
 	return rid;
-}
-
-void lim_convert_active_channel_to_passive_channel(tpAniSirGlobal mac_ctx)
-{
-	uint64_t current_time;
-	uint64_t last_time = 0;
-	uint64_t time_diff;
-	uint8_t i;
-
-	current_time = (uint64_t)qdf_mc_timer_get_system_time();
-	for (i = 1; i < SIR_MAX_24G_5G_CHANNEL_RANGE; i++) {
-		if ((mac_ctx->lim.dfschannelList.timeStamp[i]) != 0) {
-			last_time = mac_ctx->lim.dfschannelList.timeStamp[i];
-			if (current_time >= last_time) {
-				time_diff = (current_time - last_time);
-			} else {
-				time_diff =
-					(0xFFFFFFFF - last_time) + current_time;
-			}
-
-			if (time_diff >= MAX_TIME_TO_BE_ACTIVE_CHANNEL) {
-				lim_covert_channel_scan_type(mac_ctx, i, false);
-				mac_ctx->lim.dfschannelList.timeStamp[i] = 0;
-			}
-		}
-	}
-	/*
-	 * last_time is zero if there is no DFS active channels in the list.
-	 * If this is non zero then we have active DFS channels so restart
-	 * the timer.
-	 */
-	if (last_time != 0) {
-		if (tx_timer_activate
-		    (&mac_ctx->lim.limTimers.gLimActiveToPassiveChannelTimer)
-		    != TX_SUCCESS) {
-			pe_err("Active to Passive Channel timer not activated");
-		}
-	}
-	return;
 }
 
 void lim_send_sme_mgmt_frame_ind(tpAniSirGlobal mac_ctx, uint8_t frame_type,

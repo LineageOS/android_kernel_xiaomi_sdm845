@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -50,11 +50,6 @@
  * authentication.
  */
 #define LIM_AUTH_SAE_TIMER_MS 5000
-
-
-/* This timer is a periodic timer which expires at every 1 sec to
-   convert  ACTIVE DFS channel to DFS channels */
-#define ACTIVE_TO_PASSIVE_CONVERISON_TIMEOUT     1000
 
 static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
 {
@@ -311,17 +306,6 @@ uint32_t lim_create_timers(tpAniSirGlobal pMac)
 		goto err_timer;
 	}
 
-	cfgValue = ACTIVE_TO_PASSIVE_CONVERISON_TIMEOUT;
-	cfgValue = SYS_MS_TO_TICKS(cfgValue);
-	if (tx_timer_create(pMac,
-		&pMac->lim.limTimers.gLimActiveToPassiveChannelTimer,
-		"ACTIVE TO PASSIVE CHANNEL", lim_timer_handler,
-		SIR_LIM_CONVERT_ACTIVE_CHANNEL_TO_PASSIVE, cfgValue, 0,
-		TX_NO_ACTIVATE) != TX_SUCCESS) {
-		pe_warn("could not create timer for passive channel to active channel");
-		goto err_timer;
-	}
-
 	return TX_SUCCESS;
 
 err_timer:
@@ -342,7 +326,6 @@ err_timer:
 	tx_timer_delete(&pMac->lim.limTimers.gLimQuietBssTimer);
 	tx_timer_delete(&pMac->lim.limTimers.gLimQuietTimer);
 	tx_timer_delete(&pMac->lim.limTimers.gLimChannelSwitchTimer);
-	tx_timer_delete(&pMac->lim.limTimers.gLimActiveToPassiveChannelTimer);
 	tx_timer_delete(&pMac->lim.limTimers.sae_auth_timer);
 
 	if (NULL != pMac->lim.gLimPreAuthTimerTable.pTable) {
@@ -762,31 +745,6 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 		break;
 
 	case eLIM_LEARN_DURATION_TIMER:
-		break;
-
-	case eLIM_CONVERT_ACTIVE_CHANNEL_TO_PASSIVE:
-		if (tx_timer_deactivate
-			    (&pMac->lim.limTimers.gLimActiveToPassiveChannelTimer) !=
-		    TX_SUCCESS) {
-			/**
-			** Could not deactivate Active to passive channel timer.
-			** Log error.
-			**/
-			pe_err("Unable to Deactivate Active to passive channel timer");
-			return;
-		}
-		val = ACTIVE_TO_PASSIVE_CONVERISON_TIMEOUT;
-		val = SYS_MS_TO_TICKS(val);
-		if (tx_timer_change
-			    (&pMac->lim.limTimers.gLimActiveToPassiveChannelTimer, val,
-			    0) != TX_SUCCESS) {
-			/**
-			 * Could not change timer to check scan type for passive channel.
-			 * timer. Log error.
-			 */
-			pe_err("Unable to change timer");
-			return;
-		}
 		break;
 
 	case eLIM_DISASSOC_ACK_TIMER:
