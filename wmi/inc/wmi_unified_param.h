@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -37,7 +37,6 @@
 
 #define IEEE80211_ADDR_LEN  6  /* size of 802.11 address */
 #define WMI_MAC_MAX_SSID_LENGTH              32
-#define WMI_SCAN_MAX_NUM_SSID                0x0A
 #define mgmt_tx_dl_frm_len 64
 #define WMI_SMPS_MASK_LOWER_16BITS 0xFF
 #define WMI_SMPS_MASK_UPPER_3BITS 0x7
