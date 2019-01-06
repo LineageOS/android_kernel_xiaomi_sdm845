@@ -1442,7 +1442,7 @@ static void hdd_send_association_event(struct net_device *dev,
 		hdd_debug("wlan: new IBSS peer connection to BSSID " MAC_ADDRESS_STR,
 			MAC_ADDR_ARRAY(sta_ctx->conn_info.bssId.bytes));
 	} else {                /* Not Associated */
-		hdd_debug("wlan: disconnected");
+		hdd_info("wlan: disconnected");
 		memset(wrqu.ap_addr.sa_data, '\0', ETH_ALEN);
 		policy_mgr_decr_session_set_pcl(hdd_ctx->psoc,
 				adapter->device_mode, adapter->session_id);
