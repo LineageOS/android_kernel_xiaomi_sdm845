@@ -2608,7 +2608,7 @@ static QDF_STATUS lim_tdls_setup_add_sta(tpAniSirGlobal pMac,
 
 		if (pStaDs) {
 			(void)lim_del_sta(pMac, pStaDs, false /*asynchronous */,
-					  psessionEntry);
+					  psessionEntry, false);
 			lim_delete_dph_hash_entry(pMac, pStaDs->staAddr, aid,
 						  psessionEntry);
 		}
@@ -2645,7 +2645,7 @@ static QDF_STATUS lim_tdls_setup_add_sta(tpAniSirGlobal pMac,
 static QDF_STATUS lim_tdls_del_sta(tpAniSirGlobal pMac,
 				      struct qdf_mac_addr peerMac,
 				      tpPESession psessionEntry,
-				      bool resp_reqd)
+				      bool release_serial_cmd)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	uint16_t peerIdx = 0;
@@ -2661,9 +2661,10 @@ static QDF_STATUS lim_tdls_del_sta(tpAniSirGlobal pMac,
 		pe_debug("STA type: %x, sta idx: %x resp_reqd: %d",
 			 pStaDs->staType,
 			 pStaDs->staIndex,
-			 resp_reqd);
+			 true);
 
-		status = lim_del_sta(pMac, pStaDs, resp_reqd, psessionEntry);
+		status = lim_del_sta(pMac, pStaDs, true, psessionEntry,
+				release_serial_cmd);
 	} else {
 		pe_debug("DEL STA peer MAC: "MAC_ADDRESS_STR" not found",
 			 MAC_ADDR_ARRAY(peerMac.bytes));
@@ -2950,7 +2951,9 @@ lim_tdls_send_mgmt_error:
 static QDF_STATUS lim_send_sme_tdls_del_sta_rsp(tpAniSirGlobal pMac,
 						uint8_t sessionId,
 						struct qdf_mac_addr peerMac,
-						tDphHashNode *pStaDs, uint8_t status)
+						tDphHashNode *pStaDs,
+						uint8_t status,
+						bool release_serial_cmd)
 {
 	struct scheduler_msg mmhMsg = { 0 };
 	tSirTdlsDelStaRsp *pDelSta = NULL;
@@ -2975,6 +2978,7 @@ static QDF_STATUS lim_send_sme_tdls_del_sta_rsp(tpAniSirGlobal pMac,
 	pDelSta->length = sizeof(tSirTdlsDelStaRsp);
 	pDelSta->messageType = eWNI_SME_TDLS_DEL_STA_RSP;
 	pDelSta->psoc = pMac->psoc;
+	pDelSta->release_serial_cmd = release_serial_cmd;
 	mmhMsg.bodyptr = pDelSta;
 	mmhMsg.callback = tgt_tdls_del_peer_rsp;
 	return scheduler_post_message(QDF_MODULE_ID_PE,
@@ -3065,7 +3069,7 @@ QDF_STATUS lim_process_sme_tdls_del_sta_req(tpAniSirGlobal pMac,
 			pDelStaReq->sessionId);
 		lim_send_sme_tdls_del_sta_rsp(pMac, pDelStaReq->sessionId,
 					      pDelStaReq->peermac, NULL,
-					      QDF_STATUS_E_FAILURE);
+					      QDF_STATUS_E_FAILURE, true);
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -3081,7 +3085,7 @@ QDF_STATUS lim_process_sme_tdls_del_sta_req(tpAniSirGlobal pMac,
 		       pDelStaReq->sessionId);
 		lim_send_sme_tdls_del_sta_rsp(pMac, pDelStaReq->sessionId,
 					      pDelStaReq->peermac, NULL,
-					      QDF_STATUS_E_FAILURE);
+					      QDF_STATUS_E_FAILURE, true);
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -3104,7 +3108,8 @@ QDF_STATUS lim_process_sme_tdls_del_sta_req(tpAniSirGlobal pMac,
 
 lim_tdls_del_sta_error:
 	lim_send_sme_tdls_del_sta_rsp(pMac, psessionEntry->smeSessionId,
-				      pDelStaReq->peermac, NULL, QDF_STATUS_E_FAILURE);
+				      pDelStaReq->peermac, NULL,
+				      QDF_STATUS_E_FAILURE, true);
 
 	return status;
 }
@@ -3142,7 +3147,7 @@ static void lim_check_aid_and_delete_peer(tpAniSirGlobal p_mac,
 					&session_entry->dph.dphHashTable);
 
 			if (NULL == stads)
-				goto skip;
+				continue;
 
 			pe_debug("Deleting "MAC_ADDRESS_STR,
 				MAC_ADDR_ARRAY(stads->staAddr));
@@ -3162,15 +3167,6 @@ static void lim_check_aid_and_delete_peer(tpAniSirGlobal p_mac,
 					pe_debug("peer "MAC_ADDRESS_STR" not found",
 						MAC_ADDR_ARRAY(stads->staAddr));
 			}
-
-			dph_delete_hash_entry(p_mac,
-				stads->staAddr, stads->assocId,
-				&session_entry->dph.dphHashTable);
-skip:
-			lim_release_peer_idx(p_mac,
-				(aid + i * (sizeof(uint32_t) << 3)),
-				session_entry);
-			CLEAR_BIT(session_entry->peerAIDBitmap[i], aid);
 		}
 	}
 }
@@ -3260,6 +3256,7 @@ void lim_process_tdls_del_sta_rsp(tpAniSirGlobal mac_ctx,
 	tpDphHashNode sta_ds;
 	uint16_t peer_idx = 0;
 	struct qdf_mac_addr peer_mac;
+	bool release_serial_cmd;
 
 	if (!del_sta_params) {
 		pe_err("del_sta_params is NULL");
@@ -3277,11 +3274,13 @@ void lim_process_tdls_del_sta_rsp(tpAniSirGlobal mac_ctx,
 	qdf_mem_copy(peer_mac.bytes,
 			del_sta_params->staMac, QDF_MAC_ADDR_SIZE);
 
+	release_serial_cmd = del_sta_params->release_serial_cmd;
 	if (QDF_STATUS_SUCCESS != del_sta_params->status) {
 		pe_err("DEL STA failed!");
 		lim_send_sme_tdls_del_sta_rsp(mac_ctx,
 				      session_entry->smeSessionId,
-				      peer_mac, NULL, QDF_STATUS_E_FAILURE);
+				      peer_mac, NULL, QDF_STATUS_E_FAILURE,
+				      release_serial_cmd);
 		goto skip_event;
 	}
 
@@ -3291,7 +3290,7 @@ void lim_process_tdls_del_sta_rsp(tpAniSirGlobal mac_ctx,
 
 	lim_send_sme_tdls_del_sta_rsp(mac_ctx, session_entry->smeSessionId,
 				      peer_mac, sta_ds,
-				      QDF_STATUS_SUCCESS);
+				      QDF_STATUS_SUCCESS, release_serial_cmd);
 	lim_release_peer_idx(mac_ctx, sta_ds->assocId, session_entry);
 
 	/* Clear the aid in peerAIDBitmap as this aid is now in freepool */

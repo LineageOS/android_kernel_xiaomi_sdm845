@@ -427,7 +427,7 @@ ibss_dph_entry_add(tpAniSirGlobal pMac,
 		dph_get_hash_entry(pMac, peerIdx, &psessionEntry->dph.dphHashTable);
 	if (pStaDs) {
 		(void)lim_del_sta(pMac, pStaDs, false /*asynchronous */,
-				  psessionEntry);
+				  psessionEntry, false);
 		lim_delete_dph_hash_entry(pMac, pStaDs->staAddr, peerIdx,
 					  psessionEntry);
 	}
@@ -1085,7 +1085,7 @@ lim_ibss_delete_peer(tpAniSirGlobal mac_ctx,
 
 	if (STA_INVALID_IDX != sta->staIndex) {
 		lim_del_sta(mac_ctx, sta,
-			  true, session_entry);
+			  true, session_entry, false);
 	} else {
 		/*
 		 * This mean ADD STA failed, thus remove the sta from
@@ -1596,7 +1596,7 @@ void lim_ibss_heart_beat_handle(tpAniSirGlobal mac_ctx, tpPESession session)
 				sta_idx = stads->staIndex;
 
 				(void)lim_del_sta(mac_ctx, stads, false,
-						  session);
+						  session, false);
 				lim_delete_dph_hash_entry(mac_ctx,
 					stads->staAddr, peer_idx, session);
 				lim_release_peer_idx(mac_ctx, peer_idx,

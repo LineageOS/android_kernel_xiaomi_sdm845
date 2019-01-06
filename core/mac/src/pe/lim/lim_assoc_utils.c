@@ -583,7 +583,8 @@ lim_cleanup_rx_path(tpAniSirGlobal pMac, tpDphHashNode pStaDs,
 			 * Release our assigned AID back to the free pool
 			 */
 			if (LIM_IS_AP_ROLE(psessionEntry)) {
-				lim_del_sta(pMac, pStaDs, false, psessionEntry);
+				lim_del_sta(pMac, pStaDs, false, psessionEntry,
+						false);
 				lim_release_peer_idx(pMac, pStaDs->assocId,
 						     psessionEntry);
 			}
@@ -629,7 +630,7 @@ lim_cleanup_rx_path(tpAniSirGlobal pMac, tpDphHashNode pStaDs,
 					    psessionEntry);
 		} else
 			retCode = lim_del_sta(pMac,
-					 pStaDs, true, psessionEntry);
+					 pStaDs, true, psessionEntry, false);
 	}
 
 	return retCode;
@@ -2588,7 +2589,8 @@ lim_add_sta(tpAniSirGlobal mac_ctx,
 
 QDF_STATUS
 lim_del_sta(tpAniSirGlobal pMac,
-	    tpDphHashNode pStaDs, bool fRespReqd, tpPESession psessionEntry)
+	    tpDphHashNode pStaDs, bool fRespReqd, tpPESession psessionEntry,
+	    bool release_serial_cmd)
 {
 	tpDeleteStaParams pDelStaParams = NULL;
 	struct scheduler_msg msgQ = {0};
@@ -2685,6 +2687,7 @@ lim_del_sta(tpAniSirGlobal pMac,
 	pDelStaParams->staType = pStaDs->staType;
 	qdf_mem_copy((uint8_t *) pDelStaParams->staMac,
 		     (uint8_t *) pStaDs->staAddr, sizeof(tSirMacAddr));
+	pDelStaParams->release_serial_cmd = release_serial_cmd;
 
 	pDelStaParams->status = QDF_STATUS_SUCCESS;
 	msgQ.type = WMA_DELETE_STA_REQ;

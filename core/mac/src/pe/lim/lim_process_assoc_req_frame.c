@@ -1695,7 +1695,7 @@ static bool lim_update_sta_ctx(tpAniSirGlobal mac_ctx, tpPESession session,
 			 */
 			sta_ds->mlmStaContext.mlmState =
 				eLIM_MLM_WT_ASSOC_DEL_STA_RSP_STATE;
-			if (lim_del_sta(mac_ctx, sta_ds, true, session)
+			if (lim_del_sta(mac_ctx, sta_ds, true, session, false)
 					!= QDF_STATUS_SUCCESS) {
 				pe_err("Couldn't DEL STA, assocId: %d staId: %d",
 					sta_ds->assocId, sta_ds->staIndex);
