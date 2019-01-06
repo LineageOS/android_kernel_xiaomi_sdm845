@@ -14,7 +14,7 @@
  */
 #include <linux/input/ft5x46_ts.h>
 #include <linux/hwinfo.h>
-#include <linux/input/touch_common_info.h>
+
 #include "ft8716_pramboot.h"
 
 /* #define FT5X46_DEBUG_PERMISSION */
@@ -1711,7 +1711,6 @@ static int ft5x46_read_gesture(struct ft5x46_data *ft5x46)
 {
 	unsigned char buf[FT5X46_GESTURE_POINTS_HEADER] = { 0 };
 	int error = 0;
-	char ch[64] = {0x0,};
 
 	error = ft5x46_read_block(ft5x46, 0xD3, buf,
 			FT5X46_GESTURE_POINTS_HEADER);
@@ -1729,8 +1728,6 @@ static int ft5x46_read_gesture(struct ft5x46_data *ft5x46)
 		input_sync(ft5x46->input);
 		input_event(ft5x46->input, EV_KEY, KEY_WAKEUP, 0);
 		input_sync(ft5x46->input);
-		ft5x46->dbclick_count++;
-		snprintf(ch, sizeof(ch), "%d", ft5x46->dbclick_count);
 	}
 
 	return 0;
@@ -3413,7 +3410,6 @@ static void ft5x46_switch_mode_work(struct work_struct *work)
 	struct ft5x46_mode_switch *ms = container_of(work, struct ft5x46_mode_switch, switch_mode_work);
 	struct ft5x46_data *ft5x46 = ms->data;
 	u8 value = ms->mode;
-	char ch[16] = {0x0,};
 
 	if (value == FT5X46_INPUT_EVENT_WAKUP_MODE_ON || value == FT5X46_INPUT_EVENT_WAKUP_MODE_OFF) {
 		if (ft5x46) {
@@ -3422,7 +3418,6 @@ static void ft5x46_switch_mode_work(struct work_struct *work)
 			if (ft5x46->in_suspend)
 				ft5x46_wakeup_reconfigure(ft5x46,
 					(bool)(value - FT5X46_INPUT_EVENT_WAKUP_MODE_OFF));
-			snprintf(ch, sizeof(ch), "%s", ft5x46->wakeup_mode ? "enabled" : "disabled");
 		}
 	}
 
@@ -4289,7 +4284,6 @@ struct ft5x46_data *ft5x46_probe(struct device *dev,
 	ft5x46->hw_is_ready = false;
 	init_waitqueue_head(&ft5x46->lockdown_info_acquired_wq);
 	schedule_work(&ft5x46->work);
-	ft5x46->dbclick_count = 0;
 	return ft5x46;
 
 #ifdef FT5X46_APK_DEBUG_CHANNEL

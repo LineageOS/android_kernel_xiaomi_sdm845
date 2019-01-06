@@ -44,7 +44,6 @@
 #include "synaptics_dsx_core.h"
 #include <linux/hwinfo.h>
 #include <linux/proc_fs.h>
-#include <linux/input/touch_common_info.h>
 #include <linux/uaccess.h>
 
 #define FW_IHEX_NAME "synaptics/startup_fw_update.bin"

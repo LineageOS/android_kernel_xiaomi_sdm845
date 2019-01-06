@@ -88,20 +88,12 @@ extern const uint16_t gesture_key_array[];
 #define NVT_TOUCH_ESD_CHECK_PERIOD 1500	/* ms */
 #define NVT_LOCKDOWN_SIZE	8
 
-#define NVT_TOUCH_COUNT_DUMP
-#ifdef NVT_TOUCH_COUNT_DUMP
-#define TOUCH_COUNT_FILE_MAXSIZE 50
-#endif
-
 struct nvt_config_info {
 	u8 tp_vendor;
 	u8 tp_color;
 	u8 tp_hw_version;
 	const char *nvt_cfg_name;
 	const char *nvt_limit_name;
-#ifdef NVT_TOUCH_COUNT_DUMP
-	const char *clicknum_file_name;
-#endif
 };
 
 struct nvt_ts_data {
@@ -158,7 +150,6 @@ struct nvt_ts_data {
 	int stylus_enabled;
 	int cover_enabled;
 	int grip_enabled;
-	int dbclick_count;
 	size_t config_array_size;
 	int current_index;
 	bool dev_pm_suspend;
@@ -166,12 +157,6 @@ struct nvt_ts_data {
 	struct work_struct resume_work;
 	struct workqueue_struct *event_wq;
 	struct completion dev_pm_suspend_completion;
-#ifdef NVT_TOUCH_COUNT_DUMP
-	struct class *nvt_tp_class;
-	struct device *nvt_touch_dev;
-	bool dump_click_count;
-	char *current_clicknum_file;
-#endif
 	struct proc_dir_entry *input_proc;
 
 };

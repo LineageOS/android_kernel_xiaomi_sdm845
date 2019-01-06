@@ -62,7 +62,6 @@
 #ifdef KERNEL_ABOVE_2_6_38
 #include <linux/input/mt.h>
 #endif
-#include <linux/input/touch_common_info.h>
 
 #include "fts.h"
 #include "fts_lib/ftsCompensation.h"
@@ -2184,15 +2183,6 @@ END:
 	return count;
 }
 
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-static ssize_t fts_touch_suspend_notify_show(struct device *dev,
-					     struct device_attribute *attr,
-					     char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", fts_info->sensor_sleep);
-}
-#endif
-
 static ssize_t fts_doze_time_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -2429,11 +2419,6 @@ static struct attribute *fts_attr_group[] = {
 
 	NULL,
 };
-
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-static DEVICE_ATTR(touch_suspend_notify, (S_IRUGO | S_IRGRP),
-		   fts_touch_suspend_notify_show, NULL);
-#endif
 
 /**@}*/
 /**@}*/
@@ -2993,7 +2978,6 @@ static void fts_gesture_event_handler(struct fts_ts_info *info,
 {
 	int value;
 	int needCoords = 0;
-	char ch[64] = { 0x0, };
 #ifdef CONFIG_INPUT_PRESS_NDT
 	int x = (event[4] << 8) | (event[3]);
 	int y = (event[6] << 8) | (event[5]);
@@ -3054,8 +3038,6 @@ static void fts_gesture_event_handler(struct fts_ts_info *info,
 				goto gesture_done;
 			value = KEY_WAKEUP;
 			logError(0, "%s %s: double tap ! \n", tag, __func__);
-			info->dbclick_count++;
-			snprintf(ch, sizeof(ch), "%d", info->dbclick_count);
 			needCoords = 0;
 			break;
 
@@ -3295,15 +3277,7 @@ static const char *fts_get_config(struct fts_ts_info *info)
 	logError(1, "%s Choose config %d: %s", tag, i,
 		 pdata->config_array[i].fts_cfg_name);
 	pdata->current_index = i;
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-	if (pdata->dump_click_count) {
-		info->current_clicknum_file =
-		    kzalloc(TOUCH_COUNT_FILE_MAXSIZE, GFP_KERNEL);
-		strlcpy(info->current_clicknum_file,
-			pdata->config_array[i].clicknum_file_name,
-			TOUCH_COUNT_FILE_MAXSIZE);
-	}
-#endif
+
 	return pdata->config_array[i].fts_cfg_name;
 }
 
@@ -4022,10 +3996,6 @@ static void fts_suspend_work(struct work_struct *work)
 	info->sensor_sleep = true;
 
 	fts_enableInterrupt();
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-	sysfs_notify(&fts_info->fts_touch_dev->kobj, NULL,
-		     "touch_suspend_notify");
-#endif
 }
 
 #ifdef CONFIG_DRM
@@ -4361,10 +4331,6 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
 	retval = of_property_read_string(np, "fts,default-fw-name",
 					 &bdata->default_fw_name);
 
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-	bdata->dump_click_count =
-	    of_property_read_bool(np, "fts,dump-click-count");
-#endif
 	retval =
 	    of_property_read_u32(np, "fts,config-array-size",
 				 (u32 *)&bdata->config_array_size);
@@ -4432,20 +4398,6 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
 			logError(1, "%s %s:limit_name: %s", tag, __func__,
 				 config_info->fts_limit_name);
 		}
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-		if (bdata->dump_click_count) {
-			retval =
-			    of_property_read_string(temp,
-						    "fts,clicknum-file-name",
-						    &config_info->clicknum_file_name);
-			if (retval && (retval != -EINVAL)) {
-				dev_err(dev,
-					"Unable to read click count file name\n");
-			} else
-				dev_err(dev, "%s\n",
-					config_info->clicknum_file_name);
-		}
-#endif
 
 		config_info++;
 	}
@@ -4463,7 +4415,6 @@ static void fts_switch_mode_work(struct work_struct *work)
 	static const char *fts_gesture_on = "01 20";
 	char *gesture_result;
 	int size = 6 * 2 + 1;
-	char ch[16] = { 0x0, };
 
 	logError(1, "%s %s mode:%d\n", tag, __func__, value);
 
@@ -4487,9 +4438,6 @@ static void fts_switch_mode_work(struct work_struct *work)
 				gesture_result = NULL;
 			}
 		}
-		snprintf(ch, sizeof(ch), "%s",
-			 (value -
-			  INPUT_EVENT_WAKUP_MODE_OFF) ? "enabled" : "disabled");
 	} else if (value >= INPUT_EVENT_COVER_MODE_OFF
 		   && value <= INPUT_EVENT_COVER_MODE_ON) {
 		info->glove_enabled = value - INPUT_EVENT_COVER_MODE_OFF;
@@ -5327,7 +5275,6 @@ static int fts_probe(struct spi_device *client)
 	error = fts_proc_init();
 	if (error < OK)
 		logError(1, "%s Error: can not create /proc file! \n", tag);
-	info->dbclick_count = 0;
 
 	tp_maker = kzalloc(20, GFP_KERNEL);
 	if (tp_maker == NULL)
@@ -5343,30 +5290,6 @@ static int fts_probe(struct spi_device *client)
 	if (info->debugfs) {
 		debugfs_create_file("switch_state", 0660, info->debugfs, info,
 				    &tpdbg_operations);
-	}
-#endif
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-	if (info->fts_tp_class == NULL)
-		info->fts_tp_class = class_create(THIS_MODULE, "touch");
-	info->fts_touch_dev =
-	    device_create(info->fts_tp_class, NULL, 0x49, info,
-			  "touch_suspend_notify");
-
-	if (IS_ERR(info->fts_touch_dev)) {
-		logError(1,
-			 "%s ERROR: Failed to create device for the sysfs!\n",
-			 tag);
-		goto ProbeErrorExit_8;
-	}
-
-	dev_set_drvdata(info->fts_touch_dev, info);
-	error =
-	    sysfs_create_file(&info->fts_touch_dev->kobj,
-			      &dev_attr_touch_suspend_notify.attr);
-
-	if (error) {
-		logError(1, "%s ERROR: Failed to create sysfs group!\n", tag);
-		goto ProbeErrorExit_8;
 	}
 #endif
 	info->tp_lockdown_info_proc =
@@ -5385,12 +5308,6 @@ static int fts_probe(struct spi_device *client)
 
 	logError(1, "%s Probe Finished! \n", tag);
 	return OK;
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-ProbeErrorExit_8:
-	device_destroy(info->fts_tp_class, 0x49);
-	class_destroy(info->fts_tp_class);
-	info->fts_tp_class = NULL;
-#endif
 ProbeErrorExit_7:
 #ifdef CONFIG_DRM
 	drm_unregister_client(&info->notifier);
@@ -5453,17 +5370,6 @@ static int fts_remove(struct spi_device *client)
 	destroy_workqueue(info->event_wq);
 #ifndef FW_UPDATE_ON_PROBE
 	destroy_workqueue(info->fwu_workqueue);
-#endif
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
-	if (info->board->dump_click_count && !info->current_clicknum_file) {
-		kfree(info->current_clicknum_file);
-		info->current_clicknum_file = NULL;
-	}
-	sysfs_remove_file(&info->fts_touch_dev->kobj,
-			  &dev_attr_touch_suspend_notify.attr);
-	device_destroy(info->fts_tp_class, DCHIP_ID_0);
-	class_destroy(info->fts_tp_class);
-	info->fts_tp_class = NULL;
 #endif
 
 	fts_enable_reg(info, false);

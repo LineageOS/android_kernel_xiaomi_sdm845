@@ -124,12 +124,7 @@
 
 #define PINCTRL_STATE_ACTIVE	"pmx_ts_active"
 #define PINCTRL_STATE_SUSPEND	"pmx_ts_suspend"
-#ifndef CONFIG_SYNA_TOUCH_COUNT_DUMP
-#define CONFIG_SYNA_TOUCH_COUNT_DUMP
-#endif
-#ifdef CONFIG_SYNA_TOUCH_COUNT_DUMP
-#define TOUCH_COUNT_FILE_MAXSIZE 50
-#endif
+
 enum exp_fn {
 	RMI_DEV = 0,
 	RMI_FW_UPDATER,
@@ -358,11 +353,6 @@ struct synaptics_rmi4_data {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
-#ifdef CONFIG_SYNA_TOUCH_COUNT_DUMP
-	struct class *syna_tp_class;
-	struct device *syna_touch_dev;
-	char *current_clicknum_file;
-#endif
 	unsigned char current_page;
 	unsigned char button_0d_enabled;
 	unsigned char num_of_tx;
@@ -394,7 +384,6 @@ struct synaptics_rmi4_data {
 	int force_max;
 	int chip_id;
 	int touchs;
-	int dbclick_count;
 	bool flash_prog_mode;
 	bool irq_enabled;
 	bool fingers_on_2d;

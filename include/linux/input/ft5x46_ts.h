@@ -144,7 +144,6 @@ struct ft5x46_data {
 
 	int touchs;
 	int keys;
-	int dbclick_count;
 #ifdef CONFIG_DRM
 	struct notifier_block drm_notifier;
 #endif

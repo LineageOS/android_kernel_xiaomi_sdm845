@@ -45,7 +45,6 @@
 #include <linux/input/synaptics_dsx_force.h>
 #include <linux/hwinfo.h>
 #include "synaptics_dsx_core.h"
-#include <linux/input/touch_common_info.h>
 
 #ifdef KERNEL_ABOVE_2_6_38
 #include <linux/input/mt.h>
@@ -1259,20 +1258,6 @@ static ssize_t synaptics_rmi4_virtual_key_map_show(struct kobject *kobj,
 	return count;
 }
 
-#ifdef CONFIG_SYNA_TOUCH_COUNT_DUMP
-static ssize_t syna_touch_suspend_notify_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-
-	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			rmi4_data->suspend);
-}
-
-static DEVICE_ATTR(touch_suspend_notify, (S_IRUGO | S_IRGRP), syna_touch_suspend_notify_show, NULL);
-#endif
-
 static int synaptics_rmi4_f11_abs_report(struct synaptics_rmi4_data *rmi4_data,
 		struct synaptics_rmi4_fn *fhandler)
 {
@@ -1449,7 +1434,6 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 	unsigned char size_of_2d_data;
 	unsigned char gesture_type;
 	unsigned short data_addr;
-	char ch[64] = {0x0,};
 	int x;
 	int y;
 	int wx;
@@ -1503,8 +1487,6 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 			input_report_key(rmi4_data->input_dev, KEY_WAKEUP, 0);
 			input_sync(rmi4_data->input_dev);
 			dev_err(rmi4_data->pdev->dev.parent, "double click send input event\n");
-			rmi4_data->dbclick_count++;
-			snprintf(ch, sizeof(ch), "%d", rmi4_data->dbclick_count);
 		}
 
 		return 0;
@@ -2230,12 +2212,6 @@ static int synaptics_rmi4_query_chip_id(struct synaptics_rmi4_data *rmi4_data)
 		rmi4_data->chip_id = -1; /* Set chip_id -1 to ensure it won't do firmware upgrading */
 		return -EINVAL;
 	}
-#ifdef CONFIG_SYNA_TOUCH_COUNT_DUMP
-		if (rmi4_data->hw_if->board_data->dump_click_count && rmi4_data->hw_if->board_data->config_array[i].clicknum_file_name) {
-			rmi4_data->current_clicknum_file = kzalloc(TOUCH_COUNT_FILE_MAXSIZE, GFP_KERNEL);
-			strlcpy(rmi4_data->current_clicknum_file, rmi4_data->hw_if->board_data->config_array[i].clicknum_file_name, TOUCH_COUNT_FILE_MAXSIZE);
-		}
-#endif
 
 	return 0;
 }
@@ -3943,7 +3919,6 @@ static void synaptics_rmi4_switch_mode_work(struct work_struct *work)
 	struct synaptics_rmi4_data *rmi4_data = ms->data;
 	const struct synaptics_dsx_board_data *bdata = rmi4_data->hw_if->board_data;
 	unsigned char value = ms->mode;
-	char ch[16] = {0x0, };
 
 	if (value >= INPUT_EVENT_WAKUP_MODE_OFF && value <= INPUT_EVENT_WAKUP_MODE_ON) {
 		if (bdata->cut_off_power) {
@@ -3953,7 +3928,6 @@ static void synaptics_rmi4_switch_mode_work(struct work_struct *work)
 		}
 
 		rmi4_data->enable_wakeup_gesture = value - INPUT_EVENT_WAKUP_MODE_OFF;
-		snprintf(ch, sizeof(ch), "%s", rmi4_data->enable_wakeup_gesture ? "enabled" : "disabled");
 	} else if (value >= INPUT_EVENT_COVER_MODE_OFF && value <= INPUT_EVENT_COVER_MODE_ON) {
 		rmi4_data->enable_cover_mode = value;
 		cover_mode_set(rmi4_data, rmi4_data->enable_cover_mode);
@@ -5195,36 +5169,11 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 1);
 	update_hardware_info(TYPE_TOUCH, 1); /* Synaptics */
 
-	rmi4_data->dbclick_count = 0;
-
 	synaptics_secure_touch_init(rmi4_data);
 	synaptics_secure_touch_stop(rmi4_data, 1);
 
-#ifdef CONFIG_SYNA_TOUCH_COUNT_DUMP
-	if (rmi4_data->syna_tp_class == NULL)
-		rmi4_data->syna_tp_class = class_create(THIS_MODULE, "touch");
-	rmi4_data->syna_touch_dev = device_create(rmi4_data->syna_tp_class, NULL, 0x20, rmi4_data, "touch_suspend_notify");
-
-	if (IS_ERR(rmi4_data->syna_touch_dev)) {
-		dev_err(&pdev->dev, "%s ERROR: Failed to create device for the sysfs!\n", __func__);
-		goto err_clickdump;
-	}
-
-	dev_set_drvdata(rmi4_data->syna_touch_dev, rmi4_data);
-	retval = sysfs_create_file(&rmi4_data->syna_touch_dev->kobj, &dev_attr_touch_suspend_notify.attr);
-
-	if (retval) {
-		dev_err(&pdev->dev, "%s ERROR: Failed to create sysfs group!\n", __func__);
-		goto err_clickdump;
-	}
-#endif
-
 	return retval;
 
-#ifdef CONFIG_SYNA_TOUCH_COUNT_DUMP
-err_clickdump:
-	device_destroy(rmi4_data->syna_tp_class, 0x20);
-#endif
 err_sysfs_panel_vendor:
 #if defined(CONFIG_SECURE_TOUCH)
 	sysfs_remove_file(&rmi4_data->pdev->dev.parent->kobj, &dev_attr_secure_touch_enable.attr);
@@ -5298,17 +5247,6 @@ static int synaptics_rmi4_remove(struct platform_device *pdev)
 	struct synaptics_rmi4_data *rmi4_data = platform_get_drvdata(pdev);
 	const struct synaptics_dsx_board_data *bdata =
 			rmi4_data->hw_if->board_data;
-
-#ifdef CONFIG_SYNA_TOUCH_COUNT_DUMP
-		if (rmi4_data->hw_if->board_data->dump_click_count && !rmi4_data->current_clicknum_file) {
-			kfree(rmi4_data->current_clicknum_file);
-			rmi4_data->current_clicknum_file = NULL;
-		}
-#endif
-#ifdef CONFIG_SYNA_TOUCH_COUNT_DUMP
-		sysfs_remove_file(&rmi4_data->syna_touch_dev->kobj, &dev_attr_touch_suspend_notify.attr);
-		device_destroy(rmi4_data->syna_tp_class, 0X20);
-#endif
 
 #ifdef FB_READY_RESET
 	cancel_work_sync(&rmi4_data->reset_work);
@@ -5940,8 +5878,6 @@ exit:
 
 	rmi4_data->suspend = true;
 
-	sysfs_notify(&rmi4_data->syna_touch_dev->kobj, NULL, "touch_suspend_notify");
-
 	return 0;
 }
 
@@ -6016,8 +5952,6 @@ static int synaptics_rmi4_resume(struct device *dev)
 
 	if (rmi4_data->enable_cover_mode)
 		cover_mode_set(rmi4_data, rmi4_data->enable_cover_mode);
-
-	sysfs_notify(&rmi4_data->syna_touch_dev->kobj, NULL, "touch_suspend_notify");
 
 	return 0;
 }

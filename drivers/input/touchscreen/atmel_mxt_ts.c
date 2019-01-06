@@ -36,7 +36,6 @@
 #endif
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
-#include <linux/input/touch_common_info.h>
 
 /* Version */
 #define MXT_VER_20		20
@@ -732,7 +731,6 @@ struct mxt_data {
 	u8 config_info[MXT_CONFIG_INFO_SIZE];
 	u8 is_usb_plug_in;
 
-	int dbclick_count;
 	bool is_suspend;
 	struct mutex ts_lock;
 	/* Slowscan parameters	*/
@@ -1707,7 +1705,6 @@ static void mxt_proc_t93_message(struct mxt_data *data, u8 *msg)
 {
 	struct device *dev = &data->client->dev;
 	struct input_dev *input_dev = data->input_dev;
-	char ch[64] = {0x0,};
 
 	if (!input_dev)
 		return;
@@ -1721,9 +1718,6 @@ static void mxt_proc_t93_message(struct mxt_data *data, u8 *msg)
 		input_sync(input_dev);
 		input_event(input_dev, EV_KEY, KEY_WAKEUP, 0);
 		input_sync(input_dev);
-
-		data->dbclick_count++;
-		snprintf(ch, sizeof(ch), "%d", data->dbclick_count);
 	}
 }
 
@@ -4927,7 +4921,7 @@ static void mxt_switch_mode_work(struct work_struct *work)
 	const struct mxt_platform_data *pdata = data->pdata;
 	int index = data->current_index;
 	u8 value = ms->mode;
-	char ch[16] = {0x0,};
+
 	if (value == MXT_INPUT_EVENT_STYLUS_MODE_ON ||
 				value == MXT_INPUT_EVENT_STYLUS_MODE_OFF)
 		mxt_stylus_mode_switch(data, (bool)(value - MXT_INPUT_EVENT_STYLUS_MODE_OFF));
@@ -4935,8 +4929,6 @@ static void mxt_switch_mode_work(struct work_struct *work)
 				value == MXT_INPUT_EVENT_WAKUP_MODE_OFF) {
 		if (pdata->config_array[index].wake_up_self_adcx != 0) {
 			mxt_set_wakeup_mode(data, value - MXT_INPUT_EVENT_WAKUP_MODE_OFF);
-			snprintf(ch, sizeof(ch), "%s", (value - MXT_INPUT_EVENT_WAKUP_MODE_OFF) ? "enabled" : "disabled");
-
 		}
 	} else if (value == MXT_INPUT_EVENT_COVER_MODE_ON ||
 				value == MXT_INPUT_EVENT_COVER_MODE_OFF)
@@ -6747,7 +6739,6 @@ static int mxt_probe(struct i2c_client *client,
 
 	proc_create("tp_selftest", 0, NULL, &mxt_selftest_ops);
 
-	data->dbclick_count = 0;
 	return 0;
 
 err_remove_sysfs_group:

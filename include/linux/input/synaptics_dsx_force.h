@@ -116,7 +116,6 @@ struct synaptics_dsx_config_info {
 	const char *chip_id_name;
 	unsigned char *tp_ids;
 	const char *fw_name;
-	const char *clicknum_file_name;
 	struct synaptics_dsx_panel_power_seq panel_power_seq;
 	struct synaptics_dsx_factory_param *factory_param;
 };
