@@ -1675,7 +1675,7 @@ static ssize_t novatek_input_symlink(struct nvt_ts_data *ts) {
 	sprintf(driver_path, "/sys%s",
 			kobject_get_path(&ts->client->dev.kobj, GFP_KERNEL));
 
-	pr_err("%s: driver_path=%s\n", __func__, driver_path);
+	pr_info("%s: driver_path=%s\n", __func__, driver_path);
 
 	ts->input_proc = proc_symlink(PROC_SYMLINK_PATH, NULL, driver_path);
 
