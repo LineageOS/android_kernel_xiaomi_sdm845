@@ -196,11 +196,13 @@ QDF_STATUS ucfg_tdls_set_operating_mode(
  * ucfg_tdls_update_rx_pkt_cnt() - update rx pkt count
  * @vdev: tdls vdev object
  * @mac_addr: peer mac address
+ * @dest_mac_addr: dest mac address
  *
  * Return: None
  */
 void ucfg_tdls_update_rx_pkt_cnt(struct wlan_objmgr_vdev *vdev,
-				 struct qdf_mac_addr *mac_addr);
+				 struct qdf_mac_addr *mac_addr,
+				 struct qdf_mac_addr *dest_mac_addr);
 
 /**
  * ucfg_tdls_update_tx_pkt_cnt() - update tx pkt count
