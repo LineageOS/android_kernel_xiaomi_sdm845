@@ -90,14 +90,14 @@ uint32_t wlan_serialization_get_active_list_count(
 		return 0;
 	}
 
-	wlan_serialization_acquire_lock(ser_pdev_obj);
+	wlan_serialization_acquire_lock(&ser_pdev_obj->pdev_ser_list_lock);
 	if (is_cmd_from_active_scan_queue)
 		queue = &ser_pdev_obj->active_scan_list;
 	else
 		queue = &ser_pdev_obj->active_list;
 
 	count = qdf_list_size(queue);
-	wlan_serialization_release_lock(ser_pdev_obj);
+	wlan_serialization_release_lock(&ser_pdev_obj->pdev_ser_list_lock);
 
 	return count;
 }
@@ -116,14 +116,14 @@ uint32_t wlan_serialization_get_pending_list_count(
 		return 0;
 	}
 
-	wlan_serialization_acquire_lock(ser_pdev_obj);
+	wlan_serialization_acquire_lock(&ser_pdev_obj->pdev_ser_list_lock);
 	if (is_cmd_from_pending_scan_queue)
 		queue = &ser_pdev_obj->pending_scan_list;
 	else
 		queue = &ser_pdev_obj->pending_list;
 
 	count = qdf_list_size(queue);
-	wlan_serialization_release_lock(ser_pdev_obj);
+	wlan_serialization_release_lock(&ser_pdev_obj->pdev_ser_list_lock);
 
 	return count;
 }

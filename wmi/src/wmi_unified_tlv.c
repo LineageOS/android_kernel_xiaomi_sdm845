@@ -708,6 +708,76 @@ static QDF_STATUS send_peer_flush_tids_cmd_tlv(wmi_unified_t wmi,
 }
 
 /**
+ * send_peer_unmap_conf_cmd_tlv() - send PEER UNMAP conf command to fw
+ * @wmi: wmi handle
+ * @vdev_id: vdev id
+ * @peer_id_cnt: no. of peer ids
+ * @peer_id_list: list of peer ids
+ *
+ * Return: QDF_STATUS_SUCCESS for success or error code
+ */
+static QDF_STATUS send_peer_unmap_conf_cmd_tlv(wmi_unified_t wmi,
+					       uint8_t vdev_id,
+					       uint32_t peer_id_cnt,
+					       uint16_t *peer_id_list)
+{
+	int i;
+	wmi_buf_t buf;
+	uint8_t *buf_ptr;
+	A_UINT32 *peer_ids;
+	wmi_peer_unmap_response_cmd_fixed_param *cmd;
+	uint32_t peer_id_list_len;
+	uint32_t len = sizeof(*cmd);
+
+	if (!peer_id_cnt || !peer_id_list)
+		return QDF_STATUS_E_FAILURE;
+
+	len += WMI_TLV_HDR_SIZE;
+
+	peer_id_list_len = peer_id_cnt * sizeof(A_UINT32);
+
+	len += peer_id_list_len;
+
+	buf = wmi_buf_alloc(wmi, len);
+
+	if (!buf) {
+		WMI_LOGP("%s: wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_peer_unmap_response_cmd_fixed_param *)wmi_buf_data(buf);
+	buf_ptr = (uint8_t *)wmi_buf_data(buf);
+
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		       WMITLV_TAG_STRUC_wmi_peer_unmap_response_cmd_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN
+			       (wmi_peer_unmap_response_cmd_fixed_param));
+
+	buf_ptr += sizeof(wmi_peer_unmap_response_cmd_fixed_param);
+
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_UINT32,
+		       peer_id_list_len);
+
+	peer_ids = (A_UINT32 *)(buf_ptr + WMI_TLV_HDR_SIZE);
+
+	for (i = 0; i < peer_id_cnt; i++)
+		peer_ids[i] = peer_id_list[i];
+
+	WMI_LOGD("%s: vdev_id %d peer_id_cnt %d", __func__,
+		 vdev_id, peer_id_cnt);
+	wmi_mtrace(WMI_PEER_UNMAP_RESPONSE_CMDID, vdev_id, 0);
+	if (wmi_unified_cmd_send(wmi, buf, len,
+				 WMI_PEER_UNMAP_RESPONSE_CMDID)) {
+		WMI_LOGP("%s: Failed to send peer delete conf command",
+			 __func__);
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
  * send_peer_delete_cmd_tlv() - send PEER delete command to fw
  * @wmi: wmi handle
  * @peer_addr: peer mac addr
@@ -6498,6 +6568,8 @@ static QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 			req_offload_params->roam_preauth_no_ack_timeout;
 		roam_offload_params->reassoc_failure_timeout =
 			roam_req->reassoc_failure_timeout;
+		roam_offload_params->roam_candidate_validity_time =
+			roam_req->rct_validity_timer;
 
 		/* Fill the capabilities */
 		roam_offload_params->capability =
@@ -12938,6 +13010,10 @@ void wmi_copy_resource_config(wmi_resource_config *resource_cfg,
 			resource_cfg->flag1, 1);
 	}
 
+	if (tgt_res_cfg->peer_unmap_conf_support)
+		WMI_RSRC_CFG_FLAG_PEER_UNMAP_RESPONSE_SUPPORT_SET(
+						resource_cfg->flag1, 1);
+
 	wmi_copy_twt_resource_config(resource_cfg, tgt_res_cfg);
 }
 
@@ -15807,6 +15883,13 @@ static QDF_STATUS send_roam_scan_offload_ap_profile_cmd_tlv(wmi_unified_t wmi_ha
 		 score_param->oce_wan_scoring.score_pcnt7_to_4,
 		 score_param->oce_wan_scoring.score_pcnt11_to_8,
 		 score_param->oce_wan_scoring.score_pcnt15_to_12);
+
+	score_param->roam_score_delta_pcnt = ap_profile->param.roam_score_delta;
+	score_param->roam_score_delta_mask =
+				ap_profile->param.roam_trigger_bitmap;
+	WMI_LOGD("Roam score delta:%d Roam_trigger_bitmap:%x",
+		 score_param->roam_score_delta_pcnt,
+		 score_param->roam_score_delta_mask);
 
 	wmi_mtrace(WMI_ROAM_AP_PROFILE, NO_SESSION, 0);
 	status = wmi_unified_cmd_send(wmi_handle, buf,
@@ -18888,6 +18971,81 @@ static QDF_STATUS extract_p2p_lo_stop_ev_param_tlv(
 
 	return QDF_STATUS_SUCCESS;
 }
+
+static QDF_STATUS
+send_set_mac_addr_rx_filter_cmd_tlv(wmi_unified_t wmi_handle,
+				    struct p2p_set_mac_filter *param)
+{
+	wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param *cmd;
+	uint32_t len;
+	wmi_buf_t buf;
+	int ret;
+
+	if (!wmi_handle) {
+		WMI_LOGE("WMA context is invald!");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	len = sizeof(*cmd);
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("Failed allocate wmi buffer");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param *)
+		wmi_buf_data(buf);
+
+	WMITLV_SET_HDR(
+	   &cmd->tlv_header,
+	   WMITLV_TAG_STRUC_wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param,
+	WMITLV_GET_STRUCT_TLVLEN(
+			wmi_vdev_add_mac_addr_to_rx_filter_cmd_fixed_param));
+
+	cmd->vdev_id = param->vdev_id;
+	cmd->freq = param->freq;
+	WMI_CHAR_ARRAY_TO_MAC_ADDR(param->mac, &cmd->mac_addr);
+	if (param->set)
+		cmd->enable = 1;
+	else
+		cmd->enable = 0;
+	WMI_LOGD("set random mac rx vdev %d freq %d set %d %pM",
+		 param->vdev_id, param->freq, param->set, param->mac);
+	ret = wmi_unified_cmd_send(wmi_handle, buf, len,
+				   WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_CMDID);
+	if (ret) {
+		WMI_LOGE("Failed to send action frame random mac cmd");
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+static QDF_STATUS extract_mac_addr_rx_filter_evt_param_tlv(
+	wmi_unified_t wmi_handle, void *evt_buf,
+	struct p2p_set_mac_filter_evt *param)
+{
+	WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENTID_param_tlvs *param_buf;
+	wmi_vdev_add_mac_addr_to_rx_filter_status_event_fixed_param *event;
+
+	param_buf =
+		(WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENTID_param_tlvs *)
+		evt_buf;
+	if (!param_buf) {
+		WMI_LOGE("Invalid action frame filter mac event");
+		return QDF_STATUS_E_INVAL;
+	}
+	event = param_buf->fixed_param;
+	if (!event) {
+		WMI_LOGE("Invalid fixed param");
+		return QDF_STATUS_E_INVAL;
+	}
+	param->vdev_id = event->vdev_id;
+	param->status = event->status;
+
+	return QDF_STATUS_SUCCESS;
+}
 #endif /* End of CONVERGED_P2P_ENABLE */
 
 /**
@@ -21704,6 +21862,51 @@ static QDF_STATUS send_btm_config_cmd_tlv(wmi_unified_t wmi_handle,
 }
 
 /**
+ * send_roam_bss_load_config_tlv() - send roam load bss trigger configuration
+ * @wmi_handle: wmi handle
+ * @parms: pointer to wmi_bss_load_config
+ *
+ * This function sends the roam load bss trigger configuration to fw.
+ * the bss_load_threshold parameter is used to configure the maximum
+ * bss load percentage, above which the firmware should trigger roaming
+ *
+ * Return: QDF status
+ */
+static QDF_STATUS
+send_roam_bss_load_config_tlv(wmi_unified_t wmi_handle,
+			      struct wmi_bss_load_config *params)
+{
+	wmi_roam_bss_load_config_cmd_fixed_param *cmd;
+	wmi_buf_t buf;
+	uint32_t len;
+
+	len = sizeof(*cmd);
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf)
+		return QDF_STATUS_E_NOMEM;
+
+	cmd = (wmi_roam_bss_load_config_cmd_fixed_param *)wmi_buf_data(buf);
+	WMITLV_SET_HDR(
+	   &cmd->tlv_header,
+	   WMITLV_TAG_STRUC_wmi_roam_bss_load_config_cmd_fixed_param,
+	   WMITLV_GET_STRUCT_TLVLEN(wmi_roam_bss_load_config_cmd_fixed_param));
+	cmd->vdev_id = params->vdev_id;
+	cmd->bss_load_threshold = params->bss_load_threshold;
+	cmd->monitor_time_window = params->bss_load_sample_time;
+
+	wmi_mtrace(WMI_ROAM_BSS_LOAD_CONFIG_CMDID, cmd->vdev_id, 0);
+	if (wmi_unified_cmd_send(wmi_handle, buf, len,
+				 WMI_ROAM_BSS_LOAD_CONFIG_CMDID)) {
+		WMI_LOGE("%s: failed to send WMI_ROAM_BSS_LOAD_CONFIG_CMDID ",
+			 __func__);
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
  * send_obss_detection_cfg_cmd_tlv() - send obss detection
  *   configurations to firmware.
  * @wmi_handle: wmi handle
@@ -22552,6 +22755,7 @@ struct wmi_ops tlv_ops =  {
 	.send_vdev_stop_cmd = send_vdev_stop_cmd_tlv,
 	.send_peer_create_cmd = send_peer_create_cmd_tlv,
 	.send_peer_delete_cmd = send_peer_delete_cmd_tlv,
+	.send_peer_unmap_conf_cmd = send_peer_unmap_conf_cmd_tlv,
 	.send_peer_rx_reorder_queue_setup_cmd =
 		send_peer_rx_reorder_queue_setup_cmd_tlv,
 	.send_peer_rx_reorder_queue_remove_cmd =
@@ -22878,6 +23082,9 @@ struct wmi_ops tlv_ops =  {
 	.extract_p2p_noa_ev_param = extract_p2p_noa_ev_param_tlv,
 	.extract_p2p_lo_stop_ev_param =
 				extract_p2p_lo_stop_ev_param_tlv,
+	.set_mac_addr_rx_filter = send_set_mac_addr_rx_filter_cmd_tlv,
+	.extract_mac_addr_rx_filter_evt_param =
+				extract_mac_addr_rx_filter_evt_param_tlv,
 #endif
 	.extract_offchan_data_tx_compl_param =
 				extract_offchan_data_tx_compl_param_tlv,
@@ -23004,6 +23211,7 @@ struct wmi_ops tlv_ops =  {
 	.extract_ndp_sch_update = extract_ndp_sch_update_tlv,
 #endif
 	.send_btm_config = send_btm_config_cmd_tlv,
+	.send_roam_bss_load_config = send_roam_bss_load_config_tlv,
 	.send_obss_detection_cfg_cmd = send_obss_detection_cfg_cmd_tlv,
 	.extract_obss_detection_info = extract_obss_detection_info_tlv,
 #ifdef WLAN_SUPPORT_FILS
@@ -23103,6 +23311,8 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_p2p_noa_event_id] = WMI_P2P_NOA_EVENTID;
 	event_ids[wmi_p2p_lo_stop_event_id] =
 				WMI_P2P_LISTEN_OFFLOAD_STOPPED_EVENTID;
+	event_ids[wmi_vdev_add_macaddr_rx_filter_event_id] =
+			WMI_VDEV_ADD_MAC_ADDR_TO_RX_FILTER_STATUS_EVENTID;
 	event_ids[wmi_pdev_resume_event_id] = WMI_PDEV_RESUME_EVENTID;
 	event_ids[wmi_wow_wakeup_host_event_id] = WMI_WOW_WAKEUP_HOST_EVENTID;
 	event_ids[wmi_d0_wow_disable_ack_event_id] =
@@ -23325,6 +23535,9 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 		WMI_BPF_GET_VDEV_WORK_MEMORY_RESP_EVENTID;
 	event_ids[wmi_wlan_sar2_result_event_id] = WMI_SAR2_RESULT_EVENTID;
 	event_ids[wmi_roam_scan_stats_event_id] = WMI_ROAM_SCAN_STATS_EVENTID;
+	event_ids[wmi_vdev_bcn_reception_stats_event_id] =
+		WMI_VDEV_BCN_RECEPTION_STATS_EVENTID;
+	event_ids[wmi_roam_blacklist_event_id] = WMI_ROAM_BLACKLIST_EVENTID;
 }
 
 /**
@@ -23549,7 +23762,12 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_PER_VDEV_CHAINMASK_CONFIG_SUPPORT;
 	wmi_service[wmi_service_new_htt_msg_format] =
 			WMI_SERVICE_HTT_H2T_NO_HTC_HDR_LEN_IN_MSG_LEN;
-
+	wmi_service[wmi_service_peer_unmap_cnf_support] =
+			WMI_SERVICE_PEER_UNMAP_RESPONSE_SUPPORT;
+	wmi_service[wmi_service_beacon_reception_stats] =
+			WMI_SERVICE_BEACON_RECEPTION_STATS;
+	wmi_service[wmi_service_vdev_latency_config] =
+			WMI_SERVICE_VDEV_LATENCY_CONFIG;
 }
 
 #ifndef CONFIG_MCL

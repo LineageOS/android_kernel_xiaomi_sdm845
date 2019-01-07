@@ -255,6 +255,11 @@ QDF_STATUS (*send_peer_delete_cmd)(wmi_unified_t wmi,
 				    uint8_t peer_addr[IEEE80211_ADDR_LEN],
 				    uint8_t vdev_id);
 
+QDF_STATUS (*send_peer_unmap_conf_cmd)(wmi_unified_t wmi,
+				       uint8_t vdev_id,
+				       uint32_t peer_id_cnt,
+				       uint16_t *peer_id_list);
+
 QDF_STATUS (*send_peer_param_cmd)(wmi_unified_t wmi,
 				uint8_t peer_addr[IEEE80211_ADDR_LEN],
 				struct peer_set_params *param);
@@ -1287,6 +1292,13 @@ QDF_STATUS (*extract_p2p_lo_stop_ev_param)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*extract_p2p_noa_ev_param)(wmi_unified_t wmi_handle,
 	void *evt_buf, struct p2p_noa_info *param);
+
+QDF_STATUS (*set_mac_addr_rx_filter)(wmi_unified_t wmi_handle,
+				     struct p2p_set_mac_filter *param);
+QDF_STATUS
+(*extract_mac_addr_rx_filter_evt_param)(wmi_unified_t wmi_handle,
+					void *evt_buf,
+					struct p2p_set_mac_filter_evt *param);
 #endif
 
 QDF_STATUS (*extract_peer_sta_ps_statechange_ev)(wmi_unified_t wmi_handle,
@@ -1597,6 +1609,10 @@ QDF_STATUS (*extract_ndp_sch_update)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*send_btm_config)(wmi_unified_t wmi_handle,
 			      struct wmi_btm_config *params);
+
+QDF_STATUS (*send_roam_bss_load_config)(wmi_unified_t wmi_handle,
+					struct wmi_bss_load_config *params);
+
 QDF_STATUS (*send_obss_detection_cfg_cmd)(wmi_unified_t wmi_handle,
 		struct wmi_obss_detection_cfg_param *obss_cfg_param);
 QDF_STATUS (*extract_obss_detection_info)(uint8_t *evt_buf,

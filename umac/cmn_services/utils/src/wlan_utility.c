@@ -272,6 +272,19 @@ static void wlan_vap_active(struct wlan_objmgr_pdev *pdev,
 	wlan_vdev_obj_unlock(vdev);
 }
 
+bool wlan_vdev_is_up(struct wlan_objmgr_vdev *vdev)
+{
+	bool ret_val = false;
+
+	wlan_vdev_obj_lock(vdev);
+	if (wlan_vdev_mlme_get_state(vdev) == WLAN_VDEV_S_RUN)
+		ret_val = true;
+
+	wlan_vdev_obj_unlock(vdev);
+
+	return ret_val;
+}
+
 QDF_STATUS wlan_util_is_vap_active(struct wlan_objmgr_pdev *pdev,
 				   wlan_objmgr_ref_dbgid dbg_id)
 {

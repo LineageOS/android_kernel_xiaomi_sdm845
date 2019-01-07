@@ -243,6 +243,29 @@ QDF_STATUS wmi_unified_peer_delete_send(void *wmi_hdl,
 }
 
 /**
+ * wmi_unified_peer_unmap_conf_send() - send PEER unmap conf command to fw
+ * @wmi: wmi handle
+ * @vdev_id: vdev id
+ * @peer_id_cnt: number of peer id
+ * @peer_id_list: list of peer ids
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_peer_unmap_conf_send(void *wmi_hdl,
+					    uint8_t vdev_id,
+					    uint32_t peer_id_cnt,
+					    uint16_t *peer_id_list)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t)wmi_hdl;
+
+	if (wmi_handle->ops->send_peer_unmap_conf_cmd)
+		return wmi_handle->ops->send_peer_unmap_conf_cmd(wmi_handle,
+				  vdev_id, peer_id_cnt, peer_id_list);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+/**
  * wmi_set_peer_param() - set peer parameter in fw
  * @wmi_ctx: wmi handle
  * @peer_addr: peer mac address
@@ -5768,6 +5791,42 @@ QDF_STATUS wmi_extract_p2p_noa_ev_param(void *wmi_hdl, void *evt_buf,
 
 	return QDF_STATUS_E_FAILURE;
 }
+
+QDF_STATUS
+wmi_send_set_mac_addr_rx_filter_cmd(void *wmi_hdl,
+				    struct p2p_set_mac_filter *param)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t)wmi_hdl;
+
+	if (!wmi_handle) {
+		WMI_LOGE("wmi handle is null");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (wmi_handle->ops->set_mac_addr_rx_filter)
+		return wmi_handle->ops->set_mac_addr_rx_filter(
+				wmi_handle, param);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS
+wmi_extract_mac_addr_rx_filter_evt_param(void *wmi_hdl, void *evt_buf,
+					 struct p2p_set_mac_filter_evt *param)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t)wmi_hdl;
+
+	if (!wmi_handle) {
+		WMI_LOGE("wmi handle is null");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (wmi_handle->ops->extract_mac_addr_rx_filter_evt_param)
+		return wmi_handle->ops->extract_mac_addr_rx_filter_evt_param(
+				wmi_handle, evt_buf, param);
+
+	return QDF_STATUS_E_FAILURE;
+}
 #endif
 
 /**
@@ -7264,6 +7323,18 @@ QDF_STATUS wmi_unified_send_btm_config(void *wmi_hdl,
 	if (wmi_handle->ops->send_btm_config)
 		return wmi_handle->ops->send_btm_config(wmi_handle,
 							params);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS wmi_unified_send_bss_load_config(void *wmi_hdl,
+					    struct wmi_bss_load_config *params)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t)wmi_hdl;
+
+	if (wmi_handle->ops->send_roam_bss_load_config)
+		return wmi_handle->ops->send_roam_bss_load_config(wmi_handle,
+								  params);
 
 	return QDF_STATUS_E_FAILURE;
 }
