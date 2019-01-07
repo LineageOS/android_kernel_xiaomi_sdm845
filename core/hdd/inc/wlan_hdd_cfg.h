@@ -2234,7 +2234,7 @@ enum hdd_dot11_mode {
  * roam_trigger_reason_bitmask - Contains roam_trigger_reasons
  * @Min: 0
  * @Max: 0xFFFFFFFF
- * @Default: 0xDA
+ * @Default: 0x10DA
  *
  * Bitmask containing roam_trigger_reasons for which
  * min_delay_btw_roam_scans constraint should be applied.
@@ -2251,7 +2251,8 @@ enum hdd_dot11_mode {
  * WMI_ROAM_TRIGGER_REASON_FORCED - 9
  * WMI_ROAM_TRIGGER_REASON_BTM - 10
  * WMI_ROAM_TRIGGER_REASON_UNIT_TEST - 11
- * WMI_ROAM_TRIGGER_REASON_MAX - 12
+ * WMI_ROAM_TRIGGER_REASON_BSS_LOAD - 12
+ * WMI_ROAM_TRIGGER_REASON_MAX - 13
  *
  * For Ex: 0xDA (PER, LOW_RSSI, HIGH_RSSI, MAWC, DENSE)
  *
@@ -2266,7 +2267,7 @@ enum hdd_dot11_mode {
 #define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_NAME "roam_trigger_reason_bitmask"
 #define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_MIN     (0)
 #define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_MAX     (0xFFFFFFFF)
-#define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_DEFAULT (0xDA)
+#define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_DEFAULT (0x10DA)
 
 /*
  * <ini>
@@ -15172,7 +15173,51 @@ enum hdd_external_acs_policy {
 #define CFG_ACTION_OUI_CONNECT_1X1_WITH_1_CHAIN_NAME    "gActionOUIConnect1x1with1TxRxChain"
 #define CFG_ACTION_OUI_CONNECT_1X1_WITH_1_CHAIN_DEFAULT "001018 06 02FFF0040000 BC 21 40 001018 06 02FFF0050000 BC 21 40 001018 06 02FFF4050000 BC 21 40"
 
- /* End of action oui inis */
+/*
+ * <ini>
+ * gActionOUIDisableAggressiveTX - Used to specify action OUIs to disable
+ * Aggressive TX feature when operating in softap.
+ *
+ * @Default:
+ * Note: User should strictly add new action OUIs at the end of this
+ * default value.
+ *
+ * Default OUIs:
+ *
+ * OUI 1 : FFFFFF
+ *   OUI data Len : 00
+ *   OUI Data: No data
+ *   OUI data Mask: No data mask
+ *   Info Mask:  2A - Check for mac-addr, HT capability and Band
+ *   Mac-addr: F8:59:71:00:00:00 - first 3 bytes
+ *   Mac-mask: E0 - Match only first 3 bytes of peer mac-addr
+ *   Capabilities: 50 – HT should be enabled, and band should be 2.4GHz
+ *
+ * OUI 2 : FFFFFF
+ *   OUI data Len : 00
+ *   OUI Data: No data
+ *   OUI data Mask: No data mask
+ *   Info Mask:  2A - Check for mac-addr, HT capability and Band
+ *   Mac-addr: 14:AB:C5:00:00:00 - first 3 bytes
+ *   Mac-mask: E0 - Match only first 3 bytes of peer mac-addr
+ *   Capabilities: 50 – HT should be enabled, and band should be 2.4GHz
+ *
+ * When operating in Softap mode, this ini is used to specify
+ * STA (peer) OUIs/mac-addr for which aggressive tx is disabled after
+ * association is successful.
+ *
+ * Related: gEnableActionOUI
+ *
+ * Supported Feature: Action OUIs
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ACTION_OUI_DISABLE_AGGRESSIVE_TX_NAME "gActionOUIDisableAggressiveTX"
+#define CFG_ACTION_OUI_DISABLE_AGGRESSIVE_TX_DEFAULT "FFFFFF 00 2A F85971000000 E0 50 FFFFFF 00 2A 14ABC5000000 E0 50"
+
+/* End of action oui inis */
 
 
 /*
@@ -15599,6 +15644,270 @@ enum hdd_external_acs_policy {
 #define CFG_DERIVED_INTERFACE_POOL_MIN     (0)
 #define CFG_DERIVED_INTERFACE_POOL_MAX     (0xffffffff)
 #define CFG_DERIVED_INTERFACE_POOL_DEFAULT (0xffffffff)
+
+/*
+ * <ini>
+ * gEnablePeerUnmapConfSupport - Set PEER UNMAP confirmation support
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable or disable peer unmap confirmation support
+ * in Host. Host sends this support to FW only if FW support is enabled.
+ *
+ *
+ * Supported Feature: STA/SAP/P2P
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_PEER_UNMAP_CONF_NAME    "gEnablePeerUnmapConfSupport"
+#define CFG_ENABLE_PEER_UNMAP_CONF_MIN     (0)
+#define CFG_ENABLE_PEER_UNMAP_CONF_MAX     (1)
+#define CFG_ENABLE_PEER_UNMAP_CONF_DEFAULT (0)
+
+/*
+ * <ini>
+ * roam_score_delta - Percentage increment in roam score value
+ * that is expected from a roaming candidate AP.
+ * @Min: 0
+ * @Max: 100
+ * @Default: 0
+ *
+ * This ini is used to provide the percentage increment value over roam
+ * score for the candidate APs so that they can be preferred over current
+ * AP for roaming.
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ROAM_SCORE_DELTA           "roam_score_delta"
+
+#define CFG_ROAM_SCORE_DELTA_DEFAULT    0
+#define CFG_ROAM_SCORE_DELTA_MIN        100
+#define CFG_ROAM_SCORE_DELTA_MAX        0
+
+/*
+ * <ini>
+ * roam_score_delta_bitmap - bitmap to enable roam triggers on
+ * which roam score delta is to be applied during roam candidate
+ * selection
+ * @Min: 0
+ * @Max: 0xffffffff
+ * @Default: 0xffffffff
+ *
+ * Bitmap value of the following roam triggers:
+ * ROAM_TRIGGER_REASON_NONE       - B0,
+ * ROAM_TRIGGER_REASON_PER        - B1,
+ * ROAM_TRIGGER_REASON_BMISS      - B2,
+ * ROAM_TRIGGER_REASON_LOW_RSSI   - B3,
+ * ROAM_TRIGGER_REASON_HIGH_RSSI  - B4,
+ * ROAM_TRIGGER_REASON_PERIODIC   - B5,
+ * ROAM_TRIGGER_REASON_MAWC       - B6,
+ * ROAM_TRIGGER_REASON_DENSE      - B7,
+ * ROAM_TRIGGER_REASON_BACKGROUND - B8,
+ * ROAM_TRIGGER_REASON_FORCED     - B9,
+ * ROAM_TRIGGER_REASON_BTM        - B10,
+ * ROAM_TRIGGER_REASON_UNIT_TEST  - B11,
+ * ROAM_TRIGGER_REASON_BSS_LOAD   - B12
+ *
+ * When the bit corresponding to a particular roam trigger reason
+ * is set, the value of "roam_score_delta" is expected over the
+ * roam score of the current connected AP, for that triggered roam
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ROAM_TRIGGER_DELTA_BITMAP           "roam_score_delta_bitmap"
+
+#define CFG_ROAM_TRIGGER_DELTA_BITMAP_DEFAULT    0xffffffff
+#define CFG_ROAM_TRIGGER_DELTA_BITMAP_MIN        0
+#define CFG_ROAM_TRIGGER_DELTA_BITMAP_MAX        0xffffffff
+
+/*
+ * <ini>
+ * prefer_btm_query - Prefer btm query over 11k neighbor report
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable the STA to send BTM query instead of
+ * 11k neighbor report.
+ * Enabling this flag also will Set the bit 8 of btm_offload_config
+ * which will be sent to firmware
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ </ini>
+ */
+#define CFG_PREFER_BTM_QUERY		"prefer_btm_query"
+
+#define CFG_PREFER_BTM_QUERY_DEFAULT    1
+#define CFG_PREFER_BTM_QUERY_MIN        0
+#define CFG_PREFER_BTM_QUERY_MAX        1
+
+#define BTM_OFFLOAD_CONFIG_BIT_8    8
+#define BTM_OFFLOAD_CONFIG_BIT_7    7
+
+/*
+ * <ini>
+ * prefer_roam_score_for_candidate_selection - choose to sort the candidates on
+ * roam score or prefered AP
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable the the firmware to sort the candidates
+ * based on the roam score rather than selecting preferred APs.
+ * Enabling this flag also will Set the bit 7 of btm_offload_config
+ * which will be sent to firmware
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_BTM_ABRIDGE  "prefer_roam_score_for_candidate_selection"
+
+#define CFG_ENABLE_BTM_ABRIDGE_DEFAULT    1
+#define CFG_ENABLE_BTM_ABRIDGE_MIN        0
+#define CFG_ENABLE_BTM_ABRIDGE_MAX        1
+
+/*
+ * <ini>
+ * roam_candidate_validity_timer - roam cache entries validity timer
+ * @Min: 0
+ * @Max: 0xffffffff
+ * @Default: 0xffffffff
+ *
+ * This value is the timeout values for the cached roam candidate
+ * entries in firmware. If this value is 0, then that entry is not
+ * valid
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_BTM_VALIDITY_TIMER    "roam_candidate_validity_timer"
+
+#define CFG_BTM_VALIDITY_TIMER_DEFAULT    0xffffffff
+#define CFG_BTM_VALIDITY_TIMER_MIN        0
+#define CFG_BTM_VALIDITY_TIMER_MAX        0xffffffff
+
+/*
+ * <ini>
+ * btm_disassoc_timer_threshold - Disassociation timer threshold to wait
+ * after which the full scan for roaming can be started after the AP has sent
+ * the disassoc imminent
+ * @Min: 0
+ * @Max: 0xffffffff
+ * @Default: 0
+ *
+ * When AP sends, BTM request with disassoc imminent bit set, the STA should
+ * roam to a new AP within the disassc timeout provided by the ap. If the Roam
+ * scan period is less than the disassoc timeout value, then instead of
+ * triggering the roam scan immediately, STA can wait for this
+ * btm_disassoc_timer_threshold and then start roaming.
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_BTM_DISASSOC_TIMER_THRESHOLD "btm_disassoc_timer_threshold"
+
+#define CFG_BTM_DISASSOC_TIMER_THRESHOLD_DEFAULT    0
+#define CFG_BTM_DISASSOC_TIMER_THRESHOLD_MIN        0
+#define CFG_BTM_DISASSOC_TIMER_THRESHOLD_MAX        0xffffffff
+
+/*
+ * <ini>
+ * enable_bss_load_roam_trigger - enable/disable bss load based roam trigger
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini when enabled, allows the firmware to roam when bss load outpaces
+ * the configured bss load threshold. When this ini is disabled, firmware
+ * doesn't consider bss load values to trigger roam.
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_BSS_LOAD_TRIGGERED_ROAM  "enable_bss_load_roam_trigger"
+
+#define CFG_ENABLE_BSS_LOAD_TRIGGERED_ROAM_DEFAULT    0
+#define CFG_ENABLE_BSS_LOAD_TRIGGERED_ROAM_MIN        0
+#define CFG_ENABLE_BSS_LOAD_TRIGGERED_ROAM_MAX        1
+
+/*
+ * <ini>
+ * bss_load_threshold - bss load above which the STA should trigger roaming
+ * @Min: 0
+ * @Max: 100
+ * @Default: 70
+ *
+ * When the bss laod value that is sampled exceeds this threshold, firmware
+ * will trigger roaming if bss load trigger is enabled.
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_BSS_LOAD_THRESHOLD "bss_load_threshold"
+
+#define CFG_BSS_LOAD_THRESHOLD_DEFAULT    70
+#define CFG_BSS_LOAD_THRESHOLD_MIN        0
+#define CFG_BSS_LOAD_THRESHOLD_MAX        100
+
+ /*
+ * <ini>
+ * bss_load_sample_time - Time in milliseconds for which the bss load values
+ * obtained from the beacons is sampled.
+ * @Min: 0
+ * @Max: 0xffffffff
+ * @Default: 10000
+ *
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define  CFG_BSS_LOAD_SAMPLE_TIME    "bss_load_sample_time"
+
+#define CFG_BSS_LOAD_SAMPLE_TIME_DEFAULT    10000
+#define CFG_BSS_LOAD_SAMPLE_TIME_MIN        0
+#define CFG_BSS_LOAD_SAMPLE_TIME_MAX        0xffffffff
 
 /*
  * Type declarations
@@ -16545,6 +16854,17 @@ struct hdd_config {
 	bool mac_provision;
 	uint32_t provisioned_intf_pool;
 	uint32_t derived_intf_pool;
+	bool enable_peer_unmap_conf_support;
+
+	uint32_t roam_score_delta;
+	uint32_t roam_score_delta_bitmap;
+	bool prefer_btm_query;
+	bool btm_abridge_config;
+	uint32_t btm_validity_timer;
+	uint32_t btm_disassoc_timer_threshold;
+	bool enable_bss_load_roam_trigger;
+	uint32_t bss_load_threshold;
+	uint32_t bss_load_sample_time;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

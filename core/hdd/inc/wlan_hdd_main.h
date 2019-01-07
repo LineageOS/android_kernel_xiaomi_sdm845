@@ -2002,6 +2002,8 @@ struct hdd_context {
 #endif
 	struct hdd_dynamic_mac dynamic_mac_list[QDF_MAX_CONCURRENCY_PERSONA];
 	bool dynamic_nss_chains_support;
+	/* Completion variable to indicate that all pdev cmds are flushed */
+	struct completion pdev_cmd_flushed_var;
 
 	struct qdf_mac_addr hw_macaddr;
 	struct qdf_mac_addr provisioned_mac_addr[QDF_MAX_CONCURRENCY_PERSONA];
@@ -2155,6 +2157,20 @@ struct hdd_adapter *hdd_get_adapter_by_vdev(struct hdd_context *hdd_ctx,
 				       uint32_t vdev_id);
 struct hdd_adapter *hdd_get_adapter_by_macaddr(struct hdd_context *hdd_ctx,
 					  tSirMacAddr macAddr);
+
+/*
+ * hdd_get_adapter_by_rand_macaddr() - find Random mac adapter
+ * @hdd_ctx: hdd context
+ * @mac_addr: random mac addr
+ *
+ * Find the Adapter based on random mac addr. Adapter's vdev
+ * have active random mac list.
+ *
+ * Return: adapter ptr or null
+ */
+struct hdd_adapter *
+hdd_get_adapter_by_rand_macaddr(struct hdd_context *hdd_ctx,
+				tSirMacAddr mac_addr);
 
 int hdd_vdev_create(struct hdd_adapter *adapter,
 		    csr_roam_complete_cb callback, void *ctx);

@@ -367,13 +367,15 @@ QDF_STATUS sme_ser_cmd_callback(void *buf,
 				enum wlan_serialization_cb_reason reason);
 
 /**
- * sme_purge_pdev_all_ser_cmd_list() - purge all scan and non-scan
+ * sme_purge_pdev_all_ser_cmd_list_sync() - purge all scan and non-scan
  * active and pending cmds for pdev
  * @mac_handle: pointer to global MAC context
+ * @cb: callback to hdd
  *
- * Return : none
+ * Return : QDF_STATUS
  */
-void sme_purge_pdev_all_ser_cmd_list(mac_handle_t mac_handle);
+QDF_STATUS sme_purge_pdev_all_ser_cmd_list_sync(mac_handle_t mac_handle,
+						sir_purge_pdev_cmd_cb cb);
 
 /*
  * sme_process_msg() - The main message processor for SME.
@@ -1667,6 +1669,22 @@ QDF_STATUS sme_update_new_channel_event(tHalHandle hal, uint8_t session_id);
 QDF_STATUS sme_power_debug_stats_req(tHalHandle hal, void (*callback_fn)
 				(struct  power_stats_response *response,
 				void *context), void *power_stats_context);
+#endif
+
+#ifdef WLAN_FEATURE_BEACON_RECEPTION_STATS
+/**
+ * sme_beacon_debug_stats_req() - SME API to collect beacon debug stats
+ * @vdev_id: Vdev id on which stats is being requested
+ * @callback_fn: Pointer to the callback function for beacon stats event
+ * @beacon_stats_context: Pointer to context
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_beacon_debug_stats_req(
+		mac_handle_t mac_handle, uint32_t vdev_id,
+		void (*callback_fn)(struct bcn_reception_stats_rsp
+				    *response, void *context),
+		void *beacon_stats_context);
 #endif
 
 /**

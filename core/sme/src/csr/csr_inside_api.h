@@ -302,6 +302,15 @@ QDF_STATUS csr_roam_save_connected_information(tpAniSirGlobal pMac,
 					      struct csr_roam_profile *pProfile,
 					      tSirBssDescription *pSirBssDesc,
 					      tDot11fBeaconIEs *pIes);
+/**
+ * csr_purge_pdev_all_ser_cmd_list_sync() - purge pdev cmnds and call cb to HDD
+ * @mac_ctx: pointer to pmac
+ * @req: purge req
+ *
+ * Return: void
+ */
+void csr_purge_pdev_all_ser_cmd_list_sync(tpAniSirGlobal mac,
+					  struct sir_purge_pdev_cmd_req *req);
 void csr_roam_check_for_link_status_change(tpAniSirGlobal pMac,
 					tSirSmeRsp *pSirMsg);
 

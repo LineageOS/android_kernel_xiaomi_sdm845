@@ -2496,6 +2496,21 @@ struct sir_sme_mgmt_frame_cb_req {
 	sir_mgmt_frame_ind_callback callback;
 };
 
+typedef void (*sir_purge_pdev_cmd_cb)(hdd_handle_t hdd_ctx);
+/**
+ * struct sir_purge_pdev_cmd_req - Register a
+ * management frame callback req
+ *
+ * @message_type: message id
+ * @length: msg length
+ * @purge_complete_cb: callback for pdev purge cmd complete
+ */
+struct sir_purge_pdev_cmd_req {
+	uint16_t message_type;
+	uint16_t length;
+	sir_purge_pdev_cmd_cb purge_complete_cb;
+};
+
 #ifdef WLAN_FEATURE_11W
 typedef struct sSirSmeUnprotMgmtFrameInd {
 	uint8_t sessionId;
@@ -2784,6 +2799,8 @@ struct sir_score_config {
 	uint32_t bandwidth_weight_per_index;
 	uint32_t nss_weight_per_index;
 	uint32_t band_weight_per_index;
+	uint32_t roam_score_delta;
+	uint32_t roam_score_delta_bitmap;
 };
 
 /**
@@ -2904,11 +2921,16 @@ typedef struct sSirRoamOffloadScanReq {
 	uint32_t btm_solicited_timeout;
 	uint32_t btm_max_attempt_cnt;
 	uint32_t btm_sticky_time;
+	uint32_t rct_validity_timer;
+	uint32_t disassoc_timer_threshold;
 	struct wmi_11k_offload_params offload_11k_params;
 	uint32_t ho_delay_for_rx;
 	uint32_t min_delay_btw_roam_scans;
 	uint32_t roam_trigger_reason_bitmask;
 	bool roam_force_rssi_trigger;
+	/* bss load triggered roam related params */
+	bool bss_load_trig_enabled;
+	struct wmi_bss_load_config bss_load_config;
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {
@@ -4474,6 +4496,26 @@ struct power_stats_response {
 	uint32_t debug_register_fmt;
 	uint32_t num_debug_register;
 	uint32_t *debug_registers;
+};
+#endif
+
+#ifdef WLAN_FEATURE_BEACON_RECEPTION_STATS
+#define MAX_BCNMISS_BITMAP 8
+/**
+ * struct bcn_reception_stats_rsp - beacon stats response
+ * @total_bcn_cnt: total beacon count (tbtt instances)
+ * @total_bmiss_cnt: Total beacon miss count in last 255 beacons, max 255
+ * @bmiss_bitmap: This bitmap indicates the status of the last 255 beacons.
+ * If a bit is set, that means the corresponding beacon was missed.
+ * Bit 0 of bmiss_bitmap[0] represents the most recent beacon.
+ * The total_bcn_cnt field indicates how many bits within bmiss_bitmap
+ * are valid.
+ */
+struct bcn_reception_stats_rsp {
+	uint32_t vdev_id;
+	uint32_t total_bcn_cnt;
+	uint32_t total_bmiss_cnt;
+	uint32_t bmiss_bitmap[MAX_BCNMISS_BITMAP];
 };
 #endif
 

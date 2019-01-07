@@ -169,6 +169,7 @@ struct cds_config_info {
 	uint8_t bandcapability;
 	bool rps_enabled;
 	uint8_t delay_before_vdev_stop;
+	bool enable_peer_unmap_conf_support;
 };
 
 #ifdef WLAN_FEATURE_FILS_SK

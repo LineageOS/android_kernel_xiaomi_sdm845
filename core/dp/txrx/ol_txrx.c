@@ -96,6 +96,7 @@ enum dpt_set_param_debugfs {
 	DPT_SET_PARAM_PROTO_BITMAP = 1,
 	DPT_SET_PARAM_NR_RECORDS = 2,
 	DPT_SET_PARAM_VERBOSITY = 3,
+	DPT_SET_PARAM_NUM_RECORDS_TO_DUMP = 4,
 	DPT_SET_PARAM_MAX,
 };
 
@@ -1279,7 +1280,8 @@ static QDF_STATUS ol_txrx_read_dpt_buff_debugfs(qdf_debugfs_file_t file,
 static int ol_txrx_conv_str_to_int_debugfs(char *buf, qdf_size_t len,
 					   int *proto_bitmap,
 					   int *nr_records,
-					   int *verbosity)
+					   int *verbosity,
+					   int *num_records_to_dump)
 {
 	int num_value = DPT_SET_PARAM_PROTO_BITMAP;
 	int ret, param_value = 0;
@@ -1324,9 +1326,14 @@ static int ol_txrx_conv_str_to_int_debugfs(char *buf, qdf_size_t len,
 		case DPT_SET_PARAM_VERBOSITY:
 			*verbosity = param_value;
 			break;
+		case DPT_SET_PARAM_NUM_RECORDS_TO_DUMP:
+			if (param_value > MAX_QDF_DP_TRACE_RECORDS)
+				param_value = MAX_QDF_DP_TRACE_RECORDS;
+			*num_records_to_dump = param_value;
+			break;
 		default:
 			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-				  "%s %d: :Set command needs exactly 3 arguments in format <proto_bitmap> <number of record> <Verbosity>.",
+				  "%s %d: :Set command needs exactly 4 arguments in format <proto_bitmap> <number of record> <Verbosity> <number of records to dump>.",
 				__func__, __LINE__);
 			break;
 		}
@@ -1335,10 +1342,10 @@ static int ol_txrx_conv_str_to_int_debugfs(char *buf, qdf_size_t len,
 		buf_param = buf;
 	}
 
-	/* buf is not yet NULL implies more than 3 params are passed. */
+	/* buf is not yet NULL implies more than 4 params are passed. */
 	if (*buf) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-			  "%s %d: :Set command needs exactly 3 arguments in format <proto_bitmap> <number of record> <Verbosity>.",
+			  "%s %d: :Set command needs exactly 4 arguments in format <proto_bitmap> <number of record> <Verbosity> <number of records to dump>.",
 			__func__, __LINE__);
 		return -EINVAL;
 	}
@@ -1361,6 +1368,7 @@ static QDF_STATUS ol_txrx_write_dpt_buff_debugfs(void *priv,
 	int proto_bitmap = 0;
 	int nr_records = 0;
 	int verbosity = 0;
+	int num_records_to_dump = 0;
 	char *buf1 = NULL;
 
 	if (!buf || !len) {
@@ -1379,13 +1387,15 @@ static QDF_STATUS ol_txrx_write_dpt_buff_debugfs(void *priv,
 	}
 	qdf_mem_copy(buf1, buf, len);
 	ret = ol_txrx_conv_str_to_int_debugfs(buf1, len, &proto_bitmap,
-					      &nr_records, &verbosity);
+					      &nr_records, &verbosity,
+					      &num_records_to_dump);
 	if (ret) {
 		qdf_mem_free(buf1);
 		return QDF_STATUS_E_INVAL;
 	}
 
-	qdf_dpt_set_value_debugfs(proto_bitmap, nr_records, verbosity);
+	qdf_dpt_set_value_debugfs(proto_bitmap, nr_records, verbosity,
+				  num_records_to_dump);
 	qdf_mem_free(buf1);
 	return QDF_STATUS_SUCCESS;
 }
@@ -1653,6 +1663,11 @@ ol_txrx_pdev_post_attach(struct cdp_pdev *ppdev)
 	ol_tx_desc_dup_detect_init(pdev, desc_pool_size);
 
 	ol_tx_setup_fastpath_ce_handles(osc, pdev);
+
+	if ((ol_txrx_get_new_htt_msg_format(pdev)))
+		ol_set_cfg_new_htt_format(pdev->ctrl_pdev, true);
+	else
+		ol_set_cfg_new_htt_format(pdev->ctrl_pdev, false);
 
 	ret = htt_attach(pdev->htt_pdev, desc_pool_size);
 	if (ret)
@@ -2851,6 +2866,7 @@ ol_txrx_peer_attach(struct cdp_vdev *pvdev, uint8_t *peer_mac_addr)
 	struct ol_txrx_pdev_t *pdev;
 	bool cmp_wait_mac = false;
 	uint8_t zero_mac_addr[QDF_MAC_ADDR_SIZE] = { 0, 0, 0, 0, 0, 0 };
+	u8 check_valid = 0;
 
 	/* preconditions */
 	TXRX_ASSERT2(vdev);
@@ -2858,6 +2874,9 @@ ol_txrx_peer_attach(struct cdp_vdev *pvdev, uint8_t *peer_mac_addr)
 
 	pdev = vdev->pdev;
 	TXRX_ASSERT2(pdev);
+
+	if (pdev->enable_peer_unmap_conf_support)
+		check_valid = 1;
 
 	if (qdf_mem_cmp(&zero_mac_addr, &vdev->last_peer_mac_addr,
 				QDF_MAC_ADDR_SIZE))
@@ -2867,7 +2886,8 @@ ol_txrx_peer_attach(struct cdp_vdev *pvdev, uint8_t *peer_mac_addr)
 	/* check for duplicate existing peer */
 	TAILQ_FOREACH(temp_peer, &vdev->peer_list, peer_list_elem) {
 		if (!ol_txrx_peer_find_mac_addr_cmp(&temp_peer->mac_addr,
-			(union ol_txrx_align_mac_addr_t *)peer_mac_addr)) {
+			(union ol_txrx_align_mac_addr_t *)peer_mac_addr) &&
+			(check_valid == 0 || temp_peer->valid)) {
 			ol_txrx_info_high(
 				"vdev_id %d (%02x:%02x:%02x:%02x:%02x:%02x) already exists.\n",
 				vdev->vdev_id,
@@ -2886,7 +2906,9 @@ ol_txrx_peer_attach(struct cdp_vdev *pvdev, uint8_t *peer_mac_addr)
 		}
 		if (cmp_wait_mac && !ol_txrx_peer_find_mac_addr_cmp(
 					&temp_peer->mac_addr,
-					&vdev->last_peer_mac_addr)) {
+					&vdev->last_peer_mac_addr) &&
+					(check_valid == 0 ||
+					 temp_peer->valid)) {
 			ol_txrx_info_high(
 				"vdev_id %d (%02x:%02x:%02x:%02x:%02x:%02x) old peer exists.\n",
 				vdev->vdev_id,
@@ -2958,6 +2980,10 @@ ol_txrx_peer_attach(struct cdp_vdev *pvdev, uint8_t *peer_mac_addr)
 	/* initialize the peer_id */
 	for (i = 0; i < MAX_NUM_PEER_ID_PER_PEER; i++)
 		peer->peer_ids[i] = HTT_INVALID_PEER;
+
+	if (pdev->enable_peer_unmap_conf_support)
+		for (i = 0; i < MAX_NUM_PEER_ID_PER_PEER; i++)
+			peer->map_unmap_peer_ids[i] = HTT_INVALID_PEER;
 
 	qdf_spinlock_create(&peer->peer_info_lock);
 	qdf_spinlock_create(&peer->bufq_info.bufq_lock);
@@ -3588,6 +3614,45 @@ ol_txrx_peer_qoscapable_get(struct ol_txrx_pdev_t *txrx_pdev, uint16_t peer_id)
 }
 
 /**
+ * ol_txrx_send_peer_unmap_conf() - send peer unmap conf cmd to FW
+ * @pdev: pdev_handle
+ * @peer: peer_handle
+ *
+ * Return: None
+ */
+static inline void
+ol_txrx_send_peer_unmap_conf(ol_txrx_pdev_handle pdev,
+			     ol_txrx_peer_handle peer)
+{
+	int i;
+	int peer_cnt = 0;
+	uint16_t peer_ids[MAX_NUM_PEER_ID_PER_PEER];
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+
+	qdf_spin_lock_bh(&pdev->peer_map_unmap_lock);
+
+	for (i = 0; i < MAX_NUM_PEER_ID_PER_PEER &&
+	     peer_cnt < MAX_NUM_PEER_ID_PER_PEER; i++) {
+		if (peer->map_unmap_peer_ids[i] == HTT_INVALID_PEER)
+			continue;
+		peer_ids[peer_cnt++] = peer->map_unmap_peer_ids[i];
+		peer->map_unmap_peer_ids[i] = HTT_INVALID_PEER;
+	}
+
+	qdf_spin_unlock_bh(&pdev->peer_map_unmap_lock);
+
+	if (peer->peer_unmap_sync_cb && peer_cnt) {
+		ol_txrx_dbg("send unmap conf cmd [%d]", peer_cnt);
+		status = peer->peer_unmap_sync_cb(
+				DEBUG_INVALID_VDEV_ID,
+				peer_cnt, peer_ids);
+		if (status != QDF_STATUS_SUCCESS)
+			ol_txrx_err("unable to send unmap conf cmd [%d]",
+				    peer_cnt);
+	}
+}
+
+/**
  * ol_txrx_peer_free_tids() - free tids for the peer
  * @peer: peer handle
  *
@@ -3805,6 +3870,10 @@ int ol_txrx_peer_release_ref(ol_txrx_peer_handle peer,
 
 		ol_txrx_peer_tx_queue_free(pdev, peer);
 
+		/* send peer unmap conf cmd to fw for unmapped peer_ids */
+		if (pdev->enable_peer_unmap_conf_support)
+			ol_txrx_send_peer_unmap_conf(pdev, peer);
+
 		/* Remove mappings from peer_id to peer object */
 		ol_txrx_peer_clear_map_peer(pdev, peer);
 
@@ -3814,6 +3883,10 @@ int ol_txrx_peer_release_ref(ol_txrx_peer_handle peer,
 		ol_txrx_peer_free_tids(peer);
 
 		ol_txrx_dump_peer_access_list(peer);
+
+		if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam() &&
+		    pdev->self_peer == peer)
+			pdev->self_peer = NULL;
 
 		qdf_mem_free(peer);
 	} else {
@@ -4030,6 +4103,28 @@ static void ol_txrx_peer_detach_force_delete(void *ppeer)
 	/* Clear the peer_id_to_obj map entries */
 	ol_txrx_peer_remove_obj_map_entries(pdev, peer);
 	ol_txrx_peer_detach(peer, 1 << CDP_PEER_DELETE_NO_SPECIAL);
+}
+
+/**
+ * ol_txrx_peer_detach_sync() - peer detach sync callback
+ * @ppeer - the peer object
+ * @peer_unmap_sync - peer unmap sync cb.
+ * @bitmap - bitmap indicating special handling of request.
+ *
+ *
+ * Return: None
+ */
+static void ol_txrx_peer_detach_sync(void *ppeer,
+				     ol_txrx_peer_unmap_sync_cb peer_unmap_sync,
+				     uint32_t bitmap)
+{
+	ol_txrx_peer_handle peer = ppeer;
+
+	ol_txrx_info_high("%s peer %pK, peer->ref_cnt %d", __func__,
+			  peer, qdf_atomic_read(&peer->ref_cnt));
+
+	peer->peer_unmap_sync_cb = peer_unmap_sync;
+	ol_txrx_peer_detach(peer, bitmap);
 }
 
 /**
@@ -6339,6 +6434,7 @@ static struct cdp_cmn_ops ol_ops_cmn = {
 	.txrx_peer_setup = NULL,
 	.txrx_peer_teardown = NULL,
 	.txrx_peer_delete = ol_txrx_peer_detach,
+	.txrx_peer_delete_sync = ol_txrx_peer_detach_sync,
 	.txrx_vdev_register = ol_txrx_vdev_register,
 	.txrx_soc_detach = ol_txrx_soc_detach,
 	.txrx_get_vdev_mac_addr = ol_txrx_get_vdev_mac_addr,
@@ -6476,6 +6572,8 @@ static struct cdp_cfg_ops ol_ops_cfg = {
 	.set_ptp_rx_opt_enabled = ol_set_cfg_ptp_rx_opt_enabled,
 	.set_new_htt_msg_format =
 		ol_txrx_set_new_htt_msg_format,
+	.set_peer_unmap_conf_support = ol_txrx_set_peer_unmap_conf_support,
+	.get_peer_unmap_conf_support = ol_txrx_get_peer_unmap_conf_support,
 };
 
 static struct cdp_peer_ops ol_ops_peer = {
@@ -6616,4 +6714,26 @@ void ol_txrx_set_new_htt_msg_format(uint8_t val)
 		return;
 	}
 	pdev->new_htt_msg_format = val;
+}
+
+bool ol_txrx_get_peer_unmap_conf_support(void)
+{
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (!pdev) {
+		qdf_print("%s: pdev is NULL\n", __func__);
+		return false;
+	}
+	return pdev->enable_peer_unmap_conf_support;
+}
+
+void ol_txrx_set_peer_unmap_conf_support(bool val)
+{
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (!pdev) {
+		qdf_print("%s: pdev is NULL\n", __func__);
+		return;
+	}
+	pdev->enable_peer_unmap_conf_support = val;
 }

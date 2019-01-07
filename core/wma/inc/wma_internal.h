@@ -349,6 +349,9 @@ int wma_passpoint_match_event_handler(void *handle,
 
 #endif
 
+int wma_handle_btm_blacklist_event(void *handle, uint8_t *cmd_param_info,
+				   uint32_t len);
+
 #ifdef FEATURE_WLAN_EXTSCAN
 int wma_extscan_wow_event_callback(void *handle, void *event, uint32_t len);
 
@@ -1154,6 +1157,17 @@ void wma_lost_link_info_handler(tp_wma_handle wma, uint32_t vdev_id,
 				int32_t rssi);
 int wma_unified_power_debug_stats_event_handler(void *handle,
 			uint8_t *cmd_param_info, uint32_t len);
+/**
+ * wma_unified_beacon_debug_stats_event_handler() - collect beacon debug stats
+ * @handle: WMA handle
+ * @cmd_param_info: data from event
+ * @len: length
+ *
+ * Return: 0 for success or error code
+ */
+int wma_unified_beacon_debug_stats_event_handler(void *handle,
+						 uint8_t *cmd_param_info,
+						 uint32_t len);
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 /**

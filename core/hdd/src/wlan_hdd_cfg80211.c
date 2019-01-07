@@ -3009,6 +3009,10 @@ __wlan_hdd_cfg80211_get_supported_features(struct wiphy *wiphy,
 	if (hdd_scan_random_mac_addr_supported())
 		fset |= WIFI_FEATURE_SCAN_RAND;
 
+	if (hdd_ctx->config->wlm_latency_enable &&
+	    sme_is_feature_supported_by_fw(VDEV_LATENCY_CONFIG)) {
+		fset |= WIFI_FEATURE_SET_LATENCY_MODE;
+	}
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, sizeof(fset) +
 						  NLMSG_HDRLEN);
 	if (!skb) {
@@ -15040,6 +15044,30 @@ static void wlan_hdd_cfg80211_scan_randomization_init(struct wiphy *wiphy)
 
 #define WLAN_HDD_MAX_NUM_CSA_COUNTERS 2
 
+#if defined(CFG80211_RAND_TA_FOR_PUBLIC_ACTION_FRAME) || \
+		(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+/**
+ * wlan_hdd_cfg80211_action_frame_randomization_init() - Randomize SA of MA
+ * frames
+ * @wiphy: Pointer to wiphy
+ *
+ * This function is used to indicate the support of source mac address
+ * randomization of management action frames
+ *
+ * Return: None
+ */
+static void
+wlan_hdd_cfg80211_action_frame_randomization_init(struct wiphy *wiphy)
+{
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA);
+}
+#else
+static void
+wlan_hdd_cfg80211_action_frame_randomization_init(struct wiphy *wiphy)
+{
+}
+#endif
+
 #if defined(WLAN_FEATURE_FILS_SK) && \
 	(defined(CFG80211_FILS_SK_OFFLOAD_SUPPORT) || \
 		 (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)))
@@ -15449,6 +15477,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 	wiphy->max_num_csa_counters = WLAN_HDD_MAX_NUM_CSA_COUNTERS;
 	if (pCfg->enable_mac_spoofing)
 		wlan_hdd_cfg80211_scan_randomization_init(wiphy);
+	wlan_hdd_cfg80211_action_frame_randomization_init(wiphy);
 
 	hdd_exit();
 	return 0;
@@ -15624,6 +15653,10 @@ int wlan_hdd_cfg80211_register_frames(struct hdd_adapter *adapter)
 	QDF_STATUS status;
 
 	hdd_enter();
+	if (adapter->device_mode == QDF_FTM_MODE) {
+		hdd_info("No need to register frames in FTM mode");
+		return 0;
+	}
 
 	/* Register frame indication call back */
 	status = sme_register_mgmt_frame_ind_callback(mac_handle,
@@ -16139,12 +16172,6 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 	/* Reset the current device mode bit mask */
 	policy_mgr_clear_concurrency_mode(hdd_ctx->psoc,
 		adapter->device_mode);
-
-	if (!(adapter->device_mode == QDF_P2P_DEVICE_MODE &&
-	    type == NL80211_IFTYPE_STATION)) {
-		hdd_debug("Teardown tdls links and disable tdls in FW as new interface is coming up");
-		hdd_notify_teardown_tdls_links(adapter->vdev);
-	}
 
 	if ((adapter->device_mode == QDF_STA_MODE) ||
 	    (adapter->device_mode == QDF_P2P_CLIENT_MODE) ||

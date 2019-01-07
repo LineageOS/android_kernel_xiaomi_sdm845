@@ -616,6 +616,11 @@ struct csr_config {
 	struct csr_neighbor_report_offload_params neighbor_report_offload;
 	bool enable_ftopen;
 	bool roam_force_rssi_trigger;
+	uint32_t btm_validity_timer;
+	uint32_t btm_disassoc_timer_threshold;
+	bool enable_bss_load_roam_trigger;
+	uint32_t bss_load_threshold;
+	uint32_t bss_load_sample_time;
 };
 
 struct csr_channel_powerinfo {
@@ -1418,17 +1423,6 @@ void csr_purge_vdev_pending_ser_cmd_list(struct sAniSirGlobal *mac_ctx,
  */
 void csr_purge_vdev_all_ser_cmd_list(struct sAniSirGlobal *mac_ctx,
 				     uint32_t vdev_id);
-
-/**
- * csr_purge_vdev_all_scan_ser_cmd_list() - purge all scan active and pending
- * cmds for the vdev id
- * @mac_ctx: pointer to global MAC context
- * @vdev_id : vdev id for which cmds need to be purged
- *
- * Return : none
- */
-void csr_purge_vdev_all_scan_ser_cmd_list(struct sAniSirGlobal *mac_ctx,
-					  uint32_t vdev_id);
 
 /**
  * csr_purge_pdev_all_ser_cmd_list() - purge all scan and non-scan

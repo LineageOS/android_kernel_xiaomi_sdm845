@@ -1273,6 +1273,7 @@ typedef struct {
 	bool in_imps;
 	bool dynamic_nss_chains_support;
 	uint8_t  ito_repeat_count;
+	bool enable_peer_unmap_conf_support;
 	qdf_mc_timer_t wma_fw_time_sync_timer;
 	qdf_atomic_t critical_events_in_flight;
 } t_wma_handle, *tp_wma_handle;
@@ -1930,6 +1931,10 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, struct cdp_pdev *pdev,
 			    struct cdp_vdev *vdev, u8 peer_addr[6],
 			   u_int32_t peer_type, u_int8_t vdev_id,
 			   bool roam_synch_in_progress);
+
+QDF_STATUS wma_peer_unmap_conf_cb(uint8_t vdev_id,
+				  uint32_t peer_id_cnt,
+				  uint16_t *peer_id_list);
 
 /**
  * wma_get_cca_stats() - send request to fw to get CCA

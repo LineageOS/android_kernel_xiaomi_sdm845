@@ -86,6 +86,7 @@
 #include <wlan_ipa_ucfg_api.h>
 #include <wlan_cfg80211_mc_cp_stats.h>
 #include <wlan_cp_stats_mc_ucfg_api.h>
+#include "wlan_action_oui_ucfg_api.h"
 
 #define    IS_UP(_dev) \
 	(((_dev)->flags & (IFF_RUNNING|IFF_UP)) == (IFF_RUNNING|IFF_UP))
@@ -1598,6 +1599,63 @@ hdd_stop_sap_due_to_invalid_channel(struct work_struct *work)
 	cds_ssr_unprotect(__func__);
 }
 
+/**
+ * hdd_hostapd_apply_action_oui() - Check for action_ouis to be applied on peers
+ * @hdd_ctx: pointer to hdd context
+ * @adapter: pointer to adapter
+ * @event: assoc complete params
+ *
+ * This function is used to check whether aggressive tx should be disabled
+ * based on the soft-ap configuration and action_oui ini
+ * gActionOUIDisableAggressiveTX
+ *
+ * Return: None
+ */
+static void
+hdd_hostapd_apply_action_oui(struct hdd_context *hdd_ctx,
+			     struct hdd_adapter *adapter,
+			     tSap_StationAssocReassocCompleteEvent *event)
+{
+	bool found;
+	uint32_t freq;
+	tSirMacHTChannelWidth ch_width;
+	enum sir_sme_phy_mode mode;
+	struct action_oui_search_attr attr = {0};
+	QDF_STATUS status;
+
+	ch_width = event->ch_width;
+	if (ch_width != eHT_CHANNEL_WIDTH_20MHZ)
+		return;
+
+	freq = cds_chan_to_freq(event->chan_info.chan_id);
+	if (WLAN_REG_IS_24GHZ_CH_FREQ(freq))
+		attr.enable_2g = true;
+	else if (WLAN_REG_IS_5GHZ_CH_FREQ(freq))
+		attr.enable_5g = true;
+	else
+		return;
+
+	mode = event->mode;
+	if (event->vht_caps.present && mode == SIR_SME_PHY_MODE_VHT)
+		attr.vht_cap = true;
+	else if (event->ht_caps.present && mode == SIR_SME_PHY_MODE_HT)
+		attr.ht_cap = true;
+
+	attr.mac_addr = (uint8_t *)(&event->staMac);
+
+	found = ucfg_action_oui_search(hdd_ctx->psoc,
+				       &attr,
+				       ACTION_OUI_DISABLE_AGGRESSIVE_TX);
+	if (!found)
+		return;
+
+	status = sme_set_peer_param(attr.mac_addr,
+				    WMI_PEER_PARAM_DISABLE_AGGRESSIVE_TX,
+				    true, adapter->session_id);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("Failed to disable aggregation for peer");
+}
+
 QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 				    void *context)
 {
@@ -1690,6 +1748,9 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		       pSapEvent->sapevt.sapStartBssCompleteEvent.
 		       operatingChannel,
 		       pSapEvent->sapevt.sapStartBssCompleteEvent.staId);
+		ap_ctx->operating_channel =
+			pSapEvent->sapevt.sapStartBssCompleteEvent
+			.operatingChannel;
 
 		adapter->session_id =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.sessionId;
@@ -1697,13 +1758,11 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		sap_config->channel =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.
 			operatingChannel;
-
 		sap_config->ch_params.ch_width =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.ch_width;
 
-		wlan_reg_set_channel_params(hdd_ctx->pdev,
-					    sap_config->channel, 0,
-					    &sap_config->ch_params);
+		sap_config->ch_params = ap_ctx->sap_context->ch_params;
+		sap_config->sec_ch = ap_ctx->sap_context->secondary_ch;
 
 		hostapd_state->qdf_status =
 			pSapEvent->sapevt.sapStartBssCompleteEvent.status;
@@ -1778,9 +1837,6 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 		wlan_hdd_auto_shutdown_enable(hdd_ctx, true);
 #endif
-		ap_ctx->operating_channel =
-			pSapEvent->sapevt.sapStartBssCompleteEvent.operatingChannel;
-
 		hdd_hostapd_channel_prevent_suspend(adapter,
 						    ap_ctx->operating_channel);
 
@@ -2068,6 +2124,8 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 				 MAC_ADDR_ARRAY(wrqu.addr.sa_data));
 			break;
 		}
+
+		hdd_hostapd_apply_action_oui(hdd_ctx, adapter, event);
 
 		wrqu.addr.sa_family = ARPHRD_ETHER;
 		memcpy(wrqu.addr.sa_data,
@@ -2880,6 +2938,7 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	struct hdd_context *hdd_ctx;
 	struct hdd_station_ctx *hdd_sta_ctx;
 	struct hdd_adapter *sta_adapter;
+	struct ch_params ch_params;
 	struct hdd_adapter *ap_adapter = wlan_hdd_get_adapter_from_vdev(
 					psoc, vdev_id);
 	if (!ap_adapter) {
@@ -2962,21 +3021,22 @@ sap_restart:
 
 	hdd_info("SAP restart orig chan: %d, new chan: %d",
 		 hdd_ap_ctx->sap_config.channel, intf_ch);
-	hdd_ap_ctx->sap_config.channel = intf_ch;
-	hdd_ap_ctx->sap_config.ch_params.ch_width = CH_WIDTH_MAX;
+	ch_params.ch_width = CH_WIDTH_MAX;
 	hdd_ap_ctx->bss_stop_reason = BSS_STOP_DUE_TO_MCC_SCC_SWITCH;
 
 	wlan_reg_set_channel_params(hdd_ctx->pdev,
-				    hdd_ap_ctx->sap_config.channel,
-				    hdd_ap_ctx->sap_config.sec_ch,
-				    &hdd_ap_ctx->sap_config.ch_params);
-	*channel = hdd_ap_ctx->sap_config.channel;
-	*sec_ch = hdd_ap_ctx->sap_config.sec_ch;
+				    intf_ch,
+				    0,
+				    &ch_params);
+
+	wlansap_get_sec_channel(ch_params.sec_ch_offset, intf_ch, sec_ch);
+
+	*channel = intf_ch;
 
 	hdd_info("SAP channel change with CSA/ECSA");
 	hdd_sap_restart_chan_switch_cb(psoc, vdev_id,
-		hdd_ap_ctx->sap_config.channel,
-		hdd_ap_ctx->sap_config.ch_params.ch_width, false);
+		intf_ch,
+		ch_params.ch_width, false);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -7809,19 +7869,16 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 				goto error;
 			}
 
-			pConfig->ieee80211d = 1;
-			qdf_mem_copy(pConfig->countryCode, &pIe[2], 3);
-			status = ucfg_reg_set_country(hdd_ctx->pdev,
-						      pConfig->countryCode);
-			if (QDF_IS_STATUS_ERROR(status)) {
-				hdd_err("Failed to set country");
+			if (!qdf_mem_cmp(hdd_ctx->reg.alpha2, &pIe[2],
+					 REG_ALPHA2_LEN))
+				pConfig->ieee80211d = 1;
+			else
 				pConfig->ieee80211d = 0;
-			}
-		} else {
-			pConfig->countryCode[0] = hdd_ctx->reg.alpha2[0];
-			pConfig->countryCode[1] = hdd_ctx->reg.alpha2[1];
+		} else
 			pConfig->ieee80211d = 0;
-		}
+
+		pConfig->countryCode[0] = hdd_ctx->reg.alpha2[0];
+		pConfig->countryCode[1] = hdd_ctx->reg.alpha2[1];
 
 		ret = wlan_hdd_sap_cfg_dfs_override(adapter);
 		if (ret < 0)

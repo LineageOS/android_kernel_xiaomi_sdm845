@@ -605,3 +605,5 @@ CONFIG_DEBUG_RX_RING_BUFFER := y
 endif
 
 CONFIG_DP_TRACE := y
+#Enable Beacon Reception Stats
+CONFIG_FEATURE_BECN_STATS := y

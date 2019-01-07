@@ -3311,6 +3311,17 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		pMac->roam.configParam.btm_sticky_time =
 			pParam->btm_sticky_time;
 
+		pMac->roam.configParam.btm_validity_timer =
+				pParam->btm_validity_timer;
+		pMac->roam.configParam.btm_disassoc_timer_threshold =
+				pParam->btm_disassoc_timer_threshold;
+		pMac->roam.configParam.enable_bss_load_roam_trigger =
+				pParam->enable_bss_load_roam_trigger;
+		pMac->roam.configParam.bss_load_threshold =
+				pParam->bss_load_threshold;
+		pMac->roam.configParam.bss_load_sample_time =
+				pParam->bss_load_sample_time;
+
 		csr_update_he_config_param(pMac, pParam);
 		csr_set_11k_offload_config_param(&pMac->roam.configParam,
 						 pParam);
@@ -3645,6 +3656,16 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		pMac->roam.configParam.mbo_thresholds.
 		mbo_candidate_rssi_btc_thres;
 
+	pParam->btm_validity_timer =
+			pMac->roam.configParam.btm_validity_timer;
+	pParam->btm_disassoc_timer_threshold =
+			pMac->roam.configParam.btm_disassoc_timer_threshold;
+	pParam->enable_bss_load_roam_trigger =
+			pMac->roam.configParam.enable_bss_load_roam_trigger;
+	pParam->bss_load_threshold =
+			pMac->roam.configParam.bss_load_threshold;
+	pParam->bss_load_sample_time =
+			pMac->roam.configParam.bss_load_sample_time;
 	csr_get_he_config_param(pParam, pMac);
 
 	csr_get_11k_offload_config_param(&pMac->roam.configParam, pParam);
@@ -9647,7 +9668,7 @@ QDF_STATUS csr_roam_save_connected_information(tpAniSirGlobal pMac,
 			qdf_mem_copy(pConnectProfile->SSID.ssId,
 				     pIesTemp->SSID.ssid,
 				     pIesTemp->SSID.num_ssid);
-		} else if (pProfile->SSIDs.SSIDList) {
+		} else if (pProfile->SSIDs.numOfSSIDs) {
 			pConnectProfile->SSID.length =
 					pProfile->SSIDs.SSIDList[0].SSID.length;
 			qdf_mem_copy(pConnectProfile->SSID.ssId,
@@ -10760,6 +10781,10 @@ void csr_roaming_state_msg_processor(tpAniSirGlobal pMac, void *pMsgBuf)
 
 	case eWNI_SME_SETCONTEXT_RSP:
 		csr_roam_check_for_link_status_change(pMac, pSmeRsp);
+		break;
+
+	case eWNI_SME_PURGE_ALL_PDEV_CMDS_REQ:
+		csr_purge_pdev_all_ser_cmd_list_sync(pMac, pMsgBuf);
 		break;
 
 	default:
@@ -12756,6 +12781,15 @@ csr_roam_chk_lnk_max_assoc_exceeded(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 			       eCSR_ROAM_RESULT_MAX_ASSOC_EXCEEDED);
 }
 
+void csr_purge_pdev_all_ser_cmd_list_sync(tpAniSirGlobal mac_ctx,
+					  struct sir_purge_pdev_cmd_req *req)
+{
+	csr_purge_pdev_all_ser_cmd_list(mac_ctx);
+
+	if (req->purge_complete_cb)
+		req->purge_complete_cb(mac_ctx->hdd_handle);
+}
+
 void csr_roam_check_for_link_status_change(tpAniSirGlobal pMac,
 						tSirSmeRsp *pSirMsg)
 {
@@ -12836,7 +12870,10 @@ void csr_roam_check_for_link_status_change(tpAniSirGlobal pMac,
 		sme_debug("Handoff Req from self");
 		csr_neighbor_roam_handoff_req_hdlr(pMac, pSirMsg);
 		break;
-
+	case eWNI_SME_PURGE_ALL_PDEV_CMDS_REQ:
+		csr_purge_pdev_all_ser_cmd_list_sync(pMac,
+			(struct sir_purge_pdev_cmd_req *)pSirMsg);
+		break;
 	default:
 		break;
 	} /* end switch on message type */
@@ -15731,7 +15768,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			csr_join_req->ssId.length = pIes->SSID.num_ssid;
 			qdf_mem_copy(&csr_join_req->ssId.ssId, pIes->SSID.ssid,
 				     pIes->SSID.num_ssid);
-		} else if (pProfile->SSIDs.SSIDList) {
+		} else if (pProfile->SSIDs.numOfSSIDs) {
 			csr_join_req->ssId.length =
 					pProfile->SSIDs.SSIDList[0].SSID.length;
 			qdf_mem_copy(&csr_join_req->ssId.ssId,
@@ -17777,11 +17814,6 @@ QDF_STATUS csr_roam_close_session(tpAniSirGlobal mac_ctx,
 					 session_id);
 	}
 
-	/*
-	 * Flush only scan commands. Non scan commands should go in sequence
-	 * as expected by firmware and should not be flushed.
-	 */
-	csr_purge_vdev_all_scan_ser_cmd_list(mac_ctx, session_id);
 	if (!session->session_close_cb) {
 		sme_err("no close session callback registered");
 		return QDF_STATUS_E_FAILURE;
@@ -18578,6 +18610,16 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	req_buf->roam_force_rssi_trigger =
 			mac_ctx->roam.configParam.roam_force_rssi_trigger;
 
+	/* fill bss load triggered roam related configs */
+	req_buf->bss_load_trig_enabled =
+			mac_ctx->roam.configParam.enable_bss_load_roam_trigger;
+	req_buf->bss_load_config.bss_load_threshold =
+			mac_ctx->roam.configParam.bss_load_threshold;
+	req_buf->bss_load_config.bss_load_sample_time =
+			mac_ctx->roam.configParam.bss_load_sample_time;
+	req_buf->bss_load_config.vdev_id = session->sessionId;
+
+
 	if (wlan_cfg_get_int(mac_ctx, WNI_CFG_REASSOCIATION_FAILURE_TIMEOUT,
 			     (uint32_t *) &req_buf->ReassocFailureTimeout)
 	    != QDF_STATUS_SUCCESS) {
@@ -19167,6 +19209,10 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		mac_ctx->roam.configParam.btm_max_attempt_cnt;
 	req_buf->btm_sticky_time =
 		mac_ctx->roam.configParam.btm_sticky_time;
+	req_buf->rct_validity_timer =
+			mac_ctx->roam.configParam.btm_validity_timer;
+	req_buf->disassoc_timer_threshold =
+			mac_ctx->roam.configParam.btm_disassoc_timer_threshold;
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
@@ -19982,6 +20028,10 @@ static void csr_update_score_params(tpAniSirGlobal mac_ctx,
 		bss_score_params->band_weight_per_index;
 	req_score_params->nss_index_score =
 		bss_score_params->nss_weight_per_index;
+	req_score_params->roam_score_delta =
+		bss_score_params->roam_score_delta;
+	req_score_params->roam_trigger_bitmap =
+		bss_score_params->roam_score_delta_bitmap;
 
 	req_rssi_score->best_rssi_threshold = rssi_score->best_rssi_threshold;
 	req_rssi_score->good_rssi_threshold = rssi_score->good_rssi_threshold;
@@ -20186,13 +20236,13 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 		check_allowed_ssid_list(req_buf, roam_params_src);
 
 	/*
-	 * For CTX INT cmd if rssi disallow bssid list have any member
+	 * If rssi disallow bssid list have any member
 	 * fill it and send it to firmware so that firmware does not
 	 * try to roam to these BSS until RSSI OR time condition are
 	 * matched.
 	 */
-	if (reason == REASON_CTX_INIT)
-		csr_add_rssi_reject_ap_list(mac_ctx, roam_params_src);
+	csr_add_rssi_reject_ap_list(mac_ctx, roam_params_src);
+
 	/*
 	 * Configure the lookup threshold either from INI or from framework.
 	 * If both are present, give higher priority to the one from framework.
