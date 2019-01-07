@@ -1296,6 +1296,8 @@ struct pno_user_cfg {
 
 /**
  * struct scan_user_cfg - user configuration required for for scan
+ * @allow_dfs_chan_in_first_scan: first scan should contain dfs channels or not.
+ * @allow_dfs_chan_in_scan: Scan DFS channels or not.
  * @active_dwell: default active dwell time
  * @active_dwell_2g: default active dwell time for 2G channels
  * @passive_dwell:default passive dwell time
@@ -1325,6 +1327,8 @@ struct pno_user_cfg {
  * @score_config: scoring logic configuration
  */
 struct scan_user_cfg {
+	bool allow_dfs_chan_in_first_scan;
+	bool allow_dfs_chan_in_scan;
 	uint32_t active_dwell;
 	uint32_t active_dwell_2g;
 	uint32_t passive_dwell;
