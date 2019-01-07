@@ -142,10 +142,9 @@ static QDF_STATUS wlan_serialization_timer_destroy(
 		return status;
 	}
 	status = qdf_mc_timer_destroy(&ser_timer->timer);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (QDF_IS_STATUS_ERROR(status)) {
 		serialization_err("Failed to destroy timer for cmd_id[%d]",
 				ser_timer->cmd->cmd_id);
-		QDF_ASSERT(0);
 		return status;
 	}
 	ser_timer->cmd = NULL;
@@ -232,10 +231,8 @@ wlan_serialization_stop_timer(struct wlan_serialization_timer *ser_timer)
 		return QDF_STATUS_SUCCESS;
 	}
 	status = qdf_mc_timer_stop(&ser_timer->timer);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (QDF_IS_STATUS_ERROR(status)) {
 		serialization_err("Failed to stop timer");
-		/* to catch the bug */
-		QDF_ASSERT(0);
 		return status;
 	}
 	wlan_serialization_timer_destroy(ser_timer);
@@ -308,20 +305,18 @@ wlan_serialization_find_and_stop_timer(struct wlan_objmgr_psoc *psoc,
 				(ser_timer->cmd->cmd_type != cmd->cmd_type) ||
 				(ser_timer->cmd->vdev != cmd->vdev))
 			continue;
-
+		status = wlan_serialization_stop_timer(ser_timer);
 		status = QDF_STATUS_SUCCESS;
 		break;
 	}
 	wlan_serialization_release_lock(&psoc_ser_obj->timer_lock);
 
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		status = wlan_serialization_stop_timer(ser_timer);
-		serialization_debug("\n Stopping timer for cmd type:%d, id: %d",
+	if (QDF_IS_STATUS_SUCCESS(status))
+		serialization_debug("Stopped timer for cmd_type %d cmd id %d",
 				    cmd->cmd_type, cmd->cmd_id);
-	} else {
-		serialization_err("can't find timer for cmd_type[%d] cmd_id[%d]",
+	else
+		serialization_err("can't find timer for cmd_type %d cmd_id %d",
 				  cmd->cmd_type, cmd->cmd_id);
-	}
 	return status;
 }
 

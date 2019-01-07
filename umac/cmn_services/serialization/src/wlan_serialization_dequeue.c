@@ -163,13 +163,20 @@ wlan_serialization_remove_all_cmd_from_queue(qdf_list_t *queue,
 				status = WLAN_SER_CMD_NOT_FOUND;
 				break;
 			}
+
 			qdf_status = wlan_serialization_find_and_stop_timer(
 							psoc, &cmd_list->cmd);
-			if (QDF_STATUS_SUCCESS != qdf_status) {
-			    serialization_err("Can't fix timer for active cmd");
-			    status = WLAN_SER_CMD_NOT_FOUND;
-			    break;
+			if (QDF_IS_STATUS_ERROR(qdf_status)) {
+				serialization_err("Can't find timer for active cmd");
+				status = WLAN_SER_CMD_NOT_FOUND;
+				/*
+				 * This should not happen, as an active command
+				 * should always have the timer.
+				 */
+				QDF_BUG(0);
+				break;
 			}
+
 			status = WLAN_SER_CMD_IN_ACTIVE_LIST;
 		}
 		/*
