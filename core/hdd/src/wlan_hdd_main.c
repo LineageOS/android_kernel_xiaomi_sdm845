@@ -8302,7 +8302,7 @@ hdd_display_netif_queue_history_compact(struct hdd_context *hdd_ctx)
 		}
 
 		tbytes = 0;
-		qdf_mem_set(temp_str, 0, sizeof(temp_str));
+		qdf_mem_set(temp_str, sizeof(temp_str), 0);
 		for (i = WLAN_CONTROL_PATH; i < WLAN_REASON_TYPE_MAX; i++) {
 			if (adapter->queue_oper_stats[i].pause_count == 0)
 				continue;

@@ -1076,8 +1076,8 @@ QDF_STATUS sme_update_roam_params(tHalHandle hal,
 		roam_params_dst->is_5g_pref_enabled = true;
 		break;
 	case REASON_ROAM_SET_SSID_ALLOWED:
-		qdf_mem_set(&roam_params_dst->ssid_allowed_list, 0,
-				sizeof(tSirMacSSid) * MAX_SSID_ALLOWED_LIST);
+		qdf_mem_set(&roam_params_dst->ssid_allowed_list,
+				sizeof(tSirMacSSid) * MAX_SSID_ALLOWED_LIST, 0);
 		roam_params_dst->num_ssid_allowed_list =
 			roam_params_src->num_ssid_allowed_list;
 		for (i = 0; i < roam_params_dst->num_ssid_allowed_list; i++) {
@@ -1089,8 +1089,8 @@ QDF_STATUS sme_update_roam_params(tHalHandle hal,
 		}
 		break;
 	case REASON_ROAM_SET_FAVORED_BSSID:
-		qdf_mem_set(&roam_params_dst->bssid_favored, 0,
-			sizeof(tSirMacAddr) * MAX_BSSID_FAVORED);
+		qdf_mem_set(&roam_params_dst->bssid_favored,
+			sizeof(tSirMacAddr) * MAX_BSSID_FAVORED, 0);
 		roam_params_dst->num_bssid_favored =
 			roam_params_src->num_bssid_favored;
 		for (i = 0; i < roam_params_dst->num_bssid_favored; i++) {
@@ -1102,8 +1102,8 @@ QDF_STATUS sme_update_roam_params(tHalHandle hal,
 		}
 		break;
 	case REASON_ROAM_SET_BLACKLIST_BSSID:
-		qdf_mem_set(&roam_params_dst->bssid_avoid_list, 0,
-			QDF_MAC_ADDR_SIZE * MAX_BSSID_AVOID_LIST);
+		qdf_mem_set(&roam_params_dst->bssid_avoid_list,
+			QDF_MAC_ADDR_SIZE * MAX_BSSID_AVOID_LIST, 0);
 		roam_params_dst->num_bssid_avoid_list =
 			roam_params_src->num_bssid_avoid_list;
 		for (i = 0; i < roam_params_dst->num_bssid_avoid_list; i++) {

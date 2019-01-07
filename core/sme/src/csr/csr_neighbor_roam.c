@@ -799,8 +799,8 @@ void csr_roam_reset_roam_params(tpAniSirGlobal mac_ctx)
 		FL("Roaming parameters are reset"));
 	roam_params = &mac_ctx->roam.configParam.roam_params;
 	roam_params->num_ssid_allowed_list = 0;
-	qdf_mem_set(&roam_params->ssid_allowed_list, 0,
-			sizeof(tSirMacSSid) * MAX_SSID_ALLOWED_LIST);
+	qdf_mem_set(&roam_params->ssid_allowed_list,
+			sizeof(tSirMacSSid) * MAX_SSID_ALLOWED_LIST, 0);
 }
 
 /**

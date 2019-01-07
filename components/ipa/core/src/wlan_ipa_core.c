@@ -1095,7 +1095,7 @@ static bool wlan_ipa_uc_find_add_assoc_sta(struct wlan_ipa_priv *ipa_ctx,
 					false;
 				ipa_ctx->assoc_stas_map[idx].sta_id = 0xFF;
 				qdf_mem_set(&ipa_ctx->assoc_stas_map[idx].
-					    mac_addr, 0, QDF_NET_ETH_LEN);
+					    mac_addr, QDF_NET_ETH_LEN, 0);
 				return sta_found;
 			}
 		}
