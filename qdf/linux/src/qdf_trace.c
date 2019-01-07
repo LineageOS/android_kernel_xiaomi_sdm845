@@ -1024,7 +1024,7 @@ dump_dp_hex_trace(char *prepend_str, uint8_t *inbuf, uint8_t inbuf_len)
 	char *outbuf_ptr = outbuf;
 	int outbytes_written = 0;
 
-	qdf_mem_set(outbuf, 0, sizeof(outbuf));
+	qdf_mem_set(outbuf, sizeof(outbuf), 0);
 	do {
 		outbytes_written += scnprintf(outbuf_ptr,
 					BUFFER_SIZE - outbytes_written,
@@ -1758,7 +1758,7 @@ void qdf_dp_display_mgmt_pkt(struct qdf_dp_trace_record_s *record,
 		(struct qdf_dp_trace_mgmt_buf *)record->data;
 #endif
 
-	qdf_mem_set(prepend_str, 0, sizeof(prepend_str));
+	qdf_mem_set(prepend_str, sizeof(prepend_str), 0);
 	loc = qdf_dp_trace_fill_meta_str(prepend_str, sizeof(prepend_str),
 					 index, info, record);
 
@@ -1801,7 +1801,7 @@ void qdf_dp_display_event_record(struct qdf_dp_trace_record_s *record,
 		(struct qdf_dp_trace_event_buf *)record->data;
 #endif
 
-	qdf_mem_set(prepend_str, 0, sizeof(prepend_str));
+	qdf_mem_set(prepend_str, sizeof(prepend_str), 0);
 	qdf_dp_trace_fill_meta_str(prepend_str, sizeof(prepend_str),
 				   index, info, record);
 
@@ -1855,7 +1855,7 @@ void qdf_dp_display_proto_pkt(struct qdf_dp_trace_record_s *record,
 		(struct qdf_dp_trace_proto_buf *)record->data;
 #endif
 
-	qdf_mem_set(prepend_str, 0, sizeof(prepend_str));
+	qdf_mem_set(prepend_str, sizeof(prepend_str), 0);
 	loc = qdf_dp_trace_fill_meta_str(prepend_str, sizeof(prepend_str),
 					 index, info, record);
 	DPTRACE_PRINT("%s [%d] [%s] SA: "
@@ -1908,7 +1908,7 @@ void qdf_dp_display_ptr_record(struct qdf_dp_trace_record_s *record,
 	    (record->code == QDF_DP_TRACE_LI_DP_FREE_PACKET_PTR_RECORD))
 		is_free_pkt_ptr_record = true;
 
-	qdf_mem_set(prepend_str, 0, sizeof(prepend_str));
+	qdf_mem_set(prepend_str, sizeof(prepend_str), 0);
 	loc = qdf_dp_trace_fill_meta_str(prepend_str, sizeof(prepend_str),
 					 index, info, record);
 
@@ -1990,7 +1990,7 @@ void qdf_dp_display_record(struct qdf_dp_trace_record_s *record,
 		pdev_id == record->pdev_id))
 		return;
 
-	qdf_mem_set(prepend_str, 0, sizeof(prepend_str));
+	qdf_mem_set(prepend_str, sizeof(prepend_str), 0);
 	loc = qdf_dp_trace_fill_meta_str(prepend_str, sizeof(prepend_str),
 					 index, info, record);
 
@@ -2022,7 +2022,7 @@ qdf_dp_display_data_pkt_record(struct qdf_dp_trace_record_s *record,
 	struct qdf_dp_trace_data_buf *buf =
 		(struct qdf_dp_trace_data_buf *)record->data;
 
-	qdf_mem_set(prepend_str, 0, sizeof(prepend_str));
+	qdf_mem_set(prepend_str, sizeof(prepend_str), 0);
 
 	loc = qdf_dp_trace_fill_meta_str(prepend_str, sizeof(prepend_str),
 					 rec_index, info, record);
