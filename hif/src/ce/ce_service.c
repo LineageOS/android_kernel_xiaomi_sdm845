@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2187,6 +2187,7 @@ more_watermarks:
 					   CE_WATERMARK_MASK |
 					   HOST_IS_COPY_COMPLETE_MASK);
 		} else {
+			qdf_atomic_set(&CE_state->rx_pending, 0);
 			hif_err_rl("%s: target access is not allowed",
 				   __func__);
 			goto unlock_end;
