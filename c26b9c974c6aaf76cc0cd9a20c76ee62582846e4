@@ -1,0 +1,152 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "b0f5062c_55f73bc2",
+        "filename": "kernel/sysctl.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 1426,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-09T22:06:11Z",
+      "side": 1,
+      "message": "Is this change needed?",
+      "revId": "c26b9c974c6aaf76cc0cd9a20c76ee62582846e4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "0a79d612_b7dcce77",
+        "filename": "kernel/sysctl.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 1958,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-09T22:06:11Z",
+      "side": 1,
+      "message": "Ditto",
+      "revId": "c26b9c974c6aaf76cc0cd9a20c76ee62582846e4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "82c76d92_8f858d4a",
+        "filename": "kernel/sysctl.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 2381,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-09T22:06:11Z",
+      "side": 1,
+      "message": "Ditto",
+      "revId": "c26b9c974c6aaf76cc0cd9a20c76ee62582846e4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "0f4ec586_b7401ff3",
+        "filename": "kernel/sysctl.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 2386,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-09T22:06:11Z",
+      "side": 1,
+      "message": "Ditto",
+      "revId": "c26b9c974c6aaf76cc0cd9a20c76ee62582846e4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "09a979fd_89329898",
+        "filename": "kernel/sysctl.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 2481,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-09T22:06:11Z",
+      "side": 1,
+      "message": "Ditto",
+      "revId": "c26b9c974c6aaf76cc0cd9a20c76ee62582846e4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "29132325_3bd493cf",
+        "filename": "kernel/sysctl.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 2872,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-09T22:06:11Z",
+      "side": 1,
+      "message": "Ditto",
+      "revId": "c26b9c974c6aaf76cc0cd9a20c76ee62582846e4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "36d3f44b_6ae94689",
+        "filename": "kernel/sysctl.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 2895,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-09T22:06:11Z",
+      "side": 1,
+      "message": "Ditto",
+      "range": {
+        "startLine": 2894,
+        "startChar": 0,
+        "endLine": 2895,
+        "endChar": 62
+      },
+      "revId": "c26b9c974c6aaf76cc0cd9a20c76ee62582846e4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "887de4b1_2140161d",
+        "filename": "kernel/sysctl.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 2918,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-09T22:06:11Z",
+      "side": 1,
+      "message": "Ditto",
+      "range": {
+        "startLine": 2917,
+        "startChar": 0,
+        "endLine": 2918,
+        "endChar": 59
+      },
+      "revId": "c26b9c974c6aaf76cc0cd9a20c76ee62582846e4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
