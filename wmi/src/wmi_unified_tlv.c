@@ -17221,13 +17221,9 @@ static QDF_STATUS extract_ndp_ind_tlv(wmi_unified_t wmi_handle,
 		 rsp->peer_discovery_mac_addr.bytes);
 
 	WMI_LOGD("ndp_cfg - %d bytes", fixed_params->ndp_cfg_len);
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_DEBUG,
-			   &event->ndp_cfg, fixed_params->ndp_cfg_len);
 
 	WMI_LOGD("ndp_app_info - %d bytes",
 			fixed_params->ndp_app_info_len);
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_DEBUG,
-			&event->ndp_app_info, fixed_params->ndp_app_info_len);
 
 	rsp->ndp_config.ndp_cfg_len = fixed_params->ndp_cfg_len;
 	rsp->ndp_info.ndp_app_info_len = fixed_params->ndp_app_info_len;
@@ -17259,10 +17255,6 @@ static QDF_STATUS extract_ndp_ind_tlv(wmi_unified_t wmi_handle,
 	}
 	WMI_LOGD(FL("IPv6 addr present: %d, addr: %pI6"),
 		 rsp->is_ipv6_addr_present, rsp->ipv6_addr);
-
-	WMI_LOGD("scid hex dump:");
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_DEBUG,
-			   rsp->scid.scid, rsp->scid.scid_len);
 
 	return QDF_STATUS_SUCCESS;
 }
