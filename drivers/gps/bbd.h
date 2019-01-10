@@ -25,9 +25,8 @@
 #define __BBD_H__
 
 #pragma pack(4)
-typedef unsigned char   uint8_t;
-typedef unsigned short  uint16_t;
-typedef unsigned int    uint32_t;
+
+#include <linux/types.h>
 
 union long_union_t {
 	unsigned char uc[sizeof(unsigned long)];
