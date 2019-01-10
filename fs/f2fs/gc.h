@@ -5,7 +5,7 @@
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *             http://www.samsung.com/
  */
-#include <linux/wakelock.h>
+#include <linux/pm_wakeup.h>
 
 #define GC_THREAD_MIN_WB_PAGES		1	/*
 						 * a threshold to determine
@@ -27,7 +27,7 @@
 struct f2fs_gc_kthread {
 	struct task_struct *f2fs_gc_task;
 	wait_queue_head_t gc_wait_queue_head;
-	struct wake_lock gc_wakelock;
+	struct wakeup_source gc_wakelock;
 
 	/* for gc sleep time */
 	unsigned int urgent_sleep_time;
