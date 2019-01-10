@@ -1,0 +1,119 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "68ac56a8_03db24fd",
+        "filename": "drivers/input/touchscreen/focaltech_touch/focaltech_core.c",
+        "patchSetId": 17
+      },
+      "lineNbr": 1769,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-10T13:58:56Z",
+      "side": 1,
+      "message": "Kill this. I removed this on purpose during initial import.",
+      "range": {
+        "startLine": 1762,
+        "startChar": 0,
+        "endLine": 1769,
+        "endChar": 0
+      },
+      "revId": "0010fe6a8e2422de3cae51fbb417f1a24c82b1d0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "b08efdd1_dac47ba6",
+        "filename": "drivers/input/touchscreen/focaltech_touch/focaltech_core.c",
+        "patchSetId": 17
+      },
+      "lineNbr": 1892,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-10T13:58:56Z",
+      "side": 1,
+      "message": "Kill this. I removed this on purpose during initial import.",
+      "range": {
+        "startLine": 1889,
+        "startChar": 0,
+        "endLine": 1892,
+        "endChar": 0
+      },
+      "revId": "0010fe6a8e2422de3cae51fbb417f1a24c82b1d0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "65bfc75d_b888c73c",
+        "filename": "drivers/input/touchscreen/focaltech_touch/focaltech_core.h",
+        "patchSetId": 17
+      },
+      "lineNbr": 252,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-10T13:58:56Z",
+      "side": 1,
+      "message": "Kill this. I removed this on purpose during initial import.",
+      "range": {
+        "startLine": 247,
+        "startChar": 0,
+        "endLine": 252,
+        "endChar": 0
+      },
+      "revId": "0010fe6a8e2422de3cae51fbb417f1a24c82b1d0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "801687cf_b1041170",
+        "filename": "drivers/input/touchscreen/ft5x46/ft5x46_ts.c",
+        "patchSetId": 17
+      },
+      "lineNbr": 1888,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-10T13:58:56Z",
+      "side": 1,
+      "message": "Useless edit.",
+      "range": {
+        "startLine": 1888,
+        "startChar": 0,
+        "endLine": 1888,
+        "endChar": 1
+      },
+      "revId": "0010fe6a8e2422de3cae51fbb417f1a24c82b1d0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "8923cafd_74d7d5cb",
+        "filename": "drivers/input/touchscreen/fts_521/fts.c",
+        "patchSetId": 17
+      },
+      "lineNbr": 4481,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-10T13:58:56Z",
+      "side": 1,
+      "message": "Useless edit.",
+      "range": {
+        "startLine": 4481,
+        "startChar": 0,
+        "endLine": 4481,
+        "endChar": 1
+      },
+      "revId": "0010fe6a8e2422de3cae51fbb417f1a24c82b1d0",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}

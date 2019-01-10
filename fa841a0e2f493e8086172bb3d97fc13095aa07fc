@@ -2,6 +2,23 @@
   "comments": [
     {
       "key": {
+        "uuid": "e1c661c8_2161485a",
+        "filename": "drivers/input/touchscreen/atmel_mxt_ts.c",
+        "patchSetId": 17
+      },
+      "lineNbr": 2624,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-10T13:58:56Z",
+      "side": 0,
+      "message": "I don\u0027t want to remove any of the calls to update_hardware_info and related stuff. This thing works together with https://github.com/LineageOS/android_kernel_xiaomi_sdm845/commit/12d9a98c39ea9de85567230878ddb9a2ed0204f1. If we start removing it from the touchscreen drivers, we might as well remove it from all over the other places and kill that procfs node.",
+      "revId": "fa841a0e2f493e8086172bb3d97fc13095aa07fc",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
         "uuid": "b899c850_55fc51c4",
         "filename": "include/linux/input/synaptics_dsx.h",
         "patchSetId": 9
