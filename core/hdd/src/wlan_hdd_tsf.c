@@ -259,7 +259,7 @@ static enum hdd_tsf_op_result hdd_capture_tsf_internal(
 	/* record adapter for cap_tsf_irq_handler  */
 	hddctx->cap_tsf_context = adapter;
 
-	hdd_info("+ioctl issue cap tsf cmd");
+	hdd_debug("+ioctl issue cap tsf cmd");
 	cap_timer = &adapter->host_capture_req_timer;
 	qdf_mc_timer_init(cap_timer, QDF_TIMER_TYPE_SW,
 			  hdd_capture_req_timer_expired_handler,
@@ -284,7 +284,7 @@ static enum hdd_tsf_op_result hdd_capture_tsf_internal(
 
 		return HDD_TSF_OP_SUCC;
 	}
-	hdd_info("-ioctl return cap tsf cmd");
+	hdd_debug("-ioctl return cap tsf cmd");
 	return HDD_TSF_OP_SUCC;
 }
 
@@ -345,7 +345,7 @@ static enum hdd_tsf_op_result hdd_indicate_tsf_internal(
 	}
 	hddctx->cap_tsf_context = NULL;
 	qdf_atomic_set(&hddctx->cap_tsf_flag, 0);
-	hdd_info("get tsf cmd,status=%u, tsf_low=%u, tsf_high=%u",
+	hdd_debug("get tsf cmd,status=%u, tsf_low=%u, tsf_high=%u",
 		 buf[0], buf[1], buf[2]);
 
 	return HDD_TSF_OP_SUCC;
@@ -462,7 +462,7 @@ enum hdd_ts_status hdd_check_timestamp_status(
 	/* the new values should be greater than the saved values */
 	if ((cur_target_time <= last_target_time) ||
 	    (cur_host_time <= last_host_time)) {
-		hdd_err("Invalid timestamps!last_target_time: %llu;"
+		hdd_debug("Invalid timestamps!last_target_time: %llu;"
 			"last_host_time: %llu; cur_target_time: %llu;"
 			"cur_host_time: %llu",
 			last_target_time, last_host_time,
@@ -484,7 +484,7 @@ enum hdd_ts_status hdd_check_timestamp_status(
 
 	/* the deviation should be smaller than a threshold */
 	if (delta_ns > MAX_ALLOWED_DEVIATION_NS) {
-		hdd_warn("Invalid timestamps - delta: %llu ns", delta_ns);
+		hdd_debug("Invalid timestamps - delta: %llu ns", delta_ns);
 		return HDD_TS_STATUS_INVALID;
 	}
 	return HDD_TS_STATUS_READY;
@@ -526,7 +526,7 @@ static void hdd_update_timestamp(struct hdd_adapter *adapter,
 						 adapter->last_host_time,
 						 adapter->cur_target_time,
 						 adapter->cur_host_time);
-	hdd_info("sync_status %d", sync_status);
+	hdd_debug("sync_status %d", sync_status);
 	switch (sync_status) {
 	case HDD_TS_STATUS_INVALID:
 		if (++adapter->continuous_error_count <
@@ -550,7 +550,7 @@ static void hdd_update_timestamp(struct hdd_adapter *adapter,
 		adapter->last_host_time = adapter->cur_host_time;
 		adapter->cur_target_time = 0;
 		adapter->cur_host_time = 0;
-		hdd_info("ts-pair updated: target: %llu; host: %llu",
+		hdd_debug("ts-pair updated: target: %llu; host: %llu",
 			 adapter->last_target_time,
 			 adapter->last_host_time);
 
@@ -1344,7 +1344,7 @@ int hdd_get_tsf_cb(void *pcb_cxt, struct stsf *ptsf)
 		return -EINVAL;
 	}
 
-	hdd_info("tsf cb handle event, device_mode is %d",
+	hdd_debug("tsf cb handle event, device_mode is %d",
 		adapter->device_mode);
 
 	capture_timer = &adapter->host_capture_req_timer;
@@ -1367,7 +1367,7 @@ int hdd_get_tsf_cb(void *pcb_cxt, struct stsf *ptsf)
 
 	complete(&tsf_sync_get_completion_evt);
 	hdd_update_tsf(adapter, adapter->cur_target_time);
-	hdd_info("Vdev=%u, tsf_low=%u, tsf_high=%u soc_timer=%llu",
+	hdd_debug("Vdev=%u, tsf_low=%u, tsf_high=%u soc_timer=%llu",
 		ptsf->vdev_id, ptsf->tsf_low, ptsf->tsf_high,
 		adapter->tsf_sync_soc_timer);
 	return 0;
