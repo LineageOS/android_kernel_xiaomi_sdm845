@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "852ee8b6_a34dbf04",
+        "filename": "drivers/gpu/drm/msm/dsi-staging/dsi_panel.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 4421,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-10T01:03:20Z",
+      "side": 1,
+      "message": "This turns out to be NULL at this point. :/",
+      "range": {
+        "startLine": 4421,
+        "startChar": 11,
+        "endLine": 4421,
+        "endChar": 32
+      },
+      "revId": "f45ec43fac9679024ea66f969b29eaa2d5e2d895",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
