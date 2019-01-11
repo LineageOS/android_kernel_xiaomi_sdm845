@@ -1729,6 +1729,10 @@ int wlan_hdd_cfg80211_start_acs(struct hdd_adapter *adapter)
 		return -EINVAL;
 	}
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	status = wlan_hdd_validate_context(hdd_ctx);
+	if (0 != status)
+		return status;
+
 	sap_config = &adapter->session.ap.sap_config;
 	if (hdd_ctx->acs_policy.acs_channel)
 		sap_config->channel = hdd_ctx->acs_policy.acs_channel;
@@ -2778,7 +2782,9 @@ static void wlan_hdd_cfg80211_start_pending_acs(struct work_struct *work)
 	struct hdd_adapter *adapter = container_of(work, struct hdd_adapter,
 						   acs_pending_work.work);
 
+	cds_ssr_protect(__func__);
 	wlan_hdd_cfg80211_start_acs(adapter);
+	cds_ssr_unprotect(__func__);
 	clear_bit(ACS_PENDING, &adapter->event_flags);
 }
 
