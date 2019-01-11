@@ -536,6 +536,8 @@ qdf_export_symbol(__qdf_nbuf_free);
 #ifdef NBUF_MEMORY_DEBUG
 enum qdf_nbuf_event_type {
 	QDF_NBUF_ALLOC,
+	QDF_NBUF_ALLOC_CLONE,
+	QDF_NBUF_ALLOC_COPY,
 	QDF_NBUF_ALLOC_FAILURE,
 	QDF_NBUF_FREE,
 	QDF_NBUF_MAP,
@@ -2693,6 +2695,36 @@ free_buf:
 	__qdf_nbuf_free(nbuf);
 }
 qdf_export_symbol(qdf_nbuf_free_debug);
+
+qdf_nbuf_t qdf_nbuf_clone_debug(qdf_nbuf_t buf, uint8_t *file, uint32_t line)
+{
+	qdf_nbuf_t cloned_buf = __qdf_nbuf_clone(buf);
+
+	if (qdf_unlikely(!cloned_buf))
+		return NULL;
+
+	/* Store SKB in internal QDF tracking table */
+	qdf_net_buf_debug_add_node(cloned_buf, 0, file, line);
+	qdf_nbuf_history_add(cloned_buf, file, line, QDF_NBUF_ALLOC_CLONE);
+
+	return cloned_buf;
+}
+qdf_export_symbol(qdf_nbuf_clone_debug);
+
+qdf_nbuf_t qdf_nbuf_copy_debug(qdf_nbuf_t buf, uint8_t *file, uint32_t line)
+{
+	qdf_nbuf_t copied_buf = __qdf_nbuf_copy(buf);
+
+	if (qdf_unlikely(!copied_buf))
+		return NULL;
+
+	/* Store SKB in internal QDF tracking table */
+	qdf_net_buf_debug_add_node(copied_buf, 0, file, line);
+	qdf_nbuf_history_add(copied_buf, file, line, QDF_NBUF_ALLOC_COPY);
+
+	return copied_buf;
+}
+qdf_export_symbol(qdf_nbuf_copy_debug);
 
 #endif /* NBUF_MEMORY_DEBUG */
 
