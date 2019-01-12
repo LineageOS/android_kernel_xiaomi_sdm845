@@ -68,6 +68,8 @@
 #define MAX_NAME_LENGTH         255     // max len of file name excluding NULL
 #define DOS_NAME_LENGTH         11      // DOS file name length excluding NULL
 
+#define SECTOR_SIZE_BITS	9	/* VFS sector size is 512 bytes */
+
 #define DENTRY_SIZE		32	/* directory entry size */
 #define DENTRY_SIZE_BITS	5
 
