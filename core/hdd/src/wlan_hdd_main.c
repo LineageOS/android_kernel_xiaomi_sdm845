@@ -14287,6 +14287,9 @@ static int hdd_update_scan_config(struct hdd_context *hdd_ctx)
 	struct hdd_config *cfg = hdd_ctx->config;
 	QDF_STATUS status;
 
+	/* The ini is disallow DFS channel scan if ini is 1, so negate that */
+	scan_cfg.allow_dfs_chan_in_first_scan = !cfg->initial_scan_no_dfs_chnl;
+	scan_cfg.allow_dfs_chan_in_scan = cfg->enableDFSChnlScan;
 	scan_cfg.active_dwell = cfg->nActiveMaxChnTime;
 	scan_cfg.active_dwell_2g = cfg->active_dwell_2g;
 	scan_cfg.passive_dwell = cfg->nPassiveMaxChnTime;
