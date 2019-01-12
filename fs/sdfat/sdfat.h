@@ -127,7 +127,7 @@ struct sdfat_mount_options {
 	unsigned char errors;       /* on error: continue, panic, remount-ro */
 	unsigned char discard;      /* flag on if -o dicard specified and device support discard() */
 	unsigned char fs_type;      /* fs_type that user specified */
-	unsigned short adj_req;      /* support aligned mpage write */
+	unsigned short adj_req;     /* support aligned mpage write */
 };
 
 #define SDFAT_HASH_BITS    8
@@ -301,6 +301,7 @@ static inline void sdfat_save_attr(struct inode *inode, u32 attr)
 extern int sdfat_statistics_init(struct kset *sdfat_kset);
 extern void sdfat_statistics_uninit(void);
 extern void sdfat_statistics_set_mnt(FS_INFO_T *fsi);
+extern void sdfat_statistics_set_mnt_ro(void);
 extern void sdfat_statistics_set_mkdir(u8 flags);
 extern void sdfat_statistics_set_create(u8 flags);
 extern void sdfat_statistics_set_rw(u8 flags, u32 clu_offset, s32 create);
@@ -313,6 +314,7 @@ static inline int sdfat_statistics_init(struct kset *sdfat_kset)
 }
 static inline void sdfat_statistics_uninit(void) {};
 static inline void sdfat_statistics_set_mnt(FS_INFO_T *fsi) {};
+static inline void sdfat_statistics_set_mnt_ro(void) {};
 static inline void sdfat_statistics_set_mkdir(u8 flags) {};
 static inline void sdfat_statistics_set_create(u8 flags) {};
 static inline void sdfat_statistics_set_rw(u8 flags, u32 clu_offset, s32 create) {};
