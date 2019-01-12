@@ -478,6 +478,13 @@ void fsapi_invalidate_extent(struct inode *inode)
 }
 EXPORT_SYMBOL(fsapi_invalidate_extent);
 
+/* check device is ejected */
+s32 fsapi_check_bdi_valid(struct super_block *sb)
+{
+	return fscore_check_bdi_valid(sb);
+}
+EXPORT_SYMBOL(fsapi_check_bdi_valid);
+
 
 
 #ifdef	CONFIG_SDFAT_DFR

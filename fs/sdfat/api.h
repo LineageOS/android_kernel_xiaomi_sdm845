@@ -355,6 +355,9 @@ u32 fsapi_get_au_stat(struct super_block *sb, s32 mode);
 /* extent cache functions */
 void fsapi_invalidate_extent(struct inode *inode);
 
+/* bdev management */
+s32 fsapi_check_bdi_valid(struct super_block *sb);
+
 #ifdef CONFIG_SDFAT_DFR
 /*----------------------------------------------------------------------*/
 /*  Defragmentation related                                             */
