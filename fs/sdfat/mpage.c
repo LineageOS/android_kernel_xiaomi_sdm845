@@ -78,6 +78,27 @@ static void __mpage_write_end_io(struct bio *bio, int err);
 /*************************************************************************
  * FUNCTIONS WHICH HAS KERNEL VERSION DEPENDENCY
  *************************************************************************/
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+       /* EMPTY */
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0) */
+static inline void bio_set_dev(struct bio *bio, struct block_device *bdev)
+{
+	bio->bi_bdev = bdev;
+}
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+static inline void __sdfat_clean_bdev_aliases(struct block_device *bdev, sector_t block)
+{
+	clean_bdev_aliases(bdev, block, 1);
+}
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0) */
+static inline void __sdfat_clean_bdev_aliases(struct block_device *bdev, sector_t block)
+{
+	unmap_underlying_metadata(bdev, block);
+}
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
 static inline void __sdfat_submit_bio_write2(int flags, struct bio *bio)
 {
@@ -88,20 +109,6 @@ static inline void __sdfat_submit_bio_write2(int flags, struct bio *bio)
 static inline void __sdfat_submit_bio_write2(int flags, struct bio *bio)
 {
 	submit_bio(WRITE | flags, bio);
-}
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
-static void  mpage_write_end_io(struct bio *bio)
-{
-	__mpage_write_end_io(bio, bio->bi_error);
-}
-#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4,3,0) */
-static void mpage_write_end_io(struct bio *bio, int err)
-{
-	if (test_bit(BIO_UPTODATE, &bio->bi_flags))
-		err = 0;
-	__mpage_write_end_io(bio, err);
 }
 #endif
 
@@ -153,6 +160,28 @@ static inline unsigned int __sdfat_bio_size(struct bio *bio)
 static inline void __sdfat_set_bio_size(struct bio *bio, unsigned int size)
 {
 	bio->bi_size = size;
+}
+#endif
+
+/*************************************************************************
+ * MORE FUNCTIONS WHICH HAS KERNEL VERSION DEPENDENCY
+ *************************************************************************/
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+static void  mpage_write_end_io(struct bio *bio)
+{
+	__mpage_write_end_io(bio, blk_status_to_errno(bio->bi_status));
+}
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+static void  mpage_write_end_io(struct bio *bio)
+{
+	__mpage_write_end_io(bio, bio->bi_error);
+}
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4,3,0) */
+static void mpage_write_end_io(struct bio *bio, int err)
+{
+	if (test_bit(BIO_UPTODATE, &bio->bi_flags))
+		err = 0;
+	__mpage_write_end_io(bio, err);
 }
 #endif
 
@@ -277,7 +306,7 @@ mpage_alloc(struct block_device *bdev,
 	}
 
 	if (bio) {
-		bio->bi_bdev = bdev;
+		bio_set_dev(bio, bdev);
 		__sdfat_set_bio_sector(bio, first_sector);
 	}
 	return bio;
@@ -361,7 +390,7 @@ static int sdfat_mpage_writepage(struct page *page,
 
 				if (buffer_new(bh)) {
 					clear_buffer_new(bh);
-					unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
+					__sdfat_clean_bdev_aliases(bh->b_bdev, bh->b_blocknr);
 				}
 			}
 
@@ -411,8 +440,7 @@ static int sdfat_mpage_writepage(struct page *page,
 			goto confused;
 
 		if (buffer_new(&map_bh))
-			unmap_underlying_metadata(map_bh.b_bdev,
-					map_bh.b_blocknr);
+			__sdfat_clean_bdev_aliases(map_bh.b_bdev, map_bh.b_blocknr);
 		if (buffer_boundary(&map_bh)) {
 			boundary_block = map_bh.b_blocknr;
 			boundary_bdev = map_bh.b_bdev;
