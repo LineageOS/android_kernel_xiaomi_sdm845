@@ -680,6 +680,17 @@ QDF_STATUS lim_process_tdls_add_sta_rsp(tpAniSirGlobal pMac, void *msg, tpPESess
 void lim_process_tdls_del_sta_rsp(tpAniSirGlobal mac_ctx,
 				  struct scheduler_msg *lim_msg,
 				  tpPESession session_entry);
+
+/**
+ * lim_update_tdls_state_in_fw() - Update TDLS state in FW
+ *
+ * @session_entry - PE sessions
+ * @value  -value to be updated
+ *
+ *
+ * Return: void
+ */
+void lim_update_tdls_set_state_for_fw(tpPESession session_entry, bool value);
 #else
 static inline QDF_STATUS lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 						tpPESession session_entry)
@@ -690,6 +701,11 @@ static inline void lim_init_tdls_data(tpAniSirGlobal pMac,
 					tpPESession pSessionEntry)
 {
 
+}
+
+static inline void lim_update_tdls_set_state_for_fw(tpPESession session_entry,
+						    bool value)
+{
 }
 #endif
 

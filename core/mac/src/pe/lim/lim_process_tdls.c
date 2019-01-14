@@ -3176,6 +3176,11 @@ skip:
 	}
 }
 
+void lim_update_tdls_set_state_for_fw(tpPESession session_entry, bool value)
+{
+	session_entry->tdls_send_set_state_disable  = value;
+}
+
 /**
  * lim_delete_tdls_peers() - delete tdls peers
  *
@@ -3200,13 +3205,22 @@ QDF_STATUS lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 
 	if (lim_is_roam_synch_in_progress(session_entry))
 		return QDF_STATUS_SUCCESS;
-
-	tgt_tdls_peers_deleted_notification(mac_ctx->psoc,
-					    session_entry->smeSessionId);
+	/* In case of CSA, Only peers in lim and TDLS component
+	 * needs to be removed and set state disable command
+	 * should not be sent to fw as there is no way to enable
+	 * TDLS in FW after vdev restart.
+	 */
+	if (session_entry->tdls_send_set_state_disable) {
+		tgt_tdls_peers_deleted_notification(mac_ctx->psoc,
+						    session_entry->
+						    smeSessionId);
+	}
 
 	tgt_tdls_delete_all_peers_indication(mac_ctx->psoc,
 					     session_entry->smeSessionId);
 
+	/* reset the set_state_disable flag */
+	session_entry->tdls_send_set_state_disable = true;
 	pe_debug("Exit");
 	return QDF_STATUS_SUCCESS;
 }

@@ -4329,11 +4329,16 @@ void lim_update_sta_run_time_ht_switch_chnl_params(tpAniSirGlobal pMac,
 		pMac->lim.gpchangeChannelCallback = NULL;
 		pMac->lim.gpchangeChannelData = NULL;
 
+		/* Before restarting vdev, delete the tdls peers */
+		lim_update_tdls_set_state_for_fw(psessionEntry, false);
+		lim_delete_tdls_peers(pMac, psessionEntry);
 		lim_send_switch_chnl_params(pMac, (uint8_t) pHTInfo->primaryChannel,
 					    center_freq, 0, ch_width,
 					    psessionEntry->maxTxPower,
 					    psessionEntry->peSessionId,
 					    true, 0, 0);
+
+
 
 		/* In case of IBSS, if STA should update HT Info IE in its beacons. */
 		if (LIM_IS_IBSS_ROLE(psessionEntry)) {
