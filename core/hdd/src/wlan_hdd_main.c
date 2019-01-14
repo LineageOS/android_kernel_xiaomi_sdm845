@@ -14043,6 +14043,9 @@ static inline void hdd_update_pno_config(struct pno_user_cfg *pno_cfg,
 	pno_cfg->channel_prediction = cfg->pno_channel_prediction;
 	pno_cfg->top_k_num_of_channels = cfg->top_k_num_of_channels;
 	pno_cfg->stationary_thresh = cfg->stationary_thresh;
+	pno_cfg->scan_timer_repeat_value = cfg->configPNOScanTimerRepeatValue;
+	pno_cfg->slow_scan_multiplier = cfg->pno_slow_scan_multiplier;
+	pno_cfg->dfs_chnl_scan_enabled = cfg->enable_dfs_pno_chnl_scan;
 	pno_cfg->adaptive_dwell_mode = cfg->pnoscan_adaptive_dwell_mode;
 	pno_cfg->channel_prediction_full_scan =
 		cfg->channel_prediction_full_scan;
