@@ -153,12 +153,14 @@ static void wlan_scan_rand_attrs(struct wlan_objmgr_vdev *vdev,
 /**
  * wlan_config_sched_scan_plan() - configures the sched scan plans
  *   from the framework.
+ * @psoc: Psoc pointer
  * @pno_req: pointer to PNO scan request
  * @request: pointer to scan request from framework
  *
  * Return: None
  */
-static void wlan_config_sched_scan_plan(struct pno_scan_req_params *pno_req,
+static void wlan_config_sched_scan_plan(struct wlan_objmgr_psoc *psoc,
+	struct pno_scan_req_params *pno_req,
 	struct cfg80211_sched_scan_request *request)
 {
 	/*
@@ -190,14 +192,20 @@ static void wlan_config_sched_scan_plan(struct pno_scan_req_params *pno_req,
 	}
 }
 #else
-static void wlan_config_sched_scan_plan(struct pno_scan_req_params *pno_req,
+static void wlan_config_sched_scan_plan(struct wlan_objmgr_psoc *psoc,
+	struct pno_scan_req_params *pno_req,
 	struct cfg80211_sched_scan_request *request)
 {
+	uint32_t scan_timer_repeat_value, slow_scan_multiplier;
+
+	scan_timer_repeat_value = ucfg_scan_get_scan_timer_repeat_value(psoc);
+	slow_scan_multiplier = ucfg_scan_get_slow_scan_multiplier(psoc);
 	pno_req->fast_scan_period = request->interval;
-	pno_req->fast_scan_max_cycles = SCAN_PNO_DEF_SCAN_TIMER_REPEAT;
-	pno_req->slow_scan_period =
-		SCAN_PNO_DEF_SLOW_SCAN_MULTIPLIER *
-		pno_req->fast_scan_period;
+	pno_req->fast_scan_max_cycles = scan_timer_repeat_value;
+	pno_req->slow_scan_period = slow_scan_multiplier *
+					pno_req->fast_scan_period;
+	cfg80211_debug("Base scan interval: %d sec PNO Scan Timer Repeat Value: %d",
+		       (request->interval / 1000), scan_timer_repeat_value);
 }
 #endif
 
@@ -382,6 +390,7 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 	struct wlan_objmgr_vdev *vdev;
 	struct wlan_objmgr_psoc *psoc;
 	uint32_t valid_ch[SCAN_PNO_MAX_NETW_CHANNELS_EX] = {0};
+	bool enable_dfs_pno_chnl_scan;
 
 	vdev = wlan_objmgr_get_vdev_by_macaddr_from_pdev(pdev, dev->dev_addr,
 		WLAN_OSIF_ID);
@@ -437,6 +446,7 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 		goto error;
 	}
 
+	enable_dfs_pno_chnl_scan = ucfg_scan_is_dfs_chnl_scan_enabled(psoc);
 	if (request->n_channels) {
 		char chl[(request->n_channels * 5) + 1];
 		int len = 0;
@@ -446,6 +456,12 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 			channel = request->channels[i]->hw_value;
 			if (wlan_reg_is_dsrc_chan(pdev, channel))
 				continue;
+			if ((!enable_dfs_pno_chnl_scan) &&
+			    (wlan_reg_is_dfs_ch(pdev, channel))) {
+				cfg80211_debug("Dropping DFS channel :%d",
+						channel);
+				continue;
+			}
 
 			if (ap_or_go_present) {
 				bool ok;
@@ -551,7 +567,7 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 	 *   switches slow_scan_period. This is less frequent scans and firmware
 	 *   shall be in slow_scan_period mode until next PNO Start.
 	 */
-	wlan_config_sched_scan_plan(req, request);
+	wlan_config_sched_scan_plan(psoc, req, request);
 	req->delay_start_time = hdd_config_sched_scan_start_delay(request);
 	req->scan_backoff_multiplier = scan_backoff_multiplier;
 	cfg80211_notice("Base scan interval: %d sec, scan cycles: %d, slow scan interval %d",

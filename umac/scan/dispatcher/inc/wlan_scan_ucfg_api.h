@@ -147,6 +147,32 @@ QDF_STATUS
 ucfg_scan_get_pno_def_params(struct wlan_objmgr_vdev *vdev,
 	struct pno_scan_req_params *req);
 
+/**
+ * ucfg_scan_is_dfs_chnl_scan_enabled() - Check if PNO dfs channel scan support
+ * is enabled
+ * @psoc: pointer to psoc object
+ *
+ * Return: dfs_chnl_scan_enabled flag
+ */
+bool ucfg_scan_is_dfs_chnl_scan_enabled(struct wlan_objmgr_psoc *psoc);
+
+/**
+* ucfg_scan_get_scan_timer_repeat_value() - API to get PNO scan timer repeat
+* value
+* @psoc: pointer to psoc object
+*
+* Return: scan_timer_repeat_value
+*/
+uint32_t ucfg_scan_get_scan_timer_repeat_value(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * ucfg_scan_get_slow_scan_multiplier() - API to get PNO slow scan multiplier
+ * value
+ * @psoc: pointer to psoc object
+ *
+ * Return: slow_scan_multiplier value
+ */
+uint32_t ucfg_scan_get_slow_scan_multiplier(struct wlan_objmgr_psoc *psoc);
 #else
 
 static inline bool

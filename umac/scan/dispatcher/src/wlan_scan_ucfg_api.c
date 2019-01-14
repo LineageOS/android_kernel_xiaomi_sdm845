@@ -240,6 +240,9 @@ wlan_pno_global_init(struct pno_def_config *pno_def)
 	pno_def->stationary_thresh = SCAN_STATIONARY_THRESHOLD;
 	pno_def->channel_prediction_full_scan =
 			SCAN_CHANNEL_PREDICTION_FULL_SCAN_MS;
+	pno_def->scan_timer_repeat_value = SCAN_PNO_DEF_SCAN_TIMER_REPEAT;
+	pno_def->slow_scan_multiplier = SCAN_PNO_DEF_SLOW_SCAN_MULTIPLIER;
+	pno_def->dfs_chnl_scan_enabled = true;
 	pno_def->adaptive_dwell_mode = SCAN_ADAPTIVE_PNOSCAN_DWELL_MODE;
 	mawc_cfg->enable = SCAN_MAWC_NLO_ENABLED;
 	mawc_cfg->exp_backoff_ratio = SCAN_MAWC_NLO_EXP_BACKOFF_RATIO;
@@ -343,12 +346,54 @@ ucfg_scan_get_pno_def_params(struct wlan_objmgr_vdev *vdev,
 	return QDF_STATUS_SUCCESS;
 }
 
+bool ucfg_scan_is_dfs_chnl_scan_enabled(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj) {
+		scm_err("NULL scan obj");
+		return true;
+	}
+
+	return scan_obj->pno_cfg.dfs_chnl_scan_enabled;
+}
+
+uint32_t ucfg_scan_get_scan_timer_repeat_value(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj) {
+		scm_err("NULL scan obj");
+		return SCAN_PNO_DEF_SCAN_TIMER_REPEAT;
+	}
+
+	return scan_obj->pno_cfg.scan_timer_repeat_value;
+}
+
+uint32_t ucfg_scan_get_slow_scan_multiplier(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj) {
+		scm_err("NULL scan obj");
+		return SCAN_PNO_DEF_SLOW_SCAN_MULTIPLIER;
+	}
+
+	return scan_obj->pno_cfg.slow_scan_multiplier;
+}
+
 static QDF_STATUS ucfg_scan_update_pno_config(struct pno_def_config *pno,
 	struct pno_user_cfg *pno_cfg)
 {
 	pno->channel_prediction = pno_cfg->channel_prediction;
 	pno->top_k_num_of_channels = pno_cfg->top_k_num_of_channels;
 	pno->stationary_thresh = pno_cfg->stationary_thresh;
+	pno->scan_timer_repeat_value = pno_cfg->scan_timer_repeat_value;
+	pno->slow_scan_multiplier = pno_cfg->slow_scan_multiplier;
+	pno->dfs_chnl_scan_enabled = pno_cfg->dfs_chnl_scan_enabled;
 	pno->adaptive_dwell_mode = pno_cfg->adaptive_dwell_mode;
 	pno->channel_prediction_full_scan =
 		pno_cfg->channel_prediction_full_scan;
