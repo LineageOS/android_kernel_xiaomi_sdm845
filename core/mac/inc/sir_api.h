@@ -3247,7 +3247,6 @@ typedef struct sSirTdlsDelStaRsp {
 	struct qdf_mac_addr peermac;
 	uint16_t staId;
 	struct wlan_objmgr_psoc *psoc;
-	bool release_serial_cmd;
 } tSirTdlsDelStaRsp, *tpSirTdlsDelStaRsp;
 /* TDLS Delete Indication struct PE-->SME */
 typedef struct sSirTdlsDelStaInd {

@@ -335,7 +335,6 @@ typedef struct {
 	uint8_t smesessionId;
 	uint8_t staType;
 	tSirMacAddr staMac;
-	bool release_serial_cmd;
 } tDeleteStaParams, *tpDeleteStaParams;
 
 /**

@@ -161,7 +161,7 @@ static void lim_ndp_delete_peer_by_addr(tpAniSirGlobal mac_ctx, uint8_t vdev_id,
 	 * DphHashEntry will be deleted after receiving that response.
 	 */
 
-	lim_del_sta(mac_ctx, sta_ds, true, session, false);
+	lim_del_sta(mac_ctx, sta_ds, true, session);
 }
 
 void lim_ndp_delete_peers_by_addr_converged(uint8_t vdev_id,
@@ -249,7 +249,7 @@ static void lim_ndp_delete_peers(tpAniSirGlobal mac_ctx,
 		 * Hence DphHashEntry will be deleted after receiving
 		 * that response.
 		 */
-		lim_del_sta(mac_ctx, sta_ds, true, session, false);
+		lim_del_sta(mac_ctx, sta_ds, true, session);
 		qdf_copy_macaddr(&deleted_peers[deleted_num++],
 			&ndp_map[i].peer_ndi_mac_addr);
 	}

@@ -86,7 +86,7 @@ lim_populate_matching_rate_set(tpAniSirGlobal pMac,
 
 QDF_STATUS lim_add_sta(tpAniSirGlobal, tpDphHashNode, uint8_t, tpPESession);
 QDF_STATUS lim_del_bss(tpAniSirGlobal, tpDphHashNode, uint16_t, tpPESession);
-QDF_STATUS lim_del_sta(tpAniSirGlobal, tpDphHashNode, bool, tpPESession, bool);
+QDF_STATUS lim_del_sta(tpAniSirGlobal, tpDphHashNode, bool, tpPESession);
 QDF_STATUS lim_add_sta_self(tpAniSirGlobal, uint16_t, uint8_t, tpPESession);
 
 void lim_teardown_infra_bss(tpAniSirGlobal, tpPESession);

@@ -2970,7 +2970,7 @@ __lim_handle_sme_stop_bss_request(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 			dph_get_hash_entry(pMac, i, &psessionEntry->dph.dphHashTable);
 		if (NULL == pStaDs)
 			continue;
-		status = lim_del_sta(pMac, pStaDs, false, psessionEntry, false);
+		status = lim_del_sta(pMac, pStaDs, false, psessionEntry);
 		if (QDF_STATUS_SUCCESS == status) {
 			lim_delete_dph_hash_entry(pMac, pStaDs->staAddr,
 						  pStaDs->assocId, psessionEntry);
