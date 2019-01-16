@@ -8126,6 +8126,8 @@ static void csr_roam_process_join_res(tpAniSirGlobal mac_ctx,
 		acm_mask = sme_qos_get_acm_mask(mac_ctx, bss_desc, NULL);
 #endif
 		conn_profile->acm_mask = acm_mask;
+		conn_profile->modifyProfileFields.uapsd_mask =
+						join_rsp->uapsd_mask;
 		/*
 		 * start UAPSD if uapsd_mask is not 0 because HDD will
 		 * configure for trigger frame It may be better to let QoS do
@@ -15616,54 +15618,25 @@ csr_check_vendor_ap_3_present(tpAniSirGlobal mac_ctx, uint8_t *ie,
  * csr_enable_twt() - Check if its allowed to enable twt for this session
  * @ie: pointer to beacon/probe resp ie's
  *
- * TWT is allowed only if device is in 11ax mode or if QCN ie present.
+ * TWT is allowed only if device is in 11ax mode and peer supports
+ * TWT responder or if QCN ie present.
  *
  * Return: true or flase
  */
-static bool csr_enable_twt(tDot11fBeaconIEs *ie)
+static bool csr_enable_twt(tpAniSirGlobal mac_ctx, tDot11fBeaconIEs *ie)
 {
-	if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AX))
-		return true;
-
-	if (!ie) {
-		sme_debug("Beacon ie buffer is null");
-		return false;
-	}
-
-	return ie->QCN_IE.present;
-}
-
-/**
- * csr_enable_uapsd() - Used to disable uapsd if both twt and uapsd is enabled
- * @mac_ctx: pointer to global mac structure
- * @ie: pointer to beacon/probe resp ie's
- *
- * Return: true or flase
- */
-static bool csr_enable_uapsd(tpAniSirGlobal mac_ctx, tDot11fBeaconIEs *ie)
-{
-	uint32_t value = 0;
+	uint32_t value;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
-	/* In non-HE case, TWT is enabled only for Q2Q.
-	 * So keed uAPSD enabled for non-Q2Q in this non-HE case.
-	 */
-	if (!csr_enable_twt(ie))
-		return true;
-
-	if (!ie) {
-		sme_debug("Beacon ie buffer is null");
-		return true;
-	}
-
 	CFG_GET_INT(status, mac_ctx, WNI_CFG_TWT_REQUESTOR, value);
-	if ((value || IS_FEATURE_SUPPORTED_BY_FW(DOT11AX)) &&
-	    ie->he_cap.twt_responder) {
-		sme_debug("twt supported, disable uapsd");
-		return false;
+	if ((IS_FEATURE_SUPPORTED_BY_FW(DOT11AX) || value) && ie &&
+	    (ie->QCN_IE.present || ie->he_cap.twt_responder)) {
+		sme_debug("TWT is supported, hence disable UAPSD; twt_requestor: %d, twt respon supp: %d, QCN_IE: %d",
+			  value, ie->he_cap.twt_responder, ie->QCN_IE.present);
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 /**
@@ -15950,8 +15923,8 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 					 (eCsrPhyMode) pProfile->phyMode,
 					 pBssDescription, pIes, &OpRateSet,
 					 &ExRateSet);
-		ps_param->uapsd_per_ac_bit_mask =
-			pProfile->uapsd_mask;
+		if (!csr_enable_twt(pMac, pIes))
+			ps_param->uapsd_per_ac_bit_mask = pProfile->uapsd_mask;
 		if (QDF_IS_STATUS_SUCCESS(status)) {
 			/* OperationalRateSet */
 			if (OpRateSet.numRates) {
@@ -16474,8 +16447,8 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 				csr_join_req->supportedChannels.channelList,
 				&csr_join_req->supportedChannels.numChnl,
 				false);
-
-		if (csr_enable_uapsd(pMac, pIes))
+		/* Enable UAPSD only if TWT is not supported */
+		if (!csr_enable_twt(pMac, pIes))
 			csr_join_req->uapsdPerAcBitmask = pProfile->uapsd_mask;
 		/* Move the entire BssDescription into the join request. */
 		qdf_mem_copy(&csr_join_req->bssDescription, pBssDescription,
@@ -16530,7 +16503,8 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			csr_join_req->enable_bcast_probe_rsp =
 				pMac->roam.configParam.enable_bcast_probe_rsp;
 
-		csr_join_req->enable_session_twt_support = csr_enable_twt(pIes);
+		csr_join_req->enable_session_twt_support = csr_enable_twt(pMac,
+									  pIes);
 		status = umac_send_mb_message_to_mac(csr_join_req);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			/*
