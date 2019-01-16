@@ -1541,9 +1541,7 @@ QDF_STATUS tdls_process_del_peer_rsp(struct tdls_del_sta_rsp *rsp)
 	}
 
 cmddone:
-	if (rsp->release_serial_cmd)
-		tdls_release_serialization_command(vdev,
-				WLAN_SER_CMD_TDLS_DEL_PEER);
+	tdls_release_serialization_command(vdev, WLAN_SER_CMD_TDLS_DEL_PEER);
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_TDLS_SB_ID);
 error:
 

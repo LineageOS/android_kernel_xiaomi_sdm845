@@ -193,7 +193,6 @@ struct tdls_del_sta_rsp {
 	struct qdf_mac_addr peermac;
 	uint16_t sta_id;
 	struct wlan_objmgr_psoc *psoc;
-	bool release_serial_cmd;
 };
 
 /**
