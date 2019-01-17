@@ -2723,7 +2723,7 @@ enum hdd_dot11_mode {
  *
  * @min: 0
  * @max: 1
- * @default: 0
+ * @default: 1
  *
  * 0 - disable
  * 1 - enable
@@ -2733,7 +2733,7 @@ enum hdd_dot11_mode {
 #define CFG_LATENCY_ENABLE_NAME    "wlm_latency_enable"
 #define CFG_LATENCY_ENABLE_MIN     (0)
 #define CFG_LATENCY_ENABLE_MAX     (1)
-#define CFG_LATENCY_ENABLE_DEFAULT (0)
+#define CFG_LATENCY_ENABLE_DEFAULT (1)
 
 /*
  * <ini>
