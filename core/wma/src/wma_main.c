@@ -89,6 +89,7 @@
 #include "target_if_green_ap.h"
 #include "service_ready_param.h"
 #include "wlan_cp_stats_mc_ucfg_api.h"
+#include "init_cmd_api.h"
 
 #define WMA_LOG_COMPLETION_TIMER 3000 /* 3 seconds */
 #define WMI_TLV_HEADROOM 128
@@ -4679,6 +4680,7 @@ QDF_STATUS wma_wmi_work_close(void)
 QDF_STATUS wma_close(void)
 {
 	tp_wma_handle wma_handle;
+	struct target_psoc_info *tgt_psoc_info;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 
 	WMA_LOGD("%s: Enter", __func__);
@@ -4761,6 +4763,8 @@ QDF_STATUS wma_close(void)
 	pmo_unregister_get_pause_bitmap(wma_handle->psoc);
 	pmo_unregister_pause_bitmap_notifier(wma_handle->psoc);
 
+	tgt_psoc_info = wlan_psoc_get_tgt_if_handle(wma_handle->psoc);
+	init_deinit_free_num_units(wma_handle->psoc, tgt_psoc_info);
 	target_if_free_psoc_tgt_info(wma_handle->psoc);
 
 	wlan_objmgr_psoc_release_ref(wma_handle->psoc, WLAN_LEGACY_WMA_ID);
