@@ -168,7 +168,7 @@ ol_rx_mpdu_list_next(struct ol_txrx_pdev_t *pdev,
 /* default conditional defs (may be undefed below) */
 
 #define TXRX_STATS_INIT(_pdev) \
-	qdf_mem_set(&((_pdev)->stats), sizeof((_pdev)->stats), 0x0)
+	qdf_mem_zero(&((_pdev)->stats), sizeof((_pdev)->stats))
 #define TXRX_STATS_ADD(_pdev, _field, _delta) {		\
 		_pdev->stats._field += _delta; }
 #define TXRX_STATS_MSDU_INCR(pdev, field, netbuf) \

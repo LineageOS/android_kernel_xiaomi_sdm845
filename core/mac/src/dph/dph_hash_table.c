@@ -244,7 +244,7 @@ tpDphHashNode dph_init_sta_state(tpAniSirGlobal pMac, tSirMacAddr staAddr,
 	pnext = pStaDs->next;
 
 	/* Clear the STA node except for the next pointer */
-	qdf_mem_set((uint8_t *)pStaDs, sizeof(tDphHashNode), 0);
+	qdf_mem_zero((uint8_t *)pStaDs, sizeof(tDphHashNode));
 	pStaDs->next = pnext;
 
 	/* Initialize the assocId */

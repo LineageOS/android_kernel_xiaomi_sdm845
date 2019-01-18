@@ -274,7 +274,7 @@ sch_set_fixed_beacon_fields(tpAniSirGlobal mac_ctx, tpPESession session)
 	 * First set the fixed fields:
 	 * set the TFP headers, set the mac header
 	 */
-	qdf_mem_set((uint8_t *) &bcn_struct->macHdr, sizeof(tSirMacMgmtHdr), 0);
+	qdf_mem_zero((uint8_t *) &bcn_struct->macHdr, sizeof(tSirMacMgmtHdr));
 	mac = (tpSirMacMgmtHdr) &bcn_struct->macHdr;
 	mac->fc.type = SIR_MAC_MGMT_FRAME;
 	mac->fc.subType = SIR_MAC_MGMT_BEACON;
@@ -314,12 +314,12 @@ sch_set_fixed_beacon_fields(tpAniSirGlobal mac_ctx, tpPESession session)
 
 	if (LIM_IS_AP_ROLE(session)) {
 		/* Initialize the default IE bitmap to zero */
-		qdf_mem_set((uint8_t *) &(session->DefProbeRspIeBitmap),
-			    (sizeof(uint32_t) * 8), 0);
+		qdf_mem_zero((uint8_t *) &(session->DefProbeRspIeBitmap),
+			    (sizeof(uint32_t) * 8));
 
 		/* Initialize the default IE bitmap to zero */
-		qdf_mem_set((uint8_t *) &(session->probeRespFrame),
-			    sizeof(session->probeRespFrame), 0);
+		qdf_mem_zero((uint8_t *) &(session->probeRespFrame),
+			    sizeof(session->probeRespFrame));
 
 		/*
 		 * Can be efficiently updated whenever new IE added in Probe

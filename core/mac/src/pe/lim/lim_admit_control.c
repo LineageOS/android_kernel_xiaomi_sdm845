@@ -710,7 +710,7 @@ QDF_STATUS lim_admit_control_add_ts(tpAniSirGlobal pMac, uint8_t *pAddr,
 	}
 	/* fill in a schedule if requested */
 	if (pSch != NULL) {
-		qdf_mem_set((uint8_t *) pSch, sizeof(*pSch), 0);
+		qdf_mem_zero((uint8_t *) pSch, sizeof(*pSch));
 		pSch->svcStartTime = pAddts->tspec.svcStartTime;
 		pSch->svcInterval = svcInterval;
 		pSch->maxSvcDuration = (uint16_t) pSch->svcInterval;    /* use SP = SI */
@@ -814,8 +814,8 @@ QDF_STATUS lim_admit_control_delete_sta(tpAniSirGlobal pMac, uint16_t assocId)
    -------------------------------------------------------------*/
 QDF_STATUS lim_admit_control_init(tpAniSirGlobal pMac)
 {
-	qdf_mem_set(pMac->lim.tspecInfo,
-		    LIM_NUM_TSPEC_MAX * sizeof(tLimTspecInfo), 0);
+	qdf_mem_zero(pMac->lim.tspecInfo,
+		    LIM_NUM_TSPEC_MAX * sizeof(tLimTspecInfo));
 	return QDF_STATUS_SUCCESS;
 }
 

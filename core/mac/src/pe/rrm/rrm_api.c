@@ -457,7 +457,7 @@ rrm_process_neighbor_report_req(tpAniSirGlobal pMac,
 
 	pe_debug("SSID present: %d", pNeighborReq->noSSID);
 
-	qdf_mem_set(&NeighborReportReq, sizeof(tSirMacNeighborReportReq), 0);
+	qdf_mem_zero(&NeighborReportReq, sizeof(tSirMacNeighborReportReq));
 
 	NeighborReportReq.dialogToken = ++pMac->rrm.rrmPEContext.DialogToken;
 	NeighborReportReq.ssid_present = !pNeighborReq->noSSID;
@@ -1284,7 +1284,7 @@ QDF_STATUS rrm_initialize(tpAniSirGlobal pMac)
 	pMac->rrm.rrmPEContext.rrmEnable = 0;
 	pMac->rrm.rrmPEContext.prev_rrm_report_seq_num = 0xFFFF;
 
-	qdf_mem_set(pRRMCaps, sizeof(tRRMCaps), 0);
+	qdf_mem_zero(pRRMCaps, sizeof(tRRMCaps));
 	pRRMCaps->LinkMeasurement = 1;
 	pRRMCaps->NeighborRpt = 1;
 	pRRMCaps->BeaconPassive = 1;

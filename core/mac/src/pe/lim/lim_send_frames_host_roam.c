@@ -100,7 +100,7 @@ void lim_send_reassoc_req_with_ft_ies_mgmt_frame(tpAniSirGlobal mac_ctx,
 	add_ie = pe_session->pLimReAssocReq->addIEAssoc.addIEdata;
 	pe_debug("called in state: %d", pe_session->limMlmState);
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	caps = mlm_reassoc_req->capabilityInfo;
 #if defined(FEATURE_WLAN_WAPI)
@@ -345,7 +345,7 @@ void lim_send_reassoc_req_with_ft_ies_mgmt_frame(tpAniSirGlobal mac_ctx,
 		goto end;
 	}
 	/* Paranoia: */
-	qdf_mem_set(frame, bytes + ft_ies_length, 0);
+	qdf_mem_zero(frame, bytes + ft_ies_length);
 
 	lim_print_mac_addr(mac_ctx, pe_session->limReAssocbssId, LOGD);
 	/* Next, we fill out the buffer descriptor: */
@@ -565,7 +565,7 @@ void lim_send_reassoc_req_mgmt_frame(tpAniSirGlobal pMac,
 	nAddIELen = psessionEntry->pLimReAssocReq->addIEAssoc.length;
 	pAddIE = psessionEntry->pLimReAssocReq->addIEAssoc.addIEdata;
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	caps = pMlmReassocReq->capabilityInfo;
 #if defined(FEATURE_WLAN_WAPI)
@@ -714,7 +714,7 @@ void lim_send_reassoc_req_mgmt_frame(tpAniSirGlobal pMac,
 		goto end;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,

@@ -738,14 +738,14 @@ void csr_apply_channel_power_info_wrapper(tpAniSirGlobal pMac)
 	csr_apply_channel_power_info_to_fw(pMac,
 		&pMac->scan.base_channels, pMac->scan.countryCodeCurrent);
 	/* clear the 11d channel list */
-	qdf_mem_set(&pMac->scan.channels11d, sizeof(pMac->scan.channels11d), 0);
+	qdf_mem_zero(&pMac->scan.channels11d, sizeof(pMac->scan.channels11d));
 }
 
 void csr_clear_votes_for_country_info(tpAniSirGlobal pMac)
 {
 	pMac->scan.countryCodeCount = 0;
-	qdf_mem_set(pMac->scan.votes11d,
-		    sizeof(struct csr_votes11d) * CSR_MAX_NUM_COUNTRY_CODE, 0);
+	qdf_mem_zero(pMac->scan.votes11d,
+		    sizeof(struct csr_votes11d) * CSR_MAX_NUM_COUNTRY_CODE);
 }
 
 /* caller allocated memory for pNumChn and pChnPowerInfo */
