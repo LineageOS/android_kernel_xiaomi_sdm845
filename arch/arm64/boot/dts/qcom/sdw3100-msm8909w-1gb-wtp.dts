@@ -137,6 +137,20 @@
 			qcom,glinkpkt-ch-name = "RSB_CTRL";
 			qcom,glinkpkt-dev-name = "glink_pkt_bg_rsb_ctrl";
 		};
+
+		qcom,glinkpkt-bg-sso-ctrl {
+			qcom,glinkpkt-transport = "bgcom";
+			qcom,glinkpkt-edge = "bg";
+			qcom,glinkpkt-ch-name = "sso-ctrl";
+			qcom,glinkpkt-dev-name = "glink_pkt_bg_sso_ctrl";
+		};
+
+		qcom,glinkpkt-bg-buzzer-ctrl {
+			qcom,glinkpkt-transport = "bgcom";
+			qcom,glinkpkt-edge = "bg";
+			qcom,glinkpkt-ch-name = "buzzer-ctrl";
+			qcom,glinkpkt-dev-name = "glink_pkt_bg_buzzer_ctrl";
+		};
 	};
 
 	spi@78B8000 {  /* BLSP1 QUP4 */
@@ -147,16 +161,6 @@
 			spi-max-frequency = <16000000>;
 			interrupt-parent = <&msm_gpio>;
 			qcom,irq-gpio = <&msm_gpio 110 1>;
-		};
-	};
-
-	qcom,msm-thermal {
-		vdd-dig-supply = <&pm660_s2_floor_corner>;
-
-		msm_thermal_freq: qcom,vdd-apps-rstr {
-			qcom,vdd-rstr-reg = "vdd-apps";
-			qcom,levels = <1094400>;
-			qcom,freq-req;
 		};
 	};
 
@@ -171,24 +175,6 @@
 		qcom,bg-reset-gpio = <&pm660_gpios 5 0>;
 		ssr-reg1-supply = <&pm660_l3>;
 		ssr-reg2-supply = <&pm660_l9>;
-	};
-
-	qcom,bcl {
-		compatible = "qcom,bcl";
-		qcom,bcl-enable;
-		qcom,bcl-framework-interface;
-		qcom,bcl-freq-control-list = <&CPU0 &CPU1 &CPU2 &CPU3>;
-		qcom,bcl-hotplug-list = <&CPU2 &CPU3>;
-		qcom,bcl-soc-hotplug-list = <&CPU2 &CPU3>;
-		qcom,ibat-monitor {
-			qcom,low-threshold-uamp = <1000000>;
-			qcom,high-threshold-uamp = <2000000>;
-			qcom,mitigation-freq-khz = <1094400>;
-			qcom,vph-high-threshold-uv = <3500000>;
-			qcom,vph-low-threshold-uv = <3200000>;
-			qcom,soc-low-threshold = <10>;
-			qcom,thermal-handle = <&msm_thermal_freq>;
-		};
 	};
 };
 

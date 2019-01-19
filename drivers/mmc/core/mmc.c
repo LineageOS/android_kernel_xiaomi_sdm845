@@ -685,9 +685,6 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 				mmc_hostname(card->host),
 				card->ext_csd.barrier_support,
 				card->ext_csd.cache_flush_policy);
-		card->ext_csd.enhanced_rpmb_supported =
-			(card->ext_csd.rel_param &
-			 EXT_CSD_WR_REL_PARAM_EN_RPMB_REL_WR);
 	} else {
 		card->ext_csd.cmdq_support = 0;
 		card->ext_csd.cmdq_depth = 0;
@@ -709,6 +706,13 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		card->ext_csd.device_life_time_est_typ_b =
 			ext_csd[EXT_CSD_DEVICE_LIFE_TIME_EST_TYP_B];
 	}
+
+	/* eMMC v5.1 or later */
+	if (card->ext_csd.rev >= 8)
+		card->ext_csd.enhanced_rpmb_supported =
+			(card->ext_csd.rel_param &
+			 EXT_CSD_WR_REL_PARAM_EN_RPMB_REL_WR);
+
 out:
 	return err;
 }
@@ -3087,7 +3091,7 @@ static int mmc_pre_hibernate(struct mmc_host *host)
 	host->caps2 &= ~MMC_CAP2_CLK_SCALE;
 	host->clk_scaling.state = MMC_LOAD_HIGH;
 	ret = mmc_clk_update_freq(host, host->card->clk_scaling_highest,
-				host->clk_scaling.state);
+				host->clk_scaling.state, 0);
 	if (ret)
 		pr_err("%s: %s: Setting clk frequency to max failed: %d\n",
 				mmc_hostname(host), __func__, ret);
