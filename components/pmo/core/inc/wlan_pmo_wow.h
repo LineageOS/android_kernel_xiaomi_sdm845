@@ -658,7 +658,7 @@ bool pmo_core_is_nan_enabled(struct wlan_objmgr_psoc *psoc)
 }
 #else
 static inline
-bool pmo_core_is_nan_enabled(struct wlan_objmgr_vdev *vdev)
+bool pmo_core_is_nan_enabled(struct wlan_objmgr_psoc *psoc)
 {
 	return false;
 }
