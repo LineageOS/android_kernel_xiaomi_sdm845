@@ -1066,6 +1066,41 @@ cds_wakeup_rx_thread(p_cds_sched_context pSchedContext)
 }
 
 /**
+ * cds_close_rx_thread() - close the Tlshim Rx thread
+ * @p_cds_context: Pointer to the global CDS Context
+ *
+ * This api closes the Tlshim Rx thread:
+ *
+ * Return: qdf status
+ */
+QDF_STATUS cds_close_rx_thread(void *p_cds_context)
+{
+	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
+		  "%s: invoked", __func__);
+
+	if (gp_cds_sched_context == NULL) {
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+			  "%s: gp_cds_sched_context == NULL", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (!gp_cds_sched_context->ol_rx_thread)
+		return QDF_STATUS_SUCCESS;
+
+	/* Shut down Tlshim Rx thread */
+	set_bit(RX_SHUTDOWN_EVENT, &gp_cds_sched_context->ol_rx_event_flag);
+	set_bit(RX_POST_EVENT, &gp_cds_sched_context->ol_rx_event_flag);
+	wake_up_interruptible(&gp_cds_sched_context->ol_rx_wait_queue);
+	wait_for_completion(&gp_cds_sched_context->ol_rx_shutdown);
+	gp_cds_sched_context->ol_rx_thread = NULL;
+	cds_drop_rxpkt_by_staid(gp_cds_sched_context, WLAN_MAX_STA_COUNT);
+	cds_free_ol_rx_pkt_freeq(gp_cds_sched_context);
+	qdf_cpuhp_unregister(&gp_cds_sched_context->cpuhp_event_handle);
+
+	return QDF_STATUS_SUCCESS;
+} /* cds_close_rx_thread */
+
+/**
  * cds_drop_rxpkt_by_staid() - api to drop pending rx packets for a sta
  * @pSchedContext: Pointer to the global CDS Sched Context
  * @staId: Station Id
@@ -1316,17 +1351,8 @@ QDF_STATUS cds_sched_close(void *p_cds_context)
 	/* Deinit all the queues */
 	cds_sched_deinit_mqs(gp_cds_sched_context);
 
-#ifdef QCA_CONFIG_SMP
-	/* Shut down Tlshim Rx thread */
-	set_bit(RX_SHUTDOWN_EVENT, &gp_cds_sched_context->ol_rx_event_flag);
-	set_bit(RX_POST_EVENT, &gp_cds_sched_context->ol_rx_event_flag);
-	wake_up_interruptible(&gp_cds_sched_context->ol_rx_wait_queue);
-	wait_for_completion(&gp_cds_sched_context->ol_rx_shutdown);
-	gp_cds_sched_context->ol_rx_thread = NULL;
-	cds_drop_rxpkt_by_staid(gp_cds_sched_context, WLAN_MAX_STA_COUNT);
-	cds_free_ol_rx_pkt_freeq(gp_cds_sched_context);
-	qdf_cpuhp_unregister(&gp_cds_sched_context->cpuhp_event_handle);
-#endif
+	cds_close_rx_thread(p_cds_context);
+
 	gp_cds_sched_context = NULL;
 	return QDF_STATUS_SUCCESS;
 } /* cds_sched_close() */

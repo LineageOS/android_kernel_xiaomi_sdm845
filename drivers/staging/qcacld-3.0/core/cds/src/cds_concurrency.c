@@ -5238,6 +5238,9 @@ static QDF_STATUS cds_get_channel_list(enum cds_pcl_type pcl,
 		skip_dfs_channel = true;
 	}
 
+	if (!cds_cfg->dfs_master_enable)
+		skip_dfs_channel = true;
+
 	if ((mode == CDS_SAP_MODE) || (mode == CDS_P2P_GO_MODE)) {
 		skip_srd_chan = !cds_cfg->etsi_srd_chan_in_master_mode &&
 			cds_is_5g_regdmn_etsi13();

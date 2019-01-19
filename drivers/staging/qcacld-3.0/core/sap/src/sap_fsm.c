@@ -4312,17 +4312,9 @@ static QDF_STATUS sap_fsm_state_disconnecting(ptSapContext sap_ctx,
 			  "eSAP_DISCONNECTING", "eSAP_DISCONNECTED");
 		sap_ctx->sapsMachine = eSAP_DISCONNECTED;
 
-		/* Close the SME session */
-		if (true == sap_ctx->isSapSessionOpen) {
-			sap_ctx->isSapSessionOpen = false;
-			qdf_status = sap_close_session(hal, sap_ctx,
-					sap_roam_session_close_callback, true);
-			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-				qdf_status = sap_signal_hdd_event(sap_ctx, NULL,
-						eSAP_STOP_BSS_EVENT,
-						(void *)eSAP_STATUS_SUCCESS);
-			}
-		}
+		qdf_status = sap_signal_hdd_event(sap_ctx, NULL,
+						  eSAP_STOP_BSS_EVENT,
+						  (void *)eSAP_STATUS_SUCCESS);
 	} else if (msg == eWNI_SME_CHANNEL_CHANGE_REQ) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
 			  FL("sapdfs: Send channel change request on sapctx[%pK]"),
@@ -4931,9 +4923,13 @@ static QDF_STATUS sap_get_channel_list(ptSapContext sap_ctx,
 		/* Dont scan DFS channels in case of MCC disallowed
 		 * As it can result in SAP starting on DFS channel
 		 * resulting  MCC on DFS channel
+		 * Also if the dfs master mode in not enabled, exclude the
+		 * dfs channels, as the user doesnt want the SAP bringup on
+		 * dfs channel.
 		 */
 		if (CDS_IS_DFS_CH(CDS_CHANNEL_NUM(loop_count)) &&
-				  cds_disallow_mcc(CDS_CHANNEL_NUM(loop_count)))
+		   (cds_disallow_mcc(CDS_CHANNEL_NUM(loop_count)) ||
+		    !sap_ctx->acs_cfg->dfs_master_enable))
 			continue;
 
 		/*

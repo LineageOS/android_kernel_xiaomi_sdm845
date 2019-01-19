@@ -1038,6 +1038,7 @@ typedef struct tagCsrRoamConnectedProfile {
 	eCsrEncryptionType mcEncryptionType;
 	tCsrEncryptionList mcEncryptionInfo;
 	uint8_t operationChannel;
+	uint8_t countryCode[WNI_CFG_COUNTRY_CODE_LEN];
 	uint32_t vht_channel_width;
 	uint16_t beaconInterval;
 	tCsrKeys Keys;

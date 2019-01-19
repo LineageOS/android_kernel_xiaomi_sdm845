@@ -916,6 +916,7 @@ QDF_STATUS cds_post_disable(void)
 	tp_wma_handle wma_handle;
 	struct hif_opaque_softc *hif_ctx;
 	ol_txrx_pdev_handle txrx_pdev;
+	QDF_STATUS qdf_status;
 
 	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
 	if (!wma_handle) {
@@ -957,6 +958,12 @@ QDF_STATUS cds_post_disable(void)
 	if (gp_cds_context->htc_ctx) {
 		wma_wmi_stop();
 		htc_stop(gp_cds_context->htc_ctx);
+	}
+
+	qdf_status = cds_close_rx_thread(gp_cds_context);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		cds_err("Failed to close RX thread!");
+		return QDF_STATUS_E_INVAL;
 	}
 
 	ol_txrx_pdev_pre_detach(txrx_pdev, 1);

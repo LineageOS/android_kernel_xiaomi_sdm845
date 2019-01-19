@@ -152,6 +152,7 @@ enum country_code {
 	CTRY_ISRAEL = 376,
 	CTRY_ITALY = 380,
 	CTRY_JAMAICA = 388,
+	CTRY_JAPAN = 392,
 	CTRY_JORDAN = 400,
 	CTRY_KAZAKHSTAN = 398,
 	CTRY_KENYA = 404,
@@ -253,11 +254,6 @@ enum country_code {
 	CTRY_WALLIS_AND_FUTUNA = 876,
 	CTRY_YEMEN = 887,
 	CTRY_ZIMBABWE = 716,
-	CTRY_JAPAN9 = 4009,
-	CTRY_JAPAN15 = 4015,
-	CTRY_JAPAN48 = 4048,
-	CTRY_JAPAN55 = 4055,
-	CTRY_JAPAN60 = 4060,
 	CTRY_XA = 4100,
 };
 
@@ -302,7 +298,8 @@ enum reg_domain {
 	ETSI9_WORLD = 0x3E,
 	ETSI10_WORLD = 0x24,
 	ETSI11_WORLD = 0x26,
-	ETSI13_WORLD = 0x28,
+	ETSI13_WORLD = 0x27,
+	ETSI14_WORLD = 0x29,
 	ETSI15_WORLD = 0x31,
 
 	APL4_WORLD = 0x42,
@@ -407,6 +404,7 @@ enum reg_domain {
 	ETSI10 = 0x0D30,
 	ETSI11 = 0x0E30,
 	ETSI13 = 0x0E39,
+	ETSI14 = 0x0E40,
 	ETSI15 = 0x0E41,
 
 	APL1 = 0x0150,
@@ -561,8 +559,16 @@ void cds_set_wma_dfs_region(uint8_t dfs_region);
 uint16_t cds_reg_dmn_get_opclass_from_channel(uint8_t *country,
 					      uint8_t channel,
 					      uint8_t offset);
-void cds_reg_dmn_get_channel_from_opclass(uint8_t *country,
-					  uint8_t op_class);
+
+/**
+ * cds_reg_dmn_print_channels_in_opclass() - Print channels in given op class
+ *					     and country combination
+ * @country: the country code
+ * @op_class: operating class
+ *
+ * Return: none
+ */
+void cds_reg_dmn_print_channels_in_opclass(uint8_t *country, uint8_t op_class);
 uint16_t cds_reg_dmn_get_chanwidth_from_opclass(uint8_t *country,
 						uint8_t channel,
 						uint8_t opclass);

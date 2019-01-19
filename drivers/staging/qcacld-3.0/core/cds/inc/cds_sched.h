@@ -384,6 +384,16 @@ void cds_indicate_rxpkt(p_cds_sched_context pSchedContext,
  */
 void cds_wakeup_rx_thread(p_cds_sched_context pSchedContext);
 
+/**
+ * cds_close_rx_thread() - close the Tlshim Rx thread
+ * @p_cds_context: Pointer to the global CDS Context
+ *
+ * This api closes the Tlshim Rx thread:
+ *
+ * Return: qdf status
+ */
+QDF_STATUS cds_close_rx_thread(void *p_cds_context);
+
 /*---------------------------------------------------------------------------
    \brief cds_alloc_ol_rx_pkt() - API to return next available cds message
    The \a cds_alloc_ol_rx_pkt() returns next available cds message buffer
@@ -458,6 +468,20 @@ void cds_indicate_rxpkt(p_cds_sched_context pSchedContext,
 static inline
 void cds_wakeup_rx_thread(p_cds_sched_context pSchedContext)
 {
+}
+
+/**
+ * cds_close_rx_thread() - close the Tlshim Rx thread
+ * @p_cds_context: Pointer to the global CDS Context
+ *
+ * This api closes the Tlshim Rx thread:
+ *
+ * Return: qdf status
+ */
+static inline
+QDF_STATUS cds_close_rx_thread(void *p_cds_context)
+{
+	return QDF_STATUS_SUCCESS;
 }
 
 /**

@@ -870,17 +870,6 @@ static inline bool hdd_ipa_is_ipv6_enabled(hdd_context_t *hdd_ctx)
 }
 
 /**
- * hdd_ipa_is_rm_enabled() - Is IPA resource manager enabled?
- * @hdd_ipa: Global HDD IPA context
- *
- * Return: true if resource manager is enabled, otherwise false
- */
-static inline bool hdd_ipa_is_rm_enabled(hdd_context_t *hdd_ctx)
-{
-	return HDD_IPA_IS_CONFIG_ENABLED(hdd_ctx, HDD_IPA_RM_ENABLE_MASK);
-}
-
-/**
  * hdd_ipa_is_rt_debugging_enabled() - Is IPA real-time debug enabled?
  * @hdd_ipa: Global HDD IPA context
  *
@@ -1054,6 +1043,21 @@ static void hdd_ipa_wdi_init_metering(struct hdd_ipa_priv *ipa_ctxt, void *in)
 #endif /* FEATURE_METERING */
 
 #ifdef CONFIG_IPA_WDI_UNIFIED_API
+
+/**
+ * hdd_ipa_is_rm_enabled() - Is IPA resource manager enabled?
+ * @hdd_ipa: Global HDD IPA context
+ *
+ * IPA RM is deprecated and IPA PM is involved. WLAN driver
+ * has no control over IPA PM and thus we could regard IPA
+ * RM as always enabled for power efficiency.
+ *
+ * Return: true
+ */
+static inline bool hdd_ipa_is_rm_enabled(hdd_context_t *hdd_ctx)
+{
+	return true;
+}
 
 /**
  * hdd_ipa_is_clk_scaling_enabled() - Is IPA clock scaling enabled?
@@ -1585,6 +1589,17 @@ int hdd_ipa_uc_smmu_map(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
 			   (struct ipa_wdi_buffer_info *)buf_arr);
 }
 #else /* CONFIG_IPA_WDI_UNIFIED_API */
+
+/**
+ * hdd_ipa_is_rm_enabled() - Is IPA resource manager enabled?
+ * @hdd_ipa: Global HDD IPA context
+ *
+ * Return: true if resource manager is enabled, otherwise false
+ */
+static inline bool hdd_ipa_is_rm_enabled(hdd_context_t *hdd_ctx)
+{
+	return HDD_IPA_IS_CONFIG_ENABLED(hdd_ctx, HDD_IPA_RM_ENABLE_MASK);
+}
 
 /**
  * hdd_ipa_is_clk_scaling_enabled() - Is IPA clock scaling enabled?
@@ -6834,7 +6849,7 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 	int ret = 0;
 
 	if (hdd_validate_adapter(adapter)) {
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_ERROR, "Invalid adapter: 0x%pK",
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "Invalid adapter: 0x%pK",
 			    adapter);
 		return -EINVAL;
 	}
@@ -6989,7 +7004,7 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 
 		qdf_mutex_release(&hdd_ipa->event_lock);
 
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "sta_connected=%d",
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "sta_connected=%d",
 			    hdd_ipa->sta_connected);
 		break;
 
@@ -7074,7 +7089,7 @@ static int __hdd_ipa_wlan_evt(hdd_adapter_t *adapter, uint8_t sta_id,
 
 		qdf_mutex_release(&hdd_ipa->event_lock);
 
-		HDD_IPA_LOG(QDF_TRACE_LEVEL_INFO, "sta_connected=%d",
+		HDD_IPA_LOG(QDF_TRACE_LEVEL_DEBUG, "sta_connected=%d",
 			    hdd_ipa->sta_connected);
 		break;
 

@@ -4222,8 +4222,9 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 		}
 		/* if tdls_mode is disabled, then decline the peer's request */
 		if (eTDLS_SUPPORT_DISABLED == pHddCtx->tdls_mode) {
-			hdd_debug(MAC_ADDRESS_STR " TDLS mode is disabled. action %d declined.",
-				   MAC_ADDR_ARRAY(peer), action_code);
+			hdd_debug(MAC_ADDRESS_STR " TDLS mode is disabled. action %d declined. source bitmap:%lu",
+				  MAC_ADDR_ARRAY(peer), action_code,
+				  pHddCtx->tdls_source_bitmap);
 			return -ENOTSUPP;
 		}
 		if (pHddCtx->tdls_nss_switch_in_progress) {

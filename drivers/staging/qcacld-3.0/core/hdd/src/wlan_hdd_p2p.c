@@ -802,7 +802,9 @@ QDF_STATUS wlan_hdd_remain_on_channel_callback(tHalHandle hHal, void *pCtx,
 	 * Always schedule below work queue only after completing the
 	 * cancel_rem_on_chan_var event.
 	 */
-	schedule_delayed_work(&hdd_ctx->roc_req_work, 0);
+	/* If ssr is inprogress, do not schedule next roc req */
+	if (!hdd_ctx->is_ssr_in_progress)
+		schedule_delayed_work(&hdd_ctx->roc_req_work, 0);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -956,6 +958,8 @@ static void wlan_hdd_cancel_pending_roc(hdd_adapter_t *adapter)
 	}
 	roc_scan_id = roc_ctx->scan_id;
 	mutex_unlock(&cfg_state->remain_on_chan_ctx_lock);
+
+	INIT_COMPLETION(adapter->cancel_rem_on_chan_var);
 
 	if (adapter->device_mode == QDF_P2P_GO_MODE) {
 		void *sap_ctx = WLAN_HDD_GET_SAP_CTX_PTR(adapter);

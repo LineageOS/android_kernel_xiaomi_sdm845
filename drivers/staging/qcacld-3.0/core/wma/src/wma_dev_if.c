@@ -532,6 +532,7 @@ static QDF_STATUS wma_self_peer_remove(tp_wma_handle wma_handle,
 				 vdev_id);
 			wma_remove_req(wma_handle, vdev_id,
 				WMA_DEL_P2P_SELF_STA_RSP_START);
+			qdf_mem_free(sta_self_wmi_rsp);
 			qdf_status = QDF_STATUS_E_FAILURE;
 			goto error;
 		}
@@ -991,7 +992,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			if (resp_event->pdev_id == WMI_PDEV_ID_SOC) {
 				WMA_LOGE("%s: soc level id received for mac id",
 					__func__);
-				QDF_BUG(0);
 				return -EINVAL;
 			}
 			wma->interfaces[resp_event->vdev_id].mac_id =
@@ -1401,11 +1401,6 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 	ol_txrx_peer_handle peer;
 	struct peer_create_params param = {0};
 	uint8_t *mac_addr_raw;
-
-	if (!cds_is_target_ready()) {
-		WMA_LOGE(FL("target not ready, drop the request"));
-		return QDF_STATUS_E_BUSY;
-	}
 
 	if (++wma->interfaces[vdev_id].peer_count >
 	    wma->wlan_resource_config.num_peers) {
@@ -3169,11 +3164,6 @@ struct wma_target_req *wma_fill_hold_req(tp_wma_handle wma,
 	struct wma_target_req *req;
 	QDF_STATUS status;
 
-	if (!cds_is_target_ready()) {
-		WMA_LOGE("target not ready, drop the request");
-		return NULL;
-	}
-
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {
 		WMA_LOGE(FL("Failed to allocate memory for msg %d vdev %d"),
@@ -3299,13 +3289,11 @@ void wma_vdev_resp_timer(void *data)
 		 * Trigger host crash if the flag is set or if the timeout
 		 * is not due to fw down
 		 */
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
 			wma_trigger_recovery_assert_on_fw_timeout(
 				WMA_CHNL_SWITCH_REQ);
-		} else {
-			wma_send_msg_high_priority(wma, WMA_SWITCH_CHANNEL_RSP,
-				    (void *)params, 0);
-		}
+		wma_send_msg_high_priority(wma, WMA_SWITCH_CHANNEL_RSP,
+					   (void *)params, 0);
 		if (wma->interfaces[tgt_req->vdev_id].is_channel_switch) {
 			wma->interfaces[tgt_req->vdev_id].is_channel_switch =
 				false;
@@ -3436,27 +3424,25 @@ void wma_vdev_resp_timer(void *data)
 		WMA_LOGA("%s: WMA_ADD_BSS_REQ timedout", __func__);
 		WMA_LOGD("%s: bssid %pM vdev_id %d", __func__, params->bssId,
 			 tgt_req->vdev_id);
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true)
 			wma_trigger_recovery_assert_on_fw_timeout(
-				WMA_ADD_BSS_REQ);
-		} else {
-			/* Send vdev stop to the FW */
-			if (wma_send_vdev_stop_to_fw(wma, tgt_req->vdev_id))
-				WMA_LOGE("%s: Failed to send vdev stop to fw",
-					 __func__);
+							WMA_ADD_BSS_REQ);
+		/* Send vdev stop to the FW */
+		if (wma_send_vdev_stop_to_fw(wma, tgt_req->vdev_id))
+			WMA_LOGE("%s: Failed to send vdev stop to fw",
+				 __func__);
 
-			peer = ol_txrx_find_peer_by_addr(pdev, params->bssId,
-							 &peer_id);
-			if (peer)
-				wma_remove_peer(wma, params->bssId,
-						tgt_req->vdev_id, peer, false);
-			else
-				WMA_LOGE("%s: Failed to find peer", __func__);
+		peer = ol_txrx_find_peer_by_addr(pdev, params->bssId,
+						 &peer_id);
+		if (peer)
+			wma_remove_peer(wma, params->bssId,
+					tgt_req->vdev_id, peer, false);
+		else
+			WMA_LOGE("%s: Failed to find peer", __func__);
 
-			wma_send_msg_high_priority(wma,
-				WMA_ADD_BSS_RSP, (void *)params, 0);
-			QDF_ASSERT(0);
-		}
+		wma_send_msg_high_priority(wma, WMA_ADD_BSS_RSP,
+					   (void *)params, 0);
+		QDF_ASSERT(0);
 		goto free_tgt_req;
 
 	} else if (tgt_req->msg_type == WMA_OCB_SET_CONFIG_CMD) {
@@ -3513,11 +3499,6 @@ struct wma_target_req *wma_fill_vdev_req(tp_wma_handle wma,
 {
 	struct wma_target_req *req;
 	QDF_STATUS status;
-
-	if (!cds_is_target_ready()) {
-		WMA_LOGE("target not ready, drop the request");
-		return NULL;
-	}
 
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {

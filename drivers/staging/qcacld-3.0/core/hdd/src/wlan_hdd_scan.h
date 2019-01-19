@@ -162,6 +162,26 @@ void wlan_hdd_fill_whitelist_ie_attrs(bool *ie_whitelist,
 				      hdd_context_t *hdd_ctx);
 
 /**
+ * hdd_init_scan_reject_params() - init scan reject params
+ * @hdd_ctx: hdd contxt
+ *
+ * Return: None
+ */
+void hdd_init_scan_reject_params(hdd_context_t *hdd_ctx);
+
+/**
+ * hdd_reset_scan_reject_params() - reset scan reject params per roam stats
+ * @hdd_ctx: hdd contxt
+ * @roam_status: roam status
+ * @roam_result: roam result
+ *
+ * Return: None
+ */
+void hdd_reset_scan_reject_params(hdd_context_t *hdd_ctx,
+				  eRoamCmdStatus roam_status,
+				  eCsrRoamResult roam_result);
+
+/**
  * wlan_hdd_cfg80211_scan_block_cb() - scan block work handler
  * @work: Pointer to work
  *

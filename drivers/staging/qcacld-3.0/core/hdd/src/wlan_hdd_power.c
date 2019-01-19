@@ -1475,6 +1475,8 @@ QDF_STATUS hdd_wlan_shutdown(void)
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	pHddCtx->is_ssr_in_progress = true;
+
 	cds_clear_concurrent_session_count();
 
 	hdd_debug("Invoking packetdump deregistration API");
@@ -1664,10 +1666,8 @@ QDF_STATUS hdd_wlan_re_init(void)
 	/* Restart all adapters */
 	hdd_start_all_adapters(pHddCtx);
 
-	pHddCtx->last_scan_reject_session_id = 0xFF;
-	pHddCtx->last_scan_reject_reason = 0;
-	pHddCtx->last_scan_reject_timestamp = 0;
-	pHddCtx->scan_reject_cnt = 0;
+	/* init the scan reject params */
+	hdd_init_scan_reject_params(pHddCtx);
 
 	hdd_set_roaming_in_progress(false);
 	complete(&pAdapter->roaming_comp_var);
@@ -1693,6 +1693,9 @@ success:
 	if (pHddCtx->config->sap_internal_restart)
 		hdd_ssr_restart_sap(pHddCtx);
 	hdd_is_interface_down_during_ssr(pHddCtx);
+
+	pHddCtx->is_ssr_in_progress = false;
+
 	hdd_wlan_ssr_reinit_event();
 	return QDF_STATUS_SUCCESS;
 }
