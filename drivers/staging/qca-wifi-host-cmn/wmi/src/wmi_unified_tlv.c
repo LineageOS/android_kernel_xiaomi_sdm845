@@ -4224,14 +4224,18 @@ static QDF_STATUS extract_sar_limit_event_tlv(wmi_unified_t wmi_handle,
 	}
 
 	row_in = param_buf->sar_get_limits;
-	row_out = &event->sar_limit_row[0];
-	for (row = 0; row < event->num_limit_rows; row++) {
-		row_out->band_id = row_in->band_id;
-		row_out->chain_id = row_in->chain_id;
-		row_out->mod_id = row_in->mod_id;
-		row_out->limit_value = row_in->limit_value;
-		row_out++;
-		row_in++;
+	if (row_in) {
+		row_out = &event->sar_limit_row[0];
+		for (row = 0; row < event->num_limit_rows; row++) {
+			row_out->band_id = row_in->band_id;
+			row_out->chain_id = row_in->chain_id;
+			row_out->mod_id = row_in->mod_id;
+			row_out->limit_value = row_in->limit_value;
+			row_out++;
+			row_in++;
+		}
+	} else {
+		WMI_LOGD("sar_get_limits is NULL");
 	}
 
 	return QDF_STATUS_SUCCESS;
@@ -14723,7 +14727,7 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	uint32_t total_len;
 	struct wmi_roam_scan_stats_res *res;
 	uint32_t i, j;
-	uint32_t num_scans;
+	uint32_t num_scans, scan_param_size;
 
 	*res_param = NULL;
 	*vdev_id = 0xFF; /* Initialize to invalid vdev id */
@@ -14734,11 +14738,17 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	}
 
 	fixed_param = param_buf->fixed_param;
-	total_len = sizeof(*res) + fixed_param->num_roam_scans *
-		    sizeof(struct wmi_roam_scan_stats_params);
 
-	*vdev_id = fixed_param->vdev_id;
 	num_scans = fixed_param->num_roam_scans;
+	scan_param_size = sizeof(struct wmi_roam_scan_stats_params);
+	*vdev_id = fixed_param->vdev_id;
+	if (num_scans > WMI_ROAM_SCAN_STATS_MAX) {
+		WMI_LOGE(FL("%u exceeded maximum roam scan stats: %u"),
+			 num_scans, WMI_ROAM_SCAN_STATS_MAX);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	total_len = sizeof(*res) + num_scans * scan_param_size;
 
 	res = qdf_mem_malloc(total_len);
 	if (!res) {
@@ -14782,8 +14792,16 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 
 		num_channels = param_buf->num_channels;
 
-		for (count = 0; count < param_buf->num_num_channels; count++)
+		for (count = 0; count < param_buf->num_num_channels; count++) {
+			if (param_buf->num_channels[count] >
+			    WMI_ROAM_SCAN_STATS_CHANNELS_MAX) {
+				WMI_LOGE(FL("%u exceeded max scan channels %u"),
+					 param_buf->num_channels[count],
+					 WMI_ROAM_SCAN_STATS_CHANNELS_MAX);
+				goto error;
+			}
 			chan_info_sum += param_buf->num_channels[count];
+		}
 
 		if (param_buf->chan_info &&
 			param_buf->num_chan_info == chan_info_sum)
@@ -14798,8 +14816,16 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 		num_roam_candidates = param_buf->num_roam_candidates;
 
 		for (count = 0; count < param_buf->num_num_roam_candidates;
-			count++)
+		     count++) {
+			if (param_buf->num_roam_candidates[count] >
+			    WMI_ROAM_SCAN_STATS_CANDIDATES_MAX) {
+				WMI_LOGE(FL("%u exceeded max scan cand %u"),
+					 param_buf->num_roam_candidates[count],
+					 WMI_ROAM_SCAN_STATS_CANDIDATES_MAX);
+				goto error;
+			}
 			roam_cand_sum += param_buf->num_roam_candidates[count];
+		}
 
 		if (param_buf->bssid &&
 		    param_buf->num_bssid == roam_cand_sum)
@@ -14878,6 +14904,9 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	*res_param = res;
 
 	return QDF_STATUS_SUCCESS;
+error:
+	qdf_mem_free(res);
+	return QDF_STATUS_E_FAILURE;
 }
 
 /**
