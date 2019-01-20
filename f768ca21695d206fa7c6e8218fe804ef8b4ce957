@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "1ed0af24_2f0deaaa",
+        "filename": "kernel/sysctl.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 103,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2019-01-20T23:02:34Z",
+      "side": 1,
+      "message": "I don\u0027t think this is needed",
+      "revId": "f768ca21695d206fa7c6e8218fe804ef8b4ce957",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
