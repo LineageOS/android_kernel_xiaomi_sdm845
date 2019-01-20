@@ -390,6 +390,7 @@ struct smb_charger {
 	bool			step_chg_enabled;
 	bool			sw_jeita_enabled;
 	bool			wireless_charging_flag;
+	bool			wireless_support;
 	bool			is_hdc;
 	bool			chg_done;
 	bool			connector_type;
