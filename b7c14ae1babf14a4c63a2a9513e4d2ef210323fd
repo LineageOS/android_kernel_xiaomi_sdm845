@@ -1,0 +1,73 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "c6b610ed_a18562c6",
+        "filename": "arch/arm64/boot/dts/qcom/sdm845-670-usb-common.dtsi",
+        "patchSetId": 5
+      },
+      "lineNbr": 148,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-20T19:05:16Z",
+      "side": 0,
+      "message": "Breaking change: https://github.com/LineageOS/android_kernel_xiaomi_sdm845/blame/lineage-16.0/arch/arm64/boot/dts/qcom/sdm845-670-usb-common.dtsi#L146-L148",
+      "range": {
+        "startLine": 146,
+        "startChar": 0,
+        "endLine": 148,
+        "endChar": 32
+      },
+      "revId": "b7c14ae1babf14a4c63a2a9513e4d2ef210323fd",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "becbbc9b_c9c3a2ea",
+        "filename": "arch/arm64/boot/dts/qcom/sdm845-670-usb-common.dtsi",
+        "patchSetId": 5
+      },
+      "lineNbr": 440,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-20T19:05:16Z",
+      "side": 0,
+      "message": "Breaking change: https://github.com/LineageOS/android_kernel_xiaomi_sdm845/blame/lineage-16.0/arch/arm64/boot/dts/qcom/sdm845-670-usb-common.dtsi#L146-L148",
+      "range": {
+        "startLine": 438,
+        "startChar": 0,
+        "endLine": 440,
+        "endChar": 32
+      },
+      "revId": "b7c14ae1babf14a4c63a2a9513e4d2ef210323fd",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "486e2e74_81eeef1f",
+        "filename": "arch/arm64/boot/dts/qcom/sdm845-pinctrl.dtsi",
+        "patchSetId": 5
+      },
+      "lineNbr": 18,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-01-20T19:05:16Z",
+      "side": 0,
+      "message": "When checking out, you should carefully look at each and every change to make sure it was done by Xiaomi or not. This edit is reverting https://github.com/LineageOS/android_kernel_xiaomi_sdm845/blame/lineage-16.0/arch/arm64/boot/dts/qcom/sdm845-pinctrl.dtsi#L17-L18 and breaks boot.",
+      "range": {
+        "startLine": 17,
+        "startChar": 0,
+        "endLine": 18,
+        "endChar": 45
+      },
+      "revId": "b7c14ae1babf14a4c63a2a9513e4d2ef210323fd",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
