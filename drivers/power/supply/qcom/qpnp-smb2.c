@@ -248,6 +248,9 @@ static int smb2_parse_dt(struct smb2 *chip)
 	chg->use_ext_boost = of_property_read_bool(node,
 				"qcom,use-ext-boost");
 
+	chg->wireless_support = of_property_read_bool(node,
+				"qcom,wireless-support");
+
 	rc = of_property_read_u32(node, "qcom,wd-bark-time-secs",
 					&chip->dt.wd_bark_time);
 	if (rc < 0 || chip->dt.wd_bark_time < MIN_WD_BARK_TIME)
@@ -2898,10 +2901,12 @@ static int smb2_probe(struct platform_device *pdev)
 		goto cleanup;
 	}
 
-	rc = smb2_init_wireless_psy(chip);
-	if (rc < 0) {
-		pr_err("Couldn't initialize wireless psy rc=%d\n", rc);
-		goto cleanup;
+	if (chg->wireless_support) {
+		rc = smb2_init_wireless_psy(chip);
+		if (rc < 0) {
+			pr_err("Couldn't initialize wireless psy rc=%d\n", rc);
+			goto cleanup;
+		}
 	}
 
 	rc = smb2_determine_initial_status(chip);
