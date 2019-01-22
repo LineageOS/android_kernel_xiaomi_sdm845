@@ -5058,6 +5058,11 @@ static uint32_t hdd_add_tx_bitrate_sap_get_len(void)
 	return ((NLA_HDRLEN) + (sizeof(uint8_t) + NLA_HDRLEN));
 }
 
+static uint32_t hdd_add_sta_capability_get_len(void)
+{
+	return nla_total_size(sizeof(uint16_t));
+}
+
 /**
  * hdd_add_tx_bitrate_sap - add vhs nss info attribute
  * @skb: pointer to response skb buffer
@@ -5100,7 +5105,8 @@ fail:
 static uint32_t hdd_add_sta_info_sap_get_len(void)
 {
 	return ((NLA_HDRLEN) + (sizeof(uint8_t) + NLA_HDRLEN) +
-		hdd_add_tx_bitrate_sap_get_len());
+		hdd_add_tx_bitrate_sap_get_len() +
+		hdd_add_sta_capability_get_len());
 }
 
 /**
@@ -5180,7 +5186,11 @@ static int hdd_add_link_standard_info_sap(struct sk_buff *skb, int8_t rssi,
 		hdd_err("Reason code put fail");
 		goto fail;
 	}
-
+	if (nla_put_u16(skb, NL80211_ATTR_STA_CAPABILITY,
+			stainfo->capability)) {
+		hdd_err("put fail");
+		goto fail;
+	}
 	nla_nest_end(skb, nla_attr);
 	return 0;
 fail:
