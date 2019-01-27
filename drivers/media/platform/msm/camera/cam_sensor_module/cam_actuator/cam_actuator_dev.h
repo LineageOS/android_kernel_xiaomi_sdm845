@@ -51,7 +51,7 @@
 #define EEPROM_MAP_DATA_CNT 60
 #define EEPROM_READ_START_INDEX 7856
 #define EEPROM_READ_END_INDEX 7915
-#define ROHM_ACTUATOR_II2_ADDR 0x76
+#define ROHM_ACTUATOR_II2_ADDR 0x76 //R:0xED, W:0xEC
 #endif
 
 enum cam_actuator_apply_state_t {
