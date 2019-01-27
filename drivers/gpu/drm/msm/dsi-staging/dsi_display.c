@@ -166,6 +166,7 @@ int dsi_display_set_backlight(void *display, u32 bl_lvl)
 	bl_temp = bl_lvl * bl_scale / MAX_BL_SCALE_LEVEL;
 
 	bl_scale_ad = panel->bl_config.bl_scale_ad;
+	//bl_temp = (u32)bl_temp * bl_scale_ad / MAX_AD_BL_SCALE_LEVEL;
 
 	pr_debug("bl_scale = %u, bl_scale_ad = %u, bl_lvl = %u\n",
 		bl_scale, bl_scale_ad, (u32)bl_temp);
@@ -186,6 +187,7 @@ int dsi_display_set_backlight(void *display, u32 bl_lvl)
 		if (rc)
 			pr_err("unable to enable doze backlight\n");
 	} else {
+		drm_dev->doze_brightness = DOZE_BRIGHTNESS_INVALID;
 		rc = dsi_panel_set_backlight(panel, (u32)bl_temp);
 		if (rc)
 			pr_err("unable to set backlight\n");
@@ -877,7 +879,7 @@ int dsi_display_read_panel(struct dsi_panel *panel, struct dsi_read_config *read
 		goto exit;
 	}
 
-	for (i = 0; i < read_config->cmds_rlen; i++)
+	for (i = 0; i < read_config->cmds_rlen; i++) //debug
 		pr_info("0x%x ", read_config->rbuf[i]);
 	pr_info("\n");
 
@@ -891,7 +893,7 @@ exit_ctrl:
 }
 
 int dsi_display_read_cmd(struct dsi_panel *panel, u32 packet_count,
-	u32 length, const char *data, const char *state, u32 rlen)
+	u32 length, const char *data, const char* state, u32 rlen)
 {
 	struct dsi_read_config read_config;
 	struct dsi_panel_cmd_set *read_cmd;
@@ -904,7 +906,7 @@ int dsi_display_read_cmd(struct dsi_panel *panel, u32 packet_count,
 	int i, j;
 	u8 *payload;
 
-	if (packet_count > 1 || packet_count == 0) {
+	if(packet_count > 1 || packet_count == 0) {
 		pr_info("temperary no support packet_count(%d) > 1 \n", packet_count);
 		return -EINVAL;
 	}
@@ -913,7 +915,7 @@ int dsi_display_read_cmd(struct dsi_panel *panel, u32 packet_count,
 		return -EINVAL;
 
 	host = panel->host;
-	if (host) {
+	if(host) {
 		display = to_dsi_display(host);
 		if (display == NULL)
 			return -EINVAL;
@@ -943,7 +945,7 @@ int dsi_display_read_cmd(struct dsi_panel *panel, u32 packet_count,
 			cmds[i].post_wait_ms = data[4];
 			cmds[i].msg.tx_len = ((data[5] << 8) | (data[6]));
 			size = cmds[i].msg.tx_len * sizeof(u8);
-			if (size > length - 7) {
+			if(size > length - 7) {
 				pr_info("payload size is larger than length(%d)\n", length);
 				goto error_free_mem;
 			}
@@ -5229,6 +5231,7 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 		pr_debug("cmdline primary dsi: %s\n", display->name);
 		display->is_active = true;
 		display->is_prim_display = true;
+		display->is_first_boot = true;
 		dsi_display_parse_cmdline_topology(display, DSI_PRIMARY);
 		primary_np = pdev->dev.of_node;
 	}
