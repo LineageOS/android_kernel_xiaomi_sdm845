@@ -18,6 +18,9 @@
 #include "cam_trace.h"
 #include "cam_common_util.h"
 
+//#undef CAM_DBG
+//#define CAM_DBG CAM_INFO
+
 #if MV_TEMP_SET
 #define IR_CAMERA_ID	3
 static uint32_t sensor_write_regs_addr;
@@ -49,7 +52,7 @@ ssize_t mv_operate_sensor_write_regs_store(struct device *dev,
 		ir_write_setting.delay = 0;
 		ir_write_setting.reg_setting = &ir_reg_array;
 		ir_reg_array.reg_addr = sensor_write_regs_addr;
-		ir_reg_array.reg_data = sensor_write_regs_data;
+		ir_reg_array.reg_data= sensor_write_regs_data;
 
 		rc = camera_io_dev_write(&(s_ctrl->io_master_info),
 		&ir_write_setting);
@@ -632,7 +635,7 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 		&chipid, CAMERA_SENSOR_I2C_TYPE_WORD,
 		CAMERA_SENSOR_I2C_TYPE_WORD);
 
-	CAM_DBG(CAM_SENSOR, "read id: 0x%x expected id 0x%x:",
+	CAM_INFO(CAM_SENSOR, "read id: 0x%x expected id 0x%x:",
 			 chipid, slave_info->sensor_id);
 	if (cam_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
 		CAM_ERR(CAM_SENSOR, "chip id %x does not match %x",
@@ -679,6 +682,8 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 			MAX_POWER_CONFIG, GFP_KERNEL);
 		if (!pu) {
 			rc = -ENOMEM;
+			CAM_ERR(CAM_SENSOR,
+				"failed");
 			goto release_mutex;
 		}
 
@@ -687,6 +692,8 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 		if (!pd) {
 			kfree(pu);
 			rc = -ENOMEM;
+			CAM_ERR(CAM_SENSOR,
+				"failed");
 			goto release_mutex;
 		}
 
@@ -1076,6 +1083,7 @@ int cam_sensor_publish_dev_info(struct cam_req_mgr_device_info *info)
 	strlcpy(info->name, CAM_SENSOR_NAME, sizeof(info->name));
 	info->p_delay = 2;
 
+	//Note: Only for face unlock usecase
 	if (g_operation_mode == 0x8006)
 		info->p_delay = 0;
 
@@ -1244,7 +1252,7 @@ int cam_sensor_apply_settings(struct cam_sensor_ctrl_t *s_ctrl,
 			list_for_each_entry(i2c_list,
 				&(i2c_set->list_head), list) {
 				CAM_DBG(CAM_SENSOR,"[CDBG] master type = %d",s_ctrl->io_master_info.master_type);
-				for (i = 0; i < i2c_list->i2c_settings.size; i++) {
+				for (i=0;i<i2c_list->i2c_settings.size;i++) {
 					CAM_DBG(CAM_SENSOR,"[%04d] [CDBG] 0x%04X 0x%04X 0x%02X", i,
 						i2c_list->i2c_settings.reg_setting[i].reg_addr,
 						i2c_list->i2c_settings.reg_setting[i].reg_data,

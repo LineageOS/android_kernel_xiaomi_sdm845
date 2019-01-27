@@ -215,6 +215,34 @@ static int sl_eeprom_power_down(struct sl_eeprom_ctrl_t *e_ctrl)
 	return rc;
 }
 
+#if 0
+/**
+ * cam_eeprom_match_id - match eeprom id
+ * @e_ctrl:     ctrl structure
+ *
+ * Returns success or failure
+ */
+
+static int cam_eeprom_match_id(struct sl_eeprom_ctrl_t *e_ctrl)
+{
+	int                      rc;
+	struct camera_io_master *client = &e_ctrl->io_master_info;
+	uint8_t                  id[2];
+
+	rc = cam_spi_query_id(client, 0, CAMERA_SENSOR_I2C_TYPE_WORD,
+		&id[0], 2);
+	if (rc)
+		return rc;
+	CAM_DBG(CAM_SL_EEPROM, "read 0x%x 0x%x, check 0x%x 0x%x",
+		id[0], id[1], client->spi_client->mfr_id0,
+		client->spi_client->device_id0);
+	if (id[0] != client->spi_client->mfr_id0
+		|| id[1] != client->spi_client->device_id0)
+		return -ENODEV;
+	return 0;
+}
+#endif
+
 /**
  * sl_eeprom_parse_read_memory_map - Parse memory map
  * @of_node:    device node
@@ -319,12 +347,12 @@ error:
 int32_t sl_eeprom_read_eeprom_wrapper(struct sl_eeprom_ctrl_t *e_ctrl, void *arg)
 {
 	int32_t	rc = 0;
-	uint8_t *user_addr = NULL;
+	uint8_t* user_addr = NULL;
 #if TEST_READ
 	int32_t	i = 0;
 #endif
 #if  WRITE_TO_FILE
-	struct file *fp = 0;
+	struct file * fp = 0;
 	mm_segment_t fs;
 	loff_t pos = 0;
 	int count;
@@ -369,7 +397,7 @@ int32_t sl_eeprom_read_eeprom_wrapper(struct sl_eeprom_ctrl_t *e_ctrl, void *arg
 			CAM_ERR(CAM_SL_EEPROM, "read_eeprom_memory failed");
 			goto free_map;
 		}
-		if (!user_addr){
+		if(!user_addr){
 			CAM_ERR(CAM_SL_EEPROM,
 				"read_eeprom_memory failed, user_addr error");
 			goto free_map;
@@ -377,9 +405,9 @@ int32_t sl_eeprom_read_eeprom_wrapper(struct sl_eeprom_ctrl_t *e_ctrl, void *arg
 		rc = copy_to_user((void __user *)user_addr,
 			e_ctrl->cal_data.mapdata, e_ctrl->cal_data.num_data);
 
-		 if (rc < 0){
+         		 if(rc < 0){
 			CAM_ERR(CAM_SL_EEPROM, "sl_eeprom_parse_memory_map copy to user failed\n");
-		}
+          		}
 
 	}
 	e_ctrl->userspace_probe = false;
@@ -425,8 +453,8 @@ int32_t sl_eeprom_write_eeprom_wrapper(struct sl_eeprom_ctrl_t *e_ctrl, void *ar
 	unsigned short i = 0;
 
 	struct cam_sensor_i2c_reg_setting reg_data_map;
-	struct cam_sensor_i2c_reg_array *reg_settings ;
-	uint8_t *map_data;
+	struct cam_sensor_i2c_reg_array * reg_settings ;
+	uint8_t * map_data;
 	struct cam_sensor_i2c_reg_setting reg_data_map_w;
 	struct cam_sensor_i2c_reg_array regsetting_w;
 	struct sl_eeprom_soc_private     *eb_info;
@@ -455,6 +483,13 @@ int32_t sl_eeprom_write_eeprom_wrapper(struct sl_eeprom_ctrl_t *e_ctrl, void *ar
 		goto	free_setting;
 	}
 	reg_data_map.reg_setting = reg_settings;
+#if 0
+	for(i = 0 ; i < reg_data_map.size; i ++){
+		CAM_ERR(CAM_SL_EEPROM, "reg data[%d] addr [0X%4x] type [%d] data [0X%2x] type [%d]",
+			i, reg_data_map.reg_setting[i].reg_addr, reg_data_map.addr_type,
+			reg_data_map.reg_setting[i].reg_data, reg_data_map.data_type);
+	}
+#endif
 
 	eb_info = (struct sl_eeprom_soc_private *)e_ctrl->soc_info.soc_private;
 	rc = sl_eeprom_update_i2c_info(e_ctrl, &eb_info->i2c_info);
@@ -462,8 +497,34 @@ int32_t sl_eeprom_write_eeprom_wrapper(struct sl_eeprom_ctrl_t *e_ctrl, void *ar
 		CAM_ERR(CAM_SL_EEPROM, "update i2c info fail rc %d", rc);
 		goto free_setting;
 	}
+#if 0
+		regsetting_w.reg_addr = 0x8000;
+		regsetting_w.reg_data = 0xF0;
+		regsetting_w.delay = 0;
+		regsetting_w.data_mask = 0;
+		reg_data_map_w.reg_setting = & regsetting_w;
+		reg_data_map_w.size = 1;
+		reg_data_map_w.addr_type = SL_EEPROM_SENSOR_I2C_TYPE_WORD;
+		reg_data_map_w.data_type = SL_EEPROM_SENSOR_I2C_TYPE_BYTE;
+		reg_data_map_w.delay = 1;
+
+		rc = camera_io_dev_write(&e_ctrl->io_master_info, &reg_data_map_w);
+		if(rc < 0){
+			CAM_ERR(CAM_SL_EEPROM, "write eeprom error, rc %d", rc);
+			goto	free_setting;
+		}
+
+		usleep_range(10000, 11000);
+		rc =  camera_io_dev_read(&e_ctrl->io_master_info, 0x8000, &data_r,
+			SL_EEPROM_SENSOR_I2C_TYPE_WORD,SL_EEPROM_SENSOR_I2C_TYPE_BYTE);
+		CAM_ERR(CAM_SL_EEPROM, "read 0x8000 0x%2x", data_r);
+		if(rc < 0){
+			CAM_ERR(CAM_SL_EEPROM, "read eeprom error, rc %d", rc);
+			goto	free_setting;
+		}
+#endif
 #if TEST_READ
-	map_data = kzalloc(sizeof(uint8_t)*reg_data_map.size, GFP_KERNEL);
+	map_data = kzalloc( sizeof(uint8_t)*reg_data_map.size, GFP_KERNEL);
 	rc = camera_io_dev_read_seq(&e_ctrl->io_master_info, reg_data_map.reg_setting[0].reg_addr, map_data,
 				 reg_data_map.addr_type, reg_data_map.data_type, reg_data_map.size);
 	if (rc < 0) {
@@ -498,7 +559,7 @@ int32_t sl_eeprom_write_eeprom_wrapper(struct sl_eeprom_ctrl_t *e_ctrl, void *ar
 #endif
 #if 1
 	usleep_range(10000, 11000);
-	map_data = kzalloc(sizeof(uint8_t)*reg_data_map.size, GFP_KERNEL);
+	map_data = kzalloc( sizeof(uint8_t)*reg_data_map.size, GFP_KERNEL);
 	memset(map_data, 0,  reg_data_map.size);
 	rc = camera_io_dev_read_seq(&e_ctrl->io_master_info,
 		reg_data_map.reg_setting[1].reg_addr, map_data + 1,
