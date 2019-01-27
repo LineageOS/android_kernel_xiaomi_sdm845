@@ -3,9 +3,9 @@
 
 #include "3dsl_eeprom_dev.h"
 
-
-
-
+//int32_t sl_eeprom_driver_cmd(struct sl_eeprom_ctrl_t *e_ctrl, void *arg);
+//int32_t sl_eeprom_parse_read_memory_map(struct device_node *of_node,
+//	struct sl_eeprom_ctrl_t *e_ctrl);
 /**
  * @e_ctrl: EEPROM ctrl structure
  *
