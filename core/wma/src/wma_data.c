@@ -861,7 +861,7 @@ static void wma_data_tx_ack_work_handler(void *ack_work)
 	/* Call the Ack Cb registered by UMAC */
 	if (ack_cb)
 		ack_cb((tpAniSirGlobal) (wma_handle->mac_context), NULL,
-			work->status ? 0 : 1, NULL);
+			work->status, NULL);
 	else
 		WMA_LOGE("Data Tx Ack Cb is NULL");
 
@@ -2497,7 +2497,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 				 * MAC header and data, Keep the CCMP header and
 				 * trailer as 0's, firmware shall fill this
 				 */
-				qdf_mem_set(pFrame, newFrmLen, 0);
+				qdf_mem_zero(pFrame, newFrmLen);
 				qdf_mem_copy(pFrame, wh, sizeof(*wh));
 				qdf_mem_copy(pFrame + sizeof(*wh) +
 					     hdr_len,
@@ -2531,7 +2531,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			 * MAC header and data. MMIE field will be
 			 * filled by cds_attach_mmie API
 			 */
-			qdf_mem_set(pFrame, newFrmLen, 0);
+			qdf_mem_zero(pFrame, newFrmLen);
 			qdf_mem_copy(pFrame, wh, sizeof(*wh));
 			qdf_mem_copy(pFrame + sizeof(*wh),
 				     pData + sizeof(*wh), frmLen - sizeof(*wh));
@@ -2626,7 +2626,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		wma_decap_to_8023(skb, &decap_info);
 
 		/* Zero out skb's context buffer for the driver to use */
-		qdf_mem_set(skb->cb, sizeof(skb->cb), 0);
+		qdf_mem_zero(skb->cb, sizeof(skb->cb));
 
 		/* Terminate the (single-element) list of tx frames */
 		skb->next = NULL;
@@ -2995,7 +2995,7 @@ void ol_rx_err(void *pdev, uint8_t vdev_id,
 		IEEE80211_IS_MULTICAST(eth_hdr->ether_dhost);
 	qdf_mem_copy(mic_err_ind->info.TSC, pn, SIR_CIPHER_SEQ_CTR_SIZE);
 
-	qdf_mem_set(&cds_msg, sizeof(struct scheduler_msg), 0);
+	qdf_mem_zero(&cds_msg, sizeof(struct scheduler_msg));
 	cds_msg.type = eWNI_SME_MIC_FAILURE_IND;
 	cds_msg.bodyptr = (void *) mic_err_ind;
 
@@ -3124,8 +3124,7 @@ wma_indicate_err(
 			return;
 		}
 
-		qdf_mem_set((void *) mic_err_ind, 0,
-			 sizeof(*mic_err_ind));
+		qdf_mem_zero((void *) mic_err_ind, sizeof(*mic_err_ind));
 		mic_err_ind->messageType = eWNI_SME_MIC_FAILURE_IND;
 		mic_err_ind->length = sizeof(*mic_err_ind);
 		vdev_id = err_info->u.mic_err.vdev_id;
@@ -3154,7 +3153,7 @@ wma_indicate_err(
 			 (void *)&err_info->
 			 u.mic_err.pn, SIR_CIPHER_SEQ_CTR_SIZE);
 
-		qdf_mem_set(&cds_msg, sizeof(struct scheduler_msg), 0);
+		qdf_mem_zero(&cds_msg, sizeof(struct scheduler_msg));
 		cds_msg.type = eWNI_SME_MIC_FAILURE_IND;
 		cds_msg.bodyptr = (void *) mic_err_ind;
 		if (QDF_STATUS_SUCCESS !=

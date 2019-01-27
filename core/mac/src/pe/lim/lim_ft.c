@@ -51,8 +51,7 @@ extern void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 void lim_ft_open(tpAniSirGlobal pMac, tpPESession psessionEntry)
 {
 	if (psessionEntry)
-		qdf_mem_set(&psessionEntry->ftPEContext, sizeof(tftPEContext),
-			    0);
+		qdf_mem_zero(&psessionEntry->ftPEContext, sizeof(tftPEContext));
 }
 
 void lim_ft_cleanup_all_ft_sessions(tpAniSirGlobal pMac)
@@ -107,7 +106,7 @@ void lim_ft_cleanup(tpAniSirGlobal pMac, tpPESession psessionEntry)
 	}
 
 	/* The session is being deleted, cleanup the contents */
-	qdf_mem_set(&psessionEntry->ftPEContext, sizeof(tftPEContext), 0);
+	qdf_mem_zero(&psessionEntry->ftPEContext, sizeof(tftPEContext));
 }
 
 #if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)

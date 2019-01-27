@@ -1588,7 +1588,8 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 		}
 
 		/*
-		 * Send 11k offload enable to FW as part of RSO Start
+		 * Send 11k offload enable and bss load trigger parameters
+		 * to FW as part of RSO Start
 		 */
 		if (roam_req->reason == REASON_CTX_INIT) {
 			qdf_status = wma_send_offload_11k_params(wma_handle,
@@ -1598,11 +1599,12 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 					 qdf_status);
 				break;
 			}
-		}
 
-		if (roam_req->bss_load_trig_enabled) {
-			bss_load_cfg = &roam_req->bss_load_config;
-			wma_send_roam_bss_load_config(wma_handle, bss_load_cfg);
+			if (roam_req->bss_load_trig_enabled) {
+				bss_load_cfg = &roam_req->bss_load_config;
+				wma_send_roam_bss_load_config(wma_handle,
+							      bss_load_cfg);
+			}
 		}
 		break;
 
@@ -2720,7 +2722,7 @@ QDF_STATUS wma_roam_scan_fill_self_caps(tp_wma_handle wma_handle,
 		tSirMacExtendedHTCapabilityInfo extHtCapInfo;
 	} uHTCapabilityInfo;
 
-	qdf_mem_set(&macQosInfoSta, sizeof(tSirMacQosInfoStation), 0);
+	qdf_mem_zero(&macQosInfoSta, sizeof(tSirMacQosInfoStation));
 	/* Roaming is done only for INFRA STA type.
 	 * So, ess will be one and ibss will be Zero
 	 */
@@ -5061,7 +5063,7 @@ QDF_STATUS wma_scan_probe_setoui(tp_wma_handle wma, tSirScanMacOui *psetoui)
 {
 	struct scan_mac_oui set_oui;
 
-	qdf_mem_set(&set_oui, sizeof(struct scan_mac_oui), 0);
+	qdf_mem_zero(&set_oui, sizeof(struct scan_mac_oui));
 
 	if (!wma || !wma->wmi_handle) {
 		WMA_LOGE("%s: WMA is closed, can not issue  cmd", __func__);

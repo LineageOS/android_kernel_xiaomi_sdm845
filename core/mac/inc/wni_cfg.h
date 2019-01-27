@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -112,7 +112,6 @@ enum {
 	WNI_CFG_ADMIT_POLICY,
 	WNI_CFG_ADMIT_BWFACTOR,
 	WNI_CFG_CHANNEL_BONDING_MODE,
-	WNI_CFG_SCAN_CONTROL_LIST,
 	WNI_CFG_BLOCK_ACK_ENABLED,
 	WNI_CFG_HT_CAP_INFO,
 	WNI_CFG_HT_AMPDU_PARAMS,
@@ -372,7 +371,6 @@ enum {
 #define WNI_CFG_EDCA_ETSI_ACBE_LEN    20
 #define WNI_CFG_EDCA_ETSI_ACVI_LEN    20
 #define WNI_CFG_EDCA_ETSI_ACVO_LEN    20
-#define WNI_CFG_SCAN_CONTROL_LIST_LEN    128
 #define WNI_CFG_SUPPORTED_MCS_SET_LEN    16
 #define WNI_CFG_BASIC_MCS_SET_LEN    16
 #define WNI_CFG_CURRENT_MCS_SET_LEN    16

@@ -254,7 +254,7 @@ lim_send_probe_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	/* The scheme here is to fill out a 'tDot11fProbeRequest' structure */
 	/* and then hand it off to 'dot11f_pack_probe_request' (for */
 	/* serialization).  We start by zero-initializing the structure: */
-	qdf_mem_set((uint8_t *) &pr, sizeof(pr), 0);
+	qdf_mem_zero((uint8_t *) &pr, sizeof(pr));
 
 	/* & delegating to assorted helpers: */
 	populate_dot11f_ssid(mac_ctx, ssid, &pr.SSID);
@@ -408,7 +408,7 @@ lim_send_probe_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		return QDF_STATUS_E_NOMEM;
 	}
 	/* Paranoia: */
-	qdf_mem_set(frame, bytes, 0);
+	qdf_mem_zero(frame, bytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(mac_ctx, frame, SIR_MAC_MGMT_FRAME,
@@ -589,7 +589,7 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 	 * Fill out 'frm', after which we'll just hand the struct off to
 	 * 'dot11f_pack_probe_response'.
 	 */
-	qdf_mem_set((uint8_t *) frm, sizeof(tDot11fProbeResponse), 0);
+	qdf_mem_zero((uint8_t *) frm, sizeof(tDot11fProbeResponse));
 
 	/*
 	 * Timestamp to be updated by TFP, below.
@@ -799,7 +799,7 @@ lim_send_probe_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 		goto err_ret;
 	}
 	/* Paranoia: */
-	qdf_mem_set(frame, bytes, 0);
+	qdf_mem_zero(frame, bytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(mac_ctx, frame, SIR_MAC_MGMT_FRAME,
@@ -909,7 +909,7 @@ lim_send_addts_req_action_frame(tpAniSirGlobal pMac,
 	smeSessionId = psessionEntry->smeSessionId;
 
 	if (!pAddTS->wmeTspecPresent) {
-		qdf_mem_set((uint8_t *) &AddTSReq, sizeof(AddTSReq), 0);
+		qdf_mem_zero((uint8_t *) &AddTSReq, sizeof(AddTSReq));
 
 		AddTSReq.Action.action = SIR_MAC_QOS_ADD_TS_REQ;
 		AddTSReq.DialogToken.token = pAddTS->dialogToken;
@@ -963,7 +963,7 @@ lim_send_addts_req_action_frame(tpAniSirGlobal pMac,
 				nStatus);
 		}
 	} else {
-		qdf_mem_set((uint8_t *) &WMMAddTSReq, sizeof(WMMAddTSReq), 0);
+		qdf_mem_zero((uint8_t *) &WMMAddTSReq, sizeof(WMMAddTSReq));
 
 		WMMAddTSReq.Action.action = SIR_MAC_QOS_ADD_TS_REQ;
 		WMMAddTSReq.DialogToken.token = pAddTS->dialogToken;
@@ -1012,7 +1012,7 @@ lim_send_addts_req_action_frame(tpAniSirGlobal pMac,
 		return;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -1138,7 +1138,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 
 	sme_session = pe_session->smeSessionId;
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	limGetQosMode(pe_session, &qos_mode);
 	limGetWmeMode(pe_session, &wme_mode);
@@ -1287,7 +1287,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 			pe_session->lim_non_ecsa_cap_num++;
 	}
 
-	qdf_mem_set((uint8_t *) &beacon_params, sizeof(beacon_params), 0);
+	qdf_mem_zero((uint8_t *) &beacon_params, sizeof(beacon_params));
 
 	if (LIM_IS_AP_ROLE(pe_session) &&
 		(pe_session->gLimProtectionControl !=
@@ -1328,8 +1328,8 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 				pe_session->addIeParams.assocRespData_buff,
 				pe_session->addIeParams.assocRespDataLen);
 
-			qdf_mem_set((uint8_t *) &extracted_ext_cap,
-				    sizeof(extracted_ext_cap), 0);
+			qdf_mem_zero((uint8_t *) &extracted_ext_cap,
+				    sizeof(extracted_ext_cap));
 
 			stripoff_len = addn_ie_len;
 			sir_status =
@@ -1377,7 +1377,7 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 		return;
 	}
 	/* Paranoia: */
-	qdf_mem_set(frame, bytes, 0);
+	qdf_mem_zero(frame, bytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(mac_ctx, frame, SIR_MAC_MGMT_FRAME,
@@ -1472,7 +1472,7 @@ lim_send_delts_req_action_frame(tpAniSirGlobal pMac,
 	smeSessionId = psessionEntry->smeSessionId;
 
 	if (!wmmTspecPresent) {
-		qdf_mem_set((uint8_t *) &DelTS, sizeof(DelTS), 0);
+		qdf_mem_zero((uint8_t *) &DelTS, sizeof(DelTS));
 
 		DelTS.Category.category = SIR_MAC_ACTION_QOS_MGMT;
 		DelTS.Action.action = SIR_MAC_QOS_DEL_TS_REQ;
@@ -1488,7 +1488,7 @@ lim_send_delts_req_action_frame(tpAniSirGlobal pMac,
 				nStatus);
 		}
 	} else {
-		qdf_mem_set((uint8_t *) &WMMDelTS, sizeof(WMMDelTS), 0);
+		qdf_mem_zero((uint8_t *) &WMMDelTS, sizeof(WMMDelTS));
 
 		WMMDelTS.Category.category = SIR_MAC_ACTION_WME;
 		WMMDelTS.Action.action = SIR_MAC_QOS_DEL_TS_REQ;
@@ -1518,7 +1518,7 @@ lim_send_delts_req_action_frame(tpAniSirGlobal pMac,
 		return;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -1693,11 +1693,11 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		qdf_mem_free(mlm_assoc_req);
 		return;
 	}
-	qdf_mem_set((uint8_t *) frm, sizeof(tDot11fAssocRequest), 0);
+	qdf_mem_zero((uint8_t *) frm, sizeof(tDot11fAssocRequest));
 
 	if (add_ie_len && pe_session->is_ext_caps_present) {
-		qdf_mem_set((uint8_t *) &extr_ext_cap, sizeof(tDot11fIEExtCap),
-			    0);
+		qdf_mem_zero((uint8_t *) &extr_ext_cap,
+			      sizeof(tDot11fIEExtCap));
 		sir_status = lim_strip_extcap_update_struct(mac_ctx,
 					add_ie, &add_ie_len, &extr_ext_cap);
 		if (QDF_STATUS_SUCCESS != sir_status) {
@@ -2056,7 +2056,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		goto end;
 	}
 	/* Paranoia: */
-	qdf_mem_set(frame, bytes, 0);
+	qdf_mem_zero(frame, bytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(mac_ctx, frame, SIR_MAC_MGMT_FRAME,
@@ -2823,7 +2823,7 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 	}
 	smeSessionId = psessionEntry->smeSessionId;
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	frm.Reason.code = nReason;
 
@@ -2848,7 +2848,7 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 		return;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -3002,7 +3002,7 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 	}
 	smeSessionId = psessionEntry->smeSessionId;
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	frm.Reason.code = nReason;
 
@@ -3027,7 +3027,7 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 		return;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -3188,7 +3188,7 @@ lim_send_meas_report_frame(tpAniSirGlobal pMac,
 	void *pPacket;
 	QDF_STATUS qdf_status;
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	frm.Category.category = SIR_MAC_ACTION_SPECTRUM_MGMT;
 	frm.Action.action = SIR_MAC_ACTION_MEASURE_REPORT_ID;
@@ -3243,7 +3243,7 @@ lim_send_meas_report_frame(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -3314,7 +3314,7 @@ lim_send_tpc_request_frame(tpAniSirGlobal pMac,
 	void *pPacket;
 	QDF_STATUS qdf_status;
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	frm.Category.category = SIR_MAC_ACTION_SPECTRUM_MGMT;
 	frm.Action.action = SIR_MAC_ACTION_TPC_REQUEST_ID;
@@ -3343,7 +3343,7 @@ lim_send_tpc_request_frame(tpAniSirGlobal pMac,
 		return;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -3414,7 +3414,7 @@ lim_send_tpc_report_frame(tpAniSirGlobal pMac,
 	void *pPacket;
 	QDF_STATUS qdf_status;
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	frm.Category.category = SIR_MAC_ACTION_SPECTRUM_MGMT;
 	frm.Action.action = SIR_MAC_ACTION_TPC_REPORT_ID;
@@ -3446,7 +3446,7 @@ lim_send_tpc_report_frame(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -3538,7 +3538,7 @@ lim_send_channel_switch_mgmt_frame(tpAniSirGlobal pMac,
 	}
 	smeSessionId = psessionEntry->smeSessionId;
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	frm.Category.category = SIR_MAC_ACTION_SPECTRUM_MGMT;
 	frm.Action.action = SIR_MAC_ACTION_CHANNEL_SWITCH_ID;
@@ -3568,7 +3568,7 @@ lim_send_channel_switch_mgmt_frame(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -3660,7 +3660,7 @@ lim_send_extended_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
 
 	sme_session_id = session_entry->smeSessionId;
 
-	qdf_mem_set(&frm, sizeof(frm), 0);
+	qdf_mem_zero(&frm, sizeof(frm));
 
 	frm.Category.category     = SIR_MAC_ACTION_PUBLIC_USAGE;
 	frm.Action.action         = SIR_MAC_ACTION_EXT_CHANNEL_SWITCH_ID;
@@ -3714,7 +3714,7 @@ lim_send_extended_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
 	}
 
 	/* Paranoia*/
-	qdf_mem_set(frame, num_bytes, 0);
+	qdf_mem_zero(frame, num_bytes);
 
 	/* Next, we fill out the buffer descriptor */
 	lim_populate_mac_header(mac_ctx, frame, SIR_MAC_MGMT_FRAME,
@@ -3828,7 +3828,7 @@ lim_p2p_oper_chan_change_confirm_action_frame(tpAniSirGlobal mac_ctx,
 
 	sme_session_id = session_entry->smeSessionId;
 
-	qdf_mem_set(&frm, sizeof(frm), 0);
+	qdf_mem_zero(&frm, sizeof(frm));
 
 	frm.Category.category     = SIR_MAC_ACTION_VENDOR_SPECIFIC_CATEGORY;
 
@@ -3870,7 +3870,7 @@ lim_p2p_oper_chan_change_confirm_action_frame(tpAniSirGlobal mac_ctx,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	qdf_mem_set(frame, num_bytes, 0);
+	qdf_mem_zero(frame, num_bytes);
 
 	/* Next, fill out the buffer descriptor */
 	lim_populate_mac_header(mac_ctx, frame, SIR_MAC_MGMT_FRAME,
@@ -3943,7 +3943,7 @@ lim_send_vht_opmode_notification_frame(tpAniSirGlobal pMac,
 	}
 	smeSessionId = psessionEntry->smeSessionId;
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	frm.Category.category = SIR_MAC_ACTION_VHT;
 	frm.Action.action = SIR_MAC_VHT_OPMODE_NOTIFICATION;
@@ -3973,7 +3973,7 @@ lim_send_vht_opmode_notification_frame(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	if (psessionEntry->pePersona == QDF_SAP_MODE)
@@ -4062,7 +4062,7 @@ lim_send_neighbor_report_request_frame(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	smeSessionId = psessionEntry->smeSessionId;
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	frm.Category.category = SIR_MAC_ACTION_RRM;
 	frm.Action.action = SIR_MAC_RRM_NEIGHBOR_REQ;
@@ -4095,7 +4095,7 @@ lim_send_neighbor_report_request_frame(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Copy necessary info to BD */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -4201,7 +4201,7 @@ lim_send_link_report_action_frame(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 
 	frm.Category.category = SIR_MAC_ACTION_RRM;
 	frm.Action.action = SIR_MAC_RRM_LINK_MEASUREMENT_RPT;
@@ -4244,7 +4244,7 @@ lim_send_link_report_action_frame(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Copy necessary info to BD */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -4411,7 +4411,7 @@ lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Copy necessary info to BD */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -4517,7 +4517,7 @@ QDF_STATUS lim_send_sa_query_request_frame(tpAniSirGlobal pMac, uint8_t *transId
 	uint8_t txFlag = 0;
 	uint8_t smeSessionId = 0;
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 	frm.Category.category = SIR_MAC_ACTION_SA_QUERY;
 	/* 11w action  field is :
 	   action: 0 --> SA Query Request action frame
@@ -4546,7 +4546,7 @@ QDF_STATUS lim_send_sa_query_request_frame(tpAniSirGlobal pMac, uint8_t *transId
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Copy necessary info to BD */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -4649,7 +4649,7 @@ QDF_STATUS lim_send_sa_query_response_frame(tpAniSirGlobal pMac,
 
 	smeSessionId = psessionEntry->smeSessionId;
 
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 	frm.Category.category = SIR_MAC_ACTION_SA_QUERY;
 	/*11w action  field is :
 	   action: 0 --> SA query request action frame
@@ -4679,7 +4679,7 @@ QDF_STATUS lim_send_sa_query_response_frame(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Paranoia: */
-	qdf_mem_set(pFrame, nBytes, 0);
+	qdf_mem_zero(pFrame, nBytes);
 
 	/* Copy necessary info to BD */
 	lim_populate_mac_header(pMac, pFrame, SIR_MAC_MGMT_FRAME,
@@ -4802,7 +4802,7 @@ QDF_STATUS lim_send_addba_response_frame(tpAniSirGlobal mac_ctx,
 		&status_code, &buff_size, &batimeout);
 
 	cdp_peer_release_ref(soc, peer, PEER_DEBUG_ID_LIM_SEND_ADDBA_RESP);
-	qdf_mem_set((uint8_t *) &frm, sizeof(frm), 0);
+	qdf_mem_zero((uint8_t *) &frm, sizeof(frm));
 	frm.Category.category = SIR_MAC_ACTION_BLKACK;
 	frm.Action.action = SIR_MAC_ADDBA_RSP;
 
@@ -4864,7 +4864,7 @@ QDF_STATUS lim_send_addba_response_frame(tpAniSirGlobal mac_ctx,
 			num_bytes);
 		return QDF_STATUS_E_FAILURE;
 	}
-	qdf_mem_set(frame_ptr, num_bytes, 0);
+	qdf_mem_zero(frame_ptr, num_bytes);
 
 	lim_populate_mac_header(mac_ctx, frame_ptr, SIR_MAC_MGMT_FRAME,
 		SIR_MAC_MGMT_ACTION, peer_mac, session->selfMacAddr);

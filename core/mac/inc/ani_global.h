@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -316,11 +316,6 @@ typedef struct sLimTimers {
 	TX_TIMER gLimPeriodicJoinProbeReqTimer;
 	TX_TIMER gLimDisassocAckTimer;
 	TX_TIMER gLimDeauthAckTimer;
-	/* This timer is used to convert active channel to
-	 * passive channel when there is no beacon
-	 * for a period of time on a particular DFS channel
-	 */
-	TX_TIMER gLimActiveToPassiveChannelTimer;
 	TX_TIMER g_lim_periodic_auth_retry_timer;
 
 	/* SAE authentication related timer */
@@ -727,7 +722,6 @@ typedef struct sAniSirLim {
 	uint8_t reAssocRetryAttempt;
 	tLimDisassocDeauthCnfReq limDisassocDeauthCnfReq;
 	uint8_t deferredMsgCnt;
-	tSirDFSChannelList dfschannelList;
 	uint8_t deauthMsgCnt;
 	uint8_t disassocMsgCnt;
 	uint8_t gLimIbssStaLimit;
@@ -888,7 +882,11 @@ typedef struct sAniSirGlobal {
 	uint8_t no_ack_policy_cfg[MAX_NUM_AC];
 	uint32_t he_sgi_ltf_cfg_bit_mask;
 	struct mgmt_beacon_probe_filter bcn_filter;
+
+	/* Beacon stats capability from FW */
 	bool bcn_reception_stats;
+	/* Beacon stats enabled/disabled from ini */
+	bool enable_beacon_reception_stats;
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS

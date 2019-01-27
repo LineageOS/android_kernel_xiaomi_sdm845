@@ -66,8 +66,7 @@ static void pmo_core_fill_mc_list(struct pmo_vdev_priv_obj **vdev_ctx,
 			continue;
 		}
 		qdf_spin_lock_bh(&temp_ctx->pmo_vdev_lock);
-		qdf_mem_set(&(op_list->mc_addr[i].bytes), 0,
-			QDF_MAC_ADDR_SIZE);
+		qdf_mem_zero(&(op_list->mc_addr[i].bytes), QDF_MAC_ADDR_SIZE);
 		qdf_mem_copy(&(op_list->mc_addr[i].bytes),
 			ip->mc_addr[i].bytes, QDF_MAC_ADDR_SIZE);
 		qdf_spin_unlock_bh(&temp_ctx->pmo_vdev_lock);

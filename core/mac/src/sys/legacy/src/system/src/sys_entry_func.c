@@ -65,7 +65,7 @@
 QDF_STATUS sys_init_globals(tpAniSirGlobal pMac)
 {
 
-	qdf_mem_set((uint8_t *) &pMac->sys, sizeof(pMac->sys), 0);
+	qdf_mem_zero((uint8_t *) &pMac->sys, sizeof(pMac->sys));
 
 	pMac->sys.gSysEnableLinkMonitorMode = 0;
 

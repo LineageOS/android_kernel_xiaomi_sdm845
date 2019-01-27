@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1380,7 +1380,7 @@ enum hdd_dot11_mode {
  * during host scan without connection
  * @Min: 0
  * @Max: 4
- * @Default: 1
+ * @Default: 4
  *
  * This ini will set the algo used in dwell time optimization
  * during host scan without connection.
@@ -1403,7 +1403,7 @@ enum hdd_dot11_mode {
 #define CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_NAME    "hostscan_adaptive_dwell_mode_no_conn"
 #define CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_MIN     (0)
 #define CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_MAX     (4)
-#define CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_DEFAULT (1)
+#define CFG_ADAPTIVE_SCAN_DWELL_MODE_NC_DEFAULT (4)
 
 /*
  * <ini>
@@ -2723,7 +2723,7 @@ enum hdd_dot11_mode {
  *
  * @min: 0
  * @max: 1
- * @default: 0
+ * @default: 1
  *
  * 0 - disable
  * 1 - enable
@@ -2733,7 +2733,7 @@ enum hdd_dot11_mode {
 #define CFG_LATENCY_ENABLE_NAME    "wlm_latency_enable"
 #define CFG_LATENCY_ENABLE_MIN     (0)
 #define CFG_LATENCY_ENABLE_MAX     (1)
-#define CFG_LATENCY_ENABLE_DEFAULT (0)
+#define CFG_LATENCY_ENABLE_DEFAULT (1)
 
 /*
  * <ini>
@@ -4796,27 +4796,6 @@ enum station_keepalive_method {
 #define CFG_ENABLE_BYPASS_11D_MIN                  (0)
 #define CFG_ENABLE_BYPASS_11D_MAX                  (1)
 #define CFG_ENABLE_BYPASS_11D_DEFAULT              (1)
-
-/*
- * gEnableDFSChnlScan - enable dfs channel scan.
- * @Min: 0
- * @Max: 1
- * @Default: 1
- *
- * This ini is used to enable/disable dfs channels in scan, enabling this
- * will enable driver to include dfs channels in its scan list.
- * Related: NA
- *
- * Supported Feature: DFS, Scan
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_ENABLE_DFS_CHNL_SCAN_NAME              "gEnableDFSChnlScan"
-#define CFG_ENABLE_DFS_CHNL_SCAN_MIN               (0)
-#define CFG_ENABLE_DFS_CHNL_SCAN_MAX               (1)
-#define CFG_ENABLE_DFS_CHNL_SCAN_DEFAULT           (1)
 
 /*
  * <ini>
@@ -15690,8 +15669,8 @@ enum hdd_external_acs_policy {
 #define CFG_ROAM_SCORE_DELTA           "roam_score_delta"
 
 #define CFG_ROAM_SCORE_DELTA_DEFAULT    0
-#define CFG_ROAM_SCORE_DELTA_MIN        100
-#define CFG_ROAM_SCORE_DELTA_MAX        0
+#define CFG_ROAM_SCORE_DELTA_MIN        0
+#define CFG_ROAM_SCORE_DELTA_MAX        100
 
 /*
  * <ini>
@@ -15810,6 +15789,27 @@ enum hdd_external_acs_policy {
 #define CFG_BTM_VALIDITY_TIMER_MIN        0
 #define CFG_BTM_VALIDITY_TIMER_MAX        0xffffffff
 
+ /*
+ * <ini>
+ * enable_beacon_reception_stats - Enable disable beacon reception stats
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable the beacon reception stats collected per
+ * vdev and then sent to the driver to be displayed in sysfs
+ *
+ * Related: None
+ *
+ * Supported Feature: Stats
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_BEACON_RECEPTION_STATS_NAME   "enable_beacon_reception_stats"
+#define CFG_ENABLE_BEACON_RECEPTION_STATS_MIN     0
+#define CFG_ENABLE_BEACON_RECEPTION_STATS_MAX     1
+#define CFG_ENABLE_BEACON_RECEPTION_STATS_DEFAULT 0
+
 /*
  * <ini>
  * btm_disassoc_timer_threshold - Disassociation timer threshold to wait
@@ -15908,6 +15908,19 @@ enum hdd_external_acs_policy {
 #define CFG_BSS_LOAD_SAMPLE_TIME_DEFAULT    10000
 #define CFG_BSS_LOAD_SAMPLE_TIME_MIN        0
 #define CFG_BSS_LOAD_SAMPLE_TIME_MAX        0xffffffff
+
+/*
+ * gEnableRTTsupport
+ * @Min: 0 - Disabled
+ * @Max: 1 - Enabled
+ * @Default: 1 - Enabled
+ *
+ * The param is used to enable/disable support for RTT
+ */
+#define CFG_ENABLE_RTT_SUPPORT            "gEnableRTTSupport"
+#define CFG_ENABLE_RTT_SUPPORT_DEFAULT    (1)
+#define CFG_ENABLE_RTT_SUPPORT_MIN        (0)
+#define CFG_ENABLE_RTT_SUPPORT_MAX        (1)
 
 /*
  * Type declarations
@@ -16855,6 +16868,7 @@ struct hdd_config {
 	uint32_t provisioned_intf_pool;
 	uint32_t derived_intf_pool;
 	bool enable_peer_unmap_conf_support;
+	uint8_t enable_rtt_support;
 
 	uint32_t roam_score_delta;
 	uint32_t roam_score_delta_bitmap;
@@ -16865,6 +16879,8 @@ struct hdd_config {
 	bool enable_bss_load_roam_trigger;
 	uint32_t bss_load_threshold;
 	uint32_t bss_load_sample_time;
+
+	bool enable_beacon_reception_stats;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

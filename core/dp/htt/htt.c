@@ -219,8 +219,8 @@ htt_htc_tx_htt2_service_start(struct htt_pdev_t *pdev,
 {
 	QDF_STATUS status;
 
-	qdf_mem_set(connect_req, 0, sizeof(struct htc_service_connect_req));
-	qdf_mem_set(connect_resp, 0, sizeof(struct htc_service_connect_resp));
+	qdf_mem_zero(connect_req, sizeof(struct htc_service_connect_req));
+	qdf_mem_zero(connect_resp, sizeof(struct htc_service_connect_resp));
 
 	/* The same as HTT service but no RX. */
 	connect_req->EpCallbacks.pContext = pdev;
@@ -746,8 +746,8 @@ int htt_htc_attach(struct htt_pdev_t *pdev, uint16_t service_id)
 	struct htc_service_connect_resp response;
 	QDF_STATUS status;
 
-	qdf_mem_set(&connect, sizeof(connect), 0);
-	qdf_mem_set(&response, sizeof(response), 0);
+	qdf_mem_zero(&connect, sizeof(connect));
+	qdf_mem_zero(&response, sizeof(response));
 
 	connect.pMetaData = NULL;
 	connect.MetaDataLength = 0;

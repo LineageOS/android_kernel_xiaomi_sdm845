@@ -2136,7 +2136,7 @@ sir_convert_probe_req_frame2_struct(tpAniSirGlobal pMac,
 	tDot11fProbeRequest pr;
 
 	/* Ok, zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) pProbeReq, sizeof(tSirProbeReq), 0);
+	qdf_mem_zero((uint8_t *) pProbeReq, sizeof(tSirProbeReq));
 
 	/* delegate to the framesc-generated code, */
 	status = dot11f_unpack_probe_request(pMac, pFrame, nFrame, &pr, false);
@@ -2414,7 +2414,7 @@ QDF_STATUS sir_convert_probe_frame2_struct(tpAniSirGlobal pMac,
 	tDot11fProbeResponse *pr;
 
 	/* Ok, zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) pProbeResp, sizeof(tSirProbeRespBeacon), 0);
+	qdf_mem_zero((uint8_t *) pProbeResp, sizeof(tSirProbeRespBeacon));
 
 	pr = qdf_mem_malloc(sizeof(tDot11fProbeResponse));
 	if (NULL == pr) {
@@ -2698,7 +2698,7 @@ sir_convert_assoc_req_frame2_struct(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_NOMEM;
 	}
 	/* Zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) pAssocReq, sizeof(tSirAssocReq), 0);
+	qdf_mem_zero((uint8_t *) pAssocReq, sizeof(tSirAssocReq));
 
 	/* delegate to the framesc-generated code, */
 	status = dot11f_unpack_assoc_request(pMac, pFrame, nFrame, ar, false);
@@ -3241,7 +3241,7 @@ sir_convert_reassoc_req_frame2_struct(tpAniSirGlobal pMac,
 	uint32_t status;
 
 	/* Zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) pAssocReq, sizeof(tSirAssocReq), 0);
+	qdf_mem_zero((uint8_t *) pAssocReq, sizeof(tSirAssocReq));
 
 	/* delegate to the framesc-generated code, */
 	status = dot11f_unpack_re_assoc_request(pMac, pFrame, nFrame,
@@ -3420,8 +3420,8 @@ sir_beacon_ie_ese_bcn_report(tpAniSirGlobal pMac,
 	uint8_t *pos = NULL;
 
 	/* Zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) &eseBcnReportMandatoryIe,
-		    sizeof(eseBcnReportMandatoryIe), 0);
+	qdf_mem_zero((uint8_t *) &eseBcnReportMandatoryIe,
+		    sizeof(eseBcnReportMandatoryIe));
 	pBies = qdf_mem_malloc(sizeof(tDot11fBeaconIEs));
 	if (NULL == pBies) {
 		pe_err("Failed to allocate memory");
@@ -3715,7 +3715,7 @@ sir_parse_beacon_ie(tpAniSirGlobal pMac,
 	uint32_t status;
 
 	/* Zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) pBeaconStruct, sizeof(tSirProbeRespBeacon), 0);
+	qdf_mem_zero((uint8_t *) pBeaconStruct, sizeof(tSirProbeRespBeacon));
 
 	pBies = qdf_mem_malloc(sizeof(tDot11fBeaconIEs));
 	if (NULL == pBies) {
@@ -4033,7 +4033,7 @@ sir_convert_beacon_frame2_struct(tpAniSirGlobal pMac,
 	mappedRXCh = WMA_GET_RX_CH(pFrame);
 
 	/* Zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) pBeaconStruct, sizeof(tSirProbeRespBeacon), 0);
+	qdf_mem_zero((uint8_t *) pBeaconStruct, sizeof(tSirProbeRespBeacon));
 
 	pBeacon = qdf_mem_malloc(sizeof(tDot11fBeacon));
 	if (NULL == pBeacon) {
@@ -4434,7 +4434,7 @@ sir_convert_auth_frame2_struct(tpAniSirGlobal pMac,
 	uint32_t status;
 
 	/* Zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) pAuth, sizeof(tSirMacAuthFrameBody), 0);
+	qdf_mem_zero((uint8_t *) pAuth, sizeof(tSirMacAuthFrameBody));
 
 	/* delegate to the framesc-generated code, */
 	status = dot11f_unpack_authentication(pMac, pFrame, nFrame,
@@ -4485,7 +4485,7 @@ sir_convert_addts_req2_struct(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) pAddTs, sizeof(tSirAddtsReqInfo), 0);
+	qdf_mem_zero((uint8_t *) pAddTs, sizeof(tSirAddtsReqInfo));
 
 	/* delegate to the framesc-generated code, */
 	switch (*pFrame) {
@@ -4613,9 +4613,9 @@ sir_convert_addts_rsp2_struct(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) pAddTs, sizeof(tSirAddtsRspInfo), 0);
-	qdf_mem_set((uint8_t *) &addts, sizeof(tDot11fAddTSResponse), 0);
-	qdf_mem_set((uint8_t *) &wmmaddts, sizeof(tDot11fWMMAddTSResponse), 0);
+	qdf_mem_zero((uint8_t *) pAddTs, sizeof(tSirAddtsRspInfo));
+	qdf_mem_zero((uint8_t *) &addts, sizeof(tDot11fAddTSResponse));
+	qdf_mem_zero((uint8_t *) &wmmaddts, sizeof(tDot11fWMMAddTSResponse));
 
 	/* delegate to the framesc-generated code, */
 	switch (*pFrame) {
@@ -4783,7 +4783,7 @@ sir_convert_delts_req2_struct(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* Zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) pDelTs, sizeof(tSirDeltsReqInfo), 0);
+	qdf_mem_zero((uint8_t *) pDelTs, sizeof(tSirDeltsReqInfo));
 
 	/* delegate to the framesc-generated code, */
 	switch (*pFrame) {
@@ -4886,8 +4886,8 @@ sir_convert_tpc_req_frame2_struct(tpAniSirGlobal pMac,
 	tDot11fTPCRequest req;
 	uint32_t status;
 
-	qdf_mem_set((uint8_t *) pTpcReqFrame, sizeof(tSirMacTpcReqActionFrame),
-		    0);
+	qdf_mem_zero((uint8_t *) pTpcReqFrame,
+		      sizeof(tSirMacTpcReqActionFrame));
 	status = dot11f_unpack_tpc_request(pMac, pFrame, nFrame, &req, false);
 	if (DOT11F_FAILED(status)) {
 		pe_err("Failed to parse a TPC Request frame (0x%08x, %d bytes):",
@@ -4923,8 +4923,8 @@ sir_convert_meas_req_frame2_struct(tpAniSirGlobal pMac,
 	uint32_t status;
 
 	/* Zero-init our [out] parameter, */
-	qdf_mem_set((uint8_t *) pMeasReqFrame,
-		    sizeof(tpSirMacMeasReqActionFrame), 0);
+	qdf_mem_zero((uint8_t *) pMeasReqFrame,
+		    sizeof(tpSirMacMeasReqActionFrame));
 
 	/* delegate to the framesc-generated code, */
 	status = dot11f_unpack_measurement_request(pMac, pFrame,

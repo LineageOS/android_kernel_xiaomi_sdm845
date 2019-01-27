@@ -2723,7 +2723,7 @@ void lim_process_mlm_set_sta_key_rsp(tpAniSirGlobal mac_ctx,
 	uint16_t result_status;
 
 	SET_LIM_PROCESS_DEFD_MESGS(mac_ctx, true);
-	qdf_mem_set((void *)&mlm_set_key_cnf, sizeof(tLimMlmSetKeysCnf), 0);
+	qdf_mem_zero((void *)&mlm_set_key_cnf, sizeof(tLimMlmSetKeysCnf));
 	if (NULL == msg->bodyptr) {
 		pe_err("msg bodyptr is NULL");
 		return;
@@ -2808,7 +2808,7 @@ void lim_process_mlm_set_bss_key_rsp(tpAniSirGlobal mac_ctx,
 	uint16_t key_len;
 
 	SET_LIM_PROCESS_DEFD_MESGS(mac_ctx, true);
-	qdf_mem_set((void *)&set_key_cnf, sizeof(tLimMlmSetKeysCnf), 0);
+	qdf_mem_zero((void *)&set_key_cnf, sizeof(tLimMlmSetKeysCnf));
 	if (NULL == msg->bodyptr) {
 		pe_err("msg bodyptr is null");
 		return;

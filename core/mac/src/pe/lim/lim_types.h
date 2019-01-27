@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -680,6 +680,17 @@ QDF_STATUS lim_process_tdls_add_sta_rsp(tpAniSirGlobal pMac, void *msg, tpPESess
 void lim_process_tdls_del_sta_rsp(tpAniSirGlobal mac_ctx,
 				  struct scheduler_msg *lim_msg,
 				  tpPESession session_entry);
+
+/**
+ * lim_update_tdls_state_in_fw() - Update TDLS state in FW
+ *
+ * @session_entry - PE sessions
+ * @value  -value to be updated
+ *
+ *
+ * Return: void
+ */
+void lim_update_tdls_set_state_for_fw(tpPESession session_entry, bool value);
 #else
 static inline QDF_STATUS lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 						tpPESession session_entry)
@@ -690,6 +701,11 @@ static inline void lim_init_tdls_data(tpAniSirGlobal pMac,
 					tpPESession pSessionEntry)
 {
 
+}
+
+static inline void lim_update_tdls_set_state_for_fw(tpPESession session_entry,
+						    bool value)
+{
 }
 #endif
 
@@ -756,10 +772,6 @@ void lim_process_mlm_set_bss_key_rsp(tpAniSirGlobal pMac,
 /* Function to process WMA_SWITCH_CHANNEL_RSP message */
 void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *);
 
-void lim_covert_channel_scan_type(tpAniSirGlobal pMac, uint8_t channelNum,
-				  bool passiveToActive);
-void lim_set_dfs_channel_list(tpAniSirGlobal pMac, uint8_t channelNum,
-			      tSirDFSChannelList *dfsChannelList);
 void limContinueChannelLearn(tpAniSirGlobal);
 
 #ifdef WLAN_FEATURE_11W

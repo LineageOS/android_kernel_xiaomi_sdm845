@@ -72,7 +72,7 @@ void lim_get_wpspbc_sessions(tpAniSirGlobal mac_ctx, struct qdf_mac_addr addr,
 	cur_time = (uint32_t) (qdf_mc_timer_get_system_ticks() /
 						QDF_TICKS_PER_SECOND);
 	qdf_zero_macaddr(&addr);
-	qdf_mem_set((uint8_t *) uuid_e, SIR_WPS_UUID_LEN, 0);
+	qdf_mem_zero((uint8_t *) uuid_e, SIR_WPS_UUID_LEN);
 	for (pbc = session->pAPWPSPBCSession; pbc; pbc = pbc->next) {
 		if (cur_time > pbc->timestamp + SIR_WPS_PBC_WALK_TIME)
 			break;

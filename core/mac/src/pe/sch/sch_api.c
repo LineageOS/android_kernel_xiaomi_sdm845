@@ -338,7 +338,7 @@ uint32_t lim_send_probe_rsp_template_to_hal(tpAniSirGlobal pMac,
 	}
 
 	/* Paranoia: */
-	qdf_mem_set(pFrame2Hal, nBytes, 0);
+	qdf_mem_zero(pFrame2Hal, nBytes);
 
 	/* Next, we fill out the buffer descriptor: */
 	lim_populate_mac_header(pMac, pFrame2Hal, SIR_MAC_MGMT_FRAME,

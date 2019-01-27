@@ -52,8 +52,8 @@ void lim_set_cfg_protection(tpAniSirGlobal pMac, tpPESession pesessionEntry)
 	if (pesessionEntry != NULL && LIM_IS_AP_ROLE(pesessionEntry)) {
 		if (pesessionEntry->gLimProtectionControl ==
 		    WNI_CFG_FORCE_POLICY_PROTECTION_DISABLE)
-			qdf_mem_set((void *)&pesessionEntry->cfgProtection,
-				    sizeof(tCfgProtection), 0);
+			qdf_mem_zero((void *)&pesessionEntry->cfgProtection,
+				    sizeof(tCfgProtection));
 		else {
 			pe_debug("frm11a = %d, from11b = %d, frm11g = %d, "
 				   "ht20 = %d, nongf = %d, lsigTxop = %d, "
@@ -83,8 +83,8 @@ void lim_set_cfg_protection(tpAniSirGlobal pMac, tpPESession pesessionEntry)
 
 		if (pMac->lim.gLimProtectionControl ==
 		    WNI_CFG_FORCE_POLICY_PROTECTION_DISABLE)
-			qdf_mem_set((void *)&pMac->lim.cfgProtection,
-				    sizeof(tCfgProtection), 0);
+			qdf_mem_zero((void *)&pMac->lim.cfgProtection,
+				    sizeof(tCfgProtection));
 		else {
 			pMac->lim.cfgProtection.fromlla =
 				(val >> WNI_CFG_PROTECTION_ENABLED_FROM_llA) & 1;

@@ -799,8 +799,8 @@ ol_rx_sec_ind_handler(ol_txrx_pdev_handle pdev,
 		     sizeof(peer->security[sec_index].michael_key));
 
 	if (sec_type != htt_sec_type_wapi) {
-		qdf_mem_set(peer->tids_last_pn_valid,
-			    OL_TXRX_NUM_EXT_TIDS, 0x00);
+		qdf_mem_zero(peer->tids_last_pn_valid,
+			    OL_TXRX_NUM_EXT_TIDS);
 	} else if (sec_index == txrx_sec_mcast || peer->tids_last_pn_valid[0]) {
 		for (i = 0; i < OL_TXRX_NUM_EXT_TIDS; i++) {
 			/*
@@ -1194,7 +1194,7 @@ ol_rx_deliver(struct ol_txrx_vdev_t *vdev,
 #ifdef QCA_SUPPORT_SW_TXRX_ENCAP
 	struct ol_rx_decap_info_t info;
 
-	qdf_mem_set(&info, sizeof(info), 0);
+	qdf_mem_zero(&info, sizeof(info));
 #endif
 
 	msdu = msdu_list;
@@ -1390,20 +1390,12 @@ ol_rx_discard(struct ol_txrx_vdev_t *vdev,
 	      struct ol_txrx_peer_t *peer, unsigned int tid,
 	      qdf_nbuf_t msdu_list)
 {
-	ol_txrx_pdev_handle pdev = vdev->pdev;
-	htt_pdev_handle htt_pdev = pdev->htt_pdev;
-
 	while (msdu_list) {
 		qdf_nbuf_t msdu = msdu_list;
 
 		msdu_list = qdf_nbuf_next(msdu_list);
-		ol_txrx_dbg(
-			"discard rx %pK from partly-deleted peer %pK (%02x:%02x:%02x:%02x:%02x:%02x)\n",
-			msdu, peer,
-			peer->mac_addr.raw[0], peer->mac_addr.raw[1],
-			peer->mac_addr.raw[2], peer->mac_addr.raw[3],
-			peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
-		htt_rx_desc_frame_free(htt_pdev, msdu);
+		ol_txrx_dbg("discard rx %pK", msdu);
+		qdf_nbuf_free(msdu);
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1215,7 +1215,11 @@ wlansap_update_csa_channel_params(struct sap_context *sap_context,
 			op_class = wlan_reg_dmn_get_opclass_from_channel(
 					mac_ctx->scan.countryCodeCurrent,
 					channel, bw);
-			if (!op_class)
+			/*
+			 * Do not continue if bw is 20. This mean channel is not
+			 * found and thus set BW20 for the channel.
+			 */
+			if (!op_class && bw > BW20)
 				continue;
 
 			if (bw == BW80) {

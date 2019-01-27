@@ -799,7 +799,7 @@ void csr_roam_reset_roam_params(tpAniSirGlobal mac_ctx)
 		FL("Roaming parameters are reset"));
 	roam_params = &mac_ctx->roam.configParam.roam_params;
 	roam_params->num_ssid_allowed_list = 0;
-	qdf_mem_set(&roam_params->ssid_allowed_list, 0,
+	qdf_mem_zero(&roam_params->ssid_allowed_list,
 			sizeof(tSirMacSSid) * MAX_SSID_ALLOWED_LIST);
 }
 
@@ -1325,8 +1325,8 @@ QDF_STATUS csr_neighbor_roam_init(tpAniSirGlobal pMac, uint8_t sessionId)
 		pNeighborRoamInfo->cfgParams.nRoamBmissFinalBcnt;
 	pNeighborRoamInfo->currentRoamBeaconRssiWeight =
 		pNeighborRoamInfo->cfgParams.nRoamBeaconRssiWeight;
-	qdf_mem_set(&pNeighborRoamInfo->prevConnProfile,
-		    sizeof(tCsrRoamConnectedProfile), 0);
+	qdf_mem_zero(&pNeighborRoamInfo->prevConnProfile,
+		    sizeof(tCsrRoamConnectedProfile));
 
 	status = csr_ll_open(&pNeighborRoamInfo->roamableAPList);
 	if (QDF_STATUS_SUCCESS != status) {

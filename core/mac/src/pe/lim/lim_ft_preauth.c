@@ -90,7 +90,7 @@ void lim_ft_cleanup_pre_auth_info(tpAniSirGlobal pMac,
 	}
 
 	/* The session is being deleted, cleanup the contents */
-	qdf_mem_set(&psessionEntry->ftPEContext, sizeof(tftPEContext), 0);
+	qdf_mem_zero(&psessionEntry->ftPEContext, sizeof(tftPEContext));
 
 	/* Delete the session created while handling pre-auth response */
 	if (pReAssocSessionEntry) {

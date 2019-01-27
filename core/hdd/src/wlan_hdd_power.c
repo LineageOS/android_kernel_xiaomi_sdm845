@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1542,10 +1542,14 @@ int wlan_hdd_set_powersave(struct hdd_adapter *adapter,
 		 */
 		status = sme_ps_disable_auto_ps_timer(mac_handle,
 					adapter->session_id);
+
 		if (status != QDF_STATUS_SUCCESS)
 			goto end;
-		status = sme_ps_enable_disable(mac_handle, adapter->session_id,
-					       SME_PS_DISABLE);
+
+		if (hdd_ctx->config && hdd_ctx->config->is_ps_enabled)
+			status = sme_ps_enable_disable(mac_handle,
+						       adapter->session_id,
+						       SME_PS_DISABLE);
 	}
 
 end:

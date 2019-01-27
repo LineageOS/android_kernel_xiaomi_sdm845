@@ -251,8 +251,8 @@ QDF_STATUS bmi_read_soc_register(uint32_t address, uint32_t *param,
 	qdf_dma_addr_t rsp = info->bmi_rsp_da;
 
 	bmi_assert(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address)));
-	qdf_mem_set(bmi_cmd_buff, 0, sizeof(cid) + sizeof(address));
-	qdf_mem_set(bmi_rsp_buff, 0, sizeof(cid) + sizeof(address));
+	qdf_mem_zero(bmi_cmd_buff, sizeof(cid) + sizeof(address));
+	qdf_mem_zero(bmi_rsp_buff, sizeof(cid) + sizeof(address));
 
 	if (info->bmi_done) {
 		BMI_DBG("Command disallowed");
@@ -296,7 +296,7 @@ QDF_STATUS bmi_write_soc_register(uint32_t address, uint32_t param,
 	qdf_dma_addr_t rsp = info->bmi_rsp_da;
 
 	bmi_assert(BMI_COMMAND_FITS(size));
-	qdf_mem_set(bmi_cmd_buff, 0, size);
+	qdf_mem_zero(bmi_cmd_buff, size);
 
 	if (info->bmi_done) {
 		BMI_DBG("Command disallowed");
@@ -341,7 +341,7 @@ bmilz_data(uint8_t *buffer, uint32_t length, struct ol_context *ol_ctx)
 	qdf_dma_addr_t rsp = info->bmi_rsp_da;
 
 	bmi_assert(BMI_COMMAND_FITS(BMI_DATASZ_MAX + header));
-	qdf_mem_set(bmi_cmd_buff, 0, BMI_DATASZ_MAX + header);
+	qdf_mem_zero(bmi_cmd_buff, BMI_DATASZ_MAX + header);
 
 	if (info->bmi_done) {
 		BMI_ERR("Command disallowed");
@@ -398,7 +398,7 @@ QDF_STATUS bmi_sign_stream_start(uint32_t address, uint8_t *buffer,
 	qdf_dma_addr_t rsp = info->bmi_rsp_da;
 
 	bmi_assert(BMI_COMMAND_FITS(BMI_DATASZ_MAX + header));
-	qdf_mem_set(bmi_cmd_buff, 0, BMI_DATASZ_MAX + header);
+	qdf_mem_zero(bmi_cmd_buff, BMI_DATASZ_MAX + header);
 
 	if (info->bmi_done) {
 		BMI_ERR("Command disallowed");
@@ -461,7 +461,7 @@ bmilz_stream_start(uint32_t address, struct ol_context *ol_ctx)
 	qdf_dma_addr_t rsp = info->bmi_rsp_da;
 
 	bmi_assert(BMI_COMMAND_FITS(sizeof(cid) + sizeof(address)));
-	qdf_mem_set(bmi_cmd_buff, 0, sizeof(cid) + sizeof(address));
+	qdf_mem_zero(bmi_cmd_buff, sizeof(cid) + sizeof(address));
 
 	if (info->bmi_done) {
 		BMI_DBG("Command disallowed");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -62,11 +62,6 @@
 #include "wni_cfg.h"
 #endif
 #define ASCII_SPACE_CHARACTER 0x20
-
-/* A DFS channel can be ACTIVE for max 9000 msec, from the last
-   received Beacon/Prpbe Resp. */
-#define   MAX_TIME_TO_BE_ACTIVE_CHANNEL 9000
-
 
 /** -------------------------------------------------------------
    \fn lim_delete_dialogue_token_list
@@ -612,9 +607,6 @@ void lim_deactivate_timers(tpAniSirGlobal mac_ctx)
 	}
 	tx_timer_deactivate(&lim_timer->gLimDeauthAckTimer);
 
-	tx_timer_deactivate(&lim_timer->
-			gLimActiveToPassiveChannelTimer);
-
 	tx_timer_deactivate(&lim_timer->sae_auth_timer);
 }
 
@@ -689,9 +681,6 @@ void lim_cleanup_mlm(tpAniSirGlobal mac_ctx)
 		tx_timer_delete(&lim_timer->gLimDisassocAckTimer);
 
 		tx_timer_delete(&lim_timer->gLimDeauthAckTimer);
-
-		tx_timer_delete(&lim_timer->
-				gLimActiveToPassiveChannelTimer);
 
 		tx_timer_delete(&lim_timer->sae_auth_timer);
 
@@ -1035,7 +1024,7 @@ void lim_handle_update_olbc_cache(tpAniSirGlobal mac_ctx)
 		pe_debug("protection offloaded");
 		return;
 	}
-	qdf_mem_set((uint8_t *) &beaconParams, sizeof(tUpdateBeaconParams), 0);
+	qdf_mem_zero((uint8_t *) &beaconParams, sizeof(tUpdateBeaconParams));
 	beaconParams.bssIdx = psessionEntry->bssIdx;
 
 	beaconParams.paramChangeBitmap = 0;
@@ -2035,10 +2024,6 @@ void lim_process_channel_switch_timeout(tpAniSirGlobal pMac)
 			return;
 		}
 	}
-	lim_covert_channel_scan_type(pMac, psessionEntry->currentOperChannel,
-				     false);
-	pMac->lim.dfschannelList.timeStamp[psessionEntry->currentOperChannel] =
-		0;
 	switch (psessionEntry->gLimChannelSwitch.state) {
 	case eLIM_CHANNEL_SWITCH_PRIMARY_ONLY:
 		pe_warn("CHANNEL_SWITCH_PRIMARY_ONLY");
@@ -4344,11 +4329,16 @@ void lim_update_sta_run_time_ht_switch_chnl_params(tpAniSirGlobal pMac,
 		pMac->lim.gpchangeChannelCallback = NULL;
 		pMac->lim.gpchangeChannelData = NULL;
 
+		/* Before restarting vdev, delete the tdls peers */
+		lim_update_tdls_set_state_for_fw(psessionEntry, false);
+		lim_delete_tdls_peers(pMac, psessionEntry);
 		lim_send_switch_chnl_params(pMac, (uint8_t) pHTInfo->primaryChannel,
 					    center_freq, 0, ch_width,
 					    psessionEntry->maxTxPower,
 					    psessionEntry->peSessionId,
 					    true, 0, 0);
+
+
 
 		/* In case of IBSS, if STA should update HT Info IE in its beacons. */
 		if (LIM_IS_IBSS_ROLE(psessionEntry)) {
@@ -5618,7 +5608,7 @@ void lim_diag_event_report(tpAniSirGlobal pMac, uint16_t eventType,
 
 	WLAN_HOST_DIAG_EVENT_DEF(peEvent, host_event_wlan_pe_payload_type);
 
-	qdf_mem_set(&peEvent, sizeof(host_event_wlan_pe_payload_type), 0);
+	qdf_mem_zero(&peEvent, sizeof(host_event_wlan_pe_payload_type));
 
 	if (NULL == pSessionEntry) {
 		qdf_mem_copy(peEvent.bssid, nullBssid, sizeof(tSirMacAddr));
@@ -5647,7 +5637,7 @@ static void lim_diag_fill_mgmt_event_report(tpAniSirGlobal mac_ctx,
 {
 	uint8_t length;
 
-	qdf_mem_set(mgmt_event, sizeof(*mgmt_event), 0);
+	qdf_mem_zero(mgmt_event, sizeof(*mgmt_event));
 	mgmt_event->mgmt_type = mac_hdr->fc.type;
 	mgmt_event->mgmt_subtype = mac_hdr->fc.subType;
 	qdf_mem_copy(mgmt_event->self_mac_addr, session->selfMacAddr,
@@ -6739,9 +6729,8 @@ QDF_STATUS lim_strip_ie(tpAniSirGlobal mac_ctx,
 			 * take oui IE and store in provided buffer.
 			 */
 			if (NULL != extracted_ie) {
-				qdf_mem_set(extracted_ie,
-					    eid_max_len + size_of_len_field + 1,
-					    0);
+				qdf_mem_zero(extracted_ie,
+					   eid_max_len + size_of_len_field + 1);
 				if (elem_len <= eid_max_len)
 					qdf_mem_copy(extracted_ie, &ptr[0],
 					elem_len + size_of_len_field + 1);
@@ -6792,9 +6781,8 @@ QDF_STATUS lim_strip_supp_op_class_update_struct(tpAniSirGlobal mac_ctx,
 	uint8_t extracted_buff[DOT11F_IE_SUPPOPERATINGCLASSES_MAX_LEN + 2];
 	QDF_STATUS status;
 
-	qdf_mem_set((uint8_t *)&extracted_buff[0],
-		    DOT11F_IE_SUPPOPERATINGCLASSES_MAX_LEN + 2,
-		    0);
+	qdf_mem_zero((uint8_t *)&extracted_buff[0],
+		    DOT11F_IE_SUPPOPERATINGCLASSES_MAX_LEN + 2);
 	status = lim_strip_ie(mac_ctx, addn_ie, addn_ielen,
 			      DOT11F_EID_SUPPOPERATINGCLASSES, ONE_BYTE,
 			      NULL, 0, extracted_buff,
@@ -6854,7 +6842,7 @@ void lim_update_extcap_struct(tpAniSirGlobal mac_ctx,
 		return;
 	}
 
-	qdf_mem_set((uint8_t *)&out[0], DOT11F_IE_EXTCAP_MAX_LEN, 0);
+	qdf_mem_zero((uint8_t *)&out[0], DOT11F_IE_EXTCAP_MAX_LEN);
 	qdf_mem_copy(&out[0], &buf[2], buf[1]);
 
 	status = dot11f_unpack_ie_ext_cap(mac_ctx, &out[0],
@@ -6882,8 +6870,8 @@ QDF_STATUS lim_strip_extcap_update_struct(tpAniSirGlobal mac_ctx,
 	uint8_t extracted_buff[DOT11F_IE_EXTCAP_MAX_LEN + 2];
 	QDF_STATUS status;
 
-	qdf_mem_set((uint8_t *)&extracted_buff[0], DOT11F_IE_EXTCAP_MAX_LEN + 2,
-		     0);
+	qdf_mem_zero((uint8_t *)&extracted_buff[0],
+		      DOT11F_IE_EXTCAP_MAX_LEN + 2);
 	status = lim_strip_ie(mac_ctx, addn_ie, addn_ielen,
 			      DOT11F_EID_EXTCAP, ONE_BYTE,
 			      NULL, 0, extracted_buff,
@@ -8353,45 +8341,6 @@ enum rateid lim_get_min_session_txrate(tpPESession session)
 	return rid;
 }
 
-void lim_convert_active_channel_to_passive_channel(tpAniSirGlobal mac_ctx)
-{
-	uint64_t current_time;
-	uint64_t last_time = 0;
-	uint64_t time_diff;
-	uint8_t i;
-
-	current_time = (uint64_t)qdf_mc_timer_get_system_time();
-	for (i = 1; i < SIR_MAX_24G_5G_CHANNEL_RANGE; i++) {
-		if ((mac_ctx->lim.dfschannelList.timeStamp[i]) != 0) {
-			last_time = mac_ctx->lim.dfschannelList.timeStamp[i];
-			if (current_time >= last_time) {
-				time_diff = (current_time - last_time);
-			} else {
-				time_diff =
-					(0xFFFFFFFF - last_time) + current_time;
-			}
-
-			if (time_diff >= MAX_TIME_TO_BE_ACTIVE_CHANNEL) {
-				lim_covert_channel_scan_type(mac_ctx, i, false);
-				mac_ctx->lim.dfschannelList.timeStamp[i] = 0;
-			}
-		}
-	}
-	/*
-	 * last_time is zero if there is no DFS active channels in the list.
-	 * If this is non zero then we have active DFS channels so restart
-	 * the timer.
-	 */
-	if (last_time != 0) {
-		if (tx_timer_activate
-		    (&mac_ctx->lim.limTimers.gLimActiveToPassiveChannelTimer)
-		    != TX_SUCCESS) {
-			pe_err("Active to Passive Channel timer not activated");
-		}
-	}
-	return;
-}
-
 void lim_send_sme_mgmt_frame_ind(tpAniSirGlobal mac_ctx, uint8_t frame_type,
 				 uint8_t *frame, uint32_t frame_len,
 				 uint16_t session_id, uint32_t rx_channel,
@@ -8455,8 +8404,8 @@ void lim_process_ap_ecsa_timeout(void *data)
 	uint8_t bcn_int, ch, ch_width;
 	QDF_STATUS status;
 
-	if (!session) {
-		pe_err("Session is NULL");
+	if (!session || !session->valid) {
+		pe_err("Session is not valid");
 		return;
 	}
 

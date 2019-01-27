@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1729,6 +1729,10 @@ int wlan_hdd_cfg80211_start_acs(struct hdd_adapter *adapter)
 		return -EINVAL;
 	}
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	status = wlan_hdd_validate_context(hdd_ctx);
+	if (0 != status)
+		return status;
+
 	sap_config = &adapter->session.ap.sap_config;
 	if (hdd_ctx->acs_policy.acs_channel)
 		sap_config->channel = hdd_ctx->acs_policy.acs_channel;
@@ -2778,7 +2782,9 @@ static void wlan_hdd_cfg80211_start_pending_acs(struct work_struct *work)
 	struct hdd_adapter *adapter = container_of(work, struct hdd_adapter,
 						   acs_pending_work.work);
 
+	cds_ssr_protect(__func__);
 	wlan_hdd_cfg80211_start_acs(adapter);
+	cds_ssr_unprotect(__func__);
 	clear_bit(ACS_PENDING, &adapter->event_flags);
 }
 
@@ -2968,8 +2974,9 @@ __wlan_hdd_cfg80211_get_supported_features(struct wiphy *wiphy,
 		hdd_debug("NAN is supported by firmware");
 		fset |= WIFI_FEATURE_NAN;
 	}
-	if (sme_is_feature_supported_by_fw(RTT)) {
-		hdd_debug("RTT is supported by firmware");
+	if (sme_is_feature_supported_by_fw(RTT) &&
+	    hdd_ctx->config->enable_rtt_support) {
+		hdd_debug("RTT is supported by firmware and framework");
 		fset |= WIFI_FEATURE_D2D_RTT;
 		fset |= WIFI_FEATURE_D2AP_RTT;
 	}
@@ -10408,6 +10415,8 @@ static int hdd_validate_avoid_freq_chanlist(
 		     ch_idx <= channel_list->
 					avoid_freq_range[range_idx].end_freq;
 		     ch_idx++) {
+			 if (INVALID_CHANNEL == reg_get_chan_enum(ch_idx))
+				continue;
 			for (unsafe_channel_index = 0;
 			     unsafe_channel_index < unsafe_channel_count;
 			     unsafe_channel_index++) {
@@ -12400,10 +12409,16 @@ static inline uint8_t *hdd_dns_unmake_name_query(uint8_t *name)
  *
  * Return: Byte following constructed DNS name
  */
-static uint8_t *hdd_dns_make_name_query(const uint8_t *string, uint8_t *buf)
+static uint8_t *hdd_dns_make_name_query(const uint8_t *string,
+					uint8_t *buf, uint8_t len)
 {
 	uint8_t *length_byte = buf++;
 	uint8_t c;
+
+	if (string[len - 1]) {
+		hdd_debug("DNS name is not null terminated");
+		return NULL;
+	}
 
 	while ((c = *(string++))) {
 		if (c == '.') {
@@ -12493,8 +12508,12 @@ static int hdd_set_clear_connectivity_check_stats_info(
 					adapter->track_dns_domain_len =
 						nla_len(tb2[
 							STATS_DNS_DOMAIN_NAME]);
-					hdd_dns_make_name_query(domain_name,
-							adapter->dns_payload);
+					if (!hdd_dns_make_name_query(
+						domain_name,
+						adapter->dns_payload,
+						adapter->track_dns_domain_len))
+						adapter->track_dns_domain_len =
+							0;
 					/* DNStracking isn't supported in FW. */
 					arp_stats_params->pkt_type_bitmap &=
 						~CONNECTIVITY_CHECK_SET_DNS;
@@ -17380,10 +17399,11 @@ wlan_hdd_inform_bss_frame(struct hdd_adapter *adapter,
 	for (i = 0; i < WLAN_MGMT_TXRX_HOST_MAX_ANTENNA; i++)
 		bss_data.per_chain_snr[i] = WLAN_INVALID_PER_CHAIN_RSSI;
 
-	hdd_debug("BSSID: " MAC_ADDRESS_STR " Channel:%d RSSI:%d TSF %u",
-	       MAC_ADDR_ARRAY(bss_data.mgmt->bssid), bss_data.chan->center_freq,
-	       (int)(bss_data.rssi / 100),
-	       bss_desc->timeStamp[0]);
+	hdd_debug("BSSID: " MAC_ADDRESS_STR " Channel:%d RSSI:%d TSF %u seq %d",
+		  MAC_ADDR_ARRAY(bss_data.mgmt->bssid),
+		  bss_data.chan->center_freq, (int)(bss_data.rssi / 100),
+		  bss_desc->timeStamp[0], ((bss_desc->seq_ctrl.seqNumHi <<
+		  HIGH_SEQ_NUM_OFFSET) | bss_desc->seq_ctrl.seqNumLo));
 
 	bss_status = wlan_cfg80211_inform_bss_frame_data(wiphy, &bss_data);
 	hdd_ctx->beacon_probe_rsp_cnt_per_scan++;

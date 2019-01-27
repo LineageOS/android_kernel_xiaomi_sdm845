@@ -1970,7 +1970,7 @@ ol_txrx_pdev_post_attach(struct cdp_pdev *ppdev)
 	/*
 	 * Initialize rx PN check characteristics for different security types.
 	 */
-	qdf_mem_set(&pdev->rx_pn[0], sizeof(pdev->rx_pn), 0);
+	qdf_mem_zero(&pdev->rx_pn[0], sizeof(pdev->rx_pn));
 
 	/* TKIP: 48-bit TSC, CCMP: 48-bit PN */
 	pdev->rx_pn[htt_sec_type_tkip].len =
@@ -5605,6 +5605,7 @@ static QDF_STATUS ol_txrx_enqueue_rx_frames(
 
 	buf = rx_buf_list;
 	while (buf) {
+		QDF_NBUF_CB_RX_PEER_CACHED_FRM(buf) = 1;
 		next_buf = qdf_nbuf_queue_next(buf);
 		cache_buf = qdf_mem_malloc(sizeof(*cache_buf));
 		if (!cache_buf) {

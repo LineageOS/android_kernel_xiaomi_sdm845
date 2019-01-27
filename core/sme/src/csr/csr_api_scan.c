@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -645,20 +645,6 @@ QDF_STATUS csr_save_to_channel_power2_g_5_g(tpAniSirGlobal pMac,
 	return QDF_STATUS_SUCCESS;
 }
 
-static void csr_clear_dfs_channel_list(tpAniSirGlobal pMac)
-{
-	tSirMbMsg *pMsg;
-	uint16_t msgLen;
-
-	msgLen = (uint16_t) (sizeof(tSirMbMsg));
-	pMsg = qdf_mem_malloc(msgLen);
-	if (NULL != pMsg) {
-		pMsg->type = eWNI_SME_CLEAR_DFS_CHANNEL_LIST;
-		pMsg->msgLen = msgLen;
-		umac_send_mb_message_to_mac(pMsg);
-	}
-}
-
 void csr_apply_power2_current(tpAniSirGlobal pMac)
 {
 	sme_debug("Updating Cfg with power settings");
@@ -689,14 +675,6 @@ void csr_apply_channel_power_info_to_fw(tpAniSirGlobal mac_ctx,
 		csr_apply_power2_current(mac_ctx);
 		csr_set_cfg_valid_channel_list(mac_ctx, tmp_ch_lst.channelList,
 					       tmp_ch_lst.numChannels);
-		/*
-		 * extend scan capability, build a scan list based on the
-		 * channel list : channel# + active/passive scan
-		 */
-		csr_set_cfg_scan_control_list(mac_ctx, countryCode,
-					      &tmp_ch_lst);
-		/* Send msg to Lim to clear DFS channel list */
-		csr_clear_dfs_channel_list(mac_ctx);
 	} else {
 		sme_err("11D channel list is empty");
 	}
@@ -760,14 +738,14 @@ void csr_apply_channel_power_info_wrapper(tpAniSirGlobal pMac)
 	csr_apply_channel_power_info_to_fw(pMac,
 		&pMac->scan.base_channels, pMac->scan.countryCodeCurrent);
 	/* clear the 11d channel list */
-	qdf_mem_set(&pMac->scan.channels11d, sizeof(pMac->scan.channels11d), 0);
+	qdf_mem_zero(&pMac->scan.channels11d, sizeof(pMac->scan.channels11d));
 }
 
 void csr_clear_votes_for_country_info(tpAniSirGlobal pMac)
 {
 	pMac->scan.countryCodeCount = 0;
-	qdf_mem_set(pMac->scan.votes11d,
-		    sizeof(struct csr_votes11d) * CSR_MAX_NUM_COUNTRY_CODE, 0);
+	qdf_mem_zero(pMac->scan.votes11d,
+		    sizeof(struct csr_votes11d) * CSR_MAX_NUM_COUNTRY_CODE);
 }
 
 /* caller allocated memory for pNumChn and pChnPowerInfo */
@@ -1155,6 +1133,7 @@ void csr_saved_scan_cmd_free_fields(tpAniSirGlobal mac_ctx,
 				    struct csr_roam_session *session)
 {
 	if (session->scan_info.profile) {
+		sme_debug("Free profile for session %d", session->sessionId);
 		csr_release_profile(mac_ctx,
 				    session->scan_info.profile);
 		qdf_mem_free(session->scan_info.profile);
@@ -1247,6 +1226,7 @@ static void csr_handle_nxt_cmd(tpAniSirGlobal mac_ctx,
 		   uint8_t chan)
 {
 	QDF_STATUS status, ret;
+	struct csr_roam_session *session;
 
 	switch (nxt_cmd) {
 
@@ -1267,7 +1247,7 @@ static void csr_handle_nxt_cmd(tpAniSirGlobal mac_ctx,
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
 			/* csr_save_profile should report error */
 			sme_err("profile save failed %d", status);
-			return;
+			break;
 		}
 
 		if (QDF_STATUS_E_FAILURE == ret) {
@@ -1282,10 +1262,14 @@ static void csr_handle_nxt_cmd(tpAniSirGlobal mac_ctx,
 		/* Else: Set hw mode was issued and the saved connect would
 		 * be issued after set hw mode response
 		 */
-		break;
+		if (QDF_IS_STATUS_SUCCESS(ret))
+			return;
 	default:
 		break;
 	}
+	session = CSR_GET_SESSION(mac_ctx, session_id);
+	if (session)
+		csr_saved_scan_cmd_free_fields(mac_ctx, session);
 }
 
 void csr_scan_callback(struct wlan_objmgr_vdev *vdev,
@@ -1335,14 +1319,6 @@ void csr_scan_callback(struct wlan_objmgr_vdev *vdev,
 	/* We reuse the command here instead reissue a new command */
 	csr_handle_nxt_cmd(mac_ctx, NextCommand,
 			   session_id, chan);
-
-	if (session->scan_info.profile != NULL) {
-		sme_debug("Free the profile scan_id %d", event->scan_id);
-		csr_release_profile(mac_ctx, session->scan_info.profile);
-		qdf_mem_free(session->scan_info.profile);
-		session->scan_info.profile = NULL;
-	}
-
 }
 
 tCsrScanResultInfo *csr_scan_result_get_first(tpAniSirGlobal pMac,
@@ -1480,6 +1456,8 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 	}
 	pdev_id = wlan_objmgr_pdev_get_pdev_id(mac_ctx->pdev);
 
+	/* Free old memory if any before its overwritten */
+	csr_saved_scan_cmd_free_fields(mac_ctx, session);
 	session->scan_info.profile =
 			qdf_mem_malloc(sizeof(struct csr_roam_profile));
 	if (!session->scan_info.profile)
@@ -1488,7 +1466,7 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 		status = csr_roam_copy_profile(mac_ctx,
 					session->scan_info.profile,
 					profile);
-	if (!QDF_IS_STATUS_SUCCESS(status))
+	if (QDF_IS_STATUS_ERROR(status))
 		goto error;
 	scan_id = ucfg_scan_get_scan_id(mac_ctx->psoc);
 	session->scan_info.scan_id = scan_id;
@@ -1498,6 +1476,7 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 	if (!req) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  FL("Failed to allocate memory"));
+		status = QDF_STATUS_E_NOMEM;
 		goto error;
 	}
 
@@ -1575,7 +1554,7 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 	status = ucfg_scan_start(req);
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 error:
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
+	if (QDF_IS_STATUS_ERROR(status)) {
 		sme_err("failed to initiate scan with status: %d", status);
 		csr_release_profile(mac_ctx, session->scan_info.profile);
 		qdf_mem_free(session->scan_info.profile);
@@ -1762,50 +1741,6 @@ QDF_STATUS csr_get_country_code(tpAniSirGlobal pMac, uint8_t *pBuf,
 	}
 
 	return QDF_STATUS_E_INVAL;
-}
-
-void csr_set_cfg_scan_control_list(tpAniSirGlobal pMac, uint8_t *countryCode,
-				   struct csr_channel *pChannelList)
-{
-	uint8_t i, j;
-	bool found = false;
-	uint8_t *pControlList = NULL;
-	uint32_t len = WNI_CFG_SCAN_CONTROL_LIST_LEN;
-
-	pControlList = qdf_mem_malloc(WNI_CFG_SCAN_CONTROL_LIST_LEN);
-	if (pControlList != NULL) {
-		if (QDF_IS_STATUS_SUCCESS(wlan_cfg_get_str(pMac,
-					WNI_CFG_SCAN_CONTROL_LIST,
-					pControlList, &len))) {
-			for (i = 0; i < pChannelList->numChannels; i++) {
-				for (j = 0; j < len; j += 2) {
-					if (pControlList[j] ==
-					    pChannelList->channelList[i]) {
-						found = true;
-						break;
-					}
-				}
-
-				if (found) {
-					/* insert a pair(channel#, flag) */
-					pControlList[j + 1] =
-						csr_get_scan_type(pMac,
-							pControlList[j]);
-					found = false;  /* reset the flag */
-				}
-
-			}
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-				  "%s: dump scan control list", __func__);
-			QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_SME,
-					   QDF_TRACE_LEVEL_DEBUG, pControlList,
-					   len);
-
-			cfg_set_str(pMac, WNI_CFG_SCAN_CONTROL_LIST,
-					pControlList, len);
-		} /* Successfully getting scan control list */
-		qdf_mem_free(pControlList);
-	} /* AllocateMemory */
 }
 
 QDF_STATUS csr_scan_abort_mac_scan(tpAniSirGlobal mac_ctx, uint32_t vdev_id,
