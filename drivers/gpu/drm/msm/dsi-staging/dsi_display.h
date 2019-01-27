@@ -175,6 +175,7 @@ struct dsi_display {
 
 	const char *name;
 	bool is_prim_display;
+	bool is_first_boot;
 	const char *display_type;
 	struct list_head list;
 	bool is_active;

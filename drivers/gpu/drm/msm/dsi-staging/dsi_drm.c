@@ -21,6 +21,7 @@
 #include <linux/notifier.h>
 #include <drm/drm_bridge.h>
 #include <linux/pm_wakeup.h>
+#include <soc/qcom/socinfo.h>
 
 #include "msm_kms.h"
 #include "sde_connector.h"
@@ -34,12 +35,16 @@ static BLOCKING_NOTIFIER_HEAD(drm_notifier_list);
 
 #define WAIT_RESUME_TIMEOUT 200
 
+#define FAKE_PANEL_ID 9
+
 struct dsi_bridge *gbridge;
 static struct delayed_work prim_panel_work;
 static atomic_t prim_panel_is_on;
 static struct wakeup_source prim_panel_wakelock;
 
 struct drm_notify_data g_notify_data;
+
+int panel_disp_param_send(struct dsi_display *display, int cmd);
 
 /**
  *	drm_register_client - register a client notifier
@@ -242,21 +247,16 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 	}
 
 	SDE_ATRACE_BEGIN("dsi_bridge_pre_enable");
-	pr_debug("[lcd_performance]dsi_bridge_pre_enable -- start");
 
-	pr_debug("[lcd_performance]dsi_display_prepare -- start");
 	rc = dsi_display_prepare(c_bridge->display);
 	if (rc) {
 		pr_err("[%d] DSI display prepare failed, rc=%d\n",
 		       c_bridge->id, rc);
 		SDE_ATRACE_END("dsi_bridge_pre_enable");
-		pr_debug("[lcd_performance]dsi_bridge_pre_enable -- end");
 		return;
 	}
-	pr_debug("[lcd_performance]dsi_display_prepare -- end");
 
 	SDE_ATRACE_BEGIN("dsi_display_enable");
-	pr_debug("[lcd_performance]dsi_display_enable -- start");
 	rc = dsi_display_enable(c_bridge->display);
 	if (rc) {
 		pr_err("[%d] DSI display enable failed, rc=%d\n",
@@ -264,22 +264,35 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		(void)dsi_display_unprepare(c_bridge->display);
 	}
 
-	pr_debug("[lcd_performance]drm_notifier_call_chain DRM_EVENT_BLANK -- start");
 	drm_notifier_call_chain(DRM_EVENT_BLANK, &g_notify_data);
-	pr_debug("[lcd_performance]drm_notifier_call_chain DRM_EVENT_BLANK -- end");
 
-	pr_debug("[lcd_performance]dsi_display_enable -- end");
 	SDE_ATRACE_END("dsi_display_enable");
-	pr_debug("[lcd_performance]dsi_bridge_pre_enable -- end");
 	SDE_ATRACE_END("dsi_bridge_pre_enable");
-
 
 	rc = dsi_display_splash_res_cleanup(c_bridge->display);
 	if (rc)
 		pr_err("Continuous splash pipeline cleanup failed, rc=%d\n",
 									rc);
-	if (c_bridge->display->is_prim_display)
+
+	if (c_bridge->display->is_prim_display) {
 		atomic_set(&prim_panel_is_on, true);
+		if (get_hw_version_platform() == HARDWARE_PLATFORM_DIPPERN) {
+			if (!c_bridge->display->panel->bl_config.ss_panel_id) {
+				rc = panel_disp_param_send(c_bridge->display, 0x40000000);
+				if (!rc)
+					pr_err("[%d] DSI disp param send failed, cmd = 0x40000000, rc=%d\n",
+						c_bridge->id, rc);
+				else
+					pr_info("[%d] ss_panel_id = %d\n", c_bridge->id,
+						c_bridge->display->panel->bl_config.ss_panel_id);
+
+				/* if read fails or other unexpected result,
+				Set it to fake id cause we only read it once */
+				if (!c_bridge->display->panel->bl_config.ss_panel_id)
+					c_bridge->display->panel->bl_config.ss_panel_id = FAKE_PANEL_ID;
+			}
+		}
+	}
 }
 
 /**
@@ -327,7 +340,6 @@ int dsi_bridge_interface_enable(int timeout)
 }
 EXPORT_SYMBOL(dsi_bridge_interface_enable);
 
-int panel_disp_param_send(struct dsi_display *display, int cmd);
 static void dsi_bridge_disp_param_set(struct drm_bridge *bridge, int cmd)
 {
 	int rc = 0;
@@ -341,8 +353,8 @@ static void dsi_bridge_disp_param_set(struct drm_bridge *bridge, int cmd)
 	SDE_ATRACE_BEGIN("panel_disp_param_send");
 	rc = panel_disp_param_send(c_bridge->display, cmd);
 	if (rc) {
-		pr_err("[%d] DSI disp param send failed, rc=%d\n",
-		       c_bridge->id, rc);
+		pr_err("[%d] DSI disp param send failed, cmd = %d, rc=%d\n",
+		       c_bridge->id, cmd, rc);
 	}
 	SDE_ATRACE_END("panel_disp_param_send");
 }
@@ -359,7 +371,6 @@ static ssize_t dsi_bridge_disp_param_get(struct drm_bridge *bridge, char *buf)
 		return 0;
 	} else {
 		SDE_ATRACE_BEGIN("panel_disp_param_get");
-		pr_debug("[lcd_performance]panel_disp_param_get -- start");
 		c_bridge = to_dsi_bridge(bridge);
 		if (c_bridge == NULL)
 			return 0;
@@ -373,7 +384,6 @@ static ssize_t dsi_bridge_disp_param_get(struct drm_bridge *bridge, char *buf)
 			if (ret > 0)
 				memcpy(buf, panel->panel_read_data, ret);
 		}
-		pr_debug("[lcd_performance]panel_disp_param_get -- end");
 		SDE_ATRACE_END("panel_disp_param_get");
 	}
 	return ret;
