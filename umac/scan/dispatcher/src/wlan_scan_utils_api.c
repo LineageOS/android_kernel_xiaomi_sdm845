@@ -913,13 +913,6 @@ util_scan_unpack_beacon_frame(struct wlan_objmgr_pdev *pdev, uint8_t *frame,
 		return NULL;
 	}
 
-	if (!scan_entry->ie_list.rates) {
-		qdf_mem_free(scan_entry->raw_frame.ptr);
-		qdf_mem_free(scan_entry);
-		qdf_mem_free(scan_list);
-		return NULL;
-	}
-
 	ssid = (struct ie_ssid *)
 		scan_entry->ie_list.ssid;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -240,6 +240,9 @@ wlan_pno_global_init(struct pno_def_config *pno_def)
 	pno_def->stationary_thresh = SCAN_STATIONARY_THRESHOLD;
 	pno_def->channel_prediction_full_scan =
 			SCAN_CHANNEL_PREDICTION_FULL_SCAN_MS;
+	pno_def->scan_timer_repeat_value = SCAN_PNO_DEF_SCAN_TIMER_REPEAT;
+	pno_def->slow_scan_multiplier = SCAN_PNO_DEF_SLOW_SCAN_MULTIPLIER;
+	pno_def->dfs_chnl_scan_enabled = true;
 	pno_def->adaptive_dwell_mode = SCAN_ADAPTIVE_PNOSCAN_DWELL_MODE;
 	mawc_cfg->enable = SCAN_MAWC_NLO_ENABLED;
 	mawc_cfg->exp_backoff_ratio = SCAN_MAWC_NLO_EXP_BACKOFF_RATIO;
@@ -343,12 +346,54 @@ ucfg_scan_get_pno_def_params(struct wlan_objmgr_vdev *vdev,
 	return QDF_STATUS_SUCCESS;
 }
 
+bool ucfg_scan_is_dfs_chnl_scan_enabled(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj) {
+		scm_err("NULL scan obj");
+		return true;
+	}
+
+	return scan_obj->pno_cfg.dfs_chnl_scan_enabled;
+}
+
+uint32_t ucfg_scan_get_scan_timer_repeat_value(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj) {
+		scm_err("NULL scan obj");
+		return SCAN_PNO_DEF_SCAN_TIMER_REPEAT;
+	}
+
+	return scan_obj->pno_cfg.scan_timer_repeat_value;
+}
+
+uint32_t ucfg_scan_get_slow_scan_multiplier(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj) {
+		scm_err("NULL scan obj");
+		return SCAN_PNO_DEF_SLOW_SCAN_MULTIPLIER;
+	}
+
+	return scan_obj->pno_cfg.slow_scan_multiplier;
+}
+
 static QDF_STATUS ucfg_scan_update_pno_config(struct pno_def_config *pno,
 	struct pno_user_cfg *pno_cfg)
 {
 	pno->channel_prediction = pno_cfg->channel_prediction;
 	pno->top_k_num_of_channels = pno_cfg->top_k_num_of_channels;
 	pno->stationary_thresh = pno_cfg->stationary_thresh;
+	pno->scan_timer_repeat_value = pno_cfg->scan_timer_repeat_value;
+	pno->slow_scan_multiplier = pno_cfg->slow_scan_multiplier;
+	pno->dfs_chnl_scan_enabled = pno_cfg->dfs_chnl_scan_enabled;
 	pno->adaptive_dwell_mode = pno_cfg->adaptive_dwell_mode;
 	pno->channel_prediction_full_scan =
 		pno_cfg->channel_prediction_full_scan;
@@ -731,6 +776,66 @@ ucfg_scan_set_custom_scan_chan_list(struct wlan_objmgr_pdev *pdev,
 }
 
 /**
+ * ucfg_update_channel_list() - update scan req params depending on dfs inis
+ * and initial scan request.
+ * @req: scan request
+ * @scan_obj: scan object
+ *
+ * Return: void
+ */
+static void
+ucfg_update_channel_list(struct scan_start_request *req,
+			 struct wlan_scan_obj *scan_obj)
+{
+	uint8_t i;
+	uint8_t num_scan_channels = 0;
+	struct scan_vdev_obj *scan_vdev_obj;
+	struct wlan_objmgr_pdev *pdev;
+	bool first_scan_done = true;
+
+	pdev = wlan_vdev_get_pdev(req->vdev);
+
+	scan_vdev_obj = wlan_get_vdev_scan_obj(req->vdev);
+	if (!scan_vdev_obj) {
+		scm_err("null scan_vdev_obj");
+		return;
+	}
+
+	if (!scan_vdev_obj->first_scan_done) {
+		first_scan_done = false;
+		scan_vdev_obj->first_scan_done = true;
+	}
+
+	/*
+	 * No need to update channels if req is passive scan and single channel
+	 * ie ROC, Preauth etc
+	 */
+	if (req->scan_req.scan_f_passive &&
+	    req->scan_req.chan_list.num_chan == 1)
+		return;
+
+	/* do this only for STA and P2P-CLI mode */
+	if (!(wlan_vdev_mlme_get_opmode(req->vdev) == QDF_STA_MODE) &&
+	    !(wlan_vdev_mlme_get_opmode(req->vdev) == QDF_P2P_CLIENT_MODE))
+		return;
+
+	if (scan_obj->scan_def.allow_dfs_chan_in_scan &&
+	    (scan_obj->scan_def.allow_dfs_chan_in_first_scan ||
+	     first_scan_done))
+		return;
+
+	for (i = 0; i < req->scan_req.chan_list.num_chan; i++) {
+		if (wlan_reg_is_dfs_ch(pdev, wlan_reg_freq_to_chan(pdev,
+							req->scan_req.chan_list.
+							chan[i].freq)))
+			continue;
+		req->scan_req.chan_list.chan[num_scan_channels++] =
+				req->scan_req.chan_list.chan[i];
+	}
+	req->scan_req.chan_list.num_chan = num_scan_channels;
+}
+
+/**
  * ucfg_scan_req_update_params() - update scan req params depending on modes
  * and scan type.
  * @vdev: vdev object pointer
@@ -849,6 +954,7 @@ ucfg_scan_req_update_params(struct wlan_objmgr_vdev *vdev,
 			!req->scan_req.chan_list.num_chan)
 		ucfg_scan_init_chanlist_params(req, 0, NULL, NULL);
 
+	ucfg_update_channel_list(req, scan_obj);
 	scm_debug("dwell time: active %d, passive %d, repeat_probe_time %d "
 			"n_probes %d flags_ext %x, wide_bw_scan: %d",
 			req->scan_req.dwell_time_active,
@@ -1323,6 +1429,9 @@ wlan_scan_global_init(struct wlan_scan_obj *scan_obj)
 	scan_obj->disable_timeout = false;
 	scan_obj->scan_def.active_dwell = SCAN_ACTIVE_DWELL_TIME;
 	scan_obj->scan_def.passive_dwell = SCAN_PASSIVE_DWELL_TIME;
+	/* the ini is disallow DFS channel scan if ini is 1, so negate that */
+	scan_obj->scan_def.allow_dfs_chan_in_first_scan = true;
+	scan_obj->scan_def.allow_dfs_chan_in_scan = true;
 	scan_obj->scan_def.max_rest_time = SCAN_MAX_REST_TIME;
 	scan_obj->scan_def.sta_miracast_mcc_rest_time =
 					SCAN_STA_MIRACAST_MCC_REST_TIME;
@@ -1822,6 +1931,9 @@ QDF_STATUS ucfg_scan_update_user_config(struct wlan_objmgr_psoc *psoc,
 	}
 
 	scan_def = &scan_obj->scan_def;
+	scan_def->allow_dfs_chan_in_first_scan =
+		scan_cfg->allow_dfs_chan_in_first_scan;
+	scan_def->allow_dfs_chan_in_scan = scan_cfg->allow_dfs_chan_in_scan;
 	scan_def->active_dwell = scan_cfg->active_dwell;
 	scan_def->active_dwell_2g = scan_cfg->active_dwell_2g;
 	scan_def->passive_dwell = scan_cfg->passive_dwell;

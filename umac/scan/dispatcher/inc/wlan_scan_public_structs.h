@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -32,9 +32,9 @@
 typedef uint16_t wlan_scan_requester;
 typedef uint32_t wlan_scan_id;
 
-#define WLAN_SCAN_MAX_NUM_SSID          10
-#define WLAN_SCAN_MAX_NUM_BSSID         10
-#define WLAN_SCAN_MAX_NUM_CHANNELS      40
+#define WLAN_SCAN_MAX_NUM_SSID          16
+#define WLAN_SCAN_MAX_NUM_BSSID         4
+#define WLAN_SCAN_MAX_NUM_CHANNELS      68
 
 #define SCM_CANCEL_SCAN_WAIT_TIME 50
 #define SCM_CANCEL_SCAN_WAIT_ITERATION 600
@@ -1274,6 +1274,9 @@ struct pno_scan_req_params {
  * @top_k_num_of_channels: def top K number of channels are used for tanimoto
  * distance calculation.
  * @stationary_thresh: def threshold val to determine that STA is stationary.
+ * @scan_timer_repeat_value: PNO scan timer repeat value
+ * @slow_scan_multiplier: PNO slow scan timer multiplier
+ * @dfs_chnl_scan_enable: Enable dfs channel PNO scan
  * @pnoscan_adaptive_dwell_mode: def adaptive dwelltime mode for pno scan
  * @channel_prediction_full_scan: def periodic timer upon which full scan needs
  * to be triggered.
@@ -1283,6 +1286,9 @@ struct pno_user_cfg {
 	bool channel_prediction;
 	uint8_t top_k_num_of_channels;
 	uint8_t stationary_thresh;
+	uint32_t scan_timer_repeat_value;
+	uint32_t slow_scan_multiplier;
+	bool dfs_chnl_scan_enabled;
 	enum scan_dwelltime_adaptive_mode adaptive_dwell_mode;
 	uint32_t channel_prediction_full_scan;
 	struct nlo_mawc_params mawc_params;
@@ -1290,6 +1296,8 @@ struct pno_user_cfg {
 
 /**
  * struct scan_user_cfg - user configuration required for for scan
+ * @allow_dfs_chan_in_first_scan: first scan should contain dfs channels or not.
+ * @allow_dfs_chan_in_scan: Scan DFS channels or not.
  * @active_dwell: default active dwell time
  * @active_dwell_2g: default active dwell time for 2G channels
  * @passive_dwell:default passive dwell time
@@ -1319,6 +1327,8 @@ struct pno_user_cfg {
  * @score_config: scoring logic configuration
  */
 struct scan_user_cfg {
+	bool allow_dfs_chan_in_first_scan;
+	bool allow_dfs_chan_in_scan;
 	uint32_t active_dwell;
 	uint32_t active_dwell_2g;
 	uint32_t passive_dwell;

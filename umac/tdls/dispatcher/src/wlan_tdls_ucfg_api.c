@@ -832,13 +832,14 @@ QDF_STATUS ucfg_tdls_set_operating_mode(
 }
 
 void ucfg_tdls_update_rx_pkt_cnt(struct wlan_objmgr_vdev *vdev,
-				 struct qdf_mac_addr *mac_addr)
+				 struct qdf_mac_addr *mac_addr,
+				 struct qdf_mac_addr *dest_mac_addr)
 {
 	QDF_STATUS status;
 	status = wlan_objmgr_vdev_try_get_ref(vdev, WLAN_TDLS_NB_ID);
 	if (status != QDF_STATUS_SUCCESS)
 		return;
-	tdls_update_rx_pkt_cnt(vdev, mac_addr);
+	tdls_update_rx_pkt_cnt(vdev, mac_addr, dest_mac_addr);
 
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_TDLS_NB_ID);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -338,9 +338,8 @@ static QDF_STATUS nan_handle_ndp_ind(
 			return status;
 		}
 	}
-	if (NAN_DATAPATH_ROLE_RESPONDER == ndp_ind->role)
-		psoc_nan_obj->cb_obj.os_if_event_handler(psoc, ndp_ind->vdev,
-						NDP_INDICATION, ndp_ind);
+	psoc_nan_obj->cb_obj.os_if_event_handler(psoc, ndp_ind->vdev,
+						 NDP_INDICATION, ndp_ind);
 
 	return status;
 }

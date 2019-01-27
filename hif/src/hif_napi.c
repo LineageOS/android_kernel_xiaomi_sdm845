@@ -787,7 +787,6 @@ bool hif_napi_correct_cpu(struct qca_napi_info *napi_info)
 {
 	bool right_cpu = true;
 	int rc = 0;
-	cpumask_t cpumask;
 	int cpu;
 	struct qca_napi_data *napid;
 
@@ -802,11 +801,11 @@ bool hif_napi_correct_cpu(struct qca_napi_info *napi_info)
 			right_cpu = false;
 
 			NAPI_DEBUG("interrupt on wrong CPU, correcting");
-			cpumask.bits[0] = (0x01 << napi_info->cpu);
+			napi_info->cpumask.bits[0] = (0x01 << napi_info->cpu);
 
 			irq_modify_status(napi_info->irq, IRQ_NO_BALANCING, 0);
 			rc = irq_set_affinity_hint(napi_info->irq,
-						   &cpumask);
+						   &napi_info->cpumask);
 			irq_modify_status(napi_info->irq, 0, IRQ_NO_BALANCING);
 
 			if (rc)
@@ -1438,16 +1437,17 @@ static int hncm_migrate_to(struct qca_napi_data *napid,
 			   int                   didx)
 {
 	int rc = 0;
-	cpumask_t cpumask;
 
 	NAPI_DEBUG("-->%s(napi_cd=%d, didx=%d)", __func__, napi_ce, didx);
 
-	cpumask.bits[0] = (1 << didx);
 	if (!napid->napis[napi_ce])
 		return -EINVAL;
 
+	napid->napis[napi_ce]->cpumask.bits[0] = (1 << didx);
+
 	irq_modify_status(napid->napis[napi_ce]->irq, IRQ_NO_BALANCING, 0);
-	rc = irq_set_affinity_hint(napid->napis[napi_ce]->irq, &cpumask);
+	rc = irq_set_affinity_hint(napid->napis[napi_ce]->irq,
+				   &napid->napis[napi_ce]->cpumask);
 
 	/* unmark the napis bitmap in the cpu table */
 	napid->napi_cpu[napid->napis[napi_ce]->cpu].napis &= ~(0x01 << napi_ce);

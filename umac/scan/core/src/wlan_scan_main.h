@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -58,6 +58,17 @@
 	QDF_TRACE_INFO_RL(QDF_MODULE_ID_SCAN, params)
 #define scm_debug_rl(params...) \
 	QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_SCAN, params)
+
+#define scm_nofl_alert(params...) \
+	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_SCAN, params)
+#define scm_nofl_err(params...) \
+	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_SCAN, params)
+#define scm_nofl_warn(params...) \
+	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_SCAN, params)
+#define scm_nofl_info(params...) \
+	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_SCAN, params)
+#define scm_nofl_debug(params...) \
+	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_SCAN, params)
 
 #define scm_hex_dump(level, data, buf_len) \
 		qdf_trace_hex_dump(QDF_MODULE_ID_SCAN, level, data, buf_len)
@@ -234,11 +245,13 @@ struct pdev_scan_info {
  * @pno_match_evt_received: pno match received
  * @pno_in_progress: pno in progress
  * @is_vdev_delete_in_progress: flag to indicate if vdev del is in progress
+ * @first_scan_done: Whether its the first scan or not for this particular vdev.
  */
 struct scan_vdev_obj {
 	bool pno_match_evt_received;
 	bool pno_in_progress;
 	bool is_vdev_delete_in_progress;
+	bool first_scan_done;
 };
 
 /**
@@ -247,6 +260,9 @@ struct scan_vdev_obj {
  * @top_k_num_of_channels: def top K number of channels are used for tanimoto
  * distance calculation.
  * @stationary_thresh: def threshold val to determine that STA is stationary.
+ * @scan_timer_repeat_value: PNO scan timer repeat value
+ * @slow_scan_multiplier: PNO slow scan timer multiplier
+ * @dfs_chnl_scan_enable: Enable dfs channel PNO scan
  * @pnoscan_adaptive_dwell_mode: def adaptive dwelltime mode for pno scan
  * @channel_prediction_full_scan: def periodic timer upon which full scan needs
  * to be triggered.
@@ -258,6 +274,9 @@ struct pno_def_config {
 	bool channel_prediction;
 	uint8_t top_k_num_of_channels;
 	uint8_t stationary_thresh;
+	uint32_t scan_timer_repeat_value;
+	uint32_t slow_scan_multiplier;
+	bool dfs_chnl_scan_enabled;
 	enum scan_dwelltime_adaptive_mode adaptive_dwell_mode;
 	uint32_t channel_prediction_full_scan;
 	qdf_wake_lock_t pno_wake_lock;
@@ -269,6 +288,8 @@ struct pno_def_config {
 /**
  * struct scan_default_params - default scan parameters to be used
  * @active_dwell: default active dwell time
+ * @allow_dfs_chan_in_first_scan: first scan should contain dfs channels or not.
+ * @allow_dfs_chan_in_scan: Scan DFS channels or not.
  * @active_dwell_2g: default active dwell time for 2G channels, if it's not zero
  * @passive_dwell:default passive dwell time
  * @max_rest_time: default max rest time
@@ -347,6 +368,8 @@ struct pno_def_config {
  */
 struct scan_default_params {
 	uint32_t active_dwell;
+	bool allow_dfs_chan_in_first_scan;
+	bool allow_dfs_chan_in_scan;
 	uint32_t active_dwell_2g;
 	uint32_t passive_dwell;
 	uint32_t max_rest_time;

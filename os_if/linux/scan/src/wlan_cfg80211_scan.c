@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -153,12 +153,14 @@ static void wlan_scan_rand_attrs(struct wlan_objmgr_vdev *vdev,
 /**
  * wlan_config_sched_scan_plan() - configures the sched scan plans
  *   from the framework.
+ * @psoc: Psoc pointer
  * @pno_req: pointer to PNO scan request
  * @request: pointer to scan request from framework
  *
  * Return: None
  */
-static void wlan_config_sched_scan_plan(struct pno_scan_req_params *pno_req,
+static void wlan_config_sched_scan_plan(struct wlan_objmgr_psoc *psoc,
+	struct pno_scan_req_params *pno_req,
 	struct cfg80211_sched_scan_request *request)
 {
 	/*
@@ -190,14 +192,20 @@ static void wlan_config_sched_scan_plan(struct pno_scan_req_params *pno_req,
 	}
 }
 #else
-static void wlan_config_sched_scan_plan(struct pno_scan_req_params *pno_req,
+static void wlan_config_sched_scan_plan(struct wlan_objmgr_psoc *psoc,
+	struct pno_scan_req_params *pno_req,
 	struct cfg80211_sched_scan_request *request)
 {
+	uint32_t scan_timer_repeat_value, slow_scan_multiplier;
+
+	scan_timer_repeat_value = ucfg_scan_get_scan_timer_repeat_value(psoc);
+	slow_scan_multiplier = ucfg_scan_get_slow_scan_multiplier(psoc);
 	pno_req->fast_scan_period = request->interval;
-	pno_req->fast_scan_max_cycles = SCAN_PNO_DEF_SCAN_TIMER_REPEAT;
-	pno_req->slow_scan_period =
-		SCAN_PNO_DEF_SLOW_SCAN_MULTIPLIER *
-		pno_req->fast_scan_period;
+	pno_req->fast_scan_max_cycles = scan_timer_repeat_value;
+	pno_req->slow_scan_period = slow_scan_multiplier *
+					pno_req->fast_scan_period;
+	cfg80211_debug("Base scan interval: %d sec PNO Scan Timer Repeat Value: %d",
+		       (request->interval / 1000), scan_timer_repeat_value);
 }
 #endif
 
@@ -382,6 +390,7 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 	struct wlan_objmgr_vdev *vdev;
 	struct wlan_objmgr_psoc *psoc;
 	uint32_t valid_ch[SCAN_PNO_MAX_NETW_CHANNELS_EX] = {0};
+	bool enable_dfs_pno_chnl_scan;
 
 	vdev = wlan_objmgr_get_vdev_by_macaddr_from_pdev(pdev, dev->dev_addr,
 		WLAN_OSIF_ID);
@@ -437,6 +446,7 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 		goto error;
 	}
 
+	enable_dfs_pno_chnl_scan = ucfg_scan_is_dfs_chnl_scan_enabled(psoc);
 	if (request->n_channels) {
 		char chl[(request->n_channels * 5) + 1];
 		int len = 0;
@@ -446,6 +456,12 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 			channel = request->channels[i]->hw_value;
 			if (wlan_reg_is_dsrc_chan(pdev, channel))
 				continue;
+			if ((!enable_dfs_pno_chnl_scan) &&
+			    (wlan_reg_is_dfs_ch(pdev, channel))) {
+				cfg80211_debug("Dropping DFS channel :%d",
+						channel);
+				continue;
+			}
 
 			if (ap_or_go_present) {
 				bool ok;
@@ -551,7 +567,7 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 	 *   switches slow_scan_period. This is less frequent scans and firmware
 	 *   shall be in slow_scan_period mode until next PNO Start.
 	 */
-	wlan_config_sched_scan_plan(req, request);
+	wlan_config_sched_scan_plan(psoc, req, request);
 	req->delay_start_time = hdd_config_sched_scan_start_delay(request);
 	req->scan_backoff_multiplier = scan_backoff_multiplier;
 	cfg80211_notice("Base scan interval: %d sec, scan cycles: %d, slow scan interval %d",
@@ -1265,17 +1281,24 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 		int j;
 		req->scan_req.num_ssids = request->n_ssids;
 
+		if (req->scan_req.num_ssids > WLAN_SCAN_MAX_NUM_SSID) {
+			cfg80211_info("number of ssid received %d is greater than MAX %d so copy only MAX nuber of SSIDs",
+				      req->scan_req.num_ssids,
+				      WLAN_SCAN_MAX_NUM_SSID);
+			req->scan_req.num_ssids = WLAN_SCAN_MAX_NUM_SSID;
+		}
 		/* copy all the ssid's and their length */
-		for (j = 0; j < request->n_ssids; j++)  {
+		for (j = 0; j < req->scan_req.num_ssids; j++)  {
 			pssid = &req->scan_req.ssid[j];
 			/* get the ssid length */
 			pssid->length = request->ssids[j].ssid_len;
+			if (pssid->length > WLAN_SSID_MAX_LEN)
+				pssid->length = WLAN_SSID_MAX_LEN;
 			qdf_mem_copy(pssid->ssid,
 				     &request->ssids[j].ssid[0],
 				     pssid->length);
-			pssid->ssid[pssid->length] = '\0';
-			cfg80211_notice("SSID number %d: %s", j,
-				    pssid->ssid);
+			cfg80211_info("SSID number %d: %.*s", j, pssid->length,
+				      pssid->ssid);
 		}
 	}
 	if (request->ssids ||
@@ -1358,9 +1381,11 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 				req->scan_req.chan_list.chan[num_chan].phymode =
 					SCAN_PHY_MODE_11A;
 			num_chan++;
+			if (num_chan >= WLAN_SCAN_MAX_NUM_CHANNELS)
+				break;
 		}
-		cfg80211_notice("Channel-List: %s", chl);
-		cfg80211_notice("No. of Scan Channels: %d", num_chan);
+		cfg80211_info("Channel-List: %s", chl);
+		cfg80211_info("No. of Scan Channels: %d", num_chan);
 	}
 	if (!num_chan) {
 		cfg80211_err("Received zero non-dsrc channels");
@@ -1765,7 +1790,8 @@ void wlan_cfg80211_inform_bss_frame(struct wlan_objmgr_pdev *pdev,
 	bss_data.frame_len = wlan_get_frame_len(scan_params);
 	bss_data.mgmt = qdf_mem_malloc_atomic(bss_data.frame_len);
 	if (!bss_data.mgmt) {
-		cfg80211_err("mem alloc failed");
+		cfg80211_err("mem alloc failed for bss %pM seq %d",
+			     bss_data.mgmt->bssid, scan_params->seq_num);
 		return;
 	}
 	qdf_mem_copy(bss_data.mgmt,
@@ -1786,6 +1812,9 @@ void wlan_cfg80211_inform_bss_frame(struct wlan_objmgr_pdev *pdev,
 	bss_data.chan = wlan_get_ieee80211_channel(wiphy, pdev,
 		scan_params->channel.chan_idx);
 	if (!bss_data.chan) {
+		cfg80211_err("Channel not found for bss %pM seq %d chan %d",
+			     bss_data.mgmt->bssid, scan_params->seq_num,
+			     scan_params->channel.chan_idx);
 		qdf_mem_free(bss_data.mgmt);
 		return;
 	}
@@ -1801,12 +1830,10 @@ void wlan_cfg80211_inform_bss_frame(struct wlan_objmgr_pdev *pdev,
 	qdf_mem_copy(bss_data.per_chain_snr, scan_params->per_chain_snr,
 		     WLAN_MGMT_TXRX_HOST_MAX_ANTENNA);
 
-	cfg80211_debug("BSSID: %pM Channel:%d RSSI:%d", bss_data.mgmt->bssid,
-		       bss_data.chan->center_freq, (int)(bss_data.rssi / 100));
-
 	bss = wlan_cfg80211_inform_bss_frame_data(wiphy, &bss_data);
 	if (!bss)
-		cfg80211_err("failed to inform bss");
+		cfg80211_err("failed to inform bss %pM seq %d",
+			     bss_data.mgmt->bssid, scan_params->seq_num);
 	else
 		wlan_cfg80211_put_bss(wiphy, bss);
 
