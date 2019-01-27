@@ -160,7 +160,7 @@ struct sl_eeprom_soc_private {
 	const char *eeprom_name;
 	struct sl_eeprom_i2c_info_t i2c_info;
 	struct cam_sensor_power_ctrl_t power_info;
-
+	//struct cam_eeprom_cmm_t cmm_data;
 };
 
 /**
