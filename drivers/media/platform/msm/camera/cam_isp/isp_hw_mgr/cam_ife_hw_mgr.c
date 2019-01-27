@@ -1967,10 +1967,10 @@ static int cam_ife_mgr_stop_hw(void *hw_mgr_priv, void *stop_hw_args)
 	}
 
 	/* Set the csid halt command */
-	if (stop_isp->hw_stop_cmd == CAM_ISP_HW_STOP_AT_FRAME_BOUNDARY)
-		csid_halt_type = CAM_CSID_HALT_AT_FRAME_BOUNDARY;
-	else
+	if (ctx->ctx_state == CAM_IFE_HW_MGR_CTX_PAUSED)
 		csid_halt_type = CAM_CSID_HALT_IMMEDIATELY;
+	else
+		csid_halt_type = CAM_CSID_HALT_AT_FRAME_BOUNDARY;
 
 	/* Note:stop resource will remove the irq mask from the hardware */
 

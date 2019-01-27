@@ -397,6 +397,8 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 		}
 		i2c_reg_setting.size = cnt;
 
+		while (camera_io_wait_normal_write())
+			schedule();
 		rc = camera_io_dev_write_continuous(&(o_ctrl->io_master_info),
 			&i2c_reg_setting, 1);
 		if (rc < 0) {
@@ -445,6 +447,8 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 		}
 		i2c_reg_setting.size = cnt;
 
+		while (camera_io_wait_normal_write())
+			schedule();
 		rc = camera_io_dev_write_continuous(&(o_ctrl->io_master_info),
 			&i2c_reg_setting, 1);
 		if (rc < 0)
