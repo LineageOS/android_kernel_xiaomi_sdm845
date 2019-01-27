@@ -166,6 +166,7 @@ int dsi_display_set_backlight(void *display, u32 bl_lvl)
 	bl_temp = bl_lvl * bl_scale / MAX_BL_SCALE_LEVEL;
 
 	bl_scale_ad = panel->bl_config.bl_scale_ad;
+	//bl_temp = (u32)bl_temp * bl_scale_ad / MAX_AD_BL_SCALE_LEVEL;
 
 	pr_debug("bl_scale = %u, bl_scale_ad = %u, bl_lvl = %u\n",
 		bl_scale, bl_scale_ad, (u32)bl_temp);
@@ -186,6 +187,7 @@ int dsi_display_set_backlight(void *display, u32 bl_lvl)
 		if (rc)
 			pr_err("unable to enable doze backlight\n");
 	} else {
+		drm_dev->doze_brightness = DOZE_BRIGHTNESS_INVALID;
 		rc = dsi_panel_set_backlight(panel, (u32)bl_temp);
 		if (rc)
 			pr_err("unable to set backlight\n");
@@ -5229,6 +5231,7 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 		pr_debug("cmdline primary dsi: %s\n", display->name);
 		display->is_active = true;
 		display->is_prim_display = true;
+		display->is_first_boot = true;
 		dsi_display_parse_cmdline_topology(display, DSI_PRIMARY);
 		primary_np = pdev->dev.of_node;
 	}
