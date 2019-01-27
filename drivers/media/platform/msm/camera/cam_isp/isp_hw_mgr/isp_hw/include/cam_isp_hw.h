@@ -93,10 +93,6 @@ enum cam_isp_hw_cmd_type {
 	CAM_ISP_HW_CMD_CLOCK_UPDATE,
 	CAM_ISP_HW_CMD_BW_UPDATE,
 	CAM_ISP_HW_CMD_BW_CONTROL,
-	CAM_ISP_HW_CMD_STOP_BUS_ERR_IRQ,
-	CAM_ISP_HW_CMD_GET_REG_DUMP,
-	CAM_ISP_HW_CMD_SOF_IRQ_DEBUG,
-	CAM_ISP_HW_CMD_SET_CAMIF_DEBUG,
 	CAM_ISP_HW_CMD_MAX,
 };
 
@@ -178,7 +174,7 @@ struct cam_isp_hw_cmd_buf_update {
  *
  */
 struct cam_isp_hw_get_wm_update {
-	dma_addr_t                     *image_buf;
+	uint64_t                       *image_buf;
 	uint32_t                        num_buf;
 	struct cam_buf_io_cfg          *io_cfg;
 };

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -276,8 +276,6 @@ static int32_t cam_actuator_platform_remove(struct platform_device *pdev)
 	a_ctrl->io_master_info.cci_client = NULL;
 	kfree(power_info->power_setting);
 	kfree(power_info->power_down_setting);
-	power_info->power_setting = NULL;
-	power_info->power_down_setting = NULL;
 	kfree(a_ctrl->soc_info.soc_private);
 	kfree(a_ctrl->i2c_data.per_frame);
 	a_ctrl->i2c_data.per_frame = NULL;
@@ -310,8 +308,6 @@ static int32_t cam_actuator_driver_i2c_remove(struct i2c_client *client)
 	kfree(power_info->power_setting);
 	kfree(power_info->power_down_setting);
 	kfree(a_ctrl->soc_info.soc_private);
-	power_info->power_setting = NULL;
-	power_info->power_down_setting = NULL;
 	a_ctrl->soc_info.soc_private = NULL;
 	kfree(a_ctrl);
 	return rc;
@@ -386,7 +382,6 @@ static int32_t cam_actuator_driver_platform_probe(
 	rc = cam_actuator_init_subdev(a_ctrl);
 	if (rc)
 		goto free_mem;
-
 #ifdef CONFIG_USE_BU64748
 	rc = cam_actuator_update_i2c_info(a_ctrl, &soc_private->i2c_info);
 	if (rc) {
@@ -410,7 +405,6 @@ static int32_t cam_actuator_driver_platform_probe(
 	a_ctrl->cam_act_state = CAM_ACTUATOR_INIT;
 
 	return rc;
-
 #ifdef CONFIG_USE_BU64748
 unreg_subdev:
 	cam_unregister_subdev(&(a_ctrl->v4l2_dev_str));
@@ -434,7 +428,6 @@ static struct platform_driver cam_actuator_platform_driver = {
 		.name = "qcom,actuator",
 		.owner = THIS_MODULE,
 		.of_match_table = cam_actuator_driver_dt_match,
-		.suppress_bind_attrs = true,
 	},
 	.remove = cam_actuator_platform_remove,
 };
