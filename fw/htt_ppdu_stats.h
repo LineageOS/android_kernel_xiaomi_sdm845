@@ -114,6 +114,19 @@ typedef enum htt_ppdu_stats_tlv_tag htt_ppdu_stats_tlv_tag_t;
          ((_var) |= ((_val) << HTT_PPDU_STATS_ARRAY_ITEM_TLV_SGI_S)); \
      } while (0)
 
+#define HTT_PPDU_STATS_ARRAY_ITEM_TLV_SR_M     0x00008000
+#define HTT_PPDU_STATS_ARRAY_ITEM_TLV_SR_S             15
+
+#define HTT_PPDU_STATS_ARRAY_ITEM_TLV_SR_GET(_var) \
+    (((_var) & HTT_PPDU_STATS_ARRAY_ITEM_TLV_SR_M) >> \
+    HTT_PPDU_STATS_ARRAY_ITEM_TLV_SR_S)
+
+#define HTT_PPDU_STATS_ARRAY_ITEM_TLV_SR_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_PPDU_STATS_ARRAY_ITEM_TLV_SR, _val); \
+        ((_var) |= ((_val) << HTT_PPDU_STATS_ARRAY_ITEM_TLV_SR_S)); \
+    } while (0)
+
 #define HTT_PPDU_STATS_ARRAY_ITEM_TLV_PEERID_M     0xffff0000
 #define HTT_PPDU_STATS_ARRAY_ITEM_TLV_PEERID_S             16
 
@@ -193,13 +206,23 @@ PREPACK struct htt_tx_ppdu_stats_info {
                  3: 160 MHz or 80+80 MHz */
              bw:                3,
              sgi:               1,
-             reserved0:         1,
+             skipped_rate_ctrl: 1,
              peer_id:          16;
     A_UINT32 tx_success_msdus: 16,
              tx_retry_msdus:   16;
     A_UINT32 tx_failed_msdus:  16,
              /* united in us */
              tx_duration:      16;
+    /*
+     * 1 in bit 0 of valid_bitmap represents that bitmap itself is valid.
+     * If the bitmap is valid (i.e. bit 0 is set), then check the other bits
+     * of bitmap to know which fields within htt_tx_ppdu_stats_info are valid.
+     * If bit 1 is set, tx_success_bytes is valid
+     * If bit 2 is set, tx_retry_bytes is valid
+     * ...
+     * If bit 14 is set, tx_duration is valid
+     */
+    A_UINT32 valid_bitmap;
 } POSTPACK;
 
 typedef struct {
@@ -429,6 +452,42 @@ typedef struct {
                      chan_mhz:     16;
         };
     };
+
+    /*
+     * The cca_delta_time_us reports the time the tx PPDU in question
+     * was waiting in the HW tx queue for the clear channel assessment
+     * to indicate that the transmission could start.
+     * If this CCA delta time is zero or small, this indicates that the
+     * air interface was unused prior to the transmission, and thus it's
+     * improbable that there was a collision with some other transceiver's
+     * transmission.
+     * In contrast, a large CCA delta time means that this transceiver had
+     * to wait a long time for the air interface to be available; it's
+     * possible that other transceivers were also waiting for the air
+     * interface to become available, and if the other waiting transceiver's
+     * CW backoff aligned with this one, to have a transmit collision.
+     */
+    A_UINT32 cca_delta_time_us;
+
+    /*
+     * The rxfrm_delta_time_us reports the time the tx PPDU in question
+     * was waiting in the HW tx queue while there was an ongoing rx,
+     * either because the rx was already ongoing at the time the tx PPDU
+     * was enqueued, or because the rx (i.e. the peer's tx) won the air
+     * interface contention over the local vdev's tx.
+     */
+    A_UINT32 rxfrm_delta_time_us;
+
+    /*
+     * The txfrm_delta_time_us reports the time from when the tx PPDU
+     * in question was enqueued into the HW tx queue until the time the
+     * tx completion interrupt for the PPDU occurred.
+     * Thus, the txfrm_delta_time_us incorporates any time the tx PPDU
+     * had to wait for the air interface to become available, the PPDU
+     * duration, the block ack reception, and the tx completion interrupt
+     * latency.
+     */
+    A_UINT32 txfrm_delta_time_us;
 } htt_ppdu_stats_common_tlv;
 
 #define HTT_PPDU_STATS_USER_COMMON_TLV_TID_NUM_M     0x000000ff

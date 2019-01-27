@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2019 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -474,6 +474,8 @@ typedef enum {
     WMI_VDEV_CHAINMASK_CONFIG_CMDID,
 
     WMI_VDEV_GET_BCN_RECEPTION_STATS_CMDID,
+    /* request LTE-Coex info */
+    WMI_VDEV_GET_MWS_COEX_INFO_CMDID,
 
     /* peer specific commands */
 
@@ -1321,6 +1323,22 @@ typedef enum {
 
     WMI_VDEV_BCN_RECEPTION_STATS_EVENTID,
 
+    /* provide LTE-Coex state */
+    WMI_VDEV_GET_MWS_COEX_STATE_EVENTID,
+
+    /* provide LTE-Coex Dynamic Power Back-off info */
+    WMI_VDEV_GET_MWS_COEX_DPWB_STATE_EVENTID,
+
+    /* provide LTE-Coex TDM info */
+    WMI_VDEV_GET_MWS_COEX_TDM_STATE_EVENTID,
+
+    /* provide LTE-Coex IDRx info */
+    WMI_VDEV_GET_MWS_COEX_IDRX_STATE_EVENTID,
+
+    /* provide LTE-Coex antenna sharing info */
+    WMI_VDEV_GET_MWS_COEX_ANTENNA_SHARING_STATE_EVENTID,
+
+
     /* peer specific events */
     /** FW reauet to kick out the station for reasons like inactivity,lack of response ..etc */
     WMI_PEER_STA_KICKOUT_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_PEER),
@@ -1977,6 +1995,10 @@ typedef enum {
 #define WMI_VHT_MAX_MCS_EXT_SS_GET(vht_mcs_map, index) WMI_GET_BITS(vht_mcs_map, 16 + index, 1)
 #define WMI_VHT_MAX_MCS_EXT_SS_SET(vht_mcs_map, index, value) WMI_SET_BITS(vht_mcs_map, 16 + index, 1, value)
 
+/* Notification bit for Ext MCS 10/11 support */
+#define WMI_VHT_MCS_NOTIFY_EXT_SS_GET(vht_mcs_map) WMI_GET_BITS(vht_mcs_map, 24, 1)
+#define WMI_VHT_MCS_NOTIFY_EXT_SS_SET(vht_mcs_map, value) WMI_SET_BITS(vht_mcs_map, 24, 1, value)
+
 #define WMI_VHT_MAX_MCS_4_SS_MASK(r,ss)      ((3 & (r)) << (((ss) - 1) << 1))
 #define WMI_VHT_MAX_SUPP_RATE_MASK           0x1fff0000
 #define WMI_VHT_MAX_SUPP_RATE_MASK_SHIFT     16
@@ -2530,6 +2552,14 @@ typedef struct {
      * Peer ID can be up to num_total_peers + num_extra_peers.
      */
     A_UINT32 num_extra_peers;
+    /*
+     * max_ast_index - max AST index that Firmware can generate
+     * max_ast_index = (ast_table_size-1), ast_table_size is dynamically chosen
+     * based on num_peers configutation from Host. Hence Host needs to know the
+     * max_ast_index that Firmware can generate.
+     * A 0x0 value for max_ast_index means the target has not specified a limit.
+     */
+    A_UINT32 max_ast_index;
 
 /*
  * This fixed_param TLV is followed by these additional TLVs:
@@ -2895,6 +2925,14 @@ typedef struct {
     #define WMI_RSRC_CFG_FLAG_PEER_UNMAP_RESPONSE_SUPPORT_S 20
     #define WMI_RSRC_CFG_FLAG_PEER_UNMAP_RESPONSE_SUPPORT_M 0x100000
 
+    /*
+     * If this HTT_PEER_STATS is set, then the target should use the
+     * the HTT_T2H_MSG_TYPE_PEER_STATS_IND message to upload peer stats;
+     * else the target should avoid sending the PEER_STATS_IND message.
+     */
+    #define WMI_RSRC_CFG_FLAG_HTT_PEER_STATS_S 21
+    #define WMI_RSRC_CFG_FLAG_HTT_PEER_STATS_M 0x200000
+
     A_UINT32 flag1;
 
     /** @brief smart_ant_cap - Smart Antenna capabilities information
@@ -3137,6 +3175,11 @@ typedef struct {
     WMI_RSRC_CFG_FLAG_SET((word32), PEER_UNMAP_RESPONSE_SUPPORT, (value))
 #define WMI_RSRC_CFG_FLAG_PEER_UNMAP_RESPONSE_SUPPORT_GET(word32) \
     WMI_RSRC_CFG_FLAG_GET((word32), PEER_UNMAP_RESPONSE_SUPPORT)
+
+#define WMI_RSRC_CFG_FLAG_HTT_PEER_STATS_SET(word32, value) \
+    WMI_RSRC_CFG_FLAG_SET((word32), HTT_PEER_STATS, (value))
+#define WMI_RSRC_CFG_FLAG_HTT_PEER_STATS_GET(word32) \
+    WMI_RSRC_CFG_FLAG_GET((word32), HTT_PEER_STATS)
 
 
 typedef struct {
@@ -5720,9 +5763,14 @@ typedef struct {
 #define WMI_TPC_TX_NUM_CHAIN        4
 
 typedef enum {
-    WMI_TPC_CONFIG_EVENT_FLAG_TABLE_CDD = 0x1,
+    /* bits 0-7 for table flags */
+    WMI_TPC_CONFIG_EVENT_FLAG_TABLE_CDD  = 0x1,
     WMI_TPC_CONFIG_EVENT_FLAG_TABLE_STBC = 0x2,
     WMI_TPC_CONFIG_EVENT_FLAG_TABLE_TXBF = 0x4,
+
+    /* bits 8-11 for interface version flags */
+    WMI_TPC_CONFIG_EVENT_FLAG_IF_MASK = 0x0F00,
+    WMI_TPC_CONFIG_EVENT_FLAG_IF_V1   = 0x0100,
 } WMI_TPC_CONFIG_EVENT_FLAG;
 
 typedef struct {
@@ -7473,7 +7521,7 @@ typedef struct {
 typedef struct {
     /** peer MAC address */
     wmi_mac_addr peer_macaddr;
-    /* rx duration in microseconds*/
+    /* lower 32 bits of rx duration in microseconds */
     A_UINT32 rx_duration;
     /** Total TX bytes (including dot11 header) sent to peer */
     A_UINT32 peer_tx_bytes;
@@ -7486,7 +7534,9 @@ typedef struct {
 
     /* Total number of received multicast & broadcast data frames corresponding to this peer */
     A_UINT32 rx_mc_bc_cnt; /* 1 in the MSB of rx_mc_bc_cnt represents a valid data */
-    A_UINT32 reserved[3]; /** for future use - add new peer stats here */
+    /* upper 32 bits of rx duration in microseconds */
+    A_UINT32 rx_duration_u32; /* 1 in the most significant bit indicates this field contains valid data */
+    A_UINT32 reserved[2]; /** for future use - add new peer stats here */
 } wmi_peer_extd_stats;
 
 typedef struct {
@@ -10620,6 +10670,8 @@ typedef struct {
 
 /* Disable burst and assist */
 #define WMI_PEER_PARAM_DISABLE_AGGRESSIVE_TX            0x1d
+/* Enable 11r FT Roaming */
+#define  WMI_PEER_PARAM_ENABLE_FT                       0x1e
 
 /** mimo ps values for the parameter WMI_PEER_MIMO_PS_STATE  */
 #define WMI_PEER_MIMO_PS_NONE                          0x0
@@ -10735,10 +10787,14 @@ typedef struct {
     A_UINT32 rx_max_rate; /* Max Rx data rate */
     A_UINT32 rx_mcs_set; /* Negotiated RX VHT rates */
     A_UINT32 tx_max_rate; /* Max Tx data rate */
+    /*
+     *  bit [15:0]  indicates MCS 0 to 9
+     *  bit [23:16] indicates MCS 10 & 11
+     *  bit [24]    indicates whether MCS 10 & 11 is notified in bit [23:16]
+     */
     A_UINT32 tx_mcs_set; /* Negotiated TX VHT rates */
     A_UINT32 tx_max_mcs_nss;  /* b0-b3: max mcs idx; b4-b7: max nss */
 } wmi_vht_rate_set;
-
 
 /* NOTE: It would bea good idea to represent the Tx MCS
  * info in one word and Rx in another word. This is split
@@ -11235,18 +11291,18 @@ typedef struct {
  *  BIT 8     : BTM query preference over 11k neighbor report request
  *  BIT 9-31  : Reserved
  */
-#define WMI_ROAM_BTM_SET_ENABLE(flags, val)                    WMI_SET_BITS(flags, 0, 1, val)
-#define WMI_ROAM_BTM_GET_ENABLE(flags)                         WMI_GET_BITS(flags, 0, 1)
-#define WMI_ROAM_BTM_SET_NON_MATCHING_CND_ACTION(flags, val)   WMI_SET_BITS(flags, 1, 2, val)
-#define WMI_ROAM_BTM_GET_NON_MATCHING_CND_ACTION(flags)        WMI_GET_BITS(flags, 1, 2)
-#define WMI_ROAM_BTM_SET_CNDS_MATCH_CONDITION(flags, val)      WMI_SET_BITS(flags, 3, 3, val)
-#define WMI_ROAM_BTM_GET_CNDS_MATCH_CONDITION(flags)           WMI_GET_BITS(flags, 3, 3)
-#define WMI_ROAM_BTM_SET_SOLICITED_BTM_ENABLE(flags, val)      WMI_SET_BITS(flags, 6, 1, val)
-#define WMI_ROAM_BTM_GET_SOLICITED_BTM_ENABLE(flags)           WMI_GET_BITS(flags, 6, 1)
-#define WMI_ROAM_BTM_SET_CNDS_SELECT_BASED_ON_SCORE(flags)     WMI_SET_BITS(flags, 7, 1, val)
-#define WMI_ROAM_BTM_GET_CNDS_SELECT_BASED_ON_SCORE(flags)     WMI_GET_BITS(flags, 7, 1)
-#define WMI_ROAM_BTM_SET_BTM_QUERY_PREFERENCE_OVER_11K(flags)  WMI_SET_BITS(flags, 8, 1, val)
-#define WMI_ROAM_BTM_GET_BTM_QUERY_PREFERENCE_OVER_11K(flags)  WMI_GET_BITS(flags, 8, 1)
+#define WMI_ROAM_BTM_SET_ENABLE(flags, val)                        WMI_SET_BITS(flags, 0, 1, val)
+#define WMI_ROAM_BTM_GET_ENABLE(flags)                             WMI_GET_BITS(flags, 0, 1)
+#define WMI_ROAM_BTM_SET_NON_MATCHING_CND_ACTION(flags, val)       WMI_SET_BITS(flags, 1, 2, val)
+#define WMI_ROAM_BTM_GET_NON_MATCHING_CND_ACTION(flags)            WMI_GET_BITS(flags, 1, 2)
+#define WMI_ROAM_BTM_SET_CNDS_MATCH_CONDITION(flags, val)          WMI_SET_BITS(flags, 3, 3, val)
+#define WMI_ROAM_BTM_GET_CNDS_MATCH_CONDITION(flags)               WMI_GET_BITS(flags, 3, 3)
+#define WMI_ROAM_BTM_SET_SOLICITED_BTM_ENABLE(flags, val)          WMI_SET_BITS(flags, 6, 1, val)
+#define WMI_ROAM_BTM_GET_SOLICITED_BTM_ENABLE(flags)               WMI_GET_BITS(flags, 6, 1)
+#define WMI_ROAM_BTM_SET_CNDS_SELECT_BASED_ON_SCORE(flags, val)    WMI_SET_BITS(flags, 7, 1, val)
+#define WMI_ROAM_BTM_GET_CNDS_SELECT_BASED_ON_SCORE(flags)         WMI_GET_BITS(flags, 7, 1)
+#define WMI_ROAM_BTM_SET_BTM_QUERY_PREFERENCE_OVER_11K(flags, val) WMI_SET_BITS(flags, 8, 1, val)
+#define WMI_ROAM_BTM_GET_BTM_QUERY_PREFERENCE_OVER_11K(flags)      WMI_GET_BITS(flags, 8, 1)
 
 /** WMI_ROAM_BTM_SET_NON_MATCHING_CNDS_ACTION definition: When BTM candidate is not matched with cache by WMI_ROAM_BTM_SET_CNDS_MATCH_CONDITION, determine what to do */
 #define WMI_ROAM_BTM_NON_MATCHING_CNDS_SCAN_CONSUME      0 /** Invoke roam scan and consume within firmware. Applicable only when ROAM_SCAN_MODE is enabled. If ROAM_SCAN_MODE is disabled, firmware won't scan and forward it to host */
@@ -21300,6 +21356,25 @@ typedef struct {
     A_UINT32 vdev_id;
 } wmi_vdev_get_bcn_recv_stats_cmd_fixed_param;
 
+/*
+ * wmi mws-coex command IDs
+ */
+typedef enum {
+    WMI_MWS_COEX_STATE = 0x01,
+    WMI_MWS_COEX_DPWB_STATE,
+    WMI_MWS_COEX_TDM_STATE,
+    WMI_MWS_COEX_IDRX_STATE,
+    WMI_MWS_COEX_ANTENNA_SHARING_STATE,
+} wmi_mws_coex_cmd_id;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_mws_coex_state_cmd_fixed_param */
+    /** VDEV identifier */
+    A_UINT32 vdev_id;
+    /** Command ID (type: wmi_mws_coex_cmd_id) */
+    A_UINT32 cmd_id;
+} wmi_vdev_get_mws_coex_info_cmd_fixed_param;
+
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_tpc_event_fixed_param */
     /** pdev_id for identifying the MAC
@@ -21417,6 +21492,292 @@ typedef struct {
     A_UINT32 bmiss_bitmap[8];
 } wmi_vdev_bcn_recv_stats_fixed_param;
 
+typedef struct {
+    A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_mws_coex_state_fixed_param */
+    A_UINT32 vdev_id;
+
+    /* LTE-WLAN coexistence scheme bitmap
+     * Indicates the final schemes applied for the currrent Coex scenario.
+     * Bit 0 - TDM policy
+     * Bit 1 - Forced TDM policy
+     * Bit 2 - Dynamic Power Back-off policy
+     * Bit 3 - Channel Avoidance policy
+     * Bit 4 - Static Power Back-off policy
+     */
+    A_UINT32 coex_scheme_bitmap;
+
+    /* Active conflict count
+     * Indicates the number of Active conflicts for the current WLAN and LTE frequency combinations.
+     */
+    A_UINT32 active_conflict_count;
+
+    /* Potential conflict count
+     * Indicates the number of Potential conflicts for the current WLAN and LTE frequency combinations.
+     */
+    A_UINT32 potential_conflict_count;
+
+    /* Bitmap of the group-0 WLAN channels to be avoided during LTE-WLAN coex operation.
+     * Indicates the WLAN channels to be avoided in b/w WLAN CH-1 and WLAN CH-14.
+     */
+    A_UINT32 chavd_group0_bitmap;
+
+    /* Bitmap of the group-1 WLAN channels to be avoided during LTE-WLAN coex operation.
+     * Indicates the WLAN channels to be avoided in b/w WLAN CH-36 and WLAN CH-64.
+     */
+    A_UINT32 chavd_group1_bitmap;
+
+    /* Bitmap of the group-2 WLAN channels to be avoided during LTE-WLAN coex operation.
+     * Indicates the WLAN channels to be avoided in b/w WLAN CH-100 and WLAN CH-140.
+     */
+    A_UINT32 chavd_group2_bitmap;
+
+    /* Bitmap of the group-3 WLAN channels to be avoided during LTE-WLAN coex operation.
+     * Indicates the WLAN channels to be avoided in b/w WLAN CH-149 and WLAN CH-165.
+     */
+    A_UINT32 chavd_group3_bitmap;
+} wmi_vdev_get_mws_coex_state_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_mws_coex_dpwb_state_fixed_param */
+    A_UINT32 vdev_id;
+
+    /* Current state of the Dynamic Power Back-off state machine
+     * MWSCOEX_PWB_UNINIT_STATE                        = 0, PWB state machine is in un-intialized state.
+     * MWSCOEX_PWB_WLAN_ON_SINR_START_STATE            = 1, SINR measurement starts when WLAN is on
+     * MWSCOEX_PWB_WLAN_ON_WAIT_RESP_STATE             = 2, Waiting for SINR response when WLAN is on
+     * MWSCOEX_PWB_WLAN_OFF_AWAIT_STATE                = 3, WLAN off state for buffer between SINR on/off measurement.
+     * MWSCOEX_PWB_WLAN_OFF_SINR_START_STATE           = 4, SINR measurement starts when WLAN is off
+     * MWSCOEX_PWB_WLAN_OFF_WAIT_RESP_STATE            = 5, Waiting for SINR response when WLAN is off
+     * MWSCOEX_PWB_WLAN_OFF_SINR_STOP_STATE            = 6, SINR measurement stops when WLAN is off
+     * MWSCOEX_PWB_FORCED_TDM_STATE                    = 7, Entered Forced TDM state.
+     * MWSCOEX_PWB_HALTED_STATE                        = 8, Power back-off algorithm halted.
+     * MWSCOEX_PWB_WLAN_ALWAYS_ON_SINR_START_STATE     = 9, SINR measurement starts in WLAN always on state.
+     * MWSCOEX_PWB_WLAN_ALWAYS_ON_SINR_STOP_STATE      = 10, SINR measurement stops in WLAN always on state.
+     */
+    A_UINT32 current_dpwb_state;
+
+    /* P(N+1) value in dBm i.e. Tx power to be applied in the next Dynamic Power Back-off cycle,
+     * where P(N) is the power applied during current cycle.
+     * ranges from 3dBm to 21 dBM
+     */
+    A_INT32 pnp1_value;
+
+    /* Indicates the duty cycle of current LTE frame.
+     * Duty cycle: Number of UL slots with uplink data and allocated RBs.
+     */
+    A_UINT32 lte_dutycycle;
+
+    /* LTE SINR value in dB, when WLAN is ON. */
+    A_INT32 sinr_wlan_on;
+
+    /* LTE SINR value in dB, when WLAN is OFF. */
+    A_INT32 sinr_wlan_off;
+
+    /* LTE blocks with error for the current bler report.
+     * Number of LTE blocks with error for a given number (block_count)  of LTE blocks.
+     */
+    A_UINT32 bler_count;
+
+    /* Number of LTE blocks considered for bler count report.
+     * Bler repot will be generated after the reception of every "block_count" number of blocks.
+     */
+    A_UINT32 block_count;
+
+    /* WLAN RSSI level
+     * WLAN RSSI is devided in to 3 levels i.e. Good/Moderate/Low (configurable inside f/w)
+     * 0-Good, 1-Moderate, 2-Low
+     */
+    A_UINT32 wlan_rssi_level;
+
+    /* WLAN RSSI value in dBm considered in Dynamic Power back-off algorithm
+     * Dynamic power back-off algorithm considers either Rx data frame RSSI/Beacon RSSI based on some constraints.
+     */
+    A_INT32 wlan_rssi;
+
+    /* Indicates whether any TDM policy triggered from Dynamic power back-off policy.
+     * 1 - TDM triggered.
+     * 0 - TDM not triggered.
+     */
+    A_UINT32 is_tdm_running;
+} wmi_vdev_get_mws_coex_dpwb_state_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_mws_coex_tdm_state_fixed_param */
+    A_UINT32 vdev_id;
+    /* Time Division Multiplexing (TDM) LTE-Coex Policy type.
+     * There are totally 4 types of TDM policies(1-SINR TDM, 2-RSSI TDM, 3-LOW RX RATE TDM, 4-STICKY TDM)
+     * Bit 0 - SINR TDM policy.
+     * Bit 1 - RSSI TDM policy.
+     * Bit 2 - Low Rx rate TDM policy
+     * Bit 3 - Sticky TDM policy
+     */
+    A_UINT32 tdm_policy_bitmap;
+
+    /* TDM LTE/WLAN sub-frame bitmap
+     * Indicates the bitmap of LTE/WLAN sub-frames.
+     * value 0: WLAN slot.
+     * value 1: LTE slot.
+     */
+    A_UINT32 tdm_sf_bitmap;
+} wmi_vdev_get_mws_coex_tdm_state_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_mws_coex_idrx_state_fixed_param */
+    A_UINT32 vdev_id;
+
+    /* SUB0 LTE-coex tech.
+     *------------------------
+     * TECH          TECH_ID
+     *------------------------
+     * LTE              0
+     * TDSCDMA          1
+     * GSM1             2
+     * ONEX             3
+     * HDR              4
+     * WCDMA            5
+     * GSM2             6
+     * GSM3             7
+     * WCDMA2           8
+     * LTE2             9
+     * Indicates the type of WWAN technology used as SUB0 i.e. SIM slot 1
+     */
+    A_UINT32 sub0_techid;
+
+    /* SUB0 mitigation policy.
+     * Indicates the mitigation policy used to coexist with WLAN.
+     * 1 - Tx blanking
+     * 2 - Static power back-off
+     */
+    A_UINT32 sub0_policy;
+
+    /* Set if SUB0 is in link critical state.
+     * Link critical will be set, if continuous page miss happens or RSSI is below -100 dBm at LTE side.
+     */
+    A_UINT32 sub0_is_link_critical;
+
+    /* LTE SUB0 imposed static power applied to WLAN due to LTE-WLAN coex.
+     * Value of static power applied during LTE page cycle ranges from 3-21 dBm.
+     */
+    A_INT32 sub0_static_power;
+
+    /* LTE SUB0 RSSI value in dBm */
+    A_INT32 sub0_rssi;
+
+    /* SUB1 LTE-coex tech.
+     *------------------------
+     * TECH          TECH_ID
+     *------------------------
+     * LTE              0
+     * TDSCDMA          1
+     * GSM1             2
+     * ONEX             3
+     * HDR              4
+     * WCDMA            5
+     * GSM2             6
+     * GSM3             7
+     * WCDMA2           8
+     * LTE2             9
+     * Indicates the type of WWAN technology used as SUB1 i.e. SIM slot 2
+     */
+    A_UINT32 sub1_techid;
+
+    /* SUB1 mitigation policy.
+     * Indicates the mitigation policy used to coexist with WLAN.
+     * 1 - Tx blanking
+     * 2 - Static power back-off
+     */
+    A_UINT32 sub1_policy;
+
+    /* Set if SUB1 is in link critical state.
+     * Link critical will be set, if continuous page miss happens or RSSI is below -100 dBm at LTE side.
+     */
+    A_UINT32 sub1_is_link_critical;
+
+    /* LTE SUB1 imposed static power applied to WLAN due to LTE-WLAN coex.
+     * Value of static power applied during LTE page cycle ranges from 3-21 dBm.
+     */
+    A_INT32 sub1_static_power;
+
+    /* LTE SUB1 RSSI value in dBm */
+    A_INT32 sub1_rssi;
+} wmi_vdev_get_mws_coex_idrx_state_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;  /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_mws_coex_antenna_sharing_state_fixed_param */
+    A_UINT32 vdev_id;
+
+    /* BDF values of Coex flags.
+     * coexflag 0x1 = MWS Coex enabled
+     * coexflag 0x3 = MWS Coex enabled + Antenna sharing enabled for WLAN operating in 2.4GHz band.
+     */
+    A_UINT32 coex_flags;
+
+    /* BDF values of Coex Antenna sharing config
+     * coex_config 0x0 = no Antenna sharing
+     * coexconfig 0x1 = switched based Antenna sharing
+     * coexconfig 0x2 = splitter based Antenna sharing
+     */
+    A_UINT32 coex_config;
+
+    /* Tx Chain mask value
+     * Bit 0: Tx chain-0
+     * Bit 1: Tx Chain-1
+     * value: 0x1 - Operating in 1X1
+     * value: 0x3 - Operating in 2X2
+     */
+    A_UINT32 tx_chain_mask;
+
+    /* Rx Chain mask value
+     * Bit 0: Rx chain-0
+     * Bit 1: Rx Chain-1
+     * value: 0x1 - Operating in 1X1
+     * value: 0x3 - Operating in 2X2
+     */
+    A_UINT32 rx_chain_mask;
+
+    /* Currently active Rx Spatial streams
+     * Bit 0: Rx Spatial Stream-0
+     * Bit 1: Rx Spatial Stream-1
+     */
+    A_UINT32 rx_nss;
+
+    /* Forced MRC policy type
+     * BTC_FORCED              (0x01)
+     * RSSI_FORCED             (0x02)
+     * MODEM_ACQ_FORCED        (0x04)
+     */
+    A_UINT32 force_mrc;
+
+    /* RSSI value considered for MRC
+     * 1: Data RSSI
+     * 2: Beacon RSSI
+     */
+    A_UINT32 rssi_type;
+
+    /* RSSI value measured at Chain-0 in dBm */
+    A_INT32 chain0_rssi;
+
+    /* RSSI value measured at Chain-1 in dBm */
+    A_INT32 chain1_rssi;
+
+    /* RSSI value of two chains combined in dBm */
+    A_INT32 combined_rssi;
+
+    /* Absolute imbalance between two Rx chains in dB */
+    A_UINT32 imbalance;
+
+    /* RSSI threshold defined for the above imbalance value in dBm.
+     * Based on the degree of imbalance between the rx chains, different
+     * RSSI thresholds are used to determine whether MRC (Maximum-Ratio
+     * Combining) use of multiple rx chains is suitable.
+     * This field shows the RSSI threshold below which MRC is used.
+     */
+    A_INT32 mrc_threshold;
+
+    /* Antenna grant duration to WLAN, in milliseconds */
+    A_UINT32 grant_duration;
+} wmi_vdev_get_mws_coex_antenna_sharing_state_fixed_param;
+
 typedef enum wmi_chip_power_save_failure_reason_code_type {
     WMI_PROTOCOL_POWER_SAVE_FAILURE_REASON,
     WMI_HW_POWER_SAVE_FAILURE_REASON,
@@ -21523,6 +21884,20 @@ typedef enum wmi_coex_config_type {
     WMI_COEX_CONFIG_WLAN_CONN_OVER_LE      = 30, /* config to elevate Wifi priority over BLE during WLAN association */
     WMI_COEX_CONFIG_LE_OVER_WLAN_TRAFFIC   = 31, /* config to elevate BLE traffic over WiFi traffic */
     WMI_COEX_CONFIG_THREE_WAY_COEX_RESET   = 32, /* config to reset the weights to default  */
+    /* WMI_COEX_CONFIG_THREE_WAY_DELAY_PARA
+     * config to T_PRIO T_DELAY parameter for each case
+     *   arg1 - wlan/bt state
+     *       0: beacon tx
+     *       1: wlan connecting
+     *       2: wlan in dhcp
+     *       3: a2dp critical
+     *       4: eSCO
+     *   arg2 - t_prio for low priority traffic (microsecond units)
+     *   arg3 - t_delay for low priority traffic (microsecond units)
+     *   arg4 - t_prio for high priority traffic (microsecond units)
+     *   arg5 - t_delay for high priority traffic (microsecond units)
+     */
+    WMI_COEX_CONFIG_THREE_WAY_DELAY_PARA   = 33,
 } WMI_COEX_CONFIG_TYPE;
 
 typedef struct {
@@ -21834,6 +22209,8 @@ typedef struct {
      *       - .
      *       - .
      *       - bit 23 - for NSS 8
+     *       - bit 24 - indicate whether the VHT-MCS 10-11 specs in bits 23:16
+     *                  are valid
      *   Refer to the WMI_VHT_MAX_MCS_EXT_SS_GET/SET macros.
      */
     A_UINT32 vht_supp_mcs_2G;
@@ -21876,6 +22253,8 @@ typedef struct {
      *       - .
      *       - .
      *       - bit 23 - for NSS 8
+     *       - bit 24 - indicate whether the VHT-MCS 10-11 specs in bits 23:16
+     *                  are valid
      *   Refer to the WMI_VHT_MAX_MCS_EXT_SS_GET/SET macros.
      */
     A_UINT32 vht_supp_mcs_5G;
@@ -22864,6 +23243,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_VDEV_GET_BCN_RECEPTION_STATS_CMDID);
         WMI_RETURN_STRING(WMI_PEER_TX_PN_REQUEST_CMDID);
         WMI_RETURN_STRING(WMI_ROAM_BSS_LOAD_CONFIG_CMDID);
+        WMI_RETURN_STRING(WMI_VDEV_GET_MWS_COEX_INFO_CMDID);
     }
 
     return "Invalid WMI cmd";
@@ -23164,6 +23544,12 @@ typedef struct {
 } wmi_pdev_csa_switch_count_status_event_fixed_param;
 
 typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_csc_vdev_list */
+    A_UINT32 vdev_id;
+    A_UINT32 current_switch_count; /** CSC switch count value in the last transmitted beacon */
+} wmi_csc_vdev_list;
+
+typedef struct {
     /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_csc_switch_count_status_event_fixed_param */
     A_UINT32 tlv_header;
     /** pdev_id for identifying the MAC
@@ -23175,7 +23561,7 @@ typedef struct {
     A_UINT32 current_switch_count;
 
     /* The TLVs follows this structure:
-     * A_UINT32 vdev_ids[]; // IDs of vdevs whose color-switch countdown expired
+     * struct wmi_csc_vdev_list vdev_info[]; // IDs of vdevs and their current switch countdown values
      */
 } wmi_pdev_csc_switch_count_status_event_fixed_param;
 
@@ -23989,7 +24375,7 @@ typedef struct {
      */
     A_UINT32 mode;
     A_UINT32 rate;          /* rate index */
-    A_UINT32 nss;           /* number of spacial stream */
+    A_UINT32 nss;           /* number of spatial stream */
     A_UINT32 beamforming;   /* beamforming parameter 0:disabled, 1:enabled */
     A_UINT32 chain_mask;    /* mask for the antenna set to get power */
     A_UINT32 chain_index;   /* index for the antenna */
