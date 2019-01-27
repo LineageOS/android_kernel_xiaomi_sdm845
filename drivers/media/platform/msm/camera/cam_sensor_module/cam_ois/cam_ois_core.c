@@ -56,7 +56,6 @@ int32_t cam_ois_construct_default_power_setting(
 
 free_power_settings:
 	kfree(power_info->power_setting);
-	power_info->power_setting = NULL;
 	return rc;
 }
 
@@ -296,7 +295,7 @@ static int cam_ois_slaveInfo_pkt_parser(struct cam_ois_ctrl_t *o_ctrl,
 }
 
 #ifdef CUSTOM_INIT_DL
-struct cam_sensor_i2c_reg_array ois_init0_array[] = {
+struct cam_sensor_i2c_reg_array ois_init0_array[]= {
 	{0x8262, 0xBF03, 0x0, 0x0},
 	{0x8263, 0x9F05, 0x0, 0x0},
 	{0x8264, 0x6040, 0x0, 0x0},
@@ -311,7 +310,7 @@ static int cam_ois_fw_init0(struct cam_ois_ctrl_t *o_ctrl)
 {
 	int32_t rc = 0;
 	struct cam_sensor_i2c_reg_setting write_setting;
-	write_setting.size =  sizeof(ois_init0_array)/sizeof(struct cam_sensor_i2c_reg_array);
+	write_setting.size = sizeof(ois_init0_array)/sizeof(struct cam_sensor_i2c_reg_array);
 	write_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_WORD;
 	write_setting.data_type = CAMERA_SENSOR_I2C_TYPE_WORD;
 	write_setting.delay = 0;
@@ -372,7 +371,7 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 	i2c_reg_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
 	i2c_reg_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
 	i2c_reg_setting.size = total_bytes;
-	i2c_reg_setting.delay = 0;
+	i2c_reg_setting.delay = 0; //initialize delay value,otherwise CCI write will hang becase of a very long delay
 	fw_size = PAGE_ALIGN(sizeof(struct cam_sensor_i2c_reg_array) *
 		total_bytes) >> PAGE_SHIFT;
 	page = cma_alloc(dev_get_cma_area((o_ctrl->soc_info.dev)),
@@ -397,6 +396,8 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 		}
 		i2c_reg_setting.size = cnt;
 
+		while (camera_io_wait_normal_write())
+			schedule();
 		rc = camera_io_dev_write_continuous(&(o_ctrl->io_master_info),
 			&i2c_reg_setting, 1);
 		if (rc < 0) {
@@ -420,7 +421,7 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 	i2c_reg_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
 	i2c_reg_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
 	i2c_reg_setting.size = total_bytes;
-	i2c_reg_setting.delay = 0;
+	i2c_reg_setting.delay = 0; //initialize delay value,otherwise CCI write will hang becase of a very long delay
 	fw_size = PAGE_ALIGN(sizeof(struct cam_sensor_i2c_reg_array) *
 		total_bytes) >> PAGE_SHIFT;
 	page = cma_alloc(dev_get_cma_area((o_ctrl->soc_info.dev)),
@@ -445,6 +446,8 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 		}
 		i2c_reg_setting.size = cnt;
 
+		while (camera_io_wait_normal_write())
+			schedule();
 		rc = camera_io_dev_write_continuous(&(o_ctrl->io_master_info),
 			&i2c_reg_setting, 1);
 		if (rc < 0)
@@ -575,8 +578,8 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 					return rc;
 				}
 			} else if ((o_ctrl->is_ois_calib != 0) &&
-				(o_ctrl->i2c_calib_data.is_settings_valid ==
-				0)) {
+				(o_ctrl->i2c_calib_data.
+					is_settings_valid == 0)) {
 				CAM_DBG(CAM_OIS,
 					"Received calib settings");
 				i2c_reg_settings = &(o_ctrl->i2c_calib_data);
@@ -679,16 +682,14 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 	}
 	return rc;
 pwr_dwn:
+	o_ctrl->cam_ois_state = CAM_OIS_ACQUIRE;
 	cam_ois_power_down(o_ctrl);
 	return rc;
 }
 
 void cam_ois_shutdown(struct cam_ois_ctrl_t *o_ctrl)
 {
-	int rc = 0;
-	struct cam_ois_soc_private *soc_private =
-		(struct cam_ois_soc_private *)o_ctrl->soc_info.soc_private;
-	struct cam_sensor_power_ctrl_t *power_info = &soc_private->power_info;
+	int rc;
 
 	if (o_ctrl->cam_ois_state == CAM_OIS_INIT)
 		return;
@@ -697,7 +698,6 @@ void cam_ois_shutdown(struct cam_ois_ctrl_t *o_ctrl)
 		rc = cam_ois_power_down(o_ctrl);
 		if (rc < 0)
 			CAM_ERR(CAM_OIS, "OIS Power down failed");
-		o_ctrl->cam_ois_state = CAM_OIS_ACQUIRE;
 	}
 
 	if (o_ctrl->cam_ois_state >= CAM_OIS_ACQUIRE) {
@@ -708,11 +708,6 @@ void cam_ois_shutdown(struct cam_ois_ctrl_t *o_ctrl)
 		o_ctrl->bridge_intf.link_hdl = -1;
 		o_ctrl->bridge_intf.session_hdl = -1;
 	}
-
-	kfree(power_info->power_setting);
-	kfree(power_info->power_down_setting);
-	power_info->power_setting = NULL;
-	power_info->power_down_setting = NULL;
 
 	o_ctrl->cam_ois_state = CAM_OIS_INIT;
 }
@@ -730,14 +725,8 @@ int cam_ois_driver_cmd(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 	struct cam_ois_query_cap_t     ois_cap = {0};
 	struct cam_control            *cmd = (struct cam_control *)arg;
 
-	if (!o_ctrl || !arg) {
-		CAM_ERR(CAM_OIS, "Invalid arguments");
-		return -EINVAL;
-	}
-
-	if (cmd->handle_type != CAM_HANDLE_USER_POINTER) {
-		CAM_ERR(CAM_OIS, "Invalid handle type: %d",
-			cmd->handle_type);
+	if (!o_ctrl) {
+		CAM_ERR(CAM_OIS, "e_ctrl is NULL");
 		return -EINVAL;
 	}
 
