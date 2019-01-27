@@ -199,6 +199,7 @@ static int cam_jpeg_hw_mgr_cb(
 		return -ENOMEM;
 	}
 
+	spin_unlock_irqrestore(&hw_mgr->hw_mgr_lock, flags);
 	task_data = (struct cam_jpeg_process_irq_work_data_t *)task->payload;
 	task_data->data = data;
 	task_data->irq_status = irq_status;
@@ -208,7 +209,6 @@ static int cam_jpeg_hw_mgr_cb(
 
 	rc = cam_req_mgr_workq_enqueue_task(task, &g_jpeg_hw_mgr,
 		CRM_TASK_PRIORITY_0);
-	spin_unlock_irqrestore(&hw_mgr->hw_mgr_lock, flags);
 
 	return rc;
 }
