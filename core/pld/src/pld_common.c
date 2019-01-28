@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017, 2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1562,4 +1562,28 @@ int pld_is_fw_rejuvenate(struct device *dev)
 		break;
 	}
 	return ret;
+}
+
+/**
+ * pld_block_shutdown() - Block/Unblock modem shutdown
+ * @dev: device
+ * @status: status true or false
+ *
+ * This API will be called to Block/Unblock modem shutdown.
+ * True - Block shutdown
+ * False - Unblock shutdown
+ *
+ * Return: None
+ */
+void pld_block_shutdown(struct device *dev, bool status)
+{
+	enum pld_bus_type type = pld_get_bus_type(dev);
+
+	switch (type) {
+	case PLD_BUS_TYPE_SNOC:
+		pld_snoc_block_shutdown(status);
+		break;
+	default:
+		break;
+	}
 }
