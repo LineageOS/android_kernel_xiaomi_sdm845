@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,8 +13,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
-#include <linux/ratelimit.h>
-
 #include "cam_io_util.h"
 #include "cam_irq_controller.h"
 #include "cam_debug_util.h"
@@ -44,7 +42,7 @@ struct cam_irq_evt_handler {
 	CAM_IRQ_HANDLER_TOP_HALF           top_half_handler;
 	CAM_IRQ_HANDLER_BOTTOM_HALF        bottom_half_handler;
 	void                              *bottom_half;
-	struct cam_irq_bh_api              irq_bh_api;
+	CAM_IRQ_BOTTOM_HALF_ENQUEUE_FUNC   bottom_half_enqueue_func;
 	struct list_head                   list_node;
 	struct list_head                   th_list_node;
 	int                                index;
@@ -237,7 +235,7 @@ int cam_irq_controller_subscribe_irq(void *irq_controller,
 	CAM_IRQ_HANDLER_TOP_HALF           top_half_handler,
 	CAM_IRQ_HANDLER_BOTTOM_HALF        bottom_half_handler,
 	void                              *bottom_half,
-	struct cam_irq_bh_api             *irq_bh_api)
+	CAM_IRQ_BOTTOM_HALF_ENQUEUE_FUNC   bottom_half_enqueue_func)
 {
 	struct cam_irq_controller  *controller  = irq_controller;
 	struct cam_irq_evt_handler *evt_handler = NULL;
@@ -260,24 +258,12 @@ int cam_irq_controller_subscribe_irq(void *irq_controller,
 	}
 
 	if (bottom_half_handler &&
-		(!bottom_half || !irq_bh_api)) {
+		(!bottom_half || !bottom_half_enqueue_func)) {
 		CAM_ERR(CAM_IRQ_CTRL,
 			"Invalid params: bh_handler=%pK bh=%pK bh_enq_f=%pK",
 			bottom_half_handler,
 			bottom_half,
-			irq_bh_api);
-		return -EINVAL;
-	}
-
-	if (irq_bh_api &&
-		(!irq_bh_api->bottom_half_enqueue_func ||
-		!irq_bh_api->get_bh_payload_func ||
-		!irq_bh_api->put_bh_payload_func)) {
-		CAM_ERR(CAM_IRQ_CTRL,
-			"Invalid: enqueue_func=%pK get_bh=%pK put_bh=%pK",
-			irq_bh_api->bottom_half_enqueue_func,
-			irq_bh_api->get_bh_payload_func,
-			irq_bh_api->put_bh_payload_func);
+			bottom_half_enqueue_func);
 		return -EINVAL;
 	}
 
@@ -312,10 +298,8 @@ int cam_irq_controller_subscribe_irq(void *irq_controller,
 	evt_handler->top_half_handler         = top_half_handler;
 	evt_handler->bottom_half_handler      = bottom_half_handler;
 	evt_handler->bottom_half              = bottom_half;
+	evt_handler->bottom_half_enqueue_func = bottom_half_enqueue_func;
 	evt_handler->index                    = controller->hdl_idx++;
-
-	if (irq_bh_api)
-		evt_handler->irq_bh_api       = *irq_bh_api;
 
 	/* Avoid rollover to negative values */
 	if (controller->hdl_idx > 0x3FFFFFFF)
@@ -583,8 +567,6 @@ static void cam_irq_controller_th_processing(
 	bool                            is_irq_match;
 	int                             rc = -EINVAL;
 	int                             i;
-	void                           *bh_cmd = NULL;
-	struct cam_irq_bh_api          *irq_bh_api = NULL;
 
 	CAM_DBG(CAM_IRQ_CTRL, "Enter");
 
@@ -609,19 +591,6 @@ static void cam_irq_controller_th_processing(
 				evt_handler->evt_bit_mask_arr[i];
 		}
 
-		irq_bh_api = &evt_handler->irq_bh_api;
-		bh_cmd = NULL;
-
-		if (evt_handler->bottom_half_handler) {
-			rc = irq_bh_api->get_bh_payload_func(
-				evt_handler->bottom_half, &bh_cmd);
-			if (rc || !bh_cmd) {
-				CAM_ERR_RATE_LIMIT(CAM_ISP,
-					"Can't get bh payload");
-				continue;
-			}
-		}
-
 		/*
 		 * irq_status_arr[0] is dummy argument passed. the entire
 		 * status array is passed in th_payload.
@@ -631,21 +600,16 @@ static void cam_irq_controller_th_processing(
 				controller->irq_status_arr[0],
 				(void *)th_payload);
 
-		if (rc && bh_cmd) {
-			irq_bh_api->put_bh_payload_func(
-				evt_handler->bottom_half, &bh_cmd);
-			continue;
-		}
-
-		if (evt_handler->bottom_half_handler) {
+		if (!rc && evt_handler->bottom_half_handler) {
 			CAM_DBG(CAM_IRQ_CTRL, "Enqueuing bottom half for %s",
 				controller->name);
-			irq_bh_api->bottom_half_enqueue_func(
-				evt_handler->bottom_half,
-				bh_cmd,
-				evt_handler->handler_priv,
-				th_payload->evt_payload_priv,
-				evt_handler->bottom_half_handler);
+			if (evt_handler->bottom_half_enqueue_func) {
+				evt_handler->bottom_half_enqueue_func(
+					evt_handler->bottom_half,
+					evt_handler->handler_priv,
+					th_payload->evt_payload_priv,
+					evt_handler->bottom_half_handler);
+			}
 		}
 	}
 
