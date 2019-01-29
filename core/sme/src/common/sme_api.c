@@ -593,10 +593,9 @@ QDF_STATUS sme_ser_handle_active_cmd(struct wlan_serialization_command *cmd)
 	return status;
 }
 
-QDF_STATUS sme_ser_cmd_callback(void *buf,
+QDF_STATUS sme_ser_cmd_callback(struct wlan_serialization_command *cmd,
 				enum wlan_serialization_cb_reason reason)
 {
-	struct wlan_serialization_command *cmd = buf;
 	tHalHandle hal;
 	tpAniSirGlobal mac_ctx;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
