@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -569,12 +570,12 @@ static int cam_vfe_camif_handle_irq_bottom_half(void *handler_priv,
 				camif_priv->reg_data->error_irq_mask1) {
 			CAM_DBG(CAM_ISP, "Received ERROR\n");
 			ret = CAM_VFE_IRQ_STATUS_OVERFLOW;
-			cam_vfe_camif_reg_dump(camif_node);
 			payload->irq_reg_val[CAM_IFE_IRQ_CAMIF_REG_STATUS0] &=
 				~(camif_priv->reg_data->error_irq_mask0);
 			payload->irq_reg_val[CAM_IFE_IRQ_CAMIF_REG_STATUS1] &=
 				~(camif_priv->reg_data->error_irq_mask1);
 			cam_vfe_put_evt_payload(payload->core_info, &payload);
+			cam_vfe_camif_reg_dump(camif_node);
 		}
 
 		if (camif_priv->camif_debug &
