@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1796,6 +1797,8 @@ static int cam_ife_mgr_config_hw(void *hw_mgr_priv,
 					"config done Success for req_id=%llu",
 					cfg->request_id);
 			}
+
+			rc = 0;
 		}
 	} else {
 		CAM_ERR(CAM_ISP, "No commands to config");
@@ -1811,6 +1814,7 @@ static int cam_ife_mgr_stop_hw_in_overflow(void *stop_hw_args)
 	struct cam_hw_stop_args          *stop_args = stop_hw_args;
 	struct cam_ife_hw_mgr_res        *hw_mgr_res;
 	struct cam_ife_hw_mgr_ctx        *ctx;
+	enum cam_ife_csid_halt_cmd        csid_halt_type;
 	uint32_t                          i, master_base_idx = 0;
 
 	if (!stop_hw_args) {
@@ -1984,6 +1988,7 @@ static int cam_ife_mgr_stop_hw(void *hw_mgr_priv, void *stop_hw_args)
 	if (cam_cdm_stream_off(ctx->cdm_handle))
 		CAM_ERR(CAM_ISP, "CDM stream off failed %d",
 			ctx->cdm_handle);
+	cam_tasklet_stop(ctx->common.tasklet_info);
 
 	CAM_DBG(CAM_ISP, "Going to stop IFE Mux");
 
@@ -2004,8 +2009,6 @@ static int cam_ife_mgr_stop_hw(void *hw_mgr_priv, void *stop_hw_args)
 			break;
 		}
 	}
-
-	cam_tasklet_stop(ctx->common.tasklet_info);
 
 	/*
 	 * If Context does not have PIX resources and has only RDI resource
@@ -4189,9 +4192,6 @@ int cam_ife_mgr_do_tasklet(void *handler_priv, void *evt_payload_priv)
 		return rc;
 
 	evt_payload = evt_payload_priv;
-	if (!handler_priv)
-		return rc;
-
 	ife_hwr_mgr_ctx = (struct cam_ife_hw_mgr_ctx *)handler_priv;
 
 	CAM_DBG(CAM_ISP, "addr of evt_payload = %pK core_index:%d",
