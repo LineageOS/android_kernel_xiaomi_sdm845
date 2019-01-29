@@ -386,7 +386,6 @@ static int32_t cam_actuator_driver_platform_probe(
 	rc = cam_actuator_init_subdev(a_ctrl);
 	if (rc)
 		goto free_mem;
-
 #ifdef CONFIG_USE_BU64748
 	rc = cam_actuator_update_i2c_info(a_ctrl, &soc_private->i2c_info);
 	if (rc) {
@@ -410,7 +409,6 @@ static int32_t cam_actuator_driver_platform_probe(
 	a_ctrl->cam_act_state = CAM_ACTUATOR_INIT;
 
 	return rc;
-
 #ifdef CONFIG_USE_BU64748
 unreg_subdev:
 	cam_unregister_subdev(&(a_ctrl->v4l2_dev_str));
