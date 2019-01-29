@@ -80,6 +80,13 @@ int32_t camera_io_release(struct camera_io_master *io_master_info);
 
 /**
  * @io_master_info: I2C/SPI master information
+ *
+ * This API return whether to wait normal write
+ */
+bool camera_io_wait_normal_write(void);
+
+/**
+ * @io_master_info: I2C/SPI master information
  * @write_setting: write settings information
  *
  * This API abstracts write functionality based on master type

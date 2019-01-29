@@ -1480,7 +1480,8 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 
 			rc = msm_cam_sensor_handle_reg_gpio(
 				power_setting->seq_type,
-				gpio_num_info, 1);
+				gpio_num_info,
+				(int) power_setting->config_val);
 			if (rc < 0) {
 				CAM_ERR(CAM_SENSOR,
 					"Error in handling VREG GPIO");
