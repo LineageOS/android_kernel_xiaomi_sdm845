@@ -25,11 +25,11 @@
 static struct cam_mem_table tbl;
 
 static int cam_mem_util_map_cpu_va(struct ion_handle *hdl,
-	uintptr_t *vaddr,
+	uint64_t *vaddr,
 	size_t *len)
 {
 	*vaddr = (uintptr_t)ion_map_kernel(tbl.client, hdl);
-	if (IS_ERR_OR_NULL((void *)(uintptr_t)(*vaddr))) {
+	if (IS_ERR_OR_NULL((void *)*vaddr)) {
 		CAM_ERR(CAM_MEM, "kernel map fail");
 		return -ENOSPC;
 	}
@@ -147,7 +147,7 @@ static void cam_mem_put_slot(int32_t idx)
 }
 
 int cam_mem_get_io_buf(int32_t buf_handle, int32_t mmu_handle,
-	dma_addr_t *iova_ptr, size_t *len_ptr)
+	uint64_t *iova_ptr, size_t *len_ptr)
 {
 	int rc = 0, idx;
 
@@ -183,12 +183,12 @@ handle_mismatch:
 }
 EXPORT_SYMBOL(cam_mem_get_io_buf);
 
-int cam_mem_get_cpu_buf(int32_t buf_handle, uintptr_t *vaddr_ptr, size_t *len)
+int cam_mem_get_cpu_buf(int32_t buf_handle, uint64_t *vaddr_ptr, size_t *len)
 {
 	int rc = 0;
 	int idx;
 	struct ion_handle *ion_hdl = NULL;
-	uintptr_t kvaddr = 0;
+	uint64_t kvaddr = 0;
 	size_t klen = 0;
 
 	if (!buf_handle || !vaddr_ptr || !len)
@@ -288,7 +288,7 @@ int cam_mem_mgr_cache_ops(struct cam_mem_cache_ops_cmd *cmd)
 
 		rc = msm_ion_do_cache_op(tbl.client,
 				tbl.bufq[idx].i_hdl,
-				(void *)(uintptr_t)tbl.bufq[idx].vaddr,
+				(void *)tbl.bufq[idx].vaddr,
 				tbl.bufq[idx].len,
 				ion_cache_ops);
 		if (rc)
@@ -647,10 +647,6 @@ int cam_mem_mgr_map(struct cam_mem_mgr_map_cmd *cmd)
 			CAM_SMMU_REGION_IO);
 		if (rc)
 			goto map_fail;
-	} else {
-		rc = ion_handle_get_size(tbl.client, ion_hdl, &len);
-		if (rc)
-			return rc;
 	}
 
 	idx = cam_mem_get_slot();
@@ -926,7 +922,7 @@ int cam_mem_mgr_request_mem(struct cam_mem_mgr_request_desc *inp,
 	int rc = 0;
 	uint32_t heap_id;
 	int32_t ion_flag = 0;
-	uintptr_t kvaddr;
+	uint64_t kvaddr;
 	dma_addr_t iova = 0;
 	size_t request_len = 0;
 	uint32_t mem_handle;

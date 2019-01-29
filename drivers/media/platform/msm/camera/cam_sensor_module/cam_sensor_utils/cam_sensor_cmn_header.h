@@ -35,7 +35,7 @@
 #define CAM_FLASH_NAME     "cam-flash"
 #define CAM_EEPROM_NAME    "cam-eeprom"
 #define CAM_OIS_NAME       "cam-ois"
-#define CAM_SL_EEPROM_NAME "cam-sl-eeprom"
+#define SL_EEPROM_NAME  "cam-sl-eeprom"
 
 #define MAX_SYSTEM_PIPELINE_DELAY 2
 

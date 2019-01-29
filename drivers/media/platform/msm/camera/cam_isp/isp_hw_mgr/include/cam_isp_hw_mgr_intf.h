@@ -51,41 +51,6 @@ enum cam_isp_hw_err_type {
 };
 
 /**
- *  enum cam_isp_hw_stop_cmd - Specify the stop command type
- */
-enum cam_isp_hw_stop_cmd {
-	CAM_ISP_HW_STOP_AT_FRAME_BOUNDARY,
-	CAM_ISP_HW_STOP_IMMEDIATELY,
-	CAM_ISP_HW_STOP_MAX,
-};
-
-/**
- * struct cam_isp_stop_args - hardware stop arguments
- *
- * @hw_stop_cmd:               Hardware stop command type information
- * @stop_only                  Send stop only to hw drivers. No Deinit to be
- *                             done.
- *
- */
-struct cam_isp_stop_args {
-	enum cam_isp_hw_stop_cmd      hw_stop_cmd;
-	bool                          stop_only;
-};
-
-/**
- * struct cam_isp_start_args - isp hardware start arguments
- *
- * @config_args:               Hardware configuration commands.
- * @start_only                 Send start only to hw drivers. No init to
- *                             be done.
- *
- */
-struct cam_isp_start_args {
-	struct cam_hw_config_args     hw_config;
-	bool                          start_only;
-};
-
-/**
  * struct cam_isp_bw_config_internal - Internal Bandwidth configuration
  *
  * @usage_type:                 Usage type (Single/Dual)
