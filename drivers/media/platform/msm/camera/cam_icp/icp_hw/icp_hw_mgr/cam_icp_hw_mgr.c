@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -311,9 +312,8 @@ static int32_t cam_icp_deinit_idle_clk(void *priv, void *data)
 		ctx_data = &hw_mgr->ctx_data[i];
 		mutex_lock(&ctx_data->ctx_mutex);
 		if ((ctx_data->state == CAM_ICP_CTX_STATE_ACQUIRED) &&
-			(ICP_DEV_TYPE_TO_CLK_TYPE(
-			ctx_data->icp_dev_acquire_info->dev_type)
-			== clk_info->hw_type)) {
+			(ICP_DEV_TYPE_TO_CLK_TYPE(ctx_data->
+			icp_dev_acquire_info->dev_type) == clk_info->hw_type)) {
 			busy = cam_icp_frame_pending(ctx_data);
 			if (busy) {
 				mutex_unlock(&ctx_data->ctx_mutex);
@@ -476,13 +476,13 @@ static void cam_icp_ctx_timer_cb(unsigned long data)
 		return;
 	}
 
+	spin_unlock_irqrestore(&icp_hw_mgr.hw_mgr_lock, flags);
 	task_data = (struct clk_work_data *)task->payload;
 	task_data->data = timer->parent;
 	task_data->type = ICP_WORKQ_TASK_MSG_TYPE;
 	task->process_cb = cam_icp_ctx_timer;
 	cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
 		CRM_TASK_PRIORITY_0);
-	spin_unlock_irqrestore(&icp_hw_mgr.hw_mgr_lock, flags);
 }
 
 static void cam_icp_device_timer_cb(unsigned long data)
@@ -500,13 +500,13 @@ static void cam_icp_device_timer_cb(unsigned long data)
 		return;
 	}
 
+	spin_unlock_irqrestore(&icp_hw_mgr.hw_mgr_lock, flags);
 	task_data = (struct clk_work_data *)task->payload;
 	task_data->data = timer->parent;
 	task_data->type = ICP_WORKQ_TASK_MSG_TYPE;
 	task->process_cb = cam_icp_deinit_idle_clk;
 	cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
 		CRM_TASK_PRIORITY_0);
-	spin_unlock_irqrestore(&icp_hw_mgr.hw_mgr_lock, flags);
 }
 
 static int cam_icp_clk_info_init(struct cam_icp_hw_mgr *hw_mgr,
@@ -1354,7 +1354,7 @@ static int cam_icp_hw_mgr_create_debugfs_entry(void)
 		0644,
 		icp_hw_mgr.dentry,
 		NULL, &cam_icp_debug_type_fs)) {
-		CAM_ERR(CAM_ICP, "failed to create a5_debug_type");
+		CAM_ERR(CAM_ICP, "failed to create a5_debug_type\n");
 		rc = -ENOMEM;
 		goto err;
 	}
@@ -1461,10 +1461,9 @@ static int cam_icp_mgr_handle_frame_process(uint32_t *msg_ptr, int flag)
 		CAM_ERR(CAM_ICP, "Invalid Context");
 		return -EINVAL;
 	}
-	CAM_DBG(CAM_REQ,
-		"ctx_id : %u, request_id :%lld dev_type: %d",
-		ctx_data->ctx_id, request_id,
-		ctx_data->icp_dev_acquire_info->dev_type);
+
+	CAM_DBG(CAM_ICP, "ctx : %pK, request_id :%lld",
+		(void *)ctx_data->context_priv, request_id);
 
 	mutex_lock(&ctx_data->ctx_mutex);
 	cam_icp_ctx_timer_reset(ctx_data);
@@ -2019,6 +2018,7 @@ int32_t cam_icp_hw_mgr_cb(uint32_t irq_status, void *data)
 		return -ENOMEM;
 	}
 
+	spin_unlock_irqrestore(&hw_mgr->hw_mgr_lock, flags);
 	task_data = (struct hfi_msg_work_data *)task->payload;
 	task_data->data = hw_mgr;
 	task_data->irq_status = irq_status;
@@ -2026,7 +2026,6 @@ int32_t cam_icp_hw_mgr_cb(uint32_t irq_status, void *data)
 	task->process_cb = cam_icp_mgr_process_msg;
 	rc = cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
 		CRM_TASK_PRIORITY_0);
-	spin_unlock_irqrestore(&hw_mgr->hw_mgr_lock, flags);
 
 	return rc;
 }
@@ -2344,7 +2343,6 @@ static int cam_icp_mgr_hw_close_u(void *hw_priv, void *hw_close_args)
 	struct cam_icp_hw_mgr *hw_mgr = hw_priv;
 	int rc = 0;
 
-	CAM_DBG(CAM_ICP, "UMD calls close");
 	if (!hw_mgr) {
 		CAM_ERR(CAM_ICP, "Null hw mgr");
 		return 0;
@@ -2361,7 +2359,6 @@ static int cam_icp_mgr_hw_close_k(void *hw_priv, void *hw_close_args)
 {
 	struct cam_icp_hw_mgr *hw_mgr = hw_priv;
 
-	CAM_DBG(CAM_ICP, "KMD calls close");
 	if (!hw_mgr) {
 		CAM_ERR(CAM_ICP, "Null hw mgr");
 		return 0;
@@ -2989,7 +2986,6 @@ static int cam_icp_mgr_hw_open(void *hw_mgr_priv, void *download_fw_args)
 	hw_mgr->fw_download = true;
 	hw_mgr->recovery = false;
 
-	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 	CAM_INFO(CAM_ICP, "FW download done successfully");
 
 	rc = cam_ipe_bps_deint(hw_mgr);
@@ -3110,7 +3106,7 @@ static int cam_icp_mgr_send_config_io(struct cam_icp_hw_ctx_data *ctx_data,
 	task_data->type = ICP_WORKQ_TASK_MSG_TYPE;
 	task->process_cb = cam_icp_mgr_process_cmd;
 	size_in_words = (*(uint32_t *)task_data->data) >> 2;
-	CAM_DBG(CAM_ICP, "size_in_words %u", size_in_words);
+	CAM_INFO(CAM_ICP, "size_in_words %u", size_in_words);
 	rc = cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
 		CRM_TASK_PRIORITY_0);
 	if (rc)
@@ -3186,8 +3182,8 @@ static int cam_icp_mgr_config_hw(void *hw_mgr_priv, void *config_hw_args)
 	frame_info = (struct icp_frame_info *)config_args->priv;
 	req_id = frame_info->request_id;
 	idx = cam_icp_clk_idx_from_req_id(ctx_data, req_id);
-	cam_icp_mgr_ipe_bps_clk_update(hw_mgr, ctx_data, idx);
 	ctx_data->hfi_frame_process.fw_process_flag[idx] = true;
+	cam_icp_mgr_ipe_bps_clk_update(hw_mgr, ctx_data, idx);
 
 	CAM_DBG(CAM_ICP, "req_id %llu, io config %llu", req_id,
 		frame_info->io_config);
@@ -3937,9 +3933,11 @@ static int cam_icp_mgr_hw_flush(void *hw_priv, void *hw_flush_args)
 	switch (flush_args->flush_type) {
 	case CAM_FLUSH_TYPE_ALL:
 		mutex_lock(&hw_mgr->hw_mgr_mutex);
-		if (!hw_mgr->recovery && flush_args->num_req_active) {
-			mutex_unlock(&hw_mgr->hw_mgr_mutex);
-			cam_icp_mgr_abort_handle(ctx_data);
+		if (!hw_mgr->recovery) {
+			if (flush_args->num_req_active) {
+				mutex_unlock(&hw_mgr->hw_mgr_mutex);
+				cam_icp_mgr_abort_handle(ctx_data);
+			}
 		} else {
 			mutex_unlock(&hw_mgr->hw_mgr_mutex);
 		}

@@ -372,7 +372,8 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 	i2c_reg_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
 	i2c_reg_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
 	i2c_reg_setting.size = total_bytes;
-	i2c_reg_setting.delay = 0;
+	i2c_reg_setting.delay = 0; // Initialize delay value, otherwise CCI write will hang because of a very long delay
+
 	fw_size = PAGE_ALIGN(sizeof(struct cam_sensor_i2c_reg_array) *
 		total_bytes) >> PAGE_SHIFT;
 	page = cma_alloc(dev_get_cma_area((o_ctrl->soc_info.dev)),
@@ -397,6 +398,8 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 		}
 		i2c_reg_setting.size = cnt;
 
+		while (camera_io_wait_normal_write())
+			schedule();
 		rc = camera_io_dev_write_continuous(&(o_ctrl->io_master_info),
 			&i2c_reg_setting, 1);
 		if (rc < 0) {
@@ -420,7 +423,8 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 	i2c_reg_setting.addr_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
 	i2c_reg_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
 	i2c_reg_setting.size = total_bytes;
-	i2c_reg_setting.delay = 0;
+	i2c_reg_setting.delay = 0; // Initialize delay value, otherwise CCI write will hang because of a very long delay
+
 	fw_size = PAGE_ALIGN(sizeof(struct cam_sensor_i2c_reg_array) *
 		total_bytes) >> PAGE_SHIFT;
 	page = cma_alloc(dev_get_cma_area((o_ctrl->soc_info.dev)),
@@ -445,6 +449,8 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 		}
 		i2c_reg_setting.size = cnt;
 
+		while (camera_io_wait_normal_write())
+			schedule();
 		rc = camera_io_dev_write_continuous(&(o_ctrl->io_master_info),
 			&i2c_reg_setting, 1);
 		if (rc < 0)
@@ -679,16 +685,14 @@ static int cam_ois_pkt_parse(struct cam_ois_ctrl_t *o_ctrl, void *arg)
 	}
 	return rc;
 pwr_dwn:
+	o_ctrl->cam_ois_state = CAM_OIS_ACQUIRE;
 	cam_ois_power_down(o_ctrl);
 	return rc;
 }
 
 void cam_ois_shutdown(struct cam_ois_ctrl_t *o_ctrl)
 {
-	int rc = 0;
-	struct cam_ois_soc_private *soc_private =
-		(struct cam_ois_soc_private *)o_ctrl->soc_info.soc_private;
-	struct cam_sensor_power_ctrl_t *power_info = &soc_private->power_info;
+	int rc;
 
 	if (o_ctrl->cam_ois_state == CAM_OIS_INIT)
 		return;
@@ -697,7 +701,6 @@ void cam_ois_shutdown(struct cam_ois_ctrl_t *o_ctrl)
 		rc = cam_ois_power_down(o_ctrl);
 		if (rc < 0)
 			CAM_ERR(CAM_OIS, "OIS Power down failed");
-		o_ctrl->cam_ois_state = CAM_OIS_ACQUIRE;
 	}
 
 	if (o_ctrl->cam_ois_state >= CAM_OIS_ACQUIRE) {
@@ -708,11 +711,6 @@ void cam_ois_shutdown(struct cam_ois_ctrl_t *o_ctrl)
 		o_ctrl->bridge_intf.link_hdl = -1;
 		o_ctrl->bridge_intf.session_hdl = -1;
 	}
-
-	kfree(power_info->power_setting);
-	kfree(power_info->power_down_setting);
-	power_info->power_setting = NULL;
-	power_info->power_down_setting = NULL;
 
 	o_ctrl->cam_ois_state = CAM_OIS_INIT;
 }
