@@ -167,11 +167,11 @@ int cam_req_mgr_workq_enqueue_task(struct crm_workq_task *task,
 		&workq->task.process_head[task->priority]);
 
 	atomic_add(1, &workq->task.pending_cnt);
+	WORKQ_RELEASE_LOCK(workq, flags);
 	CAM_DBG(CAM_CRM, "enq task %pK pending_cnt %d",
 		task, atomic_read(&workq->task.pending_cnt));
 
 	queue_work(workq->job, &workq->work);
-	WORKQ_RELEASE_LOCK(workq, flags);
 end:
 	return rc;
 }
