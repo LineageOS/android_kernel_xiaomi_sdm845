@@ -907,7 +907,7 @@ int cam_flash_i2c_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 	/* getting CSL Packet */
 	ioctl_ctrl = (struct cam_control *)arg;
 
-	if (copy_from_user((&config), u64_to_user_ptr(ioctl_ctrl->handle),
+	if (copy_from_user((&config), (void __user *) ioctl_ctrl->handle,
 		sizeof(config))) {
 		CAM_ERR(CAM_FLASH, "Copy cmd handle from user failed");
 		return -EFAULT;
@@ -928,8 +928,7 @@ int cam_flash_i2c_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 	}
 
 	/* Add offset to the flash csl header */
-	csl_packet = (struct cam_packet *)(uintptr_t)(generic_ptr +
-			config.offset);
+	csl_packet = (struct cam_packet *)(generic_ptr + config.offset);
 	switch (csl_packet->header.op_code & 0xFFFFFF) {
 	case CAM_FLASH_PACKET_OPCODE_INIT: {
 		/* INIT packet*/
@@ -1463,6 +1462,8 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 			(fctrl->flash_state == CAM_FLASH_STATE_ACQUIRE)) {
 			CAM_WARN(CAM_FLASH,
 				"Rxed NOP packets without linking");
+			frm_offset = csl_packet->header.request_id %
+				MAX_PER_FRAME_ARRAY;
 			fctrl->per_frame[frm_offset].cmn_attr.is_settings_valid
 				= false;
 			return 0;
@@ -1565,7 +1566,9 @@ void cam_flash_shutdown(struct cam_flash_ctrl *fctrl)
 
 	if ((fctrl->flash_state == CAM_FLASH_STATE_CONFIG) ||
 		(fctrl->flash_state == CAM_FLASH_STATE_START)) {
+		mutex_lock(&(fctrl->flash_mutex));
 		fctrl->func_tbl.flush_req(fctrl, FLUSH_ALL, 0);
+		mutex_unlock(&(fctrl->flash_mutex));
 		rc = fctrl->func_tbl.power_ops(fctrl, false);
 		if (rc)
 			CAM_ERR(CAM_FLASH, "Power Down Failed rc: %d",
