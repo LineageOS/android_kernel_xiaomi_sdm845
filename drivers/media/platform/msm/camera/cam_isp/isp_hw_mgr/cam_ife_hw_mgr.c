@@ -4189,9 +4189,6 @@ int cam_ife_mgr_do_tasklet(void *handler_priv, void *evt_payload_priv)
 		return rc;
 
 	evt_payload = evt_payload_priv;
-	if (!handler_priv)
-		return rc;
-
 	ife_hwr_mgr_ctx = (struct cam_ife_hw_mgr_ctx *)handler_priv;
 
 	CAM_DBG(CAM_ISP, "addr of evt_payload = %pK core_index:%d",

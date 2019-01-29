@@ -476,13 +476,13 @@ static void cam_icp_ctx_timer_cb(unsigned long data)
 		return;
 	}
 
+	spin_unlock_irqrestore(&icp_hw_mgr.hw_mgr_lock, flags);
 	task_data = (struct clk_work_data *)task->payload;
 	task_data->data = timer->parent;
 	task_data->type = ICP_WORKQ_TASK_MSG_TYPE;
 	task->process_cb = cam_icp_ctx_timer;
 	cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
 		CRM_TASK_PRIORITY_0);
-	spin_unlock_irqrestore(&icp_hw_mgr.hw_mgr_lock, flags);
 }
 
 static void cam_icp_device_timer_cb(unsigned long data)
@@ -500,13 +500,13 @@ static void cam_icp_device_timer_cb(unsigned long data)
 		return;
 	}
 
+	spin_unlock_irqrestore(&icp_hw_mgr.hw_mgr_lock, flags);
 	task_data = (struct clk_work_data *)task->payload;
 	task_data->data = timer->parent;
 	task_data->type = ICP_WORKQ_TASK_MSG_TYPE;
 	task->process_cb = cam_icp_deinit_idle_clk;
 	cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
 		CRM_TASK_PRIORITY_0);
-	spin_unlock_irqrestore(&icp_hw_mgr.hw_mgr_lock, flags);
 }
 
 static int cam_icp_clk_info_init(struct cam_icp_hw_mgr *hw_mgr,
@@ -2019,6 +2019,7 @@ int32_t cam_icp_hw_mgr_cb(uint32_t irq_status, void *data)
 		return -ENOMEM;
 	}
 
+	spin_unlock_irqrestore(&hw_mgr->hw_mgr_lock, flags);
 	task_data = (struct hfi_msg_work_data *)task->payload;
 	task_data->data = hw_mgr;
 	task_data->irq_status = irq_status;
@@ -2026,7 +2027,6 @@ int32_t cam_icp_hw_mgr_cb(uint32_t irq_status, void *data)
 	task->process_cb = cam_icp_mgr_process_msg;
 	rc = cam_req_mgr_workq_enqueue_task(task, &icp_hw_mgr,
 		CRM_TASK_PRIORITY_0);
-	spin_unlock_irqrestore(&hw_mgr->hw_mgr_lock, flags);
 
 	return rc;
 }
@@ -2989,7 +2989,6 @@ static int cam_icp_mgr_hw_open(void *hw_mgr_priv, void *download_fw_args)
 	hw_mgr->fw_download = true;
 	hw_mgr->recovery = false;
 
-	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 	CAM_INFO(CAM_ICP, "FW download done successfully");
 
 	rc = cam_ipe_bps_deint(hw_mgr);
