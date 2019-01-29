@@ -97,8 +97,8 @@ int sl_eeprom_parse_memory_map(struct device_node *node,
 	int rc = 0;
 	int i;
 	struct    sl_eeprom_memory_map_t *map;
-	rc = copy_from_user(data, (void __user*)source, sizeof(struct sl_eeprom_memory_block_t));
-	if (rc < 0){
+	rc = copy_from_user(data, (void __user*)source, sizeof(struct sl_eeprom_memory_block_t ));
+	if(rc < 0){
 		CAM_ERR(CAM_SL_EEPROM, "sl_eeprom_parse_memory_map copy from user failed\n");
 		return rc;
 	}
@@ -108,12 +108,12 @@ int sl_eeprom_parse_memory_map(struct device_node *node,
 		return rc;
 	}
 	rc = copy_from_user(map, data->map, sizeof(struct sl_eeprom_memory_map_t) * data->num_map);
-	if (rc < 0){
+	if(rc < 0){
 		CAM_ERR(CAM_SL_EEPROM, "sl_eeprom_parse_memory_map copy from user failed\n");
 		goto ERROR;
 	}
 	data->map = map;
-	for (i = 0; i < data->num_map; i++) {
+	for(i = 0; i < data->num_map; i ++){
 		CAM_DBG(CAM_SL_EEPROM,
 			"sl_eeprom_parse_memory_map saddr 0X%4x\n",
 			data->map[i].saddr);
