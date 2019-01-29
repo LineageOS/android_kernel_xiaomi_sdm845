@@ -679,6 +679,8 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 			MAX_POWER_CONFIG, GFP_KERNEL);
 		if (!pu) {
 			rc = -ENOMEM;
+			CAM_ERR(CAM_SENSOR,
+				"failed");
 			goto release_mutex;
 		}
 
@@ -687,6 +689,8 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 		if (!pd) {
 			kfree(pu);
 			rc = -ENOMEM;
+			CAM_ERR(CAM_SENSOR,
+				"failed");
 			goto release_mutex;
 		}
 
@@ -864,7 +868,8 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 		s_ctrl->bridge_intf.device_hdl = -1;
 		s_ctrl->bridge_intf.link_hdl = -1;
 		s_ctrl->bridge_intf.session_hdl = -1;
-
+		s_ctrl->streamon_count = 0;
+		s_ctrl->streamoff_count = 0;
 		s_ctrl->sensor_state = CAM_SENSOR_INIT;
 		CAM_INFO(CAM_SENSOR,
 			"CAM_RELEASE_DEV Success, sensor_id:0x%x,sensor_slave_addr:0x%x",
@@ -1076,6 +1081,7 @@ int cam_sensor_publish_dev_info(struct cam_req_mgr_device_info *info)
 	strlcpy(info->name, CAM_SENSOR_NAME, sizeof(info->name));
 	info->p_delay = 2;
 
+	//Note: Only for face unlock usecase
 	if (g_operation_mode == 0x8006)
 		info->p_delay = 0;
 
