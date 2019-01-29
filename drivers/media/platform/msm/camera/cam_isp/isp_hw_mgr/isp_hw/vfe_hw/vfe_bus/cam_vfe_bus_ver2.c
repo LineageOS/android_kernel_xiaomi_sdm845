@@ -1,4 +1,5 @@
 /* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2983,7 +2984,7 @@ static int cam_vfe_bus_process_cmd(
 	case CAM_ISP_HW_CMD_STOP_BUS_ERR_IRQ:
 		bus_priv = (struct cam_vfe_bus_ver2_priv  *) priv;
 		if (bus_priv->error_irq_handle) {
-			CAM_DBG(CAM_ISP, "Mask off bus error irq handler");
+			CAM_INFO(CAM_ISP, "Mask off bus error irq handler");
 			rc = cam_irq_controller_unsubscribe_irq(
 				bus_priv->common_data.bus_irq_controller,
 				bus_priv->error_irq_handle);
