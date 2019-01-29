@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -262,7 +263,7 @@ static int cam_vfe_top_clock_update(
 	}
 
 	if (hw_info->hw_state != CAM_HW_STATE_POWER_UP) {
-		CAM_DBG(CAM_ISP,
+		CAM_ERR_RATE_LIMIT(CAM_ISP,
 			"VFE:%d Not ready to set clocks yet :%d",
 			res->hw_intf->hw_idx,
 			hw_info->hw_state);
