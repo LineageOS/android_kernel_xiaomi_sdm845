@@ -405,10 +405,8 @@ int32_t cam_csiphy_config_dev(struct csiphy_device *csiphy_dev)
 				CAM_DBG(CAM_CSIPHY, "Do Nothing");
 			break;
 			}
-			if (reg_array[lane_pos][i].delay > 0) {
-				usleep_range(reg_array[lane_pos][i].delay*1000,
-					reg_array[lane_pos][i].delay*1000 + 10);
-			}
+			usleep_range(reg_array[lane_pos][i].delay*1000,
+				reg_array[lane_pos][i].delay*1000 + 1000);
 		}
 		lane_mask >>= 1;
 		lane_pos++;
@@ -634,7 +632,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 		int32_t offset, rc = 0;
 		struct cam_start_stop_dev_cmd config;
 
-		rc = copy_from_user(&config, u64_to_user_ptr(cmd->handle),
+		rc = copy_from_user(&config, (void __user *)cmd->handle,
 					sizeof(config));
 		if (rc < 0) {
 			CAM_ERR(CAM_CSIPHY, "Failed copying from User");
@@ -758,7 +756,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 		struct cam_start_stop_dev_cmd config;
 		int32_t offset;
 
-		rc = copy_from_user(&config, u64_to_user_ptr(cmd->handle),
+		rc = copy_from_user(&config, (void __user *)cmd->handle,
 			sizeof(config));
 		if (rc < 0) {
 			CAM_ERR(CAM_CSIPHY, "Failed copying from User");
@@ -836,7 +834,7 @@ int32_t cam_csiphy_core_cfg(void *phy_dev,
 		rc = -EINVAL;
 		goto release_mutex;
 	}
-
+	CAM_DBG(CAM_CSIPHY, "Dev ref Cnt: %d",csiphy_dev->start_dev_count);
 release_mutex:
 	mutex_unlock(&csiphy_dev->mutex);
 

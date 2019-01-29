@@ -600,15 +600,8 @@ int cam_isp_add_io_buffers(
 				io_addr[plane_id] +=
 						io_cfg[i].offsets[plane_id];
 				CAM_DBG(CAM_ISP,
-					"get io_addr for plane %d: 0x%llx, mem_hdl=0x%x",
-					plane_id, io_addr[plane_id],
-					io_cfg[i].mem_handle[plane_id]);
-
-				CAM_DBG(CAM_ISP,
-					"mmu_hdl=0x%x, size=%d, end=0x%x",
-					mmu_hdl, (int)size,
-					io_addr[plane_id]+size);
-
+					"get io_addr for plane %d: 0x%llx",
+					plane_id, io_addr[plane_id]);
 			}
 			if (!plane_id) {
 				CAM_ERR(CAM_ISP, "No valid planes for res%d",

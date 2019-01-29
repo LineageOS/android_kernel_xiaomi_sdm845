@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -273,7 +273,7 @@ int cam_irq_controller_subscribe_irq(void *irq_controller,
 		(!irq_bh_api->bottom_half_enqueue_func ||
 		!irq_bh_api->get_bh_payload_func ||
 		!irq_bh_api->put_bh_payload_func)) {
-		CAM_ERR(CAM_IRQ_CTRL,
+		CAM_ERR(CAM_ISP,
 			"Invalid: enqueue_func=%pK get_bh=%pK put_bh=%pK",
 			irq_bh_api->bottom_half_enqueue_func,
 			irq_bh_api->get_bh_payload_func,
@@ -637,7 +637,7 @@ static void cam_irq_controller_th_processing(
 			continue;
 		}
 
-		if (evt_handler->bottom_half_handler) {
+		if (!rc && evt_handler->bottom_half_handler) {
 			CAM_DBG(CAM_IRQ_CTRL, "Enqueuing bottom half for %s",
 				controller->name);
 			irq_bh_api->bottom_half_enqueue_func(

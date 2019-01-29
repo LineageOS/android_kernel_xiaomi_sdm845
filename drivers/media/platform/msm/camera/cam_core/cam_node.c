@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -33,7 +34,8 @@ static void cam_node_print_ctx_state(
 
 		spin_lock(&ctx->lock);
 		CAM_INFO(CAM_CORE,
-			"[%s][%d] : state=%d, refcount=%d, active_req_list=%d, pending_req_list=%d, wait_req_list=%d, free_req_list=%d",
+			"[%s][%d] : state=%d, refcount=%d, active_req_list=%d, "
+			"pending_req_list=%d, wait_req_list=%d, free_req_list=%d",
 			ctx->dev_name ? ctx->dev_name : "null",
 			i, ctx->state,
 			atomic_read(&(ctx->refcount.refcount)),
@@ -157,8 +159,11 @@ static int __cam_node_handle_acquire_dev(struct cam_node *node,
 		CAM_ERR(CAM_CORE, "No free ctx in free list node %s",
 			node->name);
 		cam_node_print_ctx_state(node);
+
+		// Recycle oldest ctx in acquired list
 		cam_node_recycle_ctxt_from_acquired_list(node);
 
+		// Try again to get a ctx from free list
 		ctx = cam_node_get_ctxt_from_free_list(node);
 		if (!ctx) {
 			rc = -ENOMEM;
@@ -175,7 +180,7 @@ static int __cam_node_handle_acquire_dev(struct cam_node *node,
 
 	ctx->ctx_released = false;
 
-	CAM_DBG(CAM_CORE, "[%s] Acquire ctx_id %d",
+	CAM_INFO(CAM_CORE, "[%s] Acquire ctx_id %d",
 		node->name, ctx->ctx_id);
 
 	return 0;
@@ -363,7 +368,7 @@ destroy_dev_hdl:
 		CAM_ERR(CAM_CORE, "destroy device hdl failed for node %s",
 			node->name);
 
-	CAM_DBG(CAM_CORE, "[%s] Release ctx_id=%d, refcount=%d",
+	CAM_INFO(CAM_CORE, "[%s] Release ctx_id=%d, refcount=%d",
 		node->name, ctx->ctx_id,
 		atomic_read(&(ctx->refcount.refcount)));
 
@@ -489,9 +494,6 @@ int cam_node_shutdown(struct cam_node *node)
 
 	for (i = 0; i < node->ctx_size; i++) {
 		if (node->ctx_list[i].dev_hdl > 0) {
-			CAM_DBG(CAM_CORE,
-				"Node [%s] invoking shutdown on context [%d]",
-				node->name, i);
 			rc = cam_context_shutdown(&(node->ctx_list[i]));
 			if (rc)
 				continue;

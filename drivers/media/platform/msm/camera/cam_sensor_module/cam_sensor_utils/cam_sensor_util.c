@@ -89,15 +89,19 @@ int32_t cam_sensor_handle_delay(
 	}
 
 	if (offset > 0) {
-		i2c_list =
-			list_entry(list_ptr, struct i2c_settings_list, list);
+ 		i2c_list =
+ 			list_entry(list_ptr, struct i2c_settings_list, list);
 		CAM_ERR(CAM_SENSOR, "generic_op_code: %d delay %d", generic_op_code, cmd_uncond_wait->delay);
-		if (generic_op_code ==
+ 		if (generic_op_code ==
 			CAMERA_SENSOR_WAIT_OP_HW_UCND && cmd_uncond_wait->delay < 1000)
-			i2c_list->i2c_settings.reg_setting[offset - 1].delay =
-				cmd_uncond_wait->delay;
-		else
-			i2c_list->i2c_settings.delay = (cmd_uncond_wait->delay + 500) / 1000;
+ 			i2c_list->i2c_settings.reg_setting[offset - 1].delay =
+ 				cmd_uncond_wait->delay;
+ 		else
+		{
+			// redirect HW UCND wait to SW UCND wait if it is bigger than 1ms
+ 			i2c_list->i2c_settings.delay =
+				(cmd_uncond_wait->delay + 500) / 1000;
+		}
 		(*cmd_buf) +=
 			sizeof(
 			struct cam_cmd_unconditional_wait) / sizeof(uint32_t);
@@ -105,7 +109,7 @@ int32_t cam_sensor_handle_delay(
 			sizeof(
 			struct cam_cmd_unconditional_wait);
 	} else {
-		CAM_ERR(CAM_SENSOR, "Delay Rxed Before any buffer: %d", offset);
+		CAM_ERR(CAM_SENSOR, "cam_sensor_handle_delay:Delay Rxed Before any buffer: %d", offset);
 		return -EINVAL;
 	}
 
@@ -800,7 +804,7 @@ int32_t cam_sensor_update_power_settings(void *cmd_buf,
 			tot_size = tot_size + sizeof(struct cam_cmd_power);
 
 			if (pwr_cmd->count == 0)
-				CAM_WARN(CAM_SENSOR, "pwr_up_size is zero");
+				CAM_WARN(CAM_SENSOR, "Un expected Command");
 
 			for (i = 0; i < pwr_cmd->count; i++, pwr_up++) {
 				power_info->power_setting[pwr_up].seq_type =
@@ -890,7 +894,7 @@ int32_t cam_sensor_update_power_settings(void *cmd_buf,
 			power_info->power_down_setting_size += pwr_cmd->count;
 
 			if (pwr_cmd->count == 0)
-				CAM_ERR(CAM_SENSOR, "pwr_down size is zero");
+				CAM_ERR(CAM_SENSOR, "Invalid Command");
 
 			for (i = 0; i < pwr_cmd->count; i++, pwr_down++) {
 				pwr_settings =
@@ -1395,11 +1399,6 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 	for (index = 0; index < ctrl->power_setting_size; index++) {
 		CAM_DBG(CAM_SENSOR, "index: %d", index);
 		power_setting = &ctrl->power_setting[index];
-		if (!power_setting) {
-			CAM_ERR(CAM_SENSOR, "Invalid power up settings");
-			return -EINVAL;
-		}
-
 		CAM_DBG(CAM_SENSOR, "seq_type %d", power_setting->seq_type);
 
 		switch (power_setting->seq_type) {
@@ -1480,7 +1479,7 @@ int cam_sensor_core_power_up(struct cam_sensor_power_ctrl_t *ctrl,
 
 			rc = msm_cam_sensor_handle_reg_gpio(
 				power_setting->seq_type,
-				gpio_num_info, 1);
+				gpio_num_info, power_setting->config_val);
 			if (rc < 0) {
 				CAM_ERR(CAM_SENSOR,
 					"Error in handling VREG GPIO");
@@ -1631,8 +1630,8 @@ power_up_failed:
 
 	if (ctrl->cam_pinctrl_status) {
 		ret = pinctrl_select_state(
-			ctrl->pinctrl_info.pinctrl,
-			ctrl->pinctrl_info.gpio_state_suspend);
+				ctrl->pinctrl_info.pinctrl,
+				ctrl->pinctrl_info.gpio_state_suspend);
 		if (ret)
 			CAM_ERR(CAM_SENSOR, "cannot set pin to suspend state");
 		cam_res_mgr_shared_pinctrl_select_state(false);
@@ -1681,11 +1680,6 @@ static int cam_config_mclk_reg(struct cam_sensor_power_ctrl_t *ctrl,
 	num_vreg = soc_info->num_rgltr;
 
 	pd = &ctrl->power_down_setting[index];
-
-	if (!pd) {
-		CAM_ERR(CAM_SENSOR, "Invalid power down setting");
-		return -EINVAL;
-	}
 
 	for (j = 0; j < num_vreg; j++) {
 		if (!strcmp(soc_info->rgltr_name[j], "cam_clk")) {
