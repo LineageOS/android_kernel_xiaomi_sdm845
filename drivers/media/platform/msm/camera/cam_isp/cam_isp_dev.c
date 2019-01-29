@@ -56,47 +56,23 @@ static const struct of_device_id cam_isp_dt_match[] = {
 	{}
 };
 
-static int cam_isp_subdev_open(struct v4l2_subdev *sd,
+static int cam_isp_subdev_close(struct v4l2_subdev *sd,
 	struct v4l2_subdev_fh *fh)
 {
-	mutex_lock(&g_isp_dev.isp_mutex);
-	g_isp_dev.open_cnt++;
-	mutex_unlock(&g_isp_dev.isp_mutex);
+	struct cam_node *node = v4l2_get_subdevdata(sd);
+
+	if (!node) {
+		CAM_ERR(CAM_ISP, "Node ptr is NULL");
+		return -EINVAL;
+	}
+
+	cam_node_shutdown(node);
 
 	return 0;
 }
 
-static int cam_isp_subdev_close(struct v4l2_subdev *sd,
-	struct v4l2_subdev_fh *fh)
-{
-	int rc = 0;
-	struct cam_node *node = v4l2_get_subdevdata(sd);
-
-	mutex_lock(&g_isp_dev.isp_mutex);
-	if (g_isp_dev.open_cnt <= 0) {
-		CAM_DBG(CAM_ISP, "ISP subdev is already closed");
-		rc = -EINVAL;
-		goto end;
-	}
-
-	g_isp_dev.open_cnt--;
-	if (!node) {
-		CAM_ERR(CAM_ISP, "Node ptr is NULL");
-		rc = -EINVAL;
-		goto end;
-	}
-
-	if (g_isp_dev.open_cnt == 0)
-		cam_node_shutdown(node);
-
-end:
-	mutex_unlock(&g_isp_dev.isp_mutex);
-	return rc;
-}
-
 static const struct v4l2_subdev_internal_ops cam_isp_subdev_internal_ops = {
 	.close = cam_isp_subdev_close,
-	.open = cam_isp_subdev_open,
 };
 
 static int cam_isp_dev_remove(struct platform_device *pdev)
@@ -166,8 +142,6 @@ static int cam_isp_dev_probe(struct platform_device *pdev)
 
 	cam_smmu_set_client_page_fault_handler(iommu_hdl,
 		cam_isp_dev_iommu_fault_handler, node);
-
-	mutex_init(&g_isp_dev.isp_mutex);
 
 	CAM_INFO(CAM_ISP, "Camera ISP probe complete");
 
