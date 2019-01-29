@@ -573,7 +573,8 @@ static int32_t cam_actuator_power_down(struct cam_actuator_ctrl_t *a_ctrl)
 	}
 
 #ifdef CONFIG_USE_ROHM_BU64753
-	rc = cam_actuator_write_power_off_cmd(a_ctrl);
+	if (a_ctrl->io_master_info.cci_client->sid == ROHM_ACTUATOR_II2_ADDR)
+		rc = cam_actuator_write_power_off_cmd(a_ctrl);
 	if (rc) {
 		CAM_ERR(CAM_ACTUATOR, "eeprom driver write failed:%d", rc);
 	}

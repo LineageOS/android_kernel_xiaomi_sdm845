@@ -373,6 +373,7 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 	i2c_reg_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
 	i2c_reg_setting.size = total_bytes;
 	i2c_reg_setting.delay = 0;
+
 	fw_size = PAGE_ALIGN(sizeof(struct cam_sensor_i2c_reg_array) *
 		total_bytes) >> PAGE_SHIFT;
 	page = cma_alloc(dev_get_cma_area((o_ctrl->soc_info.dev)),
@@ -397,6 +398,8 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 		}
 		i2c_reg_setting.size = cnt;
 
+		while (camera_io_wait_normal_write())
+			schedule();
 		rc = camera_io_dev_write_continuous(&(o_ctrl->io_master_info),
 			&i2c_reg_setting, 1);
 		if (rc < 0) {
@@ -421,6 +424,7 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 	i2c_reg_setting.data_type = CAMERA_SENSOR_I2C_TYPE_BYTE;
 	i2c_reg_setting.size = total_bytes;
 	i2c_reg_setting.delay = 0;
+
 	fw_size = PAGE_ALIGN(sizeof(struct cam_sensor_i2c_reg_array) *
 		total_bytes) >> PAGE_SHIFT;
 	page = cma_alloc(dev_get_cma_area((o_ctrl->soc_info.dev)),
@@ -445,6 +449,8 @@ static int cam_ois_fw_download(struct cam_ois_ctrl_t *o_ctrl)
 		}
 		i2c_reg_setting.size = cnt;
 
+		while (camera_io_wait_normal_write())
+			schedule();
 		rc = camera_io_dev_write_continuous(&(o_ctrl->io_master_info),
 			&i2c_reg_setting, 1);
 		if (rc < 0)
