@@ -26,6 +26,8 @@
 extern uint8_t g_eeprom_mapdata[EEPROM_MAP_DATA_CNT];
 #endif
 
+//#define USE_BU64748 1
+
 int32_t cam_actuator_construct_default_power_setting(
 	struct cam_sensor_power_ctrl_t *power_info)
 {
@@ -175,7 +177,7 @@ static int cam_actuator_eeprom_data_write(
 		i++;
 	}
 
-
+	//1. reset ic
 	rc = cam_actuator_eeprom_drive_write(actuator_driver_init0_0, a_ctrl, CAMERA_SENSOR_I2C_TYPE_WORD);
 	if (rc < 0) {
 		CAM_ERR(CAM_ACTUATOR,
@@ -189,12 +191,11 @@ static int cam_actuator_eeprom_data_write(
 			"Failed in Applying i2c wrt reset ic NVL data");
 		return rc;
 	}
-
+	//1.1 sleep 1ms
 	msleep(1);
 
 	//2. read checksum data
-	rc = camera_io_dev_read_seq(&(a_ctrl->io_master_info), 0xF7, id_vcm,
-			CAMERA_SENSOR_I2C_TYPE_BYTE, CAMERA_SENSOR_I2C_TYPE_BYTE, 2);
+	rc = camera_io_dev_read_seq(&(a_ctrl->io_master_info), 0xF7, id_vcm, CAMERA_SENSOR_I2C_TYPE_BYTE, CAMERA_SENSOR_I2C_TYPE_BYTE, 2);
 	CAM_ERR(CAM_ACTUATOR, "check sum 0xF7 value [0x%x] id_vcm[0] = 0x%x, id_vcm[1] = 0x%x", (id_vcm[0] << 8) | id_vcm[1], id_vcm[0], id_vcm[1]);
 	if (rc < 0) {
 		CAM_ERR(CAM_ACTUATOR, "check sum value error");
@@ -202,10 +203,10 @@ static int cam_actuator_eeprom_data_write(
 
 	checksum = (id_vcm[0] << 8) | id_vcm[1];
 
-
+	//3. Start wiret 60 bytes data
 	if (checksum != 0x0004) {
 		CAM_ERR(CAM_ACTUATOR, "start ----- Applying i2c wrt settings");
-
+		//0x52, 0x8000
 		rc = cam_actuator_eeprom_drive_write(actuator_driver_init1, a_ctrl, CAMERA_SENSOR_I2C_TYPE_WORD);
 		if (rc < 0) {
 			CAM_ERR(CAM_ACTUATOR,
@@ -292,7 +293,7 @@ static int cam_actuator_eeprom_data_write(
 
 			}
 		}
-
+		//reset vcm
 		rc = cam_actuator_eeprom_drive_write(actuator_driver_init0_0, a_ctrl, CAMERA_SENSOR_I2C_TYPE_WORD);
 		if (rc < 0) {
 			CAM_ERR(CAM_ACTUATOR,
@@ -409,7 +410,7 @@ static int cam_actuator_fw_download(struct cam_actuator_ctrl_t *a_ctrl)
 	const struct firmware *fw = NULL;
 	const char *fw_name_prog = NULL;
 	struct device *dev = NULL;
-	struct cam_sensor_i2c_reg_setting write_setting;
+	struct cam_sensor_i2c_reg_setting write_setting;//i2c_reg_setting;
 	struct page *page = NULL;
 	uint8_t id[2] = {0};
 
@@ -431,7 +432,7 @@ static int cam_actuator_fw_download(struct cam_actuator_ctrl_t *a_ctrl)
 		CAM_ERR(CAM_ACTUATOR, "check version 0x825f value [0x%x] error", (id[0] << 8) | id[1]);
 	}
 
-	/* Load FW */
+/* Load FW */
 	fw_name_prog = FIRMWARE_NAME;
 	dev = &(a_ctrl->pdev->dev);
 	if (!dev) {
@@ -461,8 +462,8 @@ static int cam_actuator_fw_download(struct cam_actuator_ctrl_t *a_ctrl)
 
 	write_setting.reg_setting = (struct cam_sensor_i2c_reg_array *)(
 			page_address(page));
-
-
+	//initialize delay value
+	//otherwise CCI write will hang becase of a very long delay
 	write_setting.delay = 0;
 	for (i = 0, ptr = (uint8_t *)fw->data; i < total_bytes;) {
 		for (cnt = 0; cnt < ACTUATOR_TRANS_SIZE && i < total_bytes;
@@ -573,7 +574,9 @@ static int32_t cam_actuator_power_down(struct cam_actuator_ctrl_t *a_ctrl)
 	}
 
 #ifdef CONFIG_USE_ROHM_BU64753
-	rc = cam_actuator_write_power_off_cmd(a_ctrl);
+
+	if (a_ctrl->io_master_info.cci_client->sid == ROHM_ACTUATOR_II2_ADDR)
+		rc = cam_actuator_write_power_off_cmd(a_ctrl);
 	if (rc) {
 		CAM_ERR(CAM_ACTUATOR, "eeprom driver write failed:%d", rc);
 	}
@@ -986,7 +989,7 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 #endif
 
 #ifdef CONFIG_USE_BU64748
-
+			//for bu64748 hard code
 			if (a_ctrl->io_master_info.cci_client->sid == 0xEC/2)
 			{
 				rc = cam_actuator_fw_download(a_ctrl);
@@ -1000,7 +1003,7 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 		}
 
 #ifdef CONFIG_USE_BU64748
-
+		//for sunny imx363 hard code
 		CAM_ERR(CAM_ACTUATOR, "before init setting dac sid num %x ", a_ctrl->io_master_info.cci_client->sid);
 		if (a_ctrl->io_master_info.cci_client->sid == 0x18/2)
 		{

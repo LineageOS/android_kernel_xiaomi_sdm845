@@ -1463,6 +1463,8 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 			(fctrl->flash_state == CAM_FLASH_STATE_ACQUIRE)) {
 			CAM_WARN(CAM_FLASH,
 				"Rxed NOP packets without linking");
+			frm_offset = csl_packet->header.request_id %
+				MAX_PER_FRAME_ARRAY;
 			fctrl->per_frame[frm_offset].cmn_attr.is_settings_valid
 				= false;
 			return 0;
