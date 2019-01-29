@@ -1,4 +1,5 @@
 /* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1090,7 +1091,7 @@ get_addr_end:
 
 int cam_smmu_alloc_firmware(int32_t smmu_hdl,
 	dma_addr_t *iova,
-	uintptr_t *cpuva,
+	uint64_t *cpuva,
 	size_t *len)
 {
 	int rc;
@@ -1159,7 +1160,7 @@ int cam_smmu_alloc_firmware(int32_t smmu_hdl,
 	iommu_cb_set.cb_info[idx].is_fw_allocated = true;
 
 	*iova = iommu_cb_set.cb_info[idx].firmware_info.iova_start;
-	*cpuva = (uintptr_t)icp_fw.fw_kva;
+	*cpuva = (uint64_t)icp_fw.fw_kva;
 	*len = firmware_len;
 	mutex_unlock(&iommu_cb_set.cb_info[idx].lock);
 
@@ -3424,7 +3425,6 @@ static int cam_smmu_probe(struct platform_device *pdev)
 		rc = cam_populate_smmu_context_banks(dev, CAM_ARM_SMMU);
 		if (rc < 0) {
 			CAM_ERR(CAM_SMMU, "Error: populating context banks");
-			cam_smmu_release_cb(pdev);
 			return -ENOMEM;
 		}
 		return rc;

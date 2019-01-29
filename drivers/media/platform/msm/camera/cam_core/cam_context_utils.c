@@ -152,7 +152,6 @@ static int cam_context_apply_req_to_hw(struct cam_ctx_request *req,
 			ctx->dev_name, ctx->ctx_id, req->request_id);
 
 	cfg.ctxt_to_hw_map = ctx->ctxt_to_hw_map;
-	cfg.request_id = req->request_id;
 	cfg.hw_update_entries = req->hw_update_entries;
 	cfg.num_hw_update_entries = req->num_hw_update_entries;
 	cfg.out_map_entries = req->out_map_entries;
@@ -272,7 +271,7 @@ int32_t cam_context_prepare_dev_to_hw(struct cam_context *ctx,
 	int rc = 0;
 	struct cam_ctx_request *req = NULL;
 	struct cam_hw_prepare_update_args cfg;
-	uintptr_t packet_addr;
+	uint64_t packet_addr;
 	struct cam_packet *packet;
 	size_t len = 0;
 	int32_t i = 0, j = 0;
@@ -315,7 +314,8 @@ int32_t cam_context_prepare_dev_to_hw(struct cam_context *ctx,
 	/* for config dev, only memory handle is supported */
 	/* map packet from the memhandle */
 	rc = cam_mem_get_cpu_buf((int32_t) cmd->packet_handle,
-		&packet_addr, &len);
+		(uint64_t *) &packet_addr,
+		&len);
 	if (rc != 0) {
 		CAM_ERR(CAM_CTXT, "[%s][%d] Can not get packet address",
 			ctx->dev_name, ctx->ctx_id);
@@ -323,8 +323,7 @@ int32_t cam_context_prepare_dev_to_hw(struct cam_context *ctx,
 		goto free_req;
 	}
 
-	packet = (struct cam_packet *) ((uint8_t *)packet_addr +
-		(uint32_t)cmd->offset);
+	packet = (struct cam_packet *) (packet_addr + cmd->offset);
 
 	/* preprocess the configuration */
 	memset(&cfg, 0, sizeof(cfg));
@@ -507,7 +506,6 @@ free_hw:
 	release.ctxt_to_hw_map = ctx->ctxt_to_hw_map;
 	ctx->hw_mgr_intf->hw_release(ctx->hw_mgr_intf->hw_mgr_priv, &release);
 	ctx->ctxt_to_hw_map = NULL;
-	ctx->dev_hdl = -1;
 end:
 	return rc;
 }
@@ -521,8 +519,8 @@ int32_t cam_context_flush_ctx_to_hw(struct cam_context *ctx)
 	int rc = 0;
 	bool free_req;
 
-	CAM_DBG(CAM_CTXT, "[%s] E: NRT flush ctx", ctx->dev_name);
-	memset(&flush_args, 0, sizeof(flush_args));
+	CAM_DBG(CAM_CTXT, "[%s][%d] E: NRT flush ctx",
+		ctx->dev_name, ctx->ctx_id);
 
 	/*
 	 * flush pending requests, take the sync lock to synchronize with the
@@ -579,9 +577,10 @@ int32_t cam_context_flush_ctx_to_hw(struct cam_context *ctx)
 					CAM_SYNC_STATE_SIGNALED_ERROR);
 				if (rc == -EALREADY) {
 					CAM_ERR(CAM_CTXT,
-					"Req: %llu already signalled, sync_id:%d",
-					req->request_id,
-					req->out_map_entries[i].sync_id);
+						"Req: %llu already signalled, sync_id:%d",
+						req->request_id,
+						req->out_map_entries[i].
+						sync_id);
 					break;
 				}
 			}
@@ -683,13 +682,11 @@ int32_t cam_context_flush_req_to_hw(struct cam_context *ctx,
 	struct cam_ctx_request *req = NULL;
 	struct cam_hw_flush_args flush_args;
 	uint32_t i;
-	int32_t sync_id = 0;
 	int rc = 0;
 	bool free_req = false;
 
 	CAM_DBG(CAM_CTXT, "[%s] E: NRT flush req", ctx->dev_name);
 
-	memset(&flush_args, 0, sizeof(flush_args));
 	flush_args.num_req_pending = 0;
 	flush_args.num_req_active = 0;
 	mutex_lock(&ctx->sync_mutex);
@@ -756,20 +753,20 @@ int32_t cam_context_flush_req_to_hw(struct cam_context *ctx,
 		}
 
 		if (flush_args.num_req_pending || flush_args.num_req_active) {
-			for (i = 0; i < req->num_out_map_entries; i++) {
-				sync_id =
-					req->out_map_entries[i].sync_id;
-				if (sync_id != -1) {
-					rc = cam_sync_signal(sync_id,
+			for (i = 0; i < req->num_out_map_entries; i++)
+				if (req->out_map_entries[i].sync_id != -1) {
+					rc = cam_sync_signal(
+						req->out_map_entries[i].sync_id,
 						CAM_SYNC_STATE_SIGNALED_ERROR);
 					if (rc == -EALREADY) {
 						CAM_ERR(CAM_CTXT,
-						"Req: %llu already signalled, sync_id:%d",
-						req->request_id, sync_id);
+							"Req: %llu already signalled, sync_id:%d",
+							req->request_id,
+							req->out_map_entries[i].
+							sync_id);
 						break;
 					}
 				}
-			}
 			if (flush_args.num_req_active || free_req) {
 				req->ctx = NULL;
 				spin_lock(&ctx->lock);
