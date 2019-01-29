@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,7 +15,6 @@
 #include "cam_flash_dev.h"
 #include "cam_flash_soc.h"
 #include "cam_flash_core.h"
-#include "cam_common_util.h"
 
 static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 		void *arg, struct cam_flash_private_soc *soc_private)
@@ -27,12 +26,6 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 	if (!fctrl || !arg) {
 		CAM_ERR(CAM_FLASH, "fctrl/arg is NULL with arg:%pK fctrl%pK",
 			fctrl, arg);
-		return -EINVAL;
-	}
-
-	if (cmd->handle_type != CAM_HANDLE_USER_POINTER) {
-		CAM_ERR(CAM_FLASH, "Invalid handle type: %d",
-			cmd->handle_type);
 		return -EINVAL;
 	}
 
@@ -48,8 +41,6 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 			CAM_ERR(CAM_FLASH,
 				"Cannot apply Acquire dev: Prev state: %d",
 				fctrl->flash_state);
-			rc = -EINVAL;
-			goto release_mutex;
 		}
 
 		if (fctrl->bridge_intf.device_hdl != -1) {
@@ -58,8 +49,7 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 			goto release_mutex;
 		}
 
-		rc = copy_from_user(&flash_acq_dev,
-			u64_to_user_ptr(cmd->handle),
+		rc = copy_from_user(&flash_acq_dev, (void __user *)cmd->handle,
 			sizeof(flash_acq_dev));
 		if (rc) {
 			CAM_ERR(CAM_FLASH, "Failed Copying from User");
@@ -79,8 +69,7 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 		fctrl->bridge_intf.session_hdl =
 			flash_acq_dev.session_handle;
 
-		rc = copy_to_user(u64_to_user_ptr(cmd->handle),
-			&flash_acq_dev,
+		rc = copy_to_user((void __user *) cmd->handle, &flash_acq_dev,
 			sizeof(struct cam_sensor_acquire_dev));
 		if (rc) {
 			CAM_ERR(CAM_FLASH, "Failed Copy to User with rc = %d",
@@ -140,8 +129,8 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 			flash_cap.max_current_torch[i] =
 				soc_private->torch_max_current[i];
 
-		if (copy_to_user(u64_to_user_ptr(cmd->handle),
-			&flash_cap, sizeof(struct cam_flash_query_cap_info))) {
+		if (copy_to_user((void __user *) cmd->handle, &flash_cap,
+			sizeof(struct cam_flash_query_cap_info))) {
 			CAM_ERR(CAM_FLASH, "Failed Copy to User");
 			rc = -EFAULT;
 			goto release_mutex;
@@ -168,8 +157,6 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 			CAM_WARN(CAM_FLASH,
 				"Cannot apply Stop dev: Prev state is: %d",
 				fctrl->flash_state);
-			rc = -EINVAL;
-			goto release_mutex;
 		}
 
 		fctrl->func_tbl.flush_req(fctrl, FLUSH_ALL, 0);

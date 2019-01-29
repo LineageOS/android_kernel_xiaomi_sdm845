@@ -167,11 +167,11 @@ int cam_req_mgr_workq_enqueue_task(struct crm_workq_task *task,
 		&workq->task.process_head[task->priority]);
 
 	atomic_add(1, &workq->task.pending_cnt);
+	WORKQ_RELEASE_LOCK(workq, flags);
 	CAM_DBG(CAM_CRM, "enq task %pK pending_cnt %d",
 		task, atomic_read(&workq->task.pending_cnt));
 
 	queue_work(workq->job, &workq->work);
-	WORKQ_RELEASE_LOCK(workq, flags);
 end:
 	return rc;
 }
@@ -227,7 +227,7 @@ int cam_req_mgr_workq_create(char *name, int32_t num_tasks,
 				crm_workq->task.num_task,
 				GFP_KERNEL);
 		if (!crm_workq->task.pool) {
-			CAM_WARN(CAM_CRM, "Insufficient memory %zu",
+			CAM_WARN(CAM_CRM, "Insufficient memory %lu",
 				sizeof(struct crm_workq_task) *
 				crm_workq->task.num_task);
 			kfree(crm_workq);
@@ -261,8 +261,13 @@ void cam_req_mgr_workq_destroy(struct cam_req_mgr_core_workq **crm_workq)
 			WORKQ_RELEASE_LOCK(*crm_workq, flags);
 			cancel_work_sync(&(*crm_workq)->work);
 			destroy_workqueue(job);
-		} else
+		} else {
 			WORKQ_RELEASE_LOCK(*crm_workq, flags);
+		}
+
+		/* Destroy workq payload data */
+		kfree((*crm_workq)->task.pool[0].payload);
+		(*crm_workq)->task.pool[0].payload = NULL;
 		kfree((*crm_workq)->task.pool);
 		kfree(*crm_workq);
 		*crm_workq = NULL;

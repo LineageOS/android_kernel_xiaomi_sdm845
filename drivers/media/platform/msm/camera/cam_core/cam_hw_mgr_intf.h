@@ -13,9 +13,6 @@
 #ifndef _CAM_HW_MGR_INTF_H_
 #define _CAM_HW_MGR_INTF_H_
 
-#include <linux/time.h>
-#include <linux/types.h>
-
 /*
  * This file declares Constants, Enums, Structures and APIs to be used as
  * Interface between HW Manager and Context.
@@ -51,7 +48,7 @@ struct cam_hw_update_entry {
 	uint32_t           offset;
 	uint32_t           len;
 	uint32_t           flags;
-	uintptr_t          addr;
+	uint64_t           addr;
 };
 
 /**
@@ -96,7 +93,7 @@ struct cam_hw_acquire_args {
 	void                        *context_data;
 	cam_hw_event_cb_func         event_cb;
 	uint32_t                     num_acq;
-	uintptr_t                    acquire_info;
+	uint64_t                     acquire_info;
 	void                        *ctxt_to_hw_map;
 };
 
@@ -191,7 +188,6 @@ struct cam_hw_prepare_update_args {
  * @out_map_entries:       Out map info
  * @num_out_map_entries:   Number of out map entries
  * @priv:                  Private pointer
- * @request_id:            Request ID
  *
  */
 struct cam_hw_config_args {
@@ -201,8 +197,6 @@ struct cam_hw_config_args {
 	struct cam_hw_fence_map_entry  *out_map_entries;
 	uint32_t                        num_out_map_entries;
 	void                           *priv;
-	uint64_t                        request_id;
-	bool                            init_packet;
 };
 
 /**
