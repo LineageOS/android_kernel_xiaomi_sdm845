@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -43,7 +44,6 @@ struct cam_vfe_mux_camif_data {
 	uint32_t                           last_line;
 	bool                               enable_sof_irq_debug;
 	uint32_t                           irq_debug_cnt;
-	uint32_t                           camif_debug;
 };
 
 static int cam_vfe_camif_validate_pix_pattern(uint32_t pattern)
@@ -209,11 +209,6 @@ static int cam_vfe_camif_resource_start(
 {
 	struct cam_vfe_mux_camif_data       *rsrc_data;
 	uint32_t                             val = 0;
-	uint32_t                             epoch0_irq_mask;
-	uint32_t                             epoch1_irq_mask;
-	uint32_t                             computed_epoch_line_cfg;
-	uint32_t                             camera_hw_version = 0;
-	int                                  rc = 0;
 
 	if (!camif_res) {
 		CAM_ERR(CAM_ISP, "Error! Invalid input arguments");
@@ -253,50 +248,9 @@ static int cam_vfe_camif_resource_start(
 		rsrc_data->common_reg->module_ctrl[
 		CAM_VFE_TOP_VER2_MODULE_STATS]->cgc_ovd);
 
-	/* get the HW version */
-	rc = cam_cpas_get_cpas_hw_version(&camera_hw_version);
-
-	if (rc) {
-		CAM_ERR(CAM_ISP, "Couldn't find HW version. rc: %d", rc);
-		return rc;
-	}
-
-	/* epoch config */
-	switch (camera_hw_version) {
-	case CAM_CPAS_TITAN_175_V101:
-	case CAM_CPAS_TITAN_175_V100:
-		epoch0_irq_mask = ((rsrc_data->last_line -
-				rsrc_data->first_line) / 2) +
-				rsrc_data->first_line;
-		epoch1_irq_mask = rsrc_data->reg_data->epoch_line_cfg &
-				0xFFFF;
-		computed_epoch_line_cfg = (epoch0_irq_mask << 16) |
-				epoch1_irq_mask;
-		cam_io_w_mb(computed_epoch_line_cfg,
-				rsrc_data->mem_base +
-				rsrc_data->camif_reg->epoch_irq);
-		CAM_DBG(CAM_ISP, "first_line: %u\n"
-				"last_line: %u\n"
-				"epoch_line_cfg: 0x%x",
-				rsrc_data->first_line,
-				rsrc_data->last_line,
-				computed_epoch_line_cfg);
-		break;
-	case CAM_CPAS_TITAN_170_V100:
-	case CAM_CPAS_TITAN_170_V110:
-	case CAM_CPAS_TITAN_170_V120:
-		cam_io_w_mb(rsrc_data->reg_data->epoch_line_cfg,
-				rsrc_data->mem_base +
-				rsrc_data->camif_reg->epoch_irq);
-		break;
-	default:
-		cam_io_w_mb(rsrc_data->reg_data->epoch_line_cfg,
-				rsrc_data->mem_base +
-				rsrc_data->camif_reg->epoch_irq);
-		CAM_WARN(CAM_ISP, "Hardware version not proper: 0x%x",
-				camera_hw_version);
-		break;
-	}
+	/* epoch config with 20 line */
+	cam_io_w_mb(rsrc_data->reg_data->epoch_line_cfg,
+		rsrc_data->mem_base + rsrc_data->camif_reg->epoch_irq);
 
 	camif_res->res_state = CAM_ISP_RESOURCE_STATE_STREAMING;
 
@@ -309,15 +263,6 @@ static int cam_vfe_camif_resource_start(
 	/* disable sof irq debug flag */
 	rsrc_data->enable_sof_irq_debug = false;
 	rsrc_data->irq_debug_cnt = 0;
-
-	if (rsrc_data->camif_debug &
-		CAMIF_DEBUG_ENABLE_SENSOR_DIAG_STATUS) {
-		val = cam_io_r_mb(rsrc_data->mem_base +
-			rsrc_data->camif_reg->vfe_diag_config);
-		val |= rsrc_data->reg_data->enable_diagnostic_hw;
-		cam_io_w_mb(val, rsrc_data->mem_base +
-			rsrc_data->camif_reg->vfe_diag_config);
-	}
 
 	CAM_DBG(CAM_ISP, "Start Camif IFE %d Done", camif_res->hw_intf->hw_idx);
 	return 0;
@@ -410,14 +355,6 @@ static int cam_vfe_camif_resource_stop(
 	if (camif_res->res_state == CAM_ISP_RESOURCE_STATE_STREAMING)
 		camif_res->res_state = CAM_ISP_RESOURCE_STATE_RESERVED;
 
-	val = cam_io_r_mb(camif_priv->mem_base +
-			camif_priv->camif_reg->vfe_diag_config);
-	if (val & camif_priv->reg_data->enable_diagnostic_hw) {
-		val &= ~camif_priv->reg_data->enable_diagnostic_hw;
-		cam_io_w_mb(val, camif_priv->mem_base +
-			camif_priv->camif_reg->vfe_diag_config);
-	}
-
 	return rc;
 }
 
@@ -442,7 +379,6 @@ static int cam_vfe_camif_process_cmd(struct cam_isp_resource_node *rsrc_node,
 	uint32_t cmd_type, void *cmd_args, uint32_t arg_size)
 {
 	int rc = -EINVAL;
-	struct cam_vfe_mux_camif_data *camif_priv = NULL;
 
 	if (!rsrc_node || !cmd_args) {
 		CAM_ERR(CAM_ISP, "Invalid input arguments");
@@ -459,11 +395,6 @@ static int cam_vfe_camif_process_cmd(struct cam_isp_resource_node *rsrc_node,
 		break;
 	case CAM_ISP_HW_CMD_SOF_IRQ_DEBUG:
 		rc = cam_vfe_camif_sof_irq_debug(rsrc_node, cmd_args);
-		break;
-	case CAM_ISP_HW_CMD_SET_CAMIF_DEBUG:
-		camif_priv =
-			(struct cam_vfe_mux_camif_data *)rsrc_node->res_priv;
-		camif_priv->camif_debug = *((uint32_t *)cmd_args);
 		break;
 	default:
 		CAM_ERR(CAM_ISP,
@@ -489,7 +420,6 @@ static int cam_vfe_camif_handle_irq_bottom_half(void *handler_priv,
 	struct cam_vfe_top_irq_evt_payload   *payload;
 	uint32_t                              irq_status0;
 	uint32_t                              irq_status1;
-	uint32_t                              val;
 
 	if (!handler_priv || !evt_payload_priv) {
 		CAM_ERR(CAM_ISP, "Invalid params");
@@ -569,21 +499,14 @@ static int cam_vfe_camif_handle_irq_bottom_half(void *handler_priv,
 				camif_priv->reg_data->error_irq_mask1) {
 			CAM_DBG(CAM_ISP, "Received ERROR\n");
 			ret = CAM_VFE_IRQ_STATUS_OVERFLOW;
-			cam_vfe_camif_reg_dump(camif_node);
 			payload->irq_reg_val[CAM_IFE_IRQ_CAMIF_REG_STATUS0] &=
 				~(camif_priv->reg_data->error_irq_mask0);
 			payload->irq_reg_val[CAM_IFE_IRQ_CAMIF_REG_STATUS1] &=
 				~(camif_priv->reg_data->error_irq_mask1);
 			cam_vfe_put_evt_payload(payload->core_info, &payload);
+			cam_vfe_camif_reg_dump(camif_node);
 		}
 
-		if (camif_priv->camif_debug &
-			CAMIF_DEBUG_ENABLE_SENSOR_DIAG_STATUS) {
-			val = cam_io_r(camif_priv->mem_base +
-				camif_priv->camif_reg->vfe_diag_sensor_status);
-			CAM_DBG(CAM_ISP, "VFE_DIAG_SENSOR_STATUS: 0x%x",
-				camif_priv->mem_base, val);
-		}
 		break;
 	default:
 		break;
