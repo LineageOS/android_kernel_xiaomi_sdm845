@@ -1,4 +1,5 @@
 /* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -3424,7 +3425,6 @@ static int cam_smmu_probe(struct platform_device *pdev)
 		rc = cam_populate_smmu_context_banks(dev, CAM_ARM_SMMU);
 		if (rc < 0) {
 			CAM_ERR(CAM_SMMU, "Error: populating context banks");
-			cam_smmu_release_cb(pdev);
 			return -ENOMEM;
 		}
 		return rc;
