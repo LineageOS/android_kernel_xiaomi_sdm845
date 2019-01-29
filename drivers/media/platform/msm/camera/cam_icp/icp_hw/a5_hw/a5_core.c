@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -167,7 +167,7 @@ static int32_t cam_icp_program_fw(const uint8_t *elf,
 		if (prg_hdr->p_filesz != 0) {
 			src = (u8 *)((u8 *)elf + prg_hdr->p_offset);
 			dest = (u8 *)(((u8 *)core_info->fw_kva_addr) +
-				prg_hdr->p_vaddr);
+						prg_hdr->p_vaddr);
 
 			memcpy_toio(dest, src, prg_hdr->p_filesz);
 		}
@@ -207,38 +207,37 @@ static int32_t cam_a5_download_fw(void *device_priv)
 
 	if (!core_info->fw_elf) {
 		CAM_ERR(CAM_ICP, "Invalid elf size");
-		rc = -EINVAL;
-		goto fw_download_failed;
+		return -EINVAL;
 	}
 
 	fw_start = core_info->fw_elf->data;
 	rc = cam_icp_validate_fw(fw_start);
 	if (rc) {
 		CAM_ERR(CAM_ICP, "fw elf validation failed");
-		goto fw_download_failed;
+		return -EINVAL;
 	}
 
 	rc = cam_icp_get_fw_size(fw_start, &fw_size);
 	if (rc) {
 		CAM_ERR(CAM_ICP, "unable to get fw size");
-		goto fw_download_failed;
+		return rc;
 	}
 
 	if (core_info->fw_buf_len < fw_size) {
 		CAM_ERR(CAM_ICP, "mismatch in fw size: %u %llu",
 			fw_size, core_info->fw_buf_len);
-		rc = -EINVAL;
-		goto fw_download_failed;
+		goto fw_alloc_failed;
 	}
 
 	rc = cam_icp_program_fw(fw_start, core_info);
 	if (rc) {
 		CAM_ERR(CAM_ICP, "fw program is failed");
-		goto fw_download_failed;
+		goto fw_program_failed;
 	}
 
-fw_download_failed:
-	release_firmware(core_info->fw_elf);
+	return 0;
+fw_program_failed:
+fw_alloc_failed:
 	return rc;
 }
 
@@ -354,11 +353,9 @@ irqreturn_t cam_a5_irq(int irq_num, void *data)
 		CAM_ERR_RATE_LIMIT(CAM_ICP, "watch dog interrupt from A5");
 	}
 
-	spin_lock(&a5_dev->hw_lock);
 	if (core_info->irq_cb.icp_hw_mgr_cb)
 		core_info->irq_cb.icp_hw_mgr_cb(irq_status,
 					core_info->irq_cb.data);
-	spin_unlock(&a5_dev->hw_lock);
 
 	return IRQ_HANDLED;
 }
@@ -371,7 +368,6 @@ int cam_a5_process_cmd(void *device_priv, uint32_t cmd_type,
 	struct cam_a5_device_core_info *core_info = NULL;
 	struct cam_a5_device_hw_info *hw_info = NULL;
 	struct a5_soc_info *a5_soc = NULL;
-	unsigned long flags;
 	int rc = 0;
 
 	if (!device_priv) {
@@ -391,6 +387,7 @@ int cam_a5_process_cmd(void *device_priv, uint32_t cmd_type,
 	switch (cmd_type) {
 	case CAM_ICP_A5_CMD_FW_DOWNLOAD:
 		rc = cam_a5_download_fw(device_priv);
+
 		break;
 	case CAM_ICP_A5_CMD_SET_FW_BUF: {
 		struct cam_icp_a5_set_fw_buf_info *fw_buf_info = cmd_args;
@@ -417,10 +414,8 @@ int cam_a5_process_cmd(void *device_priv, uint32_t cmd_type,
 			return -EINVAL;
 		}
 
-		spin_lock_irqsave(&a5_dev->hw_lock, flags);
 		core_info->irq_cb.icp_hw_mgr_cb = irq_cb->icp_hw_mgr_cb;
 		core_info->irq_cb.data = irq_cb->data;
-		spin_unlock_irqrestore(&a5_dev->hw_lock, flags);
 		break;
 	}
 
