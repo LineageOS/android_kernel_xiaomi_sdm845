@@ -190,44 +190,43 @@ static void cam_cci_dump_registers(struct cci_device *cci_dev,
 	uint32_t read_val = 0;
 	uint32_t i = 0;
 	uint32_t reg_offset = 0;
-	void __iomem *base = cci_dev->soc_info.reg_map[0].mem_base;
 
 	/* CCI Top Registers */
-	CAM_INFO(CAM_CCI, "****CCI TOP Registers ****");
+	CAM_DBG(CAM_CCI, "****CCI TOP Registers ****");
 	for (i = 0; i < DEBUG_TOP_REG_COUNT; i++) {
 		reg_offset = DEBUG_TOP_REG_START + i * 4;
-		read_val = cam_io_r_mb(base + reg_offset);
-		CAM_INFO(CAM_CCI, "offset = 0x%X value = 0x%X",
+		read_val = cam_io_r_mb(cci_dev->base + reg_offset);
+		CAM_DBG(CAM_CCI, "offset = 0x%X value = 0x%X",
 			reg_offset, read_val);
 	}
 
 	/* CCI Master registers */
-	CAM_INFO(CAM_CCI, "****CCI MASTER %d Registers ****",
+	CAM_DBG(CAM_CCI, "****CCI MASTER %d Registers ****",
 		master);
 	for (i = 0; i < DEBUG_MASTER_REG_COUNT; i++) {
 		reg_offset = DEBUG_MASTER_REG_START + master*0x100 + i * 4;
-		read_val = cam_io_r_mb(base + reg_offset);
-		CAM_INFO(CAM_CCI, "offset = 0x%X value = 0x%X",
+		read_val = cam_io_r_mb(cci_dev->base + reg_offset);
+		CAM_DBG(CAM_CCI, "offset = 0x%X value = 0x%X",
 			reg_offset, read_val);
 	}
 
 	/* CCI Master Queue registers */
-	CAM_INFO(CAM_CCI, " **** CCI MASTER%d QUEUE%d Registers ****",
+	CAM_DBG(CAM_CCI, " **** CCI MASTER%d QUEUE%d Registers ****",
 		master, queue);
 	for (i = 0; i < DEBUG_MASTER_QUEUE_REG_COUNT; i++) {
 		reg_offset = DEBUG_MASTER_QUEUE_REG_START +  master*0x200 +
 			queue*0x100 + i * 4;
-		read_val = cam_io_r_mb(base + reg_offset);
-		CAM_INFO(CAM_CCI, "offset = 0x%X value = 0x%X",
+		read_val = cam_io_r_mb(cci_dev->base + reg_offset);
+		CAM_DBG(CAM_CCI, "offset = 0x%X value = 0x%X",
 			reg_offset, read_val);
 	}
 
 	/* CCI Interrupt registers */
-	CAM_INFO(CAM_CCI, " ****CCI Interrupt Registers ****");
+	CAM_DBG(CAM_CCI, " ****CCI Interrupt Registers ****");
 	for (i = 0; i < DEBUG_INTR_REG_COUNT; i++) {
 		reg_offset = DEBUG_INTR_REG_START + i * 4;
-		read_val = cam_io_r_mb(base + reg_offset);
-		CAM_INFO(CAM_CCI, "offset = 0x%X value = 0x%X",
+		read_val = cam_io_r_mb(cci_dev->base + reg_offset);
+		CAM_DBG(CAM_CCI, "offset = 0x%X value = 0x%X",
 			reg_offset, read_val);
 	}
 }
@@ -471,15 +470,11 @@ static int32_t cam_cci_calc_cmd_len(struct cci_device *cci_dev,
 		for (i = 0; i < pack_max_len;) {
 			if (cmd->delay || ((cmd - i2c_cmd) >= (cmd_size - 1)))
 				break;
-			if (cmd->reg_addr + 1 ==
+			/*if (cmd->reg_addr + 1 ==
 				(cmd+1)->reg_addr) {
 				len += data_len;
-				if (len > cci_dev->payload_size) {
-					len = len - data_len;
-					break;
-				}
 				(*pack)++;
-			} else {
+			}*/ else {
 				break;
 			}
 			i += data_len;
@@ -1519,14 +1514,14 @@ static int32_t cam_cci_i2c_set_sync_prms(struct v4l2_subdev *sd,
 	return rc;
 }
 
-static int32_t cam_cci_release(struct v4l2_subdev *sd)
+static int32_t cam_cci_release(struct v4l2_subdev *sd, struct cam_cci_ctrl *c_ctrl)
 {
 	uint8_t rc = 0;
 	struct cci_device *cci_dev;
 
 	cci_dev = v4l2_get_subdevdata(sd);
 
-	rc = cam_cci_soc_release(cci_dev);
+	rc = cam_cci_soc_release(cci_dev, c_ctrl);
 	if (rc < 0) {
 		CAM_ERR(CAM_CCI, "Failed in releasing the cci: %d", rc);
 		return rc;
@@ -1542,7 +1537,7 @@ static int32_t cam_cci_write(struct v4l2_subdev *sd,
 	struct cci_device *cci_dev;
 	enum cci_i2c_master_t master;
 	struct cam_cci_master_info *cci_master_info;
-	uint32_t i;
+	/*uint32_t i;*/
 
 	cci_dev = v4l2_get_subdevdata(sd);
 	if (!cci_dev || !c_ctrl) {
@@ -1576,14 +1571,14 @@ static int32_t cam_cci_write(struct v4l2_subdev *sd,
 	case MSM_CCI_I2C_WRITE:
 	case MSM_CCI_I2C_WRITE_SEQ:
 	case MSM_CCI_I2C_WRITE_BURST:
-		for (i = 0; i < NUM_QUEUES; i++) {
+		/* for (i = 0; i < NUM_QUEUES; i++) {
 			if (mutex_trylock(&cci_master_info->mutex_q[i])) {
 				rc = cam_cci_i2c_write(sd, c_ctrl, i,
 					MSM_SYNC_DISABLE);
 				mutex_unlock(&cci_master_info->mutex_q[i]);
 				return rc;
 			}
-		}
+		} */
 		mutex_lock(&cci_master_info->mutex_q[PRIORITY_QUEUE]);
 		rc = cam_cci_i2c_write(sd, c_ctrl,
 			PRIORITY_QUEUE, MSM_SYNC_DISABLE);
@@ -1611,7 +1606,7 @@ int32_t cam_cci_core_cfg(struct v4l2_subdev *sd,
 		rc = cam_cci_init(sd, cci_ctrl);
 		break;
 	case MSM_CCI_RELEASE:
-		rc = cam_cci_release(sd);
+		rc = cam_cci_release(sd, cci_ctrl);
 		break;
 	case MSM_CCI_I2C_READ:
 		rc = cam_cci_read_bytes(sd, cci_ctrl);
