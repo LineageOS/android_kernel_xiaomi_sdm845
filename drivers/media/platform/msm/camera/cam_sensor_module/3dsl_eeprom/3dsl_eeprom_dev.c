@@ -115,7 +115,7 @@ static int sl_eeprom_init_subdev(struct sl_eeprom_ctrl_t *e_ctrl)
 		CAM_ERR(CAM_SL_EEPROM,  "Failed to allocate chrdev region\n");
 		rc = -EINVAL;
 	}
-	e_ctrl->dev_info.chr_dev = device_create(e_ctrl->dev_info.chr_class, NULL,
+	e_ctrl->dev_info.chr_dev= device_create(e_ctrl->dev_info.chr_class, NULL,
 					e_ctrl->dev_info.dev_num, e_ctrl, CAM_SL_EEPROM_NAME);
 	if (IS_ERR(e_ctrl->dev_info.chr_dev)) {
 		CAM_ERR(CAM_SL_EEPROM, "Failed to create char device\n");
