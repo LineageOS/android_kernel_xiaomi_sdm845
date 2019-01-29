@@ -707,24 +707,16 @@ static int __cam_isp_ctx_reg_upd_in_sof(struct cam_isp_context *ctx_isp,
 	 * This is for the first update. The initial setting will
 	 * cause the reg_upd in the first frame.
 	 */
-	if (!list_empty(&ctx->pending_req_list)) {
-		req = list_first_entry(&ctx->pending_req_list,
+	if (!list_empty(&ctx->wait_req_list)) {
+		req = list_first_entry(&ctx->wait_req_list,
 			struct cam_ctx_request, list);
 		list_del_init(&req->list);
 		req_isp = (struct cam_isp_ctx_req *) req->req_priv;
-		if (req_isp->num_fence_map_out == req_isp->num_acked) {
+		if (req_isp->num_fence_map_out == req_isp->num_acked)
 			list_add_tail(&req->list, &ctx->free_req_list);
-		} else {
-			/* need to handle the buf done */
-			list_add_tail(&req->list, &ctx->active_req_list);
-			ctx_isp->active_req_cnt++;
-			CAM_DBG(CAM_REQ,
-				"move request %lld to active list(cnt = %d)",
-				 req->request_id,
-				ctx_isp->active_req_cnt);
-			ctx_isp->substate_activated =
-				CAM_ISP_CTX_ACTIVATED_EPOCH;
-		}
+		else
+			CAM_ERR(CAM_ISP,
+				"receive rup in unexpected state");
 	}
 	if (req != NULL) {
 		__cam_isp_ctx_update_state_monitor_array(ctx_isp,
@@ -743,12 +735,12 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 	struct cam_context        *ctx = ctx_isp->base;
 	uint64_t  request_id = 0;
 
-	if (list_empty(&ctx->wait_req_list)) {
+	if (list_empty(&ctx->pending_req_list)) {
 		/*
-		 * If no wait req in epoch, this is an error case.
+		 * If no pending req in epoch, this is an error case.
 		 * The recovery is to go back to sof state
 		 */
-		CAM_ERR(CAM_ISP, "No pending request");
+		CAM_ERR(CAM_ISP, "No wait request");
 		ctx_isp->substate_activated = CAM_ISP_CTX_ACTIVATED_SOF;
 
 		/* Send SOF event as empty frame*/
@@ -758,7 +750,7 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 		goto end;
 	}
 
-	req = list_first_entry(&ctx->wait_req_list, struct cam_ctx_request,
+	req = list_first_entry(&ctx->pending_req_list, struct cam_ctx_request,
 		list);
 	req_isp = (struct cam_isp_ctx_req *)req->req_priv;
 	req_isp->bubble_detected = true;
@@ -849,8 +841,10 @@ static int __cam_isp_ctx_sof_in_epoch(struct cam_isp_context *ctx_isp,
 
 	req = list_last_entry(&ctx->active_req_list,
 		struct cam_ctx_request, list);
-	__cam_isp_ctx_update_state_monitor_array(ctx_isp,
-		CAM_ISP_STATE_CHANGE_TRIGGER_SOF, ctx->req_list->request_id);
+	if (req)
+		__cam_isp_ctx_update_state_monitor_array(ctx_isp,
+			CAM_ISP_STATE_CHANGE_TRIGGER_SOF,
+			ctx->req_list->request_id);
 	CAM_DBG(CAM_ISP, "next substate %d",
 		ctx_isp->substate_activated);
 
@@ -892,7 +886,7 @@ static int __cam_isp_ctx_epoch_in_bubble_applied(
 	 * transition to BUBBLE state again.
 	 */
 
-	if (list_empty(&ctx->pending_req_list)) {
+	if (list_empty(&ctx->wait_req_list)) {
 		/*
 		 * If no pending req in epoch, this is an error case.
 		 * Just go back to the bubble state.
@@ -905,7 +899,7 @@ static int __cam_isp_ctx_epoch_in_bubble_applied(
 		goto end;
 	}
 
-	req = list_first_entry(&ctx->pending_req_list, struct cam_ctx_request,
+	req = list_first_entry(&ctx->wait_req_list, struct cam_ctx_request,
 		list);
 	req_isp = (struct cam_isp_ctx_req *)req->req_priv;
 	req_isp->bubble_detected = true;
@@ -954,8 +948,9 @@ static int __cam_isp_ctx_epoch_in_bubble_applied(
 end:
 	req = list_last_entry(&ctx->active_req_list, struct cam_ctx_request,
 		list);
-	__cam_isp_ctx_update_state_monitor_array(ctx_isp,
-		CAM_ISP_STATE_CHANGE_TRIGGER_EPOCH, req->request_id);
+	if (req)
+		__cam_isp_ctx_update_state_monitor_array(ctx_isp,
+			CAM_ISP_STATE_CHANGE_TRIGGER_EPOCH, req->request_id);
 	return 0;
 }
 
@@ -1786,11 +1781,11 @@ static int __cam_isp_ctx_rdi_only_reg_upd_in_bubble_applied_state(
 	ctx_isp->substate_activated = CAM_ISP_CTX_ACTIVATED_EPOCH;
 	/* notify reqmgr with sof signal*/
 	if (ctx->ctx_crm_intf && ctx->ctx_crm_intf->notify_trigger) {
-		if (list_empty(&ctx->pending_req_list)) {
-			CAM_ERR(CAM_ISP, "Reg upd ack with no pending request");
+		if (list_empty(&ctx->wait_req_list)) {
+			CAM_ERR(CAM_ISP, "Reg upd ack with no waiting request");
 			goto error;
 		}
-		req = list_first_entry(&ctx->pending_req_list,
+		req = list_first_entry(&ctx->wait_req_list,
 				struct cam_ctx_request, list);
 		list_del_init(&req->list);
 
@@ -2457,9 +2452,13 @@ static int __cam_isp_ctx_start_dev_in_ready(struct cam_context *ctx,
 	}
 	CAM_DBG(CAM_ISP, "start device success ctx %u", ctx->ctx_id);
 
+	list_del_init(&req->list);
+
 	if (req_isp->num_fence_map_out) {
-		list_del_init(&req->list);
 		list_add_tail(&req->list, &ctx->active_req_list);
+		ctx_isp->active_req_cnt++;
+	} else {
+		list_add_tail(&req->list, &ctx->wait_req_list);
 	}
 end:
 	return rc;

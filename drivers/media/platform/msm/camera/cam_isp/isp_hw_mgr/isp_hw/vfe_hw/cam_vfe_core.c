@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -171,17 +172,18 @@ static int cam_vfe_irq_err_top_half(uint32_t    evt_id,
 	struct cam_vfe_hw_core_info         *core_info;
 	bool                                 error_flag = false;
 
-	CAM_DBG(CAM_ISP, "IRQ status_0 = %x, IRQ status_1 = %x",
+	pr_err("IRQ status_0 = %x, IRQ status_1 = %x",
 		th_payload->evt_status_arr[0], th_payload->evt_status_arr[1]);
 
 	handler_priv = th_payload->handler_priv;
 	core_info =  handler_priv->core_info;
+
 	/*
-	 *  need to handle overflow condition here, otherwise irq storm
-	 *  will block everything
+	 * Need to disable IRQ first in case of error,
+	 * otherwise irq storm will block everything.
 	 */
 	if (th_payload->evt_status_arr[1] ||
-		(th_payload->evt_status_arr[0] & camif_irq_err_reg_mask[0])) {
+		(th_payload->evt_status_arr[0] & 0x3FC00)) {
 		CAM_ERR(CAM_ISP,
 			"Encountered Error: vfe:%d:  Irq_status0=0x%x Status1=0x%x",
 			handler_priv->core_index, th_payload->evt_status_arr[0],
