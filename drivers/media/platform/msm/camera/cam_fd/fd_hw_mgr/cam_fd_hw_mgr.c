@@ -1068,6 +1068,7 @@ static int cam_fd_mgr_irq_cb(void *data, enum cam_fd_hw_irq_type irq_type)
 		spin_unlock_irqrestore(&hw_mgr->hw_mgr_slock, flags);
 		return -ENOMEM;
 	}
+	spin_unlock_irqrestore(&hw_mgr->hw_mgr_slock, flags);
 
 	work_data = (struct cam_fd_mgr_work_data *)task->payload;
 	work_data->type = CAM_FD_WORK_IRQ;
@@ -1077,8 +1078,6 @@ static int cam_fd_mgr_irq_cb(void *data, enum cam_fd_hw_irq_type irq_type)
 	rc = cam_req_mgr_workq_enqueue_task(task, hw_mgr, CRM_TASK_PRIORITY_0);
 	if (rc)
 		CAM_ERR(CAM_FD, "Failed in enqueue work task, rc=%d", rc);
-
-	spin_unlock_irqrestore(&hw_mgr->hw_mgr_slock, flags);
 
 	return rc;
 }
