@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1113,9 +1113,6 @@ QDF_STATUS dispatcher_psoc_open(struct wlan_objmgr_psoc *psoc)
 	if (QDF_STATUS_SUCCESS != tdls_psoc_open(psoc))
 		goto tdls_psoc_open_fail;
 
-	if (QDF_STATUS_SUCCESS != wlan_serialization_psoc_open(psoc))
-		goto serialization_psoc_open_fail;
-
 	if (QDF_STATUS_SUCCESS != cp_stats_psoc_open(psoc))
 		goto cp_stats_psoc_open_fail;
 
@@ -1147,8 +1144,6 @@ policy_mgr_psoc_open_fail:
 atf_psoc_open_fail:
 	cp_stats_psoc_close(psoc);
 cp_stats_psoc_open_fail:
-	wlan_serialization_psoc_close(psoc);
-serialization_psoc_open_fail:
 	tdls_psoc_close(psoc);
 tdls_psoc_open_fail:
 	p2p_psoc_close(psoc);
@@ -1176,8 +1171,6 @@ QDF_STATUS dispatcher_psoc_close(struct wlan_objmgr_psoc *psoc)
 
 	QDF_BUG(QDF_STATUS_SUCCESS == cp_stats_psoc_close(psoc));
 
-	QDF_BUG(QDF_STATUS_SUCCESS == wlan_serialization_psoc_close(psoc));
-
 	QDF_BUG(QDF_STATUS_SUCCESS == tdls_psoc_close(psoc));
 
 	QDF_BUG(QDF_STATUS_SUCCESS == p2p_psoc_close(psoc));
@@ -1192,8 +1185,11 @@ qdf_export_symbol(dispatcher_psoc_close);
 
 QDF_STATUS dispatcher_psoc_enable(struct wlan_objmgr_psoc *psoc)
 {
-	if (QDF_STATUS_SUCCESS != ucfg_scan_psoc_enable(psoc))
+	if (QDF_STATUS_SUCCESS != wlan_serialization_psoc_enable(psoc))
 		goto out;
+
+	if (QDF_STATUS_SUCCESS != ucfg_scan_psoc_enable(psoc))
+		goto serialization_psoc_enable_fail;
 
 	if (QDF_STATUS_SUCCESS != p2p_psoc_enable(psoc))
 		goto p2p_psoc_enable_fail;
@@ -1252,6 +1248,9 @@ tdls_psoc_enable_fail:
 	p2p_psoc_disable(psoc);
 p2p_psoc_enable_fail:
 	ucfg_scan_psoc_disable(psoc);
+serialization_psoc_enable_fail:
+	wlan_serialization_psoc_disable(psoc);
+
 
 out:
 	return QDF_STATUS_E_FAILURE;
@@ -1284,6 +1283,8 @@ QDF_STATUS dispatcher_psoc_disable(struct wlan_objmgr_psoc *psoc)
 	QDF_BUG(QDF_STATUS_SUCCESS == p2p_psoc_disable(psoc));
 
 	QDF_BUG(QDF_STATUS_SUCCESS == ucfg_scan_psoc_disable(psoc));
+
+	QDF_BUG(QDF_STATUS_SUCCESS == wlan_serialization_psoc_disable(psoc));
 
 	return QDF_STATUS_SUCCESS;
 }

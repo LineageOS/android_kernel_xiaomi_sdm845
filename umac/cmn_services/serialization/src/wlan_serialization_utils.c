@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -376,6 +376,11 @@ wlan_serialization_find_and_start_timer(struct wlan_objmgr_psoc *psoc,
 			QDF_ASSERT(0);
 			return status;
 		}
+		serialization_debug("Started timer for cmd: type[%d] id[%d]",
+				    cmd->cmd_type, cmd->cmd_id);
+	} else {
+		serialization_err("Failed to start timer for cmd: type[%d] id[%d]",
+				  cmd->cmd_type, cmd->cmd_id);
 	}
 
 	return status;

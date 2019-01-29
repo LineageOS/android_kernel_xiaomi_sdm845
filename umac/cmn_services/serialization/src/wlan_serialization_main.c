@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -31,7 +31,7 @@
 #include "wlan_serialization_rules_i.h"
 #include "wlan_serialization_utils_i.h"
 
-QDF_STATUS wlan_serialization_psoc_close(struct wlan_objmgr_psoc *psoc)
+QDF_STATUS wlan_serialization_psoc_disable(struct wlan_objmgr_psoc *psoc)
 {
 	QDF_STATUS status;
 	struct wlan_serialization_psoc_priv_obj *ser_soc_obj =
@@ -54,7 +54,7 @@ QDF_STATUS wlan_serialization_psoc_close(struct wlan_objmgr_psoc *psoc)
 	return status;
 }
 
-QDF_STATUS wlan_serialization_psoc_open(struct wlan_objmgr_psoc *psoc)
+QDF_STATUS wlan_serialization_psoc_enable(struct wlan_objmgr_psoc *psoc)
 {
 	uint8_t pdev_count;
 	struct wlan_serialization_psoc_priv_obj *ser_soc_obj =
@@ -68,6 +68,8 @@ QDF_STATUS wlan_serialization_psoc_open(struct wlan_objmgr_psoc *psoc)
 	pdev_count = wlan_psoc_get_pdev_count(psoc);
 	ser_soc_obj->max_active_cmds = WLAN_SERIALIZATION_MAX_ACTIVE_SCAN_CMDS +
 		pdev_count;
+
+	serialization_debug("max_active_cmds %d", ser_soc_obj->max_active_cmds);
 	ser_soc_obj->timers =
 		qdf_mem_malloc(sizeof(struct wlan_serialization_timer) *
 				ser_soc_obj->max_active_cmds);
