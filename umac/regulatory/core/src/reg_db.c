@@ -1207,8 +1207,8 @@ const struct regdomain regdomains_5g[] = {
 							 CHAN_5490_5730_4,
 							 CHAN_5735_5835_2} },
 
-	[ETSI1] = {CTL_ETSI, DFS_ETSI_REG, 2, 0, 3, {CHAN_5170_5250_2,
-							CHAN_5250_5330_1,
+	[ETSI1] = {CTL_ETSI, DFS_ETSI_REG, 2, 0, 3, {CHAN_5170_5250_8,
+							CHAN_5250_5330_12,
 							CHAN_5490_5710_1} },
 
 	[ETSI3] = {CTL_ETSI, DFS_ETSI_REG, 5, 0, 2, {CHAN_5170_5250_2,
@@ -1242,8 +1242,8 @@ const struct regdomain regdomains_5g[] = {
 							 CHAN_5490_5730_6,
 							 CHAN_5735_5835_8} },
 
-	[ETSI13] = {CTL_ETSI, DFS_ETSI_REG, 2, 0, 4, {CHAN_5170_5250_2,
-							 CHAN_5250_5330_1,
+	[ETSI13] = {CTL_ETSI, DFS_ETSI_REG, 2, 0, 4, {CHAN_5170_5250_8,
+							 CHAN_5250_5330_12,
 							 CHAN_5490_5730_5,
 							 CHAN_5735_5875_4} },
 
