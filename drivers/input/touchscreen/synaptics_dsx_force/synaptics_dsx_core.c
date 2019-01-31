@@ -34,7 +34,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -65,8 +64,6 @@
 
 #define INPUT_PHYS_NAME "synaptics_dsx/touch_input"
 #define STYLUS_PHYS_NAME "synaptics_dsx/stylus"
-
-#define PROC_SYMLINK_PATH "touchpanel"
 
 #define VIRTUAL_KEY_MAP_FILE_NAME "virtualkeys." PLATFORM_DRIVER_NAME
 
@@ -3981,36 +3978,6 @@ static int synaptics_rmi4_input_event(struct input_dev *dev,
 	return 0;
 }
 
-static ssize_t synaptics_rmi4_input_symlink(struct synaptics_rmi4_data *rmi4_data) {
-	char *driver_path;
-	int ret = 0;
-
-	if (rmi4_data->input_proc) {
-		proc_remove(rmi4_data->input_proc);
-		rmi4_data->input_proc = NULL;
-	}
-
-	driver_path = kzalloc(PATH_MAX, GFP_KERNEL);
-	if (!driver_path) {
-		pr_err("%s: failed to allocate memory\n", __func__);
-		return -ENOMEM;
-	}
-
-	sprintf(driver_path, "/sys%s",
-			kobject_get_path(&rmi4_data->input_dev->dev.kobj, GFP_KERNEL));
-
-	pr_debug("%s: driver_path=%s\n", __func__, driver_path);
-
-	rmi4_data->input_proc = proc_symlink(PROC_SYMLINK_PATH, NULL, driver_path);
-	if (!rmi4_data->input_proc) {
-		ret = -ENOMEM;
-	}
-
-	kfree(driver_path);
-
-	return ret;
-}
-
 static int synaptics_rmi4_set_input_dev(struct synaptics_rmi4_data *rmi4_data)
 {
 	int retval;
@@ -4062,13 +4029,6 @@ static int synaptics_rmi4_set_input_dev(struct synaptics_rmi4_data *rmi4_data)
 				"%s: Failed to register input device\n",
 				__func__);
 		goto err_register_input;
-	}
-
-	retval = synaptics_rmi4_input_symlink(rmi4_data);
-	if (retval < 0) {
-		dev_err(rmi4_data->pdev->dev.parent,
-				"%s: Failed to symlink input device\n",
-				__func__);
 	}
 
 	if (!rmi4_data->stylus_enable)
@@ -4959,7 +4919,6 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 	rmi4_data->irq_enabled = false;
 	rmi4_data->fingers_on_2d = false;
 	rmi4_data->wakeup_en = false;
-	rmi4_data->input_proc = NULL;
 
 	rmi4_data->reset_device = synaptics_rmi4_reset_device;
 	rmi4_data->irq_enable = synaptics_rmi4_irq_enable;

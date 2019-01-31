@@ -290,7 +290,6 @@ struct fts_ts_info {
 	struct completion tp_reset_completion;
 	atomic_t system_is_resetting;
 	unsigned int fod_status;
-	struct proc_dir_entry *input_proc;
 };
 
 struct fts_mode_switch {
