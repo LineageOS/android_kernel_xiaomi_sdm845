@@ -157,8 +157,6 @@ struct nvt_ts_data {
 	struct work_struct resume_work;
 	struct workqueue_struct *event_wq;
 	struct completion dev_pm_suspend_completion;
-	struct proc_dir_entry *input_proc;
-
 };
 
 struct nvt_mode_switch {
