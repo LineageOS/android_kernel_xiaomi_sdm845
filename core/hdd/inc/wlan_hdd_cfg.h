@@ -10638,7 +10638,11 @@ enum dot11p_mode {
 #define CFG_RX_THREAD_CPU_MASK_NAME	"RX_THREAD_CPU_AFFINITY_MASK"
 #define CFG_RX_THREAD_CPU_MASK_MIN	(0)
 #define CFG_RX_THREAD_CPU_MASK_MAX	(0xFF)
+#ifdef RX_PERFORMANCE
+#define CFG_RX_THREAD_CPU_MASK_DEFAULT	(0x02)
+#else
 #define CFG_RX_THREAD_CPU_MASK_DEFAULT	(0)
+#endif
 
 /* List of RPS CPU maps for different rx queues registered by WLAN driver
  * Ref - Kernel/Documentation/networking/scaling.txt
