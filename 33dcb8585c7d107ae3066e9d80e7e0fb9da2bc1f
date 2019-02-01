@@ -1,0 +1,67 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "64681219_21d277bd",
+        "filename": "drivers/usb/core/hub.c",
+        "patchSetId": 5
+      },
+      "lineNbr": 40,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2019-02-01T18:29:27Z",
+      "side": 1,
+      "message": "int deny_new_usb __read_mostly \u003d 0;",
+      "revId": "33dcb8585c7d107ae3066e9d80e7e0fb9da2bc1f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "55ea25f1_722abc5c",
+        "filename": "kernel/sysctl.c",
+        "patchSetId": 5
+      },
+      "lineNbr": 102,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2019-02-01T18:29:27Z",
+      "side": 1,
+      "message": "external int deny_new_usb;",
+      "range": {
+        "startLine": 102,
+        "startChar": 0,
+        "endLine": 102,
+        "endChar": 35
+      },
+      "revId": "33dcb8585c7d107ae3066e9d80e7e0fb9da2bc1f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "d6d016e6_9d121378",
+        "filename": "kernel/sysctl.c",
+        "patchSetId": 5
+      },
+      "lineNbr": 103,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2019-02-01T18:29:27Z",
+      "side": 1,
+      "message": "should be removed",
+      "range": {
+        "startLine": 103,
+        "startChar": 0,
+        "endLine": 103,
+        "endChar": 28
+      },
+      "revId": "33dcb8585c7d107ae3066e9d80e7e0fb9da2bc1f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
