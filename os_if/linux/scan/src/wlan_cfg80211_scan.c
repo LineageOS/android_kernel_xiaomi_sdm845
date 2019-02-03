@@ -1329,6 +1329,7 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 	/* Get NL global context from objmgr*/
 	osif_priv = wlan_pdev_get_ospriv(pdev);
 	if (!osif_priv) {
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_OSIF_ID);
 		cfg80211_err("Invalid osif priv object");
 		return -EINVAL;
 	}
@@ -1339,6 +1340,7 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 	 */
 	if (!wlan_cfg80211_allow_simultaneous_scan(psoc) &&
 	    !qdf_list_empty(&osif_priv->osif_scan->scan_req_q)) {
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_OSIF_ID);
 		cfg80211_err("Simultaneous scan disabled, reject scan");
 		return -EINVAL;
 	}
