@@ -863,7 +863,11 @@ int wlan_tdls_antenna_switch(struct wlan_objmgr_vdev *vdev, uint32_t mode)
 		cfg80211_err("vdev is NULL");
 		return -EAGAIN;
 	}
-	wlan_objmgr_vdev_get_ref(vdev, WLAN_OSIF_ID);
+	if (wlan_objmgr_vdev_try_get_ref(vdev, WLAN_OSIF_ID) !=
+	    QDF_STATUS_SUCCESS) {
+		cfg80211_err("Failed to get vdev reference");
+		return -EAGAIN;
+	}
 
 	osif_priv = wlan_vdev_get_ospriv(vdev);
 	tdls_priv = osif_priv->osif_tdls;
