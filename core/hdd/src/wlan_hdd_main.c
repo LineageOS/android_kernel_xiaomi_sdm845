@@ -12050,6 +12050,8 @@ int hdd_register_cb(struct hdd_context *hdd_ctx)
 
 	sme_set_link_layer_ext_cb(mac_handle,
 			wlan_hdd_cfg80211_link_layer_stats_ext_callback);
+	sme_update_hidden_ssid_status_cb(mac_handle,
+					 hdd_hidden_ssid_enable_roaming);
 
 	status = sme_set_lost_link_info_cb(mac_handle,
 					   hdd_lost_link_info_cb);
@@ -15201,6 +15203,21 @@ tcp_param_change_nla_failed:
 	kfree_skb(vendor_event);
 }
 #endif /* MSM_PLATFORM */
+
+void hdd_hidden_ssid_enable_roaming(hdd_handle_t hdd_handle, uint8_t vdev_id)
+{
+	struct hdd_context *hdd_ctx = hdd_handle_to_context(hdd_handle);
+	struct hdd_adapter *adapter;
+
+	adapter = hdd_get_adapter_by_vdev(hdd_ctx, vdev_id);
+
+	if (!adapter) {
+		hdd_err("Adapter is null");
+		return;
+	}
+	/* enable roaming on all adapters once hdd get hidden ssid rsp */
+	wlan_hdd_enable_roaming(adapter);
+}
 
 /* Register the module init/exit functions */
 module_init(hdd_module_init);

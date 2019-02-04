@@ -2654,6 +2654,8 @@ void lim_process_mlm_update_hidden_ssid_rsp(tpAniSirGlobal mac_ctx,
 {
 	tpPESession session_entry;
 	tpHalHiddenSsidVdevRestart hidden_ssid_vdev_restart;
+	struct scheduler_msg message = {0};
+	QDF_STATUS status;
 
 	hidden_ssid_vdev_restart = (tpHalHiddenSsidVdevRestart)(msg->bodyptr);
 
@@ -2673,6 +2675,15 @@ void lim_process_mlm_update_hidden_ssid_rsp(tpAniSirGlobal mac_ctx,
 	/* Update beacon */
 	sch_set_fixed_beacon_fields(mac_ctx, session_entry);
 	lim_send_beacon_ind(mac_ctx, session_entry, REASON_DEFAULT);
+
+	message.type = eWNI_SME_HIDDEN_SSID_RESTART_RSP;
+	message.bodyval = hidden_ssid_vdev_restart->sessionId;
+	status = scheduler_post_message(QDF_MODULE_ID_PE,
+					QDF_MODULE_ID_SME,
+					QDF_MODULE_ID_SME, &message);
+
+	if (status != QDF_STATUS_SUCCESS)
+		pe_err("Failed to post message %u", status);
 
 free_req:
 	if (NULL != hidden_ssid_vdev_restart) {

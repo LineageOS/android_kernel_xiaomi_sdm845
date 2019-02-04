@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1206,6 +1206,11 @@ wlansap_roam_callback(void *ctx, struct csr_roam_info *csr_roam_info,
 	case eCSR_ROAM_RESULT_CHANNEL_CHANGE_SUCCESS:
 		wlansap_roam_process_ch_change_success(mac_ctx, sap_ctx,
 						csr_roam_info, &qdf_ret_status);
+
+		qdf_ret_status =
+			sap_signal_hdd_event(sap_ctx, csr_roam_info,
+					     eSAP_CHANNEL_CHANGE_RESP,
+					     (void *)QDF_STATUS_SUCCESS);
 		break;
 	case eCSR_ROAM_RESULT_CHANNEL_CHANGE_FAILURE:
 		/* This is much more serious issue, we have to vacate the
@@ -1220,6 +1225,11 @@ wlansap_roam_callback(void *ctx, struct csr_roam_info *csr_roam_info,
 		qdf_status = sap_fsm(sap_ctx, &sap_event);
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status))
 			qdf_ret_status = QDF_STATUS_E_FAILURE;
+
+		qdf_ret_status =
+			sap_signal_hdd_event(sap_ctx, csr_roam_info,
+					     eSAP_CHANNEL_CHANGE_RESP,
+					     (void *)QDF_STATUS_E_FAILURE);
 		break;
 	case eCSR_ROAM_EXT_CHG_CHNL_UPDATE_IND:
 		qdf_status = sap_signal_hdd_event(sap_ctx, csr_roam_info,

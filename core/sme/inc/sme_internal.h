@@ -194,6 +194,13 @@ typedef void (*rso_cmd_status_cb)(hdd_handle_t hdd_handle,
  */
 typedef void (*lost_link_info_cb)(hdd_handle_t hdd_handle,
 				  struct sir_lost_link_info *lost_link_info);
+/**
+ * typedef hidden_ssid_cb - hidden ssid rsp callback fun
+ * @hdd_handle: HDD handle registered with SME
+ * @vdev_id: Vdev Id
+ */
+typedef void (*hidden_ssid_cb)(hdd_handle_t hdd_handle,
+				uint8_t vdev_id);
 
 typedef struct tagSmeStruct {
 	eSmeState state;
@@ -294,6 +301,9 @@ typedef struct tagSmeStruct {
 	apf_get_offload_cb apf_get_offload_cb;
 	apf_read_mem_cb apf_read_mem_cb;
 #endif
+	/* hidden ssid rsp callback */
+	hidden_ssid_cb hidden_ssid_cb;
+
 } tSmeStruct, *tpSmeStruct;
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

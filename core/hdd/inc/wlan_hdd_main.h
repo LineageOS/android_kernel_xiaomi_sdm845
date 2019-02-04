@@ -1329,7 +1329,7 @@ struct hdd_adapter {
 		struct hdd_ap_ctx ap;
 	} session;
 
-	qdf_atomic_t dfs_radar_found;
+	qdf_atomic_t ch_switch_in_progress;
 
 #ifdef WLAN_FEATURE_TSF
 	/* tsf value received from firmware */
@@ -3589,4 +3589,15 @@ void wlan_hdd_send_tcp_param_update_event(struct hdd_context *hdd_ctx,
 }
 
 #endif /* MSM_PLATFORM */
+
+/**
+ * hdd_hidden_ssid_enable_roaming() - enable roaming after hidden ssid rsp
+ * @hdd_handle: Hdd handler
+ * @vdev_id: Vdev Id
+ *
+ * This is a wrapper function to enable roaming after getting hidden
+ * ssid rsp
+ */
+void hdd_hidden_ssid_enable_roaming(hdd_handle_t hdd_handle, uint8_t vdev_id);
+
 #endif /* end #if !defined(WLAN_HDD_MAIN_H) */

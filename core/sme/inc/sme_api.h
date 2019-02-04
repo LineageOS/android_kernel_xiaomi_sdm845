@@ -2536,4 +2536,12 @@ QDF_STATUS
 sme_get_roam_scan_stats(tHalHandle hal, roam_scan_stats_cb cb, void *context,
 			uint32_t vdev_id);
 
+/**
+ * sme_update_hidden_ssid_status_cb() - cb fun to update hidden ssid stats
+ * @mac_handle: mac handler
+ * @cb: cb of type hidden_ssid_cb
+ */
+QDF_STATUS sme_update_hidden_ssid_status_cb(mac_handle_t mac_handle,
+					    hidden_ssid_cb cb);
+
 #endif /* #if !defined( __SME_API_H ) */

@@ -169,6 +169,8 @@ typedef enum {
 	eSAP_ACS_CHANNEL_SELECTED,
 	eSAP_ECSA_CHANGE_CHAN_IND,
 	eSAP_DFS_NEXT_CHANNEL_REQ,
+	/* Event sent channel switch status to upper layer */
+	eSAP_CHANNEL_CHANGE_RESP,
 } eSapHddEvent;
 
 typedef enum {
@@ -476,6 +478,7 @@ typedef struct sap_Event_s {
 		struct sap_roc_ready_ind_s sap_roc_ind;
 		struct sap_ch_change_ind sap_chan_cng_ind;
 		struct sap_acs_scan_complete_event sap_acs_scan_comp;
+		QDF_STATUS ch_change_rsp_status;
 	} sapevt;
 } tSap_Event, *tpSap_Event;
 

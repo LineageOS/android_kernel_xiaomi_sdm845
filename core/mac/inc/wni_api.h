@@ -229,6 +229,8 @@ enum eWniMsgTypes {
 	eWNI_SME_SET_ADDBA_ACCEPT,
 	eWNI_SME_UPDATE_EDCA_PROFILE,
 	eWNI_SME_PURGE_ALL_PDEV_CMDS_REQ,
+	/* To indicate Hidden ssid start complition to upper layer */
+	eWNI_SME_HIDDEN_SSID_RESTART_RSP,
 	eWNI_SME_MSG_TYPES_END
 };
 
