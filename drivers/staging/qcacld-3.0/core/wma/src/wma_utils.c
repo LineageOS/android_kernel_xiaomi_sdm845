@@ -4041,6 +4041,7 @@ void wma_get_stats_req(WMA_HANDLE handle,
 	tp_wma_handle wma_handle = (tp_wma_handle) handle;
 	struct wma_txrx_node *node;
 	struct pe_stats_req  cmd = {0};
+	uint8_t pdev_id;
 	tAniGetPEStatsRsp *pGetPEStatsRspParams;
 
 
@@ -4086,6 +4087,10 @@ void wma_get_stats_req(WMA_HANDLE handle,
 		node->stats_rsp->statsMask, get_stats_param->sessionId);
 
 	cmd.session_id = get_stats_param->sessionId;
+
+	cds_get_mac_id_by_session_id(get_stats_param->sessionId, &pdev_id);
+	cmd.pdev_id = WMA_MAC_TO_PDEV_MAP(pdev_id);
+
 	cmd.stats_mask = get_stats_param->statsMask;
 	if (wmi_unified_get_stats_cmd(wma_handle->wmi_handle, &cmd,
 				 node->bssid)) {

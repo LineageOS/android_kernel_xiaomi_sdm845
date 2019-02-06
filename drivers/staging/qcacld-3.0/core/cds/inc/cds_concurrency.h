@@ -796,6 +796,7 @@ QDF_STATUS cds_current_connections_update(uint32_t session_id,
 				enum sir_conn_update_reason);
 bool cds_is_ibss_conn_exist(uint8_t *ibss_channel);
 struct cds_conc_connection_info *cds_get_conn_info(uint32_t *len);
+
 #ifdef MPC_UT_FRAMEWORK
 QDF_STATUS cds_incr_connection_count_utfw(
 		uint32_t vdev_id, uint32_t tx_streams, uint32_t rx_streams,
