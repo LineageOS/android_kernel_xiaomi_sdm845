@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -631,6 +631,15 @@ void ucfg_scan_set_vdev_del_in_progress(struct wlan_objmgr_vdev *vdev);
  * Return: none
  */
 void ucfg_scan_clear_vdev_del_in_progress(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * ucfg_scan_wake_lock_in_user_scan() - API to determine if wake lock in user
+ * scan is used.
+ * @psoc: pointer to psoc object
+ *
+ * Return: true if wake lock in user scan is required
+ */
+bool ucfg_scan_wake_lock_in_user_scan(struct wlan_objmgr_psoc *psoc);
 
 /**
  * ucfg_scan_get_max_cmd_allowed() - API To get max no. of scan commands allowed

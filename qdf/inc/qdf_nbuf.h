@@ -1120,28 +1120,15 @@ void qdf_nbuf_free_debug(qdf_nbuf_t nbuf, uint8_t *file, uint32_t line);
 /**
  * qdf_nbuf_clone_debug() - clone the nbuf (copy is readonly)
  * @buf: nbuf to clone from
- * @file_name: pointer to file name
- * @line_num: line number
+ * @file: pointer to file name
+ * @line: line number
  *
  * This function clones the nbuf and creates a memory tracking
  * node corresponding to that cloned skbuff structure.
  *
  * Return: cloned buffer
  */
-static inline qdf_nbuf_t
-qdf_nbuf_clone_debug(qdf_nbuf_t buf, uint8_t *file_name,
-			uint32_t line_num)
-{
-	qdf_nbuf_t cloned_buf;
-
-	cloned_buf = __qdf_nbuf_clone(buf);
-
-	/* Store SKB in internal QDF tracking table */
-	if (qdf_likely(cloned_buf))
-		qdf_net_buf_debug_add_node(cloned_buf, 0, file_name, line_num);
-
-	return cloned_buf;
-}
+qdf_nbuf_t qdf_nbuf_clone_debug(qdf_nbuf_t buf, uint8_t *file, uint32_t line);
 
 #define qdf_nbuf_copy(buf)     \
 	qdf_nbuf_copy_debug(buf, __FILE__, __LINE__)
@@ -1149,8 +1136,8 @@ qdf_nbuf_clone_debug(qdf_nbuf_t buf, uint8_t *file_name,
 /**
  * qdf_nbuf_copy_debug() - returns a private copy of the buf
  * @buf: nbuf to copy from
- * @file_name: pointer to file name
- * @line_num: line number
+ * @file: pointer to file name
+ * @line: line number
  *
  * This API returns a private copy of the buf, the buf returned is completely
  * modifiable by callers. It also creates a memory tracking node corresponding
@@ -1158,20 +1145,7 @@ qdf_nbuf_clone_debug(qdf_nbuf_t buf, uint8_t *file_name,
  *
  * Return: copied buffer
  */
-static inline qdf_nbuf_t
-qdf_nbuf_copy_debug(qdf_nbuf_t buf, uint8_t *file_name,
-			uint32_t line_num)
-{
-	qdf_nbuf_t copied_buf;
-
-	copied_buf = __qdf_nbuf_copy(buf);
-
-	/* Store SKB in internal QDF tracking table */
-	if (qdf_likely(copied_buf))
-		qdf_net_buf_debug_add_node(copied_buf, 0, file_name, line_num);
-
-	return copied_buf;
-}
+qdf_nbuf_t qdf_nbuf_copy_debug(qdf_nbuf_t buf, uint8_t *file, uint32_t line);
 
 #else /* NBUF_MEMORY_DEBUG */
 
