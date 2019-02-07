@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -642,8 +642,8 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 	if (0 != ret)
 		return ERR_PTR(ret);
 
-	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
-			 TRACE_CODE_HDD_ADD_VIRTUAL_INTF, NO_SESSION, type));
+	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
+		   TRACE_CODE_HDD_ADD_VIRTUAL_INTF, NO_SESSION, type);
 	/*
 	 * Allow addition multiple interfaces for QDF_P2P_GO_MODE,
 	 * QDF_SAP_MODE, QDF_P2P_CLIENT_MODE and QDF_STA_MODE
@@ -859,9 +859,10 @@ int __wlan_hdd_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	 */
 	clear_bit(SOFTAP_INIT_DONE, &adapter->event_flags);
 
-	MTRACE(qdf_trace(QDF_MODULE_ID_HDD,
-			 TRACE_CODE_HDD_DEL_VIRTUAL_INTF,
-			 adapter->session_id, adapter->device_mode));
+	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
+		   TRACE_CODE_HDD_DEL_VIRTUAL_INTF,
+		   adapter->session_id, adapter->device_mode);
+
 	hdd_debug("Device_mode %s(%d)",
 		   hdd_device_mode_to_string(adapter->device_mode),
 		   adapter->device_mode);

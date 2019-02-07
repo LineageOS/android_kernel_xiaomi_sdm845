@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -3069,16 +3069,7 @@ static void wma_register_apf_events(tp_wma_handle wma_handle)
 }
 #endif /* FEATURE_WLAN_APF */
 
-/**
- * wma_get_phy_mode_cb() - Callback to get current PHY Mode.
- * @chan: channel number
- * @chan_width: maximum channel width possible
- * @phy_mode: PHY Mode
- *
- * Return: None
- */
-static void wma_get_phy_mode_cb(uint8_t chan, uint32_t chan_width,
-				uint32_t *phy_mode)
+void wma_get_phy_mode_cb(uint8_t chan, uint32_t chan_width, uint32_t *phy_mode)
 {
 	uint32_t dot11_mode;
 	struct sAniSirGlobal *mac = cds_get_context(QDF_MODULE_ID_PE);

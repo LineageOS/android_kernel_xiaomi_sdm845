@@ -3082,8 +3082,10 @@ static int __hdd_open(struct net_device *dev)
 	int ret;
 
 	hdd_enter_dev(dev);
-	MTRACE(qdf_trace(QDF_MODULE_ID_HDD, TRACE_CODE_HDD_OPEN_REQUEST,
-		adapter->session_id, adapter->device_mode));
+
+	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
+		   TRACE_CODE_HDD_OPEN_REQUEST,
+		   adapter->session_id, adapter->device_mode);
 
 	/* Nothing to be done if device is unloading */
 	if (cds_is_driver_unloading()) {
@@ -3197,8 +3199,9 @@ static int __hdd_stop(struct net_device *dev)
 
 	hdd_enter_dev(dev);
 
-	MTRACE(qdf_trace(QDF_MODULE_ID_HDD, TRACE_CODE_HDD_STOP_REQUEST,
-			 adapter->session_id, adapter->device_mode));
+	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
+		   TRACE_CODE_HDD_STOP_REQUEST,
+		   adapter->session_id, adapter->device_mode);
 
 	ret = wlan_hdd_validate_context(hdd_ctx);
 	if (ret) {
@@ -14304,6 +14307,7 @@ static int hdd_update_scan_config(struct hdd_context *hdd_ctx)
 	/* The ini is disallow DFS channel scan if ini is 1, so negate that */
 	scan_cfg.allow_dfs_chan_in_first_scan = !cfg->initial_scan_no_dfs_chnl;
 	scan_cfg.allow_dfs_chan_in_scan = cfg->enableDFSChnlScan;
+	scan_cfg.use_wake_lock_in_user_scan = cfg->wake_lock_in_user_scan;
 	scan_cfg.active_dwell = cfg->nActiveMaxChnTime;
 	scan_cfg.active_dwell_2g = cfg->active_dwell_2g;
 	scan_cfg.passive_dwell = cfg->nPassiveMaxChnTime;

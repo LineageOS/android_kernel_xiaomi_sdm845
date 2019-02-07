@@ -1113,6 +1113,7 @@ typedef struct sSirSmeJoinRsp {
 	uint32_t assocReqLength;
 	uint32_t assocRspLength;
 	uint32_t parsedRicRspLen;
+	uint8_t uapsd_mask;
 #ifdef FEATURE_WLAN_ESE
 	uint32_t tspecIeLen;
 #endif
