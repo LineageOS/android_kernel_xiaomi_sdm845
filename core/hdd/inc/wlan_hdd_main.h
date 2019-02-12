@@ -533,6 +533,9 @@ struct hdd_tx_rx_stats {
 	__u32 rx_dropped[NUM_CPUS];
 	__u32 rx_delivered[NUM_CPUS];
 	__u32 rx_refused[NUM_CPUS];
+	/* rx gro */
+	__u32 rx_aggregated;
+	__u32 rx_non_aggregated;
 
 	/* txflow stats */
 	bool     is_txflow_paused;
