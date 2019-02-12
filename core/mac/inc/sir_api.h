@@ -2924,6 +2924,7 @@ typedef struct sSirRoamOffloadScanReq {
 	/* bss load triggered roam related params */
 	bool bss_load_trig_enabled;
 	struct wmi_bss_load_config bss_load_config;
+	bool roaming_scan_policy;
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {

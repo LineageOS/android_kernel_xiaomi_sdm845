@@ -621,6 +621,7 @@ struct csr_config {
 	bool enable_bss_load_roam_trigger;
 	uint32_t bss_load_threshold;
 	uint32_t bss_load_sample_time;
+	bool roaming_scan_policy;
 };
 
 struct csr_channel_powerinfo {

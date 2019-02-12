@@ -2293,6 +2293,30 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * roaming_scan_policy - To config roaming scan policy
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to configure roaming scan behavior from HOST
+ * 0 : DBS scan
+ * 1 : Non-DBS scan
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ROAM_SCAN_SCAN_POLICY_NAME "roaming_scan_policy"
+#define CFG_ROAM_SCAN_SCAN_POLICY_MIN     (0)
+#define CFG_ROAM_SCAN_SCAN_POLICY_MAX     (1)
+#define CFG_ROAM_SCAN_SCAN_POLICY_DEFAULT (0)
+
+/*
+ * <ini>
  * roam_bad_rssi_thresh_offset_2g - RSSI threshold offset for 2G to 5G roam
  * @Min: 0
  * @Max: 86
@@ -16686,6 +16710,7 @@ struct hdd_config {
 	uint32_t ho_delay_for_rx;
 	uint32_t min_delay_btw_roam_scans;
 	uint32_t roam_trigger_reason_bitmask;
+	bool roaming_scan_policy;
 	uint32_t roam_bg_scan_client_bitmap;
 	bool enable_edca_params;
 	uint32_t edca_vo_cwmin;
