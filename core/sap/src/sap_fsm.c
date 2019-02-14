@@ -565,7 +565,9 @@ void sap_dfs_set_current_channel(void *ctx)
 		    mac_ctx->psoc)) {
 			uint16_t con_ch;
 
-			con_ch = sme_get_concurrent_operation_channel(hal);
+			con_ch =
+				sme_get_beaconing_concurrent_operation_channel(
+					hal, sap_ctx->sessionId);
 			if (!con_ch || !wlan_reg_is_dfs_ch(pdev, con_ch))
 				tgt_dfs_get_radars(pdev);
 		} else {
@@ -871,7 +873,8 @@ sap_validate_chan(struct sap_context *sap_context,
 	     policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
 		PM_P2P_GO_MODE, NULL)))) {
 		con_ch =
-			sme_get_concurrent_operation_channel(h_hal);
+			sme_get_beaconing_concurrent_operation_channel(
+				h_hal, sap_context->sessionId);
 #ifdef FEATURE_WLAN_STA_AP_MODE_DFS_DISABLE
 		if (con_ch && sap_context->channel != con_ch &&
 		    wlan_reg_is_dfs_ch(mac_ctx->pdev,
@@ -882,8 +885,8 @@ sap_validate_chan(struct sap_context *sap_context,
 		}
 #endif
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
-		if (sap_context->cc_switch_mode !=
-					QDF_MCC_TO_SCC_SWITCH_DISABLE) {
+		if (con_ch && (sap_context->cc_switch_mode !=
+			       QDF_MCC_TO_SCC_SWITCH_DISABLE)) {
 			/*
 			 * For ACS request ,the sapContext->channel is 0,
 			 * we skip below overlap checking. When the ACS
@@ -1067,7 +1070,8 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 	     policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
 						       PM_P2P_GO_MODE,
 						       NULL)))) {
-		con_ch = sme_get_concurrent_operation_channel(h_hal);
+		con_ch = sme_get_beaconing_concurrent_operation_channel(
+					h_hal, sap_context->sessionId);
 #ifdef FEATURE_WLAN_STA_AP_MODE_DFS_DISABLE
 		if (con_ch)
 			sap_context->dfs_ch_disable = true;
@@ -2190,7 +2194,8 @@ sap_goto_starting(struct sap_context *sap_ctx,
 	if (policy_mgr_concurrent_beaconing_sessions_running(mac_ctx->psoc)) {
 		uint16_t con_ch;
 
-		con_ch = sme_get_concurrent_operation_channel(hal);
+		con_ch = sme_get_beaconing_concurrent_operation_channel(
+				hal, sap_ctx->sessionId);
 		if (con_ch && wlan_reg_is_dfs_ch(mac_ctx->pdev, con_ch)) {
 			sap_ctx->channel = con_ch;
 			wlan_reg_set_channel_params(mac_ctx->pdev,
