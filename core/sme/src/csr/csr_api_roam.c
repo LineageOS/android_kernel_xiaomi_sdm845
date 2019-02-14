@@ -5002,6 +5002,7 @@ QDF_STATUS csr_roam_prepare_bss_config(tpAniSirGlobal pMac,
 		pBssConfig->authType = eSIR_AUTO_SWITCH;
 		break;
 	case eCSR_AUTH_TYPE_SAE:
+	case eCSR_AUTH_TYPE_FT_SAE:
 		pBssConfig->authType = eSIR_AUTH_TYPE_SAE;
 		break;
 	}
@@ -5146,6 +5147,7 @@ QDF_STATUS csr_roam_prepare_bss_config_from_profile(
 		pBssConfig->authType = eSIR_AUTO_SWITCH;
 		break;
 	case eCSR_AUTH_TYPE_SAE:
+	case eCSR_AUTH_TYPE_FT_SAE:
 		pBssConfig->authType = eSIR_AUTH_TYPE_SAE;
 		break;
 	}
@@ -6075,6 +6077,7 @@ static void csr_roam_assign_default_param(tpAniSirGlobal pMac,
 		break;
 
 	case eCSR_AUTH_TYPE_SAE:
+	case eCSR_AUTH_TYPE_FT_SAE:
 		pCommand->u.roamCmd.roamProfile.negotiatedAuthType =
 			eCSR_AUTH_TYPE_SAE;
 		break;
@@ -6977,13 +6980,15 @@ static QDF_STATUS csr_roam_save_params(tpAniSirGlobal mac_ctx,
 	uint8_t *pIeBuf;
 
 	if ((eCSR_AUTH_TYPE_RSN == auth_type) ||
-		(eCSR_AUTH_TYPE_FT_RSN == auth_type) ||
-		(eCSR_AUTH_TYPE_FT_RSN_PSK == auth_type) ||
+	    (eCSR_AUTH_TYPE_FT_RSN == auth_type) ||
+	    (eCSR_AUTH_TYPE_FT_RSN_PSK == auth_type) ||
+	    (eCSR_AUTH_TYPE_FT_SAE == auth_type) ||
+	    (eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384 == auth_type) ||
 #if defined WLAN_FEATURE_11W
-		(eCSR_AUTH_TYPE_RSN_PSK_SHA256 == auth_type) ||
-		(eCSR_AUTH_TYPE_RSN_8021X_SHA256 == auth_type) ||
+	    (eCSR_AUTH_TYPE_RSN_PSK_SHA256 == auth_type) ||
+	    (eCSR_AUTH_TYPE_RSN_8021X_SHA256 == auth_type) ||
 #endif
-		(eCSR_AUTH_TYPE_RSN_PSK == auth_type)) {
+	    (eCSR_AUTH_TYPE_RSN_PSK == auth_type)) {
 		if (ie_local->RSN.present) {
 			tDot11fIERSN *rsnie = &ie_local->RSN;
 			/*
@@ -7160,6 +7165,8 @@ static QDF_STATUS csr_roam_save_security_rsp_ie(tpAniSirGlobal pMac,
 		(eCSR_AUTH_TYPE_RSN_PSK == authType)
 		|| (eCSR_AUTH_TYPE_FT_RSN == authType) ||
 		(eCSR_AUTH_TYPE_FT_RSN_PSK == authType)
+		|| (eCSR_AUTH_TYPE_FT_SAE == authType)
+		|| (eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384 == authType)
 #ifdef FEATURE_WLAN_WAPI
 		|| (eCSR_AUTH_TYPE_WAPI_WAI_PSK == authType) ||
 		(eCSR_AUTH_TYPE_WAPI_WAI_CERTIFICATE == authType)

@@ -126,6 +126,12 @@ uint8_t csr_rsn_oui[][CSR_RSN_OUI_SIZE] = {
 	{0x00, 0x00, 0x00, 0x00},
 	{0x00, 0x00, 0x00, 0x00},
 #endif
+#define ENUM_OSEN 21
+	/* OSEN RSN */
+	{0x50, 0x6F, 0x9A, 0x01},
+#define ENUM_FT_SUITEB_SHA384 22
+	/* FT Suite-B SHA384 */
+	{0x00, 0x0F, 0xAC, 0x0D},
 
 	/* define new oui here, update #define CSR_OUI_***_INDEX  */
 };
@@ -2306,9 +2312,11 @@ bool csr_is_profile_rsn(struct csr_roam_profile *pProfile)
 	case eCSR_AUTH_TYPE_OWE:
 	case eCSR_AUTH_TYPE_SUITEB_EAP_SHA256:
 	case eCSR_AUTH_TYPE_SUITEB_EAP_SHA384:
+	case eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384:
 		fRSNProfile = true;
 		break;
 	case eCSR_AUTH_TYPE_SAE:
+	case eCSR_AUTH_TYPE_FT_SAE:
 		fRSNProfile = true;
 		break;
 
@@ -2748,6 +2756,8 @@ bool csr_is_auth_type11r(tpAniSirGlobal mac, eCsrAuthType auth_type,
 		break;
 	case eCSR_AUTH_TYPE_FT_RSN_PSK:
 	case eCSR_AUTH_TYPE_FT_RSN:
+	case eCSR_AUTH_TYPE_FT_SAE:
+	case eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384:
 		return true;
 	default:
 		break;
@@ -3144,6 +3154,24 @@ static bool csr_is_auth_suiteb_eap_384(tpAniSirGlobal mac,
 				csr_rsn_oui[ENUM_SUITEB_EAP384], oui);
 }
 
+/*
+ * csr_is_auth_ft_suiteb_eap_384() - check whether oui is SuiteB EAP384
+ * @mac: Global MAC context
+ * @all_suites: pointer to all supported akm suites
+ * @suite_count: all supported akm suites count
+ * @oui: Oui needs to be matched
+ *
+ * Return: True if OUI is FT SuiteB EAP384, false otherwise
+ */
+static
+bool csr_is_auth_ft_suiteb_eap_384(tpAniSirGlobal mac,
+				   uint8_t all_suites[][CSR_RSN_OUI_SIZE],
+				   uint8_t suite_count, uint8_t oui[])
+{
+	return csr_is_oui_match(mac, all_suites, suite_count,
+				csr_rsn_oui[ENUM_FT_SUITEB_SHA384], oui);
+}
+
 #ifdef WLAN_FEATURE_SAE
 /*
  * csr_is_auth_wpa_sae() - check whether oui is SAE
@@ -3158,8 +3186,13 @@ static bool csr_is_auth_wpa_sae(tpAniSirGlobal mac,
 			       uint8_t all_suites[][CSR_RSN_OUI_SIZE],
 			       uint8_t suite_count, uint8_t oui[])
 {
-	return csr_is_oui_match
-		(mac, all_suites, suite_count, csr_rsn_oui[ENUM_SAE], oui);
+	bool is_sae_auth;
+
+	is_sae_auth = (csr_is_oui_match(mac, all_suites, suite_count,
+					csr_rsn_oui[ENUM_SAE], oui) ||
+		       csr_is_oui_match(mac, all_suites, suite_count,
+					csr_rsn_oui[ENUM_FT_SAE], oui));
+	return is_sae_auth;
 }
 #endif
 
@@ -3337,7 +3370,9 @@ static void csr_check_sae_auth(tpAniSirGlobal mac_ctx,
 	   c_auth_suites, authentication)) {
 		if (eCSR_AUTH_TYPE_SAE == auth_type->authType[index])
 			*neg_authtype = eCSR_AUTH_TYPE_SAE;
-		if (eCSR_AUTH_TYPE_OPEN_SYSTEM == auth_type->authType[index])
+		else if (eCSR_AUTH_TYPE_FT_SAE == auth_type->authType[index])
+			*neg_authtype = eCSR_AUTH_TYPE_FT_SAE;
+		else if (eCSR_AUTH_TYPE_OPEN_SYSTEM == auth_type->authType[index])
 			*neg_authtype = eCSR_AUTH_TYPE_OPEN_SYSTEM;
 	}
 	sme_debug("negotiated auth type is %d", *neg_authtype);
@@ -3548,6 +3583,15 @@ static bool csr_get_rsn_information(tpAniSirGlobal mac_ctx,
 			if (eCSR_AUTH_TYPE_SUITEB_EAP_SHA384 ==
 						auth_type->authType[i])
 				neg_authtype = eCSR_AUTH_TYPE_SUITEB_EAP_SHA384;
+		}
+		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
+		    csr_is_auth_ft_suiteb_eap_384(mac_ctx, authsuites,
+						  c_auth_suites,
+						  authentication)) {
+			if (eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384 ==
+						auth_type->authType[i])
+				neg_authtype =
+					eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384;
 		}
 
 		/*
