@@ -1212,6 +1212,7 @@ struct hdd_context;
 /**
  * struct hdd_adapter - hdd vdev/net_device context
  * @vdev: object manager vdev context
+ * @vdev_lock: lock to protect vdev context access
  * @event_flags: a bitmap of hdd_adapter_flags
  */
 struct hdd_adapter {
@@ -1227,6 +1228,7 @@ struct hdd_adapter {
 
 	struct hdd_context *hdd_ctx;
 	struct wlan_objmgr_vdev *vdev;
+	qdf_spinlock_t vdev_lock;
 
 	void *txrx_vdev;
 

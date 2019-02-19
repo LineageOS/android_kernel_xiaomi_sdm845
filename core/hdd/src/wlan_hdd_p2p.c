@@ -47,6 +47,7 @@
 #include "wlan_p2p_public_struct.h"
 #include "wlan_p2p_ucfg_api.h"
 #include "wlan_cfg80211_p2p.h"
+#include "wlan_hdd_object_manager.h"
 
 /* Ms to Time Unit Micro Sec */
 #define MS_TO_TU_MUS(x)   ((x) * 1024)
@@ -628,6 +629,7 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 {
 	struct hdd_context *hdd_ctx = (struct hdd_context *) wiphy_priv(wiphy);
 	struct hdd_adapter *adapter = NULL;
+	struct wlan_objmgr_vdev *vdev;
 	int ret;
 	uint8_t session_type;
 
@@ -662,13 +664,17 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 
 	adapter = hdd_get_adapter(hdd_ctx, QDF_STA_MODE);
 	if (adapter && !wlan_hdd_validate_session_id(adapter->session_id)) {
-		if (ucfg_scan_get_vdev_status(adapter->vdev) !=
-				SCAN_NOT_IN_PROGRESS) {
+		vdev = hdd_objmgr_get_vdev(adapter);
+		if (vdev &&
+		    ucfg_scan_get_vdev_status(vdev) != SCAN_NOT_IN_PROGRESS) {
 			wlan_abort_scan(hdd_ctx->pdev, INVAL_PDEV_ID,
 					adapter->session_id, INVALID_SCAN_ID,
 					false);
 			hdd_debug("Abort Scan while adding virtual interface");
 		}
+
+		if (vdev)
+			hdd_objmgr_put_vdev(vdev);
 	}
 
 	if (session_type == QDF_SAP_MODE) {
