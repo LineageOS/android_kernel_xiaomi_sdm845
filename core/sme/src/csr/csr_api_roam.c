@@ -19910,8 +19910,8 @@ static uint32_t copy_all_before_char(char *str, uint32_t str_len,
  * Return: None
  */
 static void csr_update_fils_params_rso(tpAniSirGlobal mac,
-		struct csr_roam_session *session,
-		tSirRoamOffloadScanReq *req_buffer)
+				       struct csr_roam_session *session,
+				       tSirRoamOffloadScanReq *req_buffer)
 {
 	struct roam_fils_params *roam_fils_params;
 	struct cds_fils_connection_info *fils_info;
@@ -19951,8 +19951,7 @@ static void csr_update_fils_params_rso(tpAniSirGlobal mac,
 	roam_fils_params->username_length = usr_name_len;
 	req_buffer->is_fils_connection = true;
 
-	roam_fils_params->next_erp_seq_num =
-			(fils_info->sequence_number + 1);
+	roam_fils_params->next_erp_seq_num = fils_info->sequence_number;
 
 	roam_fils_params->rrk_length = fils_info->r_rk_length;
 	qdf_mem_copy(roam_fils_params->rrk, fils_info->r_rk,
@@ -19964,11 +19963,15 @@ static void csr_update_fils_params_rso(tpAniSirGlobal mac,
 	qdf_mem_copy(roam_fils_params->realm, fils_info->keyname_nai
 			+ roam_fils_params->username_length + 1,
 			roam_fils_params->realm_len);
+	sme_debug("Fils: next_erp_seq_num %d rrk_len %d realm_len:%d",
+		  roam_fils_params->next_erp_seq_num,
+		  roam_fils_params->rrk_length, roam_fils_params->realm_len);
 }
 #else
-static inline void csr_update_fils_params_rso(tpAniSirGlobal mac,
-		struct csr_roam_session *session,
-		tSirRoamOffloadScanReq *req_buffer)
+static inline
+void csr_update_fils_params_rso(tpAniSirGlobal mac,
+				struct csr_roam_session *session,
+				tSirRoamOffloadScanReq *req_buffer)
 {}
 #endif
 
@@ -22137,10 +22140,23 @@ static void csr_copy_fils_join_rsp_roam_info(struct csr_roam_info *roam_info,
 			&roam_fils_info->hlp_data_len,
 			roam_fils_info->hlp_data);
 }
+
+static void
+csr_update_fils_erp_seq_num(struct csr_roam_profile *roam_info,
+			    uint16_t erp_next_seq_num)
+{
+	if (roam_info->fils_con_info)
+		roam_info->fils_con_info->sequence_number = erp_next_seq_num;
+}
 #else
 static inline
 void csr_copy_fils_join_rsp_roam_info(struct csr_roam_info *roam_info,
 				      roam_offload_synch_ind *roam_synch_data)
+{}
+
+static inline
+void csr_update_fils_erp_seq_num(struct csr_roam_profile *roam_info,
+				 uint16_t erp_next_seq_num)
 {}
 #endif
 
@@ -22249,8 +22265,8 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 
 		policy_mgr_check_concurrent_intf_and_restart_sap(mac_ctx->psoc);
 		csr_roam_offload_scan(mac_ctx, session_id,
-				ROAM_SCAN_OFFLOAD_UPDATE_CFG,
-				REASON_CONNECT);
+				      ROAM_SCAN_OFFLOAD_UPDATE_CFG,
+				      REASON_CONNECT);
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				       eCSR_ROAM_SYNCH_COMPLETE,
 				       eCSR_ROAM_RESULT_SUCCESS);
@@ -22506,6 +22522,8 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 	roam_info->update_erp_next_seq_num =
 			roam_synch_data->update_erp_next_seq_num;
 	roam_info->next_erp_seq_num = roam_synch_data->next_erp_seq_num;
+	csr_update_fils_erp_seq_num(session->pCurRoamProfile,
+				    roam_info->next_erp_seq_num);
 	sme_debug("Update ERP Seq Num : %d, Next ERP Seq Num : %d",
 			roam_info->update_erp_next_seq_num,
 			roam_info->next_erp_seq_num);
