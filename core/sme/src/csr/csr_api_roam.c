@@ -15838,7 +15838,9 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 
 		if (is_vendor_ap_present) {
 			is_vendor_ap_present = csr_check_vendor_ap_3_present(
-						pMac, (uint8_t *)pIes, ieLen);
+						pMac,
+						vendor_ap_search_attr.ie_data,
+						ieLen);
 		}
 
 		/*
