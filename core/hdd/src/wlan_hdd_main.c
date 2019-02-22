@@ -14373,6 +14373,7 @@ static int hdd_update_scan_config(struct hdd_context *hdd_ctx)
 	scan_cfg.p2p_scan_burst_duration = cfg->p2p_scan_burst_duration;
 	scan_cfg.go_scan_burst_duration = cfg->go_scan_burst_duration;
 	scan_cfg.ap_scan_burst_duration = cfg->ap_scan_burst_duration;
+	scan_cfg.skip_dfs_chan_in_p2p_search = cfg->skipDfsChnlInP2pSearch;
 
 	hdd_update_pno_config(&scan_cfg.pno_cfg, cfg);
 	hdd_update_ie_whitelist_attr(&scan_cfg.ie_whitelist, cfg);
