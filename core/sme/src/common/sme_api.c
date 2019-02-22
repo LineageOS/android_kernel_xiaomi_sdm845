@@ -2366,6 +2366,12 @@ QDF_STATUS sme_process_msg(tpAniSirGlobal pMac, struct scheduler_msg *pMsg)
 			pMac->sme.bt_activity_info_cb(pMac->hdd_handle,
 						      pMsg->bodyval);
 		break;
+	case eWNI_SME_HIDDEN_SSID_RESTART_RSP:
+		if (pMac->sme.hidden_ssid_cb)
+			pMac->sme.hidden_ssid_cb(pMac->hdd_handle, pMsg->bodyval);
+		else
+			sme_err("callback is NULL");
+		break;
 	default:
 
 		if ((pMsg->type >= eWNI_SME_MSG_TYPES_BEGIN)
@@ -16065,6 +16071,21 @@ sme_get_roam_scan_stats(tHalHandle hal, roam_scan_stats_cb cb, void *context,
 	} else {
 		sme_err("sme_acquire_global_lock failed");
 		qdf_mem_free(req);
+	}
+
+	return status;
+}
+
+QDF_STATUS sme_update_hidden_ssid_status_cb(mac_handle_t mac_handle,
+					    hidden_ssid_cb cb)
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac = MAC_CONTEXT(mac_handle);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		mac->sme.hidden_ssid_cb = cb;
+		sme_release_global_lock(&mac->sme);
 	}
 
 	return status;

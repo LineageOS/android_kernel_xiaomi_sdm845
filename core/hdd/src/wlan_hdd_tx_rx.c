@@ -1866,8 +1866,9 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 		dest_mac_addr = (struct qdf_mac_addr *)(skb->data);
 		mac_addr = (struct qdf_mac_addr *)(skb->data+QDF_MAC_ADDR_SIZE);
 
-		ucfg_tdls_update_rx_pkt_cnt(adapter->vdev, mac_addr,
-				dest_mac_addr);
+		if (!hdd_is_current_high_throughput(hdd_ctx))
+			ucfg_tdls_update_rx_pkt_cnt(adapter->vdev, mac_addr,
+						    dest_mac_addr);
 
 		skb->dev = adapter->dev;
 		skb->protocol = eth_type_trans(skb, skb->dev);
@@ -1889,8 +1890,9 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 		}
 
 		/* hold configurable wakelock for unicast traffic */
-		if (hdd_ctx->config->rx_wakelock_timeout &&
-				sta_ctx->conn_info.uIsAuthenticated)
+		if (!hdd_is_current_high_throughput(hdd_ctx) &&
+		    hdd_ctx->config->rx_wakelock_timeout &&
+		    sta_ctx->conn_info.uIsAuthenticated)
 			wake_lock = hdd_is_rx_wake_lock_needed(skb);
 
 		if (wake_lock) {
@@ -2518,5 +2520,21 @@ void hdd_reset_tcp_delack(struct hdd_context *hdd_ctx)
 	rx_tp_data.level = next_level;
 	hdd_ctx->rx_high_ind_cnt = 0;
 	wlan_hdd_update_tcp_rx_param(hdd_ctx, &rx_tp_data);
+}
+
+/**
+ * hdd_is_current_high_throughput() - Check if vote level is high
+ * @hdd_ctx: Handle to hdd context
+ *
+ * Function used to check if vote level is high
+ *
+ * Return: True if vote level is high
+ */
+bool hdd_is_current_high_throughput(struct hdd_context *hdd_ctx)
+{
+	if (hdd_ctx->cur_vote_level < PLD_BUS_WIDTH_HIGH)
+		return false;
+	else
+		return true;
 }
 #endif /* MSM_PLATFORM */
