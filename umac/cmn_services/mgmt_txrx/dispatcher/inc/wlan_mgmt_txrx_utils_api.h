@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -55,6 +55,8 @@
 		mgmt_txrx_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
 #define mgmt_txrx_err_rl(params...) \
 	QDF_TRACE_ERROR_RL(QDF_MODULE_ID_MGMT_TXRX, params)
+#define mgmt_txrx_debug_rl(params...) \
+	QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_MGMT_TXRX, params)
 
 /**
  * enum mgmt_subtype - enum of mgmt. subtypes
