@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1178,6 +1178,9 @@ void hif_fake_apps_resume_work(struct work_struct *work)
 		container_of(work, struct fake_apps_context, resume_work);
 
 	QDF_BUG(ctx->resume_callback);
+	if (!ctx->resume_callback)
+		return;
+
 	ctx->resume_callback(0);
 	ctx->resume_callback = NULL;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -14741,14 +14741,18 @@ extract_roam_scan_stats_res_evt_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 
 	num_scans = fixed_param->num_roam_scans;
 	scan_param_size = sizeof(struct wmi_roam_scan_stats_params);
-	*vdev_id = fixed_param->vdev_id;
 	if (num_scans > WMI_ROAM_SCAN_STATS_MAX) {
 		WMI_LOGE(FL("%u exceeded maximum roam scan stats: %u"),
 			 num_scans, WMI_ROAM_SCAN_STATS_MAX);
 		return QDF_STATUS_E_INVAL;
 	}
+	if ((num_scans > ((UINT_MAX - sizeof(*res)) / scan_param_size))) {
+		WMI_LOGP("%s: Invalid num_roam_scans %d", __func__, num_scans);
+		return QDF_STATUS_E_INVAL;
+	}
 
 	total_len = sizeof(*res) + num_scans * scan_param_size;
+	*vdev_id = fixed_param->vdev_id;
 
 	res = qdf_mem_malloc(total_len);
 	if (!res) {
