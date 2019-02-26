@@ -7807,6 +7807,7 @@ void hdd_display_periodic_stats(struct hdd_context *hdd_ctx,
 	if (counter * hdd_ctx->config->busBandwidthComputeInterval >=
 		hdd_ctx->config->periodic_stats_disp_time * 1000) {
 		if (data_in_time_period) {
+			wlan_hdd_display_txrx_stats(hdd_ctx);
 			cdp_display_stats(cds_get_context(QDF_MODULE_ID_SOC),
 					  CDP_TXRX_PATH_STATS,
 					  QDF_STATS_VERBOSITY_LEVEL_LOW);

@@ -2933,30 +2933,32 @@ void hdd_wlan_get_stats(struct hdd_adapter *adapter, uint16_t *length,
 	}
 
 	len = scnprintf(buffer, buf_len,
-		"\nTransmit[%lu] - "
-		"called %u, dropped %u orphan %u,"
-		"\n[dropped]    BK %u, BE %u, VI %u, VO %u"
-		"\n[classified] BK %u, BE %u, VI %u, VO %u"
-		"\n\nReceive[%lu] - "
-		"packets %u, dropped %u, delivered %u, refused %u"
-		"\n",
-		qdf_system_ticks(),
-		stats->tx_called,
-		stats->tx_dropped,
-		stats->tx_orphaned,
+			"\nTransmit[%lu] - "
+			"called %u, dropped %u orphan %u,"
+			"\n[dropped]    BK %u, BE %u, VI %u, VO %u"
+			"\n[classified] BK %u, BE %u, VI %u, VO %u"
+			"\n\nReceive[%lu] - "
+			"packets %u, dropped %u, unsolict_arp_n_mcast_drp %u, delivered %u, refused %u"
+			"\n",
+			qdf_system_ticks(),
+			stats->tx_called,
+			stats->tx_dropped,
+			stats->tx_orphaned,
 
-		stats->tx_dropped_ac[SME_AC_BK],
-		stats->tx_dropped_ac[SME_AC_BE],
-		stats->tx_dropped_ac[SME_AC_VI],
-		stats->tx_dropped_ac[SME_AC_VO],
+			stats->tx_dropped_ac[SME_AC_BK],
+			stats->tx_dropped_ac[SME_AC_BE],
+			stats->tx_dropped_ac[SME_AC_VI],
+			stats->tx_dropped_ac[SME_AC_VO],
 
-		stats->tx_classified_ac[SME_AC_BK],
-		stats->tx_classified_ac[SME_AC_BE],
-		stats->tx_classified_ac[SME_AC_VI],
-		stats->tx_classified_ac[SME_AC_VO],
-		qdf_system_ticks(),
-		total_rx_pkt, total_rx_dropped, total_rx_delv, total_rx_refused
-		);
+			stats->tx_classified_ac[SME_AC_BK],
+			stats->tx_classified_ac[SME_AC_BE],
+			stats->tx_classified_ac[SME_AC_VI],
+			stats->tx_classified_ac[SME_AC_VO],
+			qdf_system_ticks(),
+			total_rx_pkt, total_rx_dropped,
+			qdf_atomic_read(&stats->rx_usolict_arp_n_mcast_drp),
+			total_rx_delv, total_rx_refused
+			);
 
 	for (i = 0; i < NUM_CPUS; i++) {
 		if (stats->rx_packets[i] == 0)
