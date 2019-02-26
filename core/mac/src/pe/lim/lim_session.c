@@ -1001,6 +1001,8 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 	pe_delete_fils_info(session);
 	session->valid = false;
 
+	qdf_mem_zero(session->WEPKeyMaterial,
+		     sizeof(session->WEPKeyMaterial));
 	if (session->access_policy_vendor_ie)
 		qdf_mem_free(session->access_policy_vendor_ie);
 

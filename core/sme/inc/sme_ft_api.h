@@ -85,6 +85,22 @@ void sme_get_ft_pre_auth_response(tHalHandle hHal, uint32_t sessionId,
 		uint16_t *ft_ies_length);
 void sme_get_rici_es(tHalHandle hHal, uint32_t sessionId, uint8_t *ric_ies,
 		uint32_t ric_ies_ip_len, uint32_t *ric_ies_length);
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+/**
+ * sme_reset_key() -Reset key information
+ * @mac_handle: MAC handle
+ * @vdev_id: vdev identifier
+ *
+ * Return: None
+ */
+void sme_reset_key(mac_handle_t mac_handle, uint32_t vdev_id);
+#else
+static inline void sme_reset_key(mac_handle_t mac_handle, uint32_t vdev_id)
+{
+}
+#endif
+
 void sme_preauth_reassoc_intvl_timer_callback(void *context);
 void sme_set_ft_pre_auth_state(tHalHandle hHal, uint32_t sessionId, bool state);
 bool sme_get_ft_pre_auth_state(tHalHandle hHal, uint32_t sessionId);
