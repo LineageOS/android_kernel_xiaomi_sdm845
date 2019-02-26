@@ -368,6 +368,18 @@ static inline QDF_STATUS wma_encrypt_decrypt_msg(WMA_HANDLE wma,
 #endif
 
 /**
+ * wma_find_if_fw_supports_dbs() - to check if FW supports DBS
+ *
+ * Firmware sends supported HW mode as part of service ready and
+ * service ready extension WMI message. This API checks through
+ * those HW mode list and figures out if DBS is supported by
+ * FW/HW.
+ *
+ * Return: True if FW/HW supports DBS else returns false.
+ */
+bool wma_find_if_fw_supports_dbs(void);
+
+/**
  * wma_set_cts2self_for_p2p_go() - set CTS2SELF command for P2P GO.
  * @wma_handle:                  pointer to wma handle.
  * @cts2self_for_p2p_go:         value needs to set to firmware.

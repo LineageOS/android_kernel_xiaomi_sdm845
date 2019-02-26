@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -91,11 +91,6 @@ typedef enum eAniEdType {
 	eSIR_ED_AES_GMAC_256,
 	eSIR_ED_NOT_IMPLEMENTED = SIR_MAX_ENUM_SIZE
 } tAniEdType;
-
-typedef enum eAniWepType {
-	eSIR_WEP_STATIC,
-	eSIR_WEP_DYNAMIC,
-} tAniWepType;
 
 /* / Enum to specify whether key is used */
 /* / for TX only, RX only or both */

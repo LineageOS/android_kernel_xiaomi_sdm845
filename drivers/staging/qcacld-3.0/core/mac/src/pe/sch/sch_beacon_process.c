@@ -408,13 +408,9 @@ sch_bcn_process_sta(tpAniSirGlobal mac_ctx,
 		beaconParams->beaconInterval = (uint16_t) bi;
 	}
 
-	if (bcn->cfPresent) {
+	if (bcn->cfPresent)
 		cfg_set_int(mac_ctx, WNI_CFG_CFP_PERIOD,
 			    bcn->cfParamSet.cfpPeriod);
-		lim_send_cf_params(mac_ctx, *bssIdx,
-				   bcn->cfParamSet.cfpCount,
-				   bcn->cfParamSet.cfpPeriod);
-	}
 
 	/* No need to send DTIM Period and Count to HAL/SMAC */
 	/* SMAC already parses TIM bit. */

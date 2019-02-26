@@ -3089,15 +3089,19 @@ static QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg)
 	tSmeCmd *command = NULL;
 	bool found;
 	nss_update_cb callback = NULL;
-	struct sir_beacon_tx_complete_rsp *param;
+	struct sir_bcn_update_rsp *param;
 
-	param = (struct sir_beacon_tx_complete_rsp *)msg;
+	param = (struct sir_bcn_update_rsp *)msg;
 	if (!param)
 		sme_err("nss update resp param is NULL");
 		/* Not returning. Need to check if active command list
 		 * needs to be freed
 		 */
 
+	if (param && param->reason != REASON_NSS_UPDATE) {
+		sme_err("reason not NSS update");
+		return QDF_STATUS_E_INVAL;
+	}
 	entry = csr_ll_peek_head(&mac->sme.smeCmdActiveList,
 			LL_ACCESS_LOCK);
 	if (!entry) {
@@ -3122,8 +3126,8 @@ static QDF_STATUS sme_process_nss_update_resp(tpAniSirGlobal mac, uint8_t *msg)
 			sme_err("Callback failed since nss update params is NULL");
 		else
 			callback(command->u.nss_update_cmd.context,
-				param->tx_status,
-				param->session_id,
+				param->status,
+				param->vdev_id,
 				command->u.nss_update_cmd.next_action,
 				command->u.nss_update_cmd.reason);
 	} else

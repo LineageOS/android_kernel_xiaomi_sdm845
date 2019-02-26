@@ -861,29 +861,24 @@ void set_probe_rsp_ie_bitmap(uint32_t *IeBitmap, uint32_t pos)
 	IeBitmap[index] = temp;
 }
 
-/* -------------------------------------------------------------------- */
 /**
- * write_beacon_to_memory
+ * write_beacon_to_memory() - send the beacon to the wma
+ * @pMac: pointer to mac structure
+ * @size: Size of the beacon to write to memory
+ * @length: Length field of the beacon to write to memory
+ * @psessionEntry: pe session
+ * @reason: beacon update reason
  *
- * FUNCTION:
- *
- * LOGIC:
- *
- * ASSUMPTIONS:
- *
- * NOTE:
- *
- * @param None
- * @param size    Size of the beacon to write to memory
- * @param length Length field of the beacon to write to memory
- * @return None
+ * return: success: QDF_STATUS_SUCCESS failure: QDF_STATUS_E_FAILURE
  */
-
-static void write_beacon_to_memory(tpAniSirGlobal pMac, uint16_t size,
-				   uint16_t length, tpPESession psessionEntry)
+static QDF_STATUS write_beacon_to_memory(tpAniSirGlobal pMac, uint16_t size,
+					 uint16_t length,
+					 tpPESession psessionEntry,
+					 enum sir_bcn_update_reason reason)
 {
 	uint16_t i;
 	tpAniBeaconStruct pBeacon;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	/* copy end of beacon only if length > 0 */
 	if (length > 0) {
@@ -902,7 +897,7 @@ static void write_beacon_to_memory(tpAniSirGlobal pMac, uint16_t size,
 		pBeacon->beaconLength = (uint32_t) size - sizeof(uint32_t);
 
 	if (!pMac->sch.schObject.fBeaconChanged)
-		return;
+		return QDF_STATUS_E_FAILURE;
 
 	pMac->sch.gSchGenBeacon = 1;
 	if (pMac->sch.gSchGenBeacon) {
@@ -914,16 +909,20 @@ static void write_beacon_to_memory(tpAniSirGlobal pMac, uint16_t size,
 		/* */
 
 		size = (size + 3) & (~3);
-		if (eSIR_SUCCESS !=
+		if (QDF_STATUS_SUCCESS !=
 		    sch_send_beacon_req(pMac, psessionEntry->pSchBeaconFrameBegin,
-					size, psessionEntry))
+					size, psessionEntry, reason)) {
+			status = QDF_STATUS_E_FAILURE;
 			pe_err("sch_send_beacon_req() returned an error (zsize %d)",
 			       size);
-			else {
-				pMac->sch.gSchBeaconsWritten++;
-			}
+		} else {
+			pMac->sch.gSchBeaconsWritten++;
+		}
 	}
+
 	pMac->sch.schObject.fBeaconChanged = 0;
+
+	return status;
 }
 
 /**
@@ -979,30 +978,18 @@ void sch_generate_tim(tpAniSirGlobal pMac, uint8_t **pPtr, uint16_t *timLength,
 
 	*pPtr = ptr;
 }
-/* -------------------------------------------------------------------- */
-/**
- * @function: SchProcessPreBeaconInd
- *
- * @brief : Process the PreBeacon Indication from the Lim
- *
- * ASSUMPTIONS:
- *
- * NOTE:
- *
- * @param : pMac - tpAniSirGlobal
- *
- * @return None
- */
 
-void sch_process_pre_beacon_ind(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
+QDF_STATUS sch_process_pre_beacon_ind(tpAniSirGlobal pMac, tpSirMsgQ limMsg,
+				      enum sir_bcn_update_reason reason)
 {
 	tpBeaconGenParams pMsg = (tpBeaconGenParams) limMsg->bodyptr;
 	uint32_t beaconSize;
 	tpPESession psessionEntry;
 	uint8_t sessionId;
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 	psessionEntry = pe_find_session_by_bssid(pMac, pMsg->bssId, &sessionId);
-	if (psessionEntry == NULL) {
+	if (!psessionEntry) {
 		pe_err("session lookup fails");
 		goto end;
 	}
@@ -1021,12 +1008,13 @@ void sch_process_pre_beacon_ind(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 	case eLIM_STA_IN_IBSS_ROLE:
 		/* generate IBSS parameter set */
 		if (psessionEntry->statypeForBss == STA_ENTRY_SELF)
-			write_beacon_to_memory(pMac, (uint16_t) beaconSize,
-					       (uint16_t) beaconSize,
-					       psessionEntry);
+			status =
+			    write_beacon_to_memory(pMac, (uint16_t) beaconSize,
+						   (uint16_t) beaconSize,
+						   psessionEntry, reason);
 		else
 			pe_err("can not send beacon for PEER session entry");
-			break;
+		break;
 
 	case eLIM_AP_ROLE: {
 		uint8_t *ptr =
@@ -1038,9 +1026,10 @@ void sch_process_pre_beacon_ind(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 			sch_generate_tim(pMac, &ptr, &timLength,
 					 psessionEntry->dtimPeriod);
 			beaconSize += 2 + timLength;
-			write_beacon_to_memory(pMac, (uint16_t) beaconSize,
-					       (uint16_t) beaconSize,
-					       psessionEntry);
+			status =
+			    write_beacon_to_memory(pMac, (uint16_t) beaconSize,
+						   (uint16_t) beaconSize,
+						   psessionEntry, reason);
 		} else
 			pe_err("can not send beacon for PEER session entry");
 			}
@@ -1052,6 +1041,7 @@ void sch_process_pre_beacon_ind(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 	}
 
 end:
-		qdf_mem_free(pMsg);
+	qdf_mem_free(pMsg);
 
-	}
+	return status;
+}

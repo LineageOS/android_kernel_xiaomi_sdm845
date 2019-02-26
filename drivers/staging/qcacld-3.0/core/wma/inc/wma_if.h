@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -348,7 +348,6 @@ typedef struct {
  * struct tSetStaKeyParams - set key params
  * @staIdx: station id
  * @encType: encryption type
- * @wepType: WEP type
  * @defWEPIdx: Default WEP key, valid only for static WEP, must between 0 and 3
  * @key: valid only for non-static WEP encyrptions
  * @singleTidRc: 1=Single TID based Replay Count, 0=Per TID based RC
@@ -366,7 +365,6 @@ typedef struct {
 typedef struct {
 	uint16_t staIdx;
 	tAniEdType encType;
-	tAniWepType wepType;
 	uint8_t defWEPIdx;
 	tSirKeys key[SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS];
 	uint8_t singleTidRc;
@@ -709,6 +707,7 @@ typedef struct sBeaconGenParams {
 
 /**
  * struct tSendbeaconParams - send beacon parameters
+ * vdev_id: vdev id
  * @bssId: BSSID mac address
  * @beacon: beacon data
  * @beaconLength: beacon length of template
@@ -716,8 +715,11 @@ typedef struct sBeaconGenParams {
  * @p2pIeOffset: P2P IE offset
  * @csa_count_offset: Offset of Switch count field in CSA IE
  * @ecsa_count_offset: Offset of Switch count field in ECSA IE
+ * @reason: bcn update reason
+ * @status: beacon send status
  */
 typedef struct {
+	uint8_t vdev_id;
 	tSirMacAddr bssId;
 	uint8_t beacon[SIR_MAX_BEACON_SIZE];
 	uint32_t beaconLength;
@@ -725,6 +727,8 @@ typedef struct {
 	uint16_t p2pIeOffset;
 	uint32_t csa_count_offset;
 	uint32_t ecsa_count_offset;
+	enum sir_bcn_update_reason reason;
+	QDF_STATUS status;
 } tSendbeaconParams, *tpSendbeaconParams;
 
 /**
@@ -850,23 +854,6 @@ typedef struct {
 	uint16_t smesessionId;
 	tSirMacAddr peer_mac;
 } tUpdateUserPos, *tpUpdateUserPos;
-
-/**
- * struct tUpdateCFParams -CF parameters
- * @bssIdx: BSSID index
- * @cfpCount: CFP count
- * @cfpPeriod: the number of DTIM intervals between the start of CFPs
- */
-typedef struct {
-	uint8_t bssIdx;
-	/*
-	 * cfpCount indicates how many DTIMs (including the current frame)
-	 * appear before the next CFP start. A CFPCount of 0 indicates that
-	 * the current DTIM marks the start of the CFP.
-	 */
-	uint8_t cfpCount;
-	uint8_t cfpPeriod;
-} tUpdateCFParams, *tpUpdateCFParams;
 
 /**
  * struct tSwitchChannelParams - switch channel request parameter

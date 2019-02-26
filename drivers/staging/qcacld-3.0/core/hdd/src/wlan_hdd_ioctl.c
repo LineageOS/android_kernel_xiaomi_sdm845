@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -5406,9 +5406,10 @@ static int drv_cmd_get_ibss_peer_info(hdd_adapter_t *adapter,
 				(int)txRate,
 				(int)pHddStaCtx->ibss_peer_info.
 				peerInfoParams[0].rssi);
+		length = QDF_MIN(priv_data->total_len, length + 1);
 
 		/* Copy the data back into buffer */
-		if (copy_to_user(priv_data->buf, &extra, length + 1)) {
+		if (copy_to_user(priv_data->buf, &extra, length)) {
 			hdd_err("copy data to user buffer failed GETIBSSPEERINFO command");
 			ret = -EFAULT;
 			goto exit;

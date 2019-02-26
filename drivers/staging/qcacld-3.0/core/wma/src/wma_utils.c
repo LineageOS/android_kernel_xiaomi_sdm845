@@ -4772,14 +4772,32 @@ int8_t wma_get_num_dbs_hw_modes(void)
 	return wma->num_dbs_hw_modes;
 }
 
-/**
- * wma_is_hw_dbs_capable() - Check if HW is DBS capable
- *
- * Checks if the HW is DBS capable
- *
- * Return: true if the HW is DBS capable
- */
-bool wma_is_hw_dbs_capable(void)
+bool wma_find_if_fw_supports_dbs(void)
+{
+	tp_wma_handle wma;
+	bool dbs_support;
+
+	wma = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma) {
+		WMA_LOGE("%s: Invalid WMA handle", __func__);
+		return false;
+	}
+	dbs_support =
+	WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
+			       WMI_SERVICE_DUAL_BAND_SIMULTANEOUS_SUPPORT);
+	WMA_LOGD("%s: is DBS supported by FW/HW: %s", __func__,
+		 dbs_support ? "yes" : "no");
+	/* The agreement with FW is that: To know if the target is DBS
+	 * capable, DBS needs to be supported both in the HW mode list
+	 * and in the service ready event
+	 */
+	if (!dbs_support)
+		return false;
+
+	return true;
+}
+
+static bool wma_find_if_hwlist_has_dbs(void)
 {
 	tp_wma_handle wma;
 	uint32_t param, i, found = 0;
@@ -4789,24 +4807,6 @@ bool wma_is_hw_dbs_capable(void)
 		WMA_LOGE("%s: Invalid WMA handle", __func__);
 		return false;
 	}
-
-	if (!wma_is_dbs_enable()) {
-		WMA_LOGD("%s: DBS is disabled", __func__);
-		return false;
-	}
-
-	WMA_LOGD("%s: DBS service bit map: %d", __func__,
-		WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
-		WMI_SERVICE_DUAL_BAND_SIMULTANEOUS_SUPPORT));
-
-	/* The agreement with FW is that: To know if the target is DBS
-	 * capable, DBS needs to be supported both in the HW mode list
-	 * and in the service ready event
-	 */
-	if (!(WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
-			WMI_SERVICE_DUAL_BAND_SIMULTANEOUS_SUPPORT)))
-		return false;
-
 	for (i = 0; i < wma->num_dbs_hw_modes; i++) {
 		param = wma->hw_mode.hw_mode_list[i];
 		WMA_LOGD("%s: HW param: %x", __func__, param);
@@ -4816,11 +4816,32 @@ bool wma_is_hw_dbs_capable(void)
 			break;
 		}
 	}
-
 	if (found)
 		return true;
 
 	return false;
+}
+
+/**
+ * wma_is_hw_dbs_capable() - Check if HW is DBS capable
+ *
+ * Checks if the HW is DBS capable
+ *
+ * Return: true if the HW is DBS capable
+ */
+bool wma_is_hw_dbs_capable(void)
+{
+	if (!wma_is_dbs_enable()) {
+		WMA_LOGD("%s: DBS is disabled", __func__);
+		return false;
+	}
+
+	if (!wma_find_if_fw_supports_dbs()) {
+		WMA_LOGD("%s: HW mode list has no dbs", __func__);
+		return false;
+	}
+
+	return wma_find_if_hwlist_has_dbs();
 }
 
 /**

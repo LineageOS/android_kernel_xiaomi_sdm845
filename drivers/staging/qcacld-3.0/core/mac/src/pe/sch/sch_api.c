@@ -178,12 +178,14 @@ void sch_send_start_scan_rsp(tpAniSirGlobal pMac)
  *
  * @return QDF_STATUS
  */
-tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
-				  uint16_t size, tpPESession psessionEntry)
+QDF_STATUS sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
+			       uint16_t size, tpPESession psessionEntry,
+			       enum sir_bcn_update_reason reason)
 {
 	tSirMsgQ msgQ;
 	tpSendbeaconParams beaconParams = NULL;
 	tSirRetStatus retCode;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	if (LIM_IS_AP_ROLE(psessionEntry) &&
 			(pMac->sch.schObject.fBeaconChanged)) {
@@ -199,7 +201,7 @@ tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 	}
 	beaconParams = qdf_mem_malloc(sizeof(tSendbeaconParams));
 	if (NULL == beaconParams)
-		return eSIR_MEM_ALLOC_FAILED;
+		return QDF_STATUS_E_NOMEM;
 
 	msgQ.type = WMA_SEND_BEACON_REQ;
 
@@ -225,6 +227,9 @@ tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 		}
 	}
 
+	beaconParams->vdev_id = psessionEntry->smeSessionId;
+	beaconParams->reason = reason;
+
 	/* p2pIeOffset should be atleast greater than timIeOffset */
 	if ((pMac->sch.schObject.p2pIeOffset != 0) &&
 	    (pMac->sch.schObject.p2pIeOffset <
@@ -233,7 +238,7 @@ tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 			pMac->sch.schObject.p2pIeOffset);
 		QDF_ASSERT(0);
 		qdf_mem_free(beaconParams);
-		return eSIR_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 	beaconParams->p2pIeOffset = pMac->sch.schObject.p2pIeOffset;
 #ifdef WLAN_SOFTAP_FW_BEACON_TX_PRNT_LOG
@@ -243,9 +248,9 @@ tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 	if (size >= SIR_MAX_BEACON_SIZE) {
 		  pe_err("beacon size (%d) exceed host limit %d",
 			 size, SIR_MAX_BEACON_SIZE);
-		  QDF_ASSERT(0);
-		  qdf_mem_free(beaconParams);
-		  return eSIR_FAILURE;
+		QDF_ASSERT(0);
+		qdf_mem_free(beaconParams);
+		return QDF_STATUS_E_FAILURE;
 	}
 	qdf_mem_copy(beaconParams->beacon, beaconPayload, size);
 
@@ -271,11 +276,13 @@ tSirRetStatus sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 
 	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
-	if (eSIR_SUCCESS != retCode)
+	if (eSIR_SUCCESS != retCode) {
+		status = QDF_STATUS_E_FAILURE;
 		pe_err("Posting SEND_BEACON_REQ to HAL failed, reason=%X",
 			retCode);
+	}
 
-	return retCode;
+	return status;
 }
 
 static uint32_t lim_remove_p2p_ie_from_add_ie(tpAniSirGlobal pMac,

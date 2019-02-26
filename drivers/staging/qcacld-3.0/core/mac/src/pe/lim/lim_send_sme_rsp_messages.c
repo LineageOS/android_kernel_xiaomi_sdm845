@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1895,8 +1895,8 @@ void lim_send_sme_pe_ese_tsm_rsp(tpAniSirGlobal pMac,
 	tpPESession pPeSessionEntry = NULL;
 
 	/* Get the Session Id based on Sta Id */
-	pPeSessionEntry =
-		pe_find_session_by_sta_id(pMac, pPeStats->staId, &sessionId);
+	pPeSessionEntry = pe_find_session_by_bssid(pMac, pPeStats->bssid.bytes,
+						   &sessionId);
 
 	/* Fill the Session Id */
 	if (NULL != pPeSessionEntry) {
@@ -2568,7 +2568,8 @@ lim_send_sme_ap_channel_switch_resp(tpAniSirGlobal pMac,
 	if (!is_ch_dfs) {
 		if (channelId == psessionEntry->currentOperChannel) {
 			lim_apply_configuration(pMac, psessionEntry);
-			lim_send_beacon_ind(pMac, psessionEntry);
+			lim_send_beacon_ind(pMac, psessionEntry,
+					    REASON_CONFIG_UPDATE);
 		} else {
 			pe_debug("Failed to Transmit Beacons on channel: %d after AP channel change response",
 				       psessionEntry->bcnLen);
@@ -2581,11 +2582,8 @@ void lim_process_beacon_tx_success_ind(tpAniSirGlobal mac_ctx,
 				uint16_t msg_type, void *event)
 {
 	tpPESession session;
-	cds_msg_t msg = {0};
-	struct sir_beacon_tx_complete_rsp *bcn_tx_comp_rsp;
 	tpSirFirstBeaconTxCompleteInd bcn_ind =
 		(tSirFirstBeaconTxCompleteInd *) event;
-	QDF_STATUS status;
 
 	session = pe_find_session_by_bss_idx(mac_ctx, bcn_ind->bssIdx);
 	if (session == NULL) {
@@ -2607,24 +2605,9 @@ void lim_process_beacon_tx_success_ind(tpAniSirGlobal mac_ctx,
 	    mac_ctx->sap.SapDfsInfo.sap_ch_switch_beacon_cnt))
 		lim_process_ap_ecsa_timeout(session);
 
-	if (session->gLimOperatingMode.present) {
-		/* Done with nss update, send response back to SME */
+	if (session->gLimOperatingMode.present)
+		/* Done with nss update */
 		session->gLimOperatingMode.present = 0;
-		bcn_tx_comp_rsp = (struct sir_beacon_tx_complete_rsp *)
-			qdf_mem_malloc(sizeof(*bcn_tx_comp_rsp));
-		if (NULL == bcn_tx_comp_rsp) {
-			pe_err("AllocateMemory failed for bcn_tx_comp_rsp");
-			return;
-		}
-		bcn_tx_comp_rsp->session_id = session->smeSessionId;
-		bcn_tx_comp_rsp->tx_status = QDF_STATUS_SUCCESS;
-		msg.type = eWNI_SME_NSS_UPDATE_RSP;
-		msg.bodyptr = bcn_tx_comp_rsp;
 
-		status = cds_mq_post_message(QDF_MODULE_ID_SME, &msg);
-		if (QDF_IS_STATUS_ERROR(status)) {
-			sme_err("Failed to post eWNI_SME_NSS_UPDATE_RSP");
-			qdf_mem_free(bcn_tx_comp_rsp);
-		}
-	}
+	return;
 }

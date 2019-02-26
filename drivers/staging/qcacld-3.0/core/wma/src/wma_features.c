@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -6929,6 +6929,7 @@ QDF_STATUS wma_process_tsm_stats_req(tp_wma_handle wma_handler,
 		return QDF_STATUS_E_NOMEM;
 	}
 	pTsmRspParams->staId = pStats->staId;
+	qdf_copy_macaddr(&pTsmRspParams->bssid, &pStats->bssId);
 	pTsmRspParams->rc = eSIR_FAILURE;
 	pTsmRspParams->tsmStatsReq = pStats;
 	pTsmMetric = &pTsmRspParams->tsmMetrics;
