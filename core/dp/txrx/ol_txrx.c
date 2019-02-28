@@ -5472,15 +5472,15 @@ static inline int ol_txrx_drop_nbuf_list(qdf_nbuf_t buf_list)
 }
 
 /**
- * ol_rx_data_cb() - data rx callback
- * @peer: peer
+ * ol_rx_data_handler() - data rx handler
+ * @pdev: dev handle
  * @buf_list: buffer list
  * @staid: Station id
  *
  * Return: None
  */
-static void ol_rx_data_cb(struct ol_txrx_pdev_t *pdev,
-			  qdf_nbuf_t buf_list, uint16_t staid)
+static void ol_rx_data_handler(struct ol_txrx_pdev_t *pdev,
+			       qdf_nbuf_t buf_list, uint16_t staid)
 {
 	void *osif_dev;
 	uint8_t drop_count = 0;
@@ -5540,6 +5540,22 @@ static void ol_rx_data_cb(struct ol_txrx_pdev_t *pdev,
 free_buf:
 	drop_count = ol_txrx_drop_nbuf_list(buf_list);
 	ol_txrx_warn("%s:Dropped frames %u", __func__, drop_count);
+}
+
+/**
+ * ol_rx_data_cb() - data rx callback
+ * @context: dev handle
+ * @buf_list: buffer list
+ * @staid: Station id
+ *
+ * Return: None
+ */
+static inline void
+ol_rx_data_cb(void *context, qdf_nbuf_t buf_list, uint16_t staid)
+{
+	struct ol_txrx_pdev_t *pdev = context;
+
+	ol_rx_data_handler(pdev, buf_list, staid);
 }
 
 /* print for every 16th packet */
@@ -5668,7 +5684,7 @@ void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 		 * better use multicores.
 		 */
 		if (!ol_cfg_is_rx_thread_enabled(pdev->ctrl_pdev)) {
-			ol_rx_data_cb(pdev, rx_buf_list, peer->local_id);
+			ol_rx_data_handler(pdev, rx_buf_list, peer->local_id);
 		} else {
 			p_cds_sched_context sched_ctx =
 				get_cds_sched_ctxt();
@@ -5681,15 +5697,14 @@ void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 			if (!pkt)
 				goto drop_rx_buf;
 
-			pkt->callback = (cds_ol_rx_thread_cb)
-					ol_rx_data_cb;
-			pkt->context = (void *)pdev;
-			pkt->Rxpkt = (void *)rx_buf_list;
+			pkt->callback = ol_rx_data_cb;
+			pkt->context = pdev;
+			pkt->Rxpkt = rx_buf_list;
 			pkt->staId = peer->local_id;
 			cds_indicate_rxpkt(sched_ctx, pkt);
 		}
 #else                           /* QCA_CONFIG_SMP */
-		ol_rx_data_cb(pdev, rx_buf_list, peer->local_id);
+		ol_rx_data_handler(pdev, rx_buf_list, peer->local_id);
 #endif /* QCA_CONFIG_SMP */
 	}
 
@@ -5863,8 +5878,8 @@ static QDF_STATUS ol_txrx_register_pause_cb(struct cdp_soc_t *soc,
  * Return: none
  */
 static void ol_txrx_offld_flush_handler(void *context,
-				      void *rxpkt,
-				      uint16_t staid)
+					qdf_nbuf_t rxpkt,
+					uint16_t staid)
 {
 	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
