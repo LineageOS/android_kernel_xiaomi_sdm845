@@ -1342,7 +1342,7 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 	    !qdf_list_empty(&osif_priv->osif_scan->scan_req_q)) {
 		wlan_objmgr_vdev_release_ref(vdev, WLAN_OSIF_ID);
 		cfg80211_err("Simultaneous scan disabled, reject scan");
-		return -EINVAL;
+		return -EBUSY;
 	}
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {
