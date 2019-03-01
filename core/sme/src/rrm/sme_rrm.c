@@ -392,6 +392,18 @@ static QDF_STATUS sme_ese_send_beacon_req_scan_results(
 	return status;
 }
 
+static inline
+void sme_reset_ese_bcn_req_in_progress(tpRrmSMEContext sme_rrm_ctx)
+{
+	if (sme_rrm_ctx)
+		sme_rrm_ctx->eseBcnReqInProgress = false;
+}
+
+#else
+
+static inline
+void sme_reset_ese_bcn_req_in_progress(tpRrmSMEContext sme_rrm_ctx)
+{}
 #endif /* FEATURE_WLAN_ESE */
 
 /**
@@ -640,6 +652,7 @@ static QDF_STATUS sme_rrm_scan_request_callback(tHalHandle halHandle,
 	tpAniSirGlobal pMac = (tpAniSirGlobal) halHandle;
 	tpRrmSMEContext pSmeRrmContext = &pMac->rrm.rrmSmeContext;
 	uint32_t time_tick;
+	QDF_STATUS qdf_status;
 
 	/* if any more channels are pending, start a timer of a random value
 	 * within randomization interval.
@@ -662,7 +675,13 @@ static QDF_STATUS sme_rrm_scan_request_callback(tHalHandle halHandle,
 			time_tick % (pSmeRrmContext->randnIntvl - 10 + 1) + 10;
 
 		sme_debug("Set timer for interval %d ", interval);
-		qdf_mc_timer_start(&pSmeRrmContext->IterMeasTimer, interval);
+		qdf_status = qdf_mc_timer_start(&pSmeRrmContext->IterMeasTimer,
+						interval);
+		if (QDF_IS_STATUS_ERROR(qdf_status)) {
+			qdf_mem_free(pSmeRrmContext->channelList.ChannelList);
+			pSmeRrmContext->channelList.ChannelList = NULL;
+			sme_reset_ese_bcn_req_in_progress(pSmeRrmContext);
+		}
 
 	} else {
 		/* Done with the measurement. Clean up all context and send a
@@ -674,9 +693,8 @@ static QDF_STATUS sme_rrm_scan_request_callback(tHalHandle halHandle,
 					->currentIndex],
 					 true);
 		qdf_mem_free(pSmeRrmContext->channelList.ChannelList);
-#ifdef FEATURE_WLAN_ESE
-		pSmeRrmContext->eseBcnReqInProgress = false;
-#endif
+		pSmeRrmContext->channelList.ChannelList = NULL;
+		sme_reset_ese_bcn_req_in_progress(pSmeRrmContext);
 	}
 
 	return QDF_STATUS_SUCCESS;
@@ -944,6 +962,10 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 	     && (pBeaconReq->channelList.numChannels == 0))) {
 		/* Add all the channel in the regulatory domain. */
 		wlan_cfg_get_str_len(pMac, WNI_CFG_VALID_CHANNEL_LIST, &len);
+		if (pSmeRrmContext->channelList.ChannelList) {
+			qdf_mem_free(pSmeRrmContext->channelList.ChannelList);
+			pSmeRrmContext->channelList.ChannelList = NULL;
+		}
 		pSmeRrmContext->channelList.ChannelList = qdf_mem_malloc(len);
 		if (pSmeRrmContext->channelList.ChannelList == NULL) {
 			sme_err("qdf_mem_malloc failed");
@@ -965,6 +987,10 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 
 		len += pBeaconReq->channelList.numChannels;
 
+		if (pSmeRrmContext->channelList.ChannelList) {
+			qdf_mem_free(pSmeRrmContext->channelList.ChannelList);
+			pSmeRrmContext->channelList.ChannelList = NULL;
+		}
 		pSmeRrmContext->channelList.ChannelList = qdf_mem_malloc(len);
 		if (pSmeRrmContext->channelList.ChannelList == NULL) {
 			sme_err("qdf_mem_malloc failed");
@@ -1500,6 +1526,11 @@ QDF_STATUS rrm_close(tpAniSirGlobal pMac)
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 				  FL("Timer stop fail"));
 		}
+	}
+
+	if (pSmeRrmContext->channelList.ChannelList) {
+		qdf_mem_free(pSmeRrmContext->channelList.ChannelList);
+		pSmeRrmContext->channelList.ChannelList = NULL;
 	}
 
 	qdf_status = qdf_mc_timer_destroy(&pSmeRrmContext->IterMeasTimer);
