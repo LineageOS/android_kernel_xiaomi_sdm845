@@ -441,12 +441,12 @@ static int32_t cam_cci_calc_cmd_len(struct cci_device *cci_dev,
 	struct cam_cci_ctrl *c_ctrl, uint32_t cmd_size,
 	 struct cam_sensor_i2c_reg_array *i2c_cmd, uint32_t *pack)
 {
-	uint8_t i;
+	uint8_t __maybe_unused i;
 	uint32_t len = 0;
 	uint8_t data_len = 0, addr_len = 0;
 	uint8_t pack_max_len;
 	struct cam_sensor_i2c_reg_setting *msg;
-	struct cam_sensor_i2c_reg_array *cmd = i2c_cmd;
+	struct cam_sensor_i2c_reg_array __maybe_unused *cmd = i2c_cmd;
 	uint32_t size = cmd_size;
 
 	if (!cci_dev || !c_ctrl) {
