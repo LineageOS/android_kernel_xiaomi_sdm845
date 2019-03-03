@@ -255,6 +255,39 @@ config DEVFREQ_SPDM
 	  This driver allows any SPDM based client to vote for bandwidth.
 	  Used with the QTI SPDM Hypervisor Governor.
 
+config DEVFREQ_BOOST
+	bool "Devfreq Boost"
+	help
+	  Boosts enumerated devfreq devices upon input, and allows for boosting
+	  specific devfreq devices on other custom events. The boost frequencies
+	  for this driver should be set so that frame drops are near-zero at the
+	  boosted frequencies and power consumption is minimized at said
+	  frequencies. The goal of this driver is to provide an interface to
+	  achieve optimal device performance by requesting boosts on key events,
+	  such as when a frame is ready to rendered to the display.
+
+if DEVFREQ_BOOST
+
+config DEVFREQ_INPUT_BOOST_DURATION_MS
+	int "Input boost duration"
+	default "100"
+	help
+	  Input boost duration in milliseconds for all boostable devices.
+
+config DEVFREQ_WAKE_BOOST_DURATION_MS
+	int "Wake boost duration"
+	default "1000"
+	help
+	  Wake boost duration in milliseconds for all boostable devices.
+
+config DEVFREQ_MSM_CPUBW_BOOST_FREQ
+	int "Boost freq for cpubw device"
+	default "0"
+	help
+	  Boost frequency for the MSM DDR bus.
+
+endif
+
 source "drivers/devfreq/event/Kconfig"
 
 endif # PM_DEVFREQ
