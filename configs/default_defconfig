@@ -93,6 +93,11 @@ CONFIG_QCACLD_FEATURE_APF := y
 #Flag to enable SARv1 -> SARv2 conversion
 CONFIG_WLAN_FEATURE_SARV1_TO_SARV2 := n
 
+#Flag to enable set coex configuration
+ifeq ($(CONFIG_ARCH_QCS405), y)
+CONFIG_QCACLD_FEATURE_COEX_CONFIG := y
+endif
+
 ifeq ($(CONFIG_ARCH_MSM8998), y)
 CONFIG_QCACLD_FEATURE_METERING := y
 endif

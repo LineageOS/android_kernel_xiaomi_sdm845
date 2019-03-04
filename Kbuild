@@ -170,6 +170,10 @@ ifeq ($(CONFIG_WLAN_SYSFS), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_sysfs.o
 endif
 
+ifeq ($(CONFIG_QCACLD_FEATURE_COEX_CONFIG), y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_coex_config.o
+endif
+
 ifeq ($(CONFIG_QCACLD_FEATURE_MPTA_HELPER), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_mpta_helper.o
 endif
@@ -2044,6 +2048,9 @@ cppflags-$(CONFIG_WLAN_NUD_TRACKING) += -DWLAN_NUD_TRACKING
 
 #Flag to enable set and get disable channel list feature
 cppflags-$(CONFIG_DISABLE_CHANNEL_LIST) += -DDISABLE_CHANNEL_LIST
+
+#Flag to enable set coex configuration feature
+cppflags-$(CONFIG_QCACLD_FEATURE_COEX_CONFIG) += -DFEATURE_COEX_CONFIG
 
 #Flag to enable MPTA helper feature
 cppflags-$(CONFIG_QCACLD_FEATURE_MPTA_HELPER) += -DFEATURE_MPTA_HELPER

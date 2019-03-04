@@ -110,6 +110,7 @@
 #include <wlan_cfg80211_mc_cp_stats.h>
 #include <wlan_cp_stats_mc_ucfg_api.h>
 #include "wlan_hdd_object_manager.h"
+#include "wlan_hdd_coex_config.h"
 
 #define g_mode_rates_size (12)
 #define a_mode_rates_size (8)
@@ -14942,6 +14943,7 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 		.doit = wlan_hdd_cfg80211_set_limit_offchan_param
 	},
 
+	FEATURE_COEX_CONFIG_COMMANDS
 	FEATURE_MPTA_HELPER_COMMANDS
 };
 
