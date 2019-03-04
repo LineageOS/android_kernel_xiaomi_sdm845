@@ -2534,6 +2534,7 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 						     self_sta_req->session_id);
 			wma_handle->interfaces[vdev_id].vdev_active = false;
 			wma_cdp_vdev_detach(soc, wma_handle, vdev_id);
+			txrx_vdev_handle = NULL;
 			goto end;
 		}
 	} else if (self_sta_req->type == WMI_VDEV_TYPE_STA) {
@@ -2548,6 +2549,7 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 						     self_sta_req->session_id);
 			wma_handle->interfaces[vdev_id].vdev_active = false;
 			wma_cdp_vdev_detach(soc, wma_handle, vdev_id);
+			txrx_vdev_handle = NULL;
 			goto end;
 		}
 	}
