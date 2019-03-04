@@ -559,6 +559,68 @@ static void csr_close_stats_ll(struct sAniSirGlobal *mac_ctx)
 }
 #endif
 
+/**
+ * csr_assoc_rej_free_rssi_disallow_list() - Free the rssi disallowed
+ * BSSID entries and destroy the list
+ * @mac_ctx: MAC context
+ *
+ * Return: void
+ */
+static void csr_assoc_rej_free_rssi_disallow_list(struct sAniSirGlobal *mac)
+{
+	QDF_STATUS status;
+	struct sir_rssi_disallow_lst *cur_node;
+	qdf_list_node_t *cur_lst = NULL, *next_lst = NULL;
+	qdf_list_t *list = &mac->roam.rssi_disallow_bssid;
+
+	qdf_mutex_acquire(&mac->roam.rssi_disallow_bssid_lock);
+	qdf_list_peek_front(list, &cur_lst);
+	while (cur_lst) {
+		qdf_list_peek_next(list, cur_lst, &next_lst);
+		cur_node = qdf_container_of(cur_lst,
+					    struct sir_rssi_disallow_lst, node);
+		status = qdf_list_remove_node(list, cur_lst);
+		if (QDF_IS_STATUS_SUCCESS(status))
+			qdf_mem_free(cur_node);
+		cur_lst = next_lst;
+		next_lst = NULL;
+	}
+	qdf_list_destroy(list);
+	qdf_mutex_release(&mac->roam.rssi_disallow_bssid_lock);
+}
+
+/**
+ * csr_roam_rssi_disallow_bssid_init() - Init the rssi disallowed
+ * list and mutex
+ * @mac_ctx: MAC context
+ *
+ * Return: QDF_STATUS enumeration
+ */
+static QDF_STATUS csr_roam_rssi_disallow_bssid_init(
+					     struct sAniSirGlobal *mac_ctx)
+{
+	qdf_list_create(&mac_ctx->roam.rssi_disallow_bssid,
+			MAX_RSSI_AVOID_BSSID_LIST);
+	qdf_mutex_create(&mac_ctx->roam.rssi_disallow_bssid_lock);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * csr_roam_rssi_disallow_bssid_deinit() - Free the rssi diallowed
+ * BSSID entries and destroy the list&mutex
+ * @mac_ctx: MAC context
+ *
+ * Return: QDF_STATUS enumeration
+ */
+static QDF_STATUS csr_roam_rssi_disallow_bssid_deinit(
+					     struct sAniSirGlobal *mac_ctx)
+{
+	csr_assoc_rej_free_rssi_disallow_list(mac_ctx);
+	qdf_mutex_destroy(&mac_ctx->roam.rssi_disallow_bssid_lock);
+	return QDF_STATUS_SUCCESS;
+}
+
 QDF_STATUS csr_open(tpAniSirGlobal pMac)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -581,8 +643,8 @@ QDF_STATUS csr_open(tpAniSirGlobal pMac)
 		status = csr_open_stats_ll(pMac);
 		if (QDF_IS_STATUS_ERROR(status))
 			break;
-		qdf_list_create(&pMac->roam.rssi_disallow_bssid,
-			MAX_RSSI_AVOID_BSSID_LIST);
+
+		csr_roam_rssi_disallow_bssid_init(pMac);
 	} while (0);
 
 	return status;
@@ -633,40 +695,12 @@ QDF_STATUS csr_set_channels(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	return status;
 }
 
-/**
- * csr_assoc_rej_free_rssi_disallow_list() - Free the rssi diallowed
- * BSSID entries and destroy the list
- * @list: rssi based disallowed list entry
- *
- * Return: void
- */
-static void csr_assoc_rej_free_rssi_disallow_list(qdf_list_t *list)
-{
-	QDF_STATUS status;
-	struct sir_rssi_disallow_lst *cur_node;
-	qdf_list_node_t *cur_lst = NULL, *next_lst = NULL;
-
-	qdf_list_peek_front(list, &cur_lst);
-	while (cur_lst) {
-		qdf_list_peek_next(list, cur_lst, &next_lst);
-		cur_node = qdf_container_of(cur_lst,
-			struct sir_rssi_disallow_lst, node);
-		status = qdf_list_remove_node(list, cur_lst);
-		if (QDF_IS_STATUS_SUCCESS(status))
-			qdf_mem_free(cur_node);
-		cur_lst = next_lst;
-		next_lst = NULL;
-	}
-	qdf_list_destroy(list);
-}
-
 QDF_STATUS csr_close(tpAniSirGlobal pMac)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	csr_roam_close(pMac);
-	csr_assoc_rej_free_rssi_disallow_list(
-		&pMac->roam.rssi_disallow_bssid);
+	csr_roam_rssi_disallow_bssid_deinit(pMac);
 	csr_scan_close(pMac);
 	csr_close_stats_ll(pMac);
 	/* DeInit Globals */
@@ -19458,6 +19492,7 @@ static void csr_add_rssi_reject_ap_list(tpAniSirGlobal mac_ctx,
 	if (roam_params->num_rssi_rejection_ap > MAX_RSSI_AVOID_BSSID_LIST)
 		roam_params->num_rssi_rejection_ap = MAX_RSSI_AVOID_BSSID_LIST;
 
+	qdf_mutex_acquire(&mac_ctx->roam.rssi_disallow_bssid_lock);
 	qdf_list_peek_front(list, &cur_list);
 	while (cur_list) {
 		int32_t rem_time;
@@ -19483,6 +19518,8 @@ static void csr_add_rssi_reject_ap_list(tpAniSirGlobal mac_ctx,
 		if (i >= MAX_RSSI_AVOID_BSSID_LIST)
 			break;
 	}
+	qdf_mutex_release(&mac_ctx->roam.rssi_disallow_bssid_lock);
+
 	for (i = 0; i < roam_params->num_rssi_rejection_ap; i++) {
 		sme_debug("BSSID %pM expected rssi %d remaining duration %d",
 			roam_params->rssi_rejection_ap[i].bssid.bytes,
