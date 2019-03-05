@@ -938,6 +938,7 @@ util_scan_unpack_beacon_frame(struct wlan_objmgr_pdev *pdev, uint8_t *frame,
 
 	if (util_scan_is_hidden_ssid(ssid)) {
 		scan_entry->ie_list.ssid = NULL;
+		scan_entry->is_hidden_ssid = true;
 	} else {
 		qdf_mem_copy(scan_entry->ssid.ssid,
 				ssid->ssid, ssid->ssid_len);
