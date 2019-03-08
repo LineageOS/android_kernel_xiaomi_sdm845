@@ -10913,6 +10913,9 @@ void csr_roam_joined_state_msg_processor(tpAniSirGlobal pMac, void *pMsgBuf)
 			roam_info->ht_caps = pUpperLayerAssocCnf->ht_caps;
 		if (pUpperLayerAssocCnf->vht_caps.present)
 			roam_info->vht_caps = pUpperLayerAssocCnf->vht_caps;
+		roam_info->capability_info =
+					pUpperLayerAssocCnf->capability_info;
+
 		if (CSR_IS_INFRA_AP(roam_info->u.pConnectedProfile)) {
 			pMac->roam.roamSession[sessionId].connectState =
 				eCSR_ASSOC_STATE_TYPE_INFRA_CONNECTED;
@@ -11796,6 +11799,7 @@ csr_roam_chk_lnk_assoc_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 		qdf_mem_copy(&roam_info_ptr->vht_caps,
 			     &pAssocInd->VHTCaps,
 			     sizeof(tDot11fIEVHTCaps));
+	roam_info_ptr->capability_info = pAssocInd->capability_info;
 
 	if (CSR_IS_INFRA_AP(roam_info_ptr->u.pConnectedProfile)) {
 		if (session->pCurRoamProfile &&
@@ -16999,6 +17003,7 @@ QDF_STATUS csr_send_assoc_ind_to_upper_layer_cnf_msg(tpAniSirGlobal pMac,
 			pMsg->ht_caps = pAssocInd->HTCaps;
 		if (pAssocInd->VHTCaps.present)
 			pMsg->vht_caps = pAssocInd->VHTCaps;
+		pMsg->capability_info = pAssocInd->capability_info;
 
 		msgQ.type = eWNI_SME_UPPER_LAYER_ASSOC_CNF;
 		msgQ.bodyptr = pMsg;

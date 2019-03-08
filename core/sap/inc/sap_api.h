@@ -291,6 +291,7 @@ typedef struct sap_StationAssocReassocCompleteEvent_s {
 	uint8_t ecsa_capable;
 	tDot11fIEHTCaps ht_caps;
 	tDot11fIEVHTCaps vht_caps;
+	tSirMacCapabilityInfo capability_info;
 } tSap_StationAssocReassocCompleteEvent;
 
 typedef struct sap_StationDisassocCompleteEvent_s {

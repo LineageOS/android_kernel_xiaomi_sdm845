@@ -108,6 +108,7 @@
 #include "wlan_ipa_ucfg_api.h"
 #include <wlan_cfg80211_mc_cp_stats.h>
 #include <wlan_cp_stats_mc_ucfg_api.h>
+#include "wlan_hdd_object_manager.h"
 
 #define g_mode_rates_size (12)
 #define a_mode_rates_size (8)
@@ -1734,6 +1735,10 @@ int wlan_hdd_cfg80211_start_acs(struct hdd_adapter *adapter)
 		return status;
 
 	sap_config = &adapter->session.ap.sap_config;
+	if (!sap_config) {
+		hdd_err("SAP config is NULL");
+		return -EINVAL;
+	}
 	if (hdd_ctx->acs_policy.acs_channel)
 		sap_config->channel = hdd_ctx->acs_policy.acs_channel;
 	else
@@ -5054,6 +5059,11 @@ static uint32_t hdd_add_tx_bitrate_sap_get_len(void)
 	return ((NLA_HDRLEN) + (sizeof(uint8_t) + NLA_HDRLEN));
 }
 
+static uint32_t hdd_add_sta_capability_get_len(void)
+{
+	return nla_total_size(sizeof(uint16_t));
+}
+
 /**
  * hdd_add_tx_bitrate_sap - add vhs nss info attribute
  * @skb: pointer to response skb buffer
@@ -5096,7 +5106,8 @@ fail:
 static uint32_t hdd_add_sta_info_sap_get_len(void)
 {
 	return ((NLA_HDRLEN) + (sizeof(uint8_t) + NLA_HDRLEN) +
-		hdd_add_tx_bitrate_sap_get_len());
+		hdd_add_tx_bitrate_sap_get_len() +
+		hdd_add_sta_capability_get_len());
 }
 
 /**
@@ -5176,7 +5187,11 @@ static int hdd_add_link_standard_info_sap(struct sk_buff *skb, int8_t rssi,
 		hdd_err("Reason code put fail");
 		goto fail;
 	}
-
+	if (nla_put_u16(skb, NL80211_ATTR_STA_CAPABILITY,
+			stainfo->capability)) {
+		hdd_err("put fail");
+		goto fail;
+	}
 	nla_nest_end(skb, nla_attr);
 	return 0;
 fail:
@@ -13537,6 +13552,7 @@ static int hdd_post_get_chain_rssi_rsp(struct hdd_context *hdd_ctx,
 
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(hdd_ctx->wiphy,
 		(sizeof(result->chain_rssi) + NLA_HDRLEN) +
+		(sizeof(result->chain_evm) + NLA_HDRLEN) +
 		(sizeof(result->ant_id) + NLA_HDRLEN) +
 		NLMSG_HDRLEN);
 
@@ -13546,15 +13562,22 @@ static int hdd_post_get_chain_rssi_rsp(struct hdd_context *hdd_ctx,
 	}
 
 	if (nla_put(skb, QCA_WLAN_VENDOR_ATTR_CHAIN_RSSI,
-			sizeof(result->chain_rssi),
-			result->chain_rssi)) {
+		    sizeof(result->chain_rssi),
+		    result->chain_rssi)) {
+		hdd_err("put fail");
+		goto nla_put_failure;
+	}
+
+	if (nla_put(skb, QCA_WLAN_VENDOR_ATTR_CHAIN_EVM,
+		    sizeof(result->chain_evm),
+		    result->chain_evm)) {
 		hdd_err("put fail");
 		goto nla_put_failure;
 	}
 
 	if (nla_put(skb, QCA_WLAN_VENDOR_ATTR_ANTENNA_INFO,
-			sizeof(result->ant_id),
-			result->ant_id)) {
+		    sizeof(result->ant_id),
+		    result->ant_id)) {
 		hdd_err("put fail");
 		goto nla_put_failure;
 	}
@@ -20017,6 +20040,7 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 	struct hdd_station_ctx *sta_ctx =
 		WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	struct wlan_objmgr_vdev *vdev;
 
 	hdd_enter();
 
@@ -20090,8 +20114,10 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 			reasonCode = eCSR_DISCONNECT_REASON_UNSPECIFIED;
 			break;
 		}
-		if (ucfg_scan_get_vdev_status(adapter->vdev) !=
-				SCAN_NOT_IN_PROGRESS) {
+
+		vdev = hdd_objmgr_get_vdev(adapter);
+		if (vdev &&
+		    ucfg_scan_get_vdev_status(vdev) != SCAN_NOT_IN_PROGRESS) {
 			hdd_debug("Disconnect is in progress, Aborting Scan");
 			wlan_abort_scan(hdd_ctx->pdev, INVAL_PDEV_ID,
 					adapter->session_id, INVALID_SCAN_ID,
@@ -20100,7 +20126,9 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 		wlan_hdd_cleanup_remain_on_channel_ctx(adapter);
 		/* First clean up the tdls peers if any */
 		hdd_notify_sta_disconnect(adapter->session_id,
-			  false, true, adapter->vdev);
+			  false, true, vdev);
+		if (vdev)
+			hdd_objmgr_put_vdev(vdev);
 
 		hdd_info("Disconnect from userspace; reason:%d (%s)",
 			 reason, hdd_ieee80211_reason_code_to_str(reason));

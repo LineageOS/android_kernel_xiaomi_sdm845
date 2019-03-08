@@ -8412,6 +8412,96 @@ enum hdd_link_speed_rpt_type {
 #define CFG_STA_MIRACAST_MCC_REST_TIME_VAL_MAX     (500)
 #define CFG_STA_MIRACAST_MCC_REST_TIME_VAL_DEFAULT (400)
 
+/*
+ * <ini>
+ * sta_scan_burst_duration - Burst duration in case of split scan.
+ * @Min: 0
+ * @Max: 180
+ * @Default: 0
+ *
+ * This ini is used to set burst duration of scan only when STA is active.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_STA_SCAN_BURST_DURATION_VAL                 "sta_scan_burst_duration"
+#define CFG_STA_SCAN_BURST_DURATION_VAL_MIN             (0)
+#define CFG_STA_SCAN_BURST_DURATION_VAL_MAX             (180)
+#define CFG_STA_SCAN_BURST_DURATION_VAL_DEFAULT         (0)
+
+/*
+ * <ini>
+ * p2p_scan_burst_duration - Burst duration in case of split scan for p2p scan.
+ * @Min: 0
+ * @Max: 180
+ * @Default: 0
+ *
+ * This ini is used to set burst duration of scan for p2p scan requests.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_P2P_SCAN_BURST_DURATION_VAL                 "p2p_scan_burst_duration"
+#define CFG_P2P_SCAN_BURST_DURATION_VAL_MIN             (0)
+#define CFG_P2P_SCAN_BURST_DURATION_VAL_MAX             (180)
+#define CFG_P2P_SCAN_BURST_DURATION_VAL_DEFAULT         (0)
+
+/*
+ * <ini>
+ * go_scan_burst_duration - Burst duration in case of split scan when GO is
+ * active.
+ * @Min: 0
+ * @Max: 180
+ * @Default: 0
+ *
+ * This ini is used to set burst duration of scan when GO is active.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_GO_SCAN_BURST_DURATION_VAL                 "go_scan_burst_duration"
+#define CFG_GO_SCAN_BURST_DURATION_VAL_MIN             (0)
+#define CFG_GO_SCAN_BURST_DURATION_VAL_MAX             (180)
+#define CFG_GO_SCAN_BURST_DURATION_VAL_DEFAULT         (0)
+
+/*
+ * <ini>
+ * ap_scan_burst_duration - Burst duration in case of split scan when ap
+ * is active.
+ * @Min: 0
+ * @Max: 32
+ * @Default: 0
+ *
+ * This ini is used to set burst duration of scan when SAP is active.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Concurrency
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_AP_SCAN_BURST_DURATION_VAL                 "ap_scan_burst_duration"
+#define CFG_AP_SCAN_BURST_DURATION_VAL_MIN             (0)
+#define CFG_AP_SCAN_BURST_DURATION_VAL_MAX             (32)
+#define CFG_AP_SCAN_BURST_DURATION_VAL_DEFAULT         (0)
+
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 /*
  * <ini>
@@ -16506,6 +16596,10 @@ struct hdd_config {
 	uint8_t is_sta_connection_in_5gz_enabled;
 	uint16_t p2p_listen_defer_interval;
 	uint32_t sta_miracast_mcc_rest_time_val;
+	uint32_t sta_scan_burst_duration;
+	uint32_t p2p_scan_burst_duration;
+	uint32_t go_scan_burst_duration;
+	uint32_t ap_scan_burst_duration;
 	bool is_ramdump_enabled;
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	bool sap_channel_avoidance;
