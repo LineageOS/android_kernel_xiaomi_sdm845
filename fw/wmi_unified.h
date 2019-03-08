@@ -11464,6 +11464,9 @@ typedef struct {
 #define WMI_ROAM_BTM_GET_CNDS_SELECT_BASED_ON_SCORE(flags)         WMI_GET_BITS(flags, 7, 1)
 #define WMI_ROAM_BTM_SET_BTM_QUERY_PREFERENCE_OVER_11K(flags, val) WMI_SET_BITS(flags, 8, 1, val)
 #define WMI_ROAM_BTM_GET_BTM_QUERY_PREFERENCE_OVER_11K(flags)      WMI_GET_BITS(flags, 8, 1)
+#define WMI_ROAM_BTM_SET_BTM_QUERY_WITH_CANDIDATE_LIST(flags, val) WMI_SET_BITS(flags, 9, 1, val)
+#define WMI_ROAM_BTM_GET_BTM_QUERY_WITH_CANDIDATE_LIST(flags)      WMI_GET_BITS(flags, 9, 1)
+
 
 /** WMI_ROAM_BTM_SET_NON_MATCHING_CNDS_ACTION definition: When BTM candidate is not matched with cache by WMI_ROAM_BTM_SET_CNDS_MATCH_CONDITION, determine what to do */
 #define WMI_ROAM_BTM_NON_MATCHING_CNDS_SCAN_CONSUME      0 /** Invoke roam scan and consume within firmware. Applicable only when ROAM_SCAN_MODE is enabled. If ROAM_SCAN_MODE is disabled, firmware won't scan and forward it to host */
@@ -11508,6 +11511,13 @@ typedef struct {
      *  disregarded.
      */
     A_UINT32 disassoc_timer_threshold;
+    /*
+     * Bitmask (with enum WMI_ROAM_TRIGGER_REASON_ID identifying the bit
+     * positions) showing for which roam_trigger_reasons the
+     * btm query needs to be sent.
+     * If roam trigger reasons are unspecified, btm_bitmap will be 0x0.
+     */
+    A_UINT32 btm_bitmap;
 } wmi_btm_config_fixed_param;
 
 #define WMI_ROAM_5G_BOOST_PENALIZE_ALGO_FIXED  0x0
@@ -11606,6 +11616,8 @@ enum {
     WMI_AUTH_RSNA_FILS_SHA384,
     WMI_AUTH_RSNA_SUITE_B_8021X_SHA256,
     WMI_AUTH_RSNA_SUITE_B_8021X_SHA384,
+    WMI_AUTH_FT_RSNA_SAE,
+    WMI_AUTH_FT_RSNA_SUITE_B_8021X_SHA384,
 };
 
 typedef enum {
@@ -12169,6 +12181,8 @@ typedef struct {
     A_UINT32 r0kh_id_len;
     A_UINT32 psk_msk[ROAM_OFFLOAD_PSK_MSK_BYTES>>2]; /* psk/msk offload. As this 4 byte aligned, we don't declare it as tlv array */
     A_UINT32 psk_msk_len; /**length of psk_msk*/
+    A_UINT32 psk_msk_ext_len; /**length of psk_msk_ext*/
+    A_UINT32 psk_msk_ext[ROAM_OFFLOAD_PSK_MSK_BYTES>>2];
 } wmi_roam_11r_offload_tlv_param;
 
 /* This TLV will be filled only in case of ESE */
@@ -17682,6 +17696,8 @@ typedef struct {
         (2) data/mgmt frame is received from roamed AP, which needs to return to host
 */
 
+#define GTK_OFFLOAD_KCK_EXTENDED_BYTES 32
+
 typedef struct {
     /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_key_material */
     A_UINT32 tlv_header;
@@ -17690,6 +17706,12 @@ typedef struct {
     A_UINT8  kek[GTK_OFFLOAD_KEK_BYTES]; /* EAPOL-Key Key Encryption Key (KEK) */
     A_UINT8  replay_counter[GTK_REPLAY_COUNTER_BYTES];
 } wmi_key_material;
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_key_material_ext */
+    A_UINT32 tlv_header;
+    A_UINT8  key_buffer[GTK_OFFLOAD_KEK_EXTENDED_BYTES+GTK_OFFLOAD_KCK_EXTENDED_BYTES+GTK_REPLAY_COUNTER_BYTES]; /*the split of kck, kek should be known to host based on akmp*/
+} wmi_key_material_ext;
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_roam_synch_event_fixed_param  */
@@ -17726,7 +17748,7 @@ typedef struct {
      *     A_UINT32 status; subnet changed status not being used currently.
      *         will pass the information using roam_status.
      *     A_UINT8 reassoc_req_frame[];  length identified by reassoc_req_len
-     *
+     *     wmi_key_material_ext key_ext
      **/
 } wmi_roam_synch_event_fixed_param;
 
@@ -22099,6 +22121,15 @@ typedef enum wmi_coex_config_type {
      *   arg5 - t_delay for high priority traffic (microsecond units)
      */
     WMI_COEX_CONFIG_THREE_WAY_DELAY_PARA   = 33,
+    /* WMI_COEX_CONFIG_THREE_WAY_COEX_START
+     * config to set coex parameters from WLAN host to adjust priorities
+     * among wlan/bt/zb
+     * arg1 - priority level 1, the serialized coex scenorio ID will be put here
+     * arg2 - priority level 2, same parameters rules as arg1
+     * arg3 - priority level 3, same parameters rules as arg1
+     * arg4 - priority level 4, same parameters rules as arg1
+     */
+    WMI_COEX_CONFIG_THREE_WAY_COEX_START   = 34,
 } WMI_COEX_CONFIG_TYPE;
 
 typedef struct {
