@@ -401,6 +401,10 @@ struct scan_default_params {
 	int rssi_cat[SCM_NUM_RSSI_CAT];
 	uint16_t max_bss_per_pdev;
 	uint32_t max_active_scans_allowed;
+	uint8_t sta_scan_burst_duration;
+	uint8_t p2p_scan_burst_duration;
+	uint8_t go_scan_burst_duration;
+	uint8_t ap_scan_burst_duration;
 	enum scan_priority scan_priority;
 	enum scan_dwelltime_adaptive_mode adaptive_dwell_time_mode;
 	enum scan_dwelltime_adaptive_mode adaptive_dwell_time_mode_nc;

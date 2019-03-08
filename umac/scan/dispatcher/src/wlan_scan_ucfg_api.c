@@ -602,7 +602,6 @@ static void ucfg_scan_req_update_concurrency_params(
 
 	if (!psoc)
 		return;
-
 	ap_present = policy_mgr_mode_specific_connection_count(
 				psoc, PM_SAP_MODE, NULL);
 	go_present = policy_mgr_mode_specific_connection_count(
@@ -680,18 +679,24 @@ static void ucfg_scan_req_update_concurrency_params(
 				 * of channels in every transition by using
 				 * burst scan.
 				 */
-				req->scan_req.burst_duration =
-					ucfg_scan_get_burst_duration(
-						req->scan_req.dwell_time_active,
-						scan_obj->miracast_enabled);
+				if (scan_obj->scan_def.go_scan_burst_duration)
+					req->scan_req.burst_duration =
+						scan_obj->
+						scan_def.go_scan_burst_duration;
+				else
+					req->scan_req.burst_duration =
+						ucfg_scan_get_burst_duration(
+							req->scan_req.
+							dwell_time_active,
+							scan_obj->
+							miracast_enabled);
 				break;
 			}
-			if ((sta_active || p2p_cli_present) &&
-			    !req->scan_req.burst_duration) {
-				/* Typical background scan.
-				 * Disable burst scan for now.
-				 */
-				req->scan_req.burst_duration = 0;
+			if ((sta_active || p2p_cli_present)) {
+				if (scan_obj->scan_def.sta_scan_burst_duration)
+					req->scan_req.burst_duration =
+						scan_obj->scan_def.
+						sta_scan_burst_duration;
 				break;
 			}
 
@@ -741,11 +746,16 @@ static void ucfg_scan_req_update_concurrency_params(
 			req->scan_req.dwell_time_passive =
 				req->scan_req.dwell_time_active;
 		}
-		req->scan_req.burst_duration = 0;
-		if (utils_is_dfs_ch(pdev, ap_chan))
+		if (scan_obj->scan_def.ap_scan_burst_duration) {
 			req->scan_req.burst_duration =
-				SCAN_BURST_SCAN_MAX_NUM_OFFCHANNELS *
-				req->scan_req.dwell_time_active;
+				scan_obj->scan_def.ap_scan_burst_duration;
+		} else {
+			req->scan_req.burst_duration = 0;
+			if (utils_is_dfs_ch(pdev, ap_chan))
+				req->scan_req.burst_duration =
+					SCAN_BURST_SCAN_MAX_NUM_OFFCHANNELS *
+					req->scan_req.dwell_time_active;
+		}
 	}
 }
 
@@ -909,22 +919,29 @@ ucfg_scan_req_update_params(struct wlan_objmgr_vdev *vdev,
 				req->scan_req.repeat_probe_time =
 					req->scan_req.dwell_time_active / 3;
 
-			req->scan_req.burst_duration =
-					BURST_SCAN_MAX_NUM_OFFCHANNELS *
-					req->scan_req.dwell_time_active;
-			if (req->scan_req.burst_duration >
-			    P2P_SCAN_MAX_BURST_DURATION) {
-				uint8_t channels =
-					P2P_SCAN_MAX_BURST_DURATION /
-					req->scan_req.dwell_time_active;
-				if (channels)
-					req->scan_req.burst_duration =
+			if (scan_obj->scan_def.p2p_scan_burst_duration) {
+				req->scan_req.burst_duration =
+					scan_obj->scan_def.
+					p2p_scan_burst_duration;
+			} else {
+				req->scan_req.burst_duration =
+						BURST_SCAN_MAX_NUM_OFFCHANNELS *
+						req->scan_req.dwell_time_active;
+				if (req->scan_req.burst_duration >
+				    P2P_SCAN_MAX_BURST_DURATION) {
+					uint8_t channels =
+						P2P_SCAN_MAX_BURST_DURATION /
+						req->scan_req.dwell_time_active;
+					if (channels)
+						req->scan_req.burst_duration =
 						channels *
 						req->scan_req.dwell_time_active;
-				else
-					req->scan_req.burst_duration =
+					else
+						req->scan_req.burst_duration =
 						P2P_SCAN_MAX_BURST_DURATION;
+				}
 			}
+
 			req->scan_req.scan_ev_bss_chan = false;
 		}
 	}
@@ -1463,6 +1480,11 @@ wlan_scan_global_init(struct wlan_scan_obj *scan_obj)
 	scan_obj->scan_def.adaptive_dwell_time_mode = SCAN_DWELL_MODE_DEFAULT;
 	scan_obj->scan_def.adaptive_dwell_time_mode_nc =
 					SCAN_DWELL_MODE_DEFAULT;
+	/* init burst durations */
+	scan_obj->scan_def.sta_scan_burst_duration = 0;
+	scan_obj->scan_def.p2p_scan_burst_duration = 0;
+	scan_obj->scan_def.go_scan_burst_duration = 0;
+	scan_obj->scan_def.ap_scan_burst_duration = 0;
 	/* scan contrl flags */
 	scan_obj->scan_def.scan_f_passive = true;
 	scan_obj->scan_def.scan_f_ofdm_rates = true;
@@ -1967,7 +1989,10 @@ QDF_STATUS ucfg_scan_update_user_config(struct wlan_objmgr_psoc *psoc,
 	scan_def->enable_mac_spoofing = scan_cfg->enable_mac_spoofing;
 	scan_def->sta_miracast_mcc_rest_time =
 				scan_cfg->sta_miracast_mcc_rest_time;
-
+	scan_def->sta_scan_burst_duration = scan_cfg->sta_scan_burst_duration;
+	scan_def->p2p_scan_burst_duration = scan_cfg->p2p_scan_burst_duration;
+	scan_def->go_scan_burst_duration = scan_cfg->go_scan_burst_duration;
+	scan_def->ap_scan_burst_duration = scan_cfg->ap_scan_burst_duration;
 	ucfg_scan_assign_rssi_category(scan_def,
 			scan_cfg->scan_bucket_threshold,
 			scan_cfg->rssi_cat_gap);

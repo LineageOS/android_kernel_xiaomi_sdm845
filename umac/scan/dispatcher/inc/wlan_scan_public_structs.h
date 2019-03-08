@@ -1354,6 +1354,10 @@ struct scan_user_cfg {
 	bool is_bssid_hint_priority;
 	bool enable_mac_spoofing;
 	uint32_t sta_miracast_mcc_rest_time;
+	uint8_t sta_scan_burst_duration;
+	uint8_t p2p_scan_burst_duration;
+	uint8_t go_scan_burst_duration;
+	uint8_t ap_scan_burst_duration;
 	struct scoring_config score_config;
 };
 
