@@ -263,6 +263,30 @@
  *	test configuration. Attributes for this command are defined in
  *	enum qca_wlan_vendor_attr_wifi_test_config.
  *
+ * @QCA_NL80211_VENDOR_SUBCMD_NAN_EXT: An extendable version of NAN vendor
+ *	command. The earlier command for NAN, QCA_NL80211_VENDOR_SUBCMD_NAN,
+ *	carried a payload which was a binary blob of data. The command was not
+ *	extendable to send more information. The newer version carries the
+ *	legacy blob encapsulated within an attribute and can be extended with
+ *	additional vendor attributes that can enhance the NAN command
+ *	interface.
+ * @QCA_NL80211_VENDOR_SUBCMD_GET_FW_STATE: Sub command to get firmware state.
+ *	The returned firmware state is specified in the attribute
+ *	QCA_WLAN_VENDOR_ATTR_FW_STATE.
+ * @QCA_NL80211_VENDOR_SUBCMD_PEER_STATS_CACHE_FLUSH: This vendor subcommand
+ *	is used by host driver to flush per-peer cached statistics to user space
+ *	application. This interface is used as an event from host driver to
+ *	user space application. Attributes for this event are specified in
+ *	enum qca_wlan_vendor_attr_peer_stats_cache_params.
+ *	QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_DATA attribute is expected to be
+ *	sent as event from host driver.
+ * @QCA_NL80211_VENDOR_SUBCMD_MPTA_HELPER_CONFIG: This sub command is used to
+ *	improve the success rate of Zigbee joining network.
+ *	Due to PTA master limitation, zigbee joining network success rate is
+ *	low while wlan is working. Wlan host driver need to configure some
+ *	parameters including Zigbee state and specific WLAN periods to enhance
+ *	PTA master. All this parameters are delivered by the NetLink attributes
+ *	defined in "enum qca_mpta_helper_vendor_attr".
  */
 
 enum qca_nl80211_vendor_subcmds {
@@ -470,6 +494,9 @@ enum qca_nl80211_vendor_subcmds {
 	/* Wi-Fi test configuration subcommand */
 	QCA_NL80211_VENDOR_SUBCMD_WIFI_TEST_CONFIGURATION = 169,
 	QCA_NL80211_VENDOR_SUBCMD_THROUGHPUT_CHANGE_EVENT = 174,
+	QCA_NL80211_VENDOR_SUBCMD_GET_FW_STATE = 177,
+	QCA_NL80211_VENDOR_SUBCMD_PEER_STATS_CACHE_FLUSH = 178,
+	QCA_NL80211_VENDOR_SUBCMD_MPTA_HELPER_CONFIG = 179,
 };
 
 enum qca_wlan_vendor_tos {
@@ -6124,6 +6151,193 @@ enum qca_wlan_vendor_attr_throughput_change {
 	QCA_WLAN_VENDOR_ATTR_THROUGHPUT_CHANGE_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_THROUGHPUT_CHANGE_MAX =
 	QCA_WLAN_VENDOR_ATTR_THROUGHPUT_CHANGE_AFTER_LAST - 1,
+};
+
+/* enum qca_wlan_nan_subcmd_type - Type of NAN command used by attribute
+ * QCA_WLAN_VENDOR_ATTR_NAN_SUBCMD_TYPE as a part of vendor command
+ * QCA_NL80211_VENDOR_SUBCMD_NAN_EXT.
+ */
+enum qca_wlan_nan_ext_subcmd_type {
+	/* Subcmd of type NAN Enable Request */
+	QCA_WLAN_NAN_EXT_SUBCMD_TYPE_ENABLE_REQ = 1,
+	/* Subcmd of type NAN Disable Request */
+	QCA_WLAN_NAN_EXT_SUBCMD_TYPE_DISABLE_REQ = 2,
+};
+
+/**
+ * enum qca_wlan_vendor_attr_nan_params - Used by the vendor command
+ * QCA_NL80211_VENDOR_SUBCMD_NAN_EXT.
+ */
+enum qca_wlan_vendor_attr_nan_params {
+	QCA_WLAN_VENDOR_ATTR_NAN_INVALID = 0,
+	/* Carries NAN command for firmware component. Every vendor command
+	 * QCA_NL80211_VENDOR_SUBCMD_NAN_EXT must contain this attribute with a
+	 * payload containing the NAN command. NLA_BINARY attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_NAN_CMD_DATA = 1,
+	/* Indicates the type of NAN command sent with
+	 * QCA_NL80211_VENDOR_SUBCMD_NAN_EXT. enum qca_wlan_nan_ext_subcmd_type
+	 * describes the possible range of values. This attribute is mandatory
+	 * if the command being issued is either
+	 * QCA_WLAN_NAN_EXT_SUBCMD_TYPE_ENABLE_REQ or
+	 * QCA_WLAN_NAN_EXT_SUBCMD_TYPE_DISABLE_REQ. NLA_U32 attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_NAN_SUBCMD_TYPE = 2,
+	/* Frequency (in MHz) of primary NAN discovery social channel in 2.4 GHz
+	 * band. This attribute is mandatory when command type is
+	 * QCA_WLAN_NAN_EXT_SUBCMD_TYPE_ENABLE_REQ. NLA_U32 attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_NAN_DISC_24GHZ_BAND_FREQ = 3,
+	/* Frequency (in MHz) of secondary NAN discovery social channel in 5 GHz
+	 * band. This attribute is optional and should be included when command
+	 * type is QCA_WLAN_NAN_EXT_SUBCMD_TYPE_ENABLE_REQ and NAN discovery
+	 * has to be started on 5GHz along with 2.4GHz. NLA_U32 attribute.
+	 */
+	QCA_WLAN_VENDOR_ATTR_NAN_DISC_5GHZ_BAND_FREQ = 4,
+
+	/* keep last */
+	QCA_WLAN_VENDOR_ATTR_NAN_PARAMS_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_NAN_PARAMS_MAX =
+		QCA_WLAN_VENDOR_ATTR_NAN_PARAMS_AFTER_LAST - 1
+};
+
+/**
+ * enum qca_vendor_attr_peer_stats_cache_type - Represents peer stats cache type
+ * This enum defines the valid set of values of peer stats cache types. These
+ * values are used by attribute
+ * %QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_TYPE_INVALID.
+ *
+ * @QCA_WLAN_VENDOR_ATTR_PEER_TX_RATE_STATS: Represents peer tx rate statistics.
+ * @QCA_WLAN_VENDOR_ATTR_PEER_RX_RATE_STATS: Represents peer rx rate statistics.
+ * @QCA_WLAN_VENDOR_ATTR_PEER_TX_SOJOURN_STATS: Represents peer tx sojourn
+ * statistics
+ */
+enum qca_vendor_attr_peer_stats_cache_type {
+	QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_TYPE_INVALID = 0,
+
+	QCA_WLAN_VENDOR_ATTR_PEER_TX_RATE_STATS,
+	QCA_WLAN_VENDOR_ATTR_PEER_RX_RATE_STATS,
+	QCA_WLAN_VENDOR_ATTR_PEER_TX_SOJOURN_STATS,
+};
+
+/**
+ * enum qca_wlan_vendor_attr_peer_stats_cache_params - This enum defines
+ * attributes required for QCA_NL80211_VENDOR_SUBCMD_PEER_STATS_CACHE_FLUSH
+ * Attributes are required to flush peer rate statistics from driver to
+ * user application.
+ *
+ * @QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_TYPE: Unsigned 32-bit attribute
+ * Indicate peer stats cache type.
+ * The statistics types are 32-bit values from
+ * qca_vendor_attr_peer_stats_cache_type
+ * @QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_PEER_MAC: Unsigned 8-bit array
+ * of size 6, representing peer mac address.
+ * @QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_DATA: Opaque data attribute
+ * containing buffer of statistics to send event to application layer entity.
+ * @QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_PEER_COOKIE: Unsigned 64-bit attribute
+ * representing cookie for peer unique session.
+ */
+enum qca_wlan_vendor_attr_peer_stats_cache_params {
+	QCA_WLAN_VENDOR_ATTR_PEER_STATS_INVALID = 0,
+
+	QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_TYPE = 1,
+	QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_PEER_MAC = 2,
+	QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_DATA = 3,
+	QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_PEER_COOKIE = 4,
+
+	/* Keep last */
+	QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_LAST,
+	QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_MAX =
+		QCA_WLAN_VENDOR_ATTR_PEER_STATS_CACHE_LAST - 1
+};
+
+/**
+ * enum qca_mpta_helper_attr_zigbee_state - current states of zegbee.
+ * this enum defines all the possible state of zigbee, which can be
+ * delivered by NetLink attribute QCA_MPTA_HELPER_VENDOR_ATTR_ZIGBEE_STATE.
+ *
+ * @ZIGBEE_IDLE: zigbee in idle state
+ * @ZIGBEE_FORM_NETWORK: zibee forming network
+ * @ZIGBEE_WAIT_JOIN: zigbee waiting for joining network
+ * @ZIGBEE_JOIN: zigbee joining network
+ * @ZIGBEE_NETWORK_UP: zigbee network is up
+ * @ZIGBEE_HMI: zigbee in HMI mode
+ */
+enum qca_mpta_helper_attr_zigbee_state {
+	ZIGBEE_IDLE = 0,
+	ZIGBEE_FORM_NETWORK = 1,
+	ZIGBEE_WAIT_JOIN = 2,
+	ZIGBEE_JOIN = 3,
+	ZIGBEE_NETWORK_UP = 4,
+	ZIGBEE_HMI = 5,
+};
+
+/**
+ * enum qca_mpta_helper_vendor_attr - used for NL attributes sent by
+ * vendor sub-command QCA_NL80211_VENDOR_SUBCMD_MPTA_HELPER_CONFIG.
+ */
+enum qca_mpta_helper_vendor_attr {
+	QCA_MPTA_HELPER_VENDOR_ATTR_INVALID = 0,
+	/* Optional attribute used to update zigbee state.
+	 * enum qca_mpta_helper_attr_zigbee_state.
+	 * NLA_U32 attribute.
+	 */
+	QCA_MPTA_HELPER_VENDOR_ATTR_ZIGBEE_STATE = 1,
+	/* Optional attribute used to configure wlan duration for Shape-OCS
+	 * during interrupt.
+	 * Set in pair with QCA_MPTA_HELPER_VENDOR_ATTR_INT_NON_WLAN_DURATION.
+	 * Value range 0 ~ 300 (ms).
+	 * NLA_U32 attribute.
+	 */
+	QCA_MPTA_HELPER_VENDOR_ATTR_INT_WLAN_DURATION = 2,
+	/* Optional attribute used to configure non wlan duration for Shape-OCS
+	 * during interrupt.
+	 * Set in pair with QCA_MPTA_HELPER_VENDOR_ATTR_INT_WLAN_DURATION.
+	 * Value range 0 ~ 300 (ms).
+	 * NLA_U32 attribute.
+	 */
+	QCA_MPTA_HELPER_VENDOR_ATTR_INT_NON_WLAN_DURATION = 3,
+	/* Optional attribute used to configure wlan duration for Shape-OCS
+	 * monitor period.
+	 * Set in pair with QCA_MPTA_HELPER_VENDOR_ATTR_MON_NON_WLAN_DURATION.
+	 * Value range 0 ~ 300 (ms)
+	 * NLA_U32 attribute
+	 */
+	QCA_MPTA_HELPER_VENDOR_ATTR_MON_WLAN_DURATION = 4,
+	/* Optional attribute used to configure non wlan duration for Shape-OCS
+	 * monitor period.
+	 * Set in pair with QCA_MPTA_HELPER_VENDOR_ATTR_MON_WLAN_DURATION.
+	 * Value range 0 ~ 300 (ms)
+	 * NLA_U32 attribute
+	 */
+	QCA_MPTA_HELPER_VENDOR_ATTR_MON_NON_WLAN_DURATION = 5,
+	/* Optional attribute used to configure ocs interrupt duration.
+	 * Set in pair with QCA_MPTA_HELPER_VENDOR_ATTR_MON_OCS_DURATION.
+	 * Value range 1000 ~ 20000 (ms)
+	 * NLA_U32 attribute
+	 */
+	QCA_MPTA_HELPER_VENDOR_ATTR_INT_OCS_DURATION = 6,
+	/* Optional attribute used to configure ocs monitor duration.
+	 * Set in pair with QCA_MPTA_HELPER_VENDOR_ATTR_INT_OCS_DURATION.
+	 * Value range 1000 ~ 20000 (ms)
+	 * NLA_U32 attribute
+	 */
+	QCA_MPTA_HELPER_VENDOR_ATTR_MON_OCS_DURATION = 7,
+	/* Optional attribute used to notify wlan FW current zigbee channel.
+	 * Value range 11 ~ 26
+	 * NLA_U32 attribute
+	 */
+	QCA_MPTA_HELPER_VENDOR_ATTR_ZIGBEE_CHAN = 8,
+	/* Optional attribute used to configure wlan mute duration.
+	 * Value range 0 ~ 400 (ms)
+	 * NLA_U32 attribute
+	 */
+	QCA_MPTA_HELPER_VENDOR_ATTR_WLAN_MUTE_DURATION = 9,
+
+	/* keep last */
+	QCA_MPTA_HELPER_VENDOR_ATTR_AFTER_LAST,
+	QCA_MPTA_HELPER_VENDOR_ATTR_MAX =
+		QCA_MPTA_HELPER_VENDOR_ATTR_AFTER_LAST - 1
 };
 
 #endif
