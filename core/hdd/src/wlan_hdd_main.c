@@ -94,6 +94,7 @@
 #include "wlan_hdd_driver_ops.h"
 #include "epping_main.h"
 #include "wlan_hdd_data_stall_detection.h"
+#include "wlan_hdd_mpta_helper.h"
 
 #include <wlan_hdd_ipa.h>
 #include "hif.h"
@@ -4910,6 +4911,10 @@ static int hdd_send_coex_config_params(struct hdd_context *hdd_ctx,
 		hdd_err("Failed to send coex BT interference level");
 		goto err;
 	}
+
+	if (wlan_hdd_mpta_helper_enable(config))
+		goto err;
+
 	return 0;
 err:
 	return -EINVAL;

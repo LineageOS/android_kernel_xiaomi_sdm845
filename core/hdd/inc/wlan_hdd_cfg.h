@@ -15679,6 +15679,24 @@ enum hdd_external_acs_policy {
 #define CFG_SET_BT_INTERFERENCE_HIGH_UL_MAX      (100)
 #define CFG_SET_BT_INTERFERENCE_HIGH_UL_DEFAULT  (-11)
 
+#ifdef FEATURE_MPTA_HELPER
+/*
+ * <ini>
+ * gMPTAHelperEnable - Config MPTA helper enable
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_MPTA_HELPER_ENABLE_NAME     "gMPTAHelperEnable"
+#define CFG_SET_MPTA_HELPER_ENABLE_MIN      (0)
+#define CFG_SET_MPTA_HELPER_ENABLE_MAX      (1)
+#define CFG_SET_MPTA_HELPER_ENABLE_DEFAULT  (0)
+#endif
+
 /*
  * <ini>
  * enable_mac_provision - Enable/disable MAC address provisioning feature
@@ -16991,6 +17009,9 @@ struct hdd_config {
 	int16_t set_bt_interference_medium_ul;
 	int16_t set_bt_interference_high_ll;
 	int16_t set_bt_interference_high_ul;
+#ifdef FEATURE_MPTA_HELPER
+	bool    set_mpta_helper_enable;
+#endif
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	uint32_t roam_preauth_retry_count;
 	uint32_t roam_preauth_no_ack_timeout;
