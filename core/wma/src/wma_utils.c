@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -61,6 +61,7 @@
 #include "cds_reg_service.h"
 #include "target_if.h"
 #include "wlan_mlme_main.h"
+#include "host_diag_core_log.h"
 
 /* MCS Based rate table */
 /* HT MCS parameters with Nss = 1 */
@@ -4907,4 +4908,71 @@ void wma_remove_peer_on_add_bss_failure(tpAddBssParams add_bss_params)
 	}
 	wma_remove_peer(wma, add_bss_params->bssId, add_bss_params->bssIdx,
 			peer, false);
+}
+
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
+static QDF_STATUS wma_send_cold_boot_cal_data(uint8_t *data,
+		wmi_cold_boot_cal_data_fixed_param *event)
+{
+	struct host_log_cold_boot_cal_data_type *log_ptr = NULL;
+
+	WLAN_HOST_DIAG_LOG_ALLOC(log_ptr,
+				 struct host_log_cold_boot_cal_data_type,
+				 LOG_WLAN_COLD_BOOT_CAL_DATA_C);
+
+	if (!log_ptr)
+		return QDF_STATUS_E_NOMEM;
+
+	log_ptr->version = VERSION_LOG_WLAN_COLD_BOOT_CAL_DATA_C;
+	log_ptr->cb_cal_data_len = event->data_len;
+	log_ptr->flags = event->flags;
+	qdf_mem_copy(log_ptr->cb_cal_data, data, log_ptr->cb_cal_data_len);
+
+	WLAN_HOST_DIAG_LOG_REPORT(log_ptr);
+
+	return QDF_STATUS_SUCCESS;
+}
+#else
+static QDF_STATUS wma_send_cold_boot_cal_data(uint8_t *data,
+		wmi_cold_boot_cal_data_fixed_param *event)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
+int wma_cold_boot_cal_event_handler(void *wma_ctx, uint8_t *event_buff,
+				    uint32_t len)
+{
+	WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID_param_tlvs *param_buf;
+	wmi_cold_boot_cal_data_fixed_param *event;
+	QDF_STATUS status;
+	tp_wma_handle wma_handle = (tp_wma_handle)wma_ctx;
+
+	if (!wma_handle) {
+		WMA_LOGE("NULL wma handle");
+		return -EINVAL;
+	}
+
+	param_buf =
+		   (WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID_param_tlvs *)event_buff;
+	if (!param_buf) {
+		WMA_LOGE("Invalid Cold Boot Cal Event");
+		return -EINVAL;
+	}
+
+	event = param_buf->fixed_param;
+	if ((event->data_len > param_buf->num_data) ||
+	    (param_buf->num_data > HOST_LOG_MAX_COLD_BOOT_CAL_DATA_SIZE)) {
+		WMA_LOGE("Excess data_len:%d, num_data:%d", event->data_len,
+			 param_buf->num_data);
+		return -EINVAL;
+	}
+
+	status = wma_send_cold_boot_cal_data((uint8_t *)param_buf->data, event);
+	if (status != QDF_STATUS_SUCCESS) {
+		WMA_LOGE("Cold Boot Cal Diag log not sent");
+		return -ENOMEM;
+	}
+
+	return 0;
 }

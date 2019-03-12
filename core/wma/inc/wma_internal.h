@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1443,4 +1443,14 @@ void wma_remove_peer_on_add_bss_failure(tpAddBssParams add_bss_params);
 int wma_roam_scan_stats_event_handler(void *handle, uint8_t *event,
 				      uint32_t len);
 
+/**
+ * wma_cold_boot_cal_event_handler() - Cold boot cal event handler
+ * @wma_ctx: wma handle
+ * @event_buff: event data
+ * @len: length of data
+ *
+ * Return: Success or Failure status
+ */
+int wma_cold_boot_cal_event_handler(void *wma_ctx, uint8_t *event_buff,
+				    uint32_t len);
 #endif
