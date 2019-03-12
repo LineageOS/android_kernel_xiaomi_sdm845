@@ -4296,6 +4296,12 @@ void lim_update_sta_run_time_ht_switch_chnl_params(tpAniSirGlobal pMac,
 		return;
 	}
 
+	/* If channel mismatch the CSA will take care of this change */
+	if (pHTInfo->primaryChannel != psessionEntry->currentOperChannel) {
+		pe_debug("Current channel doesnt match HT info ignore");
+		return;
+	}
+
 	if (psessionEntry->htSecondaryChannelOffset !=
 	    (uint8_t) pHTInfo->secondaryChannelOffset
 	    || psessionEntry->htRecommendedTxWidthSet !=
