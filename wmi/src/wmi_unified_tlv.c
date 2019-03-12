@@ -23584,6 +23584,8 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_vdev_bcn_reception_stats_event_id] =
 		WMI_VDEV_BCN_RECEPTION_STATS_EVENTID;
 	event_ids[wmi_roam_blacklist_event_id] = WMI_ROAM_BLACKLIST_EVENTID;
+	event_ids[wmi_pdev_cold_boot_cal_event_id] =
+					    WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID;
 }
 
 /**
