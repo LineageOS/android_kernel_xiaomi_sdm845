@@ -1059,9 +1059,26 @@ QDF_STATUS populate_dot11f_rrm_ie(tpAniSirGlobal pMac,
 				tDot11fIERRMEnabledCap *pDot11f,
 				tpPESession psessionEntry);
 
-void populate_mdie(tpAniSirGlobal pMac,
-		tDot11fIEMobilityDomain * pDot11f, uint8_t mdie[]);
-void populate_ft_info(tpAniSirGlobal pMac, tDot11fIEFTInfo *pDot11f);
+void populate_mdie(tpAniSirGlobal pMac, tDot11fIEMobilityDomain * pDot11f,
+		   uint8_t mdie[]);
+
+#ifdef WLAN_FEATURE_FILS_SK
+/**
+ * populate_fils_ft_info() - Populate FTIE into assoc request frame
+ * @mac: Global mac context
+ * @ft_info: pointer to assoc request frame FT IE buffer
+ * @pe_session: pointer to PE session
+ *
+ * Return: None
+ */
+void populate_fils_ft_info(tpAniSirGlobal mac, tDot11fIEFTInfo *ft_info,
+			   tpPESession pe_session);
+#else
+static inline
+void populate_fils_ft_info(tpAniSirGlobal mac, tDot11fIEFTInfo *ft_info,
+			   tpPESession pe_session)
+{}
+#endif
 
 void populate_dot11f_assoc_rsp_rates(tpAniSirGlobal pMac,
 				tDot11fIESuppRates *pSupp,
