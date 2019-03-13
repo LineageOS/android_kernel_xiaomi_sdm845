@@ -75,10 +75,12 @@ enum pmo_offload_type {
  * @pmo_vdev_param_listen_interval: vdev listen interval param id
  * @pmo_vdev_param_dtim_policy: vdev param dtim policy
  * @pmo_vdev_max_param: Max vdev param id
+ * @pmo_vdev_param_inactivity_time: inactivity time value
  */
 enum pmo_vdev_param_id {
 	pmo_vdev_param_listen_interval = 0,
 	pmo_vdev_param_dtim_policy,
+	pmo_vdev_param_inactivity_time,
 	pmo_vdev_max_param
 };
 
@@ -285,6 +287,9 @@ enum pmo_auto_pwr_detect_failure_mode {
  * @sta_max_li_mod_dtim: station max listen interval DTIM value
  * @power_save_mode: power save mode for psoc
  * @auto_power_save_fail_mode: auto detect power save failure
+ * @wow_data_inactivity_timeout: power save wow data inactivity timeout
+ * @ps_data_inactivity_timeout: Power save data inactivity timeout for non
+ * wow mode
  */
 struct pmo_psoc_cfg {
 	bool ptrn_match_enable_all_vdev;
@@ -312,6 +317,8 @@ struct pmo_psoc_cfg {
 	uint8_t sta_max_li_mod_dtim;
 	uint8_t power_save_mode;
 	enum pmo_auto_pwr_detect_failure_mode auto_power_save_fail_mode;
+	uint8_t wow_data_inactivity_timeout;
+	uint8_t ps_data_inactivity_timeout;
 };
 
 /**
