@@ -14116,6 +14116,7 @@ static int hdd_update_pmo_config(struct hdd_context *hdd_ctx)
 			hdd_ctx->config->wow_data_inactivity_timeout;
 	psoc_cfg.ps_data_inactivity_timeout =
 		hdd_ctx->config->nDataInactivityTimeout;
+	psoc_cfg.ito_repeat_count = hdd_ctx->config->ito_repeat_count;
 
 	hdd_ra_populate_pmo_config(&psoc_cfg, hdd_ctx);
 	hdd_nan_populate_pmo_config(&psoc_cfg, hdd_ctx);

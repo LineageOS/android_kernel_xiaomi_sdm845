@@ -76,11 +76,13 @@ enum pmo_offload_type {
  * @pmo_vdev_param_dtim_policy: vdev param dtim policy
  * @pmo_vdev_max_param: Max vdev param id
  * @pmo_vdev_param_inactivity_time: inactivity time value
+ * @pmo_vdev_param_ito_repeat_count: Indicates ito repeated count
  */
 enum pmo_vdev_param_id {
 	pmo_vdev_param_listen_interval = 0,
 	pmo_vdev_param_dtim_policy,
 	pmo_vdev_param_inactivity_time,
+	pmo_vdev_param_ito_repeat_count,
 	pmo_vdev_max_param
 };
 
@@ -290,6 +292,7 @@ enum pmo_auto_pwr_detect_failure_mode {
  * @wow_data_inactivity_timeout: power save wow data inactivity timeout
  * @ps_data_inactivity_timeout: Power save data inactivity timeout for non
  * wow mode
+ * @ito_repeat_count: Indicates ito repeated count
  */
 struct pmo_psoc_cfg {
 	bool ptrn_match_enable_all_vdev;
@@ -319,6 +322,7 @@ struct pmo_psoc_cfg {
 	enum pmo_auto_pwr_detect_failure_mode auto_power_save_fail_mode;
 	uint8_t wow_data_inactivity_timeout;
 	uint8_t ps_data_inactivity_timeout;
+	uint8_t ito_repeat_count;
 };
 
 /**
