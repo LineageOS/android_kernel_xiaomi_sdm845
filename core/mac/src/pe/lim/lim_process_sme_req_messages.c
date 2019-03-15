@@ -3062,7 +3062,7 @@ void __lim_process_sme_assoc_cnf_new(tpAniSirGlobal mac_ctx, uint32_t msg_type,
 
 	if (msg_buf == NULL) {
 		pe_err("msg_buf is NULL");
-		goto end;
+		return;
 	}
 
 	qdf_mem_copy(&assoc_cnf, msg_buf, sizeof(struct sSirSmeAssocCnf));

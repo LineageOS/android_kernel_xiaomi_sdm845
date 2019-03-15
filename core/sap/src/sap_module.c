@@ -3120,7 +3120,7 @@ QDF_STATUS wlansap_update_owe_info(struct sap_context *sap_ctx,
 	struct owe_assoc_ind *owe_assoc_ind;
 	tSirSmeAssocInd *assoc_ind = NULL;
 	qdf_list_node_t *node = NULL, *next_node = NULL;
-	QDF_STATUS status;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	if (!wlansap_validate_owe_ies(ie, ie_len)) {
 		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid OWE IE");
