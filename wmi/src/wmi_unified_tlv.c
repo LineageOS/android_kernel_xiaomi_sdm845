@@ -24083,6 +24083,12 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_TX_COMPL_TSF64;
 	wmi_service[wmi_service_three_way_coex_config_legacy] =
 			WMI_SERVICE_THREE_WAY_COEX_CONFIG_LEGACY;
+	wmi_service[wmi_service_wpa3_ft_sae_support] =
+			WMI_SERVICE_WPA3_FT_SAE_SUPPORT;
+	wmi_service[wmi_service_wpa3_ft_suite_b_support] =
+			WMI_SERVICE_WPA3_FT_SUITE_B_SUPPORT;
+	wmi_service[wmi_service_ft_fils] =
+			WMI_SERVICE_WPA3_FT_FILS;
 }
 
 #ifndef CONFIG_MCL
