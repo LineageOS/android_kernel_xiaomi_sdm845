@@ -188,6 +188,7 @@ struct wma_tgt_cfg {
 	uint32_t target_fw_version;
 	uint32_t target_fw_vers_ext;
 	uint8_t band_cap;
+	struct wlan_mlme_chain_cfg chain_cfg;
 	uint32_t reg_domain;
 	uint32_t eeprom_rd_ext;
 	struct qdf_mac_addr hw_macaddr;

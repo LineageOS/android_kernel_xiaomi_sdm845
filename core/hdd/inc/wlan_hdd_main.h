@@ -2021,6 +2021,7 @@ struct hdd_context {
 	uint32_t num_derived_addr;
 	unsigned long provisioned_intf_addr_mask;
 	unsigned long derived_intf_addr_mask;
+	struct wlan_mlme_chain_cfg fw_chain_cfg;
 };
 
 /**
