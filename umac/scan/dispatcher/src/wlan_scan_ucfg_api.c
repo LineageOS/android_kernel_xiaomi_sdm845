@@ -810,6 +810,7 @@ ucfg_update_channel_list(struct scan_start_request *req,
 	struct scan_vdev_obj *scan_vdev_obj;
 	struct wlan_objmgr_pdev *pdev;
 	bool first_scan_done = true;
+	bool p2p_search = false;
 
 	pdev = wlan_vdev_get_pdev(req->vdev);
 
@@ -824,6 +825,8 @@ ucfg_update_channel_list(struct scan_start_request *req,
 		scan_vdev_obj->first_scan_done = true;
 	}
 
+	if (req->scan_req.p2p_scan_type == SCAN_P2P_SEARCH)
+		p2p_search = true;
 	/*
 	 * No need to update channels if req is passive scan and single channel
 	 * ie ROC, Preauth etc
@@ -833,13 +836,15 @@ ucfg_update_channel_list(struct scan_start_request *req,
 		return;
 
 	/* do this only for STA and P2P-CLI mode */
-	if (!(wlan_vdev_mlme_get_opmode(req->vdev) == QDF_STA_MODE) &&
-	    !(wlan_vdev_mlme_get_opmode(req->vdev) == QDF_P2P_CLIENT_MODE))
+	if ((!(wlan_vdev_mlme_get_opmode(req->vdev) == QDF_STA_MODE) &&
+	    !(wlan_vdev_mlme_get_opmode(req->vdev) == QDF_P2P_CLIENT_MODE)) &&
+	    !p2p_search)
 		return;
 
-	if (scan_obj->scan_def.allow_dfs_chan_in_scan &&
+	if ((scan_obj->scan_def.allow_dfs_chan_in_scan &&
 	    (scan_obj->scan_def.allow_dfs_chan_in_first_scan ||
-	     first_scan_done))
+	     first_scan_done)) &&
+	     !(scan_obj->scan_def.skip_dfs_chan_in_p2p_search && p2p_search))
 		return;
 
 	for (i = 0; i < req->scan_req.chan_list.num_chan; i++) {
@@ -1993,6 +1998,8 @@ QDF_STATUS ucfg_scan_update_user_config(struct wlan_objmgr_psoc *psoc,
 	scan_def->p2p_scan_burst_duration = scan_cfg->p2p_scan_burst_duration;
 	scan_def->go_scan_burst_duration = scan_cfg->go_scan_burst_duration;
 	scan_def->ap_scan_burst_duration = scan_cfg->ap_scan_burst_duration;
+	scan_def->skip_dfs_chan_in_p2p_search =
+		scan_cfg->skip_dfs_chan_in_p2p_search;
 	ucfg_scan_assign_rssi_category(scan_def,
 			scan_cfg->scan_bucket_threshold,
 			scan_cfg->rssi_cat_gap);

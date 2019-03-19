@@ -51,7 +51,8 @@ const struct bonded_channel bonded_chan_40mhz_list[] = {
 	{132, 136},
 	{140, 144},
 	{149, 153},
-	{157, 161}
+	{157, 161},
+	{165, 169}
 };
 
 const struct bonded_channel bonded_chan_80mhz_list[] = {
@@ -123,7 +124,7 @@ static const struct chan_map channel_map_old[NUM_CHANNELS] = {
 	[CHAN_ENUM_161] = {5805, 161, 2, 160},
 	[CHAN_ENUM_165] = {5825, 165, 2, 160},
 #ifndef WLAN_FEATURE_DSRC
-	[CHAN_ENUM_169] = {5845, 169, 2, 20},
+	[CHAN_ENUM_169] = {5845, 169, 2, 40},
 	[CHAN_ENUM_173] = {5865, 173, 2, 20},
 #else
 	[CHAN_ENUM_170] = {5852, 170, 2, 20},
@@ -3830,8 +3831,6 @@ QDF_STATUS wlan_regulatory_pdev_obj_created_notification(
 
 	psoc_reg_rules = &psoc_priv_obj->mas_chan_params[pdev_id].reg_rules;
 	reg_save_reg_rules_to_pdev(psoc_reg_rules, pdev_priv_obj);
-
-	reg_reset_reg_rules(psoc_reg_rules);
 
 	status = wlan_objmgr_pdev_component_obj_attach(pdev,
 						     WLAN_UMAC_COMP_REGULATORY,

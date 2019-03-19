@@ -655,8 +655,7 @@ static int tdls_validate_setup_frames(struct tdls_soc_priv_obj *tdls_soc,
 		 tdls_soc->connected_peer_count,
 		 tdls_soc->max_num_tdls_sta);
 
-	tdls_validate->max_sta_failed = -EPERM;
-	return 0;
+	return -EPERM;
 }
 
 int tdls_validate_mgmt_request(struct tdls_action_frame_request *tdls_mgmt_req)
@@ -667,13 +666,11 @@ int tdls_validate_mgmt_request(struct tdls_action_frame_request *tdls_mgmt_req)
 	struct tdls_peer *temp_peer;
 	QDF_STATUS status;
 
+	struct wlan_objmgr_vdev *vdev = tdls_mgmt_req->vdev;
 	struct tdls_validate_action_req *tdls_validate =
-		tdls_mgmt_req->chk_frame;
+		&tdls_mgmt_req->chk_frame;
 
-	if (!tdls_validate || !tdls_validate->vdev)
-		return -EINVAL;
-
-	if (QDF_STATUS_SUCCESS != tdls_get_vdev_objects(tdls_validate->vdev,
+	if (QDF_STATUS_SUCCESS != tdls_get_vdev_objects(vdev,
 							&tdls_vdev,
 							&tdls_soc))
 		return -ENOTSUPP;
@@ -682,15 +679,15 @@ int tdls_validate_mgmt_request(struct tdls_action_frame_request *tdls_mgmt_req)
 	 * STA or P2P client should be connected and authenticated before
 	 *  sending any TDLS frames
 	 */
-	if (!tdls_is_vdev_connected(tdls_validate->vdev) ||
-	    !tdls_is_vdev_authenticated(tdls_validate->vdev)) {
+	if (!tdls_is_vdev_connected(vdev) ||
+	    !tdls_is_vdev_authenticated(vdev)) {
 		tdls_err("STA is not connected or not authenticated.");
 		return -EAGAIN;
 	}
 
 	/* other than teardown frame, mgmt frames are not sent if disabled */
 	if (TDLS_TEARDOWN != tdls_validate->action_code) {
-		if (!tdls_check_is_tdls_allowed(tdls_validate->vdev)) {
+		if (!tdls_check_is_tdls_allowed(vdev)) {
 			tdls_err("TDLS not allowed, reject MGMT, action = %d",
 				tdls_validate->action_code);
 			return -EPERM;
@@ -820,8 +817,7 @@ QDF_STATUS tdls_process_add_peer(struct tdls_add_peer_request *req)
 	vdev = req->vdev;
 	cmd.cmd_type = WLAN_SER_CMD_TDLS_ADD_PEER;
 	cmd.cmd_id = 0;
-	cmd.cmd_cb = (wlan_serialization_cmd_callback)
-		tdls_add_peer_serialize_callback;
+	cmd.cmd_cb = tdls_add_peer_serialize_callback;
 	cmd.umac_cmd = req;
 	cmd.source = WLAN_UMAC_COMP_TDLS;
 	cmd.is_high_priority = false;
@@ -904,15 +900,21 @@ tdls_activate_update_peer(struct tdls_update_peer_request *req)
 	}
 
 	/* in change station, we accept only when sta_id is valid */
-	if (curr_peer->link_status > TDLS_LINK_CONNECTING ||
+	if (curr_peer->link_status ==  TDLS_LINK_TEARING ||
 	    !(TDLS_STA_INDEX_CHECK(curr_peer->sta_id))) {
-		tdls_err(QDF_MAC_ADDR_STR " link %d. sta %d. update peer %s",
+		tdls_err(QDF_MAC_ADDR_STR " link %d. sta %d. update peer rejected",
 			 QDF_MAC_ADDR_ARRAY(mac), curr_peer->link_status,
-			 curr_peer->sta_id,
-			 (TDLS_STA_INDEX_CHECK(curr_peer->sta_id)) ? "ignored"
-			 : "declined");
-		status = (TDLS_STA_INDEX_CHECK(curr_peer->sta_id)) ?
-			QDF_STATUS_SUCCESS : QDF_STATUS_E_PERM;
+			 curr_peer->sta_id);
+		status = QDF_STATUS_E_PERM;
+		goto updatersp;
+	}
+
+	if (curr_peer->link_status ==  TDLS_LINK_CONNECTED &&
+	    TDLS_STA_INDEX_CHECK(curr_peer->sta_id)) {
+		tdls_err(QDF_MAC_ADDR_STR " link %d. sta %d. update peer is igonored as tdls state is already connected ",
+			 QDF_MAC_ADDR_ARRAY(mac), curr_peer->link_status,
+			 curr_peer->sta_id);
+		status = QDF_STATUS_SUCCESS;
 		goto updatersp;
 	}
 
@@ -1029,8 +1031,7 @@ QDF_STATUS tdls_process_update_peer(struct tdls_update_peer_request *req)
 	vdev = req->vdev;
 	cmd.cmd_type = WLAN_SER_CMD_TDLS_ADD_PEER;
 	cmd.cmd_id = 0;
-	cmd.cmd_cb = (wlan_serialization_cmd_callback)
-		tdls_update_peer_serialize_callback;
+	cmd.cmd_cb = tdls_update_peer_serialize_callback;
 	cmd.umac_cmd = req;
 	cmd.source = WLAN_UMAC_COMP_TDLS;
 	cmd.is_high_priority = false;
@@ -1182,8 +1183,7 @@ QDF_STATUS tdls_process_del_peer(struct tdls_oper_request *req)
 
 	cmd.cmd_type = WLAN_SER_CMD_TDLS_DEL_PEER;
 	cmd.cmd_id = 0;
-	cmd.cmd_cb = (wlan_serialization_cmd_callback)
-		tdls_del_peer_serialize_callback;
+	cmd.cmd_cb = tdls_del_peer_serialize_callback;
 	cmd.umac_cmd = req;
 	cmd.source = WLAN_UMAC_COMP_TDLS;
 	cmd.is_high_priority = false;

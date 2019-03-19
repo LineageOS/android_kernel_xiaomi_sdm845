@@ -728,6 +728,7 @@ static QDF_STATUS send_peer_unmap_conf_cmd_tlv(wmi_unified_t wmi,
 	wmi_peer_unmap_response_cmd_fixed_param *cmd;
 	uint32_t peer_id_list_len;
 	uint32_t len = sizeof(*cmd);
+	QDF_STATUS status;
 
 	if (!peer_id_cnt || !peer_id_list)
 		return QDF_STATUS_E_FAILURE;
@@ -766,12 +767,13 @@ static QDF_STATUS send_peer_unmap_conf_cmd_tlv(wmi_unified_t wmi,
 	WMI_LOGD("%s: vdev_id %d peer_id_cnt %d", __func__,
 		 vdev_id, peer_id_cnt);
 	wmi_mtrace(WMI_PEER_UNMAP_RESPONSE_CMDID, vdev_id, 0);
-	if (wmi_unified_cmd_send(wmi, buf, len,
-				 WMI_PEER_UNMAP_RESPONSE_CMDID)) {
-		WMI_LOGP("%s: Failed to send peer delete conf command",
-			 __func__);
+	status = wmi_unified_cmd_send(wmi, buf, len,
+				      WMI_PEER_UNMAP_RESPONSE_CMDID);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		WMI_LOGE("%s: Failed to send peer unmap conf command: Err[%d]",
+			 __func__, status);
 		wmi_buf_free(buf);
-		return QDF_STATUS_E_FAILURE;
+		return status;
 	}
 
 	return QDF_STATUS_SUCCESS;
@@ -2837,8 +2839,8 @@ static QDF_STATUS send_scan_start_cmd_tlv(wmi_unified_t wmi_handle,
 	uint32_t *tmp_ptr;
 	wmi_ssid *ssid = NULL;
 	wmi_mac_addr *bssid;
-	int len = sizeof(*cmd);
-	uint8_t extraie_len_with_pad = 0;
+	size_t len = sizeof(*cmd);
+	uint16_t extraie_len_with_pad = 0;
 	uint8_t phymode_roundup = 0;
 	struct probe_req_whitelist_attr *ie_whitelist = &params->ie_whitelist;
 
@@ -23582,6 +23584,8 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_vdev_bcn_reception_stats_event_id] =
 		WMI_VDEV_BCN_RECEPTION_STATS_EVENTID;
 	event_ids[wmi_roam_blacklist_event_id] = WMI_ROAM_BLACKLIST_EVENTID;
+	event_ids[wmi_pdev_cold_boot_cal_event_id] =
+					    WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID;
 }
 
 /**

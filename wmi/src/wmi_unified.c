@@ -1437,7 +1437,8 @@ QDF_STATUS wmi_unified_cmd_send(wmi_unified_t wmi_handle, wmi_buf_t buf,
 		(!wmi_is_pm_resume_cmd(cmd_id))) {
 		QDF_TRACE(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_ERROR,
 				  "%s: Target is suspended", __func__);
-		QDF_ASSERT(0);
+		if (!wmi_handle->wmi_stopinprogress)
+			QDF_ASSERT(0);
 		return QDF_STATUS_E_BUSY;
 	}
 	if (wmi_handle->wmi_stopinprogress) {
