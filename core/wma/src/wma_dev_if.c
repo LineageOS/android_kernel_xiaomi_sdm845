@@ -1370,6 +1370,39 @@ QDF_STATUS wma_set_peer_param(void *wma_ctx, uint8_t *peer_addr,
 }
 
 /**
+ * wma_peer_unmap_conf_send - send peer unmap conf cmnd to fw
+ * @wma_ctx: wma handle
+ * @msg: peer unmap conf params
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wma_peer_unmap_conf_send(tp_wma_handle wma,
+				    struct send_peer_unmap_conf_params *msg)
+{
+	QDF_STATUS qdf_status;
+
+	if (!msg) {
+		WMA_LOGE("%s: null input params", __func__);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	qdf_status = wmi_unified_peer_unmap_conf_send(
+					wma->wmi_handle,
+					msg->vdev_id,
+					msg->peer_id_cnt,
+					msg->peer_id_list);
+
+	if (qdf_status != QDF_STATUS_SUCCESS)
+		WMA_LOGE("%s: peer_unmap_conf_send failed %d",
+			 __func__, qdf_status);
+
+	qdf_mem_free(msg->peer_id_list);
+	msg->peer_id_list = NULL;
+
+	return qdf_status;
+}
+
+/**
  * wma_peer_unmap_conf_cb - send peer unmap conf cmnd to fw
  * @vdev_id: vdev id
  * @peer_id_cnt: no of peer id
@@ -1377,22 +1410,75 @@ QDF_STATUS wma_set_peer_param(void *wma_ctx, uint8_t *peer_addr,
  *
  * Return: QDF_STATUS
  */
-
 QDF_STATUS wma_peer_unmap_conf_cb(uint8_t vdev_id,
 				  uint32_t peer_id_cnt,
 				  uint16_t *peer_id_list)
 {
 	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
+	QDF_STATUS qdf_status;
 
 	if (!wma) {
-		WMA_LOGD("%s: peer_id_cnt: %d, null wma_handle",
+		WMA_LOGE("%s: peer_id_cnt: %d, null wma_handle",
 			 __func__, peer_id_cnt);
 		return QDF_STATUS_E_INVAL;
 	}
 
-	return wmi_unified_peer_unmap_conf_send(wma->wmi_handle,
+	qdf_status = wmi_unified_peer_unmap_conf_send(
+						wma->wmi_handle,
 						vdev_id, peer_id_cnt,
 						peer_id_list);
+
+	if (qdf_status == QDF_STATUS_E_BUSY) {
+		QDF_STATUS retcode;
+		struct scheduler_msg msg = {0};
+		struct send_peer_unmap_conf_params *peer_unmap_conf_req;
+		void *mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
+
+		WMA_LOGD("%s: post unmap_conf cmd to MC thread", __func__);
+
+		if (!mac_ctx) {
+			WMA_LOGE("%s: mac_ctx is NULL", __func__);
+			return QDF_STATUS_E_FAILURE;
+		}
+
+		peer_unmap_conf_req = qdf_mem_malloc(sizeof(
+					struct send_peer_unmap_conf_params));
+
+		if (!peer_unmap_conf_req) {
+			WMA_LOGE("%s: peer_unmap_conf_req memory alloc failed",
+				 __func__);
+			return QDF_STATUS_E_NOMEM;
+		}
+
+		peer_unmap_conf_req->vdev_id = vdev_id;
+		peer_unmap_conf_req->peer_id_cnt = peer_id_cnt;
+		peer_unmap_conf_req->peer_id_list =  qdf_mem_malloc(
+					sizeof(uint16_t) * peer_id_cnt);
+		if (!peer_unmap_conf_req->peer_id_list) {
+			WMA_LOGE("%s: peer_id_list memory alloc failed",
+				 __func__);
+			qdf_mem_free(peer_unmap_conf_req);
+			peer_unmap_conf_req = NULL;
+			return QDF_STATUS_E_NOMEM;
+		}
+		qdf_mem_copy(peer_unmap_conf_req->peer_id_list,
+			     peer_id_list, sizeof(uint16_t) * peer_id_cnt);
+
+		msg.type = WMA_SEND_PEER_UNMAP_CONF;
+		msg.reserved = 0;
+		msg.bodyptr = peer_unmap_conf_req;
+		msg.bodyval = 0;
+
+		retcode = wma_post_ctrl_msg(mac_ctx, &msg);
+		if (retcode != QDF_STATUS_SUCCESS) {
+			WMA_LOGE("%s: wma_post_ctrl_msg failed", __func__);
+			qdf_mem_free(peer_unmap_conf_req->peer_id_list);
+			qdf_mem_free(peer_unmap_conf_req);
+			return QDF_STATUS_E_FAILURE;
+		}
+	}
+
+	return qdf_status;
 }
 
 /**
@@ -2069,6 +2155,17 @@ wma_send_del_bss_response(tp_wma_handle wma, struct wma_target_req *req,
 	}
 }
 
+#ifdef WLAN_FEATURE_11W
+static void wma_clear_iface_key(struct wma_txrx_node *iface)
+{
+	qdf_mem_zero(&iface->key, sizeof(iface->key));
+}
+#else
+static void wma_clear_iface_key(struct wma_txrx_node *iface)
+{
+}
+#endif
+
 /**
  * wma_vdev_stop_resp_handler() - vdev stop response handler
  * @handle: wma handle
@@ -2127,6 +2224,8 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 			 resp_event->vdev_id);
 	}
 
+	/* Clear key information */
+	wma_clear_iface_key(iface);
 	wma_release_wakelock(&iface->vdev_stop_wakelock);
 
 	req_msg = wma_find_vdev_req(wma, resp_event->vdev_id,
@@ -2448,6 +2547,7 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 						     self_sta_req->session_id);
 			wma_handle->interfaces[vdev_id].vdev_active = false;
 			wma_cdp_vdev_detach(soc, wma_handle, vdev_id);
+			txrx_vdev_handle = NULL;
 			goto end;
 		}
 	} else if (self_sta_req->type == WMI_VDEV_TYPE_STA) {
@@ -2462,6 +2562,7 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 						     self_sta_req->session_id);
 			wma_handle->interfaces[vdev_id].vdev_active = false;
 			wma_cdp_vdev_detach(soc, wma_handle, vdev_id);
+			txrx_vdev_handle = NULL;
 			goto end;
 		}
 	}

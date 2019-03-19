@@ -355,7 +355,7 @@ QDF_STATUS sme_get_soft_ap_domain(tHalHandle hHal,
 QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal);
 /**
  * sme_ser_cmd_callback() - callback from serialization module
- * @buf: serialization command buffer
+ * @cmd: serialization command
  * @reason: reason why serialization module has given this callback
  *
  * Serialization module will give callback to SME for why it triggered
@@ -363,7 +363,7 @@ QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal);
  *
  * Return: QDF_STATUS_SUCCESS
  */
-QDF_STATUS sme_ser_cmd_callback(void *buf,
+QDF_STATUS sme_ser_cmd_callback(struct wlan_serialization_command *cmd,
 				enum wlan_serialization_cb_reason reason);
 
 /**

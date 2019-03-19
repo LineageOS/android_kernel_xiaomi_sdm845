@@ -621,6 +621,7 @@ struct csr_config {
 	bool enable_bss_load_roam_trigger;
 	uint32_t bss_load_threshold;
 	uint32_t bss_load_sample_time;
+	bool roaming_scan_policy;
 };
 
 struct csr_channel_powerinfo {
@@ -999,6 +1000,7 @@ struct csr_roamstruct {
 	uint16_t reassocRespLen;        /* length of reassociation response */
 	qdf_mc_timer_t packetdump_timer;
 	qdf_list_t rssi_disallow_bssid;
+	qdf_mutex_t rssi_disallow_bssid_lock;
 	spinlock_t roam_state_lock;
 };
 

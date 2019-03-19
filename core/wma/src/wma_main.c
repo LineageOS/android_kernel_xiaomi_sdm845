@@ -3473,6 +3473,11 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 					   wma_roam_scan_stats_event_handler,
 					   WMA_RX_SERIALIZER_CTX);
 
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   wmi_pdev_cold_boot_cal_event_id,
+					   wma_cold_boot_cal_event_handler,
+					   WMA_RX_WORK_CTX);
+
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 	/* Register event handler for processing Link Layer Stats
 	 * response from the FW
@@ -7985,6 +7990,12 @@ static QDF_STATUS wma_mc_process_msg(struct scheduler_msg *msg)
 	case WMA_ADD_STA_REQ:
 		wma_add_sta(wma_handle, (tpAddStaParams) msg->bodyptr);
 		break;
+	case WMA_SEND_PEER_UNMAP_CONF:
+		wma_peer_unmap_conf_send(
+			wma_handle,
+			(struct send_peer_unmap_conf_params *)msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
 	case WMA_SET_BSSKEY_REQ:
 		wma_set_bsskey(wma_handle, (tpSetBssKeyParams) msg->bodyptr);
 		break;
@@ -8573,7 +8584,11 @@ static QDF_STATUS wma_mc_process_msg(struct scheduler_msg *msg)
 	case SIR_HAL_SET_DEL_PMKID_CACHE:
 		wma_set_del_pmkid_cache(wma_handle,
 			(struct wmi_unified_pmk_cache *) msg->bodyptr);
-		qdf_mem_free(msg->bodyptr);
+		if (msg->bodyptr) {
+			qdf_mem_zero(msg->bodyptr,
+				     sizeof(struct wmi_unified_pmk_cache));
+			qdf_mem_free(msg->bodyptr);
+		}
 		break;
 	case SIR_HAL_HLP_IE_INFO:
 		wma_roam_scan_send_hlp(wma_handle,

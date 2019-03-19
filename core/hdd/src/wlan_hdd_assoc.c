@@ -946,7 +946,7 @@ static void hdd_save_bss_info(struct hdd_adapter *adapter,
 	}
 	/* Cache last connection info */
 	qdf_mem_copy(&hdd_sta_ctx->cache_conn_info, &hdd_sta_ctx->conn_info,
-		     sizeof(struct hdd_connection_info));
+		     sizeof(hdd_sta_ctx->cache_conn_info));
 }
 
 /**
@@ -1606,7 +1606,8 @@ static void hdd_clear_roam_profile_ie(struct hdd_adapter *adapter)
 #endif
 
 	qdf_mem_zero(roam_profile->Keys.KeyLength, CSR_MAX_NUM_KEY);
-
+	qdf_mem_zero(roam_profile->Keys.KeyMaterial,
+		     sizeof(roam_profile->Keys.KeyMaterial));
 #ifdef FEATURE_WLAN_WAPI
 	adapter->wapi_info.wapi_auth_mode = WAPI_AUTH_MODE_OPEN;
 	adapter->wapi_info.wapi_mode = false;
@@ -1809,6 +1810,7 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 	hdd_wmm_adapter_clear(adapter);
 	mac_handle = hdd_ctx->mac_handle;
 	sme_ft_reset(mac_handle, adapter->session_id);
+	sme_reset_key(mac_handle, adapter->session_id);
 	if (hdd_remove_beacon_filter(adapter) != 0)
 		hdd_err("hdd_remove_beacon_filter() failed");
 
@@ -3330,7 +3332,9 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 				roam_info ?
 				roam_info->bssid.bytes :
 				sta_ctx->requested_bssid.bytes);
-			connect_timeout = true;
+			if (roamResult !=
+			    eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE)
+				connect_timeout = true;
 		}
 
 		/*
@@ -3398,6 +3402,8 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 						timeout_reason);
 			}
 			hdd_clear_roam_profile_ie(adapter);
+			sme_reset_key(hdd_ctx->mac_handle,
+				      adapter->session_id);
 		} else  if ((eCSR_ROAM_CANCELLED == roamStatus
 		    && !hddDisconInProgress)) {
 			hdd_connect_result(dev,
@@ -4647,12 +4653,17 @@ hdd_sme_roam_callback(void *pContext, struct csr_roam_info *roam_info,
 	case eCSR_ROAM_NAPI_OFF:
 		hdd_debug("After Roam Synch Comp: NAPI Serialize OFF");
 		hdd_napi_serialize(0);
-		hdd_set_roaming_in_progress(false);
-		if (roamResult == eCSR_ROAM_RESULT_FAILURE)
+		if (roamResult == eCSR_ROAM_RESULT_FAILURE) {
 			adapter->roam_ho_fail = true;
-		else
+			hdd_set_roaming_in_progress(false);
+		} else {
 			adapter->roam_ho_fail = false;
+		}
 		complete(&adapter->roaming_comp_var);
+		break;
+	case eCSR_ROAM_SYNCH_COMPLETE:
+		hdd_debug("LFR3: Roam synch complete");
+		hdd_set_roaming_in_progress(false);
 		break;
 	case eCSR_ROAM_SHOULD_ROAM:
 		/* notify apps that we can't pass traffic anymore */

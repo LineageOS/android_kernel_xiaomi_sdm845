@@ -4296,6 +4296,12 @@ void lim_update_sta_run_time_ht_switch_chnl_params(tpAniSirGlobal pMac,
 		return;
 	}
 
+	/* If channel mismatch the CSA will take care of this change */
+	if (pHTInfo->primaryChannel != psessionEntry->currentOperChannel) {
+		pe_debug("Current channel doesnt match HT info ignore");
+		return;
+	}
+
 	if (psessionEntry->htSecondaryChannelOffset !=
 	    (uint8_t) pHTInfo->secondaryChannelOffset
 	    || psessionEntry->htRecommendedTxWidthSet !=
@@ -8164,6 +8170,7 @@ void lim_assoc_rej_add_to_rssi_based_reject_list(tpAniSirGlobal mac_ctx,
 		qdf_do_div(qdf_get_monotonic_boottime(),
 		QDF_MC_TIMER_TO_MS_UNIT);
 
+	qdf_mutex_acquire(&mac_ctx->roam.rssi_disallow_bssid_lock);
 	if (qdf_list_size(&mac_ctx->roam.rssi_disallow_bssid) >=
 		MAX_RSSI_AVOID_BSSID_LIST) {
 		status = lim_rem_blacklist_entry_with_lowest_delta(
@@ -8176,6 +8183,7 @@ void lim_assoc_rej_add_to_rssi_based_reject_list(tpAniSirGlobal mac_ctx,
 		status = qdf_list_insert_back(
 				&mac_ctx->roam.rssi_disallow_bssid,
 				&entry->node);
+	qdf_mutex_release(&mac_ctx->roam.rssi_disallow_bssid_lock);
 
 	if (QDF_IS_STATUS_ERROR(status)) {
 		pe_err("Failed to enqueue bssid entry");

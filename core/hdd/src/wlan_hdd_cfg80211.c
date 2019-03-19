@@ -809,14 +809,16 @@ int wlan_hdd_merge_avoid_freqs(struct ch_avoid_ind_type *destFreqList,
 		struct ch_avoid_ind_type *srcFreqList)
 {
 	int i;
+	uint32_t room;
 	struct ch_avoid_freq_type *avoid_range =
 	&destFreqList->avoid_freq_range[destFreqList->ch_avoid_range_cnt];
 
-	destFreqList->ch_avoid_range_cnt += srcFreqList->ch_avoid_range_cnt;
-	if (destFreqList->ch_avoid_range_cnt > CH_AVOID_MAX_RANGE) {
+	room = CH_AVOID_MAX_RANGE - destFreqList->ch_avoid_range_cnt;
+	if (srcFreqList->ch_avoid_range_cnt > room) {
 		hdd_err("avoid freq overflow");
 		return -EINVAL;
 	}
+	destFreqList->ch_avoid_range_cnt += srcFreqList->ch_avoid_range_cnt;
 
 	for (i = 0; i < srcFreqList->ch_avoid_range_cnt; i++) {
 		avoid_range->start_freq =
@@ -5723,6 +5725,7 @@ static int __wlan_hdd_cfg80211_keymgmt_set_key(struct wiphy *wiphy,
 	qdf_mem_copy(local_pmk, data, data_len);
 	sme_roam_set_psk_pmk(mac_handle, hdd_adapter->session_id,
 			     local_pmk, data_len);
+	qdf_mem_zero(&local_pmk, SIR_ROAM_SCAN_PSK_SIZE);
 	return 0;
 }
 
@@ -7972,6 +7975,8 @@ static int hdd_unmap_req_id_to_pattern_id(struct hdd_context *hdd_ctx,
 #define PARAM_DST_MAC_ADDR \
 		QCA_WLAN_VENDOR_ATTR_OFFLOADED_PACKETS_DST_MAC_ADDR
 #define PARAM_PERIOD QCA_WLAN_VENDOR_ATTR_OFFLOADED_PACKETS_PERIOD
+#define PARAM_PROTO_TYPE \
+		QCA_WLAN_VENDOR_ATTR_OFFLOADED_PACKETS_ETHER_PROTO_TYPE
 
 /**
  * wlan_hdd_add_tx_ptrn() - add tx pattern
@@ -8023,6 +8028,7 @@ wlan_hdd_add_tx_ptrn(struct hdd_adapter *adapter, struct hdd_context *hdd_ctx,
 		hdd_err("attr period failed");
 		goto fail;
 	}
+
 	add_req->usPtrnIntervalMs = nla_get_u32(tb[PARAM_PERIOD]);
 	hdd_debug("Period: %u ms", add_req->usPtrnIntervalMs);
 	if (add_req->usPtrnIntervalMs == 0) {
@@ -8067,6 +8073,13 @@ wlan_hdd_add_tx_ptrn(struct hdd_adapter *adapter, struct hdd_context *hdd_ctx,
 				add_req->ucPtrnSize);
 		goto fail;
 	}
+
+	if (!tb[PARAM_PROTO_TYPE])
+		eth_type = htons(ETH_P_IP);
+	else
+		eth_type = htons(nla_get_u16(tb[PARAM_PROTO_TYPE]));
+
+	hdd_debug("packet proto type: %u", eth_type);
 
 	len = 0;
 	qdf_mem_copy(&add_req->ucPattern[0], dst_addr.bytes, QDF_MAC_ADDR_SIZE);
@@ -8207,6 +8220,7 @@ __wlan_hdd_cfg80211_offloaded_packets(struct wiphy *wiphy,
 			[PARAM_DST_MAC_ADDR] = { .type = NLA_BINARY,
 						.len = QDF_MAC_ADDR_SIZE },
 			[PARAM_PERIOD] = { .type = NLA_U32 },
+			[PARAM_PROTO_TYPE] = {.type = NLA_U16},
 	};
 
 	hdd_enter_dev(dev);
@@ -8257,6 +8271,7 @@ __wlan_hdd_cfg80211_offloaded_packets(struct wiphy *wiphy,
 #undef PARAM_SRC_MAC_ADDR
 #undef PARAM_DST_MAC_ADDR
 #undef PARAM_PERIOD
+#undef PARAM_PROTO_TYPE
 
 /**
  * wlan_hdd_cfg80211_offloaded_packets() - Wrapper to offload packets
@@ -16702,6 +16717,7 @@ static int __wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
 
 	default:
 		hdd_err("Unsupported cipher type: %u", params->cipher);
+		qdf_mem_zero(&setKey, sizeof(tCsrRoamSetKey));
 		return -EOPNOTSUPP;
 	}
 
@@ -16722,6 +16738,7 @@ static int __wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
 		/* if a key is already installed, block all subsequent ones */
 		if (adapter->session.station.ibss_enc_key_installed) {
 			hdd_debug("IBSS key installed already");
+			qdf_mem_zero(&setKey, sizeof(tCsrRoamSetKey));
 			return 0;
 		}
 
@@ -16732,6 +16749,7 @@ static int __wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
 
 		if (0 != status) {
 			hdd_err("sme_roam_set_key failed, status: %d", status);
+			qdf_mem_zero(&setKey, sizeof(tCsrRoamSetKey));
 			return -EINVAL;
 		}
 		/* Save the keys here and call sme_roam_set_key for setting
@@ -16741,6 +16759,7 @@ static int __wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
 			     &setKey, sizeof(tCsrRoamSetKey));
 
 		adapter->session.station.ibss_enc_key_installed = 1;
+		qdf_mem_zero(&setKey, sizeof(tCsrRoamSetKey));
 		return status;
 	}
 	if ((adapter->device_mode == QDF_SAP_MODE) ||
@@ -16803,9 +16822,11 @@ static int __wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
 						   adapter->session_id, &setKey);
 		if (qdf_ret_status == QDF_STATUS_FT_PREAUTH_KEY_SUCCESS) {
 			hdd_debug("Update PreAuth Key success");
+			qdf_mem_zero(&setKey, sizeof(tCsrRoamSetKey));
 			return 0;
 		} else if (qdf_ret_status == QDF_STATUS_FT_PREAUTH_KEY_FAILED) {
 			hdd_err("Update PreAuth Key failed");
+			qdf_mem_zero(&setKey, sizeof(tCsrRoamSetKey));
 			return -EINVAL;
 		}
 
@@ -16815,6 +16836,7 @@ static int __wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
 
 		if (0 != status) {
 			hdd_err("sme_roam_set_key failed, status: %d", status);
+			qdf_mem_zero(&setKey, sizeof(tCsrRoamSetKey));
 			return -EINVAL;
 		}
 
@@ -16851,10 +16873,12 @@ static int __wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
 
 			if (0 != status) {
 				hdd_err("sme_roam_set_key failed for group key (IBSS), returned %d", status);
+				qdf_mem_zero(&setKey, sizeof(tCsrRoamSetKey));
 				return -EINVAL;
 			}
 		}
 	}
+	qdf_mem_zero(&setKey, sizeof(tCsrRoamSetKey));
 	hdd_exit();
 	return 0;
 }
@@ -18435,7 +18459,7 @@ static int wlan_hdd_cfg80211_set_fils_config(struct hdd_adapter *adapter,
 
 	roam_profile->fils_con_info->is_fils_connection = true;
 	roam_profile->fils_con_info->sequence_number =
-		req->fils_erp_next_seq_num;
+			(req->fils_erp_next_seq_num + 1);
 	roam_profile->fils_con_info->auth_type = auth_type;
 
 	roam_profile->fils_con_info->r_rk_length =
@@ -21260,6 +21284,7 @@ static int __wlan_hdd_cfg80211_set_pmksa(struct wiphy *wiphy,
 	sme_set_del_pmkid_cache(mac_handle, adapter->session_id,
 				&pmk_cache, true);
 
+	qdf_mem_zero(&pmk_cache, sizeof(pmk_cache));
 	hdd_exit();
 	return QDF_IS_STATUS_SUCCESS(result) ? 0 : -EINVAL;
 }
@@ -21348,6 +21373,7 @@ static int __wlan_hdd_cfg80211_del_pmksa(struct wiphy *wiphy,
 
 	sme_set_del_pmkid_cache(mac_handle, adapter->session_id, &pmk_cache,
 				false);
+	qdf_mem_zero(&pmk_cache, sizeof(pmk_cache));
 	hdd_exit();
 	return status;
 }
@@ -22512,7 +22538,7 @@ __wlan_hdd_cfg80211_update_connect_params(struct wiphy *wiphy,
 					req->fils_erp_realm_len);
 		}
 
-		fils_info->sequence_number = req->fils_erp_next_seq_num;
+		fils_info->sequence_number = req->fils_erp_next_seq_num + 1;
 		fils_info->r_rk_length = req->fils_erp_rrk_len;
 
 		if (req->fils_erp_rrk_len && req->fils_erp_rrk)

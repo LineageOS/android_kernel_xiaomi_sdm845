@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -216,6 +216,13 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
  */
 int wma_roam_synch_frame_event_handler(void *handle, uint8_t *event,
 					uint32_t len);
+#else
+static inline int wma_mlme_roam_synch_event_handler_cb(void *handle,
+						       uint8_t *event,
+						       uint32_t len)
+{
+	return 0;
+}
 #endif
 
 /**
@@ -535,6 +542,9 @@ QDF_STATUS wma_vdev_set_param(wmi_unified_t wmi_handle, uint32_t if_id,
 QDF_STATUS wma_remove_peer(tp_wma_handle wma, uint8_t *bssid,
 			   uint8_t vdev_id, void *peer,
 			   bool roam_synch_in_progress);
+
+QDF_STATUS wma_peer_unmap_conf_send(tp_wma_handle wma,
+				    struct send_peer_unmap_conf_params *msg);
 
 QDF_STATUS wma_create_peer(tp_wma_handle wma, struct cdp_pdev *pdev,
 			  struct cdp_vdev *vdev,
@@ -1433,4 +1443,14 @@ void wma_remove_peer_on_add_bss_failure(tpAddBssParams add_bss_params);
 int wma_roam_scan_stats_event_handler(void *handle, uint8_t *event,
 				      uint32_t len);
 
+/**
+ * wma_cold_boot_cal_event_handler() - Cold boot cal event handler
+ * @wma_ctx: wma handle
+ * @event_buff: event data
+ * @len: length of data
+ *
+ * Return: Success or Failure status
+ */
+int wma_cold_boot_cal_event_handler(void *wma_ctx, uint8_t *event_buff,
+				    uint32_t len);
 #endif

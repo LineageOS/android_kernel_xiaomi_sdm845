@@ -57,6 +57,7 @@
 #include <wlan_hdd_tsf.h>
 #include <net/tcp.h>
 #include "wma_api.h"
+#include "wlan_hdd_object_manager.h"
 
 #include "wlan_hdd_nud_tracking.h"
 
@@ -579,6 +580,11 @@ static bool hdd_tx_rx_is_dns_domain_name_match(struct sk_buff *skb,
 	if (adapter->track_dns_domain_len == 0)
 		return false;
 
+	/* check OOB , is strncmp accessing data more than skb->len */
+	if ((adapter->track_dns_domain_len +
+	    QDF_NBUF_PKT_DNS_NAME_OVER_UDP_OFFSET) > qdf_nbuf_len(skb))
+		return false;
+
 	domain_name = qdf_nbuf_get_dns_domain_name(skb,
 						adapter->track_dns_domain_len);
 	if (strncmp(domain_name, adapter->dns_payload,
@@ -846,6 +852,7 @@ static netdev_tx_t __hdd_hard_start_xmit(struct sk_buff *skb,
 	uint8_t pkt_type = 0;
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	bool is_arp = false;
+	struct wlan_objmgr_vdev *vdev;
 
 #ifdef QCA_WIFI_FTM
 	if (hdd_get_conparam() == QDF_GLOBAL_FTM_MODE) {
@@ -993,7 +1000,11 @@ static netdev_tx_t __hdd_hard_start_xmit(struct sk_buff *skb,
 
 	mac_addr = (struct qdf_mac_addr *)skb->data;
 
-	ucfg_tdls_update_tx_pkt_cnt(adapter->vdev, mac_addr);
+	vdev = hdd_objmgr_get_vdev(adapter);
+	if (vdev) {
+		ucfg_tdls_update_tx_pkt_cnt(vdev, mac_addr);
+		hdd_objmgr_put_vdev(vdev);
+	}
 
 	if (qdf_nbuf_is_tso(skb))
 		adapter->stats.tx_packets += qdf_nbuf_get_tso_num_seg(skb);
@@ -1791,6 +1802,7 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	bool wake_lock = false;
 	uint8_t pkt_type = 0;
 	bool track_arp = false;
+	struct wlan_objmgr_vdev *vdev;
 
 	/* Sanity check on inputs */
 	if (unlikely((NULL == context) || (NULL == rxBuf))) {
@@ -1848,19 +1860,11 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 
 		sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 		if ((sta_ctx->conn_info.proxyARPService) &&
-			cfg80211_is_gratuitous_arp_unsolicited_na(skb)) {
-			uint32_t rx_dropped;
-
-			rx_dropped = ++adapter->hdd_stats.tx_rx_stats.
-							rx_dropped[cpu_index];
-			/* rate limit error messages to 1/8th */
-			if ((rx_dropped & 0x07) == 0)
-				QDF_TRACE(QDF_MODULE_ID_HDD_DATA,
-					  QDF_TRACE_LEVEL_INFO,
-					  "%s: Dropping HS 2.0 Gratuitous ARP or Unsolicited NA count=%u",
-					  __func__, rx_dropped);
-			/* Remove SKB from internal tracking table before submitting
-			 * it to stack
+		    cfg80211_is_gratuitous_arp_unsolicited_na(skb)) {
+			qdf_atomic_inc(&adapter->hdd_stats.tx_rx_stats.
+						rx_usolict_arp_n_mcast_drp);
+			/* Remove SKB from internal tracking table before
+			 * submitting it to stack.
 			 */
 			qdf_nbuf_free(skb);
 			continue;
@@ -1883,9 +1887,15 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 		dest_mac_addr = (struct qdf_mac_addr *)(skb->data);
 		mac_addr = (struct qdf_mac_addr *)(skb->data+QDF_MAC_ADDR_SIZE);
 
-		if (!hdd_is_current_high_throughput(hdd_ctx))
-			ucfg_tdls_update_rx_pkt_cnt(adapter->vdev, mac_addr,
-						    dest_mac_addr);
+		if (!hdd_is_current_high_throughput(hdd_ctx)) {
+			vdev = hdd_objmgr_get_vdev(adapter);
+			if (vdev) {
+				ucfg_tdls_update_rx_pkt_cnt(vdev,
+							    mac_addr,
+							    dest_mac_addr);
+				hdd_objmgr_put_vdev(vdev);
+			}
+		}
 
 		skb->dev = adapter->dev;
 		skb->protocol = eth_type_trans(skb, skb->dev);
@@ -1899,9 +1909,8 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 		/* Check & drop replayed mcast packets (for IPV6) */
 		if (hdd_ctx->config->multicast_replay_filter &&
 				hdd_is_mcast_replay(skb)) {
-			++adapter->hdd_stats.tx_rx_stats.rx_dropped[cpu_index];
-			QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_DEBUG,
-				"%s: Dropping multicast replay pkt", __func__);
+			qdf_atomic_inc(&adapter->hdd_stats.tx_rx_stats.
+						rx_usolict_arp_n_mcast_drp);
 			qdf_nbuf_free(skb);
 			continue;
 		}

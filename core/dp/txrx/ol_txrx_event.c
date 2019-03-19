@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -98,7 +98,7 @@ wdi_event_handler(enum WDI_EVENT event,
 	wdi_event_iter_sub(txrx_pdev, event_index, wdi_sub, data);
 }
 
-A_STATUS
+int
 wdi_event_sub(struct cdp_pdev *ppdev,
 	      void *pevent_cb_sub, uint32_t event)
 {
@@ -114,17 +114,17 @@ wdi_event_sub(struct cdp_pdev *ppdev,
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "Invalid txrx_pdev or wdi_event_list in %s",
 			  __func__);
-		return A_ERROR;
+		return -EINVAL;
 	}
 	if (!event_cb_sub) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "Invalid callback in %s", __func__);
-		return A_ERROR;
+		return -EINVAL;
 	}
 	if ((!event) || (event >= WDI_EVENT_LAST) || (event < WDI_EVENT_BASE)) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "Invalid event in %s", __func__);
-		return A_ERROR;
+		return -EINVAL;
 	}
 	/* Input validation */
 	event_index = event - WDI_EVENT_BASE;
@@ -138,17 +138,17 @@ wdi_event_sub(struct cdp_pdev *ppdev,
 		wdi_sub->priv.next = NULL;
 		wdi_sub->priv.prev = NULL;
 		txrx_pdev->wdi_event_list[event_index] = wdi_sub;
-		return A_OK;
+		return 0;
 	}
 	event_cb_sub->priv.next = wdi_sub;
 	event_cb_sub->priv.prev = NULL;
 	wdi_sub->priv.prev = event_cb_sub;
 	txrx_pdev->wdi_event_list[event_index] = event_cb_sub;
 
-	return A_OK;
+	return 0;
 }
 
-A_STATUS
+int
 wdi_event_unsub(struct cdp_pdev *ppdev,
 		void *pevent_cb_sub, uint32_t event)
 {
@@ -164,7 +164,7 @@ wdi_event_unsub(struct cdp_pdev *ppdev,
 	if (!event_cb_sub) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "Invalid callback in %s", __func__);
-		return A_ERROR;
+		return -EINVAL;
 	}
 	if (!event_cb_sub->priv.prev) {
 		txrx_pdev->wdi_event_list[event_index] =
@@ -177,7 +177,7 @@ wdi_event_unsub(struct cdp_pdev *ppdev,
 
 	/* qdf_mem_free(event_cb_sub); */
 
-	return A_OK;
+	return 0;
 }
 
 A_STATUS wdi_event_attach(struct ol_txrx_pdev_t *txrx_pdev)
