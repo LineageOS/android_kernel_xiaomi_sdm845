@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -211,6 +211,8 @@ enum {
 	MSM_FRONTEND_DAI_MULTIMEDIA18,
 	MSM_FRONTEND_DAI_MULTIMEDIA19,
 	MSM_FRONTEND_DAI_MULTIMEDIA20,
+	MSM_FRONTEND_DAI_MULTIMEDIA21,
+	MSM_FRONTEND_DAI_MULTIMEDIA22,
 	MSM_FRONTEND_DAI_MULTIMEDIA28,
 	MSM_FRONTEND_DAI_MULTIMEDIA29,
 	MSM_FRONTEND_DAI_VOIP,
