@@ -2598,6 +2598,7 @@ void lim_send_mlm_assoc_ind(tpAniSirGlobal mac_ctx,
 			      sizeof(tDot11fIEVHTCaps));
 		lim_fill_assoc_ind_vht_info(mac_ctx, session_entry, assoc_req,
 					    assoc_ind, sta_ds);
+		assoc_ind->he_caps_present = assoc_req->he_cap.present;
 		lim_post_sme_message(mac_ctx, LIM_MLM_ASSOC_IND,
 			 (uint32_t *) assoc_ind);
 		qdf_mem_free(assoc_ind);
