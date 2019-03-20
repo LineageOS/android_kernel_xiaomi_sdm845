@@ -15191,6 +15191,24 @@ static void wlan_hdd_cfg80211_set_wiphy_scan_flags(struct wiphy *wiphy)
 }
 #endif
 
+#if defined(CFG80211_SCAN_OCE_CAPABILITY_SUPPORT) || \
+	   (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
+static void wlan_hdd_cfg80211_set_wiphy_oce_scan_flags(struct wiphy *wiphy)
+{
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_FILS_MAX_CHANNEL_TIME);
+	wiphy_ext_feature_set(wiphy,
+			      NL80211_EXT_FEATURE_ACCEPT_BCAST_PROBE_RESP);
+	wiphy_ext_feature_set(wiphy,
+			      NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE);
+	wiphy_ext_feature_set(
+		wiphy, NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION);
+}
+#else
+static void wlan_hdd_cfg80211_set_wiphy_oce_scan_flags(struct wiphy *wiphy)
+{
+}
+#endif
+
 #if defined(WLAN_FEATURE_SAE) && \
 	defined(CFG80211_EXTERNAL_AUTH_SUPPORT)
 /**
@@ -15378,6 +15396,9 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 		wlan_hdd_cfg80211_set_wiphy_fils_feature(wiphy);
 
 	wlan_hdd_cfg80211_set_wiphy_scan_flags(wiphy);
+
+	if (pCfg->oce_sta_enabled)
+		wlan_hdd_cfg80211_set_wiphy_oce_scan_flags(wiphy);
 
 	wlan_hdd_cfg80211_set_wiphy_sae_feature(wiphy, pCfg);
 
