@@ -7573,16 +7573,37 @@ bool csr_roam_is_fast_roam_enabled(tpAniSirGlobal pMac, uint32_t sessionId)
 	}
 }
 
-static void csr_update_scan_entry_associnfo(tpAniSirGlobal mac_ctx,
-			struct bss_info *bss, enum scan_entry_connection_state state)
+static
+void csr_update_scan_entry_associnfo(tpAniSirGlobal mac_ctx,
+				     struct csr_roam_session *session,
+				     enum scan_entry_connection_state state)
 {
 	QDF_STATUS status;
 	struct mlme_info mlme;
+	struct bss_info bss;
+	tCsrRoamConnectedProfile *conn_profile;
 
-	sme_debug("Update MLME info in scan database. bssid %pM state: %d",
-				bss->bssid.bytes, state);
+	if (!session) {
+		sme_debug("session is NULL");
+		return;
+	}
+	conn_profile = &session->connectedProfile;
+	if (!CSR_IS_INFRASTRUCTURE(conn_profile)) {
+		sme_debug("not infra return");
+		return;
+	}
+
+	qdf_copy_macaddr(&bss.bssid, &conn_profile->bssid);
+	bss.chan = conn_profile->operationChannel;
+	bss.ssid.length = conn_profile->SSID.length;
+	qdf_mem_copy(&bss.ssid.ssid, &conn_profile->SSID.ssId,
+		     bss.ssid.length);
+
+	sme_debug("Update MLME info in scan database. bssid %pM ssid:%.*s chan %d state: %d",
+		  bss.bssid.bytes, bss.ssid.length, bss.ssid.ssid, bss.chan,
+		  state);
 	mlme.assoc_state = state;
-	status = ucfg_scan_update_mlme_by_bssinfo(mac_ctx->pdev, bss, &mlme);
+	status = ucfg_scan_update_mlme_by_bssinfo(mac_ctx->pdev, &bss, &mlme);
 	if (QDF_IS_STATUS_ERROR(status))
 		sme_debug("Failed to update the MLME info in scan entry");
 }
@@ -7736,7 +7757,6 @@ static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
 	struct csr_roam_session *session;
 	struct csr_roam_info *roam_info;
 	QDF_STATUS status;
-	struct bss_info bss_info;
 	struct csr_roam_connectedinfo *prev_connect_info = NULL;
 
 	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
@@ -7752,14 +7772,17 @@ static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
 
 	sme_debug("Assoc ref count: %d", session->bRefAssocStartCnt);
 
-	if (CSR_IS_INFRASTRUCTURE(&session->connectedProfile)) {
-		qdf_copy_macaddr(&bss_info.bssid,
-				&session->connectedProfile.bssid);
-		bss_info.chan = session->connectedProfile.operationChannel;
-		bss_info.ssid.length = session->connectedProfile.SSID.length;
-		qdf_mem_copy(&bss_info.ssid.ssid,
-				&session->connectedProfile.SSID.ssId,
-				bss_info.ssid.length);
+	/* Update AP's assoc info in scan before removing connectedProfile */
+	switch (cmd->u.roamCmd.roamReason) {
+	case eCsrSmeIssuedDisassocForHandoff:
+	case eCsrForcedDisassoc:
+	case eCsrForcedDeauth:
+	case eCsrForcedDisassocMICFailure:
+		csr_update_scan_entry_associnfo(mac_ctx, session,
+						SCAN_ENTRY_CON_STATE_NONE);
+		break;
+	default:
+		break;
 	}
 	if (CSR_IS_INFRASTRUCTURE(&session->connectedProfile)
 		|| CSR_IS_ROAM_SUBSTATE_STOP_BSS_REQ(mac_ctx, session_id)) {
@@ -7878,8 +7901,6 @@ static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
 				SME_QOS_CSR_DISCONNECT_IND,
 				NULL);
 #endif
-		csr_update_scan_entry_associnfo(mac_ctx, &bss_info,
-						SCAN_ENTRY_CON_STATE_NONE);
 		csr_roam_link_down(mac_ctx, session_id);
 
 		if (mac_ctx->roam.deauthRspStatus == eSIR_SME_DEAUTH_STATUS) {
@@ -8349,7 +8370,6 @@ static void csr_roam_process_join_res(tpAniSirGlobal mac_ctx,
 	struct ps_global_info *ps_global_info = &mac_ctx->sme.ps_global_info;
 	tSirSmeJoinRsp *join_rsp = (tSirSmeJoinRsp *) context;
 	uint32_t len;
-	struct bss_info bss_info;
 
 	if (!join_rsp) {
 		sme_err("join_rsp is NULL");
@@ -8701,15 +8721,8 @@ static void csr_roam_process_join_res(tpAniSirGlobal mac_ctx,
 					       eCSR_ROAM_RESULT_ASSOCIATED);
 		}
 
-		qdf_copy_macaddr(&bss_info.bssid, &conn_profile->bssid);
-		bss_info.chan = conn_profile->operationChannel;
-		bss_info.ssid.length =
-			conn_profile->SSID.length;
-		qdf_mem_copy(&bss_info.ssid.ssid,
-			&conn_profile->SSID.ssId,
-			bss_info.ssid.length);
-		csr_update_scan_entry_associnfo(mac_ctx,
-					&bss_info, SCAN_ENTRY_CON_STATE_ASSOC);
+		csr_update_scan_entry_associnfo(mac_ctx, session,
+						SCAN_ENTRY_CON_STATE_ASSOC);
 		csr_roam_completion(mac_ctx, session_id, NULL, cmd,
 				eCSR_ROAM_RESULT_NONE, true);
 		csr_reset_pmkid_candidate_list(mac_ctx, session_id);
@@ -12936,7 +12949,10 @@ csr_roam_chk_lnk_disassoc_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 		return;
 	}
 
-	 /* Update the disconnect stats */
+	csr_update_scan_entry_associnfo(mac_ctx,
+					session, SCAN_ENTRY_CON_STATE_NONE);
+
+	/* Update the disconnect stats */
 	session->disconnect_stats.disconnection_cnt++;
 	session->disconnect_stats.disassoc_by_peer++;
 
@@ -13011,6 +13027,8 @@ csr_roam_chk_lnk_deauth_ind(tpAniSirGlobal mac_ctx, tSirSmeRsp *msg_ptr)
 		return;
 	}
 
+	csr_update_scan_entry_associnfo(mac_ctx,
+					session, SCAN_ENTRY_CON_STATE_NONE);
 	/* Update the disconnect stats */
 	switch (pDeauthInd->reasonCode) {
 	case eSIR_MAC_DISASSOC_DUE_TO_INACTIVITY_REASON:
@@ -24200,6 +24218,10 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 			      bss_desc, ies_local);
 	ps_global_info->remain_in_power_active_till_dhcp = false;
 	session->connectState = eCSR_ASSOC_STATE_TYPE_INFRA_ASSOCIATED;
+
+	/* Remove old BSSID mlme info from scan cache */
+	csr_update_scan_entry_associnfo(mac_ctx, session,
+					SCAN_ENTRY_CON_STATE_NONE);
 	roam_info = qdf_mem_malloc(sizeof(struct csr_roam_info));
 	if (NULL == roam_info) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
@@ -24220,6 +24242,9 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 			session->pCurRoamProfile,
 			bss_desc,
 			ies_local);
+	/* Add new mlme info to new BSSID after upting connectedProfile */
+	csr_update_scan_entry_associnfo(mac_ctx, session,
+					SCAN_ENTRY_CON_STATE_ASSOC);
 	csr_roam_save_security_rsp_ie(mac_ctx, session_id,
 			session->pCurRoamProfile->negotiatedAuthType,
 			bss_desc, ies_local);
