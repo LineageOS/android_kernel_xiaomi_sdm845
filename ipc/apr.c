@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2014, 2016-2018 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2014, 2016-2019 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -617,6 +617,12 @@ void apr_cb_func(void *buf, int len, void *priv)
 		pr_err("APR: Wrong paket size\n");
 		return;
 	}
+
+	if (hdr->pkt_size < hdr_size) {
+		pr_err("APR: Packet size less than header size\n");
+		return;
+	}
+
 	msg_type = hdr->hdr_field;
 	msg_type = (msg_type >> 0x08) & 0x0003;
 	if (msg_type >= APR_MSG_TYPE_MAX && msg_type != APR_BASIC_RSP_RESULT) {
