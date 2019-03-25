@@ -406,6 +406,7 @@
 		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend>;
 		clocks = <&clock_rpmh RPMH_LN_BB_CLK3>;
 		clock-names = "ref_clk";
+		status = "disabled";
 	};
 };
 
