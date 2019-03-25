@@ -1749,28 +1749,6 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
- * OkcEnabled - Enable OKC(Oppurtunistic Key Caching)
- * @Min: 0
- * @Max: 1
- * @Default: 1
- *
- * This INI is used to enable OKC feature
- *
- * Related: None
- *
- * Supported Feature: Roaming
- *
- * Usage: External
- *
- * </ini>
- */
-#define CFG_OKC_FEATURE_ENABLED_NAME                       "OkcEnabled"
-#define CFG_OKC_FEATURE_ENABLED_MIN                        (0)
-#define CFG_OKC_FEATURE_ENABLED_MAX                        (1)
-#define CFG_OKC_FEATURE_ENABLED_DEFAULT                    (1)
-
-/*
- * <ini>
  * gRoamScanOffloadEnabled - Enable Roam Scan Offload
  * @Min: 0
  * @Max: 1
@@ -17203,7 +17181,6 @@ eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(enum hdd_dot11_mode dot11Mode);
 QDF_STATUS hdd_execute_global_config_command(struct hdd_context *hdd_ctx,
 					     char *command);
 
-bool hdd_is_okc_mode_enabled(struct hdd_context *hdd_ctx);
 QDF_STATUS hdd_set_idle_ps_config(struct hdd_context *hdd_ctx, bool val);
 void hdd_get_pmkid_modes(struct hdd_context *hdd_ctx,
 			 struct pmkid_mode_bits *pmkid_modes);
