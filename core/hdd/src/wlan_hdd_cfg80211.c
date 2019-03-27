@@ -3358,7 +3358,7 @@ __wlan_hdd_cfg80211_get_features(struct wiphy *wiphy,
 				 const void *data, int data_len)
 {
 	struct sk_buff *skb = NULL;
-	uint32_t dbs_capability = 0;
+	uint32_t dbs_capability = 0, twt_req, twt_res;
 	bool one_by_one_dbs, two_by_two_dbs;
 	QDF_STATUS ret = QDF_STATUS_E_FAILURE;
 	int ret_val;
@@ -3400,6 +3400,13 @@ __wlan_hdd_cfg80211_get_features(struct wiphy *wiphy,
 	if (hdd_ctx->config->oce_sap_enabled)
 		wlan_hdd_cfg80211_set_feature(feature_flags,
 					  QCA_WLAN_VENDOR_FEATURE_OCE_STA_CFON);
+
+	sme_cfg_get_int(hdd_ctx->mac_handle, WNI_CFG_TWT_REQUESTOR, &twt_req);
+	sme_cfg_get_int(hdd_ctx->mac_handle, WNI_CFG_TWT_RESPONDER, &twt_res);
+
+	if (twt_req || twt_res)
+		wlan_hdd_cfg80211_set_feature(feature_flags,
+					      QCA_WLAN_VENDOR_FEATURE_TWT);
 
 	/* Check the kernel version for upstream commit aced43ce780dc5 that
 	 * has support for processing user cell_base hints when wiphy is
