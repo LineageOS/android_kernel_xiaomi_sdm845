@@ -1732,6 +1732,8 @@ QDF_STATUS (*extract_dfs_status_from_fw)(wmi_unified_t wmi_handle,
 					 void *evt_buf,
 					 uint32_t *dfs_status_check);
 #endif
+QDF_STATUS (*send_mws_coex_status_req_cmd)(wmi_unified_t wmi_handle,
+					   uint32_t vdev_id, uint32_t cmd_id);
 };
 
 /* Forward declartion for psoc*/
