@@ -5578,6 +5578,11 @@ typedef enum {
 	wmi_vdev_bcn_reception_stats_event_id,
 	wmi_roam_blacklist_event_id,
 	wmi_pdev_cold_boot_cal_event_id,
+	wmi_vdev_get_mws_coex_state_eventid,
+	wmi_vdev_get_mws_coex_dpwb_state_eventid,
+	wmi_vdev_get_mws_coex_tdm_state_eventid,
+	wmi_vdev_get_mws_coex_idrx_state_eventid,
+	wmi_vdev_get_mws_coex_antenna_sharing_state_eventid,
 	wmi_events_max,
 } wmi_conv_event_id;
 
