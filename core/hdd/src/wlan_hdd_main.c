@@ -136,6 +136,7 @@
 #include "wlan_hdd_apf.h"
 #include "wlan_hdd_twt.h"
 #include "wlan_mlme_ucfg_api.h"
+#include <wlan_hdd_debugfs_coex.h>
 
 #ifdef CNSS_GENL
 #include <net/cnss_nl.h>
@@ -7601,6 +7602,7 @@ static void hdd_wlan_exit(struct hdd_context *hdd_ctx)
 
 	hdd_enter();
 
+	hdd_debugfs_mws_coex_info_deinit(hdd_ctx);
 	qdf_cancel_delayed_work(&hdd_ctx->iface_idle_work);
 
 	hdd_unregister_notifiers(hdd_ctx);
@@ -12110,6 +12112,7 @@ int hdd_wlan_startup(struct device *dev)
 			WIFI_POWER_EVENT_WAKELOCK_IFACE_CHANGE_TIMER);
 	}
 
+	hdd_debugfs_mws_coex_info_init(hdd_ctx);
 	goto success;
 
 err_close_adapters:

@@ -461,6 +461,10 @@
 
 #define WMA_GET_ROAM_SCAN_STATS              SIR_HAL_GET_ROAM_SCAN_STATS
 
+#ifdef WLAN_MWS_INFO_DEBUGFS
+#define WMA_GET_MWS_COEX_INFO_REQ            SIR_HAL_GET_MWS_COEX_INFO_REQ
+#endif
+
 /* Bit 6 will be used to control BD rate for Management frames */
 #define HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME 0x40
 
