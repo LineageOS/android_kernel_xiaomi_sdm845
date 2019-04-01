@@ -145,6 +145,13 @@ do_gc:
 			f2fs_msg(sbi->sb, KERN_INFO,
 				"No more GC victim found, "
 				"sleeping for %u ms", wait_ms);
+
+			/*
+			 * Rapid GC would have cleaned hundreds of segments
+			 * that would not be read again anytime soon.
+			 */
+			mm_drop_caches(3);
+			f2fs_msg(sbi->sb, KERN_INFO, "dropped caches");
 		}
 
 		trace_f2fs_background_gc(sbi->sb, wait_ms,
