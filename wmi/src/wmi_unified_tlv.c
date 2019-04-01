@@ -23879,6 +23879,8 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_BEACON_RECEPTION_STATS;
 	wmi_service[wmi_service_vdev_latency_config] =
 			WMI_SERVICE_VDEV_LATENCY_CONFIG;
+	wmi_service[wmi_service_sta_plus_sta_support] =
+				WMI_SERVICE_STA_PLUS_STA_SUPPORT;
 }
 
 #ifndef CONFIG_MCL
