@@ -292,6 +292,18 @@ config INPUT_BOOST_FREQ_PERF
 	help
 	  Input boost frequency for the performance CPU cluster.
 
+config MAX_BOOST_FREQ_LP
+	int "Low-power cluster max-boost freq"
+	default "0"
+	help
+	  Max-boost frequency for the low-power CPU cluster.
+
+config MAX_BOOST_FREQ_PERF
+	int "Performance cluster max-boost freq"
+	default "0"
+	help
+	  Max-boost frequency for the performance CPU cluster.
+
 endif
 
 comment "CPU frequency scaling drivers"
