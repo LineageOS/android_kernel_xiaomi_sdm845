@@ -1047,6 +1047,12 @@ ucfg_scan_start(struct scan_start_request *req)
 		return status;
 	}
 
+	if (!req->scan_req.chan_list.num_chan) {
+		scm_err("0 channel to scan, reject scan");
+		scm_scan_free_scan_request_mem(req);
+		return QDF_STATUS_E_NULL_VALUE;
+	}
+
 	scm_info("request to scan %d channels",
 		 req->scan_req.chan_list.num_chan);
 	for (idx = 0; idx < req->scan_req.chan_list.num_chan; idx++)
