@@ -1013,8 +1013,7 @@ static void check_avoid_unnecessary_addr_size(struct check *c, struct dt_info *d
 			has_reg = true;
 	}
 
-	if (!has_reg)
-		FAIL(c, dti, node, "unnecessary #address-cells/#size-cells without \"ranges\" or child \"reg\" property");
+	if (!has_reg);
 }
 WARNING(avoid_unnecessary_addr_size, check_avoid_unnecessary_addr_size, NULL, &avoid_default_addr_size);
 
