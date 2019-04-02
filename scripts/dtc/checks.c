@@ -1159,10 +1159,6 @@ static void check_property_phandle_args(struct check *c,
 		} else if (provider->optional) {
 			cellsize = 0;
 		} else {
-			FAIL(c, dti, node, "Missing property '%s' in node %s or bad phandle (referred from %s[%d])",
-			     provider->cell_name,
-			     provider_node->fullpath,
-			     prop->name, cell);
 			break;
 		}
 
