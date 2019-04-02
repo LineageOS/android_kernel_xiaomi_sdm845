@@ -1742,6 +1742,7 @@ struct hdd_dynamic_mac {
  * @pdev: object manager pdev context
  * @g_event_flags: a bitmap of hdd_driver_flags
  * @dynamic_nss_chains_support: Per vdev dynamic nss chains update capability
+ * @sar_cmd_params: SAR command params to be configured to the FW
  */
 struct hdd_context {
 	struct wlan_objmgr_psoc *psoc;
@@ -2025,6 +2026,7 @@ struct hdd_context {
 	unsigned long provisioned_intf_addr_mask;
 	unsigned long derived_intf_addr_mask;
 	struct wlan_mlme_chain_cfg fw_chain_cfg;
+	struct sar_limit_cmd_params *sar_cmd_params;
 };
 
 /**
