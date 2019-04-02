@@ -1036,6 +1036,12 @@ ucfg_scan_start(struct scan_start_request *req)
 
 	ucfg_scan_req_update_params(req->vdev, req, scan_obj);
 
+	if (!req->scan_req.chan_list.num_chan) {
+		scm_err("0 channel to scan, reject scan");
+		scm_scan_free_scan_request_mem(req);
+		return QDF_STATUS_E_NULL_VALUE;
+	}
+
 	/* Try to get vdev reference. Return if reference could
 	 * not be taken. Reference will be released once scan
 	 * request handling completes along with free of @req.
@@ -1045,12 +1051,6 @@ ucfg_scan_start(struct scan_start_request *req)
 		scm_info("unable to get reference");
 		scm_scan_free_scan_request_mem(req);
 		return status;
-	}
-
-	if (!req->scan_req.chan_list.num_chan) {
-		scm_err("0 channel to scan, reject scan");
-		scm_scan_free_scan_request_mem(req);
-		return QDF_STATUS_E_NULL_VALUE;
 	}
 
 	scm_info("request to scan %d channels",
