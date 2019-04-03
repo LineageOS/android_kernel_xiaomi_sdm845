@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -46,12 +46,40 @@ QDF_STATUS ucfg_mlme_init(void)
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	status = wlan_objmgr_register_peer_create_handler(
+			WLAN_UMAC_COMP_MLME,
+			mlme_peer_object_created_notification,
+			NULL);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		mlme_err("peer create register notification failed");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	status = wlan_objmgr_register_peer_destroy_handler(
+			WLAN_UMAC_COMP_MLME,
+			mlme_peer_object_destroyed_notification,
+			NULL);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		mlme_err("peer destroy register notification failed");
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	return QDF_STATUS_SUCCESS;
 }
 
 QDF_STATUS ucfg_mlme_deinit(void)
 {
 	QDF_STATUS status;
+
+	status = wlan_objmgr_unregister_peer_destroy_handler(
+			WLAN_UMAC_COMP_MLME,
+			mlme_peer_object_destroyed_notification,
+			NULL);
+
+	status = wlan_objmgr_unregister_peer_create_handler(
+			WLAN_UMAC_COMP_MLME,
+			mlme_peer_object_created_notification,
+			NULL);
 
 	status = wlan_objmgr_unregister_vdev_destroy_handler(
 			WLAN_UMAC_COMP_MLME,
