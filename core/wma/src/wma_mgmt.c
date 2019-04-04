@@ -1994,8 +1994,8 @@ static QDF_STATUS wma_setup_install_key_cmd(tp_wma_handle wma_handle,
 		iface->is_waiting_for_key = false;
 
 end:
-	qdf_mem_zero(&params, sizeof(struct set_key_params));
 	qdf_mem_free(params.key_rsc_counter);
+	qdf_mem_zero(&params, sizeof(struct set_key_params));
 	return status;
 }
 
