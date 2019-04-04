@@ -55,6 +55,7 @@
 #include <wlan_action_oui_public_struct.h>
 #include <wlan_action_oui_ucfg_api.h>
 #include <wlan_utility.h>
+#include "wlan_mlme_main.h"
 
 #define MAX_PWR_FCC_CHAN_12 8
 #define MAX_PWR_FCC_CHAN_13 2
@@ -17444,6 +17445,35 @@ static QDF_STATUS csr_roam_session_opened(tpAniSirGlobal pMac,
 	return status;
 }
 
+/**
+ * csr_store_oce_cfg_flags_in_vdev() - fill OCE flags from ini
+ * @mac: mac_context.
+ * @vdev: Pointer to pdev obj
+ * @vdev_id: vdev_id
+ *
+ * This API will store the oce flags in vdev mlme priv object
+ *
+ * Return: none
+ */
+static void csr_store_oce_cfg_flags_in_vdev(tpAniSirGlobal pMac,
+					    struct wlan_objmgr_pdev *pdev,
+					    uint8_t vdev_id)
+{
+	struct wlan_objmgr_vdev *vdev =
+	wlan_objmgr_get_vdev_by_id_from_pdev(pdev, vdev_id, WLAN_LEGACY_MAC_ID);
+	struct vdev_mlme_priv_obj *vdev_mlme;
+
+	if (!vdev) {
+		sme_err("vdev is NULL");
+		return;
+	}
+	vdev_mlme = wlan_vdev_mlme_get_priv_obj(vdev);
+
+	vdev_mlme->sta_dynamic_oce_value =
+	pMac->roam.configParam.oce_feature_bitmap;
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+}
+
 QDF_STATUS csr_process_add_sta_session_rsp(tpAniSirGlobal pMac, uint8_t *pMsg)
 {
 	struct add_sta_self_params *rsp;
@@ -17479,6 +17509,14 @@ QDF_STATUS csr_process_add_sta_session_rsp(tpAniSirGlobal pMac, uint8_t *pMsg)
 
 	csr_roam_session_opened(pMac, rsp->status, rsp->session_id);
 
+	if (QDF_IS_STATUS_SUCCESS(rsp->status) &&
+	    rsp->type == WMI_VDEV_TYPE_STA) {
+		csr_store_oce_cfg_flags_in_vdev(pMac, pMac->pdev,
+						rsp->session_id);
+
+		wlan_mlme_update_oce_flags(pMac->pdev,
+					   pMac->roam.configParam.oce_feature_bitmap);
+	}
 	if (QDF_IS_STATUS_ERROR(rsp->status))
 		csr_cleanup_session(pMac, rsp->session_id);
 

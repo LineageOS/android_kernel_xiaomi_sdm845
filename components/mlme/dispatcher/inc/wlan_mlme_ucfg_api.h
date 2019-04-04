@@ -74,4 +74,22 @@ ucfg_mlme_get_dynamic_vdev_config(struct wlan_objmgr_vdev *vdev)
 	return mlme_get_dynamic_vdev_config(vdev);
 }
 
+/**
+ * ucfg_mlme_update_oce_flags: Update the OCE flags
+ *
+ * @pdev: pointer to pdev object
+ * @cfg_value: INI value of oce feature flag
+ *
+ * Inline UCFG API to be used by HDD/OSIF callers to update the
+ * OCE feature flags
+ *
+ * Return: void
+ */
+static inline
+void ucfg_mlme_update_oce_flags(struct wlan_objmgr_pdev *pdev,
+				uint8_t cfg_value)
+{
+	wlan_mlme_update_oce_flags(pdev, cfg_value);
+}
+
 #endif /* _WLAN_MLME_UCFG_API_H_ */
