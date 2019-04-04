@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016, 2018 The Linux Foundation. All rights reserved.*
+ * Copyright (c) 2013-2016, 2018-2019 The Linux Foundation. All rights reserved.*
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -206,6 +206,7 @@ typedef enum {
         ((mode) == MODE_11AC_VHT80))
 #endif
 
+#if SUPPORT_11AX
 #define IS_MODE_HE(mode) (((mode) == MODE_11AX_HE20) || \
         ((mode) == MODE_11AX_HE40)     || \
         ((mode) == MODE_11AX_HE80)     || \
@@ -214,6 +215,10 @@ typedef enum {
         ((mode) == MODE_11AX_HE20_2G)  || \
         ((mode) == MODE_11AX_HE40_2G)  || \
         ((mode) == MODE_11AX_HE80_2G))
+#define IS_MODE_HE_2G(mode) (((mode) == MODE_11AX_HE20_2G) || \
+        ((mode) == MODE_11AX_HE40_2G) || \
+        ((mode) == MODE_11AX_HE80_2G))
+#endif /* SUPPORT_11AX */
 
 #define IS_MODE_VHT_2G(mode) (((mode) == MODE_11AC_VHT20_2G) || \
         ((mode) == MODE_11AC_VHT40_2G) || \
@@ -352,12 +357,13 @@ typedef struct {
  * In host-based implementation of the rate-control feature, this struture is used to
  * create the payload for HTT message/s from target to host.
  */
-
-#if (NUM_SPATIAL_STREAM > 3)
-  #define A_RATEMASK A_UINT64
-#else
-  #define A_RATEMASK A_UINT32
-#endif
+#ifndef CONFIG_MOVE_RC_STRUCT_TO_MACCORE
+  #if (NUM_SPATIAL_STREAM > 3)
+    #define A_RATEMASK A_UINT64
+  #else
+    #define A_RATEMASK A_UINT32
+  #endif
+#endif /* CONFIG_MOVE_RC_STRUCT_TO_MACCORE */
 
 typedef A_UINT8 A_RATE;
 typedef A_UINT8 A_RATECODE;

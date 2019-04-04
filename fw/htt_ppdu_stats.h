@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -234,15 +234,39 @@ typedef struct {
      * tx_ppdu_stats_info is variable length, with length =
      *     number_of_ppdu_stats * sizeof (struct htt_tx_ppdu_stats_info)
      */
-    A_UINT32 tx_ppdu_stats_info[1/*number_of_ppdu_stats*/];
+    struct htt_tx_ppdu_stats_info tx_ppdu_stats_info[1/*number_of_ppdu_stats*/];
 } htt_ppdu_stats_usr_common_array_tlv_v;
 
-typedef struct {
-    htt_tlv_hdr_t tlv_hdr;
+#define HTT_PPDU_STATS_SCH_CMD_TLV_HDR_STRUCT \
+    struct { \
+        htt_tlv_hdr_t tlv_hdr; \
+        /* Refer bmi_msg.h */ \
+        A_UINT32 target_type; \
+    }
 
-    /* Refer bmi_msg.h */
-    A_UINT32 target_type;
-    A_UINT32 hw[1]; /* Variable length, refer to struct scheduler_cmd_status */
+typedef HTT_PPDU_STATS_SCH_CMD_TLV_HDR_STRUCT htt_ppdu_stats_sch_cmd_tlv_hdr_t;
+
+typedef struct {
+    /*
+     * Use a union to allow the HW-independent header portion of this struct
+     * to be accessed either within a hdr struct, or directly within the
+     * htt_ppdu_stats_sch_cmd_tlv_v struct.
+     * For example, the target_type field can be accessed either as
+     *     htt_ppdu_stats_sch_cmd_tlv_v.target_type
+     * or
+     *     htt_ppdu_stats_sch_cmd_tlv_v.hdr.target_type
+     */
+    union {
+        htt_ppdu_stats_sch_cmd_tlv_hdr_t hdr;
+        HTT_PPDU_STATS_SCH_CMD_TLV_HDR_STRUCT;
+    };
+    /*
+     * The hw portion of this struct contains a scheduler_command_status
+     * struct, whose definition is different for different target HW types.
+     * The target_type field within the header can, if set correctly,
+     * clarify which definition of scheduler_command_status is being used.
+     */
+    A_UINT32 hw[1];
 } htt_ppdu_stats_sch_cmd_tlv_v;
 
 #define HTT_PPDU_STATS_COMMON_TLV_SCH_CMDID_M     0x0000ffff
@@ -368,6 +392,33 @@ enum HTT_PPDU_STATS_BW {
 };
 typedef enum HTT_PPDU_STATS_BW HTT_PPDU_STATS_BW;
 
+enum HTT_PPDU_STATS_SEQ_TYPE {
+    HTT_SEQTYPE_UNSPECIFIED     = 0,
+    HTT_SEQTYPE_SU              = 1,
+    HTT_SEQTYPE_AC_MU_MIMO      = 2,
+    HTT_SEQTYPE_AX_MU_MIMO      = 3,
+    HTT_SEQTYPE_MU_OFDMA        = 4,
+    HTT_SEQTYPE_UL_TRIG         = 5,
+    HTT_SEQTYPE_BURST_BCN       = 6,
+    HTT_SEQTYPE_UL_BSR_RESP     = 7,
+    HTT_SEQTYPE_UL_BSR_TRIG     = 8,
+    HTT_SEQTYPE_UL_RESP         = 9,
+};
+typedef enum HTT_PPDU_STATS_SEQ_TYPE HTT_PPDU_STATS_SEQ_TYPE;
+
+#define HTT_PPDU_STATS_COMMON_TLV_PPDU_SEQ_TYPE_M     0x00ff0000
+#define HTT_PPDU_STATS_COMMON_TLV_PPDU_SEQ_TYPE_S             16
+
+#define HTT_PPDU_STATS_COMMON_TLV_PPDU_SEQ_TYPE_GET(_var) \
+    (((_var) & HTT_PPDU_STATS_COMMON_TLV_PPDU_SEQ_TYPE_M) >> \
+    HTT_PPDU_STATS_COMMON_TLV_PPDU_SEQ_TYPE_S)
+
+#define HTT_PPDU_STATS_COMMON_TLV_PPDU_SEQ_TYPE_SET(_var, _val) \
+     do { \
+         HTT_CHECK_SET_VAL(HTT_PPDU_STATS_COMMON_TLV_PPDU_SEQ_TYPE, _val); \
+         ((_var) |= ((_val) << HTT_PPDU_STATS_COMMON_TLV_PPDU_SEQ_TYPE_S)); \
+     } while (0)
+
 #define HTT_PPDU_STATS_COMMON_TLV_BW_M     0x000f0000
 #define HTT_PPDU_STATS_COMMON_TLV_BW_S             16
 
@@ -426,15 +477,18 @@ typedef struct {
     /* BIT [ 7 :   0]   :- frame_type - HTT_STATS_FTYPE
      * BIT [ 15:   8]   :- queue_type - HTT_TX_QUEUE_TYPE
      * BIT [ 19:  16]   :- bw - HTT_PPDU_STATS_BW
-     * BIT [ 31:  20]   :- reserved
+     * BIT [ 27:  20]   :- ppdu_seq_type - HTT_PPDU_STATS_SEQ_TYPE
+     * BIT [ 31:  28]   :- reserved
      */
     union {
         A_UINT32 bw__queue_type__frame_type;
+        A_UINT32 ppdu_seq_type__bw__queue_type__frame_type;
         struct {
             A_UINT32 frame_type:     8,
                      queue_type:     8,
                      bw:             4,
-                     reserved0:     12;
+                     ppdu_seq_type:  8,
+                     reserved0:      4;
         };
     };
     A_UINT32 chain_mask;

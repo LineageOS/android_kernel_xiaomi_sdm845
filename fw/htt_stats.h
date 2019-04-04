@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -393,11 +393,25 @@ typedef enum {
      } while (0)
 
 typedef struct {
-    /* BIT [11 :  0]   :- tag
-     * BIT [23 : 12]   :- length
-     * BIT [31 : 24]   :- reserved
-     */
-    A_UINT32 tag__length;
+    union {
+        /* BIT [11 :  0]   :- tag
+         * BIT [23 : 12]   :- length
+         * BIT [31 : 24]   :- reserved
+         */
+        A_UINT32 tag__length;
+        /*
+         * The following struct is not endian-portable.
+         * It is suitable for use within the target, which is known to be
+         * little-endian.
+         * The host should use the above endian-portable macros to access
+         * the tag and length bitfields in an endian-neutral manner.
+         */
+        struct {
+            A_UINT32 tag:      12, /* BIT [11 :  0] */
+                     length:   12, /* BIT [23 : 12] */
+                     reserved:  8; /* BIT [31 : 24] */
+        };
+    };
 } htt_tlv_hdr_t;
 
 #define HTT_STATS_MAX_STRING_SZ32            4
@@ -1121,6 +1135,15 @@ typedef struct _htt_rx_peer_rate_stats_tlv {
     A_UINT32 rx_ulofdma_mpdu_ok;       /* mpdu level */
     A_UINT32 rx_ulofdma_mpdu_fail;     /* mpdu level */
     A_INT8   rx_ul_fd_rssi[HTT_RX_PEER_STATS_NUM_SPATIAL_STREAMS];/* dBm unit */
+    /* per_chain_rssi_pkt_type:
+     * This field shows what type of rx frame the per-chain RSSI was computed
+     * on, by recording the frame type and sub-type as bit-fields within this
+     * field:
+     * BIT [3 : 0]    :- IEEE80211_FC0_TYPE
+     * BIT [7 : 4]    :- IEEE80211_FC0_SUBTYPE
+     * BIT [31 : 8]   :- Reserved
+     */
+    A_UINT32  per_chain_rssi_pkt_type;
 } htt_rx_peer_rate_stats_tlv;
 
 typedef enum {
@@ -2946,6 +2969,15 @@ typedef struct {
      */
     A_INT32 rx_pilot_evm_dB_mean[HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS];
     A_INT8  rx_ul_fd_rssi[HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS][HTT_RX_PDEV_MAX_OFDMA_NUM_USER]; /* dBm units */
+    /* per_chain_rssi_pkt_type:
+     * This field shows what type of rx frame the per-chain RSSI was computed
+     * on, by recording the frame type and sub-type as bit-fields within this
+     * field:
+     * BIT [3 : 0]    :- IEEE80211_FC0_TYPE
+     * BIT [7 : 4]    :- IEEE80211_FC0_SUBTYPE
+     * BIT [31 : 8]   :- Reserved
+     */
+    A_UINT32  per_chain_rssi_pkt_type;
 } htt_rx_pdev_rate_stats_tlv;
 
 
