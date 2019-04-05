@@ -292,8 +292,8 @@ static QDF_STATUS target_if_cp_stats_extract_vdev_chain_rssi_stats(
 		for (j = 0; j < MAX_NUM_CHAINS; j++) {
 			dat_snr = rssi_stats.rssi_avg_data[j];
 			bcn_snr = rssi_stats.rssi_avg_beacon[j];
-			cp_stats_err("Chain %d SNR bcn: %d data: %d", j,
-				     bcn_snr, dat_snr);
+			cp_stats_debug("Chain %d SNR bcn: %d data: %d", j,
+				       bcn_snr, dat_snr);
 			if (TGT_IS_VALID_SNR(bcn_snr))
 				ev->vdev_chain_rssi[i].chain_rssi[j] = bcn_snr;
 			else if (TGT_IS_VALID_SNR(dat_snr))

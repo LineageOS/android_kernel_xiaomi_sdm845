@@ -115,8 +115,8 @@ static void peer_rssi_iterator(struct wlan_objmgr_pdev *pdev,
 	struct peer_cp_stats *peer_cp_stats_priv;
 
 	if (WLAN_PEER_SELF == wlan_peer_get_peer_type(peer)) {
-		cp_stats_err("ignore self peer: %pM",
-			     wlan_peer_get_macaddr(peer));
+		cp_stats_debug("ignore self peer: %pM",
+			       wlan_peer_get_macaddr(peer));
 		return;
 	}
 
@@ -464,7 +464,7 @@ static void tgt_mc_cp_stats_extract_vdev_summary_stats(
 	}
 
 	if (i == ev->num_summary_stats) {
-		cp_stats_err("vdev_id %d not found", last_req.vdev_id);
+		cp_stats_debug("vdev_id %d not found", last_req.vdev_id);
 		return;
 	}
 
@@ -540,7 +540,7 @@ static void tgt_mc_cp_stats_extract_vdev_chain_rssi_stats(
 	}
 
 	if (i == ev->num_chain_rssi_stats) {
-		cp_stats_err("vdev_id %d not found", last_req.vdev_id);
+		cp_stats_debug("vdev_id %d not found", last_req.vdev_id);
 		return;
 	}
 
