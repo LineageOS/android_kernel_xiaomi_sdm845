@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2017, 2019 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -903,9 +903,8 @@ ssize_t audio_in_write(struct file *file,
 						__func__, audio->ac->session);
 			}
 		}
-		xfer = (count > (audio->pcm_cfg.buffer_size)) ?
-				(audio->pcm_cfg.buffer_size) : count;
 
+		xfer = (count > size) ? size : count;
 		if (copy_from_user(cpy_ptr, buf, xfer)) {
 			rc = -EFAULT;
 			break;
