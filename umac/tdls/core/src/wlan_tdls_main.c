@@ -1072,6 +1072,7 @@ tdls_process_sta_disconnect(struct tdls_sta_notify_params *notify)
 	struct tdls_soc_priv_obj *tdls_soc_obj;
 	struct tdls_soc_priv_obj *curr_tdls_soc;
 	struct wlan_objmgr_vdev *temp_vdev = NULL;
+	uint8_t vdev_id;
 
 
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -1107,13 +1108,14 @@ tdls_process_sta_disconnect(struct tdls_sta_notify_params *notify)
 			status = tdls_get_vdev_objects(temp_vdev,
 						       &tdls_vdev_obj,
 						       &tdls_soc_obj);
+			vdev_id = wlan_vdev_get_id(temp_vdev);
 			if (QDF_STATUS_SUCCESS == status) {
 				tdls_send_update_to_fw(tdls_vdev_obj,
 						       tdls_soc_obj,
 						       false,
 						       false,
 						       true,
-						       notify->session_id);
+						       vdev_id);
 				curr_tdls_vdev = tdls_vdev_obj;
 				curr_tdls_soc = tdls_soc_obj;
 			}

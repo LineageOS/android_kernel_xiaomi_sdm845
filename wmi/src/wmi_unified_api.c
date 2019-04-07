@@ -7518,3 +7518,15 @@ wmi_extract_roam_scan_stats_res_evt(wmi_unified_t wmi, void *evt_buf,
 
 	return QDF_STATUS_E_FAILURE;
 }
+
+QDF_STATUS wmi_unified_send_mws_coex_req_cmd(struct wmi_unified *wmi_handle,
+					     uint32_t vdev_id,
+					     uint32_t cmd_id)
+{
+
+	if (wmi_handle->ops->send_mws_coex_status_req_cmd)
+		return wmi_handle->ops->send_mws_coex_status_req_cmd(wmi_handle,
+				vdev_id, cmd_id);
+
+	return QDF_STATUS_E_FAILURE;
+}
