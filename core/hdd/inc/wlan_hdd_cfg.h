@@ -1749,28 +1749,6 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
- * OkcEnabled - Enable OKC(Oppurtunistic Key Caching)
- * @Min: 0
- * @Max: 1
- * @Default: 1
- *
- * This INI is used to enable OKC feature
- *
- * Related: None
- *
- * Supported Feature: Roaming
- *
- * Usage: External
- *
- * </ini>
- */
-#define CFG_OKC_FEATURE_ENABLED_NAME                       "OkcEnabled"
-#define CFG_OKC_FEATURE_ENABLED_MIN                        (0)
-#define CFG_OKC_FEATURE_ENABLED_MAX                        (1)
-#define CFG_OKC_FEATURE_ENABLED_DEFAULT                    (1)
-
-/*
- * <ini>
  * gRoamScanOffloadEnabled - Enable Roam Scan Offload
  * @Min: 0
  * @Max: 1
@@ -15679,6 +15657,24 @@ enum hdd_external_acs_policy {
 #define CFG_SET_BT_INTERFERENCE_HIGH_UL_MAX      (100)
 #define CFG_SET_BT_INTERFERENCE_HIGH_UL_DEFAULT  (-11)
 
+#ifdef FEATURE_MPTA_HELPER
+/*
+ * <ini>
+ * gMPTAHelperEnable - Config MPTA helper enable
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SET_MPTA_HELPER_ENABLE_NAME     "gMPTAHelperEnable"
+#define CFG_SET_MPTA_HELPER_ENABLE_MIN      (0)
+#define CFG_SET_MPTA_HELPER_ENABLE_MAX      (1)
+#define CFG_SET_MPTA_HELPER_ENABLE_DEFAULT  (0)
+#endif
+
 /*
  * <ini>
  * enable_mac_provision - Enable/disable MAC address provisioning feature
@@ -16991,6 +16987,9 @@ struct hdd_config {
 	int16_t set_bt_interference_medium_ul;
 	int16_t set_bt_interference_high_ll;
 	int16_t set_bt_interference_high_ul;
+#ifdef FEATURE_MPTA_HELPER
+	bool    set_mpta_helper_enable;
+#endif
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	uint32_t roam_preauth_retry_count;
 	uint32_t roam_preauth_no_ack_timeout;
@@ -17182,7 +17181,6 @@ eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode(enum hdd_dot11_mode dot11Mode);
 QDF_STATUS hdd_execute_global_config_command(struct hdd_context *hdd_ctx,
 					     char *command);
 
-bool hdd_is_okc_mode_enabled(struct hdd_context *hdd_ctx);
 QDF_STATUS hdd_set_idle_ps_config(struct hdd_context *hdd_ctx, bool val);
 void hdd_get_pmkid_modes(struct hdd_context *hdd_ctx,
 			 struct pmkid_mode_bits *pmkid_modes);

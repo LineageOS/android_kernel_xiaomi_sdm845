@@ -93,6 +93,11 @@ CONFIG_QCACLD_FEATURE_APF := y
 #Flag to enable SARv1 -> SARv2 conversion
 CONFIG_WLAN_FEATURE_SARV1_TO_SARV2 := n
 
+#Flag to enable set coex configuration
+ifeq ($(CONFIG_ARCH_QCS405), y)
+CONFIG_QCACLD_FEATURE_COEX_CONFIG := y
+endif
+
 ifeq ($(CONFIG_ARCH_MSM8998), y)
 CONFIG_QCACLD_FEATURE_METERING := y
 endif
@@ -217,6 +222,10 @@ CONFIG_POWER_MANAGEMENT_OFFLOAD := y
 
 ifeq ($(CONFIG_ROME_IF), snoc)
 	CONFIG_WLAN_TX_FLOW_CONTROL_V2 := y
+endif
+
+ifeq ($(CONFIG_ARCH_QCS405), y)
+CONFIG_WLAN_TX_FLOW_CONTROL_V2 := n
 endif
 
 # Flag to enable LFR Subnet Detection
@@ -608,3 +617,8 @@ endif
 CONFIG_DP_TRACE := y
 #Enable Beacon Reception Stats
 CONFIG_FEATURE_BECN_STATS := y
+
+#enable MPTA helper for QCS405
+ifeq ($(CONFIG_ARCH_QCS405), y)
+CONFIG_QCACLD_FEATURE_MPTA_HELPER := y
+endif

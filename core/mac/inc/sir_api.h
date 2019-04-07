@@ -200,6 +200,20 @@ struct rsn_caps {
 	uint16_t Reserved:8;
 };
 
+/**
+ * struct wlan_mlme_chain_cfg - Chain info related structure
+ * @max_tx_chains_2g: max tx chains supported in 2.4ghz band
+ * @max_rx_chains_2g: max rx chains supported in 2.4ghz band
+ * @max_tx_chains_5g: max tx chains supported in 5ghz band
+ * @max_rx_chains_5g: max rx chains supported in 5ghz band
+ */
+struct wlan_mlme_chain_cfg {
+	uint8_t max_tx_chains_2g;
+	uint8_t max_rx_chains_2g;
+	uint8_t max_tx_chains_5g;
+	uint8_t max_rx_chains_5g;
+};
+
 /* / Result codes Firmware return to Host SW */
 typedef enum eSirResultCodes {
 	eSIR_SME_SUCCESS,
@@ -1228,6 +1242,7 @@ typedef struct sSirSmeAssocInd {
 	uint8_t ecsa_capable;
 	tDot11fIEHTCaps HTCaps;
 	tDot11fIEVHTCaps VHTCaps;
+	bool he_caps_present;
 	tSirMacCapabilityInfo capability_info;
 } tSirSmeAssocInd, *tpSirSmeAssocInd;
 

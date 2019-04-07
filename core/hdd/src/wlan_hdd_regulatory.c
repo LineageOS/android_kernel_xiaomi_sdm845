@@ -686,13 +686,17 @@ void hdd_program_country_code(struct hdd_context *hdd_ctx)
 int hdd_reg_set_country(struct hdd_context *hdd_ctx, char *country_code)
 {
 	QDF_STATUS status;
+	uint8_t cc[REG_ALPHA2_LEN + 1];
 
 	if (!country_code) {
 		hdd_err("country_code is null");
 		return -EINVAL;
 	}
 
-	status = ucfg_reg_set_country(hdd_ctx->pdev, country_code);
+	qdf_mem_copy(cc, country_code, REG_ALPHA2_LEN);
+	cc[REG_ALPHA2_LEN] = '\0';
+
+	status = ucfg_reg_set_country(hdd_ctx->pdev, cc);
 	if (QDF_IS_STATUS_ERROR(status))
 		hdd_err("Failed to set country");
 
@@ -1381,8 +1385,6 @@ int hdd_regulatory_init(struct hdd_context *hdd_ctx, struct wiphy *wiphy)
 		sme_set_cc_src(hdd_ctx->mac_handle, cc_src);
 	} else {
 		hdd_ctx->reg_offload = false;
-		ucfg_reg_program_default_cc(hdd_ctx->pdev,
-					    hdd_ctx->reg.reg_domain);
 	}
 
 	return 0;

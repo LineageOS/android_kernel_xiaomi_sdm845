@@ -94,6 +94,7 @@
 #include "wlan_hdd_driver_ops.h"
 #include "epping_main.h"
 #include "wlan_hdd_data_stall_detection.h"
+#include "wlan_hdd_mpta_helper.h"
 
 #include <wlan_hdd_ipa.h>
 #include "hif.h"
@@ -1920,6 +1921,194 @@ static void hdd_sar_target_config(struct hdd_context *hdd_ctx,
 	hdd_ctx->sar_version = cfg->sar_version;
 }
 
+
+static uint8_t hdd_get_nss_chain_shift(enum QDF_OPMODE device_mode)
+{
+	switch (device_mode) {
+	case QDF_STA_MODE:
+		return STA_NSS_CHAINS_SHIFT;
+	case QDF_SAP_MODE:
+		return SAP_NSS_CHAINS_SHIFT;
+	case QDF_P2P_GO_MODE:
+		return P2P_GO_NSS_CHAINS_SHIFT;
+	case QDF_P2P_CLIENT_MODE:
+		return P2P_CLI_CHAINS_SHIFT;
+	case QDF_IBSS_MODE:
+		return IBSS_NSS_CHAINS_SHIFT;
+	case QDF_P2P_DEVICE_MODE:
+		return P2P_DEV_NSS_CHAINS_SHIFT;
+	case QDF_OCB_MODE:
+		return OCB_NSS_CHAINS_SHIFT;
+	case QDF_TDLS_MODE:
+		return TDLS_NSS_CHAINS_SHIFT;
+
+	default:
+		hdd_err("Device mode %d invalid", device_mode);
+		return STA_NSS_CHAINS_SHIFT;
+	}
+}
+
+static bool
+hdd_is_nss_update_allowed(struct wlan_mlme_chain_cfg chain_cfg,
+			  uint8_t rx_nss, uint8_t tx_nss,
+			  enum nss_chains_band_info band)
+{
+	switch (band) {
+	case NSS_CHAINS_BAND_2GHZ:
+		if (rx_nss > chain_cfg.max_rx_chains_2g)
+			return false;
+		if (tx_nss > chain_cfg.max_tx_chains_2g)
+			return false;
+		break;
+	case NSS_CHAINS_BAND_5GHZ:
+		if (rx_nss > chain_cfg.max_rx_chains_5g)
+			return false;
+		if (tx_nss > chain_cfg.max_tx_chains_5g)
+			return false;
+		break;
+	default:
+		hdd_err("Unknown Band nss change not allowed");
+		return false;
+	}
+	return true;
+}
+
+static void hdd_modify_chains_in_hdd_cfg(struct hdd_context *hdd_ctx,
+					  uint8_t rx_chains,
+					  uint8_t tx_chains,
+					  enum QDF_OPMODE vdev_op_mode,
+					  enum nss_chains_band_info band)
+{
+	uint8_t nss_shift;
+	uint32_t nss_mask = 0x7;
+	uint32_t *rx_chains_ini = NULL;
+	uint32_t *tx_chains_ini = NULL;
+
+	if (band == NSS_CHAINS_BAND_2GHZ) {
+		rx_chains_ini = &hdd_ctx->config->rx_nss_2g;
+		tx_chains_ini = &hdd_ctx->config->tx_nss_2g;
+	} else if (band == NSS_CHAINS_BAND_5GHZ) {
+		rx_chains_ini = &hdd_ctx->config->rx_nss_5g;
+		tx_chains_ini = &hdd_ctx->config->tx_nss_5g;
+	}
+
+	nss_shift = hdd_get_nss_chain_shift(vdev_op_mode);
+
+	*rx_chains_ini &= ~(nss_mask << nss_shift);
+	*rx_chains_ini |= (rx_chains << nss_shift);
+	*tx_chains_ini &= ~(nss_mask << nss_shift);
+	*tx_chains_ini |= (tx_chains << nss_shift);
+
+	hdd_debug("rx chains %d tx chains %d changed for vdev mode %d for band %d",
+		  rx_chains, tx_chains, vdev_op_mode, band);
+}
+
+static void
+hdd_modify_nss_in_hdd_cfg(struct hdd_context *hdd_ctx,
+			  uint8_t rx_nss, uint8_t tx_nss,
+			  enum QDF_OPMODE vdev_op_mode,
+			  enum nss_chains_band_info band)
+{
+	uint8_t nss_shift;
+	uint32_t nss_mask = 0x7;
+	uint32_t *rx_nss_ini = NULL;
+	uint32_t *tx_nss_ini = NULL;
+
+	if (band == NSS_CHAINS_BAND_2GHZ) {
+		rx_nss_ini = &hdd_ctx->config->rx_nss_2g;
+		tx_nss_ini = &hdd_ctx->config->tx_nss_2g;
+	} else if (band == NSS_CHAINS_BAND_5GHZ) {
+		rx_nss_ini = &hdd_ctx->config->rx_nss_5g;
+		tx_nss_ini = &hdd_ctx->config->tx_nss_5g;
+	} else
+		return;
+
+	if (!hdd_is_nss_update_allowed(hdd_ctx->fw_chain_cfg, rx_nss, tx_nss,
+				       band)) {
+		hdd_debug("Nss modification failed, fw doesn't support this nss %d",
+			  rx_nss);
+		return;
+	}
+
+	nss_shift = hdd_get_nss_chain_shift(vdev_op_mode);
+
+	*rx_nss_ini &= ~(nss_mask << nss_shift);
+	*rx_nss_ini |= (rx_nss << nss_shift);
+	*tx_nss_ini &= ~(nss_mask << nss_shift);
+	*tx_nss_ini |= (tx_nss << nss_shift);
+
+	hdd_debug("rx nss %d tx nss %d changed for vdev mode %d for band %d",
+		  rx_nss, tx_nss, vdev_op_mode, band);
+}
+
+static void
+hdd_modify_nss_chains_tgt_cfg(struct hdd_context *hdd_ctx,
+			      enum QDF_OPMODE vdev_op_mode,
+			      enum nss_chains_band_info band)
+{
+	uint32_t ini_rx_nss;
+	uint32_t ini_tx_nss;
+	uint8_t max_supported_rx_nss = MAX_VDEV_NSS;
+	uint8_t max_supported_tx_nss = MAX_VDEV_NSS;
+	uint32_t ini_rx_chains;
+	uint32_t ini_tx_chains;
+	uint8_t max_supported_rx_chains = MAX_VDEV_CHAINS;
+	uint8_t max_supported_tx_chains = MAX_VDEV_CHAINS;
+	uint8_t nss_shift = hdd_get_nss_chain_shift(vdev_op_mode);
+	struct wlan_mlme_chain_cfg chain_cfg = hdd_ctx->fw_chain_cfg;
+
+	if (band == NSS_CHAINS_BAND_2GHZ) {
+		ini_rx_nss = hdd_ctx->config->rx_nss_2g;
+		ini_tx_nss = hdd_ctx->config->tx_nss_2g;
+		ini_rx_chains = hdd_ctx->config->num_rx_chains_2g;
+		ini_tx_chains = hdd_ctx->config->num_tx_chains_2g;
+	} else if (band == NSS_CHAINS_BAND_5GHZ) {
+		ini_rx_nss = hdd_ctx->config->rx_nss_5g;
+		ini_tx_nss = hdd_ctx->config->tx_nss_5g;
+		ini_rx_chains = hdd_ctx->config->num_rx_chains_5g;
+		ini_tx_chains = hdd_ctx->config->num_tx_chains_5g;
+	} else {
+		hdd_err("wrong band passed %d, cannot change nss in ini", band);
+		return;
+	}
+
+	ini_rx_nss = GET_VDEV_NSS_CHAIN(ini_rx_nss, nss_shift);
+	ini_tx_nss = GET_VDEV_NSS_CHAIN(ini_tx_nss, nss_shift);
+
+	if (band == NSS_CHAINS_BAND_2GHZ) {
+		max_supported_rx_nss = chain_cfg.max_rx_chains_2g;
+		max_supported_tx_nss = chain_cfg.max_tx_chains_2g;
+	} else if (band == NSS_CHAINS_BAND_5GHZ) {
+		max_supported_rx_nss = chain_cfg.max_rx_chains_5g;
+		max_supported_tx_nss = chain_cfg.max_tx_chains_5g;
+	}
+
+	max_supported_rx_nss = QDF_MIN(ini_rx_nss, max_supported_rx_nss);
+	max_supported_tx_nss = QDF_MIN(ini_tx_nss, max_supported_tx_nss);
+
+	ini_rx_chains = GET_VDEV_NSS_CHAIN(ini_rx_chains, nss_shift);
+	ini_tx_chains = GET_VDEV_NSS_CHAIN(ini_tx_chains, nss_shift);
+
+	if (band == NSS_CHAINS_BAND_2GHZ) {
+		max_supported_rx_chains = chain_cfg.max_rx_chains_2g;
+		max_supported_tx_chains = chain_cfg.max_tx_chains_2g;
+	} else if (band == NSS_CHAINS_BAND_5GHZ) {
+		max_supported_rx_chains = chain_cfg.max_rx_chains_5g;
+		max_supported_tx_chains = chain_cfg.max_tx_chains_5g;
+	}
+
+	max_supported_rx_chains = QDF_MIN(ini_rx_chains,
+					  max_supported_rx_chains);
+	max_supported_tx_chains = QDF_MIN(ini_tx_chains,
+					  max_supported_tx_chains);
+
+	hdd_modify_nss_in_hdd_cfg(hdd_ctx, max_supported_rx_chains,
+				     max_supported_tx_chains, vdev_op_mode,
+				     band);
+	hdd_modify_chains_in_hdd_cfg(hdd_ctx, max_supported_rx_nss,
+				  max_supported_tx_nss, vdev_op_mode, band);
+}
+
 void hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 {
 	int ret;
@@ -1929,6 +2118,7 @@ void hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 	uint8_t antenna_mode;
 	QDF_STATUS status;
 	mac_handle_t mac_handle;
+	enum nss_chains_band_info band;
 
 	if (!hdd_ctx) {
 		hdd_err("HDD context is NULL");
@@ -2044,6 +2234,18 @@ void hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 		hdd_update_tgt_he_cap(hdd_ctx, cfg);
 	}
 	hdd_update_tgt_twt_cap(hdd_ctx, cfg);
+
+	hdd_ctx->fw_chain_cfg = cfg->chain_cfg;
+
+	for (band = NSS_CHAINS_BAND_2GHZ; band < NSS_CHAINS_BAND_MAX; band++) {
+		hdd_modify_nss_chains_tgt_cfg(hdd_ctx, QDF_STA_MODE, band);
+		hdd_modify_nss_chains_tgt_cfg(hdd_ctx, QDF_SAP_MODE, band);
+		hdd_modify_nss_chains_tgt_cfg(hdd_ctx, QDF_TDLS_MODE, band);
+		hdd_modify_nss_chains_tgt_cfg(hdd_ctx, QDF_P2P_DEVICE_MODE,
+					      band);
+		hdd_modify_nss_chains_tgt_cfg(hdd_ctx, QDF_OCB_MODE, band);
+		hdd_modify_nss_chains_tgt_cfg(hdd_ctx, QDF_TDLS_MODE, band);
+	}
 
 	hdd_update_vdev_nss(hdd_ctx);
 
@@ -4127,32 +4329,6 @@ static int hdd_set_sme_session_param(struct hdd_adapter *adapter,
 	return 0;
 }
 
-static uint8_t hdd_get_nss_chain_shift(enum QDF_OPMODE device_mode)
-{
-	switch (device_mode) {
-	case QDF_STA_MODE:
-		return STA_NSS_CHAINS_SHIFT;
-	case QDF_SAP_MODE:
-		return SAP_NSS_CHAINS_SHIFT;
-	case QDF_P2P_GO_MODE:
-		return P2P_GO_NSS_CHAINS_SHIFT;
-	case QDF_P2P_CLIENT_MODE:
-		return P2P_CLI_CHAINS_SHIFT;
-	case QDF_IBSS_MODE:
-		return IBSS_NSS_CHAINS_SHIFT;
-	case QDF_P2P_DEVICE_MODE:
-		return P2P_DEV_NSS_CHAINS_SHIFT;
-	case QDF_OCB_MODE:
-		return OCB_NSS_CHAINS_SHIFT;
-	case QDF_TDLS_MODE:
-		return TDLS_NSS_CHAINS_SHIFT;
-
-	default:
-		hdd_err("Device mode %d invalid", device_mode);
-		return STA_NSS_CHAINS_SHIFT;
-	}
-}
-
 static void
 hdd_check_nss_chains_ini_params(struct mlme_nss_chains *vdev_ini_cfg,
 				uint8_t rf_chains_supported)
@@ -4910,6 +5086,10 @@ static int hdd_send_coex_config_params(struct hdd_context *hdd_ctx,
 		hdd_err("Failed to send coex BT interference level");
 		goto err;
 	}
+
+	if (wlan_hdd_mpta_helper_enable(config))
+		goto err;
+
 	return 0;
 err:
 	return -EINVAL;
@@ -11033,13 +11213,14 @@ static int hdd_features_init(struct hdd_context *hdd_ctx)
 
 	/**
 	 * In case of SSR/PDR, if pktlog was enabled manually before
-	 * SSR/PDR, Then enabled it again automatically after Wlan
+	 * SSR/PDR, then enable it again automatically after Wlan
 	 * device up.
+	 * During SSR/PDR, pktlog will be disabled as part of
+	 * hdd_features_deinit if pktlog is enabled in ini.
+	 * Re-enable pktlog in SSR case, if pktlog is enabled in ini.
 	 */
-	if (cds_is_driver_recovering()) {
-		if (hdd_ctx->is_pktlog_enabled)
-			hdd_pktlog_enable_disable(hdd_ctx, true, 0, 0);
-	} else if (cds_is_packet_log_enabled())
+	if (cds_is_packet_log_enabled() ||
+	    (cds_is_driver_recovering() && hdd_ctx->is_pktlog_enabled))
 		hdd_pktlog_enable_disable(hdd_ctx, true, 0, 0);
 
 	hddtxlimit.txPower2g = hdd_ctx->config->TxPower2g;
@@ -11292,6 +11473,10 @@ int hdd_configure_cds(struct hdd_context *hdd_ctx)
 					     num_11ag_tx_chains);
 	sme_cli_set_command(0, (int)WMI_PDEV_PARAM_ABG_MODE_TX_CHAIN_NUM,
 			    num_abg_tx_chains, PDEV_CMD);
+
+	if (!ucfg_reg_is_regdb_offloaded(hdd_ctx->psoc))
+		ucfg_reg_program_default_cc(hdd_ctx->pdev,
+					    hdd_ctx->reg.reg_domain);
 
 	ret = hdd_pre_enable_configure(hdd_ctx);
 	if (ret) {
@@ -14506,6 +14691,11 @@ void hdd_set_roaming_in_progress(bool value)
 
 	hdd_ctx->roaming_in_progress = value;
 	hdd_debug("Roaming in Progress set to %d", value);
+	if (!hdd_ctx->roaming_in_progress) {
+		/* Reset scan reject params on successful roam complete */
+		hdd_debug("Reset scan reject params");
+		hdd_init_scan_reject_params(hdd_ctx);
+	}
 }
 
 bool hdd_is_roaming_in_progress(struct hdd_context *hdd_ctx)
