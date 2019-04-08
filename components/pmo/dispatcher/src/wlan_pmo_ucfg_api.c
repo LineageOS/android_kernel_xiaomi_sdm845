@@ -95,7 +95,7 @@ bool ucfg_pmo_is_ap_mode_supports_arp_ns(struct wlan_objmgr_psoc *psoc,
 
 bool ucfg_pmo_is_vdev_connected(struct wlan_objmgr_vdev *vdev)
 {
-	return pmo_core_is_vdev_connected(vdev);
+	return wlan_vdev_is_up(vdev);
 }
 
 bool ucfg_pmo_is_vdev_supports_offload(struct wlan_objmgr_vdev *vdev)
