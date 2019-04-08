@@ -250,6 +250,7 @@ rrm_process_link_measurement_request(tpAniSirGlobal pMac,
 	tSirMacLinkReport LinkReport;
 	tpSirMacMgmtHdr pHdr;
 	int8_t currentRSSI = 0;
+	struct lim_max_tx_pwr_attr tx_pwr_attr = {0};
 
 	pe_debug("Received Link measurement request");
 
@@ -259,10 +260,11 @@ rrm_process_link_measurement_request(tpAniSirGlobal pMac,
 	}
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 
-	LinkReport.txPower = lim_get_max_tx_power(pSessionEntry->def_max_tx_pwr,
-						pLinkReq->MaxTxPower.maxTxPower,
-						  pMac->roam.configParam.
-						  nTxPowerCap);
+	tx_pwr_attr.reg_max = pSessionEntry->def_max_tx_pwr;
+	tx_pwr_attr.ap_tx_power = pLinkReq->MaxTxPower.maxTxPower;
+	tx_pwr_attr.ini_tx_power = pMac->roam.configParam.nTxPowerCap;
+
+	LinkReport.txPower = lim_get_max_tx_power(pMac, &tx_pwr_attr);
 
 	if ((LinkReport.txPower != (uint8_t) (pSessionEntry->maxTxPower)) &&
 	    (QDF_STATUS_SUCCESS == rrm_send_set_max_tx_power_req(pMac,

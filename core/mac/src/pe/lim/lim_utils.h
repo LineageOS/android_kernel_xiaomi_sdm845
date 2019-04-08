@@ -117,6 +117,20 @@ typedef struct last_processed_frame {
 	uint16_t seq_num;
 } last_processed_msg;
 
+/**
+ * struct lim_max_tx_pwr_attr - List of tx powers from various sources
+ * @reg_max: power from regulatory database
+ * @ap_tx_power: local power constraint adjusted value
+ * @ini_tx_power: Max tx power from ini config
+ * @frequency: current operating frequency for which above powers are defined
+ */
+struct lim_max_tx_pwr_attr {
+	int8_t reg_max;
+	int8_t ap_tx_power;
+	uint8_t ini_tx_power;
+	uint32_t frequency;
+};
+
 /* LIM utility functions */
 bool lim_is_valid_frame(last_processed_msg *last_processed_frm,
 		uint8_t *pRxPacketInfo);
@@ -138,10 +152,21 @@ void lim_print_msg_name(tpAniSirGlobal pMac, uint16_t logLevel, uint32_t msgType
 extern QDF_STATUS lim_send_set_max_tx_power_req(tpAniSirGlobal pMac,
 		int8_t txPower,
 		tpPESession pSessionEntry);
-extern uint8_t lim_get_max_tx_power(int8_t regMax, int8_t apTxPower,
-		uint8_t iniTxPower);
 uint8_t lim_is_addr_bc(tSirMacAddr);
 uint8_t lim_is_group_addr(tSirMacAddr);
+
+/**
+ * lim_get_max_tx_power() - Utility to get maximum tx power
+ * @mac: mac handle
+ * @attr: pointer to buffer containing list of tx powers
+ *
+ * This function is used to get the maximum possible tx power from the list
+ * of tx powers mentioned in @attr.
+ *
+ * Return: Max tx power
+ */
+uint8_t lim_get_max_tx_power(tpAniSirGlobal mac,
+			     struct lim_max_tx_pwr_attr *attr);
 
 /* AID pool management functions */
 void lim_init_peer_idxpool(tpAniSirGlobal, tpPESession);
