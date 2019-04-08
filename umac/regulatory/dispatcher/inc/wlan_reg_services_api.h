@@ -87,6 +87,16 @@ QDF_STATUS wlan_reg_read_default_country(struct wlan_objmgr_psoc *psoc,
 				   uint8_t *country);
 
 /**
+ * wlan_reg_get_fcc_constraint() - Check FCC constraint on given frequency
+ * @pdev: physical dev to get
+ * @freq: frequency to be checked
+ *
+ * Return: If FCC constraint is on applied given frequency return true
+ *	   else return false.
+ */
+bool wlan_reg_get_fcc_constraint(struct wlan_objmgr_pdev *pdev, uint32_t freq);
+
+/**
  * wlan_reg_read_current_country() - Read the current country for the regdomain
  * @country: pointer to the country code.
  *

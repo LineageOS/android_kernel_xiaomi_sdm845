@@ -196,6 +196,15 @@ QDF_STATUS reg_notify_sap_event(struct wlan_objmgr_pdev *pdev,
 QDF_STATUS reg_set_fcc_constraint(struct wlan_objmgr_pdev *pdev,
 		bool fcc_constraint);
 
+/**
+ * reg_get_fcc_constraint() - Check FCC constraint on given frequency
+ * @pdev: physical dev to get
+ * @freq: frequency to be checked
+ *
+ * Return: If FCC constraint is applied on given frequency return true
+ *	   else return false.
+ */
+bool reg_get_fcc_constraint(struct wlan_objmgr_pdev *pdev, uint32_t freq);
 
 /**
  * reg_read_default_country() - Get the default regulatory country

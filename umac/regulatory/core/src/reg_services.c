@@ -3705,6 +3705,25 @@ QDF_STATUS reg_set_fcc_constraint(struct wlan_objmgr_pdev *pdev,
 	return status;
 }
 
+bool reg_get_fcc_constraint(struct wlan_objmgr_pdev *pdev, uint32_t freq)
+{
+	struct wlan_regulatory_pdev_priv_obj *pdev_priv_obj;
+
+	pdev_priv_obj = reg_get_pdev_obj(pdev);
+	if (!IS_VALID_PDEV_REG_OBJ(pdev_priv_obj)) {
+		reg_err("pdev reg component is NULL");
+		return false;
+	}
+
+	if (freq != CHAN_12_CENT_FREQ && freq != CHAN_13_CENT_FREQ)
+		return false;
+
+	if (!pdev_priv_obj->set_fcc_channel)
+		return false;
+
+	return true;
+}
+
 QDF_STATUS reg_enable_dfs_channels(struct wlan_objmgr_pdev *pdev,
 				   bool enable)
 {
