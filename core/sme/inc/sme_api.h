@@ -2629,4 +2629,28 @@ sme_get_mws_coex_info(mac_handle_t mac_handle, uint32_t vdev_id,
 							   cmd_id),
 		      void *context);
 #endif
+
+#ifdef WLAN_BCN_RECV_FEATURE
+/**
+ * sme_register_bcn_recv_pause_ind_cb() - Register pause ind cb
+ * mac_handle: man handler
+ * cb: callback function to HDD
+ *
+ * This function register HDD callback in order to indicate beacon
+ * receive pause indication to userspace.
+ *
+ * return QDF_STATUS of cb registration
+ */
+QDF_STATUS sme_register_bcn_recv_pause_ind_cb(mac_handle_t mac_handle,
+					      beacon_pause_cb cb);
+
+#else
+static inline
+QDF_STATUS sme_register_bcn_recv_pause_ind_cb(mac_handle_t mac_handle,
+					      beacon_pause_cb cb)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 #endif /* #if !defined( __SME_API_H ) */

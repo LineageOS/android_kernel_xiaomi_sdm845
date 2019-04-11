@@ -219,6 +219,16 @@ typedef void (*sme_get_isolation_cb)(struct sir_isolation_resp *param,
 typedef void (*beacon_report_cb)(hdd_handle_t hdd_handle,
 				 struct wlan_beacon_report *beacon_report);
 
+/**
+ * beacon_pause_cb : scan start callback fun
+ * @hdd_handler: HDD handler
+ * @vdev_id: vdev id
+ * @type: scan event type
+ */
+typedef void (*beacon_pause_cb)(hdd_handle_t hdd_handle,
+				uint8_t vdev_id,
+				enum scan_event_type type);
+
 typedef struct tagSmeStruct {
 	eSmeState state;
 	qdf_mutex_t lkSmeGlobalLock;
@@ -332,6 +342,7 @@ typedef struct tagSmeStruct {
 
 #ifdef WLAN_BCN_RECV_FEATURE
 	beacon_report_cb beacon_report_cb;
+	beacon_pause_cb beacon_pause_cb;
 #endif
 } tSmeStruct, *tpSmeStruct;
 
