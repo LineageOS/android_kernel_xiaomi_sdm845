@@ -2464,6 +2464,17 @@ void wmi_process_fw_event_worker_thread_ctx(struct wmi_unified *wmi_handle,
 QDF_STATUS wmi_unified_send_mws_coex_req_cmd(struct wmi_unified *wmi_handle,
 					     uint32_t vdev_id, uint32_t cmd_id);
 
+/**
+ * wmi_unified_send_idle_trigger_monitor() - send idle trigger monitor command
+ * @wmi_handle: WMI handle
+ * @val: idle trigger monitor value - 1 for idle monitor on, 0 for idle monitor
+ * off
+ *
+ * Return: QDF_STATUS_SUCCESS if success, else returns proper error code.
+ */
+QDF_STATUS
+wmi_unified_send_idle_trigger_monitor(wmi_unified_t wmi_handle, uint8_t val);
+
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /**
  * wmi_unified_set_roam_triggers() - send roam trigger bitmap
