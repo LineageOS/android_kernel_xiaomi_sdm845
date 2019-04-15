@@ -462,3 +462,9 @@ QDF_STATUS pmo_ucfg_config_modulated_dtim(struct wlan_objmgr_vdev *vdev,
 	return pmo_core_config_modulated_dtim(vdev, mod_dtim);
 }
 
+QDF_STATUS
+ucfg_pmo_tgt_psoc_send_idle_roam_suspend_mode(struct wlan_objmgr_psoc *psoc,
+					      uint8_t val)
+{
+	return pmo_tgt_psoc_send_idle_roam_monitor(psoc, val);
+}
