@@ -588,6 +588,7 @@ static void hdd_send_hang_reason(void)
 static void wlan_hdd_shutdown(void)
 {
 	void *hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
+	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 
 	if (!hif_ctx) {
 		hdd_err("Failed to get HIF context, ignore SSR shutdown");
@@ -614,6 +615,8 @@ static void wlan_hdd_shutdown(void)
 
 	/* this is for cases, where shutdown invoked from platform */
 	cds_set_recovery_in_progress(true);
+	if (pld_is_pdr(hdd_ctx->parent_dev) && ucfg_ipa_is_enabled())
+		ucfg_ipa_fw_rejuvenate_send_msg(hdd_ctx->pdev);
 	hdd_wlan_ssr_shutdown_event();
 	hdd_send_hang_reason();
 
