@@ -15,7 +15,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include "sdm845-pmic-overlay.dtsi"
 #include "sdm845-pinctrl-overlay.dtsi"
-#include "sdm845-xiaomi-common.dtsi"
+#include "sdm845-xiaomi-common-non-sar.dtsi"
 #include "polaris-camera-sensor-mtp.dtsi"
 
 &qupv3_se10_i2c {

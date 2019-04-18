@@ -15,7 +15,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include "sdm845-pmic-overlay.dtsi"
 #include "sdm845-pinctrl-overlay.dtsi"
-#include "sdm845-xiaomi-common.dtsi"
+#include "sdm845-xiaomi-common-non-sar.dtsi"
 //#include "dipper-camera-sensor-mtp.dtsi"
 #include "dipper-p0-camera-sensor-mtp.dtsi"
 
