@@ -3399,7 +3399,21 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 		 */
 		if (eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus
 		    && !hddDisconInProgress) {
+			u8 *assoc_rsp = NULL;
+			u8 *assoc_req = NULL;
+
 			if (roam_info) {
+				if (roam_info->pbFrames) {
+				/* Association Request */
+					assoc_req =
+						(u8 *)(roam_info->pbFrames +
+						      roam_info->nBeaconLength);
+					/* Association Response */
+					assoc_rsp =
+						(u8 *)(roam_info->pbFrames +
+						      roam_info->nBeaconLength +
+						    roam_info->nAssocReqLength);
+				}
 				hdd_err("send connect failure to nl80211: for bssid "
 					MAC_ADDRESS_STR
 					" result: %d and Status: %d reasoncode: %d",
@@ -3424,7 +3438,10 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 				if (roam_info)
 					hdd_connect_result(dev,
 						roam_info->bssid.bytes,
-						roam_info, NULL, 0, NULL, 0,
+						roam_info, assoc_req,
+						roam_info->nAssocReqLength,
+						assoc_rsp,
+						roam_info->nAssocRspLength,
 						WLAN_STATUS_ASSOC_DENIED_UNSPEC,
 						GFP_KERNEL,
 						connect_timeout,
@@ -3441,7 +3458,10 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 				if (roam_info)
 					hdd_connect_result(dev,
 						roam_info->bssid.bytes,
-						roam_info, NULL, 0, NULL, 0,
+						roam_info, assoc_req,
+						roam_info->nAssocReqLength,
+						assoc_rsp,
+						roam_info->nAssocRspLength,
 						roam_info->reasonCode ?
 						roam_info->reasonCode :
 						WLAN_STATUS_UNSPECIFIED_FAILURE,

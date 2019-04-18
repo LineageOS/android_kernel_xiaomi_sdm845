@@ -7644,12 +7644,15 @@ static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
 	struct csr_roam_info roam_info;
 	QDF_STATUS status;
 	struct bss_info bss_info;
+	struct csr_roam_connectedinfo *prev_connect_info = NULL;
 
 	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
 		sme_err("Invalid session id %d", session_id);
 		return;
 	}
 	session = CSR_GET_SESSION(mac_ctx, session_id);
+
+	prev_connect_info = &session->prev_assoc_ap_info;
 
 	sme_debug("receives no association indication; FILS %d",
 		  session->is_fils_connection);
@@ -7693,6 +7696,7 @@ static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
 	case eCsrSmeIssuedDisassocForHandoff:
 		csr_roam_state_change(mac_ctx, eCSR_ROAMING_STATE_IDLE,
 			session_id);
+
 		roam_info.pBssDesc = cmd->u.roamCmd.pLastRoamBss;
 		roam_info.pProfile = &cmd->u.roamCmd.roamProfile;
 		roam_info.statusCode = session->joinFailStatusCode.statusCode;
@@ -7701,6 +7705,15 @@ static void csr_roam_process_results_default(tpAniSirGlobal mac_ctx,
 			&session->joinFailStatusCode.bssId,
 			sizeof(struct qdf_mac_addr));
 
+		if (prev_connect_info->pbFrames) {
+			roam_info.nAssocReqLength =
+					prev_connect_info->nAssocReqLength;
+			roam_info.nAssocRspLength =
+					prev_connect_info->nAssocRspLength;
+			roam_info.nBeaconLength =
+				prev_connect_info->nBeaconLength;
+			roam_info.pbFrames = prev_connect_info->pbFrames;
+		}
 		/*
 		 * If Join fails while Handoff is in progress, indicate
 		 * disassociated event to supplicant to reconnect
@@ -10228,8 +10241,9 @@ static void csr_roam_join_rsp_processor(tpAniSirGlobal pMac,
 	tSmeCmd *pCommand = NULL;
 	mac_handle_t mac_handle = MAC_HANDLE(pMac);
 	struct csr_roam_session *session_ptr;
+	struct csr_roam_connectedinfo *prev_connect_info;
 	tPmkidCacheInfo pmksa_entry;
-	uint32_t roamId = 0, reason_code = 0;
+	uint32_t len = 0, roamId = 0, reason_code = 0;
 	bool is_dis_pending;
 
 	if (!pSmeJoinRsp) {
@@ -10242,6 +10256,8 @@ static void csr_roam_join_rsp_processor(tpAniSirGlobal pMac,
 		sme_err("session %d not found", pSmeJoinRsp->sessionId);
 		return;
 	}
+
+	prev_connect_info = &session_ptr->prev_assoc_ap_info;
 	/* The head of the active list is the request we sent */
 	pEntry = csr_nonscan_active_ll_peek_head(pMac, LL_ACCESS_LOCK);
 	if (pEntry)
@@ -10318,6 +10334,25 @@ static void csr_roam_join_rsp_processor(tpAniSirGlobal pMac,
 						   QDF_STATUS_E_FAILURE);
 	}
 
+	len = pSmeJoinRsp->assocReqLength +
+	      pSmeJoinRsp->assocRspLength + pSmeJoinRsp->beaconLength;
+	if (prev_connect_info->pbFrames)
+		csr_roam_free_connected_info(pMac, prev_connect_info);
+
+	prev_connect_info->pbFrames = qdf_mem_malloc(len);
+	if (!prev_connect_info->pbFrames)
+		sme_err("memory allocation failed for previous assoc profile");
+	else {
+		qdf_mem_copy(prev_connect_info->pbFrames,
+			     pSmeJoinRsp->frames, len);
+		prev_connect_info->nAssocReqLength =
+					pSmeJoinRsp->assocReqLength;
+		prev_connect_info->nAssocRspLength =
+					pSmeJoinRsp->assocRspLength;
+		prev_connect_info->nBeaconLength =
+					pSmeJoinRsp->beaconLength;
+	}
+
 	/*
 	 * if userspace has issued disconnection, driver should not continue
 	 * connecting
@@ -10326,6 +10361,7 @@ static void csr_roam_join_rsp_processor(tpAniSirGlobal pMac,
 	if (pCommand && !is_dis_pending &&
 	    session_ptr->join_bssid_count < CSR_MAX_BSSID_COUNT) {
 		csr_roam(pMac, pCommand);
+		csr_roam_free_connected_info(pMac, prev_connect_info);
 		return;
 	}
 
@@ -10352,6 +10388,7 @@ static void csr_roam_join_rsp_processor(tpAniSirGlobal pMac,
 			       eCSR_ROAM_ASSOCIATION_COMPLETION,
 			       eCSR_ROAM_RESULT_NOT_ASSOCIATED);
 	csr_roam_complete(pMac, eCsrNothingToJoin, NULL, pSmeJoinRsp->sessionId);
+	csr_roam_free_connected_info(pMac, prev_connect_info);
 }
 
 static QDF_STATUS csr_roam_issue_join(tpAniSirGlobal pMac, uint32_t sessionId,
@@ -18661,6 +18698,8 @@ void csr_cleanup_session(tpAniSirGlobal pMac, uint32_t sessionId)
 		csr_flush_roam_scan_chan_lists(pMac, sessionId);
 		csr_roam_free_connect_profile(&pSession->connectedProfile);
 		csr_roam_free_connected_info(pMac, &pSession->connectedInfo);
+		csr_roam_free_connected_info(pMac,
+					     &pSession->prev_assoc_ap_info);
 		qdf_mc_timer_destroy(&pSession->hTimerRoaming);
 		qdf_mc_timer_destroy(&pSession->roaming_offload_timer);
 #ifdef FEATURE_WLAN_BTAMP_UT_RF
@@ -18725,6 +18764,8 @@ static void csr_init_session(tpAniSirGlobal pMac, uint32_t sessionId)
 	csr_free_roam_profile(pMac, sessionId);
 	csr_roam_free_connect_profile(&pSession->connectedProfile);
 	csr_roam_free_connected_info(pMac, &pSession->connectedInfo);
+	csr_roam_free_connected_info(pMac,
+				     &pSession->prev_assoc_ap_info);
 	csr_free_connect_bss_desc(pMac, sessionId);
 	qdf_mem_zero(&pSession->selfMacAddr, sizeof(struct qdf_mac_addr));
 	if (pSession->pWpaRsnReqIE) {
