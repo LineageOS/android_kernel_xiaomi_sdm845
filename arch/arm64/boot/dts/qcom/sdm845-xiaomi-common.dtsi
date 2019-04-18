@@ -27,26 +27,6 @@
 	};
 };
 
-&firmware {
-	android {
-		/delete-node/ vbmeta;
-
-		fstab {
-			system {
-				compatible = "android,system";
-				dev = "/dev/block/platform/soc/1d84000.ufshc/by-name/system";
-				type = "ext4";
-				mnt_flags = "ro,barrier=1,discard";
-				fsmgr_flags = "wait";
-				status = "ok";
-			};
-			vendor {
-				fsmgr_flags = "wait";
-			};
-		};
-	};
-};
-
 &red_led {
 	linux,name = "white";
 	qcom,start-idx = <1>;
