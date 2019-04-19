@@ -779,6 +779,6 @@ dtb-$(CONFIG_ARCH_SDM429) += sdm429-mtp.dtb \
 
 endif
 
-always		:= $(dtb-y)
+always		:= $(dtb-y) $(dtbo-y)
 subdir-y	:= $(dts-dirs)
-clean-files	:= *.dtb
+clean-files	:= *.dtb *.dtbo
