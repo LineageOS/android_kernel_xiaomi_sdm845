@@ -9095,6 +9095,8 @@ QDF_STATUS hdd_set_policy_mgr_user_cfg(struct hdd_context *hdd_ctx)
 		hdd_ctx->config->channel_select_logic_conc;
 	user_cfg->sta_sap_scc_on_lte_coex_chan =
 		hdd_ctx->config->sta_sap_scc_on_lte_coex_chan;
+	user_cfg->enable_dfs_master_cap =
+		hdd_ctx->config->enableDFSMasterCap;
 	status = policy_mgr_set_user_cfg(hdd_ctx->psoc, user_cfg);
 	qdf_mem_free(user_cfg);
 
