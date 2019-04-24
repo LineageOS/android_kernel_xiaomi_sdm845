@@ -37,6 +37,7 @@
 #include "csr_link_list.h"
 #include "sme_power_save.h"
 #include "nan_api.h"
+#include "wmi_unified.h"
 
 struct wmi_twt_enable_complete_event_param;
 /*--------------------------------------------------------------------------
@@ -304,6 +305,12 @@ typedef struct tagSmeStruct {
 	/* hidden ssid rsp callback */
 	hidden_ssid_cb hidden_ssid_cb;
 
+#ifdef WLAN_MWS_INFO_DEBUGFS
+	void *mws_coex_info_ctx;
+	void (*mws_coex_info_state_resp_callback)(void *coex_info_data,
+						  void *context,
+						  wmi_mws_coex_cmd_id cmd_id);
+#endif /* WLAN_MWS_INFO_DEBUGFS */
 } tSmeStruct, *tpSmeStruct;
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

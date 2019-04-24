@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -16,25 +16,19 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef QWLAN_VERSION_H
-#define QWLAN_VERSION_H
-/*===========================================================================
+#ifndef _WLAN_HDD_DEBUGFS_COEX_H
+#define _WLAN_HDD_DEBUGFS_COEX_H
 
-   FILE:
-   qwlan_version.h
+#include <wma.h>
+#include "sme_api.h"
 
-   BRIEF DESCRIPTION:
-   WLAN Host Version file.
-    Build number automatically updated by build scripts.
-
-   ===========================================================================*/
-
-#define QWLAN_VERSION_MAJOR            5
-#define QWLAN_VERSION_MINOR            2
-#define QWLAN_VERSION_PATCH            03
-#define QWLAN_VERSION_EXTRA            "J"
-#define QWLAN_VERSION_BUILD            8
-
-#define QWLAN_VERSIONSTR               "5.2.03.8J"
-
-#endif /* QWLAN_VERSION_H */
+#ifdef WLAN_MWS_INFO_DEBUGFS
+void wma_get_mws_coex_info_req(tp_wma_handle wma_handle,
+			       struct sir_get_mws_coex_info *req);
+void wma_register_mws_coex_events(tp_wma_handle wma_handle);
+#else
+static void wma_register_mws_coex_events(tp_wma_handle wma_handle)
+{
+}
+#endif
+#endif

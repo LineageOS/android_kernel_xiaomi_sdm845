@@ -7188,6 +7188,7 @@ QDF_STATUS sme_stop_roaming(tHalHandle hal, uint8_t session_id, uint8_t reason)
 	if (QDF_STATUS_SUCCESS != status) {
 		sme_err("WMA_ROAM_SCAN_OFFLOAD_REQ failed, session_id: %d",
 			session_id);
+		qdf_mem_zero(req, sizeof(*req));
 		qdf_mem_free(req);
 		return QDF_STATUS_E_FAULT;
 	}
@@ -16087,3 +16088,50 @@ QDF_STATUS sme_update_hidden_ssid_status_cb(mac_handle_t mac_handle,
 
 	return status;
 }
+
+#ifdef WLAN_MWS_INFO_DEBUGFS
+QDF_STATUS
+sme_get_mws_coex_info(mac_handle_t mac_handle, uint32_t vdev_id,
+		      uint32_t cmd_id, void (*callback_fn)(void *coex_info_data,
+							   void *context,
+							   wmi_mws_coex_cmd_id
+							   cmd_id),
+		      void *context)
+{
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	tpAniSirGlobal mac = MAC_CONTEXT(mac_handle);
+	struct scheduler_msg msg = {0};
+	struct sir_get_mws_coex_info *req;
+
+	req = qdf_mem_malloc(sizeof(*req));
+	if (!req) {
+		sme_err("Failed allocate memory for MWS coex info req");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	req->vdev_id = vdev_id;
+	req->cmd_id  = cmd_id;
+	mac->sme.mws_coex_info_state_resp_callback = callback_fn;
+	mac->sme.mws_coex_info_ctx = context;
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		msg.bodyptr = req;
+		msg.type = WMA_GET_MWS_COEX_INFO_REQ;
+		status = scheduler_post_message(QDF_MODULE_ID_SME,
+						QDF_MODULE_ID_WMA,
+						QDF_MODULE_ID_WMA,
+						&msg);
+		sme_release_global_lock(&mac->sme);
+		if (!QDF_IS_STATUS_SUCCESS(status)) {
+			sme_err("post MWS coex info req failed");
+			status = QDF_STATUS_E_FAILURE;
+			qdf_mem_free(req);
+		}
+	} else {
+		sme_err("sme_acquire_global_lock failed");
+		qdf_mem_free(req);
+	}
+
+	return status;
+}
+#endif /* WLAN_MWS_INFO_DEBUGFS */

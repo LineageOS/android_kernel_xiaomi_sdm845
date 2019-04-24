@@ -69,6 +69,7 @@
 #include <wlan_scan_public_structs.h>
 #include <wlan_scan_ucfg_api.h>
 #include "wma_nan_datapath.h"
+#include <wlan_mlme_main.h>
 
 #define WMA_MCC_MIRACAST_REST_TIME 400
 #define WMA_SCAN_ID_MASK 0x0fff
@@ -393,6 +394,7 @@ QDF_STATUS wma_roam_scan_offload_mode(tp_wma_handle wma_handle,
 
 	status = wmi_unified_roam_scan_offload_mode_cmd(wma_handle->wmi_handle,
 				scan_cmd_fp, params);
+	qdf_mem_zero(params, sizeof(*params));
 	qdf_mem_free(params);
 	if (QDF_IS_STATUS_ERROR(status))
 		return status;
@@ -1470,6 +1472,7 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 
 	if (NULL == pMac) {
 		WMA_LOGE("%s: pMac is NULL", __func__);
+		qdf_mem_zero(roam_req, sizeof(*roam_req));
 		qdf_mem_free(roam_req);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -1478,6 +1481,7 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 		/* roam scan offload is not enabled in firmware.
 		 * Cannot initialize it in the middle of connection.
 		 */
+		qdf_mem_zero(roam_req, sizeof(*roam_req));
 		qdf_mem_free(roam_req);
 		return QDF_STATUS_E_PERM;
 	}
@@ -1871,6 +1875,7 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 	default:
 		break;
 	}
+	qdf_mem_zero(roam_req, sizeof(*roam_req));
 	qdf_mem_free(roam_req);
 	return qdf_status;
 }
@@ -2244,6 +2249,51 @@ static int wma_fill_roam_synch_buffer(tp_wma_handle wma,
 	return 0;
 }
 
+static void wma_update_roamed_peer_unicast_cipher(tp_wma_handle wma,
+						  uint32_t uc_cipher,
+						  uint8_t *peer_mac)
+{
+	struct wlan_objmgr_peer *peer;
+
+	if (!peer_mac) {
+		WMA_LOGE("peer_mac is NULL");
+		return;
+	}
+
+	peer = wlan_objmgr_get_peer(wma->psoc,
+				    wlan_objmgr_pdev_get_pdev_id(wma->pdev),
+				    peer_mac, WLAN_LEGACY_WMA_ID);
+	if (!peer) {
+		WMA_LOGE("Peer of peer_mac %pM not found", peer_mac);
+		return;
+	}
+
+	wlan_peer_set_unicast_cipher(peer, uc_cipher);
+	wlan_objmgr_peer_release_ref(peer, WLAN_LEGACY_WMA_ID);
+}
+
+static uint32_t wma_get_peer_uc_cipher(tp_wma_handle wma, uint8_t *peer_mac)
+{
+	uint32_t uc_cipher;
+	struct wlan_objmgr_peer *peer;
+
+	if (!peer_mac) {
+		WMA_LOGE("peer_mac is NULL");
+		return 0;
+	}
+	peer = wlan_objmgr_get_peer(wma->psoc,
+				    wlan_objmgr_pdev_get_pdev_id(wma->pdev),
+				    peer_mac, WLAN_LEGACY_WMA_ID);
+	if (!peer) {
+		WMA_LOGE("Peer of peer_mac %pM not found", peer_mac);
+		return 0;
+	}
+
+	uc_cipher = wlan_peer_get_unicast_cipher(peer);
+	wlan_objmgr_peer_release_ref(peer, WLAN_LEGACY_WMA_ID);
+
+	return uc_cipher;
+}
 /**
  * wma_roam_update_vdev() - Update the STA and BSS
  * @wma: Global WMA Handle
@@ -2262,6 +2312,7 @@ static void wma_roam_update_vdev(tp_wma_handle wma,
 	tDeleteStaParams *del_sta_params;
 	tLinkStateParams *set_link_params;
 	tAddStaParams *add_sta_params;
+	uint32_t uc_cipher;
 	uint8_t vdev_id;
 
 	vdev_id = roam_synch_ind_ptr->roamedVdevId;
@@ -2296,9 +2347,18 @@ static void wma_roam_update_vdev(tp_wma_handle wma,
 	add_sta_params->staIdx = STA_INVALID_IDX;
 	add_sta_params->assocId = roam_synch_ind_ptr->aid;
 
+	/*
+	 * Get uc cipher of old peer to update new peer as it doesnt
+	 * change in roaming
+	 */
+	uc_cipher = wma_get_peer_uc_cipher(wma, del_bss_params->bssid);
+
 	wma_delete_sta(wma, del_sta_params);
 	wma_delete_bss(wma, del_bss_params);
 	wma_set_linkstate(wma, set_link_params);
+	/* Update new peer's uc cipher */
+	wma_update_roamed_peer_unicast_cipher(wma, uc_cipher,
+					      roam_synch_ind_ptr->bssid.bytes);
 	wma_add_bss(wma, (tpAddBssParams)roam_synch_ind_ptr->add_bss_params);
 	wma_add_sta(wma, add_sta_params);
 	wma_vdev_set_mlme_state(wma, vdev_id, WLAN_VDEV_S_RUN);

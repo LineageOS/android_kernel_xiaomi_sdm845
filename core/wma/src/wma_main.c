@@ -90,6 +90,7 @@
 #include "service_ready_param.h"
 #include "wlan_cp_stats_mc_ucfg_api.h"
 #include "init_cmd_api.h"
+#include "wma_coex.h"
 
 #define WMA_LOG_COMPLETION_TIMER 3000 /* 3 seconds */
 #define WMI_TLV_HEADROOM 128
@@ -3655,7 +3656,7 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 #endif
 
 	wma_register_apf_events(wma_handle);
-
+	wma_register_mws_coex_events(wma_handle);
 	return QDF_STATUS_SUCCESS;
 
 err_dbglog_init:
@@ -8668,6 +8669,12 @@ static QDF_STATUS wma_mc_process_msg(struct scheduler_msg *msg)
 		wma_get_roam_scan_stats(wma_handle, msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		break;
+#ifdef WLAN_MWS_INFO_DEBUGFS
+	case WMA_GET_MWS_COEX_INFO_REQ:
+		wma_get_mws_coex_info_req(wma_handle, msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+#endif
 	default:
 		WMA_LOGD("Unhandled WMA message of type %d", msg->type);
 		if (msg->bodyptr)

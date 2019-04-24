@@ -3695,6 +3695,7 @@ static void __lim_process_roam_scan_offload_req(tpAniSirGlobal mac_ctx,
 	local_ie_buf = qdf_mem_malloc(MAX_DEFAULT_SCAN_IE_LEN);
 	if (!local_ie_buf) {
 		pe_err("Mem Alloc failed for local_ie_buf");
+		qdf_mem_zero(req_buffer, sizeof(*req_buffer));
 		qdf_mem_free(req_buffer);
 		return;
 	}
@@ -3722,6 +3723,7 @@ static void __lim_process_roam_scan_offload_req(tpAniSirGlobal mac_ctx,
 	status = wma_post_ctrl_msg(mac_ctx, &wma_msg);
 	if (QDF_STATUS_SUCCESS != status) {
 		pe_err("Posting WMA_ROAM_SCAN_OFFLOAD_REQ failed");
+		qdf_mem_zero(req_buffer, sizeof(*req_buffer));
 		qdf_mem_free(req_buffer);
 	}
 }
