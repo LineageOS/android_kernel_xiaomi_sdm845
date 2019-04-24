@@ -43,9 +43,29 @@ void limCollectRSSI(tpAniSirGlobal);
 void limDeleteCurrentBssWdsNode(tpAniSirGlobal);
 uint32_t limComputeAvg(tpAniSirGlobal, uint32_t, uint32_t);
 
-/* / Function to extract AP's HCF capability from IE fields */
-void lim_extract_ap_capability(tpAniSirGlobal, uint8_t *, uint16_t, uint8_t *,
-			       uint16_t *, uint8_t *, int8_t *, tpPESession);
+#define LIM_ADAPTIVE_11R_OUI      "\x00\x40\x96\x2C"
+#define LIM_ADAPTIVE_11R_OUI_SIZE 4
+
+/**
+ * lim_extract_ap_capability() - extract AP's HCF/WME/WSM capability
+ * @mac_ctx: Pointer to Global MAC structure
+ * @p_ie: Pointer to starting IE in Beacon/Probe Response
+ * @ie_len: Length of all IEs combined
+ * @qos_cap: Bits are set according to capabilities
+ * @prop_cap: Pointer to prop info IE.
+ * @uapsd: pointer to uapsd
+ * @local_constraint: Pointer to local power constraint.
+ * @session: A pointer to session entry.
+ *
+ * This function is called to extract AP's HCF/WME/WSM capability
+ * from the IEs received from it in Beacon/Probe Response frames
+ *
+ * Return: None
+ */
+void lim_extract_ap_capability(tpAniSirGlobal mac_ctx, uint8_t *p_ie,
+			       uint16_t ie_len, uint8_t *qos_cap,
+			       uint16_t *prop_cap, uint8_t *uapsd,
+			       int8_t *local_constraint, tpPESession session);
 
 ePhyChanBondState lim_get_htcb_state(ePhyChanBondState aniCBMode);
 

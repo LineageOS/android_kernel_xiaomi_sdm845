@@ -20874,8 +20874,10 @@ static bool
 csr_is_adaptive_11r_roam_supported(tpAniSirGlobal mac_ctx,
 				   struct csr_roam_session *session)
 {
-	return session->is_adaptive_11r_connection &&
-		mac_ctx->is_adaptive_11r_roam_supported;
+	if (session->is_adaptive_11r_connection)
+		return mac_ctx->is_adaptive_11r_roam_supported;
+
+	return true;
 }
 #else
 static bool
