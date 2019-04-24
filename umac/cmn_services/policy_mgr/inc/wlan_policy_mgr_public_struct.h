@@ -1001,6 +1001,14 @@ struct dual_mac_config {
  * @enable2x2: 2x2 chain mask user config
  * @mcc_to_scc_switch_mode: Control SAP channel in concurrency
  * @sub_20_mhz_enabled: Is 5 or 10 Mhz enabled
+ * @is_sta_sap_scc_allowed_on_dfs_chan: Is STA+SAP SCC allowed
+ *                                    on a DFS channel
+ * @channel_select_logic_conc: channel selection logic for
+ * different concurrency combinations to DBS or inter band MCC.
+ * Default is DBS for STA+STA and STA+P2P.
+ * @sta_sap_scc_on_lte_coex_chan: Is STA+SAP SCC allowed on a
+ *                              lte coex channel
+ * @enable_dfs_master_cap: Is DFS master capability enabled
  */
 struct policy_mgr_user_cfg {
 	uint8_t enable_mcc_adaptive_scheduler;
@@ -1012,6 +1020,7 @@ struct policy_mgr_user_cfg {
 	bool is_sta_sap_scc_allowed_on_dfs_chan;
 	uint32_t channel_select_logic_conc;
 	uint32_t sta_sap_scc_on_lte_coex_chan;
+	uint8_t enable_dfs_master_cap;
 };
 
 /**
