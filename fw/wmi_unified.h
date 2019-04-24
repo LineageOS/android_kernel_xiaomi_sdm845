@@ -405,6 +405,8 @@ typedef enum {
     WMI_PDEV_HE_TB_ACTION_FRM_CMDID,
     /** filter packet log based on MAC address */
     WMI_PDEV_PKTLOG_FILTER_CMDID,
+    /** wmi command for setting rogue ap configuration */
+    WMI_PDEV_SET_RAP_CONFIG_CMDID,
 
     /* VDEV (virtual device) specific commands */
     /** vdev create */
@@ -630,6 +632,8 @@ typedef enum {
     WMI_STA_POWERSAVE_PARAM_CMDID,
     /** set station mimo powersave mode */
     WMI_STA_MIMO_PS_MODE_CMDID,
+    /** config station TX cycle percentage in a beacon interval */
+    WMI_STA_TDCC_CONFIG_CMDID,
 
 
     /** DFS-specific commands */
@@ -1306,6 +1310,9 @@ typedef enum {
 
     /* Event to send cold boot calibration data */
     WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID,
+
+    /* Event to report a rogue ap info that is detected in fw */
+    WMI_PDEV_RAP_INFO_EVENTID,
 
 
     /* VDEV specific events */
@@ -6097,8 +6104,34 @@ typedef struct {
      */
 } wmi_pdev_pktlog_filter_cmd_fixed_param;
 
+typedef enum {
+    WMI_ROGUE_AP_ON_STA_PS  = 1, /* rogue ap on sta ps module */
+} WMI_ROGUE_AP_TYPE;
 
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_set_rap_config_fixed_param */
+    /** pdev_id for identifying the MAC, the default value is WMI_PDEV_ID_SOC
+     * See macros starting with WMI_PDEV_ID_ for values.
+     */
+    A_UINT32 pdev_id;
+    /** rogue ap type, see WMI_ROGUE_AP_TYPE */
+    A_UINT32 type;
+    /** Enable detection of rogue ap in the ps module
+     *
+     * 0 -> disabled
+     * 1 -> enabled (default)
+     */
+    A_UINT32 sta_ps_detection_enabled;
+/* This TLV is followed by rap_param for each rogue ap:
+ *     wmi_pdev_set_rap_config_on_sta_ps_tlv_param rap_param[];
+ */
+} wmi_pdev_set_rap_config_fixed_param;
 
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_set_rap_config_on_sta_ps_tlv_param */
+    /** bssid of rogue ap */
+    wmi_mac_addr bssid;
+} wmi_pdev_set_rap_config_on_sta_ps_tlv_param;
 
 typedef struct {
     A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_mib_stats_enable_cmd_fixed_param */
@@ -9428,6 +9461,11 @@ typedef enum {
      */
     WMI_VDEV_PARAM_MAX_MTU_SIZE,                          /* 0x91 */
 
+    /** Send every nth beacon to host
+     * if value of n is 0, it means this Nth beacon upload is disabled
+     */
+    WMI_VDEV_PARAM_NTH_BEACON_TO_HOST,                    /* 0x92 */
+
 
     /*=== ADD NEW VDEV PARAM TYPES ABOVE THIS LINE ===
      * The below vdev param types are used for prototyping, and are
@@ -9869,6 +9907,14 @@ typedef struct {
      */
     A_UINT32 sta_ps_mode;
 } wmi_sta_powersave_mode_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_sta_tdcc_config_cmd_fixed_param */
+    /**  Set a max tx period: percentage of one beacon interval. range: 0 - 100  */
+    A_UINT32 tx_cycle_percentage;
+    /**  Enable/disable TX Duty Cycle Control powersave */
+    A_UINT32 enabled;
+} wmi_sta_tdcc_config_cmd_fixed_param;
 
 enum wmi_csa_offload_en {
            WMI_CSA_OFFLOAD_DISABLE = 0,
@@ -11173,8 +11219,11 @@ typedef struct {
     A_UINT32 vdev_id;
 } wmi_peer_add_wds_entry_cmd_fixed_param;
 
-#define WMI_CHAN_InFO_START_RESP 0
-#define WMI_CHAN_InFO_END_RESP 1
+#define WMI_CHAN_INFO_START_RESP 0
+#define WMI_CHAN_INFO_END_RESP 1
+/* deprecated but maintained as aliases: old names containing typo */
+#define WMI_CHAN_InFO_START_RESP WMI_CHAN_INFO_START_RESP
+#define WMI_CHAN_InFO_END_RESP   WMI_CHAN_INFO_END_RESP
 
 typedef struct {
     A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_peer_remove_wds_entry_cmd_fixed_param */
@@ -13013,6 +13062,7 @@ typedef enum wake_reason_e {
     WOW_REASON_TKIP_MIC_ERR_FRAME_RECVD_DETECT,
     WOW_REASON_WLAN_MD, /* motion detected */
     WOW_REASON_WLAN_BL, /* baselining done */
+    WOW_REASON_NTH_BCN_OFLD, /* nth beacon forward to host */
 
     WOW_REASON_DEBUG_TEST = 0xFF,
 } WOW_WAKE_REASON_TYPE;
@@ -23552,6 +23602,8 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_ROAM_BSS_LOAD_CONFIG_CMDID);
         WMI_RETURN_STRING(WMI_VDEV_GET_MWS_COEX_INFO_CMDID);
         WMI_RETURN_STRING(WMI_REQUEST_WLM_STATS_CMDID);
+        WMI_RETURN_STRING(WMI_PDEV_SET_RAP_CONFIG_CMDID);
+        WMI_RETURN_STRING(WMI_STA_TDCC_CONFIG_CMDID);
     }
 
     return "Invalid WMI cmd";
@@ -26039,6 +26091,17 @@ typedef struct {
  * This data array contains cold boot data calibration raw data.
  */
 } wmi_cold_boot_cal_data_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header;    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_rap_info_event_fixed_param */
+    /** pdev_id for identifying the MAC, the default value is WMI_PDEV_ID_SOC
+      * See macros starting with WMI_PDEV_ID_ for values.
+      */
+    A_UINT32 pdev_id;
+    A_UINT32 type; /** type of the rogue ap, see WMI_ROGUE_AP_TYPE */
+    wmi_mac_addr bssid; /** bssid of the rogue ap */
+} wmi_pdev_rap_info_event_fixed_param;
+
 
 
 /* ADD NEW DEFS HERE */

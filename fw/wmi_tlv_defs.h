@@ -967,6 +967,10 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_key_material_ext,
     WMITLV_TAG_STRUC_wmi_peer_cfr_capture_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_cold_boot_cal_data_fixed_param,
+    WMITLV_TAG_STRUC_wmi_pdev_set_rap_config_fixed_param,
+    WMITLV_TAG_STRUC_wmi_pdev_set_rap_config_on_sta_ps_tlv_param,
+    WMITLV_TAG_STRUC_wmi_pdev_rap_info_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_sta_tdcc_config_cmd_fixed_param,
 } WMITLV_TAG_ID;
 
 /*
@@ -981,6 +985,7 @@ typedef enum {
     OP(WMI_PEER_SET_PARAM_CMDID) \
     OP(WMI_STA_POWERSAVE_MODE_CMDID) \
     OP(WMI_STA_POWERSAVE_PARAM_CMDID) \
+    OP(WMI_STA_TDCC_CONFIG_CMDID) \
     OP(WMI_STA_DTIM_PS_METHOD_CMDID) \
     OP(WMI_PDEV_SET_REGDOMAIN_CMDID) \
     OP(WMI_PEER_TID_ADDBA_CMDID) \
@@ -1360,6 +1365,7 @@ typedef enum {
     OP(WMI_ROAM_BSS_LOAD_CONFIG_CMDID) \
     OP(WMI_VDEV_GET_MWS_COEX_INFO_CMDID) \
     OP(WMI_REQUEST_WLM_STATS_CMDID) \
+    OP(WMI_PDEV_SET_RAP_CONFIG_CMDID) \
     /* add new CMD_LIST elements above this line */
 
 
@@ -1584,6 +1590,7 @@ typedef enum {
     OP(WMI_WLM_STATS_EVENTID) \
     OP(WMI_PEER_CFR_CAPTURE_EVENTID) \
     OP(WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID) \
+    OP(WMI_PDEV_RAP_INFO_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -1641,6 +1648,12 @@ WMITLV_CREATE_PARAM_STRUC(WMI_STA_POWERSAVE_MODE_CMDID);
             WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_sta_powersave_param_cmd_fixed_param, wmi_sta_powersave_param_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
 
 WMITLV_CREATE_PARAM_STRUC(WMI_STA_POWERSAVE_PARAM_CMDID);
+
+/* STA TDCC Param Config Cmd */
+#define WMITLV_TABLE_WMI_STA_TDCC_CONFIG_CMDID(id,op,buf,len) \
+            WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_sta_tdcc_config_cmd_fixed_param, wmi_sta_tdcc_config_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+
+WMITLV_CREATE_PARAM_STRUC(WMI_STA_TDCC_CONFIG_CMDID);
 
 /* STA DTIM PS METHOD Cmd */
 #define WMITLV_TABLE_WMI_STA_DTIM_PS_METHOD_CMDID(id,op,buf,len) \
@@ -3917,6 +3930,13 @@ WMITLV_CREATE_PARAM_STRUC(WMI_HPCS_PULSE_START_CMDID);
 
 WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_PKTLOG_FILTER_CMDID);
 
+/* PDev Set Rogue AP Config cmd */
+#define WMITLV_TABLE_WMI_PDEV_SET_RAP_CONFIG_CMDID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_set_rap_config_fixed_param, wmi_pdev_set_rap_config_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_pdev_set_rap_config_on_sta_ps_tlv_param, rap_param, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_SET_RAP_CONFIG_CMDID);
+
+
 /************************** TLV definitions of WMI events *******************************/
 
 /* Service Ready event */
@@ -5293,6 +5313,11 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PEER_CFR_CAPTURE_EVENTID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_cold_boot_cal_data_fixed_param, wmi_cold_boot_cal_data_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, data, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID);
+
+/* rogue ap info event */
+#define WMITLV_TABLE_WMI_PDEV_RAP_INFO_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_pdev_rap_info_event_fixed_param, wmi_pdev_rap_info_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_RAP_INFO_EVENTID);
 
 #ifdef __cplusplus
 }
