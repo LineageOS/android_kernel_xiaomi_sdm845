@@ -2332,7 +2332,8 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 		}
 
 		/* include MDIE in FILS authentication frame */
-		if (session->pLimJoinReq->is11Rconnection &&
+		if (session->pLimJoinReq &&
+		    session->pLimJoinReq->is11Rconnection &&
 		    auth_frame->authAlgoNumber == SIR_FILS_SK_WITHOUT_PFS &&
 		    session->pLimJoinReq->bssDescription.mdiePresent)
 			frame_len += (2 + SIR_MDIE_SIZE);
