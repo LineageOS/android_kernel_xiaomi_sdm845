@@ -1514,6 +1514,7 @@ wma_send_disconnect_roam_params(tp_wma_handle wma_handle,
 	case ROAM_SCAN_OFFLOAD_UPDATE_CFG:
 		if (!params->enable)
 			return;
+		break;
 	case ROAM_SCAN_OFFLOAD_STOP:
 		params->enable = false;
 		break;
@@ -1550,6 +1551,7 @@ wma_send_idle_roam_params(tp_wma_handle wma_handle,
 	case ROAM_SCAN_OFFLOAD_UPDATE_CFG:
 		if (!roam_req->idle_roam_params.enable)
 			return;
+		break;
 	case ROAM_SCAN_OFFLOAD_STOP:
 		roam_req->idle_roam_params.enable = false;
 		break;
@@ -5573,6 +5575,12 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 					      roam_synch_data, NULL,
 					      SIR_ROAMING_INVOKE_FAIL);
 		qdf_mem_free(roam_synch_data);
+		break;
+	case WMI_ROAM_REASON_DEAUTH:
+		WMA_LOGD("%s: Received disconnect roam event reason:%d",
+			 __func__, wmi_event->notif);
+		wma_handle->pe_disconnect_cb(wma_handle->mac_context,
+					     wmi_event->vdev_id);
 		break;
 	default:
 		WMA_LOGD("%s:Unhandled Roam Event %x for vdevid %x", __func__,

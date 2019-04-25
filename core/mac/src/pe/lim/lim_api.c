@@ -1442,7 +1442,8 @@ void pe_register_callbacks_with_wma(tpAniSirGlobal pMac,
 
 	status = wma_register_roaming_callbacks(
 			ready_req->csr_roam_synch_cb,
-			ready_req->pe_roam_synch_cb);
+			ready_req->pe_roam_synch_cb,
+			ready_req->pe_disconnect_cb);
 	if (status != QDF_STATUS_SUCCESS)
 		pe_err("Registering roaming callbacks with WMA failed");
 }
@@ -2281,22 +2282,28 @@ lim_fill_fils_ft(tpPESession src_session,
 {}
 #endif
 
-/**
- * pe_roam_synch_callback() - PE level callback for roam synch propagation
- * @mac_ctx: MAC Context
- * @roam_sync_ind_ptr: Roam synch indication buffer pointer
- * @bss_desc: BSS Descriptor pointer
- * @reason: Reason for calling callback which decides the action to be taken.
- *
- * This is a PE level callback called from WMA to complete the roam synch
- * propagation at PE level and also fill the BSS descriptor which will be
- * helpful further to complete the roam synch propagation.
- *
- * Return: Success or Failure status
- */
-QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
-	roam_offload_synch_ind *roam_sync_ind_ptr,
-	tpSirBssDescription  bss_desc, enum sir_roam_op_code reason)
+QDF_STATUS
+pe_disconnect_callback(tpAniSirGlobal mac, uint8_t vdev_id)
+{
+	tpPESession session;
+
+	session = pe_find_session_by_sme_session_id(mac, vdev_id);
+	if (!session) {
+		pe_err("LFR3: Vdev %d doesn't exist", vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	lim_tear_down_link_with_ap(mac, vdev_id,
+				   eSIR_MAC_UNSPEC_FAILURE_REASON);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS
+pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
+		       roam_offload_synch_ind *roam_sync_ind_ptr,
+		       tpSirBssDescription  bss_desc,
+		       enum sir_roam_op_code reason)
 {
 	tpPESession session_ptr;
 	tpPESession ft_session_ptr;
