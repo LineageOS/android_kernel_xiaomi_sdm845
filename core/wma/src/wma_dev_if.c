@@ -2360,7 +2360,7 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 	enum wlan_op_mode txrx_vdev_type;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	struct sAniSirGlobal *mac = cds_get_context(QDF_MODULE_ID_PE);
-	uint32_t cfg_val;
+	uint32_t cfg_val, retry, param;
 	uint16_t val16;
 	QDF_STATUS ret;
 	tSirMacHTCapabilityInfo *phtCapInfo;
@@ -2486,6 +2486,8 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 				self_sta_req->tx_aggr_sw_retry_threshold_vi;
 	tx_sw_retry_threshold.tx_aggr_sw_retry_threshold_vo =
 				self_sta_req->tx_aggr_sw_retry_threshold_vo;
+	tx_sw_retry_threshold.tx_aggr_sw_retry_threshold =
+				self_sta_req->tx_aggr_sw_retry_threshold;
 
 	tx_sw_retry_threshold.tx_non_aggr_sw_retry_threshold_be =
 				self_sta_req->tx_non_aggr_sw_retry_threshold_be;
@@ -2495,6 +2497,8 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 				self_sta_req->tx_non_aggr_sw_retry_threshold_vi;
 	tx_sw_retry_threshold.tx_non_aggr_sw_retry_threshold_vo =
 				self_sta_req->tx_non_aggr_sw_retry_threshold_vo;
+	tx_sw_retry_threshold.tx_non_aggr_sw_retry_threshold =
+				self_sta_req->tx_non_aggr_sw_retry_threshold;
 
 	tx_sw_retry_threshold.vdev_id = self_sta_req->session_id;
 
@@ -2523,7 +2527,17 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 			wma_set_sta_sa_query_param(wma_handle, vdev_id);
 		}
 
-		ret = wma_set_sw_retry_threshold(wma_handle,
+		retry = tx_sw_retry_threshold.tx_aggr_sw_retry_threshold;
+		param = WMI_PDEV_PARAM_AGG_SW_RETRY_TH;
+		if (retry)
+			wma_cli_set_command(vdev_id, param, retry, PDEV_CMD);
+
+		retry = tx_sw_retry_threshold.tx_non_aggr_sw_retry_threshold;
+		param = WMI_PDEV_PARAM_NON_AGG_SW_RETRY_TH;
+		if (retry)
+			wma_cli_set_command(vdev_id, param, retry, PDEV_CMD);
+
+		ret = wma_set_sw_retry_threshold_per_ac(wma_handle,
 						 &tx_sw_retry_threshold);
 		if (QDF_IS_STATUS_ERROR(ret))
 			WMA_LOGE("failed to set retry threshold(err=%d)", ret);

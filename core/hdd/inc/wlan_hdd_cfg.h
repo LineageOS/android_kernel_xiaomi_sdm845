@@ -9100,6 +9100,30 @@ enum hdd_link_speed_rpt_type {
 
 /*
  * <ini>
+ * gTxAggSwRetry - Configure Tx aggregation sw retry
+ * @Min: 0
+ * @Max: 64
+ * @Default: 0
+ *
+ * gTxAggSwRetry gives an option to configure Tx aggregation sw
+ * retry. This can be useful in debugging throughput issues.
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_AGGR_SW_RETRY      "gTxAggSwRetry"
+#define CFG_TX_AGGR_SW_RETRY_MIN      (0)
+#define CFG_TX_AGGR_SW_RETRY_MAX      (64)
+#define CFG_TX_AGGR_SW_RETRY_DEFAULT  (0)
+
+/*
+ * <ini>
  * gTxNonAggSwRetryBE - Configure Tx non aggregation sw retry for BE
  * @Min: 0
  * @Max: 64
@@ -9193,6 +9217,30 @@ enum hdd_link_speed_rpt_type {
 #define CFG_TX_NON_AGGR_SW_RETRY_VO_MIN      (0)
 #define CFG_TX_NON_AGGR_SW_RETRY_VO_MAX      (64)
 #define CFG_TX_NON_AGGR_SW_RETRY_VO_DEFAULT  (0)
+
+/*
+ * <ini>
+ * gTxNonAggSwRetry - Configure Tx non aggregation sw retry
+ * @Min: 0
+ * @Max: 64
+ * @Default: 0
+ *
+ * gTxNonAggSwRetry gives an option to configure Tx non aggregation sw
+ * retry. This can be useful in debugging throughput issues.
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_NON_AGGR_SW_RETRY      "gTxNonAggSwRetry"
+#define CFG_TX_NON_AGGR_SW_RETRY_MIN      (0)
+#define CFG_TX_NON_AGGR_SW_RETRY_MAX      (64)
+#define CFG_TX_NON_AGGR_SW_RETRY_DEFAULT  (0)
 
 /*
  * fine timing measurement capability information
@@ -16779,10 +16827,12 @@ struct hdd_config {
 	uint32_t tx_aggr_sw_retry_threshold_bk;
 	uint32_t tx_aggr_sw_retry_threshold_vi;
 	uint32_t tx_aggr_sw_retry_threshold_vo;
+	uint32_t tx_aggr_sw_retry_threshold;
 	uint32_t tx_non_aggr_sw_retry_threshold_be;
 	uint32_t tx_non_aggr_sw_retry_threshold_bk;
 	uint32_t tx_non_aggr_sw_retry_threshold_vi;
 	uint32_t tx_non_aggr_sw_retry_threshold_vo;
+	uint32_t tx_non_aggr_sw_retry_threshold;
 	bool sta_prefer_80MHz_over_160MHz;
 	uint8_t sap_max_inactivity_override;
 	bool fw_timeout_crash;

@@ -3302,6 +3302,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->tx_aggr_sw_retry_threshold_vi;
 		pMac->roam.configParam.tx_aggr_sw_retry_threshold_vo =
 			pParam->tx_aggr_sw_retry_threshold_vo;
+		pMac->roam.configParam.tx_aggr_sw_retry_threshold =
+			pParam->tx_aggr_sw_retry_threshold;
 		pMac->roam.configParam.tx_non_aggr_sw_retry_threshold_be =
 			pParam->tx_non_aggr_sw_retry_threshold_be;
 		pMac->roam.configParam.tx_non_aggr_sw_retry_threshold_bk =
@@ -3310,6 +3312,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->tx_non_aggr_sw_retry_threshold_vi;
 		pMac->roam.configParam.tx_non_aggr_sw_retry_threshold_vo =
 			pParam->tx_non_aggr_sw_retry_threshold_vo;
+		pMac->roam.configParam.tx_non_aggr_sw_retry_threshold =
+			pParam->tx_non_aggr_sw_retry_threshold;
 		pMac->roam.configParam.enable_bcast_probe_rsp =
 			pParam->enable_bcast_probe_rsp;
 		pMac->roam.configParam.is_fils_enabled =
@@ -17591,6 +17595,8 @@ QDF_STATUS csr_issue_add_sta_for_session_req(tpAniSirGlobal pMac,
 		pMac->roam.configParam.tx_aggr_sw_retry_threshold_vi;
 	add_sta_self_req->tx_aggr_sw_retry_threshold_vo =
 		pMac->roam.configParam.tx_aggr_sw_retry_threshold_vo;
+	add_sta_self_req->tx_aggr_sw_retry_threshold =
+		pMac->roam.configParam.tx_aggr_sw_retry_threshold;
 	add_sta_self_req->tx_non_aggr_sw_retry_threshold_be =
 		pMac->roam.configParam.tx_non_aggr_sw_retry_threshold_be;
 	add_sta_self_req->tx_non_aggr_sw_retry_threshold_bk =
@@ -17599,6 +17605,8 @@ QDF_STATUS csr_issue_add_sta_for_session_req(tpAniSirGlobal pMac,
 		pMac->roam.configParam.tx_non_aggr_sw_retry_threshold_vi;
 	add_sta_self_req->tx_non_aggr_sw_retry_threshold_vo =
 		pMac->roam.configParam.tx_non_aggr_sw_retry_threshold_vo;
+	add_sta_self_req->tx_non_aggr_sw_retry_threshold =
+		pMac->roam.configParam.tx_non_aggr_sw_retry_threshold;
 
 	msg.type = WMA_ADD_STA_SELF_REQ;
 	msg.reserved = 0;

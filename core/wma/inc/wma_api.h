@@ -277,7 +277,7 @@ QDF_STATUS wma_set_tx_rx_aggregation_size
 QDF_STATUS wma_set_tx_rx_aggregation_size_per_ac
 	(struct sir_set_tx_rx_aggregation_size *tx_rx_aggregation_size);
 /**
- * wma_set_sw_retry_threshold() - set sw retry threshold per AC for tx
+ * wma_set_sw_retry_threshold_per_ac() - set sw retry threshold per AC for tx
  * @handle: wma handle
  * @tx_sw_retry_threshold: value needs to set to firmware
  *
@@ -286,7 +286,7 @@ QDF_STATUS wma_set_tx_rx_aggregation_size_per_ac
  *
  * Return: QDF_STATUS.
  */
-QDF_STATUS wma_set_sw_retry_threshold
+QDF_STATUS wma_set_sw_retry_threshold_per_ac
 	(WMA_HANDLE handle,
 	 struct sir_set_tx_sw_retry_threshold *tx_sw_retry_threshold);
 /**
