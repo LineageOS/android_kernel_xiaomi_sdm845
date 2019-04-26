@@ -1414,14 +1414,14 @@ static int smem_init_target_info(phys_addr_t info_addr, resource_size_t size)
 	return 0;
 }
 
+#define TEMP_STRING_SIZE 11 /* max 3 digit count */
 static int msm_smem_probe(struct platform_device *pdev)
 {
 	char *key;
 	struct resource *r;
 	phys_addr_t aux_mem_base;
 	resource_size_t aux_mem_size;
-	int temp_string_size = 11; /* max 3 digit count */
-	char temp_string[temp_string_size];
+	char temp_string[TEMP_STRING_SIZE];
 	int ret;
 	struct ramdump_segment *ramdump_segments_tmp = NULL;
 	struct smem_area *smem_areas_tmp = NULL;
@@ -1504,7 +1504,7 @@ smem_targ_info_done:
 
 	num_smem_areas = 1;
 	while (1) {
-		scnprintf(temp_string, temp_string_size, "aux-mem%d",
+		scnprintf(temp_string, TEMP_STRING_SIZE, "aux-mem%d",
 				num_smem_areas);
 		r = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 								temp_string);
@@ -1544,7 +1544,7 @@ smem_targ_info_done:
 
 	/* Configure auxiliary SMEM regions */
 	while (1) {
-		scnprintf(temp_string, temp_string_size, "aux-mem%d",
+		scnprintf(temp_string, TEMP_STRING_SIZE, "aux-mem%d",
 								smem_idx);
 		r = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 							temp_string);
