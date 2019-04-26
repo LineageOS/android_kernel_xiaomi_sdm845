@@ -852,7 +852,7 @@ static int wcd9xxx_i2c_write_device(struct wcd9xxx *wcd9xxx, u16 reg, u8 *value,
 	struct i2c_msg *msg;
 	int ret = 0;
 	u8 reg_addr = 0;
-	u8 data[bytes + 1];
+	u8 data[64 + 1];
 	struct wcd9xxx_i2c *wcd9xxx_i2c;
 
 	wcd9xxx_i2c = wcd9xxx_i2c_get_device_info(wcd9xxx, reg);
