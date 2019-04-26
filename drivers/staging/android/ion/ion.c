@@ -558,11 +558,6 @@ static struct ion_handle *__ion_alloc(
 	struct ion_buffer *buffer = NULL;
 	struct ion_heap *heap;
 	int ret;
-	const unsigned int MAX_DBG_STR_LEN = 64;
-	char dbg_str[MAX_DBG_STR_LEN];
-	unsigned int dbg_str_idx = 0;
-
-	dbg_str[0] = '\0';
 
 	/*
 	 * For now, we don't want to fault in pages individually since
@@ -603,40 +598,15 @@ static struct ion_handle *__ion_alloc(
 		trace_ion_alloc_buffer_fallback(client->name, heap->name, len,
 						heap_id_mask, flags,
 						PTR_ERR(buffer));
-		if (dbg_str_idx < MAX_DBG_STR_LEN) {
-			unsigned int len_left;
-			int ret_value;
-
-			len_left = MAX_DBG_STR_LEN - dbg_str_idx - 1;
-			ret_value = snprintf(&dbg_str[dbg_str_idx],
-					     len_left, "%s ", heap->name);
-
-			if (ret_value >= len_left) {
-				/* overflow */
-				dbg_str[MAX_DBG_STR_LEN - 1] = '\0';
-				dbg_str_idx = MAX_DBG_STR_LEN;
-			} else if (ret_value >= 0) {
-				dbg_str_idx += ret_value;
-			} else {
-				/* error */
-				dbg_str[MAX_DBG_STR_LEN - 1] = '\0';
-			}
-		}
 	}
 	up_read(&dev->lock);
 
-	if (!buffer) {
-		trace_ion_alloc_buffer_fail(client->name, dbg_str, len,
-					    heap_id_mask, flags, -ENODEV);
+	if (!buffer)
 		return ERR_PTR(-ENODEV);
-	}
 
 	if (IS_ERR(buffer)) {
-		trace_ion_alloc_buffer_fail(client->name, dbg_str, len,
-					    heap_id_mask, flags,
-					    PTR_ERR(buffer));
-		pr_debug("ION is unable to allocate 0x%zx bytes (alignment: 0x%zx) from heap(s) %sfor client %s\n",
-			 len, align, dbg_str, client->name);
+		pr_debug("ION is unable to allocate 0x%zx bytes (alignment: 0x%zx) from heap(s) for client %s\n",
+			 len, align, client->name);
 		return ERR_CAST(buffer);
 	}
 
