@@ -7597,7 +7597,6 @@ enum hdd_link_speed_rpt_type {
 #define CFG_LL_TX_HBW_FLOW_MAX_Q_DEPTH_DEFAULT     (1500)
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
 
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
 
 /*
  * <ini>
@@ -7648,7 +7647,6 @@ enum hdd_link_speed_rpt_type {
 #define CFG_LL_TX_FLOW_START_QUEUE_OFFSET_MIN      (0)
 #define CFG_LL_TX_FLOW_START_QUEUE_OFFSET_MAX      (30)
 
-#endif /* QCA_LL_TX_FLOW_CONTROL_V2 */
 
 #define CFG_SAP_MAX_OFFLOAD_PEERS                  "gMaxOffloadPeers"
 #define CFG_SAP_MAX_OFFLOAD_PEERS_MIN              (2)
@@ -16553,10 +16551,8 @@ struct hdd_config {
 	uint32_t TxHbwFlowHighWaterMarkOffset;
 	uint32_t TxHbwFlowMaxQueueDepth;
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
 	uint32_t TxFlowStopQueueThreshold;
 	uint32_t TxFlowStartQueueOffset;
-#endif
 	uint8_t apMaxOffloadPeers;
 	uint8_t apMaxOffloadReorderBuffs;
 	bool advertiseConcurrentOperation;

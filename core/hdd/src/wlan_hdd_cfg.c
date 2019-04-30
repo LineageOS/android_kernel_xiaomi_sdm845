@@ -2886,7 +2886,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_LL_TX_HBW_FLOW_MAX_Q_DEPTH_MIN,
 		     CFG_LL_TX_HBW_FLOW_MAX_Q_DEPTH_MAX),
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
 
 	REG_VARIABLE(CFG_LL_TX_FLOW_STOP_QUEUE_TH, WLAN_PARAM_Integer,
 		     struct hdd_config, TxFlowStopQueueThreshold,
@@ -2902,7 +2901,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_LL_TX_FLOW_START_QUEUE_OFFSET_MIN,
 		     CFG_LL_TX_FLOW_START_QUEUE_OFFSET_MAX),
 
-#endif
 	REG_VARIABLE(CFG_INITIAL_DWELL_TIME_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, nInitialDwellTime,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,

@@ -10053,7 +10053,6 @@ err_close_adapters:
 }
 
 
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
 /**
  * hdd_txrx_populate_cds_config() - Populate txrx cds configuration
  * @cds_cfg: CDS Configuration
@@ -10070,13 +10069,6 @@ static inline void hdd_txrx_populate_cds_config(struct cds_config_info
 	cds_cfg->tx_flow_start_queue_offset =
 		hdd_ctx->config->TxFlowStartQueueOffset;
 }
-#else
-static inline void hdd_txrx_populate_cds_config(struct cds_config_info
-						*cds_cfg,
-						struct hdd_context *hdd_ctx)
-{
-}
-#endif
 
 #ifdef FEATURE_WLAN_RA_FILTERING
 /**
@@ -14179,12 +14171,10 @@ static int hdd_update_dp_config(struct hdd_context *hdd_ctx)
 
 	params.tso_enable = hdd_ctx->config->tso_enable;
 	params.lro_enable = hdd_ctx->config->lro_enable;
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
 	params.tx_flow_stop_queue_threshold =
 			hdd_ctx->config->TxFlowStopQueueThreshold;
 	params.tx_flow_start_queue_offset =
 			hdd_ctx->config->TxFlowStartQueueOffset;
-#endif
 	params.flow_steering_enable = hdd_ctx->config->flow_steering_enable;
 	params.napi_enable = hdd_ctx->napi_enable;
 	params.tcp_udp_checksumoffload =
