@@ -159,6 +159,7 @@ struct hdd_conn_flag {
  * @rate_flags: rate flags for current connection
  * @freq: channel frequency
  * @txrate: txrate structure holds nss & datarate info
+ * @rxrate: rx rate info
  * @noise: holds noise information
  * @ht_caps: holds ht capabilities info
  * @vht_caps: holds vht capabilities info
@@ -194,6 +195,7 @@ struct hdd_connection_info {
 	uint32_t rate_flags;
 	uint32_t freq;
 	struct rate_info txrate;
+	struct rate_info rxrate;
 	int8_t noise;
 	struct ieee80211_ht_cap ht_caps;
 	struct ieee80211_vht_cap vht_caps;

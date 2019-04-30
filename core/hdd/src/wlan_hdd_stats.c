@@ -3938,20 +3938,23 @@ int wlan_hdd_get_station_remote(struct wiphy *wiphy,
  *
  * @mac_handle: The mac handle
  * @config: The HDD config structure
- * @sinfo: The station_info struct to be filled
- * @tx_rate_flags: The TX rate flags computed from tx rate
- * @tx_mcs_index; The TX mcs index computed from tx rate
- * @my_tx_rate: The tx_rate from fw stats
- * @tx_nss: The TX NSS from fw stats
+ * @rate: The station_info tx/rx rate to be filled
+ * @signal: signal from station_info
+ * @rate_flags: TX/RX rate flags computed from tx/rx rate
+ * @mcs_index; The TX/RX mcs index computed from tx/rx rate
+ * @fw_rate: The tx/rx rate from fw stats
+ * @nss: The TX/RX NSS from fw stats
  *
- * Return: 0 for success
+ * Return: True if fill is successful
  */
-static int hdd_report_max_rate(mac_handle_t mac_handle,
-			       struct hdd_config *config,
-			       struct station_info *sinfo,
-			       uint8_t tx_rate_flags,
-			       uint8_t tx_mcs_index,
-			       uint16_t my_tx_rate, uint8_t tx_nss)
+static bool hdd_report_max_rate(mac_handle_t mac_handle,
+				struct hdd_config *config,
+				struct rate_info *rate,
+				int8_t signal,
+				uint8_t rate_flags,
+				uint8_t mcs_index,
+				uint16_t fw_rate, uint8_t nss)
+
 {
 	uint8_t i, j, rssidx;
 	uint16_t max_rate = 0;
@@ -3978,13 +3981,13 @@ static int hdd_report_max_rate(mac_handle_t mac_handle,
 	} else if (eHDD_LINK_SPEED_REPORT_MAX_SCALED ==
 		   config->reportMaxLinkSpeed) {
 		/* report the max possible speed with RSSI scaling */
-		if (sinfo->signal >= config->linkSpeedRssiHigh) {
+		if (signal >= config->linkSpeedRssiHigh) {
 			/* report the max possible speed */
 			rssidx = 0;
-		} else if (sinfo->signal >= config->linkSpeedRssiMid) {
+		} else if (signal >= config->linkSpeedRssiMid) {
 			/* report middle speed */
 			rssidx = 1;
-		} else if (sinfo->signal >= config->linkSpeedRssiLow) {
+		} else if (signal >= config->linkSpeedRssiLow) {
 			/* report middle speed */
 			rssidx = 2;
 		} else {
@@ -4007,7 +4010,7 @@ static int hdd_report_max_rate(mac_handle_t mac_handle,
 				 (uint32_t *)&or_leng)) {
 		hdd_err("cfg get returned failure");
 		/*To keep GUI happy */
-		return 0;
+		return false;
 	}
 
 	for (i = 0; i < or_leng; i++) {
@@ -4032,7 +4035,7 @@ static int hdd_report_max_rate(mac_handle_t mac_handle,
 				 extended_rates, &er_leng)) {
 		hdd_err("cfg get returned failure");
 		/*To keep GUI happy */
-		return 0;
+		return false;
 	}
 
 	for (i = 0; i < er_leng; i++) {
@@ -4051,37 +4054,37 @@ static int hdd_report_max_rate(mac_handle_t mac_handle,
 	 * Only if we are connected in non legacy mode and not reporting
 	 * actual speed
 	 */
-	if ((3 != rssidx) && !(tx_rate_flags & TX_RATE_LEGACY)) {
+	if ((3 != rssidx) && !(rate_flags & TX_RATE_LEGACY)) {
 		if (0 != sme_cfg_get_str(mac_handle,
 					 WNI_CFG_CURRENT_MCS_SET, mcs_rates,
 					 &mcs_leng)) {
 			hdd_err("cfg get returned failure");
 			/*To keep GUI happy */
-			return 0;
+			return false;
 		}
 		rate_flag = 0;
 		supported_vht_mcs_rate = (struct index_vht_data_rate_type *)
-					  ((tx_nss == 1) ?
+					  ((nss == 1) ?
 					  &supported_vht_mcs_rate_nss1 :
 					  &supported_vht_mcs_rate_nss2);
 
-		if (tx_rate_flags & TX_RATE_VHT80)
+		if (rate_flags & TX_RATE_VHT80)
 			mode = 2;
-		else if ((tx_rate_flags & TX_RATE_VHT40) ||
-			 (tx_rate_flags & TX_RATE_HT40))
+		else if ((rate_flags & TX_RATE_VHT40) ||
+			 (rate_flags & TX_RATE_HT40))
 			mode = 1;
 		else
 			mode = 0;
 
 		/* VHT80 rate has separate rate table */
-		if (tx_rate_flags & (TX_RATE_VHT20 | TX_RATE_VHT40 |
+		if (rate_flags & (TX_RATE_VHT20 | TX_RATE_VHT40 |
 		    TX_RATE_VHT80)) {
 			sme_cfg_get_int(mac_handle,
 					WNI_CFG_VHT_TX_MCS_MAP,
 					&vht_mcs_map);
 			vht_max_mcs = (enum data_rate_11ac_max_mcs)
 				(vht_mcs_map & DATA_RATE_11AC_MCS_MASK);
-			if (tx_rate_flags & TX_RATE_SGI)
+			if (rate_flags & TX_RATE_SGI)
 				rate_flag |= 1;
 
 			if (DATA_RATE_11AC_MAX_MCS_7 == vht_max_mcs) {
@@ -4094,31 +4097,30 @@ static int hdd_report_max_rate(mac_handle_t mac_handle,
 
 			if (rssidx != 0) {
 				for (i = 0; i <= max_mcs_idx; i++) {
-					if (sinfo->signal <=
-						rssi_mcs_tbl[mode][i]) {
+					if (signal <= rssi_mcs_tbl[mode][i]) {
 						max_mcs_idx = i;
 						break;
 					}
 				}
 			}
 
-			if (tx_rate_flags & TX_RATE_VHT80) {
+			if (rate_flags & TX_RATE_VHT80) {
 				current_rate =
-				  supported_vht_mcs_rate[tx_mcs_index].
+				  supported_vht_mcs_rate[mcs_index].
 				  supported_VHT80_rate[rate_flag];
 				max_rate =
 				  supported_vht_mcs_rate[max_mcs_idx].
 					supported_VHT80_rate[rate_flag];
-			} else if (tx_rate_flags & TX_RATE_VHT40) {
+			} else if (rate_flags & TX_RATE_VHT40) {
 				current_rate =
-				  supported_vht_mcs_rate[tx_mcs_index].
+				  supported_vht_mcs_rate[mcs_index].
 				  supported_VHT40_rate[rate_flag];
 				max_rate =
 				  supported_vht_mcs_rate[max_mcs_idx].
 					supported_VHT40_rate[rate_flag];
-			} else if (tx_rate_flags & TX_RATE_VHT20) {
+			} else if (rate_flags & TX_RATE_VHT20) {
 				current_rate =
-				  supported_vht_mcs_rate[tx_mcs_index].
+				  supported_vht_mcs_rate[mcs_index].
 				  supported_VHT20_rate[rate_flag];
 				max_rate =
 				  supported_vht_mcs_rate[max_mcs_idx].
@@ -4130,22 +4132,20 @@ static int hdd_report_max_rate(mac_handle_t mac_handle,
 				max_rate = current_rate;
 
 		} else {
-			if (tx_rate_flags & TX_RATE_HT40)
+			if (rate_flags & TX_RATE_HT40)
 				rate_flag |= 1;
-			if (tx_rate_flags & TX_RATE_SGI)
+			if (rate_flags & TX_RATE_SGI)
 				rate_flag |= 2;
 
 			supported_mcs_rate =
 				(struct index_data_rate_type *)
-				((tx_nss ==
-				  1) ? &supported_mcs_rate_nss1 :
+				((nss == 1) ? &supported_mcs_rate_nss1 :
 				 &supported_mcs_rate_nss2);
 
 			max_ht_idx = MAX_HT_MCS_IDX;
 			if (rssidx != 0) {
 				for (i = 0; i < MAX_HT_MCS_IDX; i++) {
-					if (sinfo->signal <=
-						rssi_mcs_tbl[mode][i]) {
+					if (signal <= rssi_mcs_tbl[mode][i]) {
 						max_ht_idx = i + 1;
 						break;
 					}
@@ -4174,67 +4174,64 @@ static int hdd_report_max_rate(mac_handle_t mac_handle,
 				}
 				max_speed_mcs = 1;
 			}
-			if (tx_nss == 2)
+			if (nss == 2)
 				max_mcs_idx += MAX_HT_MCS_IDX;
 		}
 	}
 
-	else if (!(tx_rate_flags & TX_RATE_LEGACY)) {
-		max_rate = my_tx_rate;
+	else if (!(rate_flags & TX_RATE_LEGACY)) {
+		max_rate = fw_rate;
 		max_speed_mcs = 1;
-		max_mcs_idx = tx_mcs_index;
+		max_mcs_idx = mcs_index;
 	}
 	/* report a value at least as big as current rate */
-	if ((max_rate < my_tx_rate) || (0 == max_rate)) {
-		max_rate = my_tx_rate;
-		if (tx_rate_flags & TX_RATE_LEGACY) {
+	if ((max_rate < fw_rate) || (0 == max_rate)) {
+		max_rate = fw_rate;
+		if (rate_flags & TX_RATE_LEGACY) {
 			max_speed_mcs = 0;
 		} else {
 			max_speed_mcs = 1;
-			max_mcs_idx = tx_mcs_index;
+			max_mcs_idx = mcs_index;
 			}
 	}
 
-	if (tx_rate_flags & TX_RATE_LEGACY) {
-		sinfo->txrate.legacy = max_rate;
+	if (rate_flags & TX_RATE_LEGACY) {
+		rate->legacy = max_rate;
 
-		hdd_info("Reporting legacy rate %d",
-			 sinfo->txrate.legacy);
+		hdd_info("Reporting legacy rate %d", rate->legacy);
 	} else {
-		sinfo->txrate.mcs = max_mcs_idx;
-		sinfo->txrate.nss = tx_nss;
-		if (tx_rate_flags & TX_RATE_VHT80)
-			hdd_set_rate_bw(&sinfo->txrate, HDD_RATE_BW_80);
-		else if (tx_rate_flags & TX_RATE_VHT40)
-			hdd_set_rate_bw(&sinfo->txrate, HDD_RATE_BW_40);
-		else if (tx_rate_flags & TX_RATE_VHT20)
-			hdd_set_rate_bw(&sinfo->txrate, HDD_RATE_BW_20);
+		rate->mcs = max_mcs_idx;
+		rate->nss = nss;
+		if (rate_flags & TX_RATE_VHT80)
+			hdd_set_rate_bw(rate, HDD_RATE_BW_80);
+		else if (rate_flags & TX_RATE_VHT40)
+			hdd_set_rate_bw(rate, HDD_RATE_BW_40);
+		else if (rate_flags & TX_RATE_VHT20)
+			hdd_set_rate_bw(rate, HDD_RATE_BW_20);
 
-		if (tx_rate_flags &
+		if (rate_flags &
 		    (TX_RATE_HT20 | TX_RATE_HT40)) {
-			sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
-			if (tx_rate_flags & TX_RATE_HT40)
-				hdd_set_rate_bw(&sinfo->txrate,
+			rate->flags |= RATE_INFO_FLAGS_MCS;
+			if (rate_flags & TX_RATE_HT40)
+				hdd_set_rate_bw(rate,
 						HDD_RATE_BW_40);
-			else if (tx_rate_flags & TX_RATE_HT20)
-				hdd_set_rate_bw(&sinfo->txrate,
+			else if (rate_flags & TX_RATE_HT20)
+				hdd_set_rate_bw(rate,
 						HDD_RATE_BW_20);
 		} else {
-			sinfo->txrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
+			rate->flags |= RATE_INFO_FLAGS_VHT_MCS;
 		}
 
-		if (tx_rate_flags & TX_RATE_SGI) {
-			if (!
-			    (sinfo->txrate.
-			     flags & RATE_INFO_FLAGS_VHT_MCS))
-				sinfo->txrate.flags |=
-					RATE_INFO_FLAGS_MCS;
-			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+		if (rate_flags & TX_RATE_SGI) {
+			if (!(rate->flags & RATE_INFO_FLAGS_VHT_MCS))
+				rate->flags |= RATE_INFO_FLAGS_MCS;
+			rate->flags |= RATE_INFO_FLAGS_SHORT_GI;
 		}
 		linkspeed_dbg("Reporting MCS rate %d flags %x\n",
-			      sinfo->txrate.mcs, sinfo->txrate.flags);
+			      rate->mcs, rate->flags);
 	}
-	return 1;
+
+	return true;
 }
 
 /**
@@ -4504,12 +4501,28 @@ static int wlan_hdd_get_sta_stats(struct wiphy *wiphy,
 	hdd_set_rate_bw(&sinfo->txrate, HDD_RATE_BW_20);
 
 	if (eHDD_LINK_SPEED_REPORT_ACTUAL != pCfg->reportMaxLinkSpeed) {
-		if (!hdd_report_max_rate(mac_handle, pCfg, sinfo,
-					 tx_rate_flags, tx_mcs_index,
-					 my_tx_rate, tx_nss)) {
+		bool tx_rate_calc;
+		bool rx_rate_calc;
+
+		tx_rate_calc = hdd_report_max_rate(mac_handle, pCfg,
+						   &sinfo->txrate,
+						   sinfo->signal,
+						   tx_rate_flags,
+						   tx_mcs_index,
+						   my_tx_rate,
+						   tx_nss);
+
+		rx_rate_calc = hdd_report_max_rate(mac_handle, pCfg,
+						   &sinfo->rxrate,
+						   sinfo->signal,
+						   rx_rate_flags,
+						   rx_mcs_index,
+						   my_rx_rate,
+						   rx_nss);
+
+		if (!tx_rate_calc || !rx_rate_calc)
 			/* Keep GUI happy */
 			return 0;
-		}
 	} else {
 
 		/* Fill TX stats */
@@ -4532,6 +4545,9 @@ static int wlan_hdd_get_sta_stats(struct wiphy *wiphy,
 		     &sinfo->txrate, sizeof(sinfo->txrate));
 	qdf_mem_copy(&sta_ctx->cache_conn_info.txrate,
 		     &sinfo->txrate, sizeof(sinfo->txrate));
+
+	qdf_mem_copy(&sta_ctx->conn_info.rxrate,
+		     &sinfo->rxrate, sizeof(sinfo->rxrate));
 
 	sinfo->filled |= HDD_INFO_TX_BITRATE |
 			 HDD_INFO_RX_BITRATE |
