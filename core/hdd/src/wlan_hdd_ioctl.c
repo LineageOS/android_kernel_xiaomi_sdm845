@@ -4128,6 +4128,9 @@ static int drv_cmd_set_roam_intra_band(struct hdd_adapter *adapter,
 
 	hdd_ctx->config->nRoamIntraBand = val;
 	sme_set_roam_intra_band(hdd_ctx->mac_handle, val);
+	policy_mgr_set_pcl_for_existing_combo(
+					hdd_ctx->psoc,
+					PM_STA_MODE);
 
 exit:
 	return ret;
