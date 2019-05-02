@@ -292,7 +292,7 @@ struct pld_soc_info {
  * @modem_status: optional operation, will be called when platform driver
  *                sending modem power status to WLAN FW
  * @uevent: optional operation, will be called when platform driver
- *                 updating driver status
+ *          updating driver status
  * @runtime_suspend: optional operation, prepare the device for a condition
  *                   in which it won't be able to communicate with the CPU(s)
  *                   and RAM due to power management.
@@ -301,6 +301,11 @@ struct pld_soc_info {
  *                  hardware or at the request of software.
  * @suspend_noirq: optional operation, complete the actions started by suspend()
  * @resume_noirq: optional operation, prepare for the execution of resume()
+ * @set_curr_therm_state: optional operation, will be called when there is a
+ *                        change in the thermal level triggered by the thermal
+ *                        subsystem thus requiring mitigation actions. This will
+ *                        be called every time there is a change in the state
+ *                        and after driver load.
  */
 struct pld_driver_ops {
 	int (*probe)(struct device *dev,
@@ -334,6 +339,7 @@ struct pld_driver_ops {
 			     enum pld_bus_type bus_type);
 	int (*resume_noirq)(struct device *dev,
 			    enum pld_bus_type bus_type);
+	int (*set_curr_therm_state)(struct device *dev, int state);
 };
 
 int pld_init(void);
@@ -616,4 +622,31 @@ static inline int pld_nbuf_pre_alloc_free(struct sk_buff *skb)
 	return 0;
 }
 #endif
+
+/**
+ * pld_thermal_register() - Register the thermal device with the thermal system
+ * @dev: The device structure
+ * @state: The max state to be configured on registration
+ *
+ * Return: Error code on error
+ */
+int pld_thermal_register(struct device *dev, int state);
+
+/**
+ * pld_thermal_unregister() - Unregister the device with the thermal system
+ * @dev: The device structure
+ *
+ * Return: None
+ */
+void pld_thermal_unregister(struct device *dev);
+
+/**
+ * pld_get_thermal_state() - Get the current thermal state from the PLD
+ * @dev: The device structure
+ * @thermal_state: param to store the current thermal state
+ *
+ * Return: Non-zero code for error; zero for success
+ */
+int pld_get_thermal_state(struct device *dev, uint16_t *thermal_state);
+
 #endif

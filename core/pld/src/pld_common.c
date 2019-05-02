@@ -1575,3 +1575,35 @@ void pld_block_shutdown(struct device *dev, bool status)
 		break;
 	}
 }
+
+#ifdef CONFIG_PLD_SNOC_ICNSS
+int pld_thermal_register(struct device *dev, int max_state)
+{
+	return icnss_thermal_register(dev, max_state);
+}
+
+void pld_thermal_unregister(struct device *dev)
+{
+	icnss_thermal_unregister(dev);
+}
+
+int pld_get_thermal_state(struct device *dev, uint16_t *thermal_state)
+{
+	return icnss_get_curr_therm_state(dev, (unsigned long *)thermal_state);
+}
+
+#else
+int pld_thermal_register(struct device *dev, int max_state)
+{
+	return -ENOTSUPP;
+}
+
+void pld_thermal_unregister(struct device *dev)
+{
+}
+
+int pld_get_thermal_state(struct device *dev, uint16_t *thermal_state)
+{
+	return -ENOTSUPP;
+}
+#endif
