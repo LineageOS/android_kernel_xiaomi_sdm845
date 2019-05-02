@@ -653,7 +653,7 @@ static int cpu_power_select(struct cpuidle_device *dev,
 
 		lvl_latency_us = pwr_params->latency_us;
 
-		if (latency_us < lvl_latency_us)
+		if (latency_us <= lvl_latency_us)
 			break;
 
 		if (next_event_us) {
@@ -990,7 +990,7 @@ static int cluster_select(struct lpm_cluster *cluster, bool from_idle,
 					&level->num_cpu_votes))
 			continue;
 
-		if (from_idle && latency_us < pwr_params->latency_us)
+		if (from_idle && latency_us <= pwr_params->latency_us)
 			break;
 
 		if (sleep_us < pwr_params->time_overhead_us)
