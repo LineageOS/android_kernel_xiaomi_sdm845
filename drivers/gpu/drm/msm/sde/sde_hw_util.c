@@ -76,10 +76,6 @@ void sde_reg_write(struct sde_hw_blk_reg_map *c,
 		u32 val,
 		const char *name)
 {
-	/* don't need to mutex protect this */
-	if (c->log_mask & sde_hw_util_log_mask)
-		SDE_DEBUG_DRIVER("[%s:0x%X] <= 0x%X\n",
-				name, c->blk_off + reg_off, val);
 	writel_relaxed(val, c->base_off + c->blk_off + reg_off);
 }
 
