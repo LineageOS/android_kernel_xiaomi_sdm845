@@ -2371,6 +2371,17 @@ QDF_STATUS sme_process_msg(tpAniSirGlobal pMac, struct scheduler_msg *pMsg)
 		else
 			sme_err("callback is NULL");
 		break;
+	case eWNI_SME_ANTENNA_ISOLATION_RSP:
+		if (pMsg->bodyptr) {
+			if (pMac->sme.get_isolation_cb)
+				pMac->sme.get_isolation_cb(
+				  (struct sir_isolation_resp *)pMsg->bodyptr,
+				  pMac->sme.get_isolation_cb_context);
+			qdf_mem_free(pMsg->bodyptr);
+		} else {
+			sme_err("Empty message for: %d", pMsg->type);
+		}
+		break;
 	default:
 
 		if ((pMsg->type >= eWNI_SME_MSG_TYPES_BEGIN)
@@ -8592,6 +8603,36 @@ void sme_update_enable_ssr(tHalHandle hHal, bool enableSSR)
 		WMA_SetEnableSSR(enableSSR);
 		sme_release_global_lock(&pMac->sme);
 	}
+}
+
+QDF_STATUS sme_get_isolation(mac_handle_t mac_handle, void *context,
+			     sme_get_isolation_cb callbackfn)
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac = MAC_CONTEXT(mac_handle);
+	struct scheduler_msg message = {0};
+
+	if (!callbackfn) {
+		sme_err("Indication Call back is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status))
+		return status;
+	mac->sme.get_isolation_cb = callbackfn;
+	mac->sme.get_isolation_cb_context = context;
+	message.bodyptr = NULL;
+	message.type    = WMA_GET_ISOLATION;
+	status = scheduler_post_message(QDF_MODULE_ID_SME,
+					QDF_MODULE_ID_WMA,
+					QDF_MODULE_ID_WMA,
+					&message);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sme_err("failed to post WMA_GET_ISOLATION");
+		status = QDF_STATUS_E_FAILURE;
+	}
+	sme_release_global_lock(&mac->sme);
+	return status;
 }
 
 /*convert the ini value to the ENUM used in csr and MAC for CB state*/
