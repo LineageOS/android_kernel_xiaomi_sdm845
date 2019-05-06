@@ -16284,13 +16284,6 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (!policy_mgr_allow_concurrency(hdd_ctx->psoc,
-				wlan_hdd_convert_nl_iftype_to_hdd_type(type),
-				0, HW_MODE_20_MHZ)) {
-		hdd_debug("This concurrency combination is not allowed");
-		return -EINVAL;
-	}
-
 	pConfig = hdd_ctx->config;
 	wdev = ndev->ieee80211_ptr;
 

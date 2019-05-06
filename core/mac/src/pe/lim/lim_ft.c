@@ -530,6 +530,7 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	int8_t regMax;
 	tSchBeaconStruct *pBeaconStruct;
 	ePhyChanBondState cbEnabledMode;
+	struct lim_max_tx_pwr_attr tx_pwr_attr = {0};
 
 	pBeaconStruct = qdf_mem_malloc(sizeof(tSchBeaconStruct));
 	if (NULL == pBeaconStruct) {
@@ -687,10 +688,16 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	pftSessionEntry->isFastRoamIniFeatureEnabled =
 		psessionEntry->isFastRoamIniFeatureEnabled;
 
+	tx_pwr_attr.reg_max = regMax;
+	tx_pwr_attr.ap_tx_power = localPowerConstraint;
+	tx_pwr_attr.ini_tx_power = pMac->roam.configParam.nTxPowerCap;
+	tx_pwr_attr.frequency =
+		wlan_reg_get_channel_freq(pMac->pdev,
+					  pftSessionEntry->currentOperChannel);
+
 #ifdef FEATURE_WLAN_ESE
 	pftSessionEntry->maxTxPower =
-		lim_get_max_tx_power(regMax, localPowerConstraint,
-				     pMac->roam.configParam.nTxPowerCap);
+		lim_get_max_tx_power(pMac, &tx_pwr_attr);
 #else
 	pftSessionEntry->maxTxPower = QDF_MIN(regMax, (localPowerConstraint));
 #endif

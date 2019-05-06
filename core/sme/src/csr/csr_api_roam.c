@@ -6629,6 +6629,44 @@ tpAniSirGlobal mac_ctx, tSmeCmd *cmd, struct csr_roam_info *roam_info,
 	return status;
 }
 
+/**
+ * csr_allow_concurrent_sta_connections() - Wrapper for policy_mgr api
+ * @mac: mac context
+ * @vdev_id: vdev id
+ *
+ * This function invokes policy mgr api to check for support of
+ * simultaneous connections on concurrent STA interfaces.
+ *
+ *  Return: If supports return true else false.
+ */
+static
+bool csr_allow_concurrent_sta_connections(tpAniSirGlobal mac,
+					  uint32_t vdev_id)
+{
+	struct wlan_objmgr_vdev *vdev;
+	enum QDF_OPMODE vdev_mode;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac->psoc, vdev_id,
+						    WLAN_LEGACY_MAC_ID);
+	if (!vdev) {
+		sme_err("vdev object not found for vdev_id %u", vdev_id);
+		return false;
+	}
+	vdev_mode = wlan_vdev_mlme_get_opmode(vdev);
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+
+	/* If vdev mode is STA then proceed further */
+	if (vdev_mode != QDF_STA_MODE)
+		return true;
+
+	if (policy_mgr_allow_concurrency(mac->psoc, PM_STA_MODE, 0,
+					 HW_MODE_20_MHZ))
+		return true;
+
+	return false;
+}
+
+
 QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 {
 	struct csr_roam_info roamInfo;
@@ -6742,6 +6780,21 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 		status = csr_roam_issue_ft_preauth_req(pMac, sessionId,
 				pCommand->u.roamCmd.pLastRoamBss);
 		break;
+
+	case eCsrHddIssued:
+		/*
+		 * Check for simultaneous connection support on
+		 * multiple STA interfaces.
+		 */
+		if (!csr_allow_concurrent_sta_connections(pMac, sessionId)) {
+			sme_err("No support of conc STA con");
+			csr_roam_complete(pMac, eCsrNothingToJoin, NULL,
+					  sessionId);
+			status = QDF_STATUS_E_FAILURE;
+			break;
+		}
+		/* Fall through for success case */
+
 	default:
 		csr_roam_state_change(pMac, eCSR_ROAMING_STATE_JOINING,
 				sessionId);
@@ -10936,7 +10989,9 @@ void csr_roaming_state_msg_processor(tpAniSirGlobal pMac, void *pMsgBuf)
 	case eWNI_SME_DISCONNECT_DONE_IND:
 		csr_roam_send_disconnect_done_indication(pMac, pSmeRsp);
 		break;
-
+	case eWNI_SME_UPPER_LAYER_ASSOC_CNF:
+		csr_roam_joined_state_msg_processor(pMac, pSmeRsp);
+		break;
 	default:
 		sme_debug("Unexpected message type: %d[0x%X] received in substate %s",
 			pSmeRsp->messageType, pSmeRsp->messageType,
