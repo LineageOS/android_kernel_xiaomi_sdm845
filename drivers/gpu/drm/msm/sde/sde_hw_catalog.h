@@ -519,6 +519,9 @@ enum sde_clk_ctrl_type {
 struct sde_clk_ctrl_reg {
 	u32 reg_off;
 	u32 bit_off;
+
+	u32 cur_val;
+	bool val_saved;
 };
 
 /* struct sde_mdp_cfg : MDP TOP-BLK instance info
