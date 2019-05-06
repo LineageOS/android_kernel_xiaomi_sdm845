@@ -339,6 +339,8 @@ static inline bool in_compat_syscall(void) { return is_compat_task(); }
 #define WLAN_NUD_STATS_ARP_PKT_TYPE 1
 /* Assigned size of driver memory dump is 4096 bytes */
 #define DRIVER_MEM_DUMP_SIZE    4096
+/* Max number of states supported by the driver for thermal mitigation */
+#define HDD_THERMAL_MAX_STATE 2
 
 /*
  * @eHDD_DRV_OP_PROBE: Refers to .probe operation
@@ -1940,6 +1942,21 @@ struct hdd_cache_channels {
 };
 
 /**
+ * enum hdd_thermal_states - The various thermal states as supported by WLAN
+ * @HDD_THERMAL_STATE_NORMAL - The normal working state
+ * @HDD_THERMAL_STATE_MEDIUM - The intermediate state, WLAN must perform partial
+ *                             mitigation
+ * @HDD_THERMAL_STATE_HIGH - The highest state, WLAN must enter forced IMPS and
+ *                           will disconnect any active STA connection
+ */
+enum hdd_thermal_states {
+	HDD_THERMAL_STATE_NORMAL = 0,
+	HDD_THERMAL_STATE_MEDIUM = 1,
+	HDD_THERMAL_STATE_HIGH = 2,
+	HDD_THERMAL_STATE_INVAL = 0xFF,
+};
+
+/**
  * struct hdd_context_s
  * @adapter_nodes: an array of adapter nodes for keeping track of hdd adapters
  */
@@ -2266,6 +2283,7 @@ struct hdd_context_s {
 	bool is_ssr_in_progress;
 
 	uint8_t pktcapture_mode;
+	bool is_thermal_system_registered;
 };
 
 int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,

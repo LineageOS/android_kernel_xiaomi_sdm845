@@ -1538,6 +1538,8 @@ struct peer_debug_info {
  * @bandcapability: band capability configured through ini
  * @ito_repeat_count: Indicates ito repeated count
  * @critical_events_in_flight: number of suspend preventing events in flight
+ * @thermal_sampling_time: Thermal throttling sampling time in ms
+ * @thermal_throt_dc: Thermal throttling duty cycle that is to be enforced
  */
 typedef struct {
 	void *wmi_handle;
@@ -1763,6 +1765,11 @@ typedef struct {
 	atomic_t in_d0wow;
 #endif
 	bool is_pktcapture_enabled;
+
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+	uint32_t thermal_sampling_time;
+	uint32_t thermal_throt_dc;
+#endif
 } t_wma_handle, *tp_wma_handle;
 
 /**

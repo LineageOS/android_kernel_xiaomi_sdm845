@@ -297,6 +297,9 @@ endif
 #Enable beacon reporting feature
 CONFIG_WLAN_BEACON_REPORTING := y
 
+#Enable FW thermal mitigation feature
+CONFIG_WLAN_FW_THERMAL_MITIGATION := y
+
 # Feature flags which are not (currently) configurable via Kconfig
 
 #Whether to build debug version
@@ -1159,6 +1162,10 @@ ifeq ($(CONFIG_MPC_UT_FRAMEWORK),y)
 WMA_OBJS +=	$(WMA_SRC_DIR)/wma_utils_ut.o
 endif
 
+ifeq ($(CONFIG_WLAN_FW_THERMAL_MITIGATION), y)
+WMA_OBJS += $(WMA_SRC_DIR)/wma_thermal.o
+endif
+
 ############## PLD ##########
 PLD_DIR := core/pld
 PLD_INC_DIR := $(PLD_DIR)/inc
@@ -1467,6 +1474,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_BEACON_REPORTING),y)
 CDEFINES += -DNTH_BEACON_OFFLOAD
+endif
+
+ifeq ($(CONFIG_WLAN_FW_THERMAL_MITIGATION),y)
+CDEFINES += -DFW_THERMAL_THROTTLE_SUPPORT
 endif
 
 ifeq ($(BUILD_DIAG_VERSION),1)

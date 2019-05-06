@@ -2800,3 +2800,144 @@ int hdd_wlan_fake_apps_resume(struct wiphy *wiphy, struct net_device *dev)
 	return 0;
 }
 #endif
+
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+void hdd_send_thermal_notification(hdd_context_t *hdd_ctx,
+				   enum hdd_thermal_states thermal_state)
+{
+	QDF_STATUS status;
+	hdd_adapter_t *sta_adapter;
+	bool is_sta_connected, is_sta_connecting, is_sta_disconnecting;
+
+	if (!hdd_ctx) {
+		hdd_err("hdd context is null");
+		return;
+	}
+
+	if (!hdd_ctx->is_thermal_system_registered) {
+		hdd_debug("Thermal system not registered! Ignore");
+		return;
+	}
+
+	sta_adapter = hdd_get_adapter(hdd_ctx, QDF_STA_MODE);
+	if (!sta_adapter) {
+		hdd_err("STA adapter not present");
+		return;
+	}
+
+	is_sta_connected = hdd_conn_is_connected(WLAN_HDD_GET_STATION_CTX_PTR(
+						 sta_adapter));
+	is_sta_connecting = hdd_is_connecting(WLAN_HDD_GET_STATION_CTX_PTR(
+					      sta_adapter));
+	is_sta_disconnecting =
+		hdd_is_disconnecting(WLAN_HDD_GET_STATION_CTX_PTR(sta_adapter));
+
+	if (cds_get_connection_count() > 1) {
+		hdd_debug("Concurrent sessions present ignoring thermal notif");
+		return;
+	}
+
+	if (is_sta_disconnecting) {
+		hdd_debug("STA disconnecting; send disable thermal notif");
+		thermal_state = 0;
+		goto send;
+	}
+
+	if (!is_sta_connected || is_sta_connecting) {
+		hdd_debug("STA not connected/connecting, ignore thermal notif");
+		return;
+	}
+
+	switch (thermal_state) {
+	case HDD_THERMAL_STATE_HIGH:
+		cds_set_driver_thermal_mitigated(true);
+		hdd_debug("STA connected, issue disconnect");
+		wlan_hdd_disconnect(sta_adapter, eCSR_DISCONNECT_REASON_DEAUTH);
+
+		/*
+		 * Sending the thermal notification after disconnection will be
+		 * taken care in the disconnect path, so return from here and
+		 * do not send the notification now.
+		 */
+		return;
+	case HDD_THERMAL_STATE_MEDIUM:
+	case HDD_THERMAL_STATE_NORMAL:
+		cds_set_driver_thermal_mitigated(false);
+		break;
+	default:
+		hdd_err("Invalid thermal state: %d", thermal_state);
+		return;
+	}
+
+send:
+	status = wma_update_thermal_mitigation_to_fw(thermal_state);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("Failed to send thermal mitigation to FW");
+}
+
+/**
+ * hdd_thermal_mitigation_disable() - Disable thermal mitigation
+ * @hdd_ctx: The HDD context
+ *
+ * This function verifies whether driver is already performing any sort of
+ * thermal mitigation in connected STA scenario. If that is the case, then it
+ * disables the thermal mitigation by sending command to FW.
+ *
+ * Return: None
+ */
+void hdd_thermal_mitigation_disable(hdd_context_t *hdd_ctx)
+{
+	if (cds_is_sta_active_connection_exists() &&
+	    hdd_ctx->is_thermal_system_registered) {
+		hdd_debug("Disabling thermal mitigation; STA+ concr not supp");
+		hdd_send_thermal_notification(hdd_ctx,
+					      HDD_THERMAL_STATE_NORMAL);
+	}
+}
+
+/**
+ * hdd_thermal_mitigation_enable() - Enable thermal mitigation
+ * @hdd_ctx: The HDD context
+ *
+ * This function verifies whether driver is connected in STA with no concurrent
+ * sessions active. If yes then it sends the current thermal state notification
+ * to the firmware.
+ *
+ * Return: None
+ */
+void hdd_thermal_mitigation_enable(hdd_context_t *hdd_ctx)
+{
+	uint16_t thermal_state = HDD_THERMAL_STATE_NORMAL;
+
+	if (cds_is_sta_active_connection_exists() &&
+	    cds_get_connection_count() == 1 &&
+	    hdd_ctx->is_thermal_system_registered) {
+		hdd_debug("Re-enabling thermal mitigation");
+		if (!pld_get_thermal_state(hdd_ctx->parent_dev, &thermal_state))
+			hdd_send_thermal_notification(hdd_ctx,
+						      hdd_map_thermal_states(
+						      thermal_state));
+	}
+}
+
+/**
+ * hdd_map_thermal_states() - Return thermal state enum from int value
+ * @state: The state that is to be mapped
+ *
+ * Return: enum hdd_thermal_states value for the corresponding state
+ */
+enum hdd_thermal_states hdd_map_thermal_states(uint16_t state)
+{
+	switch (state) {
+	case 0:
+		return HDD_THERMAL_STATE_NORMAL;
+	case 1:
+		return HDD_THERMAL_STATE_MEDIUM;
+	case 2:
+		return HDD_THERMAL_STATE_HIGH;
+	default:
+		hdd_err("Invalid thermal state");
+		return HDD_THERMAL_STATE_INVAL;
+	}
+}
+#endif
