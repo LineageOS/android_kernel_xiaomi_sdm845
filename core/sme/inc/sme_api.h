@@ -354,6 +354,28 @@ QDF_STATUS sme_set11dinfo(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams);
 QDF_STATUS sme_get_soft_ap_domain(tHalHandle hHal,
 		v_REGDOMAIN_t *domainIdSoftAp);
 QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal);
+
+#ifdef WLAN_BCN_RECV_FEATURE
+/*
+ * sme_register_bcn_report_pe_cb() - Register SME callback
+ * @mac_handle: The handle returned by mac_open.
+ * @cb: cb of type beacon_report_cb
+ *
+ * This function Register SME callback in order to send
+ * beacon report to upper layer
+ *
+ * Return QDF_STATUS_SUCCESS -
+ */
+QDF_STATUS
+sme_register_bcn_report_pe_cb(mac_handle_t mac_handle, beacon_report_cb cb);
+#else
+static inline QDF_STATUS
+sme_register_bcn_report_pe_cb(mac_handle_t mac_handle, beacon_report_cb cb)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 /**
  * sme_ser_cmd_callback() - callback from serialization module
  * @cmd: serialization command

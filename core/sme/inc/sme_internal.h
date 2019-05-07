@@ -211,6 +211,13 @@ typedef void (*hidden_ssid_cb)(hdd_handle_t hdd_handle,
  */
 typedef void (*sme_get_isolation_cb)(struct sir_isolation_resp *param,
 				     void *pcontext);
+/**
+ * typedef bcn_report_cb - recv bcn callback fun
+ * @hdd_handle: HDD handle registered with SME
+ * @beacon_report: Beacon report structure
+ */
+typedef void (*beacon_report_cb)(hdd_handle_t hdd_handle,
+				 struct wlan_beacon_report *beacon_report);
 
 typedef struct tagSmeStruct {
 	eSmeState state;
@@ -322,6 +329,10 @@ typedef struct tagSmeStruct {
 						  void *context,
 						  wmi_mws_coex_cmd_id cmd_id);
 #endif /* WLAN_MWS_INFO_DEBUGFS */
+
+#ifdef WLAN_BCN_RECV_FEATURE
+	beacon_report_cb beacon_report_cb;
+#endif
 } tSmeStruct, *tpSmeStruct;
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */
