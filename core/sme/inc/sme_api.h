@@ -1338,6 +1338,21 @@ QDF_STATUS sme_update_mimo_power_save(tHalHandle hHal,
 				      uint8_t is_ht_smps_enabled,
 				      uint8_t ht_smps_mode,
 				      bool send_smps_action);
+#ifdef WLAN_BCN_RECV_FEATURE
+/**
+ * sme_handle_bcn_recv_start() - Enable fw to start sending
+ * beacons of the current connected AP
+ * @mac_handle: Opaque handle to the global MAC context
+ * @vdev_id: SME session id
+ *
+ * This function remove beacon filter. It allow fw to send
+ * all beacons from connected peer to driver.
+ *
+ * Return: QDF_STATUS enumeration
+ */
+QDF_STATUS sme_handle_bcn_recv_start(mac_handle_t mac_handle,
+				     uint32_t vdev_id);
+#endif
 
 bool sme_is_sta_smps_allowed(tHalHandle hHal, uint8_t session_id);
 QDF_STATUS sme_add_beacon_filter(tHalHandle hal,

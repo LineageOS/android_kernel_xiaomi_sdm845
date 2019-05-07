@@ -112,6 +112,7 @@
 #include "wlan_hdd_object_manager.h"
 #include "wlan_hdd_coex_config.h"
 #include "wlan_hdd_hw_capability.h"
+#include "wlan_hdd_bcn_recv.h"
 
 #define g_mode_rates_size (12)
 #define a_mode_rates_size (8)
@@ -15009,6 +15010,9 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlan_hdd_cfg80211_get_sar_power_limits
 	},
+
+	BCN_RECV_FEATURE_VENDOR_COMMANDS
+
 	{
 		.info.vendor_id = QCA_NL80211_VENDOR_ID,
 		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS,
