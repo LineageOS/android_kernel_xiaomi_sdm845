@@ -177,6 +177,13 @@ bool hdd_tsf_is_dbg_fs_set(struct hdd_context *hdd)
 		& CFG_SET_TSF_DBG_FS));
 }
 
+bool hdd_tsf_is_tsf64_tx_set(struct hdd_context *hdd)
+{
+	return (hdd && (hdd->config) &&
+		((hdd->config->tsf_ptp_options)
+		& CFG_SET_TSF_PTP_OPT_TSF64_TX));
+}
+
 #else
 static int hdd_tsf_reset_gpio(struct hdd_adapter *adapter)
 {
@@ -217,7 +224,6 @@ static QDF_STATUS hdd_tsf_set_gpio(struct hdd_context *hdd_ctx)
 
 	return status;
 }
-
 #endif
 
 static enum hdd_tsf_op_result hdd_capture_tsf_internal(

@@ -168,6 +168,7 @@ struct cds_config_info {
 	bool rps_enabled;
 	uint8_t delay_before_vdev_stop;
 	bool enable_peer_unmap_conf_support;
+	bool enable_tx_compl_tsf64;
 };
 
 #ifdef WLAN_FEATURE_FILS_SK
