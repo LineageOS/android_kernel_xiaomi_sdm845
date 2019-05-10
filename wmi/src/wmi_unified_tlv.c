@@ -3926,9 +3926,10 @@ QDF_STATUS send_setup_install_key_cmd_tlv(wmi_unified_t wmi_handle,
 
 	status = wmi_unified_cmd_send(wmi_handle, buf, len,
 					      WMI_VDEV_INSTALL_KEY_CMDID);
-	if (QDF_IS_STATUS_ERROR(status))
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_zero(wmi_buf_data(buf), len);
 		wmi_buf_free(buf);
-
+	}
 	return status;
 }
 
@@ -13025,6 +13026,12 @@ static host_mem_req *extract_host_mem_req_tlv(wmi_unified_t wmi_handle,
 	ev = (wmi_service_ready_event_fixed_param *) param_buf->fixed_param;
 	if (!ev) {
 		qdf_print("%s: wmi_buf_alloc failed\n", __func__);
+		return NULL;
+	}
+
+	if (ev->num_mem_reqs > param_buf->num_mem_reqs) {
+		WMI_LOGE("Invalid num_mem_reqs %d:%d",
+			 ev->num_mem_reqs, param_buf->num_mem_reqs);
 		return NULL;
 	}
 
