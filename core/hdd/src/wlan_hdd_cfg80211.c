@@ -4551,7 +4551,8 @@ static int hdd_get_cached_station_remote(hdd_context_t *hdd_ctx,
 			(sizeof(stainfo->rx_mc_bc_cnt) +
 			 NLA_HDRLEN) +
 			(sizeof(stainfo->rx_retry_cnt) +
-			 NLA_HDRLEN);
+			 NLA_HDRLEN) +
+			(sizeof(stainfo->support_mode) + NLA_HDRLEN);
 
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(hdd_ctx->wiphy, nl_buf_len);
 	if (!skb) {
@@ -4575,7 +4576,7 @@ static int hdd_get_cached_station_remote(hdd_context_t *hdd_ctx,
 	stainfo->ch_width = hdd_decode_ch_width((tSirMacHTChannelWidth)
 						stainfo->ch_width);
 
-	if (nla_put_u32(skb, REMOTE_SUPPORTED_MODE, stainfo->dot11_mode) ||
+	if (nla_put_u32(skb, REMOTE_SUPPORTED_MODE, stainfo->support_mode) ||
 	    nla_put_u8(skb, REMOTE_CH_WIDTH, stainfo->ch_width)) {
 		hdd_err("remote ch put fail");
 		goto fail;
@@ -4612,7 +4613,10 @@ static int hdd_get_cached_station_remote(hdd_context_t *hdd_ctx,
 		goto fail;
 		}
 	}
-
+	if (nla_put_u32(skb, WLAN802_11_MODE, stainfo->dot11_mode)) {
+		hdd_err("dot11 mode put fail");
+		goto fail;
+	}
 	qdf_mem_zero(stainfo, sizeof(*stainfo));
 
 	return cfg80211_vendor_cmd_reply(skb);
@@ -4910,6 +4914,40 @@ hdd_cfg80211_get_station_cmd(struct wiphy *wiphy,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0))
 #undef REMOTE_PAD
 #endif
+
+/**
+ * hdd_get_roam_reason() - convert wmi roam reason to
+ * enum qca_roam_reason
+ * @roam_scan_trigger: wmi roam scan trigger ID
+ *
+ * Return: Meaningful qca_roam_reason from enum WMI_ROAM_TRIGGER_REASON_ID
+ */
+static enum qca_roam_reason hdd_get_roam_reason(uint32_t roam_scan_trigger)
+{
+	switch (roam_scan_trigger) {
+	case WMI_ROAM_TRIGGER_REASON_PER:
+		return QCA_ROAM_REASON_PER;
+	case WMI_ROAM_TRIGGER_REASON_BMISS:
+		return QCA_ROAM_REASON_BEACON_MISS;
+	case WMI_ROAM_TRIGGER_REASON_LOW_RSSI:
+	case WMI_ROAM_TRIGGER_REASON_BACKGROUND:
+		return QCA_ROAM_REASON_POOR_RSSI;
+	case WMI_ROAM_TRIGGER_REASON_HIGH_RSSI:
+		return QCA_ROAM_REASON_BETTER_RSSI;
+	case WMI_ROAM_TRIGGER_REASON_DENSE:
+		return QCA_ROAM_REASON_CONGESTION;
+	case WMI_ROAM_TRIGGER_REASON_FORCED:
+		return QCA_ROAM_REASON_USER_TRIGGER;
+	case WMI_ROAM_TRIGGER_REASON_BTM:
+		return QCA_ROAM_REASON_BTM;
+	case WMI_ROAM_TRIGGER_REASON_BSS_LOAD:
+		return QCA_ROAM_REASON_BSS_LOAD;
+	default:
+		return QCA_ROAM_REASON_UNKNOWN;
+	}
+
+	return QCA_ROAM_REASON_UNKNOWN;
+}
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /**
@@ -5372,6 +5410,7 @@ int wlan_hdd_send_roam_auth_event(hdd_adapter_t *adapter, uint8_t *bssid,
 	eCsrAuthType auth_type;
 	uint32_t fils_params_len;
 	int status;
+	enum qca_roam_reason hdd_roam_reason;
 
 	ENTER();
 
@@ -5447,6 +5486,15 @@ int wlan_hdd_send_roam_auth_event(hdd_adapter_t *adapter, uint8_t *bssid,
 			roam_info_ptr->kek_len, roam_info_ptr->kek)) {
 			hdd_err("nla put fail, kek_len %d",
 				roam_info_ptr->kek_len);
+			goto nla_put_failure;
+		}
+
+		hdd_roam_reason =
+			hdd_get_roam_reason(roam_info_ptr->roam_reason);
+
+		if (nla_put_u8(skb, QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_REASON,
+			       hdd_roam_reason)) {
+			hdd_err("roam reason send failure");
 			goto nla_put_failure;
 		}
 
@@ -10878,7 +10926,7 @@ qca_wlan_vendor_set_nud_stats[STATS_SET_MAX + 1] = {
 const struct nla_policy
 qca_wlan_vendor_set_connectivity_check_stats[CONNECTIVITY_STATS_SET_MAX + 1] = {
 	[STATS_PKT_INFO_TYPE] = {.type = NLA_U32 },
-	[STATS_DNS_DOMAIN_NAME] = {.type = NLA_BINARY,
+	[STATS_DNS_DOMAIN_NAME] = {.type = NLA_NUL_STRING,
 					.len = DNS_DOMAIN_NAME_MAX_LEN },
 	[STATS_SRC_PORT] = {.type = NLA_U32 },
 	[STATS_DEST_PORT] = {.type = NLA_U32 },
@@ -16063,16 +16111,7 @@ static void wlan_hdd_fill_per_chain_rssi(struct cfg80211_inform_bss *data,
 }
 #endif
 
-/*
- * wlan_hdd_cfg80211_update_bss_list :to inform nl80211
- * interface that BSS might have been lost.
- * @pAdapter: adaptor
- * @bssid: bssid which might have been lost
- *
- * Return: bss which is unlinked from kernel cache
- */
-struct cfg80211_bss *wlan_hdd_cfg80211_update_bss_list(
-	hdd_adapter_t *pAdapter, tSirMacAddr bssid)
+void wlan_hdd_cfg80211_unlink_bss(hdd_adapter_t *pAdapter, tSirMacAddr bssid)
 {
 	struct net_device *dev = pAdapter->dev;
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -16081,14 +16120,15 @@ struct cfg80211_bss *wlan_hdd_cfg80211_update_bss_list(
 
 	bss = hdd_cfg80211_get_bss(wiphy, NULL, bssid,
 			NULL, 0);
-	if (bss == NULL) {
+	if (!bss) {
 		hdd_err("BSS not present");
 	} else {
 		hdd_debug("cfg80211_unlink_bss called for BSSID "
 			MAC_ADDRESS_STR, MAC_ADDR_ARRAY(bssid));
 		cfg80211_unlink_bss(wiphy, bss);
+		/* cfg80211_get_bss get bss with ref count so release it */
+		cfg80211_put_bss(wiphy, bss);
 	}
-	return bss;
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) || \
@@ -19769,7 +19809,6 @@ int __wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 	hdd_context_t *pHddCtx;
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	hdd_hostapd_state_t *hapd_state;
-	int status;
 	uint8_t staId;
 	uint8_t *mac;
 
@@ -19790,10 +19829,11 @@ int __wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 			 pAdapter->sessionId, pAdapter->device_mode));
 
 	pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
-	status = wlan_hdd_validate_context(pHddCtx);
 
-	if (0 != status)
-		return status;
+	if (!pHddCtx) {
+		hdd_err("pHddCtx is NULL");
+		return -EINVAL;
+	}
 
 	mac = (uint8_t *) pDelStaParams->peerMacAddr.bytes;
 

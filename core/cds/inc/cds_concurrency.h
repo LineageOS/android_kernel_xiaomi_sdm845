@@ -917,6 +917,19 @@ QDF_STATUS cds_get_pcl_for_existing_conn(enum cds_con_mode mode,
 			uint8_t *pcl_ch, uint32_t *len,
 			uint8_t *weight_list, uint32_t weight_len,
 			bool all_matching_cxn_to_del);
+
+/**
+ * cds_get_valid_chans_from_range() - get valid channels from range
+ * @ch_list: pointer to channel list
+ * @ch_cnt: channel number of channel list
+ * @mode: device mode
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS cds_get_valid_chans_from_range(uint8_t *ch_list,
+					  uint32_t *ch_cnt,
+					  enum cds_con_mode mode);
+
 QDF_STATUS cds_get_valid_chan_weights(struct sir_pcl_chan_weights *weight,
 			enum cds_con_mode mode);
 QDF_STATUS cds_set_hw_mode_on_channel_switch(uint8_t session_id);

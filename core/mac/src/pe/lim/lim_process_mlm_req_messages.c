@@ -2107,6 +2107,8 @@ lim_process_mlm_set_keys_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 
 	mlm_set_keys_req = (tLimMlmSetKeysReq *) msg_buf;
 	if (mac_ctx->lim.gpLimMlmSetKeysReq != NULL) {
+		qdf_mem_zero(mac_ctx->lim.gpLimMlmSetKeysReq,
+			     sizeof(tLimMlmSetKeysReq));
 		qdf_mem_free(mac_ctx->lim.gpLimMlmSetKeysReq);
 		mac_ctx->lim.gpLimMlmSetKeysReq = NULL;
 	}
@@ -2255,9 +2257,6 @@ lim_process_mlm_set_keys_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 			session->peSessionId);
 		/* Package WMA_SET_BSSKEY_REQ message parameters */
 		lim_send_set_bss_key_req(mac_ctx, mlm_set_keys_req, session);
-
-		qdf_mem_zero(mlm_set_keys_req->key, sizeof(tSirKeys));
-		mlm_set_keys_req->numKeys = 0;
 		return;
 	} else {
 		/*
@@ -2267,15 +2266,11 @@ lim_process_mlm_set_keys_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		lim_send_set_sta_key_req(mac_ctx, mlm_set_keys_req, sta_idx,
 					 (uint8_t) default_key_id, session,
 					 true);
-		qdf_mem_zero(mlm_set_keys_req->key, sizeof(tSirKeys));
-		mlm_set_keys_req->numKeys = 0;
 		return;
 	}
 end:
 	mlm_set_keys_cnf.sessionId = mlm_set_keys_req->sessionId;
 	lim_post_sme_set_keys_cnf(mac_ctx, mlm_set_keys_req, &mlm_set_keys_cnf);
-	qdf_mem_zero(mlm_set_keys_req->key, sizeof(tSirKeys));
-	mlm_set_keys_req->numKeys = 0;
 }
 
 /**

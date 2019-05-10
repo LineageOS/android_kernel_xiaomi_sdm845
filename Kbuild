@@ -291,6 +291,9 @@ ifneq ($(CONFIG_MOBILE_ROUTER), y)
 CONFIG_QCOM_ESE := y
 endif
 
+#Enable beacon reporting feature
+CONFIG_WLAN_BEACON_REPORTING := y
+
 # Feature flags which are not (currently) configurable via Kconfig
 
 #Whether to build debug version
@@ -1453,6 +1456,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_FEATURE_SAE),y)
 CDEFINES += -DWLAN_FEATURE_SAE
+endif
+
+ifeq ($(CONFIG_WLAN_BEACON_REPORTING),y)
+CDEFINES += -DNTH_BEACON_OFFLOAD
 endif
 
 ifeq ($(BUILD_DIAG_VERSION),1)

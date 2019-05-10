@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -470,8 +470,15 @@ void wlan_hdd_cfg80211_chainrssi_callback(void *hdd_ctx, void *pmsg,
 void hdd_rssi_threshold_breached(void *hddctx,
 				 struct rssi_breach_event *data);
 
-struct cfg80211_bss *wlan_hdd_cfg80211_update_bss_list(hdd_adapter_t *pAdapter,
-						tSirMacAddr bssid);
+/*
+ * wlan_hdd_cfg80211_unlink_bss :to inform nl80211
+ * interface that BSS might have been lost.
+ * @pAdapter: adapter
+ * @bssid: bssid which might have been lost
+ *
+ * Return: void
+ */
+void wlan_hdd_cfg80211_unlink_bss(hdd_adapter_t *pAdapter, tSirMacAddr bssid);
 
 int wlan_hdd_cfg80211_update_bss(struct wiphy *wiphy,
 						hdd_adapter_t *pAdapter,

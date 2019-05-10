@@ -1456,6 +1456,34 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * honour_nl_scan_policy_flags - This ini will decide whether to honour
+ * NL80211 scan policy flags
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This parameter will decide whether to honour scan flags such as
+ * NL80211_SCAN_FLAG_HIGH_ACCURACY , NL80211_SCAN_FLAG_LOW_SPAN,
+ * NL80211_SCAN_FLAG_LOW_POWER.
+ * Acceptable values for this:
+ * 0: Config is disabled
+ * 1: Config is enabled
+ *
+ * Related: None
+ *
+ * Supported Feature: Scan
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_HONOUR_NL_SCAN_POLICY_FLAGS_NAME     "honour_nl_scan_policy_flags"
+#define CFG_HONOUR_NL_SCAN_POLICY_FLAGS_MIN      (0)
+#define CFG_HONOUR_NL_SCAN_POLICY_FLAGS_MAX      (1)
+#define CFG_HONOUR_NL_SCAN_POLICY_FLAGS_DEFAULT  (1)
+
+/*
+ * <ini>
  * adaptive_dwell_mode_enabled - Enable adaptive dwell mode
  * @Min: 0
  * @Max: 1
@@ -1853,6 +1881,29 @@ enum hdd_dot11_mode {
 #define CFG_11B_NUM_TX_CHAIN_MIN       (0)
 #define CFG_11B_NUM_TX_CHAIN_MAX       (2)
 #define CFG_11B_NUM_TX_CHAIN_DEFAULT   (0)
+
+/*
+ * <ini>
+ * nth_beacon_reporting - Enable/Disable the nth beacon reporting offload
+ * @Min: 0
+ * @Max: 65536
+ * @Default: 0
+ *
+ * The configured value will be used by firmware to forward
+ * that beacon to host which is then forwarded to the userspace.
+ *
+ * Related: None
+ *
+ * Supported Feature: Beacon reporting
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NTH_BEACON_REPORTING_OFFLOAD_NAME      "nth_beacon_reporting"
+#define CFG_NTH_BEACON_REPORTING_OFFLOAD_MIN       (0)
+#define CFG_NTH_BEACON_REPORTING_OFFLOAD_MAX       (65536)
+#define CFG_NTH_BEACON_REPORTING_OFFLOAD_DEFAULT   (0)
 
 /*
  * <ini>
@@ -16087,6 +16138,7 @@ struct hdd_config {
 	bool enable_dp_trace;
 	uint8_t dp_trace_config[DP_TRACE_CONFIG_STRING_LENGTH];
 	bool adaptive_dwell_mode_enabled;
+	bool honour_nl_scan_policy_flags;
 	enum wmi_dwelltime_adaptive_mode scan_adaptive_dwell_mode;
 	enum wmi_dwelltime_adaptive_mode scan_adaptive_dwell_mode_nc;
 	enum wmi_dwelltime_adaptive_mode roamscan_adaptive_dwell_mode;
@@ -16326,6 +16378,7 @@ struct hdd_config {
 	uint32_t btm_max_attempt_cnt;
 	uint32_t btm_sticky_time;
 	uint32_t btm_query_bitmask;
+	uint16_t beacon_reporting;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

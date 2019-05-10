@@ -5693,6 +5693,295 @@ static bool cds_is_dbs_allowed_for_concurrency(
 }
 
 /**
+ * cds_skip_dfs_ch() - skip dfs channel or not
+ * @skip_dfs_channel: return check result
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS cds_skip_dfs_ch(bool *skip_dfs_channel)
+{
+	bool sta_sap_scc_on_dfs_chan;
+	struct cds_config_info *cds_cfg;
+
+	cds_cfg = cds_get_ini_config();
+	if (!cds_cfg) {
+		cds_err("cds config is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	*skip_dfs_channel = false;
+	if (!cds_cfg->dfs_master_enable) {
+		cds_debug("skip DFS ch for SAP/Go dfs master cap %d",
+			  cds_cfg->dfs_master_enable);
+		*skip_dfs_channel = true;
+	}
+
+	if (!*skip_dfs_channel) {
+		sta_sap_scc_on_dfs_chan =
+			cds_is_sta_sap_scc_allowed_on_dfs_channel();
+		if (cds_mode_specific_connection_count(CDS_STA_MODE, NULL)
+		    > 0 && !sta_sap_scc_on_dfs_chan) {
+			cds_debug("SAP/Go skips DFS ch if sta connects");
+			*skip_dfs_channel = true;
+		}
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * cds_modify_sap_pcl_based_on_dfs() - filter out DFS channel if needed
+ * @pcl_list_org: channel list to filter out
+ * @weight_list_org: weight of channel list
+ * @pcl_len_org: length of channel list
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS cds_modify_sap_pcl_based_on_dfs(uint8_t *pcl_list_org,
+						  uint8_t *weight_list_org,
+						  uint32_t *pcl_len_org)
+{
+	size_t i, pcl_len = 0;
+	bool skip_dfs_channel = false;
+	QDF_STATUS status;
+
+	if (*pcl_len_org > QDF_MAX_NUM_CHAN) {
+		cds_err("Invalid PCL List Length %d", *pcl_len_org);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	status = cds_skip_dfs_ch(&skip_dfs_channel);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		cds_err("failed to get skip dfs ch info");
+		return status;
+	}
+
+	if (!skip_dfs_channel) {
+		cds_debug("No more operation on DFS channel");
+		return QDF_STATUS_SUCCESS;
+	}
+
+	for (i = 0; i < *pcl_len_org; i++) {
+		if (!CDS_IS_DFS_CH(pcl_list_org[i])) {
+			pcl_list_org[pcl_len] = pcl_list_org[i];
+			weight_list_org[pcl_len++] = weight_list_org[i];
+		}
+	}
+
+	*pcl_len_org = pcl_len;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * cds_modify_sap_pcl_based_on_nol() - filter out nol channel
+ * @pcl_list_org: channel list to filter out
+ * @weight_list_org: weight of channel list
+ * @pcl_len_org: length of channel list
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS cds_modify_sap_pcl_based_on_nol(
+		uint8_t *pcl_list_org,
+		uint8_t *weight_list_org,
+		uint32_t *pcl_len_org)
+{
+	size_t i, pcl_len = 0;
+
+	if (*pcl_len_org > QDF_MAX_NUM_CHAN) {
+		cds_err("Invalid PCL List Length %d", *pcl_len_org);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	for (i = 0; i < *pcl_len_org; i++) {
+		if (!CDS_IS_DISABLE_CH(pcl_list_org[i])) {
+			pcl_list_org[pcl_len] = pcl_list_org[i];
+			weight_list_org[pcl_len++] = weight_list_org[i];
+		}
+	}
+
+	*pcl_len_org = pcl_len;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * cds_modify_sap_pcl_based_on_srd() - filter out srd channel if needed
+ * @pcl_list_org: pointer to channel list
+ * @weight_list_org: pointer to weight of channel list
+ * @pcl_len_org: pointer to length of channel list
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS cds_modify_sap_pcl_based_on_srd(
+				       uint8_t *pcl_list_org,
+				       uint8_t *weight_list_org,
+				       uint32_t *pcl_len_org)
+{
+	size_t i, pcl_len = 0;
+	bool skip_srd_chan;
+	struct cds_config_info *cds_cfg;
+
+	cds_cfg = cds_get_ini_config();
+	if (!cds_cfg) {
+		cds_err("cds config is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	skip_srd_chan = !cds_cfg->etsi_srd_chan_in_master_mode &&
+			cds_is_5g_regdmn_etsi13();
+
+	if (!skip_srd_chan)
+		return QDF_STATUS_SUCCESS;
+
+	if (*pcl_len_org > QDF_MAX_NUM_CHAN) {
+		cds_err("Invalid PCL List Length %d", *pcl_len_org);
+		return QDF_STATUS_E_FAILURE;
+	}
+	for (i = 0; i < *pcl_len_org; i++) {
+		if (cds_is_etsi13_regdmn_srd_chan(cds_chan_to_freq(
+							pcl_list_org[i])))
+			continue;
+		pcl_list_org[pcl_len] = pcl_list_org[i];
+		weight_list_org[pcl_len++] = weight_list_org[i];
+	}
+
+	*pcl_len_org = pcl_len;
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * cds_pcl_modification_for_sap() - filter out channels for sap
+ * @pcl_channels: pointer to channel list
+ * @pcl_weight: pointer to weight of channel list
+ * @len: pointer to length of channel list
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS cds_pcl_modification_for_sap(
+			uint8_t *pcl_channels, uint8_t *pcl_weight,
+			uint32_t *len)
+{
+	QDF_STATUS status;
+	size_t i;
+
+	if (cds_is_sap_mandatory_channel_set()) {
+		status = cds_modify_sap_pcl_based_on_mandatory_channel(
+				pcl_channels, pcl_weight, len);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			cds_err("failed to get mandatory modified pcl for SAP");
+			return status;
+		}
+		cds_debug("mandatory modified pcl len:%d", *len);
+		for (i = 0; i < *len; i++)
+			cds_debug("chan:%d weight:%d",
+				  pcl_channels[i], pcl_weight[i]);
+	}
+
+	status = cds_modify_sap_pcl_based_on_nol(
+			pcl_channels, pcl_weight, len);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		cds_err("failed to get nol modified pcl for SAP");
+		return status;
+	}
+	cds_debug("nol modified pcl len:%d", *len);
+	for (i = 0; i < *len; i++)
+		cds_debug("chan:%d weight:%d",
+			  pcl_channels[i], pcl_weight[i]);
+
+	status = cds_modify_sap_pcl_based_on_dfs(
+			pcl_channels, pcl_weight, len);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		cds_err("failed to get dfs modified pcl for SAP");
+		return status;
+	}
+	cds_debug("dfs modified pcl len:%d", *len);
+	for (i = 0; i < *len; i++)
+		cds_debug("chan:%d weight:%d",
+			  pcl_channels[i], pcl_weight[i]);
+
+	status = cds_modify_sap_pcl_based_on_srd(
+			pcl_channels, pcl_weight, len);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		cds_err("failed to get srd modified pcl for SAP");
+		return status;
+	}
+	cds_debug("modified final pcl len:%d", *len);
+	for (i = 0; i < *len; i++)
+		cds_debug("chan:%d weight:%d",
+			  pcl_channels[i], pcl_weight[i]);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * cds_pcl_modification_for_p2p_go() - filter out channels for go
+ * @pcl_channels: pointer to channel list
+ * @pcl_weight: pointer to weight of channel list
+ * @len: pointer to length of channel list
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS cds_pcl_modification_for_p2p_go(
+			uint8_t *pcl_channels, uint8_t *pcl_weight,
+			uint32_t *len)
+{
+	QDF_STATUS status;
+	size_t i;
+
+	status = cds_modify_pcl_based_on_enabled_channels(
+			pcl_channels, pcl_weight, len);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		cds_err("failed to get enabled channel modified pcl for GO");
+		return status;
+	}
+	cds_debug("enabled channel modified pcl len:%d", *len);
+	for (i = 0; i < *len; i++)
+		cds_debug("chan:%d weight:%d",
+			  pcl_channels[i], pcl_weight[i]);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * cds_mode_specific_modification_on_pcl() - filter out channel based on mode
+ * @pcl_channels: pointer to channel list
+ * @pcl_weight: pointer to weight of channel list
+ * @len: pointer to length of channel list
+ * @mode: device mode
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS cds_mode_specific_modification_on_pcl(
+			uint8_t *pcl_channels, uint8_t *pcl_weight,
+			uint32_t *len, enum cds_con_mode mode)
+{
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+
+	switch (mode) {
+	case CDS_SAP_MODE:
+		status = cds_pcl_modification_for_sap(
+				pcl_channels, pcl_weight, len);
+		break;
+	case CDS_P2P_GO_MODE:
+		status = cds_pcl_modification_for_p2p_go(
+				pcl_channels, pcl_weight, len);
+		break;
+	case CDS_STA_MODE:
+	case CDS_P2P_CLIENT_MODE:
+	case CDS_IBSS_MODE:
+		status = QDF_STATUS_SUCCESS;
+		break;
+	default:
+		cds_err("unexpected mode %d", mode);
+		break;
+	}
+
+	return status;
+}
+
+/**
  * cds_get_pcl() - provides the preferred channel list for
  * new connection
  * @mode:	Device mode
@@ -10312,6 +10601,44 @@ bool cds_is_force_scc(void)
 			(hdd_ctx->config->WlanMccToSccSwitchMode ==
 		QDF_MCC_TO_SCC_WITH_PREFERRED_BAND));
 }
+
+QDF_STATUS cds_get_valid_chans_from_range(
+			uint8_t *ch_list,
+			uint32_t *ch_cnt,
+			enum cds_con_mode mode)
+{
+	uint8_t ch_weight_list[QDF_MAX_NUM_CHAN];
+	uint32_t ch_weight_len;
+	QDF_STATUS status;
+	size_t chan_index = 0;
+
+	if (!ch_list || !ch_cnt) {
+		cds_err("Null parameters");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	for (chan_index = 0; chan_index < *ch_cnt; chan_index++)
+		ch_weight_list[chan_index] = WEIGHT_OF_GROUP1_PCL_CHANNELS;
+
+	ch_weight_len = *ch_cnt;
+
+	/* check the channel avoidance list for beaconing entities */
+	if (mode == CDS_SAP_MODE || mode == CDS_P2P_GO_MODE)
+		cds_update_with_safe_channel_list(ch_list, ch_cnt,
+						  ch_weight_list,
+						  ch_weight_len);
+
+	status = cds_mode_specific_modification_on_pcl(
+				ch_list, ch_weight_list, ch_cnt, mode);
+
+	if (QDF_IS_STATUS_ERROR(status)) {
+		cds_err("failed to get modified pcl for mode %d", mode);
+		return status;
+	}
+
+	return status;
+}
+
 /**
  * cds_get_valid_chan_weights() - Get the weightage for all
  * requested valid channels

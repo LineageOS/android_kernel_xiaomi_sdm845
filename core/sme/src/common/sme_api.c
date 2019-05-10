@@ -9382,6 +9382,7 @@ QDF_STATUS sme_stop_roaming(tHalHandle hal, uint8_t session_id, uint8_t reason)
 	status = wma_post_ctrl_msg(mac_ctx, &wma_msg);
 	if (eSIR_SUCCESS != status) {
 		sme_err("Posting WMA_ROAM_SCAN_OFFLOAD_REQ failed");
+		qdf_mem_zero(req, sizeof(tSirRoamOffloadScanReq));
 		qdf_mem_free(req);
 		return QDF_STATUS_E_FAULT;
 	}
