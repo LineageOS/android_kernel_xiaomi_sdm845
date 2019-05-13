@@ -224,10 +224,12 @@ typedef void (*beacon_report_cb)(hdd_handle_t hdd_handle,
  * @hdd_handler: HDD handler
  * @vdev_id: vdev id
  * @type: scan event type
+ * @is_disconnected: Driver is in dis connected state or not
  */
 typedef void (*beacon_pause_cb)(hdd_handle_t hdd_handle,
 				uint8_t vdev_id,
-				enum scan_event_type type);
+				enum scan_event_type type,
+				bool is_disconnected);
 
 typedef struct tagSmeStruct {
 	eSmeState state;
