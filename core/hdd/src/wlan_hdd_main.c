@@ -2074,7 +2074,7 @@ hdd_modify_nss_chains_tgt_cfg(struct hdd_context *hdd_ctx,
 				  max_supported_tx_nss, vdev_op_mode, band);
 }
 
-void hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
+int hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 {
 	int ret;
 	struct hdd_context *hdd_ctx = hdd_handle_to_context(hdd_handle);
@@ -2087,12 +2087,12 @@ void hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 
 	if (!hdd_ctx) {
 		hdd_err("HDD context is NULL");
-		return;
+		return -EINVAL;
 	}
 	ret = hdd_objmgr_create_and_store_pdev(hdd_ctx);
 	if (ret) {
 		QDF_DEBUG_PANIC("Failed to create pdev; errno:%d", ret);
-		return;
+		return -EINVAL;
 	}
 
 	hdd_debug("New pdev has been created with pdev_id = %u",
@@ -2102,7 +2102,8 @@ void hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 	if (QDF_IS_STATUS_ERROR(status)) {
 		QDF_DEBUG_PANIC("dispatcher pdev open failed; status:%d",
 				status);
-		return;
+		ret = qdf_status_to_os_return(status);
+		goto exit;
 	}
 
 	hdd_objmgr_update_tgt_max_vdev_psoc(hdd_ctx, cfg->max_intf_count);
@@ -2277,6 +2278,12 @@ void hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 				 cfg->obss_color_collision_offloaded);
 	if (QDF_IS_STATUS_ERROR(status))
 		hdd_err("Failed to set WNI_CFG_OBSS_COLOR_COLLISION_OFFLOAD");
+
+	return 0;
+
+exit:
+	hdd_objmgr_release_and_destroy_pdev(hdd_ctx);
+	return ret;
 }
 
 bool hdd_dfs_indicate_radar(struct hdd_context *hdd_ctx)
