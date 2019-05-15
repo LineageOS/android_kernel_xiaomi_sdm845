@@ -765,7 +765,6 @@ bool lim_check_disassoc_deauth_ack_pending(tpAniSirGlobal pMac,
 
 #ifdef WLAN_FEATURE_11W
 void lim_pmf_sa_query_timer_handler(void *pMacGlobal, uint32_t param);
-void lim_pmf_comeback_timer_callback(void *context);
 void lim_set_protected_bit(tpAniSirGlobal pMac,
 	tpPESession psessionEntry,
 	tSirMacAddr peer, tpSirMacMgmtHdr pMacHdr);
@@ -1320,9 +1319,7 @@ static inline QDF_STATUS lim_populate_he_mcs_set(tpAniSirGlobal mac_ctx,
  * lim_assoc_rej_add_to_rssi_based_reject_list() - Add BSSID to the rssi based
  * rejection list
  * @mac_ctx: mac ctx
- * @rssi_assoc_rej: rssi assoc reject attribute
- * @bssid : BSSID of the AP
- * @rssi : RSSI of the assoc resp
+ * @ap_info: ap's info which is to be rejected.
  *
  * Add BSSID to the rssi based rejection list. Also if number
  * of entries is greater than MAX_RSSI_AVOID_BSSID_LIST
@@ -1331,8 +1328,7 @@ static inline QDF_STATUS lim_populate_he_mcs_set(tpAniSirGlobal mac_ctx,
  * Return: void
  */
 void lim_assoc_rej_add_to_rssi_based_reject_list(tpAniSirGlobal mac_ctx,
-	tDot11fTLVrssi_assoc_rej *rssi_assoc_rej,
-	tSirMacAddr bssid, int8_t rssi);
+					struct sir_rssi_disallow_lst *ap_info);
 
 /**
  * lim_decrement_pending_mgmt_count: Decrement mgmt frame count
