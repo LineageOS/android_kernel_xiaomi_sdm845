@@ -597,10 +597,14 @@ static void ucfg_scan_req_update_concurrency_params(
 {
 	bool ap_present, go_present, sta_active, p2p_cli_present, ndi_present;
 	struct wlan_objmgr_psoc *psoc;
+	uint16_t sap_peer_count = 0;
+	uint16_t go_peer_count = 0;
+	struct wlan_objmgr_pdev *pdev;
 
+	pdev = wlan_vdev_get_pdev(vdev);
 	psoc = wlan_vdev_get_psoc(vdev);
 
-	if (!psoc)
+	if (!psoc || !pdev)
 		return;
 	ap_present = policy_mgr_mode_specific_connection_count(
 				psoc, PM_SAP_MODE, NULL);
@@ -612,7 +616,12 @@ static void ucfg_scan_req_update_concurrency_params(
 				psoc, PM_STA_MODE, NULL);
 	ndi_present = policy_mgr_mode_specific_connection_count(
 				psoc, PM_NDI_MODE, NULL);
-
+	if (ap_present)
+		sap_peer_count =
+		wlan_util_get_peer_count_for_mode(pdev, QDF_SAP_MODE);
+	if (go_present)
+		go_peer_count =
+		wlan_util_get_peer_count_for_mode(pdev, QDF_P2P_GO_MODE);
 	if (policy_mgr_get_connection_count(psoc)) {
 		if (req->scan_req.scan_f_passive)
 			req->scan_req.dwell_time_passive =
@@ -631,11 +640,12 @@ static void ucfg_scan_req_update_concurrency_params(
 		req->scan_req.adaptive_dwell_time_mode =
 			scan_obj->scan_def.adaptive_dwell_time_mode_nc;
 	/*
-	 * If AP is active set min rest time same as max rest time, so that
-	 * firmware spends more time on home channel which will increase the
-	 * probability of sending beacon at TBTT
+	 * If AP/GO is active and has clients connectedset min rest time same
+	 * as max rest time, so that firmware spends more time on home channel
+	 * which will increase the probability of sending beacon at TBTT
 	 */
-	if (ap_present || go_present) {
+	if ((ap_present && sap_peer_count) ||
+	    (go_present && go_peer_count)) {
 		req->scan_req.dwell_time_active_2g = 0;
 		req->scan_req.min_rest_time = req->scan_req.max_rest_time;
 	}
@@ -736,15 +746,17 @@ static void ucfg_scan_req_update_concurrency_params(
 		 * dwell time. If DBS is supported and if SAP is on 2G channel
 		 * then keep passive dwell time default.
 		 */
-		req->scan_req.dwell_time_active =
-				QDF_MIN(req->scan_req.dwell_time_active,
+		if (sap_peer_count) {
+			req->scan_req.dwell_time_active =
+					QDF_MIN(req->scan_req.dwell_time_active,
 					(SCAN_CTS_DURATION_MS_MAX -
 					SCAN_ROAM_SCAN_CHANNEL_SWITCH_TIME));
-		if (!policy_mgr_is_hw_dbs_capable(psoc) ||
-		    (policy_mgr_is_hw_dbs_capable(psoc) &&
-		     WLAN_CHAN_IS_5GHZ(ap_chan))) {
-			req->scan_req.dwell_time_passive =
-				req->scan_req.dwell_time_active;
+			if (!policy_mgr_is_hw_dbs_capable(psoc) ||
+			    (policy_mgr_is_hw_dbs_capable(psoc) &&
+			     WLAN_CHAN_IS_5GHZ(ap_chan))) {
+				req->scan_req.dwell_time_passive =
+					req->scan_req.dwell_time_active;
+			}
 		}
 		if (scan_obj->scan_def.ap_scan_burst_duration) {
 			req->scan_req.burst_duration =

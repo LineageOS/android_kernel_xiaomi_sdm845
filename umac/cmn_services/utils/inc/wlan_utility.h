@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -36,6 +36,16 @@
 struct wlan_find_vdev_filter {
 	char *ifname;
 	struct wlan_objmgr_vdev *found_vdev;
+};
+
+/**
+ * struct wlan_op_mode_peer_count- vdev connected peer count
+ * @opmode: QDF mode
+ * @peer_count: peer count
+ **/
+struct wlan_op_mode_peer_count {
+	enum QDF_OPMODE opmode;
+	uint16_t peer_count;
 };
 
 /**
@@ -183,4 +193,16 @@ bool wlan_vdev_is_up(struct wlan_objmgr_vdev *vdev);
  */
 QDF_STATUS wlan_util_is_vap_active(struct wlan_objmgr_pdev *pdev,
 				   wlan_objmgr_ref_dbgid dbg_id);
+
+/**
+ * wlan_util_get_peer_count_for_mode - This api gives vdev mode specific
+ * peer count`
+ * @pdev: PDEV object
+ * @mode: Operation mode.
+ *
+ * Return: int- peer count
+ */
+uint16_t wlan_util_get_peer_count_for_mode(struct wlan_objmgr_pdev *pdev,
+					   enum QDF_OPMODE mode);
+
 #endif /* _WLAN_UTILITY_H_ */

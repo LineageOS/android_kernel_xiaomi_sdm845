@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1323,6 +1323,20 @@ bool policy_mgr_is_sap_mandatory_channel_set(struct wlan_objmgr_psoc *psoc);
  */
 bool policy_mgr_list_has_24GHz_channel(uint8_t *channel_list,
 		uint32_t list_len);
+
+/**
+ * policy_mgr_get_valid_chans_from_range() - get valid channel from given range
+ * @psoc: PSOC object information
+ * @ch_list: Pointer to the channel list
+ * @ch_cnt: Pointer to the length of the channel list
+ * @mode: Device mode
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS policy_mgr_get_valid_chans_from_range(struct wlan_objmgr_psoc *psoc,
+						 uint8_t *ch_list,
+						 uint32_t *ch_cnt,
+						 enum policy_mgr_con_mode mode);
 
 /**
  * policy_mgr_get_valid_chans() - Get the valid channel list
