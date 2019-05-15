@@ -4939,7 +4939,7 @@ static QDF_STATUS wma_set_sw_retry_by_qos(
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS wma_set_sw_retry_threshold(
+QDF_STATUS wma_set_sw_retry_threshold_per_ac(
 	WMA_HANDLE handle,
 	struct sir_set_tx_sw_retry_threshold *tx_sw_retry_threshold)
 {

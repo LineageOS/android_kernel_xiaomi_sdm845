@@ -142,10 +142,8 @@ struct cds_config_info {
 	bool ip_tcp_udp_checksum_offload;
 	bool ce_classify_enabled;
 	uint8_t max_scan;
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
 	uint32_t tx_flow_stop_queue_th;
 	uint32_t tx_flow_start_queue_offset;
-#endif
 #ifdef WLAN_FEATURE_LPSS
 	bool is_lpass_enabled;
 #endif

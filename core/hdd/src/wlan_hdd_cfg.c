@@ -2886,7 +2886,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_LL_TX_HBW_FLOW_MAX_Q_DEPTH_MIN,
 		     CFG_LL_TX_HBW_FLOW_MAX_Q_DEPTH_MAX),
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
 
 	REG_VARIABLE(CFG_LL_TX_FLOW_STOP_QUEUE_TH, WLAN_PARAM_Integer,
 		     struct hdd_config, TxFlowStopQueueThreshold,
@@ -2902,7 +2901,6 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_LL_TX_FLOW_START_QUEUE_OFFSET_MIN,
 		     CFG_LL_TX_FLOW_START_QUEUE_OFFSET_MAX),
 
-#endif
 	REG_VARIABLE(CFG_INITIAL_DWELL_TIME_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, nInitialDwellTime,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4477,6 +4475,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_TX_AGGR_SW_RETRY_VO_MIN,
 		     CFG_TX_AGGR_SW_RETRY_VO_MAX),
 
+	REG_VARIABLE(CFG_TX_AGGR_SW_RETRY, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_aggr_sw_retry_threshold,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_AGGR_SW_RETRY_DEFAULT,
+		     CFG_TX_AGGR_SW_RETRY_MIN,
+		     CFG_TX_AGGR_SW_RETRY_MAX),
+
 	REG_VARIABLE(CFG_TX_NON_AGGR_SW_RETRY_BE, WLAN_PARAM_Integer,
 		     struct hdd_config, tx_non_aggr_sw_retry_threshold_be,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4504,6 +4509,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_TX_NON_AGGR_SW_RETRY_VO_DEFAULT,
 		     CFG_TX_NON_AGGR_SW_RETRY_VO_MIN,
 		     CFG_TX_NON_AGGR_SW_RETRY_VO_MAX),
+
+	REG_VARIABLE(CFG_TX_NON_AGGR_SW_RETRY, WLAN_PARAM_Integer,
+		     struct hdd_config, tx_non_aggr_sw_retry_threshold,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TX_NON_AGGR_SW_RETRY_DEFAULT,
+		     CFG_TX_NON_AGGR_SW_RETRY_MIN,
+		     CFG_TX_NON_AGGR_SW_RETRY_MAX),
 
 	REG_VARIABLE(CFG_SAP_MAX_INACTIVITY_OVERRIDE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, sap_max_inactivity_override,
@@ -9083,6 +9095,8 @@ QDF_STATUS hdd_set_policy_mgr_user_cfg(struct hdd_context *hdd_ctx)
 		hdd_ctx->config->channel_select_logic_conc;
 	user_cfg->sta_sap_scc_on_lte_coex_chan =
 		hdd_ctx->config->sta_sap_scc_on_lte_coex_chan;
+	user_cfg->enable_dfs_master_cap =
+		hdd_ctx->config->enableDFSMasterCap;
 	status = policy_mgr_set_user_cfg(hdd_ctx->psoc, user_cfg);
 	qdf_mem_free(user_cfg);
 
@@ -9707,6 +9721,8 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 			hdd_ctx->config->tx_aggr_sw_retry_threshold_vi;
 	smeConfig->csrConfig.tx_aggr_sw_retry_threshold_vo =
 			hdd_ctx->config->tx_aggr_sw_retry_threshold_vo;
+	smeConfig->csrConfig.tx_aggr_sw_retry_threshold =
+			hdd_ctx->config->tx_aggr_sw_retry_threshold;
 	smeConfig->csrConfig.tx_non_aggr_sw_retry_threshold_be =
 			hdd_ctx->config->tx_non_aggr_sw_retry_threshold_be;
 	smeConfig->csrConfig.tx_non_aggr_sw_retry_threshold_bk =
@@ -9715,6 +9731,8 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 			hdd_ctx->config->tx_non_aggr_sw_retry_threshold_vi;
 	smeConfig->csrConfig.tx_non_aggr_sw_retry_threshold_vo =
 			hdd_ctx->config->tx_non_aggr_sw_retry_threshold_vo;
+	smeConfig->csrConfig.tx_non_aggr_sw_retry_threshold =
+			hdd_ctx->config->tx_non_aggr_sw_retry_threshold;
 	smeConfig->csrConfig.enable_bcast_probe_rsp =
 			hdd_ctx->config->enable_bcast_probe_rsp;
 	smeConfig->csrConfig.is_fils_enabled =

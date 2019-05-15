@@ -149,6 +149,22 @@ static void hdd_hif_init_driver_state_callbacks(void *data,
 }
 
 /**
+ * hdd_hif_set_attribute() - API to set CE attribute if memory is limited
+ * @hif_ctx: hif context
+ *
+ * Return: None
+ */
+#ifdef QCS403_MEM_OPTIMIZE
+static void hdd_hif_set_attribute(struct hif_opaque_softc *hif_ctx)
+{
+	hif_set_attribute(hif_ctx, HIF_LOWDESC_CE_NO_PKTLOG_CFG);
+}
+#else
+static void hdd_hif_set_attribute(struct hif_opaque_softc *hif_ctx)
+{}
+#endif
+
+/**
  * hdd_init_cds_hif_context() - API to set CDS HIF Context
  * @hif: HIF Context
  *
@@ -234,6 +250,8 @@ int hdd_hif_open(struct device *dev, void *bdev, const struct hif_bus_id *bid,
 		hdd_err("Failed to set global HIF CDS Context err: %d", ret);
 		goto err_hif_close;
 	}
+
+	hdd_hif_set_attribute(hif_ctx);
 
 	status = hif_enable(hif_ctx, dev, bdev, bid, bus_type,
 			    (reinit == true) ?  HIF_ENABLE_TYPE_REINIT :
@@ -570,6 +588,7 @@ static void hdd_send_hang_reason(void)
 static void wlan_hdd_shutdown(void)
 {
 	void *hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
+	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 
 	if (!hif_ctx) {
 		hdd_err("Failed to get HIF context, ignore SSR shutdown");
@@ -596,6 +615,8 @@ static void wlan_hdd_shutdown(void)
 
 	/* this is for cases, where shutdown invoked from platform */
 	cds_set_recovery_in_progress(true);
+	if (pld_is_pdr(hdd_ctx->parent_dev) && ucfg_ipa_is_enabled())
+		ucfg_ipa_fw_rejuvenate_send_msg(hdd_ctx->pdev);
 	hdd_wlan_ssr_shutdown_event();
 	hdd_send_hang_reason();
 
@@ -1537,14 +1558,15 @@ static void wlan_hdd_handle_the_pld_uevent(struct pld_uevent_data *uevent)
 	case PLD_RECOVERY:
 		cds_set_target_ready(false);
 		hdd_pld_ipa_uc_shutdown_pipes();
+		qdf_complete_wait_events();
 		break;
 	case PLD_FW_DOWN:
-		qdf_complete_wait_events();
 		cds_set_target_ready(false);
 		wlan_cfg80211_cleanup_scan_queue(hdd_ctx->pdev, NULL);
 		if (pld_is_fw_rejuvenate(hdd_ctx->parent_dev) &&
 		    ucfg_ipa_is_enabled())
 			ucfg_ipa_fw_rejuvenate_send_msg(hdd_ctx->pdev);
+		qdf_complete_wait_events();
 		break;
 	default:
 		break;

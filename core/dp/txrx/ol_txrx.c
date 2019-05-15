@@ -59,6 +59,7 @@
 #include <ol_tx_sched.h>           /* ol_tx_sched_attach, etc. */
 #include <ol_txrx.h>
 #include <ol_txrx_types.h>
+#include <ol_cfg.h>
 #include <cdp_txrx_flow_ctrl_legacy.h>
 #include <cdp_txrx_bus.h>
 #include <cdp_txrx_ipa.h>
@@ -1625,6 +1626,8 @@ ol_txrx_pdev_post_attach(struct cdp_pdev *ppdev)
 	union ol_tx_desc_list_elem_t *c_element;
 	unsigned int sig_bit;
 	uint16_t desc_per_page;
+	uint32_t stop_threshold;
+	uint32_t start_threshold;
 
 	if (!osc) {
 		ret = -EINVAL;
@@ -1786,6 +1789,21 @@ ol_txrx_pdev_post_attach(struct cdp_pdev *ppdev)
 		   "%s first tx_desc:0x%pK Last tx desc:0x%pK\n", __func__,
 		   (uint32_t *) pdev->tx_desc.freelist,
 		   (uint32_t *) (pdev->tx_desc.freelist + desc_pool_size));
+	stop_threshold = ol_cfg_get_tx_flow_stop_queue_th(pdev->ctrl_pdev);
+	start_threshold = stop_threshold +
+		ol_cfg_get_tx_flow_start_queue_offset(pdev->ctrl_pdev);
+	pdev->tx_desc.start_th = (start_threshold * desc_pool_size) / 100;
+	pdev->tx_desc.stop_th = (stop_threshold * desc_pool_size) / 100;
+	pdev->tx_desc.stop_priority_th =
+		(TX_PRIORITY_TH * pdev->tx_desc.stop_th) / 100;
+	if (pdev->tx_desc.stop_priority_th >= MAX_TSO_SEGMENT_DESC)
+		pdev->tx_desc.stop_priority_th -= MAX_TSO_SEGMENT_DESC;
+
+	pdev->tx_desc.start_priority_th =
+		(TX_PRIORITY_TH * pdev->tx_desc.start_th) / 100;
+	if (pdev->tx_desc.start_priority_th >= MAX_TSO_SEGMENT_DESC)
+		pdev->tx_desc.start_priority_th -= MAX_TSO_SEGMENT_DESC;
+	pdev->tx_desc.status = FLOW_POOL_ACTIVE_UNPAUSED;
 
 	/* check what format of frames are expected to be delivered by the OS */
 	pdev->frame_format = ol_cfg_frame_type(pdev->ctrl_pdev);
@@ -5843,7 +5861,6 @@ exit:
 	return rc;
 }
 
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
 /**
  * ol_txrx_register_pause_cb() - register pause callback
  * @pause_cb: pause callback
@@ -5862,7 +5879,6 @@ static QDF_STATUS ol_txrx_register_pause_cb(struct cdp_soc_t *soc,
 	pdev->pause_cb = pause_cb;
 	return QDF_STATUS_SUCCESS;
 }
-#endif
 
 #ifdef RECEIVE_OFFLOAD
 /**
@@ -6483,8 +6499,8 @@ static struct cdp_misc_ops ol_ops_misc = {
 };
 
 static struct cdp_flowctl_ops ol_ops_flowctl = {
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
 	.register_pause_cb = ol_txrx_register_pause_cb,
+#ifdef QCA_LL_TX_FLOW_CONTROL_V2
 	.set_desc_global_pool_size = ol_tx_set_desc_global_pool_size,
 	.dump_flow_pool_info = ol_tx_dump_flow_pool_info,
 #endif /* QCA_LL_TX_FLOW_CONTROL_V2 */

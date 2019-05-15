@@ -44,11 +44,33 @@ struct peer_mlme_priv_obj {
  * struct vdev_mlme_obj - VDEV MLME component object
  * @dynamic_cfg: current configuration of nss, chains for vdev.
  * @ini_cfg: Max configuration of nss, chains supported for vdev.
+ * @sta_dynamic_oce_value: Dyanmic oce flags value for sta
  */
 struct vdev_mlme_priv_obj {
 	struct mlme_nss_chains dynamic_cfg;
 	struct mlme_nss_chains ini_cfg;
+	uint8_t sta_dynamic_oce_value;
 };
+
+
+/**
+ * wlan_vdev_mlme_get_priv_obj() - Update the oce flags to FW
+ * @vdev: pointer to vdev object
+ *
+ * Return: vdev_mlme_priv_obj- Mlme private object
+ */
+struct vdev_mlme_priv_obj *
+wlan_vdev_mlme_get_priv_obj(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * wlan_mlme_update_oce_flags() - Update the oce flags to FW
+ * @pdev: pointer to pdev object
+ * @cfg_value: INI value
+ *
+ * Return: void
+ */
+void wlan_mlme_update_oce_flags(struct wlan_objmgr_pdev *pdev,
+				uint8_t cfg_value);
 
 /**
  * mlme_get_dynamic_vdev_config() - get the vdev dynamic config params
