@@ -977,6 +977,10 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_stats_interference,
     WMITLV_TAG_STRUC_wmi_roam_score_delta_param,
     WMITLV_TAG_STRUC_wmi_roam_cnd_min_rssi_param,
+    WMITLV_TAG_STRUC_wmi_chan_rf_characterization_info,
+    WMITLV_TAG_STRUC_wmi_wlanfw_iface_cmb_ind_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_wlanfw_iface_combination_param,
+    WMITLV_TAG_STRUC_wmi_wlanfw_iface_limit_param,
 } WMITLV_TAG_ID;
 
 /*
@@ -1600,6 +1604,7 @@ typedef enum {
     OP(WMI_PEER_CFR_CAPTURE_EVENTID) \
     OP(WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID) \
     OP(WMI_PDEV_RAP_INFO_EVENTID) \
+    OP(WMI_IFACE_COMBINATION_IND_EVENTID) \
     /* add new EVT_LIST elements above this line */
 
 
@@ -3992,9 +3997,16 @@ WMITLV_CREATE_PARAM_STRUC(WMI_SERVICE_AVAILABLE_EVENTID);
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, WMI_OEM_DMA_RING_CAPABILITIES, oem_dma_ring_caps, WMITLV_SIZE_VAR) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_WMI_SAR_CAPABILITIES, WMI_SAR_CAPABILITIES, sar_caps, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, WMI_DMA_RING_CAPABILITIES, dma_ring_caps, WMITLV_SIZE_VAR) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_spectral_bin_scaling_params, wmi_bin_scaling_params, WMITLV_SIZE_VAR)
-
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wmi_spectral_bin_scaling_params, wmi_bin_scaling_params, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, WMI_CHAN_RF_CHARACTERIZATION_INFO, wmi_chan_rf_characterization_info, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_SERVICE_READY_EXT_EVENTID);
+
+/* iface combination indication event */
+#define WMITLV_TABLE_WMI_IFACE_COMBINATION_IND_EVENTID(id,op,buf,len) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_wlanfw_iface_cmb_ind_event_fixed_param, wmi_wlanfw_iface_cmb_ind_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wlanfw_iface_combination, combinations, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_STRUC, wlanfw_iface_limit, limits, WMITLV_SIZE_VAR)
+WMITLV_CREATE_PARAM_STRUC(WMI_IFACE_COMBINATION_IND_EVENTID);
 
 /* Ready event */
 #define WMITLV_TABLE_WMI_READY_EVENTID(id,op,buf,len)                                                                                                 \

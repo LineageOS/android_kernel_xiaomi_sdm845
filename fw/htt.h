@@ -176,10 +176,16 @@
  * 3.59 Add HTT_RXDMA_HOST_BUF_RING2 def
  * 3.60 Add HTT_T2H_MSG_TYPE_PEER_STATS_IND def
  * 3.61 Add rx offset fields to HTT_H2T_MSG_TYPE_RX_RING_SELECTION_CFG msg
- * 3.62 Add antenna mask to reserved space in htt_rx_ind_hl_rx_desc_t
+ * 3.62 Add antenna mask to reserved space in htt_rx_ppdu_desc_t
+ * 3.63 Add HTT_HTT_T2H_MSG_TYPE_BKPRESSURE_EVENT_IND def
+ * 3.64 Add struct htt_tx_compl_ind_append_tx_tsf64 and add tx_tsf64
+ *      array to the end of HTT_T2H TX_COMPL_IND msg
+ * 3.65 Add fields in htt_tx_msdu_desc_ext2_t to allow the host to provide
+ *      a "cookie" to identify a MSDU, and to specify to not apply aggregation
+ *      for a MSDU.
  */
 #define HTT_CURRENT_VERSION_MAJOR 3
-#define HTT_CURRENT_VERSION_MINOR 62
+#define HTT_CURRENT_VERSION_MINOR 65
 
 #define HTT_NUM_TX_FRAG_DESC  1024
 
@@ -1657,18 +1663,34 @@ PREPACK struct htt_tx_msdu_desc_ext2_t {
     /* DWORD 4: tx expiry time (TSF) MSBs */
     A_UINT32 expire_tsf_hi;
 
-    /* DWORD 5: reserved
-     * This structure can be expanded further up to 60 bytes
-     * by adding further DWORDs as needed.
-     */
+    /* DWORD 5: flags to control routing / processing of the MSDU */
     A_UINT32
         /* learning_frame
          * When this flag is set, this frame will be dropped by FW
          * rather than being enqueued to the Transmit Queue Manager (TQM) HW.
          */
-        learning_frame      :  1,
-        rsvd0               : 31;
+        learning_frame       :  1,
+        /* send_as_standalone
+         * This will indicate if the msdu needs to be sent as a singleton PPDU,
+         * i.e. with no A-MSDU or A-MPDU aggregation.
+         * The scope is extended to other use-cases.
+         */
+        send_as_standalone   :  1,
+        /* is_host_opaque_valid
+         * Host should set this bit to 1 if the host_opaque_cookie is populated
+         * with valid information.
+         */
+        is_host_opaque_valid :  1,
+        rsvd0                : 29;
 
+    /* DWORD 6 : Host opaque cookie for special frames */
+    A_UINT32 host_opaque_cookie  : 16, /* see is_host_opaque_valid */
+             rsvd1               : 16;
+
+    /*
+     * This structure can be expanded further up to 40 bytes
+     * by adding further DWORDs as needed.
+     */
 } POSTPACK;
 
 /* DWORD 0 */
@@ -1736,6 +1758,15 @@ PREPACK struct htt_tx_msdu_desc_ext2_t {
 /* DWORD 5 */
 #define HTT_TX_MSDU_EXT2_DESC_FLAG_LEARNING_FRAME_M           0x00000001
 #define HTT_TX_MSDU_EXT2_DESC_FLAG_LEARNING_FRAME_S           0
+#define HTT_TX_MSDU_EXT2_DESC_FLAG_SEND_AS_STANDALONE_M       0x00000002
+#define HTT_TX_MSDU_EXT2_DESC_FLAG_SEND_AS_STANDALONE_S       1
+#define HTT_TX_MSDU_EXT2_DESC_FLAG_HOST_OPAQUE_VALID_M        0x00000004
+#define HTT_TX_MSDU_EXT2_DESC_FLAG_HOST_OPAQUE_VALID_S        2
+
+/* DWORD 6 */
+#define HTT_TX_MSDU_EXT2_DESC_HOST_OPAQUE_COOKIE_M            0x0000FFFF
+#define HTT_TX_MSDU_EXT2_DESC_HOST_OPAQUE_COOKIE_S            0
+
 
 /* DWORD 0 */
 #define HTT_TX_MSDU_EXT2_DESC_FLAG_VALID_PWR_GET(_var) \
@@ -2006,6 +2037,36 @@ PREPACK struct htt_tx_msdu_desc_ext2_t {
         HTT_CHECK_SET_VAL(HTT_TX_MSDU_EXT2_DESC_FLAG_LEARNING_FRAME, _val); \
         ((_var) |= ((_val) << HTT_TX_MSDU_EXT2_DESC_FLAG_LEARNING_FRAME_S)); \
     } while (0)
+
+#define HTT_TX_MSDU_EXT2_DESC_FLAG_SEND_AS_STANDALONE_GET(_var) \
+    (((_var) & HTT_TX_MSDU_EXT2_DESC_FLAG_SEND_AS_STANDALONE_M) >> \
+    HTT_TX_MSDU_EXT2_DESC_FLAG_SEND_AS_STANDALONE_S)
+
+#define HTT_TX_MSDU_EXT2_DESC_FLAG_SEND_AS_STANDALONE_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_TX_MSDU_EXT2_DESC_FLAG_SEND_AS_STANDALONE, _val); \
+        ((_var) |= ((_val) << HTT_TX_MSDU_EXT2_DESC_FLAG_SEND_AS_STANDALONE_S)); \
+    } while (0)
+
+#define HTT_TX_MSDU_EXT2_DESC_FLAG_HOST_OPAQUE_VALID_GET(_var) \
+    (((_var) & HTT_TX_MSDU_EXT2_DESC_FLAG_HOST_OPAQUE_VALID_M) >> \
+    HTT_TX_MSDU_EXT2_DESC_FLAG_HOST_OPAQUE_VALID_S)
+#define HTT_TX_MSDU_EXT2_DESC_FLAG_HOST_OPAQUE_VALID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_TX_MSDU_EXT2_DESC_FLAG_HOST_OPAQUE_VALID, _val); \
+        ((_var) |= ((_val) << HTT_TX_MSDU_EXT2_DESC_FLAG_HOST_OPAQUE_VALID_S)); \
+    } while (0)
+
+/* DWORD 6 */
+#define HTT_TX_MSDU_EXT2_DESC_HOST_OPAQUE_COOKIE_GET(_var) \
+    (((_var) & HTT_TX_MSDU_EXT2_DESC_HOST_OPAQUE_COOKIE_M) >> \
+    HTT_TX_MSDU_EXT2_DESC_HOST_OPAQUE_COOKIE_S)
+#define HTT_TX_MSDU_EXT2_DESC_HOST_OPAQUE_COOKIE_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_TX_MSDU_EXT2_DESC_HOST_OPAQUE_COOKIE, _val); \
+        ((_var) |= ((_val) << HTT_TX_MSDU_EXT2_DESC_HOST_OPAQUE_COOKIE_S)); \
+    } while (0)
+
 
 typedef enum {
     HTT_TCL_METADATA_TYPE_PEER_BASED = 0,
@@ -5755,6 +5816,7 @@ enum htt_t2h_msg_type {
     HTT_T2H_MSG_TYPE_FLOW_POOL_RESIZE         = 0x21,
     HTT_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND       = 0x22,
     HTT_T2H_MSG_TYPE_PEER_STATS_IND           = 0x23,
+    HTT_T2H_MSG_TYPE_BKPRESSURE_EVENT_IND     = 0x24,
 
     HTT_T2H_MSG_TYPE_TEST,
     /* keep this last */
@@ -6173,9 +6235,17 @@ PREPACK struct htt_rx_ppdu_desc_t
         preamble_type: 8;
 
     #define HTT_RX_IND_PPDU_OFFSET_WORD_VHT_SIG_A2    8
+    #define HTT_RX_IND_PPDU_OFFSET_WORD_SA_ANT_MATRIX 8
     A_UINT32 /* word 8 */
         vht_sig_a2: 24,
-        reserved0: 8;
+        /* sa_ant_matrix
+         * For cases where a single rx chain has options to be connected to
+         * different rx antennas, show which rx antennas were in use during
+         * receipt of a given PPDU.
+         * This sa_ant_matrix provides a bitmask of the antennas used while
+         * receiving this frame.
+         */
+        sa_ant_matrix: 8;
 } POSTPACK;
 
 #define HTT_RX_PPDU_DESC_BYTES (sizeof(struct htt_rx_ppdu_desc_t))
@@ -6667,6 +6737,8 @@ A_COMPILE_TIME_ASSERT(HTT_RX_IND_hdr_size_quantum,
 #define HTT_RX_IND_PREAMBLE_TYPE_S         24
 #define HTT_RX_IND_SERVICE_M               0xff000000
 #define HTT_RX_IND_SERVICE_S               24
+#define HTT_RX_IND_SA_ANT_MATRIX_M         0xff000000
+#define HTT_RX_IND_SA_ANT_MATRIX_S         24
 
 /* rx MSDU descriptor fields */
 #define HTT_RX_IND_FW_RX_DESC_BYTES_M   0xffff
@@ -6911,6 +6983,14 @@ A_COMPILE_TIME_ASSERT(HTT_RX_IND_hdr_size_quantum,
     (((word) & HTT_RX_IND_SERVICE_M) >> \
     HTT_RX_IND_SERVICE_S)
 
+#define HTT_RX_IND_SA_ANT_MATRIX_SET(word, value)           \
+    do {                                                    \
+        HTT_CHECK_SET_VAL(HTT_RX_IND_SA_ANT_MATRIX, value); \
+        (word) |= (value)  << HTT_RX_IND_SA_ANT_MATRIX_S;   \
+    } while (0)
+#define HTT_RX_IND_SA_ANT_MATRIX_GET(word)    \
+    (((word) & HTT_RX_IND_SA_ANT_MATRIX_M) >> \
+    HTT_RX_IND_SA_ANT_MATRIX_S)
 
 #define HTT_RX_IND_MPDU_COUNT_SET(word, value)                          \
     do {                                                                \
@@ -6951,7 +7031,9 @@ PREPACK struct hl_htt_rx_ind_base {
 /*
  * HTT_RX_IND_HL_RX_DESC_BASE_OFFSET
  * Currently, we use a resv field in hl_htt_rx_ind_base to store some
- * HL host needed info. The field is just after the msdu fw rx desc.
+ * HL host needed info; refer to fw_rx_desc_base in wal_rx_desc.h.
+ * The field is just after the MSDU FW rx desc, and 1 byte ahead of
+ * htt_rx_ind_hl_rx_desc_t.
  */
 #define HTT_RX_IND_HL_RX_DESC_BASE_OFFSET (HTT_RX_IND_FW_RX_DESC_BYTE_OFFSET + 1)
 struct htt_rx_ind_hl_rx_desc_t {
@@ -6968,14 +7050,7 @@ struct htt_rx_ind_hl_rx_desc_t {
             udp: 1,
             reserved: 1;
     } flags;
-    /* sa_ant_matrix
-     * For cases where a single rx chain has options to be connected to
-     * different rx antennas, show which rx antennas were in use during
-     * receipt of a given PPDU.
-     * This sa_ant_matrix provides a bitmask of the antennas used while
-     * receiving this frame.
-     */
-    A_UINT8 sa_ant_matrix;
+    /* NOTE: no reserved space - don't append any new fields here */
 };
 
 #define HTT_RX_IND_HL_RX_DESC_VER_OFFSET \
@@ -6990,10 +7065,6 @@ struct htt_rx_ind_hl_rx_desc_t {
 #define HTT_RX_IND_HL_FLAG_OFFSET \
     (HTT_RX_IND_HL_RX_DESC_BASE_OFFSET \
      + offsetof(struct htt_rx_ind_hl_rx_desc_t, flags))
-
-#define HTT_RX_IND_HL_SA_ANT_MATRIX_OFFSET \
-    (HTT_RX_IND_HL_RX_DESC_BASE_OFFSET \
-     + offsetof(struct htt_rx_ind_hl_rx_desc_t, sa_ant_matrix))
 
 #define HTT_RX_IND_HL_FLAG_FIRST_MSDU   (0x01 << 0)
 #define HTT_RX_IND_HL_FLAG_LAST_MSDU    (0x01 << 1)
@@ -8234,27 +8305,36 @@ PREPACK struct htt_txq_group {
  * The following diagram shows the format of the TX completion indication sent
  * from the target to the host
  *
- *          |31 28|27|26|25|24|23        16| 15 |14 11|10   8|7          0|
- *          |-------------------------------------------------------------|
- * header:  |rsvd |A2|TP|A1|A0|     num    | t_i| tid |status|  msg_type  |
- *          |-------------------------------------------------------------|
- * payload: |            MSDU1 ID          |         MSDU0 ID             |
- *          |-------------------------------------------------------------|
- *          :            MSDU3 ID          :         MSDU2 ID             :
- *          |-------------------------------------------------------------|
- *          |          struct htt_tx_compl_ind_append_retries             |
- *          |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -|
- *          |          struct htt_tx_compl_ind_append_tx_tstamp           |
- *          |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -|
- *          |           MSDU1 ACK RSSI     |        MSDU0 ACK RSSI        |
- *          |-------------------------------------------------------------|
- *          :           MSDU3 ACK RSSI     :        MSDU2 ACK RSSI        :
- *          |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -|
+ *          |31 29|28|27|26|25|24|23        16| 15 |14 11|10   8|7          0|
+ *          |----------------------------------------------------------------|
+ * header:  |rsvd |A3|A2|TP|A1|A0|     num    | t_i| tid |status|  msg_type  |
+ *          |----------------------------------------------------------------|
+ * payload: |            MSDU1 ID             |         MSDU0 ID             |
+ *          |----------------------------------------------------------------|
+ *          :            MSDU3 ID             |         MSDU2 ID             :
+ *          |----------------------------------------------------------------|
+ *          |            struct htt_tx_compl_ind_append_retries              |
+ *          |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+ *          |            struct htt_tx_compl_ind_append_tx_tstamp            |
+ *          |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+ *          |           MSDU1 ACK RSSI        |        MSDU0 ACK RSSI        |
+ *          |----------------------------------------------------------------|
+ *          :           MSDU3 ACK RSSI        |        MSDU2 ACK RSSI        :
+ *          |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+ *          |                        MSDU0 tx_tsf64_low                      |
+ *          |----------------------------------------------------------------|
+ *          |                        MSDU0 tx_tsf64_high                     |
+ *          |----------------------------------------------------------------|
+ *          |                        MSDU1 tx_tsf64_low                      |
+ *          |----------------------------------------------------------------|
+ *          |                        MSDU1 tx_tsf64_high                     |
+ *          |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
  * Where:
  *     A0 = append (a.k.a. append0)
  *     A1 = append1
  *     TP = MSDU tx power presence
  *     A2 = append2
+ *     A3 = append3
  *
  * The following field definitions describe the format of the TX completion
  * indication sent from the target to the host
@@ -8321,6 +8401,18 @@ PREPACK struct htt_txq_group {
  *            dB above the noise floor.
  *   Value: 0 indicates MSDU ACK RSSI values are not appended,
  *          1 indicates MSDU ACK RSSI values are appended.
+ * - append3
+ *   Bits 28:28
+ *   Purpose: Append the struct htt_tx_compl_ind_append_tx_tsf64 which
+ *            contains the tx tsf info based on wlan global TSF for
+ *            each TX msdu id in payload.
+ *            The order of the tx tsf matches the order of the MSDU IDs.
+ *            The struct htt_tx_compl_ind_append_tx_tsf64 contains two 32-bits
+ *            values to indicate the the lower 32 bits and higher 32 bits of
+ *            the tx tsf.
+ *            The tx_tsf64 here represents the time MSDU was acked and the
+ *            tx_tsf64 has microseconds units.
+ *   Value: 0 indicates no appending; 1 indicates appending
  * Payload fields:
  * - hmsdu_id
  *   Bits 15:0
@@ -8344,6 +8436,8 @@ PREPACK struct htt_txq_group {
 #define HTT_TX_COMPL_IND_TX_POWER_M    0x04000000
 #define HTT_TX_COMPL_IND_APPEND2_S     27
 #define HTT_TX_COMPL_IND_APPEND2_M     0x08000000
+#define HTT_TX_COMPL_IND_APPEND3_S     28
+#define HTT_TX_COMPL_IND_APPEND3_M     0x10000000
 
 #define HTT_TX_COMPL_IND_STATUS_SET(_info, _val)                        \
     do {                                                                \
@@ -8402,6 +8496,13 @@ PREPACK struct htt_txq_group {
     } while (0)
 #define HTT_TX_COMPL_IND_APPEND2_GET(_info)                            \
     (((_info) & HTT_TX_COMPL_IND_APPEND2_M) >> HTT_TX_COMPL_IND_APPEND2_S)
+#define HTT_TX_COMPL_IND_APPEND3_SET(_info, _val)                      \
+    do {                                                               \
+        HTT_CHECK_SET_VAL(HTT_TX_COMPL_IND_APPEND3, _val);             \
+        ((_info) |= ((_val) << HTT_TX_COMPL_IND_APPEND3_S));           \
+    } while (0)
+#define HTT_TX_COMPL_IND_APPEND3_GET(_info)                            \
+    (((_info) & HTT_TX_COMPL_IND_APPEND3_M) >> HTT_TX_COMPL_IND_APPEND3_S)
 
 #define HTT_TX_COMPL_INV_TX_POWER           0xffff
 
@@ -8459,6 +8560,11 @@ PREPACK struct htt_tx_compl_ind_append_retries {
 
 PREPACK struct htt_tx_compl_ind_append_tx_tstamp {
     A_UINT32 timestamp[1/*or more*/];
+} POSTPACK;
+
+PREPACK struct htt_tx_compl_ind_append_tx_tsf64 {
+    A_UINT32 tx_tsf64_low;
+    A_UINT32 tx_tsf64_high;
 } POSTPACK;
 
 /**
@@ -11422,5 +11528,183 @@ PREPACK struct htt_cfr_dump_compl_ind {
  * @tx_failed_msdus  : MSDUs dropped in FW after max retry
  * @tx_duration      : Tx duration for the PPDU (microsecond units)
  */
+
+
+/**
+ * @brief HTT_T2H_MSG_TYPE_BKPRESSURE_EVENTID Message
+ *
+ * @details
+ *  HTT_T2H_MSG_TYPE_BKPRESSURE_EVENTID message is sent by the target when
+ *  continuous backpressure is seen in the LMAC/ UMAC rings software rings.
+ *  This message will only be sent if the backpressure condition has existed
+ *  continuously for an initial period (100 ms).
+ *  Repeat messages with updated information will be sent after each
+ *  subsequent period (100 ms) as long as the backpressure remains unabated.
+ *  This message indicates the ring id along with current head and tail index
+ *  locations (i.e. write and read indices).
+ *  The backpressure time indicates the time in ms for which continous
+ *  backpressure has been observed in the ring.
+ *
+ *  The message format is as follows:
+ *
+ *     |31            24|23            16|15             8|7              0|
+ *     |----------------+----------------+----------------+----------------|
+ *     |    ring_id     |   ring_type    |     pdev_id    |     msg_type   |
+ *     |-------------------------------------------------------------------|
+ *     |             tail_idx            |             head_idx            |
+ *     |-------------------------------------------------------------------|
+ *     |                      backpressure_time_ms                         |
+ *     |-------------------------------------------------------------------|
+ *
+ *  The message is interpreted as follows:
+ *  dword0 - b'0:7   - msg_type: This will be set to
+ *                               HTT_T2H_MSG_TYPE_BKPRESSURE_EVENT_IND
+ *           b'8:15  - pdev_id:  0 indicates msg is for UMAC ring.
+ *                               1, 2, 3 indicates pdev_id 0,1,2 and
+                                 the msg is for LMAC ring.
+ *           b'16:23 - ring_type: Refer to enum htt_backpressure_ring_type.
+ *           b'24:31 - ring_id:  Refer enum htt_backpressure_umac_ring_id/
+ *                               htt_backpressure_lmac_ring_id. This represents
+ *                               the ring id for which continous backpressure is seen
+ *
+ *  dword1 - b'0:15  - head_idx: This indicates the current head index of
+ *                               the ring indicated by the ring_id
+ *
+ *  dword1 - b'16:31 - tail_idx: This indicates the current tail index of
+ *                               the ring indicated by the ring id
+ *
+ *  dword2 - b'0:31  - backpressure_time_ms: Indicates how long continous
+ *                               backpressure has been seen in the ring
+ *                               indicated by the ring_id.
+ *                               Units = milliseconds
+ */
+#define HTT_T2H_RX_BKPRESSURE_PDEV_ID_M   0x0000ff00
+#define HTT_T2H_RX_BKPRESSURE_PDEV_ID_S   8
+#define HTT_T2H_RX_BKPRESSURE_RING_TYPE_M 0x00ff0000
+#define HTT_T2H_RX_BKPRESSURE_RING_TYPE_S 16
+#define HTT_T2H_RX_BKPRESSURE_RINGID_M    0xff000000
+#define HTT_T2H_RX_BKPRESSURE_RINGID_S    24
+#define HTT_T2H_RX_BKPRESSURE_HEAD_IDX_M  0x0000ffff
+#define HTT_T2H_RX_BKPRESSURE_HEAD_IDX_S  0
+#define HTT_T2H_RX_BKPRESSURE_TAIL_IDX_M  0xffff0000
+#define HTT_T2H_RX_BKPRESSURE_TAIL_IDX_S  16
+#define HTT_T2H_RX_BKPRESSURE_TIME_MS_M   0xffffffff
+#define HTT_T2H_RX_BKPRESSURE_TIME_MS_S   0
+
+#define HTT_T2H_RX_BKPRESSURE_PDEV_ID_SET(word, value) \
+   do { \
+          HTT_CHECK_SET_VAL(HTT_T2H_RX_BKPRESSURE_PDEV_ID, value); \
+          (word) |= (value)  << HTT_T2H_RX_BKPRESSURE_PDEV_ID_S; \
+      } while (0)
+#define HTT_T2H_RX_BKPRESSURE_PDEV_ID_GET(word) \
+        (((word) & HTT_T2H_RX_BKPRESSURE_PDEV_ID_M) >> \
+            HTT_T2H_RX_BKPRESSURE_PDEV_ID_S)
+
+#define HTT_T2H_RX_BKPRESSURE_RING_TYPE_SET(word, value) \
+   do { \
+          HTT_CHECK_SET_VAL(HTT_T2H_RX_BKPRESSURE_RING_TYPE, value); \
+          (word) |= (value)  << HTT_T2H_RX_BKPRESSURE_RING_TYPE_S; \
+      } while (0)
+#define HTT_T2H_RX_BKPRESSURE_RING_TYPE_GET(word) \
+        (((word) & HTT_T2H_RX_BKPRESSURE_RING_TYPE_M) >> \
+            HTT_T2H_RX_BKPRESSURE_RING_TYPE_S)
+
+#define HTT_T2H_RX_BKPRESSURE_RINGID_SET(word, value) \
+   do { \
+          HTT_CHECK_SET_VAL(HTT_T2H_RX_BKPRESSURE_RINGID, value); \
+          (word) |= (value)  << HTT_T2H_RX_BKPRESSURE_RINGID_S; \
+      } while (0)
+#define HTT_T2H_RX_BKPRESSURE_RINGID_GET(word) \
+        (((word) & HTT_T2H_RX_BKPRESSURE_RINGID_M) >> \
+            HTT_T2H_RX_BKPRESSURE_RINGID_S)
+
+#define HTT_T2H_RX_BKPRESSURE_HEAD_IDX_SET(word, value) \
+   do { \
+          HTT_CHECK_SET_VAL(HTT_T2H_RX_BKPRESSURE_HEAD_IDX, value); \
+          (word) |= (value)  << HTT_T2H_RX_BKPRESSURE_HEAD_IDX_S; \
+      } while (0)
+#define HTT_T2H_RX_BKPRESSURE_HEAD_IDX_GET(word) \
+        (((word) & HTT_T2H_RX_BKPRESSURE_HEAD_IDX_M) >> \
+            HTT_T2H_RX_BKPRESSURE_HEAD_IDX_S)
+
+#define HTT_T2H_RX_BKPRESSURE_TAIL_IDX_SET(word, value) \
+   do { \
+          HTT_CHECK_SET_VAL(HTT_T2H_RX_BKPRESSURE_TAIL_IDX, value); \
+          (word) |= (value)  << HTT_T2H_RX_BKPRESSURE_TAIL_IDX_S; \
+      } while (0)
+#define HTT_T2H_RX_BKPRESSURE_TAIL_IDX_GET(word) \
+        (((word) & HTT_T2H_RX_BKPRESSURE_TAIL_IDX_M) >> \
+            HTT_T2H_RX_BKPRESSURE_TAIL_IDX_S)
+
+#define HTT_T2H_RX_BKPRESSURE_TIME_MS_SET(word, value) \
+   do { \
+          HTT_CHECK_SET_VAL(HTT_T2H_RX_BKPRESSURE_TIME_MS, value); \
+          (word) |= (value)  << HTT_T2H_RX_BKPRESSURE_TIME_MS_S; \
+      } while (0)
+#define HTT_T2H_RX_BKPRESSURE_TIME_MS_GET(word) \
+        (((word) & HTT_T2H_RX_BKPRESSURE_TIME_MS_M) >> \
+            HTT_T2H_RX_BKPRESSURE_TIME_MS_S)
+
+enum htt_backpressure_ring_type {
+     HTT_SW_RING_TYPE_UMAC,
+     HTT_SW_RING_TYPE_LMAC,
+     HTT_SW_RING_TYPE_MAX,
+};
+
+/* Ring id for which the message is sent to host */
+enum htt_backpressure_umac_ringid {
+    HTT_SW_RING_IDX_REO_REO2SW1_RING,
+    HTT_SW_RING_IDX_REO_REO2SW2_RING,
+    HTT_SW_RING_IDX_REO_REO2SW3_RING,
+    HTT_SW_RING_IDX_REO_REO2SW4_RING,
+    HTT_SW_RING_IDX_REO_WBM2REO_LINK_RING,
+    HTT_SW_RING_IDX_REO_REO2TCL_RING,
+    HTT_SW_RING_IDX_REO_REO2FW_RING,
+    HTT_SW_RING_IDX_REO_REO_RELEASE_RING,
+    HTT_SW_RING_IDX_WBM_PPE_RELEASE_RING,
+    HTT_SW_RING_IDX_TCL_TCL2TQM_RING,
+    HTT_SW_RING_IDX_WBM_TQM_RELEASE_RING,
+    HTT_SW_RING_IDX_WBM_REO_RELEASE_RING,
+    HTT_SW_RING_IDX_WBM_WBM2SW0_RELEASE_RING,
+    HTT_SW_RING_IDX_WBM_WBM2SW1_RELEASE_RING,
+    HTT_SW_RING_IDX_WBM_WBM2SW2_RELEASE_RING,
+    HTT_SW_RING_IDX_WBM_WBM2SW3_RELEASE_RING,
+    HTT_SW_RING_IDX_REO_REO_CMD_RING,
+    HTT_SW_RING_IDX_REO_REO_STATUS_RING,
+    HTT_SW_UMAC_RING_IDX_MAX,
+};
+
+enum htt_backpressure_lmac_ringid {
+    HTT_SW_RING_IDX_FW2RXDMA_BUF_RING,
+    HTT_SW_RING_IDX_FW2RXDMA_STATUS_RING,
+    HTT_SW_RING_IDX_FW2RXDMA_LINK_RING,
+    HTT_SW_RING_IDX_SW2RXDMA_BUF_RING,
+    HTT_SW_RING_IDX_WBM2RXDMA_LINK_RING,
+    HTT_SW_RING_IDX_RXDMA2FW_RING,
+    HTT_SW_RING_IDX_RXDMA2SW_RING,
+    HTT_SW_RING_IDX_RXDMA2RELEASE_RING,
+    HTT_SW_RING_IDX_RXDMA2REO_RING,
+    HTT_SW_RING_IDX_MONITOR_STATUS_RING,
+    HTT_SW_RING_IDX_MONITOR_BUF_RING,
+    HTT_SW_RING_IDX_MONITOR_DESC_RING,
+    HTT_SW_RING_IDX_MONITOR_DEST_RING,
+    HTT_SW_LMAC_RING_IDX_MAX,
+};
+
+PREPACK struct htt_t2h_msg_bkpressure_event_ind_t {
+     A_UINT32 msg_type:  8, /* HTT_T2H_MSG_TYPE_BKPRESSURE_EVENT_IND */
+              pdev_id:   8,
+              ring_type: 8, /* htt_backpressure_ring_type */
+              /*
+               * ring_id holds an enum value from either
+               * htt_backpressure_umac_ringid or
+               * htt_backpressure_lmac_ringid, based on
+               * the ring_type setting.
+               */
+              ring_id:   8;
+     A_UINT16 head_idx;
+     A_UINT16 tail_idx;
+     A_UINT32 backpressure_time_ms; /* Time in milliseconds for which backpressure is seen continuously */
+} POSTPACK;
 
 #endif
