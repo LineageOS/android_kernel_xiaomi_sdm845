@@ -2663,6 +2663,28 @@ void wlansap_cleanup_cac_timer(struct sap_context *sap_ctx)
 	}
 }
 
+static bool
+wlansap_is_channel_present_in_acs_list(uint8_t ch,
+				       uint8_t *ch_list,
+				       uint8_t ch_count)
+{
+	uint8_t i;
+
+	for (i = 0; i < ch_count; i++) {
+		if (ch_list[i] == ch) {
+			/*
+			 * channel was given by hostpad for ACS, and is present
+			 * in PCL.
+			 */
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+				  FL("channel present in acs cfg channel list %d"), ch);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 QDF_STATUS wlansap_filter_ch_based_acs(struct sap_context *sap_ctx,
 				       uint8_t *ch_list,
 				       uint32_t *ch_cnt)
@@ -2677,8 +2699,9 @@ QDF_STATUS wlansap_filter_ch_based_acs(struct sap_context *sap_ctx,
 	}
 
 	for (ch_index = 0; ch_index < *ch_cnt; ch_index++) {
-		if (ch_list[ch_index] >= sap_ctx->acs_cfg->start_ch &&
-		    ch_list[ch_index] <= sap_ctx->acs_cfg->end_ch)
+		if (wlansap_is_channel_present_in_acs_list(ch_list[ch_index],
+					     sap_ctx->acs_cfg->ch_list,
+					     sap_ctx->acs_cfg->ch_list_count))
 			ch_list[target_ch_cnt++] = ch_list[ch_index];
 	}
 
