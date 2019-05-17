@@ -840,11 +840,10 @@ ucfg_update_channel_list(struct scan_start_request *req,
 	if (req->scan_req.p2p_scan_type == SCAN_P2P_SEARCH)
 		p2p_search = true;
 	/*
-	 * No need to update channels if req is passive scan and single channel
-	 * ie ROC, Preauth etc
+	 * No need to update channels if req is single channel* ie ROC,
+	 * Preauth or a single channel scan etc.
 	 */
-	if (req->scan_req.scan_f_passive &&
-	    req->scan_req.chan_list.num_chan == 1)
+	if (req->scan_req.chan_list.num_chan == 1)
 		return;
 
 	/* do this only for STA and P2P-CLI mode */
