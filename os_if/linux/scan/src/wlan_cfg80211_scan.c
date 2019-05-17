@@ -451,10 +451,14 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 
 	enable_dfs_pno_chnl_scan = ucfg_scan_is_dfs_chnl_scan_enabled(psoc);
 	if (request->n_channels) {
-		char chl[(request->n_channels * 5) + 1];
+		char *chl = qdf_mem_malloc((request->n_channels * 5) + 1);
 		int len = 0;
 		bool ap_or_go_present = wlan_cfg80211_is_ap_go_present(psoc);
 
+		if (!chl) {
+			ret = -ENOMEM;
+			goto error;
+		}
 		for (i = 0; i < request->n_channels; i++) {
 			channel = request->channels[i]->hw_value;
 			if (wlan_reg_is_dsrc_chan(pdev, channel))
@@ -476,6 +480,8 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 				if (QDF_IS_STATUS_ERROR(status)) {
 					cfg80211_err("DNBS check failed");
 					qdf_mem_free(req);
+					qdf_mem_free(chl);
+					chl = NULL;
 					ret = -EINVAL;
 					goto error;
 				}
@@ -487,6 +493,8 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 		}
 		cfg80211_notice("No. of Scan Channels: %d", num_chan);
 		cfg80211_notice("Channel-List: %s", chl);
+		qdf_mem_free(chl);
+		chl = NULL;
 		/* If all channels are DFS and dropped,
 		 * then ignore the PNO request
 		 */
@@ -1440,7 +1448,7 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 		qdf_set_macaddr_broadcast(&req->scan_req.bssid_list[0]);
 
 	if (request->n_channels) {
-		char chl[(request->n_channels * 5) + 1];
+		char *chl = qdf_mem_malloc((request->n_channels * 5) + 1);
 		int len = 0;
 #ifdef WLAN_POLICY_MGR_ENABLE
 		bool ap_or_go_present =
@@ -1449,7 +1457,10 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 			     policy_mgr_mode_specific_connection_count(
 			     psoc, PM_P2P_GO_MODE, NULL);
 #endif
-
+		if (!chl) {
+			ret = -ENOMEM;
+			goto end;
+		}
 		for (i = 0; i < request->n_channels; i++) {
 			channel = request->channels[i]->hw_value;
 			c_freq = wlan_reg_chan_to_freq(pdev, channel);
@@ -1467,6 +1478,8 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 				if (QDF_IS_STATUS_ERROR(qdf_status)) {
 					cfg80211_err("DNBS check failed");
 					qdf_mem_free(req);
+					qdf_mem_free(chl);
+					chl = NULL;
 					ret = -EINVAL;
 					goto end;
 				}
@@ -1488,6 +1501,8 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 				break;
 		}
 		cfg80211_info("Channel-List: %s", chl);
+		qdf_mem_free(chl);
+		chl = NULL;
 		cfg80211_info("No. of Scan Channels: %d", num_chan);
 	}
 	if (!num_chan) {
