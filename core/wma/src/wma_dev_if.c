@@ -1862,17 +1862,21 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, struct cdp_pdev *pdev,
 	/* for each remote ibss peer, clear its keys */
 	if (wma_is_vdev_in_ibss_mode(wma, vdev_id) &&
 	    qdf_mem_cmp(peer_addr, mac_addr_raw, IEEE80211_ADDR_LEN)) {
-		tSetStaKeyParams key_info;
+		tpSetStaKeyParams key_info;
 
+		key_info = qdf_mem_malloc(sizeof(*key_info));
+		if (!key_info) {
+			return QDF_STATUS_E_NOMEM;
+		}
 		WMA_LOGD("%s: remote ibss peer %pM key clearing\n", __func__,
 			 peer_addr);
-		qdf_mem_zero(&key_info, sizeof(key_info));
-		key_info.smesessionId = vdev_id;
-		qdf_mem_copy(key_info.peer_macaddr.bytes, peer_addr,
-				IEEE80211_ADDR_LEN);
-		key_info.sendRsp = false;
+		qdf_mem_zero(key_info, sizeof(*key_info));
+		key_info->smesessionId = vdev_id;
+		qdf_mem_copy(key_info->peer_macaddr.bytes, peer_addr,
+			     IEEE80211_ADDR_LEN);
+		key_info->sendRsp = false;
 
-		wma_set_stakey(wma, &key_info);
+		wma_set_stakey(wma, key_info);
 	}
 
 	return QDF_STATUS_SUCCESS;
