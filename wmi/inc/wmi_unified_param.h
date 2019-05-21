@@ -6036,6 +6036,7 @@ typedef enum {
 	wmi_service_beacon_reception_stats,
 	wmi_service_vdev_latency_config,
 	wmi_service_sta_plus_sta_support,
+	wmi_service_tx_compl_tsf64,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF
@@ -6230,6 +6231,7 @@ typedef struct {
 	bool cce_disable;
 	uint32_t twt_ap_pdev_count;
 	uint32_t twt_ap_sta_count;
+	bool tstamp64_en;
 } target_resource_config;
 
 /**

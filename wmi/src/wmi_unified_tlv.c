@@ -13019,6 +13019,10 @@ void wmi_copy_resource_config(wmi_resource_config *resource_cfg,
 		WMI_RSRC_CFG_FLAG_PEER_UNMAP_RESPONSE_SUPPORT_SET(
 						resource_cfg->flag1, 1);
 
+	if (tgt_res_cfg->tstamp64_en)
+		WMI_RSRC_CFG_FLAG_TX_COMPLETION_TX_TSF64_ENABLE_SET(
+						resource_cfg->flag1, 1);
+
 	wmi_copy_twt_resource_config(resource_cfg, tgt_res_cfg);
 }
 
@@ -23938,6 +23942,8 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_VDEV_LATENCY_CONFIG;
 	wmi_service[wmi_service_sta_plus_sta_support] =
 				WMI_SERVICE_STA_PLUS_STA_SUPPORT;
+	wmi_service[wmi_service_tx_compl_tsf64] =
+			WMI_SERVICE_TX_COMPL_TSF64;
 }
 
 #ifndef CONFIG_MCL
