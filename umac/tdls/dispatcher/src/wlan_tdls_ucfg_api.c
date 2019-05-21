@@ -1011,3 +1011,8 @@ free:
 	qdf_mem_free(req);
 	return status;
 }
+
+void ucfg_tdls_notify_connect_failure(struct wlan_objmgr_psoc *psoc)
+{
+	return tdls_notify_decrement_session(psoc);
+}
