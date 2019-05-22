@@ -329,7 +329,9 @@ struct sde_connector_evt {
  * @bl_scale_dirty: Flag to indicate PP BL scale value(s) is changed
  * @bl_scale: BL scale value for ABA feature
  * @bl_scale_ad: BL scale value for AD feature
- * last_cmd_tx_sts: status of the last command transfer
+ * @unset_bl_level: BL level that needs to be set later
+ * @allow_bl_update: Flag to indicate if BL update is allowed currently or not
+ * @last_cmd_tx_sts: status of the last command transfer
  */
 struct sde_connector {
 	struct drm_connector base;

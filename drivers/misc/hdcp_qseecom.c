@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -42,7 +42,7 @@
 #define HDCP1_APP_NAME        "hdcp1"
 #define QSEECOM_SBUFF_SIZE    0x1000
 
-#define MAX_TX_MESSAGE_SIZE	129
+#define MAX_TX_MESSAGE_SIZE	132
 #define MAX_RX_MESSAGE_SIZE	534
 #define MAX_TOPOLOGY_ELEMS	32
 #define HDCP1_AKSV_SIZE         8
@@ -2035,6 +2035,30 @@ bool hdcp1_check_if_supported_load_app(void)
 		 hdcp1_supported ? "successfully" : "not");
 
 	return hdcp1_supported;
+}
+
+void hdcp1_unload_app(void)
+{
+	int rc = 0;
+
+	if (!hdcp1_supported) {
+		pr_debug("hdcp1 is not supported\n");
+		return;
+	}
+
+	if (!hdcp1_handle) {
+		pr_debug("invalid hdcp1 handle\n");
+		return;
+	}
+
+	rc = qseecom_shutdown_app(&hdcp1_handle);
+	if (rc) {
+		pr_debug("qseecom_shutdown_app failed with ERR = %d\n", rc);
+		return;
+	}
+
+	hdcp1_handle = NULL;
+	pr_debug("hdcp1 app unloaded\n");
 }
 
 /* APIs exposed to all clients */

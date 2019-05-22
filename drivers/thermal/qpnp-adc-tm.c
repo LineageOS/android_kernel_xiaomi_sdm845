@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -3323,7 +3323,7 @@ static int qpnp_adc_tm_probe(struct platform_device *pdev)
 	} else {
 		rc = devm_request_irq(&pdev->dev, chip->adc->adc_irq_eoc,
 				qpnp_adc_tm_rc_thr_isr,
-			IRQF_TRIGGER_HIGH, "qpnp_adc_tm_interrupt", chip);
+			IRQF_TRIGGER_RISING, "qpnp_adc_tm_interrupt", chip);
 		if (rc)
 			dev_err(&pdev->dev, "failed to request adc irq\n");
 		else

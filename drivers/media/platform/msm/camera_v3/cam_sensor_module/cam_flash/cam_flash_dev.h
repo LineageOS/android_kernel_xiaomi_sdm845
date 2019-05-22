@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/leds-qpnp-flash.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
@@ -35,6 +36,7 @@
 #include "cam_debug_util.h"
 #include "cam_sensor_io.h"
 #include "cam_flash_core.h"
+#include "cam_context.h"
 
 #define CAMX_FLASH_DEV_NAME "cam-flash-dev"
 
@@ -135,6 +137,7 @@ struct cam_flash_frame_setting {
  * @torch_trigger_name  : Torch trigger name array
  * @torch_op_current    : Torch operational current
  * @torch_max_current   : Max supported current for LED in torch mode
+ * @is_wled_flash       : Detection between WLED/LED flash
  */
 
 struct cam_flash_private_soc {
@@ -146,6 +149,7 @@ struct cam_flash_private_soc {
 	const char   *torch_trigger_name[CAM_FLASH_MAX_LED_TRIGGERS];
 	uint32_t     torch_op_current[CAM_FLASH_MAX_LED_TRIGGERS];
 	uint32_t     torch_max_current[CAM_FLASH_MAX_LED_TRIGGERS];
+	bool         is_wled_flash;
 };
 
 struct cam_flash_func_tbl {
@@ -158,6 +162,7 @@ struct cam_flash_func_tbl {
 
 /**
  *  struct cam_flash_ctrl
+ * @device_name         : Device name
  * @soc_info            : Soc related information
  * @pdev                : Platform device
  * @per_frame[]         : Per_frame setting array
@@ -180,8 +185,10 @@ struct cam_flash_func_tbl {
  * @cci_i2c_master      : I2C structure
  * @io_master_info      : Information about the communication master
  * @i2c_data            : I2C register settings
+ * @last_flush_req      : last request to flush
  */
 struct cam_flash_ctrl {
+	char device_name[CAM_CTX_DEV_NAME_MAX_LENGTH];
 	struct cam_hw_soc_info              soc_info;
 	struct platform_device             *pdev;
 	struct cam_sensor_power_ctrl_t      power_info;
@@ -205,6 +212,7 @@ struct cam_flash_ctrl {
 	enum   cci_i2c_master_t             cci_i2c_master;
 	struct camera_io_master             io_master_info;
 	struct i2c_data_settings            i2c_data;
+	uint32_t                            last_flush_req;
 };
 
 int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg);

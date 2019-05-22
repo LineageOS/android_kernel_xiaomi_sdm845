@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
  * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -115,7 +115,7 @@
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,sxr1120")
 #define early_machine_is_msm8953()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,msm8953")
-#define early_machine_is_sdmnobelium()	\
+#define early_machine_is_sdm712()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,sdm670")
 #define early_machine_is_msm8937()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,msm8937")
@@ -202,7 +202,7 @@
 #define early_machine_is_sda429()	0
 #define early_machine_is_mdm9650()     0
 #define early_machine_is_qm215()	0
-#define early_machine_is_sdmnobelium()	0
+#define early_machine_is_sdm712()	0
 #endif
 
 #define PLATFORM_SUBTYPE_MDM	1
@@ -280,7 +280,7 @@ enum msm_cpu {
 	MSM_CPU_8940,
 	MSM_CPU_9607,
 	MSM_CPU_SDM439,
-	MSM_CPU_SDMNOBELIUM,
+	MSM_CPU_SDM712,
 	MSM_CPU_SDM429,
 	MSM_CPU_SDA439,
 	MSM_CPU_SDA429,
