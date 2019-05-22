@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -37,6 +37,8 @@
 #define CDS_CHANNEL_FREQ(chan_enum) chan_mapping[chan_enum].center_freq
 #define CDS_IS_DFS_CH(chan_num) (cds_get_channel_state((chan_num)) == \
 				CHANNEL_STATE_DFS)
+#define CDS_IS_DISABLE_CH(chan_num) (cds_get_channel_state((chan_num)) == \
+				     CHANNEL_STATE_DISABLE)
 
 #define CDS_IS_PASSIVE_OR_DISABLE_CH(chan_num) \
 	(cds_get_channel_state(chan_num) != CHANNEL_STATE_ENABLE)

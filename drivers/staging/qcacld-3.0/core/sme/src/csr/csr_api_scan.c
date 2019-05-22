@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -596,15 +596,19 @@ QDF_STATUS csr_scan_request(tpAniSirGlobal pMac, uint16_t sessionId,
 				cfg_prm->scan_adaptive_dwell_mode;
 	}
 
-	if (scan_req->scan_flags & SME_SCAN_FLAG_HIGH_ACCURACY)
-		scan_req->scan_adaptive_dwell_mode = WMI_DWELL_MODE_STATIC;
+	if (cfg_prm->honour_nl_scan_policy_flags) {
+		if (scan_req->scan_flags & SME_SCAN_FLAG_HIGH_ACCURACY)
+			scan_req->scan_adaptive_dwell_mode =
+					WMI_DWELL_MODE_STATIC;
 
-	if (scan_req->scan_flags & SME_SCAN_FLAG_LOW_POWER ||
-	    scan_req->scan_flags & SME_SCAN_FLAG_LOW_SPAN) {
-		scan_req->scan_adaptive_dwell_mode = WMI_DWELL_MODE_AGGRESSIVE;
+		if (scan_req->scan_flags & SME_SCAN_FLAG_LOW_POWER ||
+		    scan_req->scan_flags & SME_SCAN_FLAG_LOW_SPAN)
+			scan_req->scan_adaptive_dwell_mode =
+					WMI_DWELL_MODE_AGGRESSIVE;
+
+		sme_debug("Set scan adaptive dwell mode %d ",
+			  scan_req->scan_adaptive_dwell_mode);
 	}
-	sme_debug("Set scan adaptive dwell mode %d ",
-					scan_req->scan_adaptive_dwell_mode);
 	status = csr_scan_copy_request(pMac, &scan_cmd->u.scanCmd.u.scanRequest,
 				       scan_req);
 	/*
@@ -1611,23 +1615,16 @@ static bool csr_is_better_bss(tpAniSirGlobal mac_ctx,
 	return ret;
 }
 
-/* Add the channel to the occupiedChannels array */
-static void csr_scan_add_to_occupied_channels(tpAniSirGlobal pMac,
-					struct tag_csrscan_result *pResult,
-					uint8_t sessionId,
-					tCsrChannel *occupied_ch,
-					tDot11fBeaconIEs *pIes,
-					bool is_init_list)
+/* Add special channel to the occupiedChannels array */
+static void csr_add_to_occupied_channels(tpAniSirGlobal pMac,
+					 uint8_t ch,
+					 uint8_t sessionId,
+					 tCsrChannel *occupied_ch,
+					 bool is_init_list)
 {
 	QDF_STATUS status;
-	uint8_t ch;
 	uint8_t num_occupied_ch = occupied_ch->numChannels;
 	uint8_t *occupied_ch_lst = occupied_ch->channelList;
-
-	ch = pResult->Result.BssDescriptor.channelId;
-	if (!csr_neighbor_roam_connected_profile_match(pMac,
-						sessionId, pResult, pIes))
-		return;
 
 	if (is_init_list)
 		pMac->scan.roam_candidate_count[sessionId]++;
@@ -1647,6 +1644,29 @@ static void csr_scan_add_to_occupied_channels(tpAniSirGlobal pMac,
 			occupied_ch->numChannels =
 				CSR_BG_SCAN_OCCUPIED_CHANNEL_LIST_LEN;
 	}
+}
+
+/* Add the channel to the occupiedChannels array */
+static void csr_scan_add_to_occupied_channels(
+					tpAniSirGlobal pMac,
+					struct tag_csrscan_result *pResult,
+					uint8_t sessionId,
+					tCsrChannel *occupied_ch,
+					tDot11fBeaconIEs *pIes,
+					bool is_init_list)
+{
+	uint8_t ch;
+
+	ch = pResult->Result.BssDescriptor.channelId;
+	if (!csr_neighbor_roam_connected_profile_match(pMac, sessionId,
+						       pResult, pIes))
+		return;
+	csr_add_to_occupied_channels(
+				pMac,
+				ch,
+				sessionId,
+				occupied_ch,
+				is_init_list);
 }
 
 /* Put the BSS into the scan result list */
@@ -3795,7 +3815,6 @@ static void csr_move_temp_scan_results_to_main_list(tpAniSirGlobal pMac,
 						    uint8_t reason,
 						    uint8_t sessionId)
 {
-	tCsrRoamSession *pSession;
 	uint32_t i;
 	bool found_11d_ctry = false;
 
@@ -3811,9 +3830,10 @@ static void csr_move_temp_scan_results_to_main_list(tpAniSirGlobal pMac,
 	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
 		if (!CSR_IS_SESSION_VALID(pMac, i))
 			continue;
-		pSession = CSR_GET_SESSION(pMac, i);
-		if (csr_is_conn_state_connected(pMac, i)) {
-			sme_debug("No need to update CC in connected state");
+		if (csr_is_conn_state_connected_infra_ap(pMac, i) ||
+		    csr_is_conn_state_connected_ibss(pMac, i) ||
+		    csr_is_conn_state_connected_wds(pMac, i)) {
+			sme_debug("No need to update CC in softap/ibss/wds");
 			return;
 		}
 	}
@@ -8023,6 +8043,7 @@ void csr_init_occupied_channels_list(tpAniSirGlobal pMac, uint8_t sessionId)
 	tDot11fBeaconIEs *pIes = NULL;
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
 		&pMac->roam.neighborRoamInfo[sessionId];
+	tCsrRoamConnectedProfile *profile = NULL;
 
 	if (0 != pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels) {
 		/*
@@ -8042,9 +8063,19 @@ void csr_init_occupied_channels_list(tpAniSirGlobal pMac, uint8_t sessionId)
 		return;
 	}
 
+	profile = &pMac->roam.roamSession[sessionId].connectedProfile;
+	if (!profile)
+		return;
+
 	/* Empty occupied channels here */
 	pMac->scan.occupiedChannels[sessionId].numChannels = 0;
 	pMac->scan.roam_candidate_count[sessionId] = 0;
+
+	csr_add_to_occupied_channels(
+			pMac, profile->operationChannel,
+			sessionId,
+			&pMac->scan.occupiedChannels[sessionId],
+			false);
 
 	csr_ll_lock(&pMac->scan.scanResultList);
 	pEntry = csr_ll_peek_head(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);

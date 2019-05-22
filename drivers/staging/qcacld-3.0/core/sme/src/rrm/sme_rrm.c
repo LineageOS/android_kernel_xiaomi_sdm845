@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -296,9 +296,11 @@ static QDF_STATUS sme_ese_send_beacon_req_scan_results(
 	if (result_arr)
 		cur_result = result_arr[bss_counter];
 
-	qdf_mem_zero(&bcn_rpt_rsp, sizeof(tSirEseBcnReportRsp));
 	do {
 		cur_meas_req = NULL;
+		/* memset bcn_rpt_rsp for each iteration */
+		qdf_mem_zero(&bcn_rpt_rsp, sizeof(bcn_rpt_rsp));
+
 		for (i = 0; i < rrm_ctx->eseBcnReqInfo.numBcnReqIe; i++) {
 			if (rrm_ctx->eseBcnReqInfo.bcnReq[i].channel ==
 				channel) {
@@ -357,14 +359,13 @@ static QDF_STATUS sme_ese_send_beacon_req_scan_results(
 			bcn_report->numBss++;
 			if (++j >= SIR_BCN_REPORT_MAX_BSS_DESC)
 				break;
-			if (j >= bss_count)
+			if ((bss_counter + j) >= bss_count)
 				break;
-			cur_result = result_arr[j];
+			cur_result = result_arr[bss_counter + j];
 		}
 
 		bss_counter += j;
-		if (!result_arr || !cur_result
-		|| (bss_counter >= SIR_BCN_REPORT_MAX_BSS_DESC)) {
+		if (!result_arr || !cur_result || (bss_counter >= bss_count)) {
 			cur_result = NULL;
 			sme_err("Reached to the max/last BSS in cur_result list");
 		} else {
@@ -1325,23 +1326,13 @@ static QDF_STATUS sme_rrm_process_neighbor_report(tpAniSirGlobal pMac,
 	tpRrmNeighborReportDesc pNeighborReportDesc;
 	uint8_t i = 0;
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
-	uint32_t sessionId;
 
-	/* Get the session id */
-	status =
-		csr_roam_get_session_id_from_bssid(pMac,
-			   (struct qdf_mac_addr *) pNeighborRpt->bssId,
-			   &sessionId);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-#ifdef FEATURE_WLAN_ESE
-		/* Clear the cache for ESE. */
-		if (csr_roam_is_ese_assoc(pMac, sessionId)) {
-			rrm_ll_purge_neighbor_cache(pMac,
-						    &pMac->rrm.rrmSmeContext.
-						    neighborReportCache);
-		}
-#endif
-	}
+	/* Purge the cache on reception of unsolicited neighbor report */
+	if (!pMac->rrm.rrmSmeContext.neighborReqControlInfo.
+			isNeighborRspPending)
+		rrm_ll_purge_neighbor_cache(pMac,
+					    &pMac->rrm.rrmSmeContext.
+					    neighborReportCache);
 
 	for (i = 0; i < pNeighborRpt->numNeighborReports; i++) {
 		pNeighborReportDesc =
@@ -1394,6 +1385,7 @@ end:
 		qdf_status = QDF_STATUS_E_FAILURE;
 
 	rrm_indicate_neighbor_report_result(pMac, qdf_status);
+
 	return status;
 }
 

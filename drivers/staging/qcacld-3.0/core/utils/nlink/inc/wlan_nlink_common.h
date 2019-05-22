@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -173,6 +173,26 @@ struct wlan_version_data {
 struct wlan_dfs_info {
 	uint16_t channel;
 	uint8_t country_code[WLAN_SVC_COUNTRY_CODE_LEN];
+};
+
+/**
+ * enum wlan_svc_recfg_mode - indicate reconfig channel mode to user
+ * WLAN_SVC_RECFG_RESTART_HOSTAPD: restart hostapd to config channel
+ * WLAN_SVC_RECFG_ECSA:            config channel with eCSA mode
+ */
+enum wlan_svc_recfg_mode {
+	WLAN_SVC_RECFG_RESTART_HOSTAPD,
+	WLAN_SVC_RECFG_ECSA,
+};
+
+/**
+ * struct lte_coex_info - msg to indicate lte coex info
+ * @recfg_channel: target channel for SAP to switch to.
+ * @recfg_mode:    sap switch channel mode
+ */
+struct lte_coex_info {
+	uint8_t recfg_channel;
+	enum wlan_svc_recfg_mode recfg_mode;
 };
 
 /*

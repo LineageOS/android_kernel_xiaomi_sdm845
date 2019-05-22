@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1045,6 +1045,43 @@ void wlansap_cleanup_cac_timer(void *sap_ctx);
  * Return: None
  */
 void wlansap_set_stop_bss_inprogress(void *ctx, bool in_progress);
+
+/**
+ * wlansap_check_sap_started() - Get SAP started state
+ * @sap_ctx: sap context
+ *
+ * This api returns the current SAP started state to the caller.
+ *
+ * Return: true if SAP is started state else return false
+ */
+bool wlansap_check_sap_started(void *sap_ctx);
+
+/**
+ * wlansap_filter_ch_based_acs() -filter out channel based on acs
+ * @sap_ctx: sap context
+ * @ch_list: pointer to channel list
+ * @ch_cnt: channel number of channel list
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wlansap_filter_ch_based_acs(void *sap_ctx,
+				       uint8_t *ch_list,
+				       uint32_t *ch_cnt);
+#if defined(FEATURE_WLAN_CH_AVOID)
+/**
+ * wlansap_get_safe_channel_from_pcl_and_acs_range() - Get safe channel for SAP
+ * restart
+ * @cds_ctx: sap context
+ *
+ * Get a safe channel to restart SAP. PCL already takes into account the
+ * unsafe channels. So, the PCL is validated with the ACS range to provide
+ * a safe channel for the SAP to restart.
+ *
+ * Return: Channel number to restart SAP in case of success. In case of any
+ * failure, the channel number returned is zero.
+ */
+uint8_t wlansap_get_safe_channel_from_pcl_and_acs_range(void *cds_ctx);
+#endif
 
 #ifdef __cplusplus
 }

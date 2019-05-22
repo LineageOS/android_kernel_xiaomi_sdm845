@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1846,6 +1846,17 @@ wma_remove_peer_by_reference(ol_txrx_pdev_handle pdev,
 	return status;
 }
 
+#ifdef WLAN_FEATURE_11W
+static void wma_clear_iface_key(struct wma_txrx_node *iface)
+{
+	qdf_mem_zero(&iface->key, sizeof(iface->key));
+}
+#else
+static void wma_clear_iface_key(struct wma_txrx_node *iface)
+{
+}
+#endif
+
 /**
  * wma_vdev_stop_resp_handler() - vdev stop response handler
  * @handle: wma handle
@@ -1897,6 +1908,8 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 			 resp_event->vdev_id);
 	}
 
+	/* Clear key information */
+	wma_clear_iface_key(iface);
 	wma_release_wakelock(&iface->vdev_stop_wakelock);
 
 	req_msg = wma_find_vdev_req(wma, resp_event->vdev_id,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -557,16 +557,6 @@ bool csr_is_session_client_and_connected(tpAniSirGlobal pMac, uint8_t sessionId)
 	return false;
 }
 
-/**
- * csr_get_concurrent_operation_channel() - To get concurrent operating channel
- * @mac_ctx: Pointer to mac context
- *
- * This routine will return operating channel on FIRST BSS that is
- * active/operating to be used for concurrency mode.
- * If other BSS is not up or not connected it will return 0
- *
- * Return: uint8_t
- */
 uint8_t csr_get_concurrent_operation_channel(tpAniSirGlobal mac_ctx)
 {
 	tCsrRoamSession *session = NULL;
@@ -591,6 +581,32 @@ uint8_t csr_get_concurrent_operation_channel(tpAniSirGlobal mac_ctx)
 			return session->connectedProfile.operationChannel;
 
 	}
+	return 0;
+}
+
+uint8_t csr_get_beaconing_concurrent_channel(tpAniSirGlobal mac_ctx,
+					     uint8_t vdev_id_to_skip)
+{
+	tCsrRoamSession *session = NULL;
+	uint8_t i = 0;
+	enum tQDF_ADAPTER_MODE persona;
+
+	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
+		if (i == vdev_id_to_skip)
+			continue;
+		if (!CSR_IS_SESSION_VALID(mac_ctx, i))
+			continue;
+		session = CSR_GET_SESSION(mac_ctx, i);
+		if (NULL == session->pCurRoamProfile)
+			continue;
+		persona = session->pCurRoamProfile->csrPersona;
+		if (((persona == QDF_P2P_GO_MODE) ||
+		     (persona == QDF_SAP_MODE)) &&
+		     (session->connectState !=
+		      eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
+			return session->connectedProfile.operationChannel;
+	}
+
 	return 0;
 }
 
@@ -3792,6 +3808,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 		} else {
 			pPMK->cPMKIDs = 0;
 		}
+		qdf_mem_zero(&pmkid_cache, sizeof(pmkid_cache));
 
 #ifdef WLAN_FEATURE_11W
 		/* Advertise BIP in group cipher key management only if PMF is
@@ -4427,6 +4444,78 @@ uint8_t csr_retrieve_wpa_ie(tHalHandle hHal, tCsrRoamProfile *pProfile,
 	return cbWpaIe;
 }
 
+#ifdef WLAN_FEATURE_11W
+/**
+ * csr_get_mc_mgmt_cipher(): Get mcast management cipher from profile rsn
+ * @mac: mac ctx
+ * @profile: connect profile
+ * @bss: ap scan entry
+ * @ap_ie: AP IE's
+ *
+ * Return: none
+ */
+static void csr_get_mc_mgmt_cipher(tpAniSirGlobal mac,
+				   tCsrRoamProfile *profile,
+				   tSirBssDescription *bss,
+				   tDot11fBeaconIEs *ap_ie)
+{
+	int ret;
+	tDot11fIERSN rsn_ie = {0};
+	uint8_t n_mgmt_cipher = 1;
+	struct rsn_caps rsn_caps;
+	tDot11fBeaconIEs *local_ap_ie = ap_ie;
+	uint8_t grp_mgmt_arr[CSR_RSN_MAX_MULTICAST_CYPHERS][CSR_RSN_OUI_SIZE];
+
+	if (!profile->MFPEnabled)
+		return;
+
+	if (!local_ap_ie &&
+	    (!QDF_IS_STATUS_SUCCESS(csr_get_parsed_bss_description_ies
+				    (mac, bss, &local_ap_ie))))
+		return;
+
+	qdf_mem_copy(&rsn_caps, local_ap_ie->RSN.RSN_Cap, sizeof(rsn_caps));
+
+	if (!ap_ie && local_ap_ie)
+		/* locally allocated */
+		qdf_mem_free(local_ap_ie);
+
+	/* if AP is not PMF capable return */
+	if (!rsn_caps.MFPCapable)
+		return;
+
+	ret = dot11f_unpack_ie_rsn(mac, profile->pRSNReqIE + 2,
+				   profile->nRSNReqIELength -2,
+				   &rsn_ie, false);
+	if (DOT11F_FAILED(ret))
+		return;
+
+	qdf_mem_copy(&rsn_caps, rsn_ie.RSN_Cap, sizeof(rsn_caps));
+
+	/* if self cap is not PMF capable return */
+	if (!rsn_caps.MFPCapable)
+		return;
+
+	qdf_mem_copy(grp_mgmt_arr, rsn_ie.gp_mgmt_cipher_suite,
+		     CSR_RSN_OUI_SIZE);
+	if (csr_is_group_mgmt_gmac_128(mac, grp_mgmt_arr, n_mgmt_cipher, NULL))
+		profile->mgmt_encryption_type = eSIR_ED_AES_GMAC_128;
+	else if (csr_is_group_mgmt_gmac_256(mac, grp_mgmt_arr,
+		 n_mgmt_cipher, NULL))
+		profile->mgmt_encryption_type = eSIR_ED_AES_GMAC_256;
+	else
+		/* Default is CMAC */
+		profile->mgmt_encryption_type = eSIR_ED_AES_128_CMAC;
+}
+#else
+static inline
+void csr_get_mc_mgmt_cipher(tpAniSirGlobal mac,
+			    tCsrRoamProfile *profile,
+			    tSirBssDescription *bss,
+			    tDot11fBeaconIEs *ap_ie)
+{
+}
+#endif
 /* If a RSNIE exists in the profile, just use it. Or else construct
  * one from the BSS Caller allocated memory for pWpaIe and guarrantee
  * it can contain a max length WPA IE
@@ -4451,6 +4540,8 @@ uint8_t csr_retrieve_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 				cbRsnIe = (uint8_t) pProfile->nRSNReqIELength;
 				qdf_mem_copy(pRsnIe, pProfile->pRSNReqIE,
 					     cbRsnIe);
+				csr_get_mc_mgmt_cipher(pMac, pProfile,
+						       pSirBssDesc, pIes);
 			} else {
 				sme_warn("csr_retrieve_rsn_ie detect invalid RSN IE length (%d)",
 					pProfile->nRSNReqIELength);

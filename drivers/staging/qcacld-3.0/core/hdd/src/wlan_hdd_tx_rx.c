@@ -565,6 +565,11 @@ static bool hdd_tx_rx_is_dns_domain_name_match(struct sk_buff *skb,
 	if (adapter->track_dns_domain_len == 0)
 		return false;
 
+	/* check OOB , is strncmp accessing data more than skb->len */
+	if ((adapter->track_dns_domain_len +
+	    QDF_NBUF_PKT_DNS_NAME_OVER_UDP_OFFSET) > qdf_nbuf_len(skb))
+		return false;
+
 	domain_name = qdf_nbuf_get_dns_domain_name(skb,
 						adapter->track_dns_domain_len);
 	if (strncmp(domain_name, adapter->dns_payload,
@@ -1089,17 +1094,15 @@ drop_pkt_and_release_skb:
 	qdf_net_buf_debug_release_skb(skb);
 drop_pkt:
 
-	if (skb) {
-		/* track connectivity stats */
-		if (pAdapter->pkt_type_bitmap)
-			hdd_tx_rx_collect_connectivity_stats_info(skb, pAdapter,
-						PKT_TYPE_TX_DROPPED, &pkt_type);
+	/* track connectivity stats */
+	if (pAdapter->pkt_type_bitmap)
+		hdd_tx_rx_collect_connectivity_stats_info(skb, pAdapter,
+							  PKT_TYPE_TX_DROPPED,
+							  &pkt_type);
 
-		qdf_dp_trace_data_pkt(skb, QDF_DP_TRACE_DROP_PACKET_RECORD, 0,
-				      QDF_TX);
-		kfree_skb(skb);
-		skb = NULL;
-	}
+	qdf_dp_trace_data_pkt(skb, QDF_DP_TRACE_DROP_PACKET_RECORD, 0,
+			      QDF_TX);
+	kfree_skb(skb);
 
 drop_pkt_accounting:
 

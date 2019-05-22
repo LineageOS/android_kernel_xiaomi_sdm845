@@ -7169,7 +7169,7 @@ static void disconnect_sta_and_stop_sap(hdd_context_t *hdd_ctx)
 	if (!hdd_ctx)
 		return;
 
-	wlan_hdd_disable_channels(hdd_ctx);
+	hdd_check_and_disconnect_sta_on_invalid_channel(hdd_ctx);
 
 	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
 	while (adapter_node && (status == QDF_STATUS_SUCCESS)) {
@@ -7356,11 +7356,16 @@ static int hdd_parse_disable_chan_cmd(hdd_adapter_t *adapter, uint8_t *ptr)
 		ret = 0;
 	}
 
-	if (!is_command_repeated && hdd_ctx->config->disable_channel)
-		disconnect_sta_and_stop_sap(hdd_ctx);
 mem_alloc_failed:
 
 	qdf_mutex_release(&hdd_ctx->cache_channel_lock);
+	if (!is_command_repeated && hdd_ctx->original_channels) {
+		ret = wlan_hdd_disable_channels(hdd_ctx);
+		if (ret)
+			return ret;
+		disconnect_sta_and_stop_sap(hdd_ctx);
+	}
+
 	EXIT();
 
 	return ret;

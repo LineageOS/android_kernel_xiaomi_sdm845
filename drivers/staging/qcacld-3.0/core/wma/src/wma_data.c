@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2572,6 +2572,37 @@ static void wma_update_tx_send_params(struct tx_send_params *tx_param,
 }
 
 /**
+ * wma_is_rmf_mgmt_action_frame() - check RMF action frame by category
+ * @action_category: action frame actegory
+ *
+ * This function check the frame is robust mgmt action frame or not
+ *
+ * Return: true - if category is robust mgmt type
+ */
+static bool wma_is_rmf_mgmt_action_frame(uint8_t action_category)
+{
+	switch (action_category) {
+	case SIR_MAC_ACTION_SPECTRUM_MGMT:
+	case SIR_MAC_ACTION_QOS_MGMT:
+	case SIR_MAC_ACTION_DLP:
+	case SIR_MAC_ACTION_BLKACK:
+	case SIR_MAC_ACTION_RRM:
+	case SIR_MAC_ACTION_FAST_BSS_TRNST:
+	case SIR_MAC_ACTION_SA_QUERY:
+	case SIR_MAC_ACTION_PROT_DUAL_PUB:
+	case SIR_MAC_ACTION_WNM:
+	case SIR_MAC_ACITON_MESH:
+	case SIR_MAC_ACTION_MHF:
+	case SIR_MAC_ACTION_FST:
+		return true;
+	default:
+		break;
+	}
+	return false;
+
+}
+
+/**
  * wma_tx_packet() - Sends Tx Frame to TxRx
  * @wma_context: wma context
  * @tx_frame: frame buffer
@@ -2612,6 +2643,8 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 	uint8_t *pFrame = NULL;
 	void *pPacket = NULL;
 	uint16_t newFrmLen = 0;
+	uint8_t action_category = 0;
+	bool deauth_disassoc = false;
 #endif /* WLAN_FEATURE_11W */
 	struct wma_txrx_node *iface;
 	tpAniSirGlobal pMac;
@@ -2668,6 +2701,12 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 	     pFc->subType == SIR_MAC_MGMT_ACTION)) {
 		struct ieee80211_frame *wh =
 			(struct ieee80211_frame *)qdf_nbuf_data(tx_frame);
+		if (pFc->subType == SIR_MAC_MGMT_ACTION)
+			action_category =
+					*((uint8_t *)(qdf_nbuf_data(tx_frame)) +
+					  sizeof(struct ieee80211_frame));
+		else
+			deauth_disassoc = true;
 		if (!IEEE80211_IS_BROADCAST(wh->i_addr1) &&
 		    !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 			if (pFc->wep) {
@@ -2718,7 +2757,8 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 				pFc = (tpSirMacFrameCtl)
 						(qdf_nbuf_data(tx_frame));
 			}
-		} else {
+		} else if (deauth_disassoc ||
+			   wma_is_rmf_mgmt_action_frame(action_category)) {
 			/* Allocate extra bytes for MMIE */
 			newFrmLen = frmLen + IEEE80211_MMIE_LEN;
 			qdf_status = cds_packet_alloc((uint16_t) newFrmLen,

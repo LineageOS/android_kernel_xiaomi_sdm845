@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -3099,7 +3099,7 @@ static uint32_t hdd_get_max_rate_legacy(hdd_station_info_t *stainfo,
 			maxidx < stainfo->max_ext_idx)
 		maxidx = stainfo->max_ext_idx;
 
-	for (i = 0; QDF_ARRAY_SIZE(supported_data_rate); i++) {
+	for (i = 0; i < QDF_ARRAY_SIZE(supported_data_rate); i++) {
 		if (supported_data_rate[i].beacon_rate_index == maxidx)
 			maxrate =
 				supported_data_rate[i].supported_rate[rssidx];
@@ -3970,11 +3970,6 @@ static int wlan_hdd_get_peer_info(hdd_adapter_t *adapter,
 	return ret;
 }
 
-int wlan_hdd_get_station_remote(struct wiphy *wiphy,
-		struct net_device *dev,
-		const u8 *mac,
-		struct station_info *sinfo);
-
 /**
  * wlan_hdd_get_station_remote() - NL80211_CMD_GET_STATION handler for SoftAP
  * @wiphy: pointer to wiphy
@@ -3986,7 +3981,7 @@ int wlan_hdd_get_station_remote(struct wiphy *wiphy,
  *
  * Return: 0 on success, otherwise error value
  */
-int wlan_hdd_get_station_remote(struct wiphy *wiphy,
+static int wlan_hdd_get_station_remote(struct wiphy *wiphy,
 		struct net_device *dev,
 		const u8 *mac,
 		struct station_info *sinfo)
@@ -4099,8 +4094,15 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (pAdapter->device_mode == QDF_SAP_MODE)
+	if (pAdapter->device_mode == QDF_SAP_MODE) {
+		if (pCfg->sap_get_peer_info) {
+			status =  wlan_hdd_get_station_remote(wiphy, dev,
+							      mac, sinfo);
+			if (!status)
+				return 0;
+		}
 		return wlan_hdd_get_sap_stats(pAdapter, sinfo);
+	}
 
 	if ((eConnectionState_Associated != pHddStaCtx->conn_info.connState) ||
 	    (0 == ssidlen)) {

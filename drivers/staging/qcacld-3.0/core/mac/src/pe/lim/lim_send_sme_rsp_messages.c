@@ -1514,9 +1514,8 @@ lim_send_sme_deauth_ntf(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
 	}
 
 	/*Delete the PE session  created */
-	if (psessionEntry != NULL) {
+	if ((psessionEntry != NULL) && LIM_IS_STA_ROLE(psessionEntry))
 		pe_delete_session(pMac, psessionEntry);
-	}
 
 	lim_send_sme_disassoc_deauth_ntf(pMac, QDF_STATUS_SUCCESS,
 					 (uint32_t *) pMsg);

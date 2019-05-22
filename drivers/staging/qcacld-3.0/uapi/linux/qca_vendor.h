@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2066,6 +2066,51 @@ enum qca_roaming_policy {
 };
 
 /**
+ * enum qca_roam_reason - Represents the reason codes for roaming. Used by
+ * QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_REASON.
+ *
+ * @QCA_ROAM_REASON_UNKNOWN: Any reason that do not classify under the below
+ * reasons.
+ *
+ * @QCA_ROAM_REASON_PER: Roam triggered when packet error rates(PER) breached
+ * the configured threshold.
+ *
+ * @QCA_ROAM_REASON_BEACON_MISS: Roam triggered due to the continuous configured
+ * beacon misses from the then connected AP.
+ *
+ * @QCA_ROAM_REASON_POOR_RSSI: Roam triggered due to the poor RSSI reported
+ * by the connected AP.
+ *
+ * @QCA_ROAM_REASON_BETTER_RSSI: Roam triggered for finding a BSSID with a
+ * better RSSI than the connected BSSID. Here the RSSI of the current BSSID is
+ * not poor.
+ *
+ * @QCA_ROAM_REASON_CONGESTION: Roam triggered considering the connected channel
+ * or environment being very noisy / congested.
+ *
+ * @QCA_ROAM_REASON_EXPLICIT_REQUEST: Roam triggered due to an explicit request
+ * from the user (user space).
+ *
+ * @QCA_ROAM_REASON_BTM: Roam triggered due to BTM request frame received from
+ * connected AP.
+ *
+ * @QCA_ROAM_REASON_BSS_LOAD: Roam triggered due to the channel utilization
+ * breaching out the configured threshold.
+ *
+ */
+enum qca_roam_reason {
+	QCA_ROAM_REASON_UNKNOWN,
+	QCA_ROAM_REASON_PER,
+	QCA_ROAM_REASON_BEACON_MISS,
+	QCA_ROAM_REASON_POOR_RSSI,
+	QCA_ROAM_REASON_BETTER_RSSI,
+	QCA_ROAM_REASON_CONGESTION,
+	QCA_ROAM_REASON_USER_TRIGGER,
+	QCA_ROAM_REASON_BTM,
+	QCA_ROAM_REASON_BSS_LOAD,
+};
+
+/**
  * enum qca_wlan_vendor_attr_roam_auth - vendor event for roaming
  * @QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_BSSID: BSSID of the roamed AP
  * @QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_REQ_IE: Request IE
@@ -2082,6 +2127,9 @@ enum qca_roaming_policy {
  * @QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_PMKID: AUTH PMKID
  * @QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_FILS_ERP_NEXT_SEQ_NUM: FILS erp next
  * seq number
+ * @QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_REASON: A 16-bit unsigned value
+ * representing the reasons for the roaming. Defined by enum
+ * qca_roam_reason.
  */
 enum qca_wlan_vendor_attr_roam_auth {
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_INVALID = 0,
@@ -2114,6 +2162,7 @@ enum qca_wlan_vendor_attr_roam_auth {
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_PMK,
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_PMKID,
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_FILS_ERP_NEXT_SEQ_NUM,
+	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_REASON,
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_MAX =
 		QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_AFTER_LAST - 1
@@ -2855,6 +2904,12 @@ enum qca_wlan_vendor_attr_get_logger_features {
  *	to specify negotiated rate flags i.e. ht, vht and channel width
  * @QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_FREQ: Unsigned 32bit value to
  *	specify the operating frequency
+ * @QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_MAC_ADDR: MAC Address of the peer
+ * (STA / AP ) for the connected link.
+ * @QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_STA_FLAGS: Attribute containing a
+ * &struct nl80211_sta_flag_update for the respective connected link. MAC
+ * address of the peer represented by
+ * QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_MAC_ADDR.
  * @QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_AFTER_LAST: after last
  * @QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_MAX: max value
  */
@@ -2863,8 +2918,10 @@ enum qca_wlan_vendor_attr_link_properties {
 	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_NSS = 1,
 	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_RATE_FLAGS = 2,
 	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_FREQ = 3,
-	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_STA_FLAGS  = 4,
-	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_STA_MAC  = 5,
+	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_MAC_ADDR = 4,
+	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_STA_FLAGS = 5,
+
+
 
 	/* KEEP LAST */
 	QCA_WLAN_VENDOR_ATTR_LINK_PROPERTIES_AFTER_LAST,

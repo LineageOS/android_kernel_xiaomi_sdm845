@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2288,7 +2288,8 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 
 	if (cds_concurrent_beaconing_sessions_running()) {
 		con_ch =
-			sme_get_concurrent_operation_channel(h_hal);
+			sme_get_beaconing_concurrent_operation_channel(h_hal,
+							sap_context->sessionId);
 #ifdef FEATURE_WLAN_STA_AP_MODE_DFS_DISABLE
 		if (con_ch && sap_context->channel == AUTO_CHANNEL_SELECT) {
 			sap_context->dfs_ch_disable = true;
@@ -2300,9 +2301,9 @@ QDF_STATUS sap_goto_channel_sel(ptSapContext sap_context,
 		}
 #endif
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
-		if (sap_context->cc_switch_mode !=
+		if (con_ch && (sap_context->cc_switch_mode !=
 					QDF_MCC_TO_SCC_SWITCH_DISABLE &&
-					sap_context->channel) {
+					sap_context->channel)) {
 			/*
 			 * For ACS request ,the sapContext->channel is 0,
 			 * we skip below overlap checking. When the ACS
@@ -3876,7 +3877,8 @@ static QDF_STATUS sap_fsm_state_ch_select(ptSapContext sap_ctx,
 		if (cds_concurrent_beaconing_sessions_running()) {
 			uint16_t con_ch;
 
-			con_ch = sme_get_concurrent_operation_channel(hal);
+			con_ch = sme_get_beaconing_concurrent_operation_channel(
+					hal, sap_ctx->sessionId);
 			if (con_ch && CDS_IS_DFS_CH(con_ch))
 				sap_ctx->channel = con_ch;
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -849,6 +849,9 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 #endif
 	pe_delete_fils_info(session);
 	session->valid = false;
+
+	qdf_mem_zero(session->WEPKeyMaterial,
+		     sizeof(session->WEPKeyMaterial));
 
 	if (session->access_policy_vendor_ie)
 		qdf_mem_free(session->access_policy_vendor_ie);
