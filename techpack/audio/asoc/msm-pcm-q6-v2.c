@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -582,8 +582,17 @@ static int msm_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		pr_debug("%s: Trigger start\n", __func__);
-		ret = q6asm_run_nowait(prtd->audio_client, 0, 0, 0);
+		if (prtd->qtime_lsw) {
+			pr_debug("%s: Trigger start at msw: %u, lsw: %u msec",
+				__func__, prtd->qtime_msw, prtd->qtime_lsw);
+			ret = q6asm_run_nowait(prtd->audio_client, 1,
+					prtd->qtime_msw, prtd->qtime_lsw);
+			prtd->qtime_lsw = 0;
+			prtd->qtime_msw = 0;
+		} else {
+			pr_debug("%s: Trigger start\n", __func__);
+			ret = q6asm_run_nowait(prtd->audio_client, 0, 0, 0);
+		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		pr_debug("SNDRV_PCM_TRIGGER_STOP\n");
@@ -1118,7 +1127,8 @@ static int msm_pcm_adsp_stream_cmd_put(struct snd_kcontrol *kcontrol,
 		goto done;
 	}
 
-	substream = pdata->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+	substream = pdata->pcm[kcontrol->private_value]->
+			streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
 	if (!substream) {
 		pr_err("%s substream not found\n", __func__);
 		ret = -EINVAL;
@@ -1403,7 +1413,8 @@ static int msm_pcm_compress_ctl_get(struct snd_kcontrol *kcontrol,
 		pr_err("%s pdata is NULL\n", __func__);
 		return -ENODEV;
 	}
-	substream = pdata->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+	substream = pdata->pcm[kcontrol->private_value]->
+			streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
 	if (!substream) {
 		pr_err("%s substream not found\n", __func__);
 		return -EINVAL;
@@ -1433,7 +1444,8 @@ static int msm_pcm_compress_ctl_put(struct snd_kcontrol *kcontrol,
 		pr_err("%s pdata is NULL\n", __func__);
 		return -ENODEV;
 	}
-	substream = pdata->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+	substream = pdata->pcm[kcontrol->private_value]->
+			streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
 	pr_debug("%s: compress : 0x%x\n", __func__, compress);
 	if (!substream) {
 		pr_err("%s substream not found\n", __func__);
@@ -1493,15 +1505,13 @@ static int msm_pcm_add_compress_control(struct snd_soc_pcm_runtime *rtd)
 	pr_debug("%s: Registering new mixer ctl %s\n", __func__, mixer_str);
 	pdata = dev_get_drvdata(rtd->platform->dev);
 	if (pdata) {
-		if (!pdata->pcm) {
-			pdata->pcm = rtd->pcm;
-			snd_soc_add_platform_controls(rtd->platform,
-						      pcm_compress_control,
-						      ARRAY_SIZE
-						      (pcm_compress_control));
-			pr_debug("%s: add control success plt = %pK\n",
+		pdata->pcm[rtd->dai_link->id] = rtd->pcm;
+		snd_soc_add_platform_controls(rtd->platform,
+					      pcm_compress_control,
+					      ARRAY_SIZE
+					      (pcm_compress_control));
+		pr_debug("%s: add control success plt = %pK\n",
 				 __func__, rtd->platform);
-		}
 	} else {
 		pr_err("%s: NULL pdata\n", __func__);
 		ret = -EINVAL;
@@ -1755,6 +1765,90 @@ static int msm_pcm_add_app_type_controls(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+static int msm_pcm_qtimer_ctl_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 2;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 0x200000;
+	return 0;
+}
+
+static int msm_pcm_qtimer_ctl_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_platform *platform = snd_soc_component_to_platform(comp);
+	struct msm_plat_data *pdata = dev_get_drvdata(platform->dev);
+	struct snd_pcm_substream *substream;
+	struct msm_audio *prtd;
+
+	if (!pdata) {
+		pr_err("%s pdata is NULL\n", __func__);
+		return -ENODEV;
+	}
+
+	substream = pdata->pcm[kcontrol->private_value]->
+			streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+	if (!substream) {
+		pr_err("%s substream not found\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!substream->runtime) {
+		pr_err("%s substream runtime not found\n", __func__);
+		return 0;
+	}
+
+	prtd = substream->runtime->private_data;
+	if (prtd) {
+		prtd->qtime_lsw = ucontrol->value.integer.value[0];
+		prtd->qtime_msw = ucontrol->value.integer.value[1];
+	}
+
+	return 0;
+}
+
+static int msm_pcm_add_qtimer_control(struct snd_soc_pcm_runtime *rtd)
+{
+	const char *mixer_ctl_name = "QTimer";
+	const char *deviceNo = "NN";
+	char *mixer_str = NULL;
+	int ctl_len = 0, ret = 0;
+	struct snd_kcontrol_new qtimer_control[1] = {
+		{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "?",
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.info = msm_pcm_qtimer_ctl_info,
+		.put = msm_pcm_qtimer_ctl_put,
+		.private_value = 0,
+		}
+	};
+
+	ctl_len = strlen(mixer_ctl_name) + 1 + strlen(deviceNo) + 1;
+	mixer_str = kzalloc(ctl_len, GFP_KERNEL);
+	if (!mixer_str) {
+		ret = -ENOMEM;
+		goto done;
+	}
+
+	snprintf(mixer_str, ctl_len, "%s %d", mixer_ctl_name, rtd->pcm->device);
+	qtimer_control[0].name = mixer_str;
+	qtimer_control[0].private_value = rtd->dai_link->id;
+	ret = snd_soc_add_platform_controls(rtd->platform,
+		qtimer_control,
+		ARRAY_SIZE(qtimer_control));
+	if (ret < 0)
+		pr_err("%s: failed add ctl %s. err = %d\n",
+			__func__, mixer_str, ret);
+
+	kfree(mixer_str);
+done:
+	return ret;
+}
+
 static int msm_pcm_add_controls(struct snd_soc_pcm_runtime *rtd)
 {
 	int ret = 0;
@@ -1767,6 +1861,12 @@ static int msm_pcm_add_controls(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		pr_err("%s: pcm add app type controls failed:%d\n",
 			__func__, ret);
+
+	ret = msm_pcm_add_qtimer_control(rtd);
+	if (ret)
+		pr_err("%s: pcm add qtimer controls failed:%d\n",
+			__func__, ret);
+
 	return ret;
 }
 
