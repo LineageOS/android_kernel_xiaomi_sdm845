@@ -3926,9 +3926,10 @@ QDF_STATUS send_setup_install_key_cmd_tlv(wmi_unified_t wmi_handle,
 
 	status = wmi_unified_cmd_send(wmi_handle, buf, len,
 					      WMI_VDEV_INSTALL_KEY_CMDID);
-	if (QDF_IS_STATUS_ERROR(status))
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_zero(wmi_buf_data(buf), len);
 		wmi_buf_free(buf);
-
+	}
 	return status;
 }
 
@@ -7372,6 +7373,7 @@ QDF_STATUS send_get_stats_cmd_tlv(wmi_unified_t wmi_handle,
 		WMI_REQUEST_PEER_STAT | WMI_REQUEST_PDEV_STAT |
 		WMI_REQUEST_VDEV_STAT | WMI_REQUEST_RSSI_PER_CHAIN_STAT;
 	cmd->vdev_id = get_stats_param->session_id;
+	cmd->pdev_id = get_stats_param->pdev_id;
 	WMI_CHAR_ARRAY_TO_MAC_ADDR(addr, &cmd->peer_macaddr);
 	WMI_LOGD("STATS REQ VDEV_ID:%d-->", cmd->vdev_id);
 	if (wmi_unified_cmd_send(wmi_handle, buf, len,
@@ -13027,6 +13029,12 @@ static host_mem_req *extract_host_mem_req_tlv(wmi_unified_t wmi_handle,
 		return NULL;
 	}
 
+	if (ev->num_mem_reqs > param_buf->num_mem_reqs) {
+		WMI_LOGE("Invalid num_mem_reqs %d:%d",
+			 ev->num_mem_reqs, param_buf->num_mem_reqs);
+		return NULL;
+	}
+
 	*num_entries = ev->num_mem_reqs;
 
 	return (host_mem_req *)param_buf->mem_reqs;
@@ -15057,6 +15065,49 @@ static QDF_STATUS send_invoke_neighbor_report_cmd_tlv(wmi_unified_t wmi_handle,
 	return status;
 }
 
+/*
+ * send_btm_config_cmd_tlv() - Send wmi cmd for BTM config
+ * @wmi_handle: wmi handle
+ * @params: pointer to wmi_btm_config
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS send_btm_config_cmd_tlv(wmi_unified_t wmi_handle,
+					  struct wmi_btm_config *params)
+{
+
+	wmi_btm_config_fixed_param *cmd;
+	wmi_buf_t buf;
+	uint32_t len;
+
+	len = sizeof(*cmd);
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		qdf_print("%s:wmi_buf_alloc failed\n", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_btm_config_fixed_param *)wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		       WMITLV_TAG_STRUC_wmi_btm_config_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN(wmi_btm_config_fixed_param));
+	cmd->vdev_id = params->vdev_id;
+	cmd->flags = params->btm_offload_config;
+	cmd->max_attempt_cnt = params->btm_max_attempt_cnt;
+	cmd->solicited_timeout_ms = params->btm_solicited_timeout;
+	cmd->stick_time_seconds = params->btm_sticky_time;
+	cmd->btm_bitmap = params->btm_query_bitmask;
+
+	if (wmi_unified_cmd_send(wmi_handle, buf, len,
+	    WMI_ROAM_BTM_CONFIG_CMDID)) {
+		WMI_LOGE("%s: failed to send WMI_ROAM_BTM_CONFIG_CMDID",
+			 __func__);
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+	return QDF_STATUS_SUCCESS;
+}
+
 struct wmi_ops tlv_ops =  {
 	.send_vdev_create_cmd = send_vdev_create_cmd_tlv,
 	.send_vdev_delete_cmd = send_vdev_delete_cmd_tlv,
@@ -15359,6 +15410,7 @@ struct wmi_ops tlv_ops =  {
 	.extract_roam_scan_stats_res_evt = extract_roam_scan_stats_res_evt_tlv,
 	.send_offload_11k_cmd = send_offload_11k_cmd_tlv,
 	.send_invoke_neighbor_report_cmd = send_invoke_neighbor_report_cmd_tlv,
+	.send_btm_config = send_btm_config_cmd_tlv,
 };
 
 #ifdef WMI_TLV_AND_NON_TLV_SUPPORT

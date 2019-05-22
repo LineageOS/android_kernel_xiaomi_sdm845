@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -6583,6 +6583,18 @@ wmi_extract_roam_scan_stats_res_evt(wmi_unified_t wmi, void *evt_buf,
 		return wmi->ops->extract_roam_scan_stats_res_evt(wmi,
 							evt_buf,
 							vdev_id, res_param);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS wmi_unified_send_btm_config(void *wmi_hdl,
+				       struct wmi_btm_config *params)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_btm_config)
+		return wmi_handle->ops->send_btm_config(wmi_handle,
+							params);
 
 	return QDF_STATUS_E_FAILURE;
 }
