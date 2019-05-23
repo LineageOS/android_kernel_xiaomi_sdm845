@@ -15110,6 +15110,77 @@ static QDF_STATUS send_btm_config_cmd_tlv(wmi_unified_t wmi_handle,
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+/**
+ * send_thermal_mitigation_param_cmd_tlv() - configure thermal mitigation params
+ * @wmi_handle: handle to WMI.
+ * @param: pointer to hold thermal mitigation param
+ *
+ * Return: QDF_STATUS_SUCCESS on success and appropriate error on failure.
+ */
+static QDF_STATUS send_thermal_mitigation_param_cmd_tlv(
+		wmi_unified_t wmi_handle,
+		struct thermal_mitigation_params *param)
+{
+	wmi_therm_throt_config_request_fixed_param *tt_conf;
+	wmi_therm_throt_level_config_info *lvl_conf = NULL;
+	wmi_buf_t buf = NULL;
+	uint8_t *buf_ptr = NULL;
+	QDF_STATUS error;
+	size_t len;
+	int i;
+
+	len = sizeof(*tt_conf) + WMI_TLV_HDR_SIZE +
+				 param->num_thermal_conf *
+				 sizeof(wmi_therm_throt_level_config_info);
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf)
+		return QDF_STATUS_E_NOMEM;
+
+	tt_conf = (wmi_therm_throt_config_request_fixed_param *)
+							wmi_buf_data(buf);
+
+	/* init fixed params */
+	WMITLV_SET_HDR(
+		tt_conf,
+		WMITLV_TAG_STRUC_wmi_therm_throt_config_request_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN(
+		wmi_therm_throt_config_request_fixed_param));
+
+	tt_conf->enable = param->enable;
+	tt_conf->dc = param->dc;
+	tt_conf->therm_throt_levels = param->num_thermal_conf;
+
+	buf_ptr = (uint8_t *)(++tt_conf);
+	/* init TLV params */
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
+		       param->num_thermal_conf *
+		       sizeof(wmi_therm_throt_level_config_info));
+
+	lvl_conf = (wmi_therm_throt_level_config_info *)(buf_ptr +
+							  WMI_TLV_HDR_SIZE);
+	for (i = 0; i < param->num_thermal_conf; i++) {
+		WMITLV_SET_HDR(
+			&lvl_conf->tlv_header,
+			WMITLV_TAG_STRUC_wmi_therm_throt_level_config_info,
+			WMITLV_GET_STRUCT_TLVLEN(
+			wmi_therm_throt_level_config_info));
+		lvl_conf->dc_off_percent = param->levelconf[i].dcoffpercent;
+		lvl_conf++;
+	}
+
+	error = wmi_unified_cmd_send(wmi_handle, buf, len,
+				     WMI_THERM_THROT_SET_CONF_CMDID);
+	if (QDF_IS_STATUS_ERROR(error)) {
+		wmi_buf_free(buf);
+		WMI_LOGE("Failed to send WMI_THERM_THROT_SET_CONF_CMDID cmd");
+	}
+
+	return error;
+}
+#endif
+
 struct wmi_ops tlv_ops =  {
 	.send_vdev_create_cmd = send_vdev_create_cmd_tlv,
 	.send_vdev_delete_cmd = send_vdev_delete_cmd_tlv,
@@ -15413,6 +15484,10 @@ struct wmi_ops tlv_ops =  {
 	.send_offload_11k_cmd = send_offload_11k_cmd_tlv,
 	.send_invoke_neighbor_report_cmd = send_invoke_neighbor_report_cmd_tlv,
 	.send_btm_config = send_btm_config_cmd_tlv,
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+	.send_thermal_mitigation_param_cmd =
+			send_thermal_mitigation_param_cmd_tlv,
+#endif
 };
 
 #ifdef WMI_TLV_AND_NON_TLV_SUPPORT
