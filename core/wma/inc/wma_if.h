@@ -206,6 +206,7 @@ typedef struct sAniProbeRspStruct {
  * @nss: Return the number of spatial streams supported
  * @stbc_capable: stbc capable
  * @max_amsdu_num: Maximum number of MSDUs in a tx aggregate frame
+ * @no_ptk_4_way: Do not need 4-way handshake
  *
  * This structure contains parameter required for
  * add sta request of upper layer.
@@ -313,6 +314,7 @@ typedef struct {
 	uint8_t twt_requestor;
 	uint8_t twt_responder;
 #endif
+	bool no_ptk_4_way;
 } tAddStaParams, *tpAddStaParams;
 
 /**
@@ -441,6 +443,7 @@ typedef struct sLimMlmSetKeysReq {
  * @he_capable: HE Capability
  * @cac_duration_ms: cac duration in milliseconds
  * @dfs_regdomain: dfs region
+ * @no_ptk_4_way: Do not need 4-way handshake
  */
 typedef struct {
 	tSirMacAddr bssId;
@@ -521,6 +524,7 @@ typedef struct {
 #endif
 	uint32_t cac_duration_ms;
 	uint32_t dfs_regdomain;
+	bool no_ptk_4_way;
 } tAddBssParams, *tpAddBssParams;
 
 /**
