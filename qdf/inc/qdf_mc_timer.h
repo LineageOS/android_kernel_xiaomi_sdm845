@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -227,6 +227,22 @@ QDF_STATUS qdf_mc_timer_start(qdf_mc_timer_t *timer, uint32_t expiration_time);
 QDF_STATUS qdf_mc_timer_stop(qdf_mc_timer_t *timer);
 
 /**
+ * qdf_mc_timer_stop_sync() - stop a QDF Timer
+ * @timer: Pointer to timer object
+ * qdf_mc_timer_stop_sync() function stops a timer synchronously
+ * that has been started but has not expired, essentially
+ * cancelling the 'start' request.
+ *
+ * After a timer is stopped, it goes back to the state it was in after it
+ * was created and can be started again via a call to qdf_mc_timer_start().
+ *
+ * Return:
+ * QDF_STATUS_SUCCESS - Timer is initialized successfully
+ * QDF failure status - Timer initialization failed
+ */
+QDF_STATUS qdf_mc_timer_stop_sync(qdf_mc_timer_t *timer);
+
+/**
  * qdf_mc_timer_get_system_ticks() - get the system time in 10ms ticks
  *
  * qdf_mc_timer_get_system_ticks() function returns the current number
@@ -293,7 +309,8 @@ void qdf_timer_module_deinit(void);
  * Return: None
  */
 void qdf_get_time_of_the_day_in_hr_min_sec_usec(char *tbuf, int len);
-void qdf_register_mc_timer_callback(void (*callback) (unsigned long data));
+
+void qdf_register_mc_timer_callback(void (*callback) (qdf_mc_timer_t *data));
 
 /**
  * qdf_timer_set_multiplier() - set the global QDF timer scalar value
