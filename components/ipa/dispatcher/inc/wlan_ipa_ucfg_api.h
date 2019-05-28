@@ -26,6 +26,7 @@
 #include "wlan_ipa_obj_mgmt_api.h"
 #include "wlan_objmgr_pdev_obj.h"
 #include "qdf_types.h"
+#include "wlan_ipa_main.h"
 
 #ifdef IPA_OFFLOAD
 
@@ -167,7 +168,8 @@ void ucfg_ipa_reg_sap_xmit_cb(struct wlan_objmgr_pdev *pdev,
  *
  * Return: None
  */
-void ucfg_ipa_reg_send_to_nw_cb(struct wlan_objmgr_pdev *pdev, void *cb);
+void ucfg_ipa_reg_send_to_nw_cb(struct wlan_objmgr_pdev *pdev,
+				wlan_ipa_send_to_nw cb);
 
 /**
  * ucfg_ipa_set_mcc_mode() - Set MCC mode
@@ -414,7 +416,8 @@ void ucfg_ipa_reg_sap_xmit_cb(struct wlan_objmgr_pdev *pdev,
 }
 
 static inline
-void ucfg_ipa_reg_send_to_nw_cb(struct wlan_objmgr_pdev *pdev, void *cb)
+void ucfg_ipa_reg_send_to_nw_cb(struct wlan_objmgr_pdev *pdev,
+				wlan_ipa_send_to_nw cb)
 {
 }
 

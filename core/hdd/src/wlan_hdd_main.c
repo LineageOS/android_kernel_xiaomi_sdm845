@@ -2119,7 +2119,7 @@ int hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 	ucfg_ipa_reg_sap_xmit_cb(hdd_ctx->pdev,
 				 hdd_softap_ipa_start_xmit);
 	ucfg_ipa_reg_send_to_nw_cb(hdd_ctx->pdev,
-				   hdd_ipa_send_skb_to_network);
+				   hdd_ipa_send_nbuf_to_network);
 
 	if (cds_cfg) {
 		if (hdd_ctx->config->enable_sub_20_channel_width !=
