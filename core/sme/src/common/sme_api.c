@@ -7181,6 +7181,8 @@ QDF_STATUS sme_stop_roaming(tHalHandle hal, uint8_t session_id, uint8_t reason)
 	else
 		csr_roam_reset_roam_params(mac_ctx);
 
+	req->offload_11k_params.offload_11k_bitmask = 0;
+
 	wma_msg.type = WMA_ROAM_SCAN_OFFLOAD_REQ;
 	wma_msg.bodyptr = req;
 

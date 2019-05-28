@@ -1782,6 +1782,18 @@ QDF_STATUS hdd_rx_deliver_to_stack(struct hdd_adapter *adapter,
 	return status;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0))
+static bool hdd_is_gratuitous_arp_unsolicited_na(struct sk_buff *skb)
+{
+	return false;
+}
+#else
+static bool hdd_is_gratuitous_arp_unsolicited_na(struct sk_buff *skb)
+{
+	return cfg80211_is_gratuitous_arp_unsolicited_na(skb);
+}
+#endif
+
 /**
  * hdd_rx_packet_cbk() - Receive packet handler
  * @context: pointer to HDD context
@@ -1865,7 +1877,7 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 
 		sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 		if ((sta_ctx->conn_info.proxyARPService) &&
-		    cfg80211_is_gratuitous_arp_unsolicited_na(skb)) {
+		    hdd_is_gratuitous_arp_unsolicited_na(skb)) {
 			qdf_atomic_inc(&adapter->hdd_stats.tx_rx_stats.
 						rx_usolict_arp_n_mcast_drp);
 			/* Remove SKB from internal tracking table before

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012,2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012,2016-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -242,33 +242,28 @@ QDF_STATUS hdd_wmm_adapter_init(struct hdd_adapter *adapter);
 QDF_STATUS hdd_wmm_adapter_close(struct hdd_adapter *adapter);
 
 /**
- * hdd_wmm_select_queue() - Function which will classify the packet
- *       according to linux qdisc expectation.
+ * hdd_select_queue() - Return queue to be used.
+ * @dev:	Pointer to the WLAN device.
+ * @skb:	Pointer to OS packet (sk_buff).
  *
- * @dev: [in] pointer to net_device structure
- * @skb: [in] pointer to os packet
+ * This function is registered with the Linux OS for network
+ * core to decide which queue to use for the skb.
  *
- * Return: Qdisc queue index
+ * Return: Qdisc queue index.
  */
-uint16_t hdd_wmm_select_queue(struct net_device *dev, struct sk_buff *skb);
-
-/**
- * hdd_hostapd_select_queue() - Function which will classify the packet
- *       according to linux qdisc expectation.
- *
- * @dev: [in] pointer to net_device structure
- * @skb: [in] pointer to os packet
- *
- * Return: Qdisc queue index
- */
-uint16_t hdd_hostapd_select_queue(struct net_device *dev, struct sk_buff *skb
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
-				  , void *accel_priv
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
+uint16_t hdd_select_queue(struct net_device *dev, struct sk_buff *skb,
+			  struct net_device *sb_dev,
+			  select_queue_fallback_t fallback);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
+uint16_t hdd_select_queue(struct net_device *dev, struct sk_buff *skb,
+			  void *accel_priv, select_queue_fallback_t fallback);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
+uint16_t hdd_select_queue(struct net_device *dev, struct sk_buff *skb,
+			  void *accel_priv);
+#else
+uint16_t hdd_select_queue(struct net_device *dev, struct sk_buff *skb);
 #endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
-				  , select_queue_fallback_t fallback
-#endif
-);
 
 /**
  * hdd_wmm_acquire_access_required() - Function which will determine
