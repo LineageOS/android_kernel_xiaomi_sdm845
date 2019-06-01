@@ -13963,14 +13963,14 @@ QDF_STATUS sme_handle_bcn_recv_start(mac_handle_t mac_handle,
 	QDF_STATUS status;
 	int ret;
 
-	if (!CSR_IS_SESSION_VALID(mac_ctx, vdev_id)) {
-		sme_err("CSR session not valid: %d", vdev_id);
-		return QDF_STATUS_E_FAILURE;
-	}
-
 	session = CSR_GET_SESSION(mac_ctx, vdev_id);
 	if (!session) {
 		sme_err("vdev_id %d not found", vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (!CSR_IS_SESSION_VALID(mac_ctx, vdev_id)) {
+		sme_err("CSR session not valid: %d", vdev_id);
 		return QDF_STATUS_E_FAILURE;
 	}
 
