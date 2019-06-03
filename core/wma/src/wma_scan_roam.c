@@ -2320,14 +2320,29 @@ static void wma_roam_update_vdev(tp_wma_handle wma,
 	vdev_id = roam_synch_ind_ptr->roamedVdevId;
 	wma->interfaces[vdev_id].nss = roam_synch_ind_ptr->nss;
 	del_bss_params = qdf_mem_malloc(sizeof(*del_bss_params));
+	if (!del_bss_params)
+		return;
+
 	del_sta_params = qdf_mem_malloc(sizeof(*del_sta_params));
-	set_link_params = qdf_mem_malloc(sizeof(*set_link_params));
-	add_sta_params = qdf_mem_malloc(sizeof(*add_sta_params));
-	if (!del_bss_params || !del_sta_params ||
-		!set_link_params || !add_sta_params) {
-		WMA_LOGE("%s: failed to allocate memory", __func__);
+	if (!del_sta_params) {
+		qdf_mem_free(del_bss_params);
 		return;
 	}
+
+	set_link_params = qdf_mem_malloc(sizeof(*set_link_params));
+	if (!set_link_params) {
+		qdf_mem_free(del_bss_params);
+		qdf_mem_free(del_sta_params);
+		return;
+	}
+	add_sta_params = qdf_mem_malloc(sizeof(*add_sta_params));
+	if (!add_sta_params) {
+		qdf_mem_free(del_bss_params);
+		qdf_mem_free(del_sta_params);
+		qdf_mem_free(set_link_params);
+		return;
+	}
+
 	qdf_mem_zero(del_bss_params, sizeof(*del_bss_params));
 	qdf_mem_zero(del_sta_params, sizeof(*del_sta_params));
 	qdf_mem_zero(set_link_params, sizeof(*set_link_params));
@@ -3704,6 +3719,7 @@ int wma_extscan_operations_event_handler(void *handle,
 			WMA_LOGE("FW mesg num_buk %d more than TLV hdr %d",
 				 oprn_event->num_buckets,
 				 param_buf->num_bucket_id);
+			qdf_mem_free(oprn_ind);
 			return -EINVAL;
 		}
 
