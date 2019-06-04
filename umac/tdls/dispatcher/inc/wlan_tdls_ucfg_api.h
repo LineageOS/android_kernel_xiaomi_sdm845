@@ -151,11 +151,11 @@ QDF_STATUS ucfg_tdls_responder(struct tdls_set_responder_req *msg_req);
 
 /**
  * ucfg_tdls_teardown_links() - teardown all TDLS links
- * @vdev: vdev object manager
+ * @psoc: psoc object manager
  *
  * Return: None
  */
-QDF_STATUS ucfg_tdls_teardown_links(struct wlan_objmgr_vdev *vdev);
+QDF_STATUS ucfg_tdls_teardown_links(struct wlan_objmgr_psoc *psoc);
 
 /**
  * ucfg_tdls_notify_reset_adapter() - notify reset adapter
@@ -264,4 +264,16 @@ QDF_STATUS ucfg_set_tdls_secoffchanneloffset(struct wlan_objmgr_vdev *vdev,
  */
 void ucfg_tdls_notify_connect_failure(struct wlan_objmgr_psoc *psoc);
 
+/**
+ * ucfg_get_tdls_vdev() - Ucfg api to get tdls specific vdev object
+ * @psoc: wlan psoc object manager
+ * @dbg_id: debug id
+ *
+ * If TDLS is enabled on any vdev then return the corresponding vdev.
+ *
+ * This api increases the ref count of the returned vdev.
+ * Return: vdev manager pointer or NULL.
+ */
+struct wlan_objmgr_vdev *ucfg_get_tdls_vdev(struct wlan_objmgr_psoc *psoc,
+					    wlan_objmgr_ref_dbgid dbg_id);
 #endif
