@@ -10038,10 +10038,14 @@ QDF_STATUS sme_set_miracast(tHalHandle hal, uint8_t filter_type)
 	uint32_t *val;
 	tpAniSirGlobal mac_ptr = PMAC_STRUCT(hal);
 
+	if (!mac_ptr) {
+		sme_err("Invalid pointer");
+		return QDF_STATUS_E_NOMEM;
+	}
+
 	val = qdf_mem_malloc(sizeof(*val));
-	if (NULL == val || NULL == mac_ptr) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				"%s: Invalid pointer", __func__);
+	if (!val) {
+		sme_err("Mem allocation failed");
 		return QDF_STATUS_E_NOMEM;
 	}
 
