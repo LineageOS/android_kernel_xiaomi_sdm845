@@ -840,11 +840,10 @@ ucfg_update_channel_list(struct scan_start_request *req,
 	if (req->scan_req.p2p_scan_type == SCAN_P2P_SEARCH)
 		p2p_search = true;
 	/*
-	 * No need to update channels if req is passive scan and single channel
-	 * ie ROC, Preauth etc
+	 * No need to update channels if req is single channel* ie ROC,
+	 * Preauth or a single channel scan etc.
 	 */
-	if (req->scan_req.scan_f_passive &&
-	    req->scan_req.chan_list.num_chan == 1)
+	if (req->scan_req.chan_list.num_chan == 1)
 		return;
 
 	/* do this only for STA and P2P-CLI mode */
@@ -992,8 +991,7 @@ ucfg_scan_req_update_params(struct wlan_objmgr_vdev *vdev,
 	if (custom_chan_list->num_chan)
 		qdf_mem_copy(&req->scan_req.chan_list, custom_chan_list,
 				sizeof(struct chan_list));
-	else if (req->scan_req.scan_f_wide_band &&
-			!req->scan_req.chan_list.num_chan)
+	else if (!req->scan_req.chan_list.num_chan)
 		ucfg_scan_init_chanlist_params(req, 0, NULL, NULL);
 
 	ucfg_update_channel_list(req, scan_obj);
@@ -1784,7 +1782,7 @@ ucfg_scan_init_chanlist_params(struct scan_start_request *req,
 	 * provided in scan request causing scan to take
 	 * too much time to complete.
 	 */
-	if (pdev && !num_chans && ucfg_scan_get_wide_band_scan(pdev)) {
+	if (pdev && !num_chans) {
 		reg_chan_list = qdf_mem_malloc_atomic(NUM_CHANNELS *
 				sizeof(struct regulatory_channel));
 		if (!reg_chan_list) {
@@ -1868,6 +1866,9 @@ ucfg_scan_init_chanlist_params(struct scan_start_request *req,
 end:
 	if (scan_freqs)
 		qdf_mem_free(scan_freqs);
+
+	if (reg_chan_list)
+		qdf_mem_free(reg_chan_list);
 
 	return QDF_STATUS_SUCCESS;
 }

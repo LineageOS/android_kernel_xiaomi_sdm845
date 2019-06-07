@@ -4801,10 +4801,9 @@ static QDF_STATUS extract_ocb_dcc_stats_tlv(wmi_unified_t wmi_handle,
 	if (fix_param->num_channels > ((WMI_SVC_MSG_MAX_SIZE -
 	    sizeof(*fix_param)) / sizeof(wmi_dcc_ndl_stats_per_channel)) ||
 	    fix_param->num_channels > param_tlvs->num_stats_per_channel_list) {
-		WMI_LOGE("%s: too many channels:%d actual:%d", __func__,
+		WMI_LOGW("%s: too many channels:%d actual:%d", __func__,
 			 fix_param->num_channels,
 			 param_tlvs->num_stats_per_channel_list);
-		QDF_ASSERT(0);
 		*resp = NULL;
 		return QDF_STATUS_E_INVAL;
 	}
@@ -13017,6 +13016,10 @@ void wmi_copy_resource_config(wmi_resource_config *resource_cfg,
 
 	if (tgt_res_cfg->peer_unmap_conf_support)
 		WMI_RSRC_CFG_FLAG_PEER_UNMAP_RESPONSE_SUPPORT_SET(
+						resource_cfg->flag1, 1);
+
+	if (tgt_res_cfg->tstamp64_en)
+		WMI_RSRC_CFG_FLAG_TX_COMPLETION_TX_TSF64_ENABLE_SET(
 						resource_cfg->flag1, 1);
 
 	wmi_copy_twt_resource_config(resource_cfg, tgt_res_cfg);
@@ -23938,6 +23941,8 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_VDEV_LATENCY_CONFIG;
 	wmi_service[wmi_service_sta_plus_sta_support] =
 				WMI_SERVICE_STA_PLUS_STA_SUPPORT;
+	wmi_service[wmi_service_tx_compl_tsf64] =
+			WMI_SERVICE_TX_COMPL_TSF64;
 }
 
 #ifndef CONFIG_MCL
