@@ -3272,3 +3272,10 @@ QDF_STATUS htt_rx_update_smmu_map(struct htt_pdev_t *pdev, bool map)
 	return status;
 }
 #endif
+
+#ifdef WLAN_FEATURE_TSF_PLUS
+void htt_rx_enable_ppdu_end(int *enable_ppdu_end)
+{
+	*enable_ppdu_end = 1;
+}
+#endif

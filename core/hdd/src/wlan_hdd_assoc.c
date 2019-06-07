@@ -3418,6 +3418,14 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 					   timeout_reason);
 		}
 
+		/* Check to change TDLS state in FW
+		 * as connection failed.
+		 */
+		if (roamStatus == eCSR_ROAM_ASSOCIATION_FAILURE ||
+		    roamStatus == eCSR_ROAM_CANCELLED) {
+			ucfg_tdls_notify_connect_failure(hdd_ctx->psoc);
+		}
+
 		/*
 		 * Set connection state to eConnectionState_NotConnected only
 		 * when CSR has completed operation - with a
