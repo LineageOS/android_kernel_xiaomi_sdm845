@@ -407,6 +407,8 @@ typedef enum {
     WMI_PDEV_PKTLOG_FILTER_CMDID,
     /** wmi command for setting rogue ap configuration */
     WMI_PDEV_SET_RAP_CONFIG_CMDID,
+    /** Specify DSM filters along with disallow bssid filters */
+    WMI_PDEV_DSM_FILTER_CMDID,
 
     /* VDEV (virtual device) specific commands */
     /** vdev create */
@@ -697,8 +699,11 @@ typedef enum {
     WMI_ROAM_DEAUTH_CONFIG_CMDID,
     /** Configure idle roam trigger parameters */
     WMI_ROAM_IDLE_CONFIG_CMDID,
-    /** roaming filter cmd with DSM filters along with existing roam filters */
-    WMI_ROAM_DSM_FILTER_CMDID,
+    /**
+     * WMI_ROAM_DSM_FILTER_CMDID is deprecated and should be unused,
+     * but leave it reserved just to be safe.
+     */
+    DEPRECATED__WMI_ROAM_DSM_FILTER_CMDID,
 
     /** offload scan specific commands */
     /** set offload scan AP profile   */
@@ -2086,9 +2091,9 @@ typedef enum {
 #define WMI_HE_CAP_RX_DL_OFDMA_SUPPORT_SET(he_cap_info_dword1, value) \
     WMI_SET_BITS(he_cap_info_dword1, 3, 2, value)
 
-#define WMI_HE_CAP_RX_DL_MUMIMO_SUPPORT_GET() \
+#define WMI_HE_CAP_RX_DL_MUMIMO_SUPPORT_GET(he_cap_info_dword1) \
     WMI_GET_BITS(he_cap_info_dword1, 5, 2)
-#define WMI_HE_CAP_RX_DL_MUMIMO_SUPPORT_SET() \
+#define WMI_HE_CAP_RX_DL_MUMIMO_SUPPORT_SET(he_cap_info_dword1, value) \
     WMI_SET_BITS(he_cap_info_dword1, 5, 2, value)
 
 /* Interested readers refer to Rx/Tx MCS Map definition as defined in 802.11ax
@@ -12855,6 +12860,7 @@ typedef struct{
 #define WMI_ROAM_INVOKE_SCAN_MODE_CACHE_LIST    1   /* scan cached channel list */
 #define WMI_ROAM_INVOKE_SCAN_MODE_FULL_CH       2   /* scan full channel */
 #define WMI_ROAM_INVOKE_SCAN_MODE_SKIP          3   /* no scan is performed. use beacon/probe resp given by the host */
+#define WMI_ROAM_INVOKE_SCAN_MODE_CACHE_MAP     4   /* scan cached channel map */
 
 #define WMI_ROAM_INVOKE_AP_SEL_FIXED_BSSID      0   /* roam to given BSSID only */
 #define WMI_ROAM_INVOKE_AP_SEL_ANY_BSSID        1   /* roam to any BSSID */
@@ -24023,7 +24029,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_ROAM_DEAUTH_CONFIG_CMDID);
         WMI_RETURN_STRING(WMI_ROAM_IDLE_CONFIG_CMDID);
         WMI_RETURN_STRING(WMI_IDLE_TRIGGER_MONITOR_CMDID);
-        WMI_RETURN_STRING(WMI_ROAM_DSM_FILTER_CMDID);
+        WMI_RETURN_STRING(WMI_PDEV_DSM_FILTER_CMDID);
     }
 
     return "Invalid WMI cmd";
@@ -24528,11 +24534,11 @@ typedef enum {
 /*
 * Lay out of flags in wmi_wlm_config_cmd_fixed_param
 *
-* |31  17|16 14| 13 | 12 |  11  |  10  |9    8|7    6|5    4|3    2|  1  |  0  |
-* +------+-----+----+----+------+------+------+------+------+------+-----+-----+
-* | RSVD | NSS |EDCA| TRY| SSLP | CSLP | RSVD | Roam | RSVD | DWLT | DFS | SUP |
-* +----------------------+-------------+-------------+-------------------------+
-* |          WAL         |      PS     |     Roam    |         Scan            |
+* |31 19|  18 | 17|16 14| 13 | 12| 11 | 10 |  9  |  8 |7  6|5  4|3  2| 1 | 0 |
+* +-----+-----+---+-----+----+---+----+----+-----+----+----+----+----+---+---+
+* | RSVD|SRATE|RTS| NSS |EDCA|TRY|SSLP|CSLP|DBMPS|RSVD|Roam|RSVD|DWLT|DFS|SUP|
+* +------------------------------+---------------+---------+-----------------+
+* |              WAL             |    PS         |  Roam   |     Scan        |
 *
 * Flag values:
 *     TRY: (1) enable short limit for retrying unacked tx, where the limit is
@@ -24543,6 +24549,10 @@ typedef enum {
 *     NSS: (0) no Nss limits, other than those negotiatied during association
 *          (1) during 2-chain operation, tx only a single spatial stream
 *          (2) - (7) reserved / invalid
+*     RTS: (0) default protection
+*          (1) always enable RTS/CTS protection
+*   SRATE: (0) default secondary rate policy
+*          (1) disable secondary rate
 */
 /* bit 0-3 of flags is used for scan operation */
 /* bit 0: WLM_FLAGS_SCAN_SUPPRESS, suppress all scan and other bits would be ignored if bit is set */
@@ -24619,6 +24629,10 @@ typedef enum {
 #define WLM_FLAGS_WAL_ADJUST_EDCA_SET(flag, val)          WMI_SET_BITS(flag, 13, 1, val)
 #define WLM_FLAGS_WAL_1NSS_ENABLED(flag)                 (WMI_GET_BITS(flag, 14, 3) & 0x1)
 #define WLM_FLAGS_WAL_NSS_SET(flag, val)                  WMI_SET_BITS(flag, 14, 3, val)
+#define WLM_FLAGS_WAL_ALWAYS_RTS_PROTECTION(flag)         WMI_GET_BITS(flag, 17, 1)
+#define WLM_FLAGS_WAL_RTS_PROTECTION_SET(flag, val)       WMI_SET_BITS(flag, 17, 1, val)
+#define WLM_FLAGS_WAL_DISABLE_SECONDARY_RATE(flag)        WMI_GET_BITS(flag, 18, 1)
+#define WLM_FLAGS_WAL_SECONDARY_RATE_SET(flag, val)       WMI_SET_BITS(flag, 18, 1, val)
 
 typedef struct {
     /** TLV tag and len; tag equals
@@ -24911,15 +24925,17 @@ typedef struct {
 
     /**
      * [7:0]  : channel metric -  0 = unusable, 1 = worst, 100 = best
-     * [11:8] : channel BW -
-     *          0 = 20MHz
-     *          1 = 40MHz
-     *          2 = 80MHz
-     *          3 = 160MHz
-     *          (4-10 unused)
-     *          11 = 5MHz
-     *          12 = 10MHz
-     *          (13-15 unused)
+     * [11:8] : channel BW - This bit-field uses values compatible with
+     *          enum definitions used internally within the target's
+     *          halphy code.  These values are specified below.
+     *              BW_20MHZ    = 0,
+     *              BW_40MHZ    = 1,
+     *              BW_80MHZ    = 2,
+     *              BW_160MHZ   = 3,
+     *              BW_80P80MHZ = 4,
+     *              BW_5MHZ     = 5,
+     *              BW_10MHZ    = 6,
+     *              BW_165MHZ   = 7,
      * [15:12]: Reserved
      * [31:16]: Frequency - Center frequency of the channel for which
      *          the RF characterisation info applies (MHz)
@@ -25257,21 +25273,20 @@ typedef enum {
 } WMI_SCREEN_STATUS_NOTIFY_ID;
 
 typedef struct {
-    /** TLV tag and len; tag equals wmi_roam_dsm_filter_fixed_param */
+    /** TLV tag and len; tag equals wmi_pdev_dsm_filter_fixed_param */
     A_UINT32 tlv_header;
-    /** Unique id identifying the VDEV on which new roaming filter(data stall AP mitigation) is adopted */
-    A_UINT32 vdev_id;
     /**
-     * TLV (tag length value) parameter's following roam_dsm_filter_cmd are,
+     * TLV (tag length value) parameter's following pdev_dsm_filter_cmd are,
      *
-     *  wmi_roam_bssid_disallow_list_config_param bssid_disallow_list[]; i.e array containing
-     *  all roam filter lists including the new DSM lists(avoidlist/driver_blacklist) and
-     *  existing roam lists(supplicant_blacklist/rssi_rejectlist etc.)
+     *  wmi_pdev_bssid_disallow_list_config_param bssid_disallow_list[];
+     *      i.e array containing all disallow AP filter lists including
+     *      the new DSM lists (avoidlist / driver_blacklist) and existing
+     *      lists (supplicant_blacklist / rssi_rejectlist etc.)
      */
-} wmi_roam_dsm_filter_fixed_param;
+} wmi_pdev_dsm_filter_fixed_param;
 
 typedef struct {
-    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_roam_bssid_disallow_list_config_param */
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_pdev_bssid_disallow_list_config_param */
     A_UINT32 tlv_header;
     /** bssid type i.e whether bssid falls in avoid list or driver_blacklist etc.
       see WMI_BSSID_DISALLOW_LIST_TYPE **/
@@ -25282,13 +25297,13 @@ typedef struct {
     A_UINT32 remaining_disallow_duration;
     /** AP will be allowed for candidate, when AP RSSI better than expected RSSI units in dBm */
     A_INT32 expected_rssi;
-} wmi_roam_bssid_disallow_list_config_param;
+} wmi_pdev_bssid_disallow_list_config_param;
 
 typedef enum {
     /* USER_SPACE_BLACK_LIST
      * Black Listed AP's by host's user space
      */
-    WMI_BSSID_DISALLOW_USER_SPACE_BLACK_LIST = 0,
+    WMI_BSSID_DISALLOW_USER_SPACE_BLACK_LIST = 1,
     /* DRIVER_BLACK_LIST
      * Black Listed AP's by host driver
      * used for data stall migitation
@@ -25309,6 +25324,12 @@ typedef enum {
      */
     WMI_BSSID_DISALLOW_RSSI_REJECT_LIST,
 } WMI_BSSID_DISALLOW_LIST_TYPE;
+
+/* WLAN_PDEV_MAX_NUM_BSSID_DISALLOW_LIST:
+ * Maximum number of BSSID disallow entries which host is allowed to send
+ * to firmware within the WMI_PDEV_DSM_FILTER_CMDID message.
+ */
+#define WLAN_PDEV_MAX_NUM_BSSID_DISALLOW_LIST  28
 
 typedef struct {
     /*
