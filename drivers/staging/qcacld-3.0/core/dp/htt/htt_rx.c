@@ -2439,7 +2439,8 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 	paddr = htt_rx_in_ord_paddr_get(msg_word);
 	(*head_msdu) = msdu = htt_rx_in_order_netbuf_pop(pdev, paddr);
 
-	(*head_mon_msdu) = NULL;
+	if (head_mon_msdu)
+		(*head_mon_msdu) = NULL;
 
 	if (qdf_unlikely(NULL == msdu)) {
 		qdf_print("%s: netbuf pop failed!\n", __func__);
@@ -2515,7 +2516,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 						   HTT_RX_STD_DESC_RESERVATION);
 				qdf_nbuf_set_next(mon_msdu, NULL);
 
-				if (!(*head_mon_msdu)) {
+				if (head_mon_msdu && !(*head_mon_msdu)) {
 					*head_mon_msdu = mon_msdu;
 					mon_prev = mon_msdu;
 				} else {
