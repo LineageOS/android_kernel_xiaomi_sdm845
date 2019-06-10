@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -413,16 +413,17 @@ int wlan_cfg80211_mgmt_tx(struct wlan_objmgr_vdev *vdev,
 	struct p2p_mgmt_tx mgmt_tx = {0};
 	struct wlan_objmgr_psoc *psoc;
 	uint8_t vdev_id;
+	uint32_t channel = 0;
 
 	if (!vdev) {
 		cfg80211_err("invalid vdev object");
 		return -EINVAL;
 	}
 
-	if (!chan) {
-		cfg80211_err("invalid channel");
-		return -EINVAL;
-	}
+	if (chan)
+		channel = (uint32_t)wlan_freq_to_chan(chan->center_freq);
+	else
+		cfg80211_debug("NULL chan, set channel to 0");
 
 	psoc = wlan_vdev_get_psoc(vdev);
 	vdev_id = wlan_vdev_get_id(vdev);
@@ -459,7 +460,7 @@ int wlan_cfg80211_mgmt_tx(struct wlan_objmgr_vdev *vdev,
 	mgmt_tx.len = len;
 	mgmt_tx.no_cck = (uint32_t)no_cck;
 	mgmt_tx.dont_wait_for_ack = (uint32_t)dont_wait_for_ack;
-	mgmt_tx.off_chan = (uint32_t)offchan;
+	mgmt_tx.off_chan = channel;
 	mgmt_tx.buf = buf;
 
 	return qdf_status_to_os_return(
