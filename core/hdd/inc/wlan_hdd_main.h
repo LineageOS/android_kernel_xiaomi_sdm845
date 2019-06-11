@@ -3625,21 +3625,32 @@ void wlan_hdd_send_tcp_param_update_event(struct hdd_context *hdd_ctx,
 void hdd_hidden_ssid_enable_roaming(hdd_handle_t hdd_handle, uint8_t vdev_id);
 
 /**
+ * hdd_trigger_psoc_idle_restart() - trigger restart of a previously shutdown
+ * idle psoc, if needed
+ * @hdd_ctx: the hdd context which should be restarted
+ *
+ * This API does nothing if the given psoc is already active.
+ *
+ *  Return: Errno
+ */
+int hdd_trigger_psoc_idle_restart(struct hdd_context *hdd_ctx);
+
+/**
  * hdd_psoc_idle_shutdown - perform idle shutdown after interface inactivity
  *                          timeout
- * @hdd_ctx: hdd context
+ * @dev: platform device structure
  *
- * Return: None
+ * Return: 0 for success errorno for failure
  */
-void hdd_psoc_idle_shutdown(void *priv);
+int hdd_psoc_idle_shutdown(struct device *dev);
 
 /**
  * hdd_psoc_idle_restart - perform idle restart after idle shutdown
- * @hdd_ctx: hdd context
+ * @dev: platform device structure
  *
  * Return: 0 for success non-zero error code for failure
  */
-int hdd_psoc_idle_restart(struct hdd_context *hdd_ctx);
+int hdd_psoc_idle_restart(struct device *dev);
 
 /**
  * hdd_psoc_idle_timer_start() - start the idle psoc detection timer

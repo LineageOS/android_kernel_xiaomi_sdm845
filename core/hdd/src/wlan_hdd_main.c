@@ -2409,7 +2409,7 @@ static int __hdd_mon_open(struct net_device *dev)
 	hdd_mon_mode_ether_setup(dev);
 
 	if (con_mode == QDF_GLOBAL_MONITOR_MODE) {
-		ret = hdd_psoc_idle_restart(hdd_ctx);
+		ret = hdd_trigger_psoc_idle_restart(hdd_ctx);
 		if (ret) {
 			hdd_err("Failed to start WLAN modules return");
 			return ret;
@@ -3305,7 +3305,7 @@ static int __hdd_open(struct net_device *dev)
 	}
 
 
-	ret = hdd_psoc_idle_restart(hdd_ctx);
+	ret = hdd_trigger_psoc_idle_restart(hdd_ctx);
 	if (ret) {
 		hdd_err("Failed to start WLAN modules return");
 		goto err_hdd_hdd_init_deinit_lock;
@@ -9502,33 +9502,42 @@ static void hdd_set_wlan_logging(struct hdd_context *hdd_ctx)
 #endif
 
 /**
- * hdd_psoc_idle_shutdown() - perform an idle shutdown on the given psoc
- * @hdd_ctx: the hdd context which should be shutdown
- *
- * When no interfaces are "up" on a psoc, an idle shutdown timer is started.
- * If no interfaces are brought up before the timer expires, we do an
- * "idle shutdown," cutting power to the physical SoC to save power. This is
- * done completely transparently from the perspective of userspace.
+ * hdd_psoc_idle_timeout_callback() - Handler for psoc idle timeout
+ * @priv: pointer to hdd context
  *
  * Return: None
  */
-void hdd_psoc_idle_shutdown(void *priv)
+static void hdd_psoc_idle_timeout_callback(void *priv)
 {
 	struct hdd_context *hdd_ctx = priv;
 
-	hdd_enter();
+	if (wlan_hdd_validate_context(hdd_ctx))
+		return;
 
-	/* Block the modem graceful shutdown till stop modules is completed */
-	pld_block_shutdown(hdd_ctx->parent_dev, HDD_BLOCK_MODEM_SHUTDOWN);
+	hdd_info("Psoc idle timeout elapsed; starting psoc shutdown");
 
-	QDF_BUG(!hdd_wlan_stop_modules(hdd_ctx, false));
-
-	pld_block_shutdown(hdd_ctx->parent_dev, HDD_UNBLOCK_MODEM_SHUTDOWN);
-
-	hdd_exit();
+	pld_idle_shutdown(hdd_ctx->parent_dev, hdd_psoc_idle_shutdown);
 }
 
-int hdd_psoc_idle_restart(struct hdd_context *hdd_ctx)
+
+static int __hdd_psoc_idle_restart(struct hdd_context *hdd_ctx)
+{
+	return hdd_wlan_start_modules(hdd_ctx, false);
+}
+
+int hdd_psoc_idle_restart(struct device *dev)
+{
+	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	if (!hdd_ctx) {
+		hdd_err_rl("hdd ctx is null");
+		return -EINVAL;
+	}
+
+	return __hdd_psoc_idle_restart(hdd_ctx);
+}
+
+int hdd_trigger_psoc_idle_restart(struct hdd_context *hdd_ctx)
 {
 	QDF_BUG(rtnl_is_locked());
 
@@ -9541,7 +9550,35 @@ int hdd_psoc_idle_restart(struct hdd_context *hdd_ctx)
 	}
 
 	mutex_unlock(&hdd_ctx->iface_change_lock);
-	return hdd_wlan_start_modules(hdd_ctx, false);
+	pld_idle_restart(hdd_ctx->parent_dev, hdd_psoc_idle_restart);
+	return 0;
+}
+
+int hdd_psoc_idle_shutdown(struct device *dev)
+{
+	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	int ret;
+
+	ret = wlan_hdd_validate_context(hdd_ctx);
+	if (ret)
+		return ret;
+
+	hdd_enter();
+
+	/* Block the modem graceful shutdown till stop modules is completed */
+	pld_block_shutdown(hdd_ctx->parent_dev, HDD_BLOCK_MODEM_SHUTDOWN);
+
+	ret = hdd_wlan_stop_modules(hdd_ctx, false);
+	if (ret) {
+		hdd_err("Failed to start modules");
+		return ret;
+	}
+
+	pld_block_shutdown(hdd_ctx->parent_dev, HDD_UNBLOCK_MODEM_SHUTDOWN);
+
+	hdd_exit();
+
+	return 0;
 }
 
 void hdd_psoc_idle_timer_start(struct hdd_context *hdd_ctx)
@@ -9591,7 +9628,7 @@ static struct hdd_context *hdd_context_create(struct device *dev)
 	}
 
 	qdf_create_delayed_work(&hdd_ctx->psoc_idle_timeout_work,
-				hdd_psoc_idle_shutdown,
+				hdd_psoc_idle_timeout_callback,
 				(void *)hdd_ctx);
 
 	mutex_init(&hdd_ctx->iface_change_lock);

@@ -1641,9 +1641,11 @@ int pld_idle_shutdown(struct device *dev,
 	switch (type) {
 	case PLD_BUS_TYPE_SDIO:
 	case PLD_BUS_TYPE_USB:
-	case PLD_BUS_TYPE_SNOC:
 	case PLD_BUS_TYPE_PCIE:
 		errno = shutdown_cb(dev);
+		break;
+	case PLD_BUS_TYPE_SNOC:
+		errno = pld_snoc_idle_shutdown(dev);
 		break;
 	default:
 		pr_err("Invalid device type %d\n", type);
@@ -1666,9 +1668,11 @@ int pld_idle_restart(struct device *dev,
 	switch (type) {
 	case PLD_BUS_TYPE_SDIO:
 	case PLD_BUS_TYPE_USB:
-	case PLD_BUS_TYPE_SNOC:
 	case PLD_BUS_TYPE_PCIE:
 		errno = restart_cb(dev);
+		break;
+	case PLD_BUS_TYPE_SNOC:
+		errno = pld_snoc_idle_restart(dev);
 		break;
 	default:
 		pr_err("Invalid device type %d\n", type);

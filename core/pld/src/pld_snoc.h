@@ -293,5 +293,14 @@ static inline void pld_snoc_block_shutdown(bool status)
 	icnss_block_shutdown(status);
 }
 
+static inline int pld_snoc_idle_restart(struct device *dev)
+{
+	return icnss_idle_restart(dev);
+}
+
+static inline int pld_snoc_idle_shutdown(struct device *dev)
+{
+	return icnss_idle_shutdown(dev);
+}
 #endif
 #endif
