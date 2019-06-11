@@ -1604,8 +1604,7 @@ static void wlan_hdd_pld_uevent(struct device *dev,
 
 	wlan_hdd_set_the_pld_uevent(uevent);
 
-	qdf_cancel_delayed_work(&hdd_ctx->iface_idle_work);
-
+	hdd_psoc_idle_timer_stop(hdd_ctx);
 	mutex_lock(&hdd_init_deinit_lock);
 	wlan_hdd_handle_the_pld_uevent(uevent);
 	mutex_unlock(&hdd_init_deinit_lock);
