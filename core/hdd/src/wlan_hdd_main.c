@@ -9565,16 +9565,11 @@ int hdd_psoc_idle_shutdown(struct device *dev)
 
 	hdd_enter();
 
-	/* Block the modem graceful shutdown till stop modules is completed */
-	pld_block_shutdown(hdd_ctx->parent_dev, HDD_BLOCK_MODEM_SHUTDOWN);
-
 	ret = hdd_wlan_stop_modules(hdd_ctx, false);
 	if (ret) {
 		hdd_err("Failed to start modules");
 		return ret;
 	}
-
-	pld_block_shutdown(hdd_ctx->parent_dev, HDD_UNBLOCK_MODEM_SHUTDOWN);
 
 	hdd_exit();
 
