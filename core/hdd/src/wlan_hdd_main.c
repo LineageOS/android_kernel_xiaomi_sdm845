@@ -5842,6 +5842,7 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 	case QDF_MONITOR_MODE:
 		wlan_hdd_scan_abort(adapter);
 		hdd_deregister_tx_flow_control(adapter);
+		sme_delete_mon_session(mac_handle, adapter->session_id);
 		hdd_vdev_destroy(adapter);
 		break;
 

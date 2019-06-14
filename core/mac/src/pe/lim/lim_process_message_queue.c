@@ -1701,6 +1701,11 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx,
 		qdf_mem_free(msg->bodyptr);
 		msg->bodyptr = NULL;
 		break;
+	case eWNI_SME_MON_DEINIT_SESSION:
+		lim_mon_deinit_session(mac_ctx, msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		msg->bodyptr = NULL;
+		break;
 #ifdef FEATURE_WLAN_TDLS
 	case SIR_HAL_TDLS_IND:
 		tdls_ind = (tpSirTdlsInd) msg->bodyptr;

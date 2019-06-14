@@ -1695,6 +1695,15 @@ sme_apf_read_work_memory(tHalHandle hal,
 
 uint32_t sme_get_wni_dot11_mode(tHalHandle hal);
 QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
+/**
+ * sme_delete_mon_session() - post message to delete PE session for mon_mode
+ * operation
+ * @mac_handle: Opaque handle to the global MAC context
+ * @vdev_id: sme session id
+ *
+ * Return: QDF_STATUS_SUCCESS on success, non-zero error code on failure.
+ */
+QDF_STATUS sme_delete_mon_session(mac_handle_t mac_handle, uint8_t vdev_id);
 QDF_STATUS sme_set_adaptive_dwelltime_config(tHalHandle hal,
 			struct adaptive_dwelltime_params *dwelltime_params);
 
