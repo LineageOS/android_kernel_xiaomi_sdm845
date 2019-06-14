@@ -5841,6 +5841,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_THERMAL_THROT_DC_MIN,
 		     CFG_THERMAL_THROT_DC_MAX),
 #endif
+
+	REG_VARIABLE(CFG_DISABLE_4WAY_HS_OFFLOAD, WLAN_PARAM_Integer,
+		     struct hdd_config, disable_4way_hs_offload,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT,
+		     CFG_DISABLE_4WAY_HS_OFFLOAD_MIN,
+		     CFG_DISABLE_4WAY_HS_OFFLOAD_MAX),
 };
 
 /**
@@ -7914,6 +7921,8 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 	hdd_debug("Name = [%s] value = [%d]",
 		  CFG_PKTCAPTURE_MODE_NAME, pHddCtx->config->pktcapture_mode);
 	hdd_cfg_print_thermal_config(pHddCtx);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_DISABLE_4WAY_HS_OFFLOAD, pHddCtx->config->disable_4way_hs_offload);
 }
 
 /**
@@ -10636,6 +10645,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->btm_sticky_time;
 	smeConfig->csrConfig.btm_query_bitmask =
 			pHddCtx->config->btm_query_bitmask;
+	smeConfig->csrConfig.disable_4way_hs_offload =
+			pHddCtx->config->disable_4way_hs_offload;
 
 	hdd_update_bss_score_params(pHddCtx->config,
 			&smeConfig->csrConfig.bss_score_params);

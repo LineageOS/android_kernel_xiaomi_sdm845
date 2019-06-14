@@ -15511,6 +15511,29 @@ enum hw_filter_mode {
 #define CFG_THERMAL_THROT_DC_DEFAULT  (50)
 #endif
 /*
+ * <ini>
+ * disable_4way_hs_offload - Enable/Disable 4 way handshake offload to firmware
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * 0  4-way HS to be handled in firmware
+ * 1  4-way HS to be handled in supplicant
+ *
+ * Related: None
+ *
+ * Supported Feature: STA Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DISABLE_4WAY_HS_OFFLOAD           "disable_4way_hs_offload"
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_MIN       (0)
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_MAX       (1)
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT   (0)
+
+/*
  * Type declarations
  */
 
@@ -16475,6 +16498,7 @@ struct hdd_config {
 	uint16_t thermal_sampling_time;
 	uint16_t thermal_throt_dc;
 #endif
+	bool disable_4way_hs_offload;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

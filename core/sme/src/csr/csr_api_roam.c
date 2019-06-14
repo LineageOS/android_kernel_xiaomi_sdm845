@@ -3099,6 +3099,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->btm_sticky_time;
 		pMac->roam.configParam.btm_query_bitmask =
 			pParam->btm_query_bitmask;
+		pMac->roam.configParam.disable_4way_hs_offload =
+			pParam->disable_4way_hs_offload;
 
 		csr_set_11k_offload_config_param(&pMac->roam.configParam,
 						 pParam);
@@ -3451,6 +3453,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->btm_sticky_time = pMac->roam.configParam.btm_sticky_time;
 	pParam->btm_query_bitmask =
 		pMac->roam.configParam.btm_query_bitmask;
+	pParam->disable_4way_hs_offload =
+		pMac->roam.configParam.disable_4way_hs_offload;
 
 	csr_get_11k_offload_config_param(&pMac->roam.configParam, pParam);
 
@@ -17710,6 +17714,8 @@ QDF_STATUS csr_process_add_sta_session_command(tpAniSirGlobal pMac,
 			pMac->roam.configParam.tx_aggr_sw_retry_threshold_vi;
 	add_sta_self_req->tx_aggr_sw_retry_threshold_vo =
 			pMac->roam.configParam.tx_aggr_sw_retry_threshold_vo;
+	add_sta_self_req->disable_4way_hs_offload =
+			pMac->roam.configParam.disable_4way_hs_offload;
 	msg.type = WMA_ADD_STA_SELF_REQ;
 	msg.reserved = 0;
 	msg.bodyptr = add_sta_self_req;
