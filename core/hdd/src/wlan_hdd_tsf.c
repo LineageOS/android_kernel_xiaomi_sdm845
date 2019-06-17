@@ -177,6 +177,13 @@ bool hdd_tsf_is_dbg_fs_set(struct hdd_context *hdd)
 		& CFG_SET_TSF_DBG_FS));
 }
 
+bool hdd_tsf_is_tsf64_tx_set(struct hdd_context *hdd)
+{
+	return (hdd && (hdd->config) &&
+		((hdd->config->tsf_ptp_options)
+		& CFG_SET_TSF_PTP_OPT_TSF64_TX));
+}
+
 #else
 static int hdd_tsf_reset_gpio(struct hdd_adapter *adapter)
 {
@@ -217,7 +224,6 @@ static QDF_STATUS hdd_tsf_set_gpio(struct hdd_context *hdd_ctx)
 
 	return status;
 }
-
 #endif
 
 static enum hdd_tsf_op_result hdd_capture_tsf_internal(
@@ -867,7 +873,7 @@ static ssize_t __hdd_wlan_tsf_show(struct device *dev,
 	struct hdd_station_ctx *hdd_sta_ctx;
 	struct hdd_adapter *adapter;
 	struct hdd_context *hdd_ctx;
-	uint64_t tsf_sync_qtime;
+	uint64_t tsf_sync_qtime, host_time, reg_qtime, qtime;
 	ssize_t size;
 
 	struct net_device *net_dev = container_of(dev, struct net_device, dev);
@@ -894,17 +900,25 @@ static ssize_t __hdd_wlan_tsf_show(struct device *dev,
 	tsf_sync_qtime = adapter->last_tsf_sync_soc_time;
 	do_div(tsf_sync_qtime, NSEC_PER_USEC);
 
+	reg_qtime = qdf_get_log_timestamp();
+	host_time = hdd_get_monotonic_host_time(hdd_ctx);
+
+	qtime = qdf_log_timestamp_to_usecs(reg_qtime);
+	do_div(host_time, NSEC_PER_USEC);
+
 	if (adapter->device_mode == QDF_STA_MODE ||
 	    adapter->device_mode == QDF_P2P_CLIENT_MODE) {
-		size = scnprintf(buf, PAGE_SIZE, "%s%llu %llu %pM\n",
+		size = scnprintf(buf, PAGE_SIZE, "%s%llu %llu %pM %llu %llu\n",
 				 buf, adapter->last_target_time,
 				 tsf_sync_qtime,
-				 hdd_sta_ctx->conn_info.bssId.bytes);
+				 hdd_sta_ctx->conn_info.bssId.bytes,
+				 qtime, host_time);
 	} else {
-		size = scnprintf(buf, PAGE_SIZE, "%s%llu %llu %pM\n",
+		size = scnprintf(buf, PAGE_SIZE, "%s%llu %llu %pM %llu %llu\n",
 				 buf, adapter->last_target_time,
 				 tsf_sync_qtime,
-				 adapter->mac_addr.bytes);
+				 adapter->mac_addr.bytes,
+				 qtime, host_time);
 	}
 
 	return size;

@@ -9988,6 +9988,7 @@ enum dot11p_mode {
 #define CFG_SET_TSF_PTP_OPT_TX                    (0x2)
 #define CFG_SET_TSF_PTP_OPT_RAW                   (0x4)
 #define CFG_SET_TSF_DBG_FS                        (0x8)
+#define CFG_SET_TSF_PTP_OPT_TSF64_TX            (0x10)
 #define CFG_SET_TSF_PTP_OPT_DEFAULT               (0xf)
 #endif
 

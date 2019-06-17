@@ -7826,7 +7826,7 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 
 	hdd_enter();
 
-	hdd_notify_teardown_tdls_links(adapter->vdev);
+	hdd_notify_teardown_tdls_links(hdd_ctx->psoc);
 
 	if (policy_mgr_is_hw_mode_change_in_progress(hdd_ctx->psoc)) {
 		status = policy_mgr_wait_for_connection_update(
