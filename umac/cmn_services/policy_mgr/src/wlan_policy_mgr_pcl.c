@@ -336,7 +336,6 @@ static QDF_STATUS policy_mgr_skip_dfs_ch(struct wlan_objmgr_psoc *psoc,
 {
 	bool sta_sap_scc_on_dfs_chan;
 	bool dfs_master_capable = true;
-	QDF_STATUS status;
 	struct policy_mgr_psoc_priv_obj *pm_ctx;
 
 	pm_ctx = policy_mgr_get_context(psoc);
@@ -352,6 +351,7 @@ static QDF_STATUS policy_mgr_skip_dfs_ch(struct wlan_objmgr_psoc *psoc,
 		policy_mgr_debug("skip DFS ch for SAP/Go dfs master cap %d",
 				 dfs_master_capable);
 		*skip_dfs_channel = true;
+		return QDF_STATUS_SUCCESS;
 	}
 
 	if (!*skip_dfs_channel) {
@@ -366,7 +366,7 @@ static QDF_STATUS policy_mgr_skip_dfs_ch(struct wlan_objmgr_psoc *psoc,
 		}
 	}
 
-	return status;
+	return QDF_STATUS_SUCCESS;
 }
 
 /**

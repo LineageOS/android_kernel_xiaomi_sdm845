@@ -248,7 +248,11 @@ struct __qdf_device {
 	const struct hif_bus_id *bid;
 #endif
 	bool smmu_s1_enabled;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
+	struct iommu_domain *domain;
+#else
 	struct dma_iommu_mapping *iommu_mapping;
+#endif
 };
 typedef struct __qdf_device *__qdf_device_t;
 
