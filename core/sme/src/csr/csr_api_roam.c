@@ -17469,7 +17469,13 @@ static void csr_store_oce_cfg_flags_in_vdev(tpAniSirGlobal pMac,
 		sme_err("vdev is NULL");
 		return;
 	}
+
 	vdev_mlme = wlan_vdev_mlme_get_priv_obj(vdev);
+	if (!vdev_mlme) {
+		sme_err("vdev_mlme is NULL");
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+		return;
+	}
 
 	vdev_mlme->sta_dynamic_oce_value =
 	pMac->roam.configParam.oce_feature_bitmap;
