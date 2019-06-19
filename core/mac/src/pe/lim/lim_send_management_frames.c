@@ -1613,7 +1613,6 @@ static QDF_STATUS lim_assoc_tx_complete_cnf(tpAniSirGlobal mac_ctx,
  *
  * Return: Void
  */
-
 void
 lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 			      tLimMlmAssocReq *mlm_assoc_req,
