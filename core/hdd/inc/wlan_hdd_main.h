@@ -126,7 +126,7 @@ struct hdd_apf_context {
 #endif /* FEATURE_WLAN_APF */
 
 /** Number of Tx Queues */
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
+#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 #define NUM_TX_QUEUES 5
 #else
 #define NUM_TX_QUEUES 4

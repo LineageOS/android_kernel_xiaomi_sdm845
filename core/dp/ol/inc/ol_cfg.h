@@ -97,8 +97,10 @@ struct txrx_pdev_cfg_t {
 	bool ip_tcp_udp_checksum_offload;
 	bool enable_rxthread;
 	bool ce_classify_enabled;
+#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 	uint32_t tx_flow_stop_queue_th;
 	uint32_t tx_flow_start_queue_offset;
+#endif
 	bool flow_steering_enabled;
 
 	struct ol_tx_sched_wrr_ac_specs_t ac_specs[TX_WMM_AC_NUM];
@@ -107,6 +109,7 @@ struct txrx_pdev_cfg_t {
 	bool new_htt_format_enabled;
 };
 
+#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 /**
  * ol_tx_set_flow_control_parameters() - set flow control parameters
  * @cfg_ctx: cfg context
@@ -116,6 +119,13 @@ struct txrx_pdev_cfg_t {
  */
 void ol_tx_set_flow_control_parameters(struct cdp_cfg *cfg_ctx,
 				       struct txrx_pdev_cfg_param_t *cfg_param);
+#else
+static inline
+void ol_tx_set_flow_control_parameters(struct cdp_cfg *cfg_ctx,
+				       struct txrx_pdev_cfg_param_t *cfg_param)
+{
+}
+#endif
 
 /**
  * ol_pdev_cfg_attach - setup configuration parameters
@@ -457,9 +467,11 @@ int ol_cfg_is_ip_tcp_udp_checksum_offload_enabled(struct cdp_cfg *cfg_pdev)
 }
 
 
+#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 int ol_cfg_get_tx_flow_stop_queue_th(struct cdp_cfg *cfg_pdev);
 
 int ol_cfg_get_tx_flow_start_queue_offset(struct cdp_cfg *cfg_pdev);
+#endif
 
 bool ol_cfg_is_ce_classify_enabled(struct cdp_cfg *cfg_pdev);
 
