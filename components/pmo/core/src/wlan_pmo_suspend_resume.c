@@ -106,7 +106,7 @@ static QDF_STATUS pmo_core_calculate_listen_interval(
 			struct pmo_vdev_priv_obj *vdev_ctx,
 			uint32_t *listen_interval)
 {
-	uint32_t max_mod_dtim;
+	uint32_t max_mod_dtim, max_dtim;
 	uint32_t beacon_interval_mod;
 	struct pmo_psoc_cfg *psoc_cfg = &vdev_ctx->pmo_psoc_ctx->psoc_cfg;
 	struct pmo_psoc_priv_obj *psoc_priv = pmo_vdev_get_psoc_priv(vdev);
@@ -131,9 +131,15 @@ static QDF_STATUS pmo_core_calculate_listen_interval(
 		if (beacon_interval_mod == 0)
 			beacon_interval_mod = 1;
 
-		max_mod_dtim = psoc_cfg->sta_max_li_mod_dtim /
-			(pmo_core_get_vdev_dtim_period(vdev)
-			 * beacon_interval_mod);
+		max_dtim = pmo_core_get_vdev_dtim_period(vdev) *
+					beacon_interval_mod;
+
+		if (!max_dtim) {
+			pmo_err("Invalid dtim period");
+			return QDF_STATUS_E_INVAL;
+		}
+
+		max_mod_dtim = psoc_cfg->sta_max_li_mod_dtim / max_dtim;
 
 		if (max_mod_dtim <= 0)
 			max_mod_dtim = 1;
