@@ -2652,6 +2652,10 @@ const struct sched_class rt_sched_class = {
 	.fixup_walt_sched_stats	= fixup_walt_sched_stats_common,
 	.fixup_cumulative_runnable_avg = walt_fixup_cumulative_runnable_avg,
 #endif
+
+#ifdef CONFIG_UCLAMP_TASK
+	.uclamp_enabled		= 1,
+#endif
 };
 
 #ifdef CONFIG_SCHED_DEBUG
