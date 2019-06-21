@@ -184,6 +184,9 @@ ifeq ($(KERNEL_BUILD), 0)
 	#Flag to enable offload packets feature
 	CONFIG_WLAN_OFFLOAD_PACKETS := y
 
+	#Flag to enable packet capture mode
+	CONFIG_WLAN_FEATURE_PKT_CAPTURE := y
+
 	#enable TSF get feature
 	CONFIG_WLAN_SYNC_TSF := y
 	#Enable DSRC feature
@@ -1314,6 +1317,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_FEATURE_FILS),y)
 CDEFINES += -DWLAN_FEATURE_FILS_SK
+endif
+
+ifeq ($(CONFIG_WLAN_FEATURE_PKT_CAPTURE),y)
+CDEFINES += -DWLAN_FEATURE_PKT_CAPTURE
 endif
 
 ifeq ($(CONFIG_CNSS), y)

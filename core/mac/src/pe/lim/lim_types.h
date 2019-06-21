@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1028,4 +1028,16 @@ void lim_process_assoc_failure_timeout(tpAniSirGlobal mac_ctx,
 void lim_send_mgmt_frame_tx(tpAniSirGlobal mac_ctx,
 		uint32_t *msg_buf);
 
+/**
+ * lim_p2p_check_oui_and_force_1x1() - Function to get P2P client device
+ * attributes from assoc request frame IE passed in.
+ * @mac_ctx: Pointer to mac_context
+ * @assoc_ie: Pointer to IE in association request
+ * @assoc_ie_len: Total association IE length
+ *
+ * Return: True if OUI is found. Else return false
+ *
+ */
+bool lim_p2p_check_oui_and_force_1x1(tpAniSirGlobal mac_ctx,
+				     uint8_t *assoc_ie, uint32_t assoc_ie_len);
 #endif /* __LIM_TYPES_H */

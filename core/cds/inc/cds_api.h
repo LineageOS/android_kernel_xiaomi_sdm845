@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -582,4 +582,25 @@ QDF_STATUS cds_register_mode_change_cb(send_mode_change_event_cb callback);
  * Return: QDF_STATUS
  */
 QDF_STATUS cds_deregister_mode_change_cb(void);
+
+/**
+ * cds_get_pktcap_mode_enable() - get pktcap mode enable/disable
+ *
+ * Get the pktcap mode enable/disable from ini
+ *
+ * Return: 0 - disable, 1 - enable
+ */
+bool cds_get_pktcap_mode_enable(void);
+
+/**
+ * cds_get_pktcapture_mode() - get pktcapture mode value
+ *
+ * Get the pktcapture mode value from hdd context
+ *
+ * Return: 0 - disable
+ *         1 - Mgmt packets
+ *         2 - Data packets
+ *         3 - Both Mgmt and Data packets
+ */
+uint8_t cds_get_pktcapture_mode(void);
 #endif /* if !defined __CDS_API_H */

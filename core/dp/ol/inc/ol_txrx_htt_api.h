@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -146,6 +146,10 @@ void
 ol_tx_completion_handler(ol_txrx_pdev_handle pdev,
 			 int num_msdus,
 			 enum htt_tx_status status, void *msg_word);
+
+void
+ol_tx_offload_deliver_indication_handler(ol_txrx_pdev_handle,
+					 void *msg);
 
 void ol_tx_credit_completion_handler(ol_txrx_pdev_handle pdev, int credits);
 

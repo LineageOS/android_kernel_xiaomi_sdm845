@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1121,6 +1121,18 @@ void htt_t2h_msg_handler_fast(void *context, qdf_nbuf_t *cmpl_msdus,
 
 			break;
 		}
+		case HTT_T2H_MSG_TYPE_TX_OFFLOAD_DELIVER_IND:
+		{
+			if (qdf_unlikely(
+				!pdev->cfg.is_full_reorder_offload)) {
+				break;
+			}
+
+			ol_tx_offload_deliver_indication_handler(
+					pdev->txrx_pdev, msg_word);
+			break;
+		}
+
 		case HTT_T2H_MSG_TYPE_RX_PN_IND:
 		{
 			u_int16_t peer_id;

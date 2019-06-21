@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1209,6 +1209,8 @@ static bool lim_chk_wmm(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
  * @peer_idx: peer index
  * @qos_mode: qos mode
  * @pmf_connection: flag indicating pmf connection
+ * @force_1x1: Flag to check if the HT capable STA needs to be downgraded to 1x1
+ * nss.
  *
  * Updates ds dph entry
  *
@@ -1219,7 +1221,8 @@ static bool lim_update_sta_ds(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
 			      uint8_t sub_type, tpDphHashNode sta_ds,
 			      tAniAuthType auth_type,
 			      bool *assoc_req_copied, uint16_t peer_idx,
-			      tHalBitVal qos_mode, bool pmf_connection)
+			      tHalBitVal qos_mode, bool pmf_connection,
+			      bool force_1x1)
 {
 	tHalBitVal wme_mode, wsm_mode;
 	uint8_t *ht_cap_ie = NULL;
@@ -1283,6 +1286,7 @@ static bool lim_update_sta_ds(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
 	sta_ds->valid = 0;
 	sta_ds->mlmStaContext.authType = auth_type;
 	sta_ds->staType = STA_ENTRY_PEER;
+	sta_ds->mlmStaContext.force_1x1 = force_1x1;
 
 	/*
 	 * TODO: If listen interval is more than certain limit, reject the
@@ -1754,7 +1758,7 @@ void lim_process_assoc_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	tSirMacCapabilityInfo local_cap;
 	tpDphHashNode sta_ds = NULL;
 	tpSirAssocReq assoc_req;
-	bool dup_entry = false;
+	bool dup_entry = false, force_1x1 = false;
 
 	lim_get_phy_mode(mac_ctx, &phy_mode, session);
 
@@ -1984,6 +1988,25 @@ void lim_process_assoc_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		(LIM_ASSOC == sub_type) ? "Assoc" : "ReAssoc",
 		MAC_ADDR_ARRAY(hdr->sa));
 
+	if (session->pePersona == QDF_P2P_GO_MODE) {
+		/*
+		 * WAR: In P2P GO mode, if the P2P client device
+		 * is only HT capable and not VHT capable, but the P2P
+		 * GO device is VHT capable and advertises 2x2 NSS with
+		 * HT capablity client device, which results in IOT
+		 * issues.
+		 * When GO is operating in DBS mode, GO beacons
+		 * advertise 2x2 capability but include OMN IE to
+		 * indicate current operating mode of 1x1. But here
+		 * peer device is only HT capable and will not
+		 * understand OMN IE.
+		 */
+		force_1x1 = lim_p2p_check_oui_and_force_1x1(
+					mac_ctx,
+					frm_body + LIM_ASSOC_REQ_IE_OFFSET,
+					frame_len - LIM_ASSOC_REQ_IE_OFFSET);
+	}
+
 	/*
 	 * AID for this association will be same as the peer Index used in DPH
 	 * table. Assign unused/least recently used peer Index from perStaDs.
@@ -2027,7 +2050,7 @@ sendIndToSme:
 	if (false == lim_update_sta_ds(mac_ctx, hdr, session, assoc_req,
 				sub_type, sta_ds, auth_type,
 				&assoc_req_copied, peer_idx, qos_mode,
-				pmf_connection))
+				pmf_connection, force_1x1))
 		goto error;
 
 

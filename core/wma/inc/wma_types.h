@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -738,6 +738,8 @@ wma_ds_peek_rx_packet_info
 
 
 void wma_tx_abort(uint8_t vdev_id);
+
+bool wma_is_rmf_mgmt_action_frame(uint8_t action_category);
 
 QDF_STATUS wma_tx_packet(void *pWMA,
 			 void *pFrmBuf,

@@ -936,6 +936,24 @@ QDF_STATUS cds_set_hw_mode_on_channel_switch(uint8_t session_id);
 void cds_set_do_hw_mode_change_flag(bool flag);
 bool cds_is_hw_mode_change_after_vdev_up(void);
 void cds_checkn_update_hw_mode_single_mac_mode(uint8_t channel);
+
+/**
+ * cds_check_and_stop_opportunistic_timer() - Stop dbs opportunistic timer
+ *
+ * Stop dbs opportunistic timer and depending on the current connections change
+ * hw_mode to single mac mode.
+ *
+ * Return: None
+ */
+void cds_check_and_stop_opportunistic_timer(void);
+
+/**
+ * cds_set_opportunistic_update() - Set opportunistic update event
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS cds_set_opportunistic_update(void);
+
 void cds_dump_connection_status_info(void);
 /**
  * cds_mode_specific_vdev_id() - provides the

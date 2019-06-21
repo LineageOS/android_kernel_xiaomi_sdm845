@@ -3373,7 +3373,8 @@ QDF_STATUS sme_scan_request(tHalHandle hal, uint8_t session_id,
 	msg.reserved = 0;
 	msg.bodyval = 0;
 	if (QDF_STATUS_SUCCESS !=
-		cds_mq_post_message(QDF_MODULE_ID_SME, &msg)) {
+	    cds_mq_post_message_by_priority(QDF_MODULE_ID_SME,
+					    &msg, HIGH_PRIORITY)) {
 		sme_err("sme_scan_req failed to post msg");
 		csr_scan_free_request(mac_ctx, scan_msg->scan_param);
 		qdf_mem_free(scan_msg->scan_param);
@@ -6106,6 +6107,7 @@ QDF_STATUS sme_oem_data_req(tHalHandle hal, struct oem_data_req *hdd_oem_req)
 	oem_data_req->data_len = hdd_oem_req->data_len;
 	oem_data_req->data = qdf_mem_malloc(oem_data_req->data_len);
 	if (!oem_data_req->data) {
+		qdf_mem_free(oem_data_req);
 		sme_err("mem alloc failed");
 		return QDF_STATUS_E_NOMEM;
 	}
@@ -12622,6 +12624,7 @@ QDF_STATUS sme_notify_ht2040_mode(tHalHandle hHal, uint16_t staId,
 		break;
 
 	default:
+		qdf_mem_free(pHtOpMode);
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Invalid OP mode", __func__);
 		return QDF_STATUS_E_FAILURE;
@@ -12815,7 +12818,7 @@ QDF_STATUS sme_send_rate_update_ind(tHalHandle hHal,
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	QDF_STATUS status;
-	cds_msg_t msg;
+	cds_msg_t msg = {0};
 	tSirRateUpdateInd *rate_upd = qdf_mem_malloc(sizeof(tSirRateUpdateInd));
 
 	if (rate_upd == NULL) {
@@ -12834,25 +12837,26 @@ QDF_STATUS sme_send_rate_update_ind(tHalHandle hHal,
 			eHAL_TX_RATE_HT20 | eHAL_TX_RATE_SGI;
 
 	status = sme_acquire_global_lock(&pMac->sme);
-	if (QDF_STATUS_SUCCESS == status) {
-		msg.type = WMA_RATE_UPDATE_IND;
-		msg.bodyptr = rate_upd;
-		MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
-				 NO_SESSION, msg.type));
-		if (!QDF_IS_STATUS_SUCCESS
-			    (cds_mq_post_message(QDF_MODULE_ID_WMA, &msg))) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				  "%s: Not able to post WMA_SET_RMC_RATE_IND to WMA!",
-				  __func__);
-
-			sme_release_global_lock(&pMac->sme);
-			qdf_mem_free(rate_upd);
-			return QDF_STATUS_E_FAILURE;
-		}
-
-		sme_release_global_lock(&pMac->sme);
-		return QDF_STATUS_SUCCESS;
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_free(rate_upd);
+		return status;
 	}
+
+	msg.type = WMA_RATE_UPDATE_IND;
+	msg.bodyptr = rate_upd;
+	MTRACE(qdf_trace(QDF_MODULE_ID_SME, TRACE_CODE_SME_TX_WMA_MSG,
+			 NO_SESSION, msg.type));
+
+	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Not able to post WMA_SET_RMC_RATE_IND to WMA!",
+			  __func__);
+		qdf_mem_free(rate_upd);
+		status =  QDF_STATUS_E_FAILURE;
+	}
+
+	sme_release_global_lock(&pMac->sme);
 
 	return status;
 }
@@ -13026,8 +13030,9 @@ QDF_STATUS sme_update_sta_inactivity_timeout(tHalHandle hal_handle,
 	inactivity_time->sta_inactivity_timeout =
 		sta_inactivity_timer->sta_inactivity_timeout;
 
-	wma_update_sta_inactivity_timeout(wma_handle,
-				inactivity_time);
+	wma_update_sta_inactivity_timeout(wma_handle, inactivity_time);
+	qdf_mem_free(inactivity_time);
+
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -13248,10 +13253,14 @@ QDF_STATUS sme_set_miracast(tHalHandle hal, uint8_t filter_type)
 	uint32_t *val;
 	tpAniSirGlobal mac_ptr = PMAC_STRUCT(hal);
 
+	if (!mac_ptr) {
+		sme_err("Invalid pointer");
+		return QDF_STATUS_E_NOMEM;
+	}
+
 	val = qdf_mem_malloc(sizeof(*val));
-	if (NULL == val || NULL == mac_ptr) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				"%s: Invalid pointer", __func__);
+	if (!val) {
+		sme_err("Mem allocation failed");
 		return QDF_STATUS_E_NOMEM;
 	}
 
@@ -13582,9 +13591,8 @@ QDF_STATUS sme_set_thermal_level(tHalHandle hal, uint8_t level)
  */
 QDF_STATUS sme_txpower_limit(tHalHandle hHal, tSirTxPowerLimit *psmetx)
 {
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
-	cds_msg_t cds_message;
+	QDF_STATUS status;
+	cds_msg_t cds_message = {0};
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	tSirTxPowerLimit *tx_power_limit;
 
@@ -13599,21 +13607,25 @@ QDF_STATUS sme_txpower_limit(tHalHandle hHal, tSirTxPowerLimit *psmetx)
 	*tx_power_limit = *psmetx;
 
 	status = sme_acquire_global_lock(&pMac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		cds_message.type = WMA_TX_POWER_LIMIT;
-		cds_message.reserved = 0;
-		cds_message.bodyptr = tx_power_limit;
-
-		qdf_status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
-		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				  "%s: not able to post WMA_TX_POWER_LIMIT",
-				  __func__);
-			status = QDF_STATUS_E_FAILURE;
-			qdf_mem_free(tx_power_limit);
-		}
-		sme_release_global_lock(&pMac->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_free(tx_power_limit);
+		return status;
 	}
+
+	cds_message.type = WMA_TX_POWER_LIMIT;
+	cds_message.bodyptr = tx_power_limit;
+
+	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			  "%s: not able to post WMA_TX_POWER_LIMIT",
+			  __func__);
+		status = QDF_STATUS_E_FAILURE;
+		qdf_mem_free(tx_power_limit);
+	}
+
+	sme_release_global_lock(&pMac->sme);
+
 	return status;
 }
 
@@ -13656,17 +13668,21 @@ QDF_STATUS sme_ap_disable_intra_bss_fwd(tHalHandle hHal, uint8_t sessionId,
 	pSapDisableIntraFwd->disableintrabssfwd = disablefwd;
 
 	status = sme_acquire_global_lock(&pMac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		/* serialize the req through MC thread */
-		cds_message.bodyptr = pSapDisableIntraFwd;
-		cds_message.type = WMA_SET_SAP_INTRABSS_DIS;
-		qdf_status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
-		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-			status = QDF_STATUS_E_FAILURE;
-			qdf_mem_free(pSapDisableIntraFwd);
-		}
-		sme_release_global_lock(&pMac->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_free(pSapDisableIntraFwd);
+		return QDF_STATUS_E_FAILURE;
 	}
+
+	/* serialize the req through MC thread */
+	cds_message.bodyptr = pSapDisableIntraFwd;
+	cds_message.type = WMA_SET_SAP_INTRABSS_DIS;
+	qdf_status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		status = QDF_STATUS_E_FAILURE;
+		qdf_mem_free(pSapDisableIntraFwd);
+	}
+	sme_release_global_lock(&pMac->sme);
+
 	return status;
 }
 
@@ -14312,12 +14328,17 @@ QDF_STATUS sme_set_wisa_params(tHalHandle hal,
 
 	*cds_msg_wisa_params = *wisa_params;
 	status = sme_acquire_global_lock(&mac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		cds_message.bodyptr = cds_msg_wisa_params;
-		cds_message.type = WMA_SET_WISA_PARAMS;
-		status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
-		sme_release_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_free(cds_msg_wisa_params);
+		return QDF_STATUS_E_FAILURE;
 	}
+	cds_message.bodyptr = cds_msg_wisa_params;
+	cds_message.type = WMA_SET_WISA_PARAMS;
+	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
+	if (QDF_IS_STATUS_ERROR(status))
+		qdf_mem_free(cds_msg_wisa_params);
+
+	sme_release_global_lock(&mac->sme);
 	return status;
 }
 
@@ -18688,18 +18709,23 @@ QDF_STATUS sme_get_chain_rssi(tHalHandle phal,
 	*req_msg = *input;
 
 	status = sme_acquire_global_lock(&pmac->sme);
-	if (QDF_STATUS_SUCCESS == status) {
-		/* serialize the req through MC thread */
-		cds_message.bodyptr = req_msg;
-		cds_message.type    = SIR_HAL_GET_CHAIN_RSSI_REQ;
-		cds_status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
-		if (!QDF_IS_STATUS_SUCCESS(cds_status)) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				FL("Post Get Chain Rssi msg fail"));
-			status = QDF_STATUS_E_FAILURE;
-		}
-		sme_release_global_lock(&pmac->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_free(req_msg);
+		return QDF_STATUS_E_FAILURE;
 	}
+
+	/* serialize the req through MC thread */
+	cds_message.bodyptr = req_msg;
+	cds_message.type    = SIR_HAL_GET_CHAIN_RSSI_REQ;
+	cds_status = cds_mq_post_message(QDF_MODULE_ID_WMA, &cds_message);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
+			FL("Post Get Chain Rssi msg fail"));
+		qdf_mem_free(req_msg);
+		status = QDF_STATUS_E_FAILURE;
+	}
+	sme_release_global_lock(&pmac->sme);
+
 
 	return status;
 }

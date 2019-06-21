@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -506,6 +506,11 @@ static int hdd_apf_read_memory(hdd_adapter_t *adapter, struct nlattr **tb)
 
 	ENTER();
 
+	if (context->apf_enabled) {
+		hdd_err("Cannot get/set while interpreter is enabled");
+		return -EINVAL;
+	}
+
 	read_mem_params.vdev_id = adapter->sessionId;
 
 	/* Read APF work memory offset */
@@ -529,11 +534,6 @@ static int hdd_apf_read_memory(hdd_adapter_t *adapter, struct nlattr **tb)
 	if (bufptr == NULL) {
 		hdd_err("alloc failed for cumulative event buffer");
 		return -ENOMEM;
-	}
-
-	if (context->apf_enabled) {
-		hdd_err("Cannot get/set while interpreter is enabled");
-		return -EINVAL;
 	}
 
 	qdf_event_reset(&context->qdf_apf_event);

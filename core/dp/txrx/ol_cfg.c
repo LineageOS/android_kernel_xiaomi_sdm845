@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -561,4 +561,37 @@ int ol_cfg_get_discard_weight(ol_pdev_handle pdev, int ac)
 		return cfg->ac_specs[ac].discard_weight;
 	else
 		return 0;
+}
+
+/**
+ * ol_cfg_pktcapture_mode() - return pktcapture mode
+ * @pdev : handle to the physical device
+ *
+ * Return: 0 - disable
+ *         1 - Mgmt packets
+ *         2 - Data packets
+ *         3 - Both Mgmt and Data packets
+ */
+int ol_cfg_pktcapture_mode(ol_pdev_handle pdev)
+{
+	struct txrx_pdev_cfg_t *cfg = (struct txrx_pdev_cfg_t *)pdev;
+
+	return cfg->pktcapture_mode;
+}
+
+/**
+ * ol_cfg_set_pktcapture_mode() - set pktcapture mode
+ * @pdev : handle to the physical device
+ * @val  : 0 - disable
+ *         1 - Mgmt packets
+ *         2 - Data packets
+ *         3 - Both Mgmt and Data packets
+ *
+ * Return: none
+ */
+void ol_cfg_set_pktcapture_mode(ol_pdev_handle pdev, int val)
+{
+	struct txrx_pdev_cfg_t *cfg = (struct txrx_pdev_cfg_t *)pdev;
+
+	cfg->pktcapture_mode = val;
 }
