@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -120,6 +120,18 @@ enum wlan_op_mode {
 };
 
 /**
+ * mon_data_process_type - data pkt type for pkt capture mode
+ * @PROCESS_TYPE_DATA_RX: process RX data packet (normal rx + offloaded rx)
+ * @PROCESS_TYPE_DATA_TX: process TX data packet (ofloaded tx)
+ * @PROCESS_TYPE_DATA_TX_COMPL: process TX compl data packet (normal tx)
+ */
+enum mon_data_process_type {
+	PROCESS_TYPE_DATA_RX,
+	PROCESS_TYPE_DATA_TX,
+	PROCESS_TYPE_DATA_TX_COMPL,
+};
+
+/**
  * connectivity_stats_pkt_status - data pkt type
  * @PKT_TYPE_REQ: Request packet
  * @PKT_TYPE_RSP: Response packet
@@ -182,6 +194,9 @@ typedef bool (*ol_txrx_tx_flow_control_is_pause_fp)(void *osif_dev);
  * @msdu_list - list of network buffers
  */
 typedef QDF_STATUS (*ol_txrx_rx_fp)(void *osif_dev, qdf_nbuf_t msdu_list);
+
+typedef QDF_STATUS(*ol_txrx_mon_callback_fp)(void *osif_dev,
+					     qdf_nbuf_t msdu_list);
 
 /**
  * ol_txrx_stats_rx_fp - receive function to hand batches of data
@@ -410,6 +425,11 @@ ol_txrx_mgmt_tx_cb_set(ol_txrx_pdev_handle pdev,
 
 int ol_txrx_get_tx_pending(ol_txrx_pdev_handle pdev);
 
+void ol_txrx_mon_cb_deregister(void);
+
+void ol_txrx_mon_cb_register(void *osif_vdev,
+			     ol_txrx_mon_callback_fp mon_cb);
+
 /**
  * enum data_stall_log_event_indicator - Module triggering data stall
  * @DATA_STALL_LOG_INDICATOR_UNUSED: Unused
@@ -579,6 +599,10 @@ void ol_txrx_fw_stats_cfg(
 
 #define PER_RADIO_FW_STATS_REQUEST 0
 #define PER_VDEV_FW_STATS_REQUEST 1
+
+#define TXRX_PKT_FORMAT_8023    0
+#define TXRX_PKT_FORMAT_80211   1
+
 /**
  * ol_txrx_get_vdev_mac_addr() - Return mac addr of vdev
  * @vdev: vdev handle

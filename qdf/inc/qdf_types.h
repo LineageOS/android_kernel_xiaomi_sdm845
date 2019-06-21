@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -457,6 +457,7 @@ void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 #define QDF_SAP_MASK (1 << QDF_SAP_MODE)
 #define QDF_P2P_CLIENT_MASK (1 << QDF_P2P_CLIENT_MODE)
 #define QDF_P2P_GO_MASK (1 << QDF_P2P_GO_MODE)
+#define QDF_MONITOR_MASK (1 << QDF_MONITOR_MODE)
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 
