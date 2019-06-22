@@ -110,3 +110,5 @@ config WCD_DSP_GLINK
 	tristate "WCD_DSP_GLINK"
 config WCD_SPI_AC
 	tristate "WCD_SPI_AC"
+
+source "techpack/audio/asoc/codecs/tas2557/Kconfig"
