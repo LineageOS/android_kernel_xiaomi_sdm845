@@ -72,6 +72,10 @@ config SND_SOC_SDM670
 	tristate "SND_SOC_SDM670"
 config SND_SOC_SDM845
 	tristate "SND_SOC_SDM845"
+config SND_SOC_TAS2557
+	tristate "SND_SOC_TAS2557"
+config SND_SOC_TAS2559
+	tristate "SND_SOC_TAS2559"
 config SND_SOC_WCD9335
 	tristate "SND_SOC_WCD9335"
 config SND_SOC_WCD934X
@@ -106,3 +110,5 @@ config WCD_DSP_GLINK
 	tristate "WCD_DSP_GLINK"
 config WCD_SPI_AC
 	tristate "WCD_SPI_AC"
+
+source "techpack/audio/asoc/codecs/tas2557/Kconfig"

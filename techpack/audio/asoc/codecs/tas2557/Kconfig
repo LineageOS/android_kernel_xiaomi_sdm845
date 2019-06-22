@@ -1,0 +1,6 @@
+config TAS2557_CODEC
+	tristate "TAS2557_CODEC"
+config TAS2557_MISC
+	tristate "TAS2557_MISC"
+config TAS2557_REGMAP
+	tristate "TAS2557_REGMAP"
