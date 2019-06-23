@@ -43,6 +43,7 @@
 #include "scheduler_api.h"
 #include "wlan_serialization_legacy_api.h"
 #include "wmi_unified.h"
+#include "wmi_unified_param.h"
 
 /*--------------------------------------------------------------------------
   Preprocessor definitions and constants
@@ -683,8 +684,29 @@ QDF_STATUS sme_get_wcnss_software_version(tHalHandle hHal,
 		uint8_t *pVersion, uint32_t versionBufferSize);
 QDF_STATUS sme_get_wcnss_hardware_version(tHalHandle hHal,
 		uint8_t *pVersion, uint32_t versionBufferSize);
+
+#ifdef FEATURE_OEM_DATA
+/**
+ * sme_oem_data_cmd() - the wrapper to send oem data cmd to wma
+ * @mac_handle: Opaque handle to the global MAC context.
+ * @oem_data: the pointer of oem data
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_oem_data_cmd(mac_handle_t mac_handle,
+			    struct oem_data *oem_data);
+#endif
+
 #ifdef FEATURE_OEM_DATA_SUPPORT
-QDF_STATUS sme_oem_data_req(tHalHandle hHal, struct oem_data_req *);
+/**
+ * sme_oem_req_cmd() - send oem request cmd to WMA
+ * @mac_handle: Opaque handle to the global MAC context
+ * @oem_req: OEM data request
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_oem_req_cmd(mac_handle_t mac_handle,
+			   struct oem_data_req *oem_req);
 QDF_STATUS sme_oem_update_capability(tHalHandle hHal,
 				     struct sme_oem_capability *cap);
 QDF_STATUS sme_oem_get_capability(tHalHandle hHal,

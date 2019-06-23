@@ -113,6 +113,7 @@
 #include "wlan_hdd_coex_config.h"
 #include "wlan_hdd_hw_capability.h"
 #include "wlan_hdd_bcn_recv.h"
+#include "wlan_hdd_oemdata.h"
 
 #define g_mode_rates_size (12)
 #define a_mode_rates_size (8)
@@ -15714,6 +15715,8 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 		.doit = wlan_hdd_cfg80211_offloaded_packets
 	},
 #endif
+	FEATURE_OEM_DATA_VENDOR_COMMANDS
+
 	{
 		.info.vendor_id = QCA_NL80211_VENDOR_ID,
 		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_MONITOR_RSSI,

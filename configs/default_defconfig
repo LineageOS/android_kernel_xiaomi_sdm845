@@ -684,3 +684,6 @@ endif
 
 #Enable support to get ANI level
 CONFIG_ANI_LEVEL_REQUEST := y
+
+#Enable OEM DATA feature
+CONFIG_FEATURE_OEM_DATA := y
