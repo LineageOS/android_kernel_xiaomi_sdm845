@@ -969,10 +969,34 @@ QDF_STATUS wmi_unified_oem_dma_ring_cfg(void *wmi_hdl,
 QDF_STATUS wmi_unified_dbr_ring_cfg(void *wmi_hdl,
 				struct direct_buf_rx_cfg_req *cfg);
 
+/**
+ * wmi_unified_start_oem_data_cmd() - start oem data request to target
+ * wmi_unified_start_oem_data_cmd() - start oem data request to target
+ * @data_len: the length of @data
+ * @data: the pointer to data buf
+ *
+ * This is legacy api for oem data request, using wmi command
+ * WMI_OEM_REQ_CMDID.
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
 QDF_STATUS wmi_unified_start_oem_data_cmd(void *wmi_hdl,
 			  uint32_t data_len,
 			  uint8_t *data);
 
+#ifdef FEATURE_OEM_DATA
+/**
+ * wmi_unified_start_oemv2_data_cmd() - start oem data cmd to target
+ * @wmi_handle: wmi handle
+ * @params: oem data params
+ *
+ * This is common api for oem data, using wmi command WMI_OEM_DATA_CMDID.
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_start_oemv2_data_cmd(wmi_unified_t wmi_handle,
+					    struct oem_data *params);
+#endif
 QDF_STATUS wmi_unified_dfs_phyerr_filter_offload_en_cmd(void *wmi_hdl,
 			bool dfs_phyerr_filter_offload);
 

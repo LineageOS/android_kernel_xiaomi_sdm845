@@ -641,6 +641,20 @@ struct channel_param {
 	uint8_t  reg_class_id;
 };
 
+#ifdef FEATURE_OEM_DATA
+/**
+ * struct oem_data - oem data to be sent to firmware
+ * @vdev_id: Unique identifier assigned to the vdev
+ * @data_len: len of data
+ * @data: the pointer to the buffer containing data
+ */
+struct oem_data {
+	uint8_t vdev_id;
+	size_t data_len;
+	uint8_t *data;
+};
+#endif
+
 /**
  * struct vdev_stop_params - vdev stop cmd parameter
  * @vdev_id: vdev id

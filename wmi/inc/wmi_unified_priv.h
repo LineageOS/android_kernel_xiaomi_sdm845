@@ -704,8 +704,13 @@ QDF_STATUS (*send_dbr_cfg_cmd)(wmi_unified_t wmi_handle,
 				   struct direct_buf_rx_cfg_req *cfg);
 
 QDF_STATUS (*send_start_oem_data_cmd)(wmi_unified_t wmi_handle,
-			  uint32_t data_len,
-			  uint8_t *data);
+				      uint32_t data_len,
+				      uint8_t *data);
+
+#ifdef FEATURE_OEM_DATA
+QDF_STATUS (*send_start_oemv2_data_cmd)(wmi_unified_t wmi_handle,
+					struct oem_data *params);
+#endif
 
 QDF_STATUS
 (*send_dfs_phyerr_filter_offload_en_cmd)(wmi_unified_t wmi_handle,
