@@ -1957,6 +1957,9 @@ static void hdd_modify_chains_in_hdd_cfg(struct hdd_context *hdd_ctx,
 	} else if (band == NSS_CHAINS_BAND_5GHZ) {
 		rx_chains_ini = &hdd_ctx->config->rx_nss_5g;
 		tx_chains_ini = &hdd_ctx->config->tx_nss_5g;
+	} else {
+		hdd_err("wrong band passed %d, cannot modify chains", band);
+		return;
 	}
 
 	nss_shift = hdd_get_nss_chain_shift(vdev_op_mode);
