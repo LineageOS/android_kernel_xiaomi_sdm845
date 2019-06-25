@@ -461,6 +461,22 @@ bool wlan_serialization_is_cmd_present_in_active_queue(
 		struct wlan_serialization_command *cmd);
 
 /**
+ * wlan_serialization_purge_all_pdev_cmd() - purge all command for given pdev
+ * @pdev: objmgr pdev pointer
+ *
+ * Return: void
+ */
+void wlan_serialization_purge_all_pdev_cmd(struct wlan_objmgr_pdev *pdev);
+
+/**
+ * wlan_serialization_purge_all_cmd() - purge all command for psoc
+ * @psoc: objmgr psoc pointer
+ *
+ * Return: void
+ */
+void wlan_serialization_purge_all_cmd(struct wlan_objmgr_psoc *psoc);
+
+/**
  * wlan_serialization_get_scan_cmd_using_scan_id() - Return command which
  *					matches vdev_id and scan_id
  * @psoc: pointer to soc
