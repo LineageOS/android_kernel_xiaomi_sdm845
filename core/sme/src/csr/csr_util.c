@@ -3337,6 +3337,8 @@ static void csr_check_sae_auth(tpAniSirGlobal mac_ctx,
 	   c_auth_suites, authentication)) {
 		if (eCSR_AUTH_TYPE_SAE == auth_type->authType[index])
 			*neg_authtype = eCSR_AUTH_TYPE_SAE;
+		if (eCSR_AUTH_TYPE_OPEN_SYSTEM == auth_type->authType[index])
+			*neg_authtype = eCSR_AUTH_TYPE_OPEN_SYSTEM;
 	}
 	sme_debug("negotiated auth type is %d", *neg_authtype);
 }
