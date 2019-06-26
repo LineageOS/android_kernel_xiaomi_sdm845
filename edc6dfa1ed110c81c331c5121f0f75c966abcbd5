@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "88f39335_7c2e6b15",
+        "filename": "drivers/input/touchscreen/focaltech_touch/include/firmware/fw_ft8719_e10.i",
+        "patchSetId": 2
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-06-26T12:26:41Z",
+      "side": 1,
+      "message": "I\u0027m not sure if all these chars at the end of the lines are supposed to be here.",
+      "range": {
+        "startLine": 1,
+        "startChar": 95,
+        "endLine": 1,
+        "endChar": 96
+      },
+      "revId": "edc6dfa1ed110c81c331c5121f0f75c966abcbd5",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
