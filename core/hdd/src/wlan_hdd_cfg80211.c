@@ -1604,12 +1604,15 @@ int wlan_hdd_sap_cfg_dfs_override(struct hdd_adapter *adapter)
 					con_sap_config->acs_cfg.ch_list_count);
 		if (!sap_config->acs_cfg.ch_list) {
 			hdd_err("ACS config alloc fail");
+			sap_config->acs_cfg.ch_list_count = 0;
 			return -ENOMEM;
 		}
 
 		qdf_mem_copy(sap_config->acs_cfg.ch_list,
 					con_sap_config->acs_cfg.ch_list,
 					con_sap_config->acs_cfg.ch_list_count);
+		sap_config->acs_cfg.ch_list_count =
+				con_sap_config->acs_cfg.ch_list_count;
 
 	} else {
 		sap_config->acs_cfg.pri_ch = con_ch;
@@ -2772,9 +2775,11 @@ void wlan_hdd_undo_acs(struct hdd_adapter *adapter)
 	if (adapter == NULL)
 		return;
 	if (adapter->session.ap.sap_config.acs_cfg.ch_list) {
+		hdd_debug("Clear acs cfg channel list");
 		qdf_mem_free(adapter->session.ap.sap_config.acs_cfg.ch_list);
 		adapter->session.ap.sap_config.acs_cfg.ch_list = NULL;
 	}
+	adapter->session.ap.sap_config.acs_cfg.ch_list_count = 0;
 }
 
 /**

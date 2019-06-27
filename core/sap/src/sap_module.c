@@ -2692,7 +2692,7 @@ QDF_STATUS wlansap_filter_ch_based_acs(struct sap_context *sap_ctx,
 	size_t ch_index;
 	size_t target_ch_cnt = 0;
 
-	if (!sap_ctx || !ch_list || !ch_cnt) {
+	if (!sap_ctx || !ch_list || !ch_cnt || !sap_ctx->acs_cfg->ch_list) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("NULL parameters"));
 		return QDF_STATUS_E_FAULT;
