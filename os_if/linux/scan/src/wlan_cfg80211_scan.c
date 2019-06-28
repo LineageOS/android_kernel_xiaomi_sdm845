@@ -1347,7 +1347,8 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 	 * empty, and the simultaneous scan is disabled, dont allow 2nd scan
 	 */
 	if (!wlan_cfg80211_allow_simultaneous_scan(psoc) &&
-	    !qdf_list_empty(&osif_priv->osif_scan->scan_req_q)) {
+	    !qdf_list_empty(&osif_priv->osif_scan->scan_req_q) &&
+	    wlan_vdev_mlme_get_opmode(vdev) != QDF_SAP_MODE) {
 		wlan_objmgr_vdev_release_ref(vdev, WLAN_OSIF_ID);
 		cfg80211_err("Simultaneous scan disabled, reject scan");
 		return -EBUSY;
@@ -1514,7 +1515,7 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 	req->scan_req.chan_list.num_chan = num_chan;
 
 	/* P2P increase the scan priority */
-	if (is_p2p_scan)
+	if (is_p2p_scan || wlan_vdev_mlme_get_opmode(vdev) == QDF_SAP_MODE)
 		req->scan_req.scan_priority = SCAN_PRIORITY_HIGH;
 	if (request->ie_len) {
 		req->scan_req.extraie.ptr = qdf_mem_malloc(request->ie_len);
