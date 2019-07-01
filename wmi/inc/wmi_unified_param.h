@@ -5600,6 +5600,7 @@ typedef enum {
 	wmi_vdev_get_mws_coex_tdm_state_eventid,
 	wmi_vdev_get_mws_coex_idrx_state_eventid,
 	wmi_vdev_get_mws_coex_antenna_sharing_state_eventid,
+	wmi_coex_report_antenna_isolation_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 
