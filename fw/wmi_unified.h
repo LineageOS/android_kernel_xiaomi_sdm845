@@ -10056,6 +10056,12 @@ WMI_VDEV_PARAM_ROAM_FW_OFFLOAD WMI_VDEV_PARAM **/
 #define WMI_ROAM_FW_OFFLOAD_ENABLE_FLAG                          0x1
 /* Enable Roaming module in FW to do scan based on Final BMISS */
 #define WMI_ROAM_BMISS_FINAL_SCAN_ENABLE_FLAG                    0x2
+/**
+	 * To enable/desable EAPOL_4WAY_HANDSHAKE process while roaming. 
+	 * param value = 0 --> Enable EAPOL 4way handshake
+     * param value = 1 --> Skip EAPOL 4way handshake  
+	 */
+#define WMI_VDEV_PARAM_SKIP_ROAM_EAPOL_4WAY_HANDSHAKE           0x4
 
 /** slot time long */
 #define WMI_VDEV_SLOT_TIME_LONG                                  0x1
@@ -10127,6 +10133,7 @@ typedef struct {
 #define WMI_VDEV_START_RESPONSE_NOT_SUPPORTED  0x2  /** unsupported VDEV combination */
 #define WMI_VDEV_START_RESPONSE_DFS_VIOLATION  0x3  /** DFS_VIOLATION since channel in the NOL is selected */
 #define WMI_VDEV_START_RESPONSE_INVALID_REGDOMAIN 0x4 /** Invalid regulatory domain in VDEV start */
+#define WMI_VDEV_START_RESPONSE_INVALID_BAND   0x5    /** Band unsupported by current hw mode in VDEV start */
 
 /** Beacon processing related command and event structures */
 typedef struct {
@@ -13487,6 +13494,7 @@ typedef enum wake_reason_e {
     WOW_REASON_WLAN_BL, /* baselining done */
     WOW_REASON_NTH_BCN_OFLD, /* nth beacon forward to host */
     WOW_REASON_PKT_CAPTURE_MODE_WAKE,
+    WOW_REASON_PAGE_FAULT, /* Host wake up due to page fault */
 
     /* add new WOW_REASON_ defs before this line */
     WOW_REASON_MAX,
@@ -22690,6 +22698,10 @@ typedef enum wmi_coex_config_type {
      * config msw mute duration (ms units) after MPTA interrupt fired
      */
     WMI_COEX_CONFIG_MPTA_HELPER_WLAN_MUTE_DURATION   = 41,
+    /* WMI_COEX_CONFIG_BT_SCO_ALLOW_WLAN_2G_SCAN
+     * allow WLAN scan on 2.4G channel when BT SCO connectivity is alive
+     */
+    WMI_COEX_CONFIG_BT_SCO_ALLOW_WLAN_2G_SCAN   = 42,
 } WMI_COEX_CONFIG_TYPE;
 
 typedef struct {
