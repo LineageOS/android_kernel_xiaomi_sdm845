@@ -299,7 +299,7 @@ enum hdd_dot11_mode {
  * gChannelBondingMode24GHz - Configures Channel Bonding in 24 GHz
  * @Min: 0
  * @Max: 10
- * @Default: 0
+ * @Default: 1
  *
  * This ini is used to set default channel bonding mode 24GHZ
  *
@@ -14456,7 +14456,7 @@ enum hdd_external_acs_policy {
  * enable_esp_for_roam - Enable/disable esp feature
  * @Min: 0
  * @Max: 1
- * @Default: 0
+ * @Default: 1
  *
  * This ini is used to enable/disable ESP(Estimated service parameters) IE
  * parsing and decides whether firmware will include this in its scoring algo.

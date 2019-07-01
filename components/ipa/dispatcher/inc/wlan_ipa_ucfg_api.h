@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -26,6 +26,7 @@
 #include "wlan_ipa_obj_mgmt_api.h"
 #include "wlan_objmgr_pdev_obj.h"
 #include "qdf_types.h"
+#include "wlan_ipa_main.h"
 
 #ifdef IPA_OFFLOAD
 
@@ -157,7 +158,8 @@ void ucfg_ipa_uc_stat_query(struct wlan_objmgr_pdev *pdev,
  *
  * Return: None
  */
-void ucfg_ipa_reg_sap_xmit_cb(struct wlan_objmgr_pdev *pdev, void *cb);
+void ucfg_ipa_reg_sap_xmit_cb(struct wlan_objmgr_pdev *pdev,
+			      wlan_ipa_softap_xmit cb);
 
 /**
  * ucfg_ipa_reg_send_to_nw_cb() - Register cb to send IPA Rx packet to network
@@ -166,7 +168,8 @@ void ucfg_ipa_reg_sap_xmit_cb(struct wlan_objmgr_pdev *pdev, void *cb);
  *
  * Return: None
  */
-void ucfg_ipa_reg_send_to_nw_cb(struct wlan_objmgr_pdev *pdev, void *cb);
+void ucfg_ipa_reg_send_to_nw_cb(struct wlan_objmgr_pdev *pdev,
+				wlan_ipa_send_to_nw cb);
 
 /**
  * ucfg_ipa_set_mcc_mode() - Set MCC mode
@@ -407,12 +410,14 @@ void ucfg_ipa_uc_stat_query(struct wlan_objmgr_pdev *pdev,
 }
 
 static inline
-void ucfg_ipa_reg_sap_xmit_cb(struct wlan_objmgr_pdev *pdev, void *cb)
+void ucfg_ipa_reg_sap_xmit_cb(struct wlan_objmgr_pdev *pdev,
+			      wlan_ipa_softap_xmit cb)
 {
 }
 
 static inline
-void ucfg_ipa_reg_send_to_nw_cb(struct wlan_objmgr_pdev *pdev, void *cb)
+void ucfg_ipa_reg_send_to_nw_cb(struct wlan_objmgr_pdev *pdev,
+				wlan_ipa_send_to_nw cb)
 {
 }
 

@@ -109,6 +109,7 @@ enum pmo_beacon_dtim_policy {
  * @pmo_sta_ps_enable_qpower:  Enable QPower
  * @pmo_sta_ps_param_qpower_max_tx_before_wake: Number of TX frames before the
     entering the Active state
+ * @pmo_sta_ps_param_ito_repeat_count: Indicates ito repeated count
  */
 enum pmo_sta_powersave_param {
 	pmo_sta_ps_param_rx_wake_policy = 0,
@@ -119,6 +120,7 @@ enum pmo_sta_powersave_param {
 	pmo_sta_ps_param_qpower_pspoll_count = 5,
 	pmo_sta_ps_enable_qpower = 6,
 	pmo_sta_ps_param_qpower_max_tx_before_wake = 7,
+	pmo_sta_ps_param_ito_repeat_count = 8,
 };
 
 /**
@@ -285,6 +287,10 @@ enum pmo_auto_pwr_detect_failure_mode {
  * @sta_max_li_mod_dtim: station max listen interval DTIM value
  * @power_save_mode: power save mode for psoc
  * @auto_power_save_fail_mode: auto detect power save failure
+ * @wow_data_inactivity_timeout: power save wow data inactivity timeout
+ * @ps_data_inactivity_timeout: Power save data inactivity timeout for non
+ * wow mode
+ * @ito_repeat_count: Indicates ito repeated count
  */
 struct pmo_psoc_cfg {
 	bool ptrn_match_enable_all_vdev;
@@ -312,6 +318,9 @@ struct pmo_psoc_cfg {
 	uint8_t sta_max_li_mod_dtim;
 	uint8_t power_save_mode;
 	enum pmo_auto_pwr_detect_failure_mode auto_power_save_fail_mode;
+	uint8_t wow_data_inactivity_timeout;
+	uint8_t ps_data_inactivity_timeout;
+	uint8_t ito_repeat_count;
 };
 
 /**

@@ -4092,7 +4092,16 @@ static bool hdd_report_max_rate(mac_handle_t mac_handle,
 			} else if (DATA_RATE_11AC_MAX_MCS_8 == vht_max_mcs) {
 				max_mcs_idx = 8;
 			} else if (DATA_RATE_11AC_MAX_MCS_9 == vht_max_mcs) {
-				max_mcs_idx = 9;
+				/*
+				 * If the ini enable_vht20_mcs9 is disabled,
+				 * then max mcs index should not be set to 9
+				 * for TX_RATE_VHT20
+				 */
+				if (!config->enable_vht20_mcs9 &&
+				    (rate_flags & TX_RATE_VHT20))
+					max_mcs_idx = 8;
+				else
+					max_mcs_idx = 9;
 			}
 
 			if (rssidx != 0) {

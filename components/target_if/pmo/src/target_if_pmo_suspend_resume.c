@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -50,6 +50,12 @@ QDF_STATUS target_if_pmo_send_vdev_update_param_req(
 		return QDF_STATUS_E_INVAL;
 	}
 
+	/* Any new param_id added here please also add it to
+	 * wmi_tag_vdev_set_cmd to be tagged for runtime PM feature
+	 * so that it will not invoke runtime PM "get" which will
+	 * result resume right after suspend (WOW_ENABLE).
+	 */
+
 	switch (param_id) {
 	case pmo_vdev_param_listen_interval:
 		param_id = WMI_VDEV_PARAM_LISTEN_INTERVAL;
@@ -99,9 +105,21 @@ QDF_STATUS target_if_pmo_send_vdev_ps_param_req(
 		return QDF_STATUS_E_INVAL;
 	}
 
+	/*
+	 * Any new param_id added here must be added to
+	 * wmi_tag_sta_powersave_cmd() to be tagged for runtime PM feature
+	 * so that it will not invoke runtime PM "get" which will
+	 * result resume right after suspend (WOW_ENABLE).
+	 */
 	switch (param_id) {
 	case pmo_sta_ps_enable_qpower:
 		param_id = WMI_STA_PS_ENABLE_QPOWER;
+		break;
+	case pmo_sta_ps_param_inactivity_time:
+		param_id = WMI_STA_PS_PARAM_INACTIVITY_TIME;
+		break;
+	case pmo_sta_ps_param_ito_repeat_count:
+		param_id = WMI_STA_PS_PARAM_MAX_RESET_ITO_COUNT_ON_TIM_NO_TXRX;
 		break;
 	default:
 		target_if_err("invalid vdev param id %d", param_id);

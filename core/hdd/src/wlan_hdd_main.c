@@ -2117,9 +2117,9 @@ int hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 	ucfg_ipa_set_txrx_handle(hdd_ctx->psoc,
 				 cds_get_context(QDF_MODULE_ID_TXRX));
 	ucfg_ipa_reg_sap_xmit_cb(hdd_ctx->pdev,
-				 hdd_softap_hard_start_xmit);
+				 hdd_softap_ipa_start_xmit);
 	ucfg_ipa_reg_send_to_nw_cb(hdd_ctx->pdev,
-				   hdd_ipa_send_skb_to_network);
+				   hdd_ipa_send_nbuf_to_network);
 
 	if (cds_cfg) {
 		if (hdd_ctx->config->enable_sub_20_channel_width !=
@@ -9893,6 +9893,7 @@ err_close_adapters:
 }
 
 
+#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 /**
  * hdd_txrx_populate_cds_config() - Populate txrx cds configuration
  * @cds_cfg: CDS Configuration
@@ -9909,6 +9910,13 @@ static inline void hdd_txrx_populate_cds_config(struct cds_config_info
 	cds_cfg->tx_flow_start_queue_offset =
 		hdd_ctx->config->TxFlowStartQueueOffset;
 }
+#else
+static inline void hdd_txrx_populate_cds_config(struct cds_config_info
+						*cds_cfg,
+						struct hdd_context *hdd_ctx)
+{
+}
+#endif
 
 #ifdef FEATURE_WLAN_RA_FILTERING
 /**
@@ -11479,9 +11487,6 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 	struct target_psoc_info *tgt_hdl;
 
 	hdd_enter();
-
-	hdd_deregister_policy_manager_callback(hdd_ctx->psoc);
-
 	qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 	if (!qdf_ctx) {
 		hdd_err("QDF device context NULL");
@@ -11517,6 +11522,8 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 			return 0;
 		}
 	}
+
+	hdd_deregister_policy_manager_callback(hdd_ctx->psoc);
 
 	/* free user wowl patterns */
 	hdd_free_user_wowl_ptrns();
@@ -13991,6 +13998,24 @@ static void hdd_update_hif_config(struct hdd_context *hdd_ctx)
 		hif_vote_link_up(scn);
 }
 
+#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
+static void
+hdd_update_dp_config_queue_threshold(struct hdd_context *hdd_ctx,
+				     struct cdp_config_params *params)
+{
+	params->tx_flow_stop_queue_threshold =
+			hdd_ctx->config->TxFlowStopQueueThreshold;
+	params->tx_flow_start_queue_offset =
+			hdd_ctx->config->TxFlowStartQueueOffset;
+}
+#else
+static inline void
+hdd_update_dp_config_queue_threshold(struct hdd_context *hdd_ctx,
+				     struct cdp_config_params *params)
+{
+}
+#endif
+
 /**
  * hdd_update_dp_config() - Propagate config parameters to Lithium
  *                          datapath
@@ -14005,10 +14030,7 @@ static int hdd_update_dp_config(struct hdd_context *hdd_ctx)
 
 	params.tso_enable = hdd_ctx->config->tso_enable;
 	params.lro_enable = hdd_ctx->config->lro_enable;
-	params.tx_flow_stop_queue_threshold =
-			hdd_ctx->config->TxFlowStopQueueThreshold;
-	params.tx_flow_start_queue_offset =
-			hdd_ctx->config->TxFlowStartQueueOffset;
+	hdd_update_dp_config_queue_threshold(hdd_ctx, &params);
 	params.flow_steering_enable = hdd_ctx->config->flow_steering_enable;
 	params.napi_enable = hdd_ctx->napi_enable;
 	params.tcp_udp_checksumoffload =
@@ -14112,6 +14134,11 @@ static int hdd_update_pmo_config(struct hdd_context *hdd_ctx)
 	psoc_cfg.power_save_mode = hdd_ctx->config->enablePowersaveOffload;
 	psoc_cfg.auto_power_save_fail_mode =
 		hdd_ctx->config->auto_pwr_save_fail_mode;
+	psoc_cfg.wow_data_inactivity_timeout =
+			hdd_ctx->config->wow_data_inactivity_timeout;
+	psoc_cfg.ps_data_inactivity_timeout =
+		hdd_ctx->config->nDataInactivityTimeout;
+	psoc_cfg.ito_repeat_count = hdd_ctx->config->ito_repeat_count;
 
 	hdd_ra_populate_pmo_config(&psoc_cfg, hdd_ctx);
 	hdd_nan_populate_pmo_config(&psoc_cfg, hdd_ctx);

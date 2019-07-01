@@ -118,6 +118,11 @@
 /* Static Type declarations */
 static struct csr_roam_session csr_roam_roam_session[CSR_ROAM_SESSION_MAX];
 
+/*
+ * To get roam reason from 0 to 3rd bit of roam_synch_data
+ * received from firmware
+ */
+#define ROAM_REASON_MASK 0x0F
 /**
  * csr_get_ielen_from_bss_description() - to get IE length
  *             from tSirBssDescription structure
@@ -17327,11 +17332,8 @@ QDF_STATUS csr_send_mb_start_bss_req_msg(tpAniSirGlobal pMac, uint32_t
 	pMsg->vht_config.su_beam_formee =
 		(uint8_t)value &&
 		(uint8_t)pMac->roam.configParam.enable_txbf_sap_mode;
-	if (wlan_cfg_get_int(pMac,
-			WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED,
-			&value) != QDF_STATUS_SUCCESS)
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-				("Failed to get CSN beamformee capability"));
+
+	value = WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_FW_DEF;
 	pMsg->vht_config.csnof_beamformer_antSup = (uint8_t)value;
 	pMsg->vht_config.mu_beam_formee = 0;
 
@@ -17467,7 +17469,13 @@ static void csr_store_oce_cfg_flags_in_vdev(tpAniSirGlobal pMac,
 		sme_err("vdev is NULL");
 		return;
 	}
+
 	vdev_mlme = wlan_vdev_mlme_get_priv_obj(vdev);
+	if (!vdev_mlme) {
+		sme_err("vdev_mlme is NULL");
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+		return;
+	}
 
 	vdev_mlme->sta_dynamic_oce_value =
 	pMac->roam.configParam.oce_feature_bitmap;
@@ -22715,9 +22723,14 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 		FL("LFR3: Copy KCK, KEK(len %d) and Replay Ctr"),
 		roam_info->kek_len);
+	/* bit-4 and bit-5 indicate the subnet status */
 	roam_info->subnet_change_status =
 		CSR_GET_SUBNET_STATUS(roam_synch_data->roamReason);
 
+	/* fetch 4 LSB to get roam reason */
+	roam_info->roam_reason = roam_synch_data->roamReason &
+				 ROAM_REASON_MASK;
+	sme_info("Update roam reason : %d", roam_info->roam_reason);
 	csr_copy_fils_join_rsp_roam_info(roam_info, roam_synch_data);
 
 	csr_roam_call_callback(mac_ctx, session_id, roam_info, 0,
