@@ -6038,6 +6038,7 @@ typedef enum {
 	wmi_service_vdev_latency_config,
 	wmi_service_sta_plus_sta_support,
 	wmi_service_tx_compl_tsf64,
+	wmi_service_three_way_coex_config_legacy,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF
@@ -6156,6 +6157,7 @@ struct wmi_host_fw_abi_ver {
  * @twt_ap_pdev_count: Number of MAC on which AP TWT feature is supported
  * @twt_ap_sta_count: Max no of STA with which TWT sessions can be formed
  *                    by the AP
+ * @three_way_coex_config_legacy_en: enable three way coex legacy feature
  */
 typedef struct {
 	uint32_t num_vdevs;
@@ -6233,6 +6235,7 @@ typedef struct {
 	uint32_t twt_ap_pdev_count;
 	uint32_t twt_ap_sta_count;
 	bool tstamp64_en;
+	bool three_way_coex_config_legacy_en;
 } target_resource_config;
 
 /**
