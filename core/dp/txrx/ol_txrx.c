@@ -3814,11 +3814,8 @@ ol_txrx_clear_peer_internal(struct ol_txrx_peer_t *peer)
 {
 	p_cds_sched_context sched_ctx = get_cds_sched_ctxt();
 	/* Drop pending Rx frames in CDS */
-	if (sched_ctx) {
+	if (sched_ctx)
 		cds_drop_rxpkt_by_staid(sched_ctx, peer->local_id);
-		if (cds_get_pktcap_mode_enable())
-			cds_drop_monpkt(sched_ctx);
-	}
 
 	/* Purge the cached rx frame queue */
 	ol_txrx_flush_rx_frames(peer, 1);
