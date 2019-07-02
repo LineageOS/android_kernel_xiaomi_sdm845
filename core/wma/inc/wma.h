@@ -1278,6 +1278,7 @@ typedef struct {
 	qdf_mc_timer_t wma_fw_time_sync_timer;
 	qdf_atomic_t critical_events_in_flight;
 	bool enable_tx_compl_tsf64;
+	bool enable_three_way_coex_config_legacy;
 } t_wma_handle, *tp_wma_handle;
 
 extern void cds_wma_complete_cback(void);

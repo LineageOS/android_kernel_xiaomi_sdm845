@@ -171,6 +171,7 @@ struct cds_config_info {
 	uint8_t delay_before_vdev_stop;
 	bool enable_peer_unmap_conf_support;
 	bool enable_tx_compl_tsf64;
+	bool enable_three_way_coex_config_legacy;
 };
 
 #ifdef WLAN_FEATURE_FILS_SK

@@ -10024,6 +10024,31 @@ enum dot11p_mode {
 #endif
 
 /*
+ * <ini>
+ * gThreeWayCoexConfigLegacyEnable - Enable coex config legacy feature
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable or disable three way coex config legacy feature.
+ * This feature is designed only for non-mobile solution.
+ * When the feature is disabled, Firmware use the default configuration to
+ * set the coex priority of three antenna(WLAN, BT, ZIGBEE).
+ * when enable this feature, customer can use the vendor command to set antenna
+ * coex priority dynamically.
+ *
+ * Supported Feature: three way coex config
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_TW_COEX_LEGACY_NAME  "gThreeWayCoexConfigLegacyEnable"
+#define CFG_ENABLE_TW_COEX_LEGACY_MIN     (0)
+#define CFG_ENABLE_TW_COEX_LEGACY_MAX     (1)
+#define CFG_ENABLE_TW_COEX_LEGACY_DEFAULT (0)
+
+/*
  * Dense traffic threshold
  * traffic threshold required for dense roam scan
  * Measured in kbps
@@ -16774,6 +16799,7 @@ struct hdd_config {
 	uint8_t tsf_ptp_options;
 #endif /* WLAN_FEATURE_TSF_PLUS */
 #endif
+	bool enable_three_way_coex_config_legacy;
 	uint32_t roam_dense_traffic_thresh;
 	uint32_t roam_dense_rssi_thresh_offset;
 	bool ignore_peer_ht_opmode;
