@@ -1455,17 +1455,21 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, ol_txrx_pdev_handle pdev,
 	/* for each remote ibss peer, clear its keys */
 	if (wma_is_vdev_in_ibss_mode(wma, vdev_id) &&
 	    qdf_mem_cmp(peer_addr, mac_addr_raw, IEEE80211_ADDR_LEN)) {
-		tSetStaKeyParams key_info;
+		tpSetStaKeyParams key_info;
 
+		key_info = qdf_mem_malloc(sizeof(*key_info));
+		if (!key_info) {
+			return QDF_STATUS_E_NOMEM;
+		}
 		WMA_LOGD("%s: remote ibss peer %pM key clearing\n", __func__,
 			 peer_addr);
-		qdf_mem_set(&key_info, sizeof(key_info), 0);
-		key_info.smesessionId = vdev_id;
-		qdf_mem_copy(key_info.peer_macaddr.bytes, peer_addr,
+		qdf_mem_set(key_info, sizeof(*key_info), 0);
+		key_info->smesessionId = vdev_id;
+		qdf_mem_copy(key_info->peer_macaddr.bytes, peer_addr,
 				IEEE80211_ADDR_LEN);
-		key_info.sendRsp = false;
+		key_info->sendRsp = false;
 
-		wma_set_stakey(wma, &key_info);
+		wma_set_stakey(wma, key_info);
 	}
 
 	return QDF_STATUS_SUCCESS;
@@ -2211,6 +2215,23 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 		if (status != QDF_STATUS_SUCCESS)
 			WMA_LOGE("failed to set retry threshold(err=%d)",
 				 status);
+
+		if (cds_get_pktcap_mode_enable() &&
+		    wma_handle->is_pktcapture_enabled &&
+		    (cds_get_pktcapture_mode() != PKT_CAPTURE_MODE_DISABLE)) {
+			uint8_t val = cds_get_pktcapture_mode();
+
+			status = wma_set_packet_capture_mode(
+					wma_handle, vdev_id, val);
+
+			if (status != QDF_STATUS_SUCCESS)
+				WMA_LOGE("failed to set capture mode (err=%d)",
+					 status);
+			else if (status == QDF_STATUS_SUCCESS)
+				ol_cfg_set_pktcapture_mode(txrx_pdev->ctrl_pdev,
+							   val);
+		}
+
 		break;
 	}
 
@@ -3208,6 +3229,26 @@ void wma_remove_req(tp_wma_handle wma, uint8_t vdev_id,
 	qdf_mc_timer_stop(&req_msg->event_timeout);
 	qdf_mc_timer_destroy(&req_msg->event_timeout);
 	qdf_mem_free(req_msg);
+}
+
+/**
+ * wma_set_packet_capture_mode() - set packet capture mode
+ * @wma: wma handle
+ * @vdev_id: vdev id
+ * @val: mode to set
+ *
+ * Return: 0 on success, errno on failure
+ */
+int wma_set_packet_capture_mode(tp_wma_handle wma_handle,
+				uint8_t vdev_id,
+				uint8_t val)
+{
+	int ret;
+
+	ret = wma_cli_set_command(vdev_id,
+				  WMI_VDEV_PARAM_PACKET_CAPTURE_MODE,
+				  val, VDEV_CMD);
+	return ret;
 }
 
 /**
@@ -5015,6 +5056,7 @@ static void wma_del_tdls_sta(tp_wma_handle wma, tpDeleteStaParams del_sta)
 	if (wma_is_roam_synch_in_progress(wma, del_sta->smesessionId)) {
 		WMA_LOGE("%s: roaming in progress, reject del sta!", __func__);
 		del_sta->status = QDF_STATUS_E_PERM;
+		qdf_mem_free(peerStateParams);
 		goto send_del_rsp;
 	}
 

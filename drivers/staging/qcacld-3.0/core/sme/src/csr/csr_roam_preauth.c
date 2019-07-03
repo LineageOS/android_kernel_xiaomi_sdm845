@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -575,6 +575,7 @@ QDF_STATUS csr_roam_issue_ft_preauth_req(tHalHandle hal, uint32_t session_id,
 				+ bss_desc->length);
 	if (NULL == preauth_req->pbssDescription) {
 		sme_err("Memory allocation for FT Preauth request failed");
+		qdf_mem_free(preauth_req);
 		return QDF_STATUS_E_NOMEM;
 	}
 

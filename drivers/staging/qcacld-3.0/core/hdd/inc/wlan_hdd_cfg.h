@@ -12675,7 +12675,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_NAME    "gActionOUISwitchTo11nMode"
-#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT "00904C 03 0418BF E0 21 40"
+#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT "00904C 05 0418BF0CB2 F8 21 40"
 
 /*
  * <ini>
@@ -15423,6 +15423,49 @@ enum hw_filter_mode {
 #define CFG_BTM_QUERY_BITMASK_DEFAULT (0x8)
 
 /*
+ * <ini>
+ * pktcap_mode_enable - Control to decide pktcapture mode enable/disable
+ *
+ * @Min: 0
+ * @Max: 1
+ *
+ * @Default: 0 - disable
+ *           1 - enable
+ *
+ * This ini is used to enable/disable pktcapture mode
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PKTCAP_MODE_ENABLE_NAME     "pktcap_mode_enable"
+#define CFG_PKTCAP_MODE_ENABLE_MIN      (0)
+#define CFG_PKTCAP_MODE_ENABLE_MAX      (1)
+#define CFG_PKTCAP_MODE_ENABLE_DEFAULT  (0)
+
+/*
+ * pktcapture_mode - Control to decide pktcapture mode
+ *
+ * @Min: 0
+ * @Max: 3
+ *
+ * @Default: 0 - Capture no packets
+ *           1 - Capture Mgmt packets only
+ *           2 - Capture Data packets only
+ *           3 - Capture Both Data & Mgmt packets
+ *
+ * This ini is used to decide pktcapture mode
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PKTCAPTURE_MODE_NAME     "pktcapture_mode"
+#define CFG_PKTCAPTURE_MODE_MIN      (0)
+#define CFG_PKTCAPTURE_MODE_MAX      (3)
+#define CFG_PKTCAPTURE_MODE_DEFAULT  (0)
+
+/*
  * Type declarations
  */
 
@@ -16379,6 +16422,9 @@ struct hdd_config {
 	uint32_t btm_sticky_time;
 	uint32_t btm_query_bitmask;
 	uint16_t beacon_reporting;
+
+	bool pktcap_mode_enable;
+	uint8_t pktcapture_mode;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

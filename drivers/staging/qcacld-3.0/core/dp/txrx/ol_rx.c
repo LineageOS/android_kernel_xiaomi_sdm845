@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -596,6 +596,7 @@ ol_rx_indication_handler(ol_txrx_pdev_handle pdev,
 							 rx_ind_msg,
 							 &head_msdu,
 							 &tail_msdu,
+							 NULL,
 							 &msdu_count);
 #ifdef HTT_RX_RESTORE
 				if (htt_pdev->rx_ring.rx_reset) {
@@ -654,7 +655,7 @@ ol_rx_indication_handler(ol_txrx_pdev_handle pdev,
 			for (i = 0; i < num_mpdus; i++) {
 				/* pull the MPDU's MSDUs off the buffer queue */
 				htt_rx_amsdu_pop(htt_pdev, rx_ind_msg, &msdu,
-						 &tail_msdu, &msdu_count);
+						 &tail_msdu, NULL, &msdu_count);
 #ifdef HTT_RX_RESTORE
 				if (htt_pdev->rx_ring.rx_reset) {
 					ol_rx_trigger_restore(htt_pdev, msdu,
@@ -1465,7 +1466,7 @@ ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 	struct ol_txrx_peer_t *peer = NULL;
 	htt_pdev_handle htt_pdev = NULL;
 	int status;
-	qdf_nbuf_t head_msdu = NULL, tail_msdu = NULL;
+	qdf_nbuf_t head_msdu = NULL, tail_msdu = NULL, head_mon_msdu = NULL;
 	uint8_t *rx_ind_data;
 	uint32_t *msg_word;
 	uint32_t msdu_count;
@@ -1473,6 +1474,9 @@ ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 	uint8_t pktlog_bit;
 #endif
 	uint32_t filled = 0;
+	uint8_t vdev_id;
+	bool is_pkt_capture_flow_id = false;
+
 	if (tid >= OL_TXRX_NUM_EXT_TIDS) {
 		ol_txrx_err("%s:  invalid tid, %u\n", __FUNCTION__, tid);
 		WARN_ON(1);
@@ -1504,6 +1508,11 @@ ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 	msg_word = (uint32_t *)rx_ind_data;
 	/* Get the total number of MSDUs */
 	msdu_count = HTT_RX_IN_ORD_PADDR_IND_MSDU_CNT_GET(*(msg_word + 1));
+	if (cds_get_pktcap_mode_enable())
+		/* Get the flow id to check if it is for offloaded data */
+		is_pkt_capture_flow_id =
+		HTT_RX_IN_ORD_PADDR_IND_PKT_CAPTURE_MODE_IS_MONITOR_SET
+		(*(msg_word + 1));
 
 	ol_rx_ind_record_event(msdu_count, OL_RX_INDICATION_POP_START);
 
@@ -1513,7 +1522,7 @@ ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 	 * corresponding rx MSDU network buffer.
 	 */
 	status = htt_rx_amsdu_pop(htt_pdev, rx_ind_msg, &head_msdu,
-				  &tail_msdu, &msdu_count);
+				  &tail_msdu, &head_mon_msdu, &msdu_count);
 	ol_rx_ind_record_event(status, OL_RX_INDICATION_POP_END);
 
 	if (qdf_unlikely(0 == status)) {
@@ -1531,6 +1540,12 @@ ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 
 	if (!head_msdu) {
 		ol_txrx_dbg("No packet to send to HDD");
+		while (head_mon_msdu) {
+			qdf_nbuf_t msdu = head_mon_msdu;
+
+			head_mon_msdu = qdf_nbuf_next(head_mon_msdu);
+			htt_rx_desc_frame_free(htt_pdev, msdu);
+		}
 		return;
 	}
 
@@ -1549,6 +1564,9 @@ ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 	 */
 	if (peer) {
 		vdev = peer->vdev;
+		vdev_id = vdev->vdev_id;
+	} else if (is_pkt_capture_flow_id) {
+		vdev_id = HTT_INVALID_VDEV;
 	} else {
 		ol_txrx_dbg(
 			   "%s: Couldn't find peer from ID 0x%x\n",
@@ -1559,6 +1577,23 @@ ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 			head_msdu = qdf_nbuf_next(head_msdu);
 			TXRX_STATS_MSDU_INCR(pdev,
 				 rx.dropped_peer_invalid, msdu);
+			htt_rx_desc_frame_free(htt_pdev, msdu);
+		}
+		return;
+	}
+
+	if (head_mon_msdu)
+		ol_txrx_mon_data_process(
+			vdev_id, head_mon_msdu,
+			PROCESS_TYPE_DATA_RX, 0, 0,
+			TXRX_PKT_FORMAT_8023);
+
+	if (is_pkt_capture_flow_id) {
+		/* The pkt is for offloaded data, drop here */
+		while (head_msdu) {
+			qdf_nbuf_t msdu = head_msdu;
+
+			head_msdu = qdf_nbuf_next(head_msdu);
 			htt_rx_desc_frame_free(htt_pdev, msdu);
 		}
 		return;

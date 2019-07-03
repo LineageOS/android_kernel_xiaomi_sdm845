@@ -2579,7 +2579,7 @@ static void wma_update_tx_send_params(struct tx_send_params *tx_param,
  *
  * Return: true - if category is robust mgmt type
  */
-static bool wma_is_rmf_mgmt_action_frame(uint8_t action_category)
+bool wma_is_rmf_mgmt_action_frame(uint8_t action_category)
 {
 	switch (action_category) {
 	case SIR_MAC_ACTION_SPECTRUM_MGMT:

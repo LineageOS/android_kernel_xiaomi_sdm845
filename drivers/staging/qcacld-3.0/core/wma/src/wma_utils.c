@@ -1113,7 +1113,6 @@ static int wma_ll_stats_evt_handler(void *handle, u_int8_t *event,
 	tSirLLStatsResults *link_stats_results;
 	wmi_chan_cca_stats *wmi_cca_stats;
 	wmi_peer_signal_stats *wmi_peer_signal;
-	wmi_peer_ac_rx_stats *wmi_peer_rx;
 	struct sir_wifi_ll_ext_stats *ll_stats;
 	struct sir_wifi_ll_ext_peer_stats *peer_stats;
 	struct sir_wifi_chan_cca_stats *cca_stats;
@@ -1157,7 +1156,6 @@ static int wma_ll_stats_evt_handler(void *handle, u_int8_t *event,
 	}
 	wmi_cca_stats = param_buf->chan_cca_stats;
 	wmi_peer_signal = param_buf->peer_signal_stats;
-	wmi_peer_rx = param_buf->peer_ac_rx_stats;
 	if (fixed_param->num_peer_signal_stats >
 		param_buf->num_peer_signal_stats ||
 		fixed_param->num_peer_ac_tx_stats >
@@ -1204,10 +1202,15 @@ static int wma_ll_stats_evt_handler(void *handle, u_int8_t *event,
 	ll_stats->peer_num = peer_num;
 
 	result = (uint8_t *)ll_stats->stats;
+	if (!result) {
+		WMA_LOGE("%s: result is null", __func__);
+		qdf_mem_free(link_stats_results);
+		return -EINVAL;
+	}
 	peer_stats = (struct sir_wifi_ll_ext_peer_stats *)result;
 	ll_stats->peer_stats = peer_stats;
 
-	for (i = 0; i < peer_num; i++) {
+	for (i = 0; i < peer_num && peer_stats; i++) {
 		peer_stats[i].peer_id = WIFI_INVALID_PEER_ID;
 		peer_stats[i].vdev_id = WIFI_INVALID_VDEV_ID;
 	}
@@ -1215,7 +1218,10 @@ static int wma_ll_stats_evt_handler(void *handle, u_int8_t *event,
 	/* Per peer signal */
 	result_size -= sizeof(struct sir_wifi_ll_ext_stats);
 	dst_len = sizeof(struct sir_wifi_peer_signal_stats);
-	for (i = 0; i < fixed_param->num_peer_signal_stats; i++) {
+	for (i = 0;
+	     i < fixed_param->num_peer_signal_stats &&
+	     peer_stats && wmi_peer_signal;
+	     i++) {
 		peer_stats[i].peer_id = wmi_peer_signal->peer_id;
 		peer_stats[i].vdev_id = wmi_peer_signal->vdev_id;
 		peer_signal = &peer_stats[i].peer_signal_stats;
@@ -1223,7 +1229,7 @@ static int wma_ll_stats_evt_handler(void *handle, u_int8_t *event,
 		WMA_LOGD("%d antennas for peer %d",
 			 wmi_peer_signal->num_chains_valid,
 			 wmi_peer_signal->peer_id);
-		if (dst_len <= result_size) {
+		if (dst_len <= result_size && peer_signal) {
 			peer_signal->vdev_id = wmi_peer_signal->vdev_id;
 			peer_signal->peer_id = wmi_peer_signal->peer_id;
 			peer_signal->num_chain =
@@ -1264,15 +1270,30 @@ static int wma_ll_stats_evt_handler(void *handle, u_int8_t *event,
 	result += peer_num * sizeof(struct sir_wifi_ll_ext_peer_stats);
 	cca_stats = (struct sir_wifi_chan_cca_stats *)result;
 	ll_stats->cca = cca_stats;
-	dst_len = sizeof(struct sir_wifi_chan_cca_stats);
-	for (i = 0; i < ll_stats->channel_num; i++) {
+	dst_len = sizeof(*cca_stats);
+	for (i = 0;
+	     i < ll_stats->channel_num && cca_stats && wmi_cca_stats;
+	     i++) {
 		if (dst_len <= result_size) {
-			qdf_mem_copy(&cca_stats[i], &wmi_cca_stats->vdev_id,
-				     dst_len);
+			cca_stats->vdev_id = wmi_cca_stats->vdev_id;
+			cca_stats->idle_time = wmi_cca_stats->idle_time;
+			cca_stats->tx_time = wmi_cca_stats->tx_time;
+			cca_stats->rx_in_bss_time =
+				wmi_cca_stats->rx_in_bss_time;
+			cca_stats->rx_out_bss_time =
+				wmi_cca_stats->rx_out_bss_time;
+			cca_stats->rx_busy_time = wmi_cca_stats->rx_busy_time;
+			cca_stats->rx_in_bad_cond_time =
+				wmi_cca_stats->rx_in_bad_cond_time;
+			cca_stats->tx_in_bad_cond_time =
+				wmi_cca_stats->tx_in_bad_cond_time;
+			cca_stats->wlan_not_avail_time =
+				wmi_cca_stats->wlan_not_avail_time;
 			result_size -= dst_len;
 		} else {
 			WMA_LOGE(FL("Invalid length of CCA."));
 		}
+		cca_stats++;
 	}
 
 	result += i * sizeof(struct sir_wifi_chan_cca_stats);
@@ -3289,6 +3310,14 @@ int wma_stats_event_handler(void *handle, uint8_t *cmd_param_info,
 			buf_len += event->num_peer_stats * sizeof(*peer_stats);
 		}
 
+		if (buf_len > param_buf->num_data) {
+			WMA_LOGE("%s: num_data: %d Invalid num_pdev_stats:%d or num_vdev_stats:%d or num_peer_stats:%d",
+				__func__, param_buf->num_data,
+				event->num_pdev_stats,
+				event->num_vdev_stats, event->num_peer_stats);
+			return -EINVAL;
+		}
+
 		rssi_event =
 			(wmi_per_chain_rssi_stats *) param_buf->chain_stats;
 		if (rssi_event) {
@@ -3309,7 +3338,6 @@ int wma_stats_event_handler(void *handle, uint8_t *cmd_param_info,
 		WMA_LOGE("excess wmi buffer: stats pdev %d vdev %d peer %d",
 			 event->num_pdev_stats, event->num_vdev_stats,
 			 event->num_peer_stats);
-		QDF_ASSERT(0);
 		return -EINVAL;
 	}
 
@@ -3637,8 +3665,7 @@ QDF_STATUS wma_send_link_speed(uint32_t link_speed)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac_ctx;
-	tSirLinkSpeedInfo *ls_ind =
-		(tSirLinkSpeedInfo *) qdf_mem_malloc(sizeof(tSirLinkSpeedInfo));
+	tSirLinkSpeedInfo *ls_ind;
 
 	mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
 	if (!mac_ctx) {
@@ -3646,18 +3673,20 @@ QDF_STATUS wma_send_link_speed(uint32_t link_speed)
 		return QDF_STATUS_E_INVAL;
 	}
 
+	ls_ind = (tSirLinkSpeedInfo *)qdf_mem_malloc(sizeof(tSirLinkSpeedInfo));
 	if (!ls_ind) {
 		WMA_LOGE("%s: Memory allocation failed.", __func__);
-		qdf_status = QDF_STATUS_E_NOMEM;
-	} else {
-		ls_ind->estLinkSpeed = link_speed;
-		if (mac_ctx->sme.pLinkSpeedIndCb)
-			mac_ctx->sme.pLinkSpeedIndCb(ls_ind,
-					mac_ctx->sme.pLinkSpeedCbContext);
-		else
-			WMA_LOGD("%s: pLinkSpeedIndCb is null", __func__);
-		qdf_mem_free(ls_ind);
+		return QDF_STATUS_E_NOMEM;
 	}
+
+	ls_ind->estLinkSpeed = link_speed;
+	if (mac_ctx->sme.pLinkSpeedIndCb)
+		mac_ctx->sme.pLinkSpeedIndCb(ls_ind,
+				mac_ctx->sme.pLinkSpeedCbContext);
+	else
+		WMA_LOGD("%s: pLinkSpeedIndCb is null", __func__);
+
+	qdf_mem_free(ls_ind);
 
 	return qdf_status;
 }

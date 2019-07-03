@@ -5263,6 +5263,28 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 		}
 	}
 
+	if (cds_get_pktcap_mode_enable() &&
+	    WMI_SERVICE_EXT_IS_ENABLED(
+				wma_handle->wmi_service_bitmap,
+				wma_handle->wmi_service_ext_bitmap,
+				WMI_SERVICE_PACKET_CAPTURE_SUPPORT)) {
+		uint8_t status;
+
+		status = wmi_unified_register_event_handler(
+					wma_handle->wmi_handle,
+					WMI_VDEV_MGMT_OFFLOAD_EVENTID,
+					wma_mgmt_offload_data_event_handler,
+					WMA_RX_SERIALIZER_CTX);
+		if (status) {
+			WMA_LOGE("Failed to register MGMT offload handler");
+			return -EINVAL;
+		}
+		WMI_RSRC_CFG_FLAG_PACKET_CAPTURE_SUPPORT_SET(
+				wma_handle->wlan_resource_config.flag1, 1);
+
+		wma_handle->is_pktcapture_enabled = true;
+	}
+
 	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 				   WMI_SERVICE_MGMT_TX_WMI)) {
 		WMA_LOGD("Firmware supports management TX over WMI,use WMI interface instead of HTT for management Tx");
@@ -5298,6 +5320,7 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 	} else {
 		WMA_LOGE("FW doesnot support WMI_SERVICE_MGMT_TX_WMI, Use HTT interface for Management Tx");
 	}
+
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
 	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 				   WMI_SERVICE_GTK_OFFLOAD)) {

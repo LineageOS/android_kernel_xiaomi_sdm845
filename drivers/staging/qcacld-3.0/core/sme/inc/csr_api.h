@@ -1594,7 +1594,7 @@ typedef struct tagCsrRoamInfo {
 	int rx_rate;
 	tSirMacCapabilityInfo capability_info;
 	uint32_t rx_mc_bc_cnt;
-	uint8_t roam_reason;
+	uint16_t roam_reason;
 } tCsrRoamInfo;
 
 typedef struct tagCsrFreqScanInfo {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -188,6 +188,36 @@ const char *hdd_action_type_to_string(enum netif_action_type action);
 void wlan_hdd_netif_queue_control(hdd_adapter_t *adapter,
 		enum netif_action_type action, enum netif_reason_type reason);
 int hdd_set_mon_rx_cb(struct net_device *dev);
+
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+/**
+ * hdd_set_mon_mode_cb() - Set pkt capture mode callback
+ * @dev:        Pointer to net_device structure
+ *
+ * Return: 0 on success; non-zero for failure
+ */
+int hdd_set_mon_mode_cb(struct net_device *dev);
+
+/**
+ * hdd_reset_mon_mode_cb() - Reset pkt capture mode callback
+ * @void
+ *
+ * Return: None
+ */
+void hdd_reset_mon_mode_cb(void);
+#else
+static inline
+int hdd_set_mon_mode_cb(struct net_device *dev)
+{
+	return -ENOTSUPP;
+}
+
+static inline
+void hdd_reset_mon_mode_cb(void)
+{
+}
+#endif /* WLAN_FEATURE_PKT_CAPTURE */
+
 void hdd_send_rps_ind(hdd_adapter_t *adapter);
 void hdd_send_rps_disable_ind(hdd_adapter_t *adapter);
 void wlan_hdd_classify_pkt(struct sk_buff *skb);

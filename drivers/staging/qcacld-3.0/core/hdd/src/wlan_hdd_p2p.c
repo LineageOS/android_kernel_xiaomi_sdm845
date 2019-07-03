@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2959,6 +2959,9 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 		return ERR_PTR(-EINVAL);
 	}
 
+	if (wlan_hdd_check_mon_concurrency())
+		return ERR_PTR(-EINVAL);
+
 	pAdapter = hdd_get_adapter(pHddCtx, QDF_STA_MODE);
 	if ((pAdapter != NULL) &&
 		!(wlan_hdd_validate_session_id(pAdapter->sessionId))) {
@@ -2969,6 +2972,15 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 					   eCSR_SCAN_ABORT_DEFAULT);
 			hdd_debug("Abort Scan while adding virtual interface");
 		}
+	}
+
+	ret = wlan_hdd_add_monitor_check(pHddCtx, &pAdapter, type, name,
+					 true, name_assign_type);
+	if (ret)
+		return ERR_PTR(-EINVAL);
+	if (pAdapter) {
+		EXIT();
+		return pAdapter->dev->ieee80211_ptr;
 	}
 
 	if (session_type == QDF_SAP_MODE) {
@@ -3179,6 +3191,10 @@ int __wlan_hdd_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	if (pVirtAdapter->device_mode == QDF_SAP_MODE &&
 	    wlan_sap_is_pre_cac_active(pHddCtx->hHal)) {
 		hdd_clean_up_pre_cac_interface(pHddCtx);
+	} else if (wlan_hdd_is_session_type_monitor(
+				pVirtAdapter->device_mode)) {
+		wlan_hdd_del_monitor(pHddCtx, pVirtAdapter, TRUE);
+		hdd_reset_mon_mode_cb();
 	} else {
 		wlan_hdd_release_intf_addr(pHddCtx,
 					 pVirtAdapter->macAddressCurrent.bytes);

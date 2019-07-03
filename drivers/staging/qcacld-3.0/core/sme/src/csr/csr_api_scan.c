@@ -3889,11 +3889,9 @@ static struct tag_csrscan_result *csr_scan_save_bss_description(tpAniSirGlobal
 }
 
 /* Append a Bss Description... */
-struct tag_csrscan_result *csr_scan_append_bss_description(tpAniSirGlobal pMac,
-						tSirBssDescription *
-						pSirBssDescription,
-						tDot11fBeaconIEs *pIes,
-						uint8_t sessionId)
+bool csr_scan_append_bss_description(tpAniSirGlobal pMac,
+				     tSirBssDescription *pSirBssDescription,
+				     tDot11fBeaconIEs *pIes, uint8_t sessionId)
 {
 	struct tag_csrscan_result *pCsrBssDescription = NULL;
 	tAniSSID tmpSsid;
@@ -3901,12 +3899,15 @@ struct tag_csrscan_result *csr_scan_append_bss_description(tpAniSirGlobal pMac,
 	int result;
 
 	tmpSsid.length = 0;
-	result = csr_remove_dup_bss_description(pMac, pSirBssDescription,
-						&tmpSsid, &timer);
 
 	pCsrBssDescription = csr_scan_save_bss_description(pMac,
 					pSirBssDescription, pIes, sessionId);
-	if (result && (pCsrBssDescription != NULL)) {
+	if (!pCsrBssDescription)
+		return false;
+	result = csr_remove_dup_bss_description(pMac, pSirBssDescription,
+						&tmpSsid, &timer);
+
+	if (result) {
 		/*
 		 * Check if the new one has SSID it it, if not, use the older
 		 * SSID if it exists.
@@ -3930,8 +3931,8 @@ struct tag_csrscan_result *csr_scan_append_bss_description(tpAniSirGlobal pMac,
 			}
 		}
 	}
-
-	return pCsrBssDescription;
+	csr_free_scan_result_entry(pMac, pCsrBssDescription);
+	return true;
 }
 
 static void csr_purge_channel_power(tpAniSirGlobal pMac, tDblLinkList
@@ -7149,7 +7150,7 @@ QDF_STATUS csr_scan_for_ssid(tpAniSirGlobal mac_ctx, uint32_t session_id,
 	tpCsrNeighborRoamControlInfo neighbor_roaminfo =
 		&mac_ctx->roam.neighborRoamInfo[session_id];
 	tCsrSSIDs *ssids = NULL;
-	struct csr_scan_for_ssid_context *context;
+	struct csr_scan_for_ssid_context *context = NULL;
 
 	if (!(mac_ctx->scan.fScanEnable) && (num_ssid != 1)) {
 		sme_err(
@@ -7322,6 +7323,7 @@ error:
 			csr_roam_call_callback(mac_ctx, session_id, NULL,
 					roam_id, eCSR_ROAM_FAILED,
 					eCSR_ROAM_RESULT_FAILURE);
+		qdf_mem_free(context);
 	}
 	return status;
 }
@@ -8152,7 +8154,7 @@ QDF_STATUS csr_scan_create_entry_in_scan_cache(tpAniSirGlobal pMac,
 	qdf_mem_copy(pNewBssDescriptor->bssId, bssid.bytes,
 			sizeof(tSirMacAddr));
 	pNewBssDescriptor->channelId = channel;
-	if (NULL == csr_scan_append_bss_description(pMac, pNewBssDescriptor,
+	if (!csr_scan_append_bss_description(pMac, pNewBssDescriptor,
 						pNewIes, sessionId)) {
 		sme_err("csr_scan_append_bss_description failed");
 		status = QDF_STATUS_E_FAILURE;

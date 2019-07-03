@@ -243,36 +243,6 @@ restart_timer:
 	}
 }
 
-#ifdef WLAN_FEATURE_11W
-/**
- * pe_init_pmf_comeback_timer: init PMF comeback timer
- * @mac_ctx: pointer to global adapter context
- * @session: pe session
- * @session_id: session ID
- *
- * Return: void
- */
-static void pe_init_pmf_comeback_timer(tpAniSirGlobal mac_ctx,
-tpPESession session, uint8_t session_id)
-{
-	QDF_STATUS status;
-
-	session->pmfComebackTimerInfo.pMac = mac_ctx;
-	session->pmfComebackTimerInfo.sessionID = session_id;
-	status = qdf_mc_timer_init(&session->pmfComebackTimer,
-			QDF_TIMER_TYPE_SW, lim_pmf_comeback_timer_callback,
-			(void *)&session->pmfComebackTimerInfo);
-	if (!QDF_IS_STATUS_SUCCESS(status))
-		pe_err("cannot init pmf comeback timer");
-}
-#else
-static inline void
-pe_init_pmf_comeback_timer(tpAniSirGlobal mac_ctx,
-	tpPESession session, uint8_t session_id)
-{
-}
-#endif
-
 #ifdef WLAN_FEATURE_FILS_SK
 /**
  * pe_delete_fils_info: API to delete fils session info
@@ -546,7 +516,6 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 			pe_err("cannot create ap_ecsa_timer");
 	}
 	pe_init_fils_info(session_ptr);
-	pe_init_pmf_comeback_timer(pMac, session_ptr, *sessionId);
 	session_ptr->deauthmsgcnt = 0;
 	session_ptr->disassocmsgcnt = 0;
 	session_ptr->ht_client_cnt = 0;
@@ -841,12 +810,7 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 		session->addIeParams.probeRespBCNData_buff = NULL;
 		session->addIeParams.probeRespBCNDataLen = 0;
 	}
-#ifdef WLAN_FEATURE_11W
-	if (QDF_TIMER_STATE_RUNNING ==
-	    qdf_mc_timer_get_current_state(&session->pmfComebackTimer))
-		qdf_mc_timer_stop(&session->pmfComebackTimer);
-	qdf_mc_timer_destroy(&session->pmfComebackTimer);
-#endif
+
 	pe_delete_fils_info(session);
 	session->valid = false;
 

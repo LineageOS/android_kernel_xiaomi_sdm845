@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -620,7 +620,8 @@ __lim_ext_scan_forward_bcn_probe_rsp(tpAniSirGlobal pmac, uint8_t *rx_pkt_info,
 	frame_len = sizeof(*bssdescr) + ie_len - sizeof(bssdescr->ieFields[1]);
 	bssdescr = (tSirBssDescription *) qdf_mem_malloc(frame_len);
 
-	if (NULL == bssdescr) {
+	if (!bssdescr) {
+		qdf_mem_free(result);
 		pe_err("qdf_mem_malloc(length=%d) failed", frame_len);
 		return;
 	}

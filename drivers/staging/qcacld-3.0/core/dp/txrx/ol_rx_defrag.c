@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -59,6 +59,8 @@
 #include <ol_rx_defrag.h>
 #include <enet.h>
 #include <qdf_time.h>           /* qdf_system_time */
+#include <htt_internal.h>
+
 
 #define DEFRAG_IEEE80211_ADDR_EQ(a1, a2) \
 	(!qdf_mem_cmp(a1, a2, IEEE80211_ADDR_LEN))
@@ -371,7 +373,7 @@ ol_rx_frag_indication_handler(ol_txrx_pdev_handle pdev,
 	pktlog_bit =
 		(htt_rx_amsdu_rx_in_order_get_pktlog(rx_frag_ind_msg) == 0x01);
 	ret = htt_rx_frag_pop(htt_pdev, rx_frag_ind_msg, &head_msdu,
-			      &tail_msdu, &msdu_count);
+			      &tail_msdu, NULL, &msdu_count);
 	/* Return if msdu pop fails from rx hash table, as recovery
 	 * is triggered and we exit gracefully.
 	 */
@@ -798,6 +800,41 @@ ol_rx_defrag(ol_txrx_pdev_handle pdev,
 		ol_rx_defrag_qos_decap(pdev, msdu, hdr_space);
 	if (ol_cfg_frame_type(pdev->ctrl_pdev) == wlan_frm_fmt_802_3)
 		ol_rx_defrag_nwifi_to_8023(pdev, msdu);
+
+	if (cds_get_pktcap_mode_enable() &&
+	    (ol_cfg_pktcapture_mode(pdev->ctrl_pdev) &
+	     PKT_CAPTURE_MODE_DATA_ONLY) &&
+	    pdev->mon_cb) {
+		qdf_nbuf_t tmp_msdu, tmp_msdu_next;
+		qdf_nbuf_t mon_prev = NULL;
+		qdf_nbuf_t mon_msdu = NULL;
+		qdf_nbuf_t head_mon_msdu = NULL;
+
+		tmp_msdu = msdu;
+		while (tmp_msdu) {
+			tmp_msdu_next = qdf_nbuf_next(tmp_msdu);
+			mon_msdu = qdf_nbuf_copy(tmp_msdu);
+			if (mon_msdu) {
+				qdf_nbuf_push_head(mon_msdu,
+						   HTT_RX_STD_DESC_RESERVATION);
+				qdf_nbuf_set_next(mon_msdu, NULL);
+
+				if (!(head_mon_msdu)) {
+					head_mon_msdu = mon_msdu;
+					mon_prev = mon_msdu;
+				} else {
+					qdf_nbuf_set_next(mon_prev, mon_msdu);
+					mon_prev = mon_msdu;
+				}
+			}
+			tmp_msdu = tmp_msdu_next;
+		}
+		if (head_mon_msdu)
+			ol_txrx_mon_data_process(
+				vdev->vdev_id, head_mon_msdu,
+				PROCESS_TYPE_DATA_RX, 0, 0,
+				TXRX_PKT_FORMAT_8023);
+	}
 
 	ol_rx_fwd_check(vdev, peer, tid, msdu);
 }

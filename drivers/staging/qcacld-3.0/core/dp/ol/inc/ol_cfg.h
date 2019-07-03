@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -87,6 +87,8 @@ struct txrx_pdev_cfg_t {
 	bool flow_steering_enabled;
 
 	struct ol_tx_sched_wrr_ac_specs_t ac_specs[TX_WMM_AC_NUM];
+
+	uint8_t pktcapture_mode;
 };
 
 /**
@@ -603,4 +605,8 @@ uint16_t ol_cfg_get_send_limit(ol_pdev_handle pdev, int ac);
 int ol_cfg_get_credit_reserve(ol_pdev_handle pdev, int ac);
 
 int ol_cfg_get_discard_weight(ol_pdev_handle pdev, int ac);
+
+int ol_cfg_pktcapture_mode(ol_pdev_handle pdev);
+
+void ol_cfg_set_pktcapture_mode(ol_pdev_handle pdev, int val);
 #endif /* _OL_CFG__H_ */
