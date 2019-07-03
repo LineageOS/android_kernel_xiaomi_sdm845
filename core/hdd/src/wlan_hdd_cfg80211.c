@@ -11308,6 +11308,8 @@ static int hdd_update_acs_channel(struct hdd_adapter *adapter, uint8_t reason,
 		sap_config->acs_cfg.ch_width = channel_list->chan_width;
 		hdd_ap_ctx->sap_config.ch_width_orig =
 				channel_list->chan_width;
+		wlan_hdd_set_sap_csa_reason(hdd_ctx->psoc, adapter->session_id,
+					    CSA_REASON_LTE_COEX);
 		hdd_switch_sap_channel(adapter, sap_config->acs_cfg.pri_ch,
 				       true);
 		break;
@@ -18013,6 +18015,9 @@ bool wlan_hdd_handle_sap_sta_dfs_conc(struct hdd_adapter *adapter,
 
 	hostapd_state = WLAN_HDD_GET_HOSTAP_STATE_PTR(ap_adapter);
 	qdf_event_reset(&hostapd_state->qdf_event);
+	wlan_hdd_set_sap_csa_reason(hdd_ctx->psoc, ap_adapter->session_id,
+				    CSA_REASON_STA_CONNECT_DFS_TO_NON_DFS);
+
 	status = wlansap_set_channel_change_with_csa(
 			WLAN_HDD_GET_SAP_CTX_PTR(ap_adapter), channel,
 			hdd_ap_ctx->sap_config.ch_width_orig, false);
@@ -22327,6 +22332,8 @@ static int __wlan_hdd_cfg80211_channel_switch(struct wiphy *wiphy,
 	if ((QDF_P2P_GO_MODE != adapter->device_mode) &&
 		(QDF_SAP_MODE != adapter->device_mode))
 		return -ENOTSUPP;
+	wlan_hdd_set_sap_csa_reason(hdd_ctx->psoc, adapter->session_id,
+				    CSA_REASON_USER_INITIATED);
 
 	freq = csa_params->chandef.chan->center_freq;
 	channel = cds_freq_to_chan(freq);

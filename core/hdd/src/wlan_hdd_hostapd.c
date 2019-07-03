@@ -1173,6 +1173,9 @@ static void wlan_hdd_sap_pre_cac_success(void *data)
 	 * switch to the pre CAC DFS channel, there is no CAC again.
 	 */
 	wlan_hdd_set_pre_cac_complete_status(ap_adapter, true);
+
+	wlan_hdd_set_sap_csa_reason(hdd_ctx->psoc, ap_adapter->session_id,
+				    CSA_REASON_PRE_CAC_SUCCESS);
 	i = hdd_softap_set_channel_change(ap_adapter->dev,
 			ap_adapter->pre_cac_chan,
 			CH_WIDTH_MAX, false);
@@ -2583,6 +2586,8 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 	case eSAP_ECSA_CHANGE_CHAN_IND:
 		hdd_debug("Channel change indication from peer for channel %d",
 			  pSapEvent->sapevt.sap_chan_cng_ind.new_chan);
+		wlan_hdd_set_sap_csa_reason(hdd_ctx->psoc, adapter->session_id,
+					    CSA_REASON_PEER_ACTION_FRAME);
 		if (hdd_softap_set_channel_change(dev,
 			 pSapEvent->sapevt.sap_chan_cng_ind.new_chan,
 			 CH_WIDTH_MAX, false))
@@ -3036,6 +3041,20 @@ void hdd_sap_restart_chan_switch_cb(struct wlan_objmgr_psoc *psoc,
 					    channel_bw, forced);
 }
 
+void wlan_hdd_set_sap_csa_reason(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
+				 uint8_t reason)
+{
+	struct sap_context *sap_ctx;
+	struct hdd_adapter *ap_adapter = wlan_hdd_get_adapter_from_vdev(
+				psoc, vdev_id);
+	if (!ap_adapter) {
+		hdd_err("ap adapter is NULL");
+		return;
+	}
+	sap_ctx = WLAN_HDD_GET_SAP_CTX_PTR(ap_adapter);
+	sap_ctx->csa_reason = reason;
+}
+
 QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 				struct wlan_objmgr_psoc *psoc,
 				uint8_t vdev_id, uint8_t *channel,
@@ -3132,6 +3151,8 @@ sap_restart:
 		 hdd_ap_ctx->sap_config.channel, intf_ch);
 	ch_params.ch_width = CH_WIDTH_MAX;
 	hdd_ap_ctx->bss_stop_reason = BSS_STOP_DUE_TO_MCC_SCC_SWITCH;
+	hdd_ap_ctx->sap_context->csa_reason =
+			CSA_REASON_CONCURRENT_STA_CHANGED_CHANNEL;
 
 	wlan_reg_set_channel_params(hdd_ctx->pdev,
 				    intf_ch,
@@ -3570,6 +3591,9 @@ static __iw_softap_setparam(struct net_device *dev,
 	case QCSAP_PARAM_SET_CHANNEL_CHANGE:
 		if ((QDF_SAP_MODE == adapter->device_mode) ||
 		   (QDF_P2P_GO_MODE == adapter->device_mode)) {
+			wlan_hdd_set_sap_csa_reason(hdd_ctx->psoc,
+						    adapter->session_id,
+						    CSA_REASON_USER_INITIATED);
 			hdd_debug("SET Channel Change to new channel= %d",
 			       set_value);
 			ret = hdd_softap_set_channel_change(dev, set_value,
