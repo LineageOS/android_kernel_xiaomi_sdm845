@@ -721,10 +721,13 @@ void kgsl_device_platform_remove(struct kgsl_device *device);
 
 const char *kgsl_pwrstate_to_str(unsigned int state);
 
-int kgsl_device_snapshot_init(struct kgsl_device *device);
-void kgsl_device_snapshot(struct kgsl_device *device,
-			struct kgsl_context *context, bool gmu_fault);
-void kgsl_device_snapshot_close(struct kgsl_device *device);
+static inline int kgsl_device_snapshot_init(struct kgsl_device *device)
+{
+	return 0;
+}
+static inline void kgsl_device_snapshot(struct kgsl_device *device,
+			struct kgsl_context *context, bool gmu_fault) {}
+static inline void kgsl_device_snapshot_close(struct kgsl_device *device) {}
 
 void kgsl_events_init(void);
 void kgsl_events_exit(void);

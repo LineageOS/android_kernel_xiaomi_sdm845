@@ -565,7 +565,6 @@ struct adreno_device {
 	unsigned int speed_bin;
 	unsigned int quirks;
 
-	struct coresight_device *csdev[GPU_CORESIGHT_MAX];
 	uint32_t gpmu_throttle_counters[ADRENO_GPMU_THROTTLE_COUNTERS];
 	struct work_struct irq_storm_work;
 
@@ -935,16 +934,11 @@ struct adreno_gpudev {
 
 	struct adreno_perfcounters *perfcounters;
 	const struct adreno_invalid_countables *invalid_countables;
-	struct adreno_snapshot_data *snapshot_data;
-
-	struct adreno_coresight *coresight[GPU_CORESIGHT_MAX];
 
 	struct adreno_irq *irq;
 	int num_prio_levels;
 	unsigned int vbif_xin_halt_ctrl0_mask;
 	/* GPU specific function hooks */
-	void (*irq_trace)(struct adreno_device *, unsigned int status);
-	void (*snapshot)(struct adreno_device *, struct kgsl_snapshot *);
 	void (*platform_setup)(struct adreno_device *);
 	void (*init)(struct adreno_device *);
 	void (*remove)(struct adreno_device *);
@@ -1118,9 +1112,9 @@ void adreno_shadermem_regread(struct kgsl_device *device,
 						unsigned int offsetwords,
 						unsigned int *value);
 
-void adreno_snapshot(struct kgsl_device *device,
+static inline void adreno_snapshot(struct kgsl_device *device,
 		struct kgsl_snapshot *snapshot,
-		struct kgsl_context *context);
+		struct kgsl_context *context) {}
 
 int adreno_reset(struct kgsl_device *device, int fault);
 
