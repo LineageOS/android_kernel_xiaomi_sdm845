@@ -1270,6 +1270,7 @@ static void dfs_apply_rules(struct wlan_dfs *dfs,
 	uint16_t flag_no_5g_chan  = 0;
 	int i;
 	bool found = false;
+	uint8_t j;
 
 	dfs_debug(dfs, WLAN_DEBUG_DFS_RANDOM_CHAN, "flags %d", flags);
 	flag_no_weather = (dfs_region == DFS_ETSI_REGION_VAL) ?
@@ -1308,8 +1309,8 @@ static void dfs_apply_rules(struct wlan_dfs *dfs,
 		}
 
 		if (acs_info && acs_info->acs_mode) {
-			for (i = 0; i < acs_info->num_of_channel; i++) {
-				if (acs_info->channel_list[i] ==
+			for (j = 0; j < acs_info->num_of_channel; j++) {
+				if (acs_info->channel_list[j] ==
 				    chan->dfs_ch_ieee) {
 					found = true;
 					break;

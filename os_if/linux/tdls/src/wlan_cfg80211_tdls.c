@@ -731,7 +731,9 @@ int wlan_cfg80211_tdls_get_all_peers(struct wlan_objmgr_vdev *vdev,
 	osif_priv = wlan_vdev_get_ospriv(vdev);
 	if (!osif_priv || !osif_priv->osif_tdls) {
 		cfg80211_err("osif_tdls_vdev or osif_priv is NULL for the current vdev");
-		return -EINVAL;
+		len = scnprintf(buf, buflen,
+				"\n tdls_priv is null\n");
+		goto error_get_tdls_peers;
 	}
 
 	tdls_priv = osif_priv->osif_tdls;
@@ -797,7 +799,8 @@ int wlan_cfg80211_tdls_mgmt(struct wlan_objmgr_pdev *pdev,
 
 	if (!osif_priv || !osif_priv->osif_tdls) {
 		cfg80211_err("osif priv or tdls priv is NULL");
-		return -EINVAL;
+		status = -EINVAL;
+		goto error_mgmt_req;
 	}
 
 	tdls_priv = osif_priv->osif_tdls;
