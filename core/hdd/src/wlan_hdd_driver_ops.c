@@ -594,6 +594,12 @@ static void wlan_hdd_shutdown(void)
 		hdd_err("Failed to get HIF context, ignore SSR shutdown");
 		return;
 	}
+
+	if (!hdd_ctx) {
+		hdd_err("Failed to get HDD context, ignore SSR shutdown");
+		return;
+	}
+
 	/* mask the host controller interrupts */
 	hif_mask_interrupt_call(hif_ctx);
 

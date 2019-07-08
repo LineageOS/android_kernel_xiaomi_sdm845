@@ -111,6 +111,7 @@
 #include <wlan_cp_stats_mc_ucfg_api.h>
 #include "wlan_hdd_object_manager.h"
 #include "wlan_hdd_coex_config.h"
+#include "wlan_hdd_hw_capability.h"
 
 #define g_mode_rates_size (12)
 #define a_mode_rates_size (8)
@@ -15068,6 +15069,7 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 
 	FEATURE_COEX_CONFIG_COMMANDS
 	FEATURE_MPTA_HELPER_COMMANDS
+	FEATURE_HW_CAPABILITY_COMMANDS
 };
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)

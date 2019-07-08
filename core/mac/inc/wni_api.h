@@ -231,6 +231,7 @@ enum eWniMsgTypes {
 	eWNI_SME_PURGE_ALL_PDEV_CMDS_REQ,
 	/* To indicate Hidden ssid start complition to upper layer */
 	eWNI_SME_HIDDEN_SSID_RESTART_RSP,
+	eWNI_SME_ANTENNA_ISOLATION_RSP,
 	eWNI_SME_MSG_TYPES_END
 };
 
