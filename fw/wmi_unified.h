@@ -5895,6 +5895,9 @@ typedef enum {
      */
     WMI_PDEV_PARAM_SET_CMD_OBSS_PD_THRESHOLD,
 
+    /* Parameter used for enabling/disabling non wlan coex from boot */
+    WMI_PDEV_PARAM_ENABLE_NON_WLAN_COEX_FROM_BOOT,
+
 } WMI_PDEV_PARAM;
 
 #define WMI_PDEV_ONLY_BSR_TRIG_IS_ENABLED(trig_type) WMI_GET_BITS(trig_type, 0, 1)
@@ -10057,11 +10060,11 @@ WMI_VDEV_PARAM_ROAM_FW_OFFLOAD WMI_VDEV_PARAM **/
 /* Enable Roaming module in FW to do scan based on Final BMISS */
 #define WMI_ROAM_BMISS_FINAL_SCAN_ENABLE_FLAG                    0x2
 /**
-	 * To enable/desable EAPOL_4WAY_HANDSHAKE process while roaming. 
-	 * param value = 0 --> Enable EAPOL 4way handshake
-     * param value = 1 --> Skip EAPOL 4way handshake  
-	 */
-#define WMI_VDEV_PARAM_SKIP_ROAM_EAPOL_4WAY_HANDSHAKE           0x4
+ * To enable/disable EAPOL_4WAY_HANDSHAKE process while roaming.
+ * param value = 0 --> Enable EAPOL 4way handshake
+ * param value = 1 --> Skip EAPOL 4way handshake
+ */
+#define WMI_VDEV_PARAM_SKIP_ROAM_EAPOL_4WAY_HANDSHAKE            0x4
 
 /** slot time long */
 #define WMI_VDEV_SLOT_TIME_LONG                                  0x1
@@ -18079,6 +18082,7 @@ enum wmi_sar_feature_state_flags {
     WMI_SAR_FEATURE_NO_CHANGE,
     WMI_SAR_FEATURE_ON_USER_DEFINED,
     WMI_SAR_FEATURE_ON_SAR_V2_0,
+    WMI_SAR_FEATURE_ON_SAR_V3,
 };
 
 typedef struct {
