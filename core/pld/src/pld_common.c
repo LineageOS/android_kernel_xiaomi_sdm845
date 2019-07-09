@@ -1589,7 +1589,13 @@ void pld_thermal_unregister(struct device *dev)
 
 int pld_get_thermal_state(struct device *dev, uint16_t *thermal_state)
 {
-	return icnss_get_curr_therm_state(dev, (unsigned long *)thermal_state);
+	int ret;
+	unsigned long thermal_state_t;
+
+	ret = icnss_get_curr_therm_state(dev, &thermal_state_t);
+	*thermal_state = (uint16_t)thermal_state_t;
+
+	return ret;
 }
 
 #else
