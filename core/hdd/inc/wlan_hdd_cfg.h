@@ -534,7 +534,7 @@ enum hdd_dot11_mode {
  * gNeighborScanChannelMaxTime - Set neighbor scan channel max time
  * @Min: 3
  * @Max: 300
- * @Default: 30
+ * @Default: 40
  *
  * This ini is used to set the maximum time in secs spent on each
  * channel in LFR scan inside firmware.
@@ -550,7 +550,7 @@ enum hdd_dot11_mode {
 #define CFG_NEIGHBOR_SCAN_MAX_CHAN_TIME_NAME                  "gNeighborScanChannelMaxTime"
 #define CFG_NEIGHBOR_SCAN_MAX_CHAN_TIME_MIN                   (3)
 #define CFG_NEIGHBOR_SCAN_MAX_CHAN_TIME_MAX                   (300)
-#define CFG_NEIGHBOR_SCAN_MAX_CHAN_TIME_DEFAULT               (30)
+#define CFG_NEIGHBOR_SCAN_MAX_CHAN_TIME_DEFAULT               (40)
 
 /*
  * <ini>
