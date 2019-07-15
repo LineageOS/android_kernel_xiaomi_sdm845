@@ -2713,4 +2713,13 @@ QDF_STATUS sme_register_bcn_recv_pause_ind_cb(mac_handle_t mac_handle,
 }
 #endif
 
+void sme_freq_to_chan_list(struct wlan_objmgr_pdev *pdev,
+			   uint8_t *chan_list,
+			   uint32_t *freq_list,
+			   uint32_t chan_list_len);
+
+void sme_chan_to_freq_list(struct wlan_objmgr_pdev *pdev,
+			   uint32_t *freq_list,
+			   const uint8_t *chan_list,
+			   uint32_t chan_list_len);
 #endif /* #if !defined( __SME_API_H ) */
