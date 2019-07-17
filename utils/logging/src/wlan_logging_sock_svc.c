@@ -54,26 +54,6 @@
 	 (QDF_TRACE_LEVEL_WARN == (level)) || \
 	 (QDF_TRACE_LEVEL_INFO == (level)))
 
-/**
- * struct tx_status - tx status
- * @tx_status_ok: successfully sent + acked
- * @tx_status_discard: discard - not sent (congestion control)
- * @tx_status_no_ack: no_ack - sent, but no ack
- * @tx_status_download_fail: download_fail -
- * the host could not deliver the tx frame to the target
- * @tx_status_peer_del: peer_del - tx completion for
- * alreay deleted peer used for HL case
- *
- * This enum has tx status types
- */
-enum tx_status {
-	tx_status_ok,
-	tx_status_discard,
-	tx_status_no_ack,
-	tx_status_download_fail,
-	tx_status_peer_del,
-};
-
 #define LOGGING_TRACE(level, args ...) \
 	QDF_TRACE(QDF_MODULE_ID_HDD, level, ## args)
 
