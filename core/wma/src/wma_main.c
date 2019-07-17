@@ -5298,7 +5298,7 @@ int wma_rx_service_ready_event(void *handle, uint8_t *cmd_param_info,
 					wma_handle->wmi_handle,
 					WMI_VDEV_MGMT_OFFLOAD_EVENTID,
 					wma_mgmt_offload_data_event_handler,
-					WMA_RX_SERIALIZER_CTX);
+					WMA_RX_WORK_CTX);
 		if (status) {
 			WMA_LOGE("Failed to register MGMT offload handler");
 			return -EINVAL;
