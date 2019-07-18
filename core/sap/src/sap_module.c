@@ -1257,6 +1257,7 @@ wlansap_update_csa_channel_params(struct sap_context *sap_context,
  *
  * Return: string reason
  */
+#ifdef WLAN_DEBUG
 static char *sap_get_csa_reason_str(enum sap_csa_reason_code reason)
 {
 	switch (reason) {
@@ -1282,6 +1283,7 @@ static char *sap_get_csa_reason_str(enum sap_csa_reason_code reason)
 		return "UNKNOWN";
 	}
 }
+#endif
 
 /**
  * wlansap_set_channel_change_with_csa() - Set channel change with CSA
