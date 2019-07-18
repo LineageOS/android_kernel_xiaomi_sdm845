@@ -940,11 +940,14 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rx_buf)
 		 * it to stack
 		 */
 		qdf_net_buf_debug_release_skb(skb);
-		if (hdd_napi_enabled(HDD_NAPI_ANY) &&
-			!hdd_ctx->enable_rxthread)
+
+		if (qdf_likely(hdd_ctx->enable_rxthread)) {
+			local_bh_disable();
 			rxstat = netif_receive_skb(skb);
-		else
-			rxstat = netif_rx_ni(skb);
+			local_bh_enable();
+		} else {
+			rxstat = netif_receive_skb(skb);
+		}
 
 		hdd_ctx->no_rx_offload_pkt_cnt++;
 
