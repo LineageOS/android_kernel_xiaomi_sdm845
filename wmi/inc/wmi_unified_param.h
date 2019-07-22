@@ -5313,6 +5313,7 @@ typedef enum {
 	wmi_sar_get_limits_event_id,
 	wmi_roam_scan_stats_event_id,
 	wmi_wlan_sar2_result_event_id,
+	wmi_roam_pmkid_request_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 
