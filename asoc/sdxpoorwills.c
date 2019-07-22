@@ -38,7 +38,7 @@
 #include "codecs/wsa881x.h"
 
 /* Machine driver Name */
-#define DRV_NAME "sdx-asoc-tavil"
+#define DRV_NAME "sdx-asoc-snd"
 
 #define __CHIPSET__ "SDX "
 #define SDX_DAILINK_NAME(name) (__CHIPSET__#name)
@@ -77,6 +77,9 @@
 /* Spk control */
 #define SDX_SPK_ON 1
 #define SDX_HIFI_ON 1
+
+#define SDX_MCLK_CLK_12P288MHZ 12288000
+#define TLV_CLKIN_MCLK 0
 
 enum mi2s_types {
 	PRI_MI2S,
@@ -232,6 +235,14 @@ static int sdx_spk_control = 1;
 static int sdx_hifi_control;
 static atomic_t mi2s_ref_count;
 static atomic_t sec_mi2s_ref_count;
+
+static struct snd_soc_card snd_soc_card_tavil_sdx = {
+	.name = "sdx-tavil-i2s-snd-card",
+};
+
+static struct snd_soc_card snd_soc_card_auto_sdx = {
+	.name = "sdx-auto-i2s-snd-card",
+};
 
 static int sdx_wsa881x_init(struct snd_soc_component *component)
 {
@@ -446,13 +457,24 @@ static int sdx_mi2s_startup(struct snd_pcm_substream *substream)
 				goto err;
 			}
 			ret = snd_soc_dai_set_fmt(codec_dai,
-						  SND_SOC_DAIFMT_CBS_CFS);
+						  SND_SOC_DAIFMT_CBS_CFS |
+						  SND_SOC_DAIFMT_I2S);
 			if (ret < 0) {
 				sdx_mi2s_clk_ctl(rtd, false, PRI_MI2S,
 						 0, pdata->prim_mi2s_mode);
 				dev_err(card->dev,
 					"%s Set fmt for codec dai failed\n",
 					__func__);
+			}
+			if (!strcmp(card->name, snd_soc_card_auto_sdx.name)) {
+				ret = snd_soc_dai_set_sysclk(codec_dai,
+						TLV_CLKIN_MCLK,
+						pdata->mclk_freq,
+						SND_SOC_CLOCK_OUT);
+				if (ret < 0) {
+					pr_err("%s Set sysclk for codec dai failed 0x%8x\n",
+						__func__, ret);
+				}
 			}
 		} else {
 			/*
@@ -2190,6 +2212,26 @@ done:
 	return ret;
 }
 
+static int sdx_mi2s_audrx_init_auto(struct snd_soc_pcm_runtime *rtd)
+{
+	int ret = 0;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+
+	pr_debug("%s dev_name %s\n", __func__, dev_name(cpu_dai->dev));
+
+	rtd->pmdown_time = 0;
+	ret = snd_soc_add_codec_controls(codec, sdx_snd_controls,
+					 ARRAY_SIZE(sdx_snd_controls));
+	if (ret < 0) {
+		pr_err("%s: add_codec_controls failed, %d\n",
+		       __func__, ret);
+		goto done;
+	}
+done:
+	return ret;
+}
+
 static void *def_tavil_mbhc_cal(void)
 {
 	void *tavil_wcd_cal;
@@ -2949,6 +2991,41 @@ static struct snd_soc_dai_link sdx_tdm_be_dai_links[] = {
 
 };
 
+static struct snd_soc_dai_link sdx_auto_dai[] = {
+	/* Backend DAI Links */
+	{
+		.name = LPASS_BE_PRI_MI2S_RX,
+		.stream_name = "Primary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.0",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "tlv320aic3x-codec",
+		.codec_dai_name = "tlv320aic3x-hifi",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_PRI_MI2S_RX,
+		.init  = &sdx_mi2s_audrx_init_auto,
+		.be_hw_params_fixup = &sdx_mi2s_rx_be_hw_params_fixup,
+		.ops = &sdx_mi2s_be_ops,
+		.ignore_pmdown_time = 1,
+		.ignore_suspend = 1,
+	},
+	{
+		.name = LPASS_BE_PRI_MI2S_TX,
+		.stream_name = "Primary MI2S Capture",
+		.cpu_dai_name = "msm-dai-q6-mi2s.0",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "tlv320aic3x-codec",
+		.codec_dai_name = "tlv320aic3x-hifi",
+		.no_pcm = 1,
+		.dpcm_capture = 1,
+		.id = MSM_BACKEND_DAI_PRI_MI2S_TX,
+		.be_hw_params_fixup = &sdx_mi2s_tx_be_hw_params_fixup,
+		.ops = &sdx_mi2s_be_ops,
+		.ignore_pmdown_time = 1,
+		.ignore_suspend = 1,
+	},
+};
+
 static struct snd_soc_dai_link sdx_tavil_snd_card_dai_links[
 			 ARRAY_SIZE(sdx_common_dai_links) +
 			 ARRAY_SIZE(sdx_common_misc_fe_dai_links) +
@@ -2957,9 +3034,12 @@ static struct snd_soc_dai_link sdx_tavil_snd_card_dai_links[
 			 ARRAY_SIZE(sdx_auxpcm_be_dai_links)+
 			 ARRAY_SIZE(sdx_tdm_be_dai_links)];
 
-static struct snd_soc_card snd_soc_card_tavil_sdx = {
-	.name = "sdx-tavil-i2s-snd-card",
-};
+static struct snd_soc_dai_link sdx_auto_snd_card_dai_links[
+			 ARRAY_SIZE(sdx_common_dai_links) +
+			 ARRAY_SIZE(sdx_common_misc_fe_dai_links) +
+			 ARRAY_SIZE(sdx_common_be_dai_links) +
+			 ARRAY_SIZE(sdx_auto_dai) +
+			 ARRAY_SIZE(sdx_auxpcm_be_dai_links)];
 
 static int sdx_populate_dai_link_component_of_node(struct snd_soc_card *card)
 {
@@ -3048,40 +3128,82 @@ err:
 	return ret;
 }
 
+static const struct of_device_id sdx_asoc_machine_of_match[]  = {
+	{ .compatible = "qcom,sdx-asoc-snd-tavil",
+	  .data = "tavil_codec"	},
+	{ .compatible = "qcom,sdx-asoc-snd-auto",
+	  .data = "auto_codec"},
+	{},
+};
+
 static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 {
 	struct snd_soc_card *card = NULL;
+	struct snd_soc_dai_link *dailink;
+	const struct of_device_id *match;
 	int len_1, len_2, len_3, len_4, len_5;
 	int total_links;
 
-	card = &snd_soc_card_tavil_sdx;
-	len_1 = ARRAY_SIZE(sdx_common_dai_links);
-	len_2 = len_1 + ARRAY_SIZE(sdx_common_misc_fe_dai_links);
-	len_3 = len_2 + ARRAY_SIZE(sdx_common_be_dai_links);
-	len_4 = len_3 + ARRAY_SIZE(sdx_mi2s_be_dai_links);
-	len_5 = len_4 + ARRAY_SIZE(sdx_auxpcm_be_dai_links);
-	total_links = len_5 + ARRAY_SIZE(sdx_tdm_be_dai_links);
-	memcpy(sdx_tavil_snd_card_dai_links,
-	       sdx_common_dai_links,
-	       sizeof(sdx_common_dai_links));
-	memcpy(sdx_tavil_snd_card_dai_links + len_1,
-	       sdx_common_misc_fe_dai_links,
-	       sizeof(sdx_common_misc_fe_dai_links));
-	memcpy(sdx_tavil_snd_card_dai_links + len_2,
-	       sdx_common_be_dai_links,
-	       sizeof(sdx_common_be_dai_links));
-	memcpy(sdx_tavil_snd_card_dai_links + len_3,
-	       sdx_mi2s_be_dai_links,
-	       sizeof(sdx_mi2s_be_dai_links));
-	memcpy(sdx_tavil_snd_card_dai_links + len_4,
-	       sdx_auxpcm_be_dai_links,
-	       sizeof(sdx_auxpcm_be_dai_links));
-	memcpy(sdx_tavil_snd_card_dai_links + len_5,
-	       sdx_tdm_be_dai_links,
-	       sizeof(sdx_tdm_be_dai_links));
+	match = of_match_node(sdx_asoc_machine_of_match, dev->of_node);
+	if (!match) {
+		dev_err(dev, "%s: No DT match found for sound card\n",
+				__func__);
+		return NULL;
+	}
 
+	if (!strcmp(match->data, "tavil_codec")) {
+		len_1 = ARRAY_SIZE(sdx_common_dai_links);
+		len_2 = len_1 + ARRAY_SIZE(sdx_common_misc_fe_dai_links);
+		len_3 = len_2 + ARRAY_SIZE(sdx_common_be_dai_links);
+		len_4 = len_3 + ARRAY_SIZE(sdx_mi2s_be_dai_links);
+		len_5 = len_4 + ARRAY_SIZE(sdx_auxpcm_be_dai_links);
+		total_links = len_5 + ARRAY_SIZE(sdx_tdm_be_dai_links);
+		memcpy(sdx_tavil_snd_card_dai_links,
+			   sdx_common_dai_links,
+			   sizeof(sdx_common_dai_links));
+		memcpy(sdx_tavil_snd_card_dai_links + len_1,
+			   sdx_common_misc_fe_dai_links,
+			   sizeof(sdx_common_misc_fe_dai_links));
+		memcpy(sdx_tavil_snd_card_dai_links + len_2,
+			   sdx_common_be_dai_links,
+			   sizeof(sdx_common_be_dai_links));
+		memcpy(sdx_tavil_snd_card_dai_links + len_3,
+			   sdx_mi2s_be_dai_links,
+			   sizeof(sdx_mi2s_be_dai_links));
+		memcpy(sdx_tavil_snd_card_dai_links + len_4,
+			   sdx_auxpcm_be_dai_links,
+			   sizeof(sdx_auxpcm_be_dai_links));
+		memcpy(sdx_tavil_snd_card_dai_links + len_5,
+			   sdx_tdm_be_dai_links,
+			   sizeof(sdx_tdm_be_dai_links));
+		card = &snd_soc_card_tavil_sdx;
+		dailink = sdx_tavil_snd_card_dai_links;
+	} else if (!strcmp(match->data, "auto_codec")) {
+		len_1 = ARRAY_SIZE(sdx_common_dai_links);
+		len_2 = len_1 + ARRAY_SIZE(sdx_common_misc_fe_dai_links);
+		len_3 = len_2 + ARRAY_SIZE(sdx_common_be_dai_links);
+		len_4 = len_3 + ARRAY_SIZE(sdx_auto_dai);
+		total_links = len_4 + ARRAY_SIZE(sdx_auxpcm_be_dai_links);
+		memcpy(sdx_auto_snd_card_dai_links,
+			   sdx_common_dai_links,
+			   sizeof(sdx_common_dai_links));
+		memcpy(sdx_auto_snd_card_dai_links + len_1,
+			   sdx_common_misc_fe_dai_links,
+			   sizeof(sdx_common_misc_fe_dai_links));
+		memcpy(sdx_auto_snd_card_dai_links + len_2,
+			   sdx_common_be_dai_links,
+			   sizeof(sdx_common_be_dai_links));
+		memcpy(sdx_auto_snd_card_dai_links + len_3,
+			   sdx_auto_dai,
+			   sizeof(sdx_auto_dai));
+		memcpy(sdx_auto_snd_card_dai_links + len_4,
+			   sdx_auxpcm_be_dai_links,
+			   sizeof(sdx_auxpcm_be_dai_links));
+		card = &snd_soc_card_auto_sdx;
+		dailink = sdx_auto_snd_card_dai_links;
+	}
 	if (card) {
-		card->dai_link = sdx_tavil_snd_card_dai_links;
+		card->dai_link = dailink;
 		card->num_links = total_links;
 	}
 
@@ -3253,6 +3375,7 @@ static int sdx_asoc_machine_probe(struct platform_device *pdev)
 	int ret;
 	struct sdx_machine_data *pdata;
 	struct snd_soc_card *card;
+	const struct of_device_id *match;
 
 	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev,
@@ -3261,6 +3384,12 @@ static int sdx_asoc_machine_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	match = of_match_node(sdx_asoc_machine_of_match, pdev->dev.of_node);
+	if (!match) {
+		dev_err(&pdev->dev, "%s: No DT match found for sound card\n",
+				__func__);
+		return -EINVAL;
+	}
 	pdata = devm_kzalloc(&pdev->dev, sizeof(struct sdx_machine_data),
 			     GFP_KERNEL);
 	if (!pdata)
@@ -3273,16 +3402,20 @@ static int sdx_asoc_machine_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "qcom,tavil-mclk-clk-freq",
-				   &pdata->mclk_freq);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"%s Looking up %s property in node %s failed",
-			__func__, "qcom,tavil-mclk-clk-freq",
-			pdev->dev.of_node->full_name);
+	if (!strcmp(match->data, "tavil_codec")) {
+		ret = of_property_read_u32(pdev->dev.of_node,
+					   "qcom,tavil-mclk-clk-freq",
+					   &pdata->mclk_freq);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"%s Looking up %s property in node %s failed",
+				__func__, "qcom,tavil-mclk-clk-freq",
+				pdev->dev.of_node->full_name);
 
-		goto err;
+			goto err;
+		}
+	} else {
+		pdata->mclk_freq = SDX_MCLK_CLK_12P288MHZ;
 	}
 	/* At present only 12.288MHz is supported on SDX. */
 	if (q6afe_check_osr_clk_freq(pdata->mclk_freq)) {
@@ -3314,25 +3447,30 @@ static int sdx_asoc_machine_probe(struct platform_device *pdev)
 	ret = snd_soc_of_parse_card_name(card, "qcom,model");
 	if (ret)
 		goto err;
-	ret = snd_soc_of_parse_audio_routing(card, "qcom,audio-routing");
-	if (ret)
-		goto err;
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,audio-routing")) {
+		ret = snd_soc_of_parse_audio_routing(card,
+						"qcom,audio-routing");
+		if (ret)
+			goto err;
+	}
 	ret = sdx_populate_dai_link_component_of_node(card);
 	if (ret) {
 		ret = -EPROBE_DEFER;
 		goto err;
 	}
 
-	ret = sdx_init_wsa_dev(pdev, card);
-	if (ret)
-		goto err;
+	/* As Two Codec Probed, set wsa init for tavil codec */
+	if (!strcmp(match->data, "tavil_codec")) {
+		ret = sdx_init_wsa_dev(pdev, card);
+		if (ret)
+			goto err;
+	}
 
 	ret = snd_soc_register_card(card);
 	if (ret == -EPROBE_DEFER) {
 		goto err;
 	} else if (ret) {
-		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
-			ret);
+		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
 		goto err;
 	}
 
@@ -3396,11 +3534,6 @@ static int sdx_asoc_machine_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id sdx_asoc_machine_of_match[]  = {
-	{ .compatible = "qcom,sdx-asoc-snd-tavil", },
-	{},
-};
 
 static struct platform_driver sdx_asoc_machine_driver = {
 	.driver = {
