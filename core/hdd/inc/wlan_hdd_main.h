@@ -3436,12 +3436,27 @@ void hdd_component_psoc_disable(struct wlan_objmgr_psoc *psoc);
 #ifdef WLAN_FEATURE_MEMDUMP_ENABLE
 int hdd_driver_memdump_init(void);
 void hdd_driver_memdump_deinit(void);
+
+/**
+ * hdd_driver_mem_cleanup() - Frees memory allocated for
+ * driver dump
+ *
+ * This function  frees driver dump memory.
+ *
+ * Return: None
+ */
+void hdd_driver_mem_cleanup(void);
+
 #else /* WLAN_FEATURE_MEMDUMP_ENABLE */
 static inline int hdd_driver_memdump_init(void)
 {
 	return 0;
 }
 static inline void hdd_driver_memdump_deinit(void)
+{
+}
+
+static inline void hdd_driver_mem_cleanup(void)
 {
 }
 #endif /* WLAN_FEATURE_MEMDUMP_ENABLE */
