@@ -674,15 +674,7 @@ out:
 	return status;
 }
 
-/**
- * wma_force_objmgr_vdev_peer_cleanup() - Cleanup ObjMgr Vdev peers during SSR
- * @wma_handle: WMA handle
- * @vdev_id: vdev ID
- *
- * Return: none
- */
-static void wma_force_objmgr_vdev_peer_cleanup(tp_wma_handle wma,
-					       uint8_t vdev_id)
+void wma_force_objmgr_vdev_peer_cleanup(tp_wma_handle wma, uint8_t vdev_id)
 {
 	struct wma_txrx_node *iface = &wma->interfaces[vdev_id];
 	struct wlan_objmgr_vdev *vdev;
@@ -702,10 +694,12 @@ static void wma_force_objmgr_vdev_peer_cleanup(tp_wma_handle wma,
 		return;
 	}
 
+	qdf_spin_lock_bh(&iface->peer_lock);
 	peer_list = &vdev->vdev_objmgr.wlan_peer_list;
 	if (!peer_list) {
 		WMA_LOGE("%s: peer_list is NULL", __func__);
 		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_WMA_ID);
+		qdf_spin_unlock_bh(&iface->peer_lock);
 		return;
 	}
 
@@ -725,7 +719,7 @@ static void wma_force_objmgr_vdev_peer_cleanup(tp_wma_handle wma,
 		wlan_objmgr_peer_release_ref(peer, WLAN_LEGACY_WMA_ID);
 		peer = peer_next;
 	}
-
+	qdf_spin_unlock_bh(&iface->peer_lock);
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_WMA_ID);
 
 	/* Force delete all the peers, set the wma interface peer_count to 0 */

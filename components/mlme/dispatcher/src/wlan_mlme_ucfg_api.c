@@ -23,6 +23,7 @@
 #include <wlan_objmgr_global_obj.h>
 #include <wlan_cmn.h>
 #include <wlan_mlme_main.h>
+#include <wma.h>
 
 QDF_STATUS ucfg_mlme_init(void)
 {
@@ -93,3 +94,15 @@ QDF_STATUS ucfg_mlme_deinit(void)
 
 	return status;
 }
+
+void ucfg_mlme_force_objmgr_vdev_peer_cleanup(uint8_t vdev_id)
+{
+	tp_wma_handle wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!wma_handle) {
+		mlme_err("Invalid wma handle");
+		return;
+	}
+	wma_force_objmgr_vdev_peer_cleanup(wma_handle, vdev_id);
+}
+
