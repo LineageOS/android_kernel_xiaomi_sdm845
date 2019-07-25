@@ -7883,6 +7883,12 @@ int wlan_hdd_restore_channels(hdd_context_t *hdd_ctx)
 	status = sme_update_channel_list(hdd_ctx->hHal);
 	if (status)
 		hdd_err("Can't Restore channel list");
+	else
+		/*
+		 * Free the cache channels when the
+		 * disabled channels are restored
+		 */
+		wlan_hdd_free_cache_channels(hdd_ctx);
 	EXIT();
 
 	return 0;
