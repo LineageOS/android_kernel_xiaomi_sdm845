@@ -15298,7 +15298,7 @@ enum hdd_external_acs_policy {
  * </ini>
  */
 #define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_NAME    "gActionOUISwitchTo11nMode"
-#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT "00904C 03 0418BF E0 21 40"
+#define CFG_ACTION_OUI_SWITCH_TO_11N_MODE_DEFAULT "00904C 05 0418BF0CB2 F8 21 40"
 
 /*
  * <ini>
