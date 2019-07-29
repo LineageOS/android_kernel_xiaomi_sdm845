@@ -12736,6 +12736,11 @@ void hdd_bus_bw_compute_timer_start(struct hdd_context *hdd_ctx)
 {
 	hdd_enter();
 
+	if (wlan_hdd_validate_context(hdd_ctx)) {
+		hdd_exit();
+		return;
+	}
+
 	if (hdd_bus_bw_compute_timer_is_running(hdd_ctx)) {
 		hdd_debug("Bandwidth compute timer already started");
 		return;
