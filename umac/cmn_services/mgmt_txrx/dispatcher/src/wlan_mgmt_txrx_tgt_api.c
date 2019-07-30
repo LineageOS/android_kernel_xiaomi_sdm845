@@ -1070,7 +1070,7 @@ QDF_STATUS tgt_mgmt_txrx_tx_completion_handler(
 		return QDF_STATUS_E_INVAL;
 	}
 	mgmt_desc = &mgmt_txrx_pdev_ctx->mgmt_desc_pool.pool[desc_id];
-	if (!mgmt_desc) {
+	if (!mgmt_desc || !mgmt_desc->in_use) {
 		mgmt_txrx_err("Mgmt desc empty for id %d pdev %pK ",
 				desc_id, pdev);
 		return QDF_STATUS_E_NULL_VALUE;
@@ -1142,7 +1142,7 @@ qdf_nbuf_t tgt_mgmt_txrx_get_nbuf_from_desc_id(
 	}
 
 	mgmt_desc = &mgmt_txrx_pdev_ctx->mgmt_desc_pool.pool[desc_id];
-	if (!mgmt_desc) {
+	if (!mgmt_desc || !mgmt_desc->in_use) {
 		mgmt_txrx_err("Mgmt descriptor unavailable for id %d pdev %pK",
 				desc_id, pdev);
 		goto fail;
@@ -1172,7 +1172,7 @@ tgt_mgmt_txrx_get_peer_from_desc_id(
 	}
 
 	mgmt_desc = &mgmt_txrx_pdev_ctx->mgmt_desc_pool.pool[desc_id];
-	if (!mgmt_desc) {
+	if (!mgmt_desc || !mgmt_desc->in_use) {
 		mgmt_txrx_err("Mgmt descriptor unavailable for id %d pdev %pK",
 				desc_id, pdev);
 		goto fail;
@@ -1206,7 +1206,7 @@ uint8_t tgt_mgmt_txrx_get_vdev_id_from_desc_id(
 	}
 
 	mgmt_desc = &mgmt_txrx_pdev_ctx->mgmt_desc_pool.pool[desc_id];
-	if (!mgmt_desc) {
+	if (!mgmt_desc || !mgmt_desc->in_use) {
 		mgmt_txrx_err("Mgmt descriptor unavailable for id %d pdev %pK",
 				desc_id, pdev);
 		goto fail;
