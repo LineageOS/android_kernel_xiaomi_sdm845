@@ -174,7 +174,7 @@ enum
 	VM_DIRTY_BACKGROUND=15,	/* dirty_background_ratio */
 	VM_DIRTY_RATIO=60,	/* dirty_ratio */
 	VM_DIRTY_WB_CS=13,	/* dirty_writeback_centisecs */
-	VM_DIRTY_EXPIRE_CS=14,	/* dirty_expire_centisecs */
+	VM_DIRTY_EXPIRE_CS=500,	/* dirty_expire_centisecs */
 	VM_NR_PDFLUSH_THREADS=15, /* nr_pdflush_threads */
 	VM_OVERCOMMIT_RATIO=16, /* percent of RAM to allow overcommit in */
 	VM_PAGEBUF=17,		/* struct: Control pagebuf parameters */
