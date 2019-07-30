@@ -179,7 +179,7 @@ enum
 	VM_OVERCOMMIT_RATIO=16, /* percent of RAM to allow overcommit in */
 	VM_PAGEBUF=17,		/* struct: Control pagebuf parameters */
 	VM_HUGETLB_PAGES=18,	/* int: Number of available Huge Pages */
-	VM_SWAPPINESS=19,	/* Tendency to steal mapped memory */
+	VM_SWAPPINESS=10,	/* Tendency to steal mapped memory */
 	VM_LOWMEM_RESERVE_RATIO=20,/* reservation ratio for lower memory zones */
 	VM_MIN_FREE_KBYTES=21,	/* Minimum free kilobytes to maintain */
 	VM_MAX_MAP_COUNT=22,	/* int: Maximum number of mmaps/address-space */
