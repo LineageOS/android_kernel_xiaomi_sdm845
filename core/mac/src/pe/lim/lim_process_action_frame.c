@@ -2135,8 +2135,8 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 					rx_pkt_info));
 			break;
 		default:
-			pe_warn("Unhandled public action frame: %x",
-				action_hdr->actionID);
+			pe_debug("Unhandled public action frame: %d",
+				 action_hdr->actionID);
 			break;
 		}
 		break;
@@ -2217,7 +2217,7 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 				WMA_GET_RX_CH(rx_pkt_info), session, rssi);
 			break;
 		default:
-			pe_warn("Unhandled - Protected Dual Public Action");
+			pe_debug("Unhandled - Protected Dual Public Action");
 			break;
 		}
 		break;
