@@ -297,8 +297,8 @@ endif
 #Enable beacon reporting feature
 CONFIG_WLAN_BEACON_REPORTING := y
 
-#Enable FW thermal mitigation feature
-CONFIG_WLAN_FW_THERMAL_MITIGATION := y
+#Enable/Disable FW thermal mitigation feature
+CONFIG_WLAN_FW_THERMAL_MITIGATION := n
 
 # Feature flags which are not (currently) configurable via Kconfig
 

@@ -1576,7 +1576,7 @@ void pld_block_shutdown(struct device *dev, bool status)
 	}
 }
 
-#ifdef CONFIG_PLD_SNOC_ICNSS
+#if defined(CONFIG_PLD_SNOC_ICNSS) && defined(CONFIG_WLAN_FW_THERMAL_MITIGATION)
 int pld_thermal_register(struct device *dev, int max_state)
 {
 	return icnss_thermal_register(dev, max_state);
