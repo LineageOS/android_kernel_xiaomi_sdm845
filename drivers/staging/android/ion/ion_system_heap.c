@@ -455,6 +455,8 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 			sg_sync = sg_next(sg_sync);
 		} else if (tmp_info) {
 			i = process_info(tmp_info, sg, 0, 0, i);
+		} else {
+			BUG();
 		}
 		sg = sg_next(sg);
 
@@ -813,7 +815,7 @@ struct ion_heap *ion_system_heap_create(struct ion_platform_heap *data)
 	int pools_size = sizeof(struct ion_page_pool *) * num_orders;
 	struct device *dev = data->priv;
 
-	heap = kzalloc(sizeof(*heap), GFP_KERNEL);
+	heap = kzalloc(sizeof(struct ion_system_heap), GFP_KERNEL);
 	if (!heap)
 		return ERR_PTR(-ENOMEM);
 	heap->heap.ops = &system_heap_ops;
