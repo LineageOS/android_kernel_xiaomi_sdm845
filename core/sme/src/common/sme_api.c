@@ -15639,8 +15639,10 @@ QDF_STATUS sme_set_del_pmkid_cache(tHalHandle hal, uint8_t session_id,
 
 	pmk_cache->session_id = session_id;
 
-	if (!pmk_cache_info)
+	if (!pmk_cache_info) {
+		pmk_cache->is_flush_all = true;
 		goto send_flush_cmd;
+	}
 
 	if (!pmk_cache_info->ssid_len) {
 		pmk_cache->cat_flag = WMI_PMK_CACHE_CAT_FLAG_BSSID;
