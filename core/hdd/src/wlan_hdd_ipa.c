@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -388,7 +388,6 @@ void hdd_ipa_send_nbuf_to_network(qdf_nbuf_t nbuf, qdf_netdev_t dev)
 	struct hdd_adapter *adapter = (struct hdd_adapter *) netdev_priv(dev);
 	int result;
 	unsigned int cpu_index;
-	uint8_t staid;
 	uint32_t enabled;
 
 	if (hdd_validate_adapter(adapter)) {
@@ -403,12 +402,7 @@ void hdd_ipa_send_nbuf_to_network(qdf_nbuf_t nbuf, qdf_netdev_t dev)
 
 	if (adapter->device_mode == QDF_SAP_MODE) {
 		/* Send DHCP Indication to FW */
-		struct qdf_mac_addr *src_mac =
-			(struct qdf_mac_addr *)(nbuf->data +
-			QDF_NBUF_SRC_MAC_OFFSET);
-		if (QDF_STATUS_SUCCESS ==
-			hdd_softap_get_sta_id(adapter, src_mac, &staid))
-			hdd_inspect_dhcp_packet(adapter, staid, nbuf, QDF_RX);
+		hdd_softap_inspect_dhcp_packet(adapter, nbuf, QDF_RX);
 	}
 
 	/*
