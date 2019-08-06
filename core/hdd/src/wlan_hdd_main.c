@@ -13135,7 +13135,6 @@ int hdd_init(void)
 		QDF_TIMER_TYPE_SW);
 
 	hdd_trace_init();
-	hdd_qdf_print_init();
 
 	hdd_register_debug_callback();
 
@@ -13152,7 +13151,6 @@ err_out:
  */
 void hdd_deinit(void)
 {
-	hdd_qdf_print_deinit();
 	qdf_timer_free(&hdd_drv_ops_inactivity_timer);
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
@@ -13405,6 +13403,7 @@ static int hdd_driver_load(void)
 	       g_wlan_driver_version,
 	       TIMER_MANAGER_STR MEMORY_DEBUG_STR PANIC_ON_BUG_STR);
 
+	hdd_qdf_print_init();
 	errno = hdd_init();
 	if (errno) {
 		hdd_fln("Failed to init HDD; errno:%d", errno);
@@ -13498,6 +13497,7 @@ static void hdd_driver_unload(void)
 	qdf_wake_lock_destroy(&wlan_wake_lock);
 	hdd_component_deinit();
 	hdd_deinit();
+	hdd_qdf_print_deinit();
 }
 
 #ifndef MODULE
