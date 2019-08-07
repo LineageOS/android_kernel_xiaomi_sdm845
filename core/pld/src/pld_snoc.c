@@ -262,6 +262,7 @@ static int pld_snoc_uevent(struct device *dev,
 	return 0;
 }
 
+#if defined(CONFIG_WLAN_FW_THERMAL_MITIGATION)
 /**
  * pld_snoc_set_thermal_state() - Set thermal state for thermal mitigation
  * @dev: device
@@ -288,6 +289,7 @@ static int pld_snoc_set_thermal_state(struct device *dev,
 
 	return -ENOTSUPP;
 }
+#endif
 
 #ifdef MULTI_IF_NAME
 #define PLD_SNOC_OPS_NAME "pld_snoc_" MULTI_IF_NAME
@@ -307,7 +309,9 @@ struct icnss_driver_ops pld_snoc_ops = {
 	.suspend_noirq = pld_snoc_suspend_noirq,
 	.resume_noirq = pld_snoc_resume_noirq,
 	.uevent = pld_snoc_uevent,
+#if defined(CONFIG_WLAN_FW_THERMAL_MITIGATION)
 	.set_therm_state = pld_snoc_set_thermal_state,
+#endif
 };
 
 /**
