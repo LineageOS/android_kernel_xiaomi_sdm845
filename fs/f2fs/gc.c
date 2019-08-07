@@ -32,12 +32,12 @@ static inline void gc_set_wakelock(struct f2fs_sb_info *sbi,
 {
 	if (val) {
 		if (!gc_th->gc_wakelock.active) {
-			f2fs_msg(sbi->sb, KERN_INFO, "Catching wakelock for GC");
+			f2fs_info(sbi, "Catching wakelock for GC");
 			__pm_stay_awake(&gc_th->gc_wakelock);
 		}
 	} else {
 		if (gc_th->gc_wakelock.active) {
-			f2fs_msg(sbi->sb, KERN_INFO, "Unlocking wakelock for GC");
+			f2fs_info(sbi, "Unlocking wakelock for GC");
 			__pm_relax(&gc_th->gc_wakelock);
 		}
 	}
@@ -142,8 +142,7 @@ do_gc:
 			wait_ms = gc_th->no_gc_sleep_time;
 			gc_set_wakelock(sbi, gc_th, false);
 			sbi->gc_mode = GC_NORMAL;
-			f2fs_msg(sbi->sb, KERN_INFO,
-				"No more GC victim found, "
+			f2fs_info(sbi, "No more GC victim found, "
 				"sleeping for %u ms", wait_ms);
 
 			/*
@@ -151,7 +150,7 @@ do_gc:
 			 * that would not be read again anytime soon.
 			 */
 			mm_drop_caches(3);
-			f2fs_msg(sbi->sb, KERN_INFO, "dropped caches");
+			f2fs_info(sbi, "dropped caches");
 		}
 
 		trace_f2fs_background_gc(sbi->sb, wait_ms,
@@ -243,8 +242,7 @@ void f2fs_start_all_gc_threads(void)
 			wake_up_interruptible_all(&sbi->gc_thread->gc_wait_queue_head);
 			wake_up_discard_thread(sbi, true);
 		} else {
-			f2fs_msg(sbi->sb, KERN_INFO,
-					"Invalid blocks lower than %d%%,"
+			f2fs_info(sbi, "Invalid blocks lower than %d%%,"
 					"skipping rapid GC (%u / (%u - %u))",
 					RAPID_GC_LIMIT_INVALID_BLOCK,
 					invalid_blocks,
