@@ -3240,8 +3240,8 @@ void f2fs_clear_radix_tree_dirty_tag(struct page *page);
  */
 int f2fs_start_gc_thread(struct f2fs_sb_info *sbi);
 void f2fs_stop_gc_thread(struct f2fs_sb_info *sbi);
-void f2fs_sbi_list_add(struct f2fs_sb_info *sbi);
-void f2fs_sbi_list_del(struct f2fs_sb_info *sbi);
+void f2fs_gc_sbi_list_add(struct f2fs_sb_info *sbi);
+void f2fs_gc_sbi_list_del(struct f2fs_sb_info *sbi);
 
 block_t f2fs_start_bidx_of_node(unsigned int node_ofs, struct inode *inode);
 int f2fs_gc(struct f2fs_sb_info *sbi, bool sync, bool background,
