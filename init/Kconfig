@@ -1533,6 +1533,52 @@ config CPUSET_ASSIST
 
 	  If unsure, say N.
 
+if CPUSET_ASSIST
+
+config CPUSET_AUDIO_APP
+	string "Value for 'audio-app' cpuset"
+	default "0-3"
+	help
+	  The CPU mask to use for the audio-app cpuset.
+
+config CPUSET_BG
+	string "Value for 'background' cpuset"
+	default "0-1"
+	help
+	  The CPU mask to use for the audio-app cpuset.
+
+config CPUSET_CAMERA
+	string "Value for 'camera-daemon' cpuset"
+	default "0-3,6-7"
+	help
+	  The CPU mask to use for the audio-app cpuset.
+
+config CPUSET_FG
+	string "Value for 'foreground' cpuset"
+	default "0-3,6-7"
+	help
+	  The CPU mask to use for the audio-app cpuset.
+
+config CPUSET_RESTRICTED
+	string "Value for 'restricted' cpuset"
+	default "0-3"
+	help
+	  The CPU mask to use for the audio-app cpuset.
+
+config CPUSET_SYSTEM_BG
+	string "Value for 'system-background' cpuset"
+	default "0-3"
+	help
+	  The CPU mask to use for the audio-app cpuset.
+
+config CPUSET_TOP_APP
+	string "Value for 'top-app' cpuset"
+	default "0-7"
+	help
+	  The CPU mask to use for the audio-app cpuset.
+
+endif
+
 config DEFAULT_USE_ENERGY_AWARE
 	bool "Default to enabling the Energy Aware Scheduler feature"
 	default n
