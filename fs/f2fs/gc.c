@@ -13,6 +13,7 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
+#include <linux/pm_wakeup.h>
 #include <linux/msm_drm_notify.h>
 #include <linux/power_supply.h>
 
@@ -24,21 +25,28 @@
 
 #define TRIGGER_RAPID_GC (!screen_on && power_supply_is_system_supplied())
 static bool screen_on = true;
+static LIST_HEAD(gc_sbi_list);
+static DEFINE_MUTEX(gc_sbi_mutex);
+static struct wakeup_source gc_wakelock;
 
-static inline void rapid_gc_set_wakelock(struct f2fs_sb_info *sbi,
-		struct f2fs_gc_kthread *gc_th, bool val)
+static inline void rapid_gc_set_wakelock(void)
 {
-	if (val) {
-		if (!gc_th->gc_wakelock.active) {
-			f2fs_info(sbi, "Catching wakelock for rapid GC");
-			__pm_stay_awake(&gc_th->gc_wakelock);
-		}
-	} else {
-		if (gc_th->gc_wakelock.active) {
-			f2fs_info(sbi, "Unlocking wakelock for rapid GC");
-			__pm_relax(&gc_th->gc_wakelock);
-		}
+	struct f2fs_sb_info *sbi;
+	unsigned int set = 0;
+
+	mutex_lock(&gc_sbi_mutex);
+	list_for_each_entry(sbi, &gc_sbi_list, list) {
+		set |= sbi->rapid_gc;
 	}
+
+	if (set && !gc_wakelock.active) {
+		pr_info("F2FS-fs: Catching wakelock for rapid GC");
+		__pm_stay_awake(&gc_wakelock);
+	} else if (!set && gc_wakelock.active) {
+		pr_info("F2FS-fs: Unlocking wakelock for rapid GC");
+		__pm_relax(&gc_wakelock);
+	}
+	mutex_unlock(&gc_sbi_mutex);
 }
 
 static int gc_thread_func(void *data)
@@ -47,7 +55,6 @@ static int gc_thread_func(void *data)
 	struct f2fs_gc_kthread *gc_th = sbi->gc_thread;
 	wait_queue_head_t *wq = &sbi->gc_thread->gc_wait_queue_head;
 	unsigned int wait_ms = gc_th->min_sleep_time;
-	bool rapid_gc;
 
 	set_freezable();
 	do {
@@ -56,14 +63,14 @@ static int gc_thread_func(void *data)
 				gc_th->gc_wake,
 				msecs_to_jiffies(wait_ms));
 
-		rapid_gc = TRIGGER_RAPID_GC;
-		if (rapid_gc) {
-			rapid_gc_set_wakelock(sbi, gc_th, true);
+		sbi->rapid_gc = TRIGGER_RAPID_GC ? 1 : 0;
+		if (sbi->rapid_gc) {
+			rapid_gc_set_wakelock();
 			// Use 1 instead of 0 to allow thread interrupts
 			wait_ms = 1;
 			sbi->gc_mode = GC_URGENT;
 		} else {
-			rapid_gc_set_wakelock(sbi, gc_th, false);
+			rapid_gc_set_wakelock();
 			wait_ms = gc_th->min_sleep_time;
 			sbi->gc_mode = GC_NORMAL;
 		}
@@ -80,7 +87,7 @@ static int gc_thread_func(void *data)
 			break;
 
 		if (sbi->sb->s_writers.frozen >= SB_FREEZE_WRITE) {
-			if (!rapid_gc) {
+			if (!sbi->rapid_gc) {
 				increase_sleep_time(gc_th, &wait_ms);
 				stat_other_skip_bggc_count(sbi);
 			}
@@ -110,8 +117,8 @@ static int gc_thread_func(void *data)
 		 * invalidated soon after by user update or deletion.
 		 * So, I'd like to wait some time to collect dirty segments.
 		 */
-		if (sbi->gc_mode == GC_URGENT || rapid_gc) {
-			if (!rapid_gc)
+		if (sbi->gc_mode == GC_URGENT || sbi->rapid_gc) {
+			if (!sbi->rapid_gc)
 				wait_ms = gc_th->urgent_sleep_time;
 			mutex_lock(&sbi->gc_mutex);
 			goto do_gc;
@@ -137,9 +144,10 @@ do_gc:
 		stat_inc_bggc_count(sbi);
 
 		/* if return value is not zero, no victim was selected */
-		if (f2fs_gc(sbi, rapid_gc || test_opt(sbi, FORCE_FG_GC), true, NULL_SEGNO)) {
+		if (f2fs_gc(sbi, sbi->rapid_gc || test_opt(sbi, FORCE_FG_GC), true, NULL_SEGNO)) {
 			wait_ms = gc_th->no_gc_sleep_time;
-			rapid_gc_set_wakelock(sbi, gc_th, false);
+			sbi->rapid_gc = false;
+			rapid_gc_set_wakelock();
 			sbi->gc_mode = GC_NORMAL;
 			f2fs_info(sbi, "No more rapid GC victim found, "
 				"sleeping for %u ms", wait_ms);
@@ -169,7 +177,6 @@ int f2fs_start_gc_thread(struct f2fs_sb_info *sbi)
 	struct f2fs_gc_kthread *gc_th;
 	dev_t dev = sbi->sb->s_bdev->bd_dev;
 	int err = 0;
-	char buf[25];
 
 	if (sbi->gc_thread != NULL)
 		goto out;
@@ -188,13 +195,10 @@ int f2fs_start_gc_thread(struct f2fs_sb_info *sbi)
 	sbi->gc_mode = GC_NORMAL;
 	gc_th->gc_wake= 0;
 
-	snprintf(buf, sizeof(buf), "f2fs_gc-%u:%u", MAJOR(dev), MINOR(dev));
-
-	wakeup_source_init(&gc_th->gc_wakelock, buf);
-
 	sbi->gc_thread = gc_th;
 	init_waitqueue_head(&sbi->gc_thread->gc_wait_queue_head);
-	sbi->gc_thread->f2fs_gc_task = kthread_run(gc_thread_func, sbi, buf);
+	sbi->gc_thread->f2fs_gc_task = kthread_run(gc_thread_func, sbi,
+			"f2fs_gc-%u:%u", MAJOR(dev), MINOR(dev));
 	if (IS_ERR(gc_th->f2fs_gc_task)) {
 		err = PTR_ERR(gc_th->f2fs_gc_task);
 		kvfree(gc_th);
@@ -210,14 +214,11 @@ void f2fs_stop_gc_thread(struct f2fs_sb_info *sbi)
 	if (!gc_th)
 		return;
 	kthread_stop(gc_th->f2fs_gc_task);
-	wakeup_source_trash(&gc_th->gc_wakelock);
 	kvfree(gc_th);
 	sbi->gc_mode = GC_NORMAL;
 	sbi->gc_thread = NULL;
 }
 
-static LIST_HEAD(gc_sbi_list);
-static DEFINE_MUTEX(gc_sbi_mutex);
 /* Trigger rapid GC when invalid block is higher than 3% */
 #define RAPID_GC_LIMIT_INVALID_BLOCK 3
 
@@ -322,14 +323,18 @@ static struct notifier_block fb_notifier_block = {
 	.notifier_call = msm_drm_notifier_callback,
 };
 
-static int __init f2fs_rapid_gc_register_fb(void)
+void __init f2fs_init_rapid_gc(void)
 {
 	INIT_WORK(&rapid_gc_fb_worker, rapid_gc_fb_work);
+	wakeup_source_init(&gc_wakelock, "f2fs_rapid_gc_wakelock");
 	msm_drm_register_client(&fb_notifier_block);
-
-	return 0;
 }
-late_initcall(f2fs_rapid_gc_register_fb);
+
+void __exit f2fs_destroy_rapid_gc(void)
+{
+	msm_drm_unregister_client(&fb_notifier_block);
+	wakeup_source_trash(&gc_wakelock);
+}
 
 static int select_gc_type(struct f2fs_sb_info *sbi, int gc_type)
 {
