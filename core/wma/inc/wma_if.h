@@ -1461,4 +1461,14 @@ typedef struct sNanRequest {
 } tNanRequest, *tpNanRequest;
 #endif /* WLAN_FEATURE_NAN */
 
+/*
+ * struct roam_pmkid_req_event - Pmkid event with entries destination structure
+ * @num_entries: total entries sent over the event
+ * @ap_bssid: bssid list
+ */
+struct roam_pmkid_req_event {
+	uint32_t num_entries;
+	struct qdf_mac_addr ap_bssid[];
+};
+
 #endif /* _HALMSGAPI_H_ */

@@ -1728,6 +1728,8 @@ typedef struct {
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr,
 		enum sir_roam_op_code reason);
+	QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
+		struct roam_pmkid_req_event *bss_list);
 	qdf_wake_lock_t wmi_cmd_rsp_wake_lock;
 	qdf_runtime_lock_t wmi_cmd_rsp_runtime_lock;
 	qdf_runtime_lock_t wma_runtime_resume_lock;

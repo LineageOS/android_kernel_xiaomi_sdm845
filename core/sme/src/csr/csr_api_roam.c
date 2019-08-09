@@ -23163,4 +23163,71 @@ QDF_STATUS csr_roam_synch_callback(tpAniSirGlobal mac_ctx,
 
 	return status;
 }
+
+#ifdef WLAN_FEATURE_FIPS
+QDF_STATUS
+csr_process_roam_pmkid_req_callback(tpAniSirGlobal mac_ctx,
+				    uint8_t vdev_id,
+				    struct roam_pmkid_req_event *src_lst)
+{
+	tCsrRoamInfo *roam_info;
+	tCsrRoamSession *session = CSR_GET_SESSION(mac_ctx, vdev_id);
+	struct qdf_mac_addr *dst_list;
+	QDF_STATUS status;
+	uint32_t num_entries, i;
+
+	if (!session)
+		return QDF_STATUS_E_NULL_VALUE;
+
+	roam_info = qdf_mem_malloc(sizeof(tCsrRoamInfo));
+	if (!roam_info)
+		return QDF_STATUS_E_NOMEM;
+
+	num_entries = src_lst->num_entries;
+	for (i = 0; i < num_entries; i++) {
+		dst_list = &src_lst->ap_bssid[i];
+		qdf_mem_copy(&roam_info->bssid, dst_list,
+			     sizeof(struct qdf_mac_addr));
+
+		status = csr_roam_call_callback(mac_ctx, vdev_id, roam_info,
+						0, eCSR_ROAM_FIPS_PMK_REQUEST,
+						eCSR_ROAM_RESULT_NONE);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			sme_err("%s: Trigger pmkid fallback failed", __func__);
+			qdf_mem_free(roam_info);
+			return status;
+		}
+	}
+	qdf_mem_free(roam_info);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS
+csr_roam_pmkid_req_callback(uint8_t vdev_id,
+			    struct roam_pmkid_req_event *src_lst)
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac_ctx;
+
+	mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
+	if (!mac_ctx) {
+		WMA_LOGE("%s: NULL mac ptr", __func__);
+		QDF_ASSERT(0);
+		return -EINVAL;
+	}
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sme_err("%s: Locking failed, bailing out", __func__);
+		return status;
+	}
+
+	status = csr_process_roam_pmkid_req_callback(mac_ctx, vdev_id,
+						     src_lst);
+	sme_release_global_lock(&mac_ctx->sme);
+
+	return status;
+}
+#endif /* WLAN_FEATURE_FIPS */
 #endif

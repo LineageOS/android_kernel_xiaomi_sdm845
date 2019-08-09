@@ -519,6 +519,7 @@ typedef struct sSirSmeReadyReq {
 	void *pe_roam_synch_cb;
 	void *sme_msg_cb;
 	void *stop_roaming_cb;
+	void *csr_roam_pmkid_req_cb;
 } tSirSmeReadyReq, *tpSirSmeReadyReq;
 
 /**

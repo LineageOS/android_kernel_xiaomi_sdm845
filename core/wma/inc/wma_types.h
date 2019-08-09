@@ -790,7 +790,9 @@ QDF_STATUS wma_register_roaming_callbacks(void *cds_ctx,
 		QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
 			roam_offload_synch_ind *roam_synch_data,
 			tpSirBssDescription  bss_desc_ptr,
-			enum sir_roam_op_code reason));
+			enum sir_roam_op_code reason),
+		QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
+			struct roam_pmkid_req_event *bss_list));
 #else
 static inline QDF_STATUS wma_register_roaming_callbacks(void *cds_ctx,
 		QDF_STATUS (*csr_roam_synch_cb)(tpAniSirGlobal mac,
@@ -800,7 +802,9 @@ static inline QDF_STATUS wma_register_roaming_callbacks(void *cds_ctx,
 		QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
 			roam_offload_synch_ind *roam_synch_data,
 			tpSirBssDescription  bss_desc_ptr,
-			enum sir_roam_op_code reason))
+			enum sir_roam_op_code reason),
+		QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
+			struct roam_pmkid_req_event *bss_list))
 {
 	return QDF_STATUS_E_NOSUPPORT;
 }

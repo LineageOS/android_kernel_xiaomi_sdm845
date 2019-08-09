@@ -16526,8 +16526,6 @@ int wlan_hdd_cfg80211_pmksa_candidate_notify(hdd_adapter_t *adapter,
 					     int index, bool preauth)
 {
 	struct net_device *dev = adapter->dev;
-	hdd_context_t *hdd_ctx = (hdd_context_t *) adapter->pHddCtx;
-	struct pmkid_mode_bits pmkid_modes;
 
 	ENTER();
 	hdd_debug("is going to notify supplicant of:");
@@ -16537,14 +16535,13 @@ int wlan_hdd_cfg80211_pmksa_candidate_notify(hdd_adapter_t *adapter,
 		return -EINVAL;
 	}
 
-	hdd_get_pmkid_modes(hdd_ctx, &pmkid_modes);
-	if (pmkid_modes.fw_okc) {
-		hdd_debug(MAC_ADDRESS_STR,
-		       MAC_ADDR_ARRAY(roam_info->bssid.bytes));
-		cfg80211_pmksa_candidate_notify(dev, index,
-						roam_info->bssid.bytes,
-						preauth, GFP_KERNEL);
-	}
+	/*
+	 * Supplicant should be notified regardless the PMK caching or OKC
+	 * is enabled in firmware or not
+	 */
+	hdd_debug(MAC_ADDRESS_STR, MAC_ADDR_ARRAY(roam_info->bssid.bytes));
+	cfg80211_pmksa_candidate_notify(dev, index, roam_info->bssid.bytes,
+					preauth, GFP_KERNEL);
 	return 0;
 }
 
