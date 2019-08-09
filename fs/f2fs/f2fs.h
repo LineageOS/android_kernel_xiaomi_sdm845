@@ -3240,8 +3240,6 @@ void f2fs_clear_radix_tree_dirty_tag(struct page *page);
  */
 int f2fs_start_gc_thread(struct f2fs_sb_info *sbi);
 void f2fs_stop_gc_thread(struct f2fs_sb_info *sbi);
-void f2fs_start_all_gc_threads(void);
-void f2fs_stop_all_gc_threads(void);
 void f2fs_sbi_list_add(struct f2fs_sb_info *sbi);
 void f2fs_sbi_list_del(struct f2fs_sb_info *sbi);
 
