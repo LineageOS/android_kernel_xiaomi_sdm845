@@ -5745,14 +5745,21 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 					mac_handle,
 					adapter->session_id,
 					eCSR_DISCONNECT_REASON_IBSS_LEAVE);
-			else if (QDF_STA_MODE == adapter->device_mode)
-				 wlan_hdd_disconnect(adapter,
+			else if (QDF_STA_MODE == adapter->device_mode) {
+				rc = wlan_hdd_disconnect(
+						adapter,
 						eCSR_DISCONNECT_REASON_DEAUTH);
-			else
+				if (rc != 0 && ucfg_ipa_is_enabled()) {
+					hdd_err("STA disconnect failed");
+					ucfg_ipa_uc_cleanup_sta(hdd_ctx->pdev,
+								adapter->dev);
+				}
+			} else {
 				qdf_ret_status = sme_roam_disconnect(
 					mac_handle,
 					adapter->session_id,
 					eCSR_DISCONNECT_REASON_UNSPECIFIED);
+			}
 			/* success implies disconnect command got
 			 * queued up successfully
 			 */
