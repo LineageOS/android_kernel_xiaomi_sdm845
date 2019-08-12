@@ -205,5 +205,16 @@ QDF_STATUS ucfg_mc_cp_stats_cca_stats_get(struct wlan_objmgr_vdev *vdev,
 QDF_STATUS ucfg_mc_cp_stats_set_rate_flags(struct wlan_objmgr_vdev *vdev,
 					   enum tx_rate_info flags);
 
+/**
+ * ucfg_mc_cp_stats_register_lost_link_info_cb() - API to register lost link
+ * info callback
+ * @psoc: pointer to psoc object
+ * @lost_link_cp_stats_info_cb: Lost link info callback to be registered
+ *
+ */
+void ucfg_mc_cp_stats_register_lost_link_info_cb(
+		struct wlan_objmgr_psoc *psoc,
+		void (*lost_link_cp_stats_info_cb)(void *stats_ev));
+
 #endif /* QCA_SUPPORT_CP_STATS */
 #endif /* __WLAN_CP_STATS_MC_UCFG_API_H__ */
