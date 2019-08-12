@@ -2035,7 +2035,7 @@ static void ol_tx_pdev_throttle_phase_timer(void *context)
 }
 
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
-static void ol_tx_pdev_throttle_tx_timer(unsigned long context)
+static void ol_tx_pdev_throttle_tx_timer(void *context)
 {
 	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)context;
 
