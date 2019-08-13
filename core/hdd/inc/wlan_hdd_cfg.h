@@ -1847,11 +1847,15 @@ enum hdd_dot11_mode {
  * <ini>
  * gForce1x1Exception - force 1x1 when connecting to certain peer
  * @Min: 0
- * @Max: 1
- * @Default: 0
+ * @Max: 2
+ * @Default: 2
  *
  * This INI when enabled will force 1x1 connection with certain peer.
- *
+ * The implementation for this ini would be as follows:-
+ * Value 0: Even if the AP is present in OUI, 1x1 will not be forced
+ * Value 1: If antenna sharing supported, then only do 1x1.
+ * Value 2: If AP present in OUI, force 1x1 connection.
+
  *
  * Related: None
  *
@@ -1863,8 +1867,8 @@ enum hdd_dot11_mode {
  */
 #define CFG_FORCE_1X1_NAME      "gForce1x1Exception"
 #define CFG_FORCE_1X1_MIN       (0)
-#define CFG_FORCE_1X1_MAX       (1)
-#define CFG_FORCE_1X1_DEFAULT   (1)
+#define CFG_FORCE_1X1_MAX       (2)
+#define CFG_FORCE_1X1_DEFAULT   (2)
 
 /*
  * <ini>
@@ -16927,7 +16931,7 @@ struct hdd_config {
 	enum hdd_external_acs_policy external_acs_policy;
 	/* threshold of packet drops at which FW initiates disconnect */
 	uint16_t pkt_err_disconn_th;
-	bool is_force_1x1;
+	enum force_1x1_type is_force_1x1_enable;
 	uint8_t enable_rts_sifsbursting;
 	uint8_t max_mpdus_inampdu;
 	uint16_t sap_max_mcs_txdata;

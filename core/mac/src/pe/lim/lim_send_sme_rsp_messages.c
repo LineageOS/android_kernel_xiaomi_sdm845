@@ -380,7 +380,7 @@ static void lim_handle_join_rsp_status(tpAniSirGlobal mac_ctx,
 			SIR_MAC_VENDOR_AP_1_OUI, SIR_MAC_VENDOR_AP_1_OUI_LEN,
 			bss_ies, bss_ie_len) != NULL);
 
-		if (mac_ctx->roam.configParam.is_force_1x1 &&
+		if (mac_ctx->roam.configParam.is_force_1x1_enable &&
 		    is_vendor_ap_1_present && (session_entry->nss == 2) &&
 		    (mac_ctx->lteCoexAntShare == 0 ||
 				IS_5G_CH(session_entry->currentOperChannel))) {

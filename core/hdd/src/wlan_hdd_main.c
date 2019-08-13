@@ -11454,7 +11454,7 @@ int hdd_configure_cds(struct hdd_context *hdd_ctx)
 
 	hdd_action_oui_send(hdd_ctx);
 
-	if (hdd_ctx->config->is_force_1x1)
+	if (hdd_ctx->config->is_force_1x1_enable)
 		sme_cli_set_command(0, (int)WMI_PDEV_PARAM_SET_IOT_PATTERN,
 				1, PDEV_CMD);
 	/* set chip power save failure detected callback */
