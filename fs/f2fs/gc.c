@@ -304,23 +304,28 @@ static int msm_drm_notifier_callback(struct notifier_block *self,
 	int *blank;
 
 	if (event != MSM_DRM_EVENT_BLANK)
-		return NOTIFY_DONE;
+		goto out;
 
 	if (!evdata || !evdata->data || evdata->id != MSM_DRM_PRIMARY_DISPLAY)
-		return NOTIFY_DONE;
+		goto out;
 
 	blank = evdata->data;
 	switch (*blank) {
 	case MSM_DRM_BLANK_POWERDOWN:
+		if (!screen_on)
+			goto out;
 		screen_on = false;
 		queue_work(system_power_efficient_wq, &rapid_gc_fb_worker);
 		break;
 	case MSM_DRM_BLANK_UNBLANK:
+		if (screen_on)
+			goto out;
 		screen_on = true;
 		queue_work(system_power_efficient_wq, &rapid_gc_fb_worker);
 		break;
 	}
 
+out:
 	return NOTIFY_OK;
 }
 
