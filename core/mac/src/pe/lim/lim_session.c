@@ -657,6 +657,9 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 					   (void *)&pMac->lim.gpSession[i]);
 		if (status != QDF_STATUS_SUCCESS)
 			pe_err("cannot create ap_ecsa_timer");
+		qdf_wake_lock_create(&session_ptr->ap_ecsa_wakelock,
+				     "ap_ecsa_wakelock");
+		qdf_runtime_lock_init(&session_ptr->ap_ecsa_runtime_lock);
 	}
 	pe_init_fils_info(session_ptr);
 	session_ptr->ht_client_cnt = 0;
@@ -832,6 +835,8 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 	}
 
 	if (LIM_IS_AP_ROLE(session)) {
+		qdf_runtime_lock_deinit(&session->ap_ecsa_runtime_lock);
+		qdf_wake_lock_destroy(&session->ap_ecsa_wakelock);
 		qdf_mc_timer_stop(&session->protection_fields_reset_timer);
 		qdf_mc_timer_destroy(&session->protection_fields_reset_timer);
 		session->dfsIncludeChanSwIe = 0;
