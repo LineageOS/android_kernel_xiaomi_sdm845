@@ -8919,7 +8919,6 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 		global_p2p_connection_status = P2P_NOT_ACTIVE;
 	}
 #endif
-	pAdapter->sessionId = HDD_SESSION_ID_INVALID;
 	wlan_hdd_check_conc_and_update_tdls_state(pHddCtx, false);
 	EXIT();
 	return ret;
