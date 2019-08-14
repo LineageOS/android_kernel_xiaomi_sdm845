@@ -2729,7 +2729,8 @@ QDF_STATUS wlansap_filter_ch_based_acs(struct sap_context *sap_ctx,
 	size_t ch_index;
 	size_t target_ch_cnt = 0;
 
-	if (!sap_ctx || !ch_list || !ch_cnt || !sap_ctx->acs_cfg->ch_list) {
+	if (!sap_ctx || !ch_list || !ch_cnt ||
+	    !sap_ctx->acs_cfg->master_ch_list) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("NULL parameters"));
 		return QDF_STATUS_E_FAULT;
@@ -2737,8 +2738,8 @@ QDF_STATUS wlansap_filter_ch_based_acs(struct sap_context *sap_ctx,
 
 	for (ch_index = 0; ch_index < *ch_cnt; ch_index++) {
 		if (wlansap_is_channel_present_in_acs_list(ch_list[ch_index],
-					     sap_ctx->acs_cfg->ch_list,
-					     sap_ctx->acs_cfg->ch_list_count))
+					sap_ctx->acs_cfg->master_ch_list,
+					sap_ctx->acs_cfg->master_ch_list_count))
 			ch_list[target_ch_cnt++] = ch_list[ch_index];
 	}
 
