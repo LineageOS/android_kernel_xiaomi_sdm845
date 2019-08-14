@@ -212,6 +212,7 @@ out:
 void f2fs_stop_gc_thread(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_gc_kthread *gc_th = sbi->gc_thread;
+	sbi->rapid_gc = false;
 	if (!gc_th)
 		return;
 	kthread_stop(gc_th->f2fs_gc_task);
@@ -262,6 +263,8 @@ static void f2fs_stop_rapid_gc(void)
 		f2fs_stop_gc_thread(sbi);
 	}
 	mutex_unlock(&gc_sbi_mutex);
+
+	rapid_gc_set_wakelock();
 }
 
 void f2fs_gc_sbi_list_add(struct f2fs_sb_info *sbi)
