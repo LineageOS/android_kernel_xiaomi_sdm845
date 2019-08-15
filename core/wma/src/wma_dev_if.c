@@ -3983,6 +3983,7 @@ static void wma_add_bss_ap_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 	int8_t maxTxPower;
 	struct policy_mgr_hw_mode_params hw_mode = {0};
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+	struct wma_txrx_node *iface;
 
 	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
@@ -4025,6 +4026,8 @@ static void wma_add_bss_ap_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 		goto peer_cleanup;
 	}
 
+	iface = &wma->interfaces[vdev_id];
+
 	add_bss->staContext.staIdx = cdp_peer_get_local_peer_id(soc, peer);
 
 	qdf_mem_zero(&req, sizeof(req));
@@ -4045,7 +4048,7 @@ static void wma_add_bss_ap_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 
 	req.max_txpow = add_bss->maxTxPower;
 	maxTxPower = add_bss->maxTxPower;
-
+	iface->rmfEnabled = add_bss->rmfEnabled;
 	if (add_bss->rmfEnabled)
 		wma_set_mgmt_frame_protection(wma);
 
@@ -4784,11 +4787,6 @@ static void wma_add_sta_req_ap_mode(tp_wma_handle wma, tpAddStaParams add_sta)
 		}
 	}
 #endif
-
-	iface->rmfEnabled = add_sta->rmfEnabled;
-	if (add_sta->rmfEnabled)
-		wma_set_mgmt_frame_protection(wma);
-
 	if (add_sta->uAPSD) {
 		status = wma_set_ap_peer_uapsd(wma, add_sta->smesessionId,
 					    add_sta->staMac,
