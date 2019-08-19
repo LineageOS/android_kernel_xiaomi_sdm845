@@ -1135,7 +1135,7 @@ struct wma_valid_channels {
 typedef struct {
 	void *wmi_handle;
 	void *cds_context;
-	void *mac_context;
+	tAniSirGlobal *mac_context;
 	struct wlan_objmgr_psoc *psoc;
 	struct wlan_objmgr_pdev *pdev;
 	qdf_event_t wma_resume_event;
@@ -2185,6 +2185,18 @@ QDF_STATUS wma_vdev_get_cfg_int(int cfg_id, int *value)
 
 	return wlan_cfg_get_int(mac, cfg_id, value);
 }
+
+/**
+ * wma_handle_roam_sync_timeout() - Update roaming status at wma layer
+ * @wma_handle: wma handle
+ * @info: Info for roaming start timer
+ *
+ * This function gets called in case of roaming offload timer get expired
+ *
+ * Return: None
+ */
+void wma_handle_roam_sync_timeout(tp_wma_handle wma_handle,
+				  struct roam_sync_timeout_timer_info *info);
 
 /**
  * wma_vdev_get_dtim_period - Get dtim period value from mlme

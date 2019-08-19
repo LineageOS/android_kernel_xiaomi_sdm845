@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -200,7 +200,7 @@ typedef struct tagCsrWapiIe {
 
 typedef struct tagRoamingTimerInfo {
 	tpAniSirGlobal pMac;
-	uint8_t sessionId;
+	uint8_t vdev_id;
 } tCsrTimerInfo;
 
 #define CSR_IS_11A_BSS(pBssDesc)    (eSIR_11A_NW_TYPE == (pBssDesc)->nwType)
