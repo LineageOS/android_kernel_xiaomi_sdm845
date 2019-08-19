@@ -220,7 +220,7 @@
 #define WMA_WOW_ADD_PTRN               SIR_HAL_WOW_ADD_PTRN
 #define WMA_WOW_DEL_PTRN               SIR_HAL_WOW_DEL_PTRN
 #define WMA_WOWL_ENTER_REQ             SIR_HAL_WOWL_ENTER_REQ
-#define WMA_WOWL_ENTER_RSP             SIR_HAL_WOWL_ENTER_RSP
+#define WMA_ROAM_SYNC_TIMEOUT          SIR_HAL_WMA_ROAM_SYNC_TIMEOUT
 #define WMA_WOWL_EXIT_REQ              SIR_HAL_WOWL_EXIT_REQ
 #define WMA_WOWL_EXIT_RSP              SIR_HAL_WOWL_EXIT_RSP
 /* / PE <-> HAL statistics messages */

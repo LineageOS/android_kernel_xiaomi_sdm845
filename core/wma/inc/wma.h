@@ -1545,7 +1545,7 @@ typedef struct {
 	void *wmi_handle;
 	void *htc_handle;
 	void *cds_context;
-	void *mac_context;
+	tAniSirGlobal *mac_context;
 	qdf_event_t wma_ready_event;
 	qdf_event_t wma_resume_event;
 	qdf_event_t target_suspend;
@@ -2650,6 +2650,18 @@ bool wma_is_wow_bitmask_zero(uint32_t *bitmask,
  */
 QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 				     tSirRoamOffloadScanReq *roam_req);
+
+/**
+ * wma_handle_roam_sync_timeout() - Update roaming status at wma layer
+ * @wma_handle: wma handle
+ * @info: Info for roaming start timer
+ *
+ * This function gets called in case of roaming offload timer get expired
+ *
+ * Return: None
+ */
+void wma_handle_roam_sync_timeout(tp_wma_handle wma_handle,
+				  struct roam_sync_timeout_timer_info *info);
 
 /**
  * wma_register_phy_err_event_handler() - register phy error event handler
