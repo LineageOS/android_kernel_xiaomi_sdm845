@@ -1330,8 +1330,7 @@ QDF_STATUS reg_get_curr_band(struct wlan_objmgr_pdev *pdev,
 	return QDF_STATUS_SUCCESS;
 }
 
-static bool
-reg_is_world_ctry_code(uint16_t ctry_code)
+bool reg_is_world_ctry_code(uint16_t ctry_code)
 {
 	if ((ctry_code & 0xFFF0) == DEFAULT_WORLD_REGDMN)
 		return true;
