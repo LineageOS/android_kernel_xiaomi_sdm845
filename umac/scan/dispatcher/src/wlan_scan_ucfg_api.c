@@ -476,6 +476,11 @@ ucfg_scan_update_dbs_scan_ctrl_ext_flag(struct scan_start_request *req)
 		goto end;
 	}
 
+	if (!ucfg_scan_cfg_honour_nl_scan_policy_flags(psoc)) {
+		scm_debug("nl scan policy flags not honoured, goto end");
+		goto end;
+	}
+
 	if (req->scan_req.scan_policy_high_accuracy) {
 		scm_debug("high accuracy scan received, going for non-dbs scan");
 		scan_dbs_policy = SCAN_DBS_POLICY_FORCE_NONDBS;
@@ -1495,6 +1500,7 @@ wlan_scan_global_init(struct wlan_scan_obj *scan_obj)
 	scan_obj->scan_def.conc_passive_dwell = SCAN_CONC_PASSIVE_DWELL_TIME;
 	scan_obj->scan_def.conc_max_rest_time = SCAN_CONC_MAX_REST_TIME;
 	scan_obj->scan_def.conc_min_rest_time = SCAN_CONC_MIN_REST_TIME;
+	scan_obj->scan_def.honour_nl_scan_policy_flags = true;
 	scan_obj->scan_def.conc_idle_time = SCAN_CONC_IDLE_TIME;
 	scan_obj->scan_def.repeat_probe_time = SCAN_REPEAT_PROBE_TIME;
 	scan_obj->scan_def.probe_spacing_time = SCAN_PROBE_SPACING_TIME;
@@ -2018,6 +2024,8 @@ QDF_STATUS ucfg_scan_update_user_config(struct wlan_objmgr_psoc *psoc,
 	scan_def->adaptive_dwell_time_mode = scan_cfg->scan_dwell_time_mode;
 	scan_def->adaptive_dwell_time_mode_nc =
 				scan_cfg->scan_dwell_time_mode_nc;
+	scan_def->honour_nl_scan_policy_flags =
+				scan_cfg->honour_nl_scan_policy_flags;
 	scan_def->scan_f_chan_stat_evnt = scan_cfg->is_snr_monitoring_enabled;
 	scan_obj->ie_whitelist = scan_cfg->ie_whitelist;
 	scan_def->repeat_probe_time = scan_cfg->usr_cfg_probe_rpt_time;
@@ -2386,6 +2394,17 @@ void ucfg_scan_clear_vdev_del_in_progress(struct wlan_objmgr_vdev *vdev)
 		return;
 	}
 	scan_vdev_obj->is_vdev_delete_in_progress = false;
+}
+
+bool ucfg_scan_cfg_honour_nl_scan_policy_flags(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj)
+		return false;
+
+	return scan_obj->scan_def.honour_nl_scan_policy_flags;
 }
 
 bool ucfg_scan_wake_lock_in_user_scan(struct wlan_objmgr_psoc *psoc)

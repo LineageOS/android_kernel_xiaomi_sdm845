@@ -324,6 +324,7 @@ struct pno_def_config {
  * @scan_priority: default scan priority
  * @adaptive_dwell_time_mode: adaptive dwell mode with connection
  * @adaptive_dwell_time_mode_nc: adaptive dwell mode without connection
+ * @honour_nl_scan_policy_flags: honour nl80211 scan policy flags
  * @scan_f_passive: passively scan all channels including active channels
  * @scan_f_bcast_probe: add wild card ssid prbreq even if ssid_list is specified
  * @scan_f_cck_rates: add cck rates to rates/xrates ie in prb req
@@ -410,6 +411,7 @@ struct scan_default_params {
 	enum scan_priority scan_priority;
 	enum scan_dwelltime_adaptive_mode adaptive_dwell_time_mode;
 	enum scan_dwelltime_adaptive_mode adaptive_dwell_time_mode_nc;
+	bool honour_nl_scan_policy_flags;
 	union {
 		struct {
 			uint32_t scan_f_passive:1,

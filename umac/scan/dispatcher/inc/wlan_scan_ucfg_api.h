@@ -633,6 +633,15 @@ void ucfg_scan_set_vdev_del_in_progress(struct wlan_objmgr_vdev *vdev);
 void ucfg_scan_clear_vdev_del_in_progress(struct wlan_objmgr_vdev *vdev);
 
 /**
+ * ucfg_scan_cfg_honour_nl_scan_policy_flags() - API to get nl scan policy
+ * flags honoured.
+ * @psoc: pointer to psoc object
+ *
+ * Return: nl scan flags is honoured or not
+ */
+bool ucfg_scan_cfg_honour_nl_scan_policy_flags(struct wlan_objmgr_psoc *psoc);
+
+/**
  * ucfg_scan_wake_lock_in_user_scan() - API to determine if wake lock in user
  * scan is used.
  * @psoc: pointer to psoc object

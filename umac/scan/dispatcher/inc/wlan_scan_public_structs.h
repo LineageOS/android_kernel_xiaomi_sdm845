@@ -1325,6 +1325,7 @@ struct pno_user_cfg {
  * @rssi_cat_gap: set rssi category gap
  * @scan_dwell_time_mode: Adaptive dweltime mode
  * @scan_dwell_time_mode_nc: Adaptive dweltime mode without connection
+ * @honour_nl_scan_policy_flags: honour nl80211 scan policy flags
  * @pno_cfg: Pno related config params
  * @ie_whitelist: probe req IE whitelist attrs
  * @is_bssid_hint_priority: True if bssid_hint is priority
@@ -1353,6 +1354,7 @@ struct scan_user_cfg {
 	uint32_t rssi_cat_gap;
 	enum scan_dwelltime_adaptive_mode scan_dwell_time_mode;
 	enum scan_dwelltime_adaptive_mode scan_dwell_time_mode_nc;
+	bool honour_nl_scan_policy_flags;
 	struct pno_user_cfg pno_cfg;
 	struct probe_req_whitelist_attr ie_whitelist;
 	uint32_t usr_cfg_probe_rpt_time;
