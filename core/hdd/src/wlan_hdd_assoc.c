@@ -6168,6 +6168,10 @@ int hdd_set_csr_auth_type(hdd_adapter_t *pAdapter, eCsrAuthType RSNAuthType)
 					RSNAuthType;
 				hdd_debug("updated profile authtype as %d",
 					RSNAuthType);
+			} else if (RSNAuthType ==  eCSR_AUTH_TYPE_SAE) {
+				/* SAE with open authentication case */
+				pRoamProfile->AuthType.authType[0] =
+					eCSR_AUTH_TYPE_SAE;
 			} else if ((RSNAuthType ==
 				  eCSR_AUTH_TYPE_SUITEB_EAP_SHA256) &&
 				  ((pWextState->
