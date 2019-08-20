@@ -1778,6 +1778,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_DFS_CHNL_SCAN_MIN,
 		     CFG_ENABLE_DFS_CHNL_SCAN_MAX),
 
+	REG_VARIABLE(CFG_HONOUR_NL_SCAN_POLICY_FLAGS, WLAN_PARAM_Integer,
+		     struct hdd_config, honour_nl_scan_policy_flags,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_HONOUR_NL_SCAN_POLICY_FLAGS_DEFAULT,
+		     CFG_HONOUR_NL_SCAN_POLICY_FLAGS_MIN,
+		     CFG_HONOUR_NL_SCAN_POLICY_FLAGS_MAX),
+
 	REG_VARIABLE(CFG_ENABLE_WAKE_LOCK_IN_SCAN, WLAN_PARAM_Integer,
 		     struct hdd_config, wake_lock_in_user_scan,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -7275,6 +7282,8 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 		  hdd_ctx->config->enableBypass11d);
 	hdd_debug("Name = [gEnableDFSChnlScan] Value = [%u] ",
 		  hdd_ctx->config->enableDFSChnlScan);
+	hdd_debug("Name = [honour_nl_scan_policy_flags] Value = [%u] ",
+		  hdd_ctx->config->honour_nl_scan_policy_flags);
 	hdd_debug("Name = [wake_lock_in_user_scan] Value = [%u] ",
 		  hdd_ctx->config->wake_lock_in_user_scan);
 	hdd_debug("Name = [gEnableDFSPnoChnlScan] Value = [%u] ",

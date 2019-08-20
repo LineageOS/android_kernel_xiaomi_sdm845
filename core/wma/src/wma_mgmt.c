@@ -73,6 +73,7 @@
 #include <qdf_crypto.h>
 #include "wma_twt.h"
 #include <wlan_mlme_main.h>
+#include <wlan_logging_sock_svc.h>
 
 /**
  * wma_send_bcn_buf_ll() - prepare and send beacon buffer to fw for LL
@@ -2471,6 +2472,8 @@ out:
 	if (key_info->sendRsp)
 		wma_send_msg_high_priority(wma_handle, WMA_SET_STAKEY_RSP,
 					   (void *)key_info, 0);
+	else
+		qdf_mem_free(key_info);
 }
 
 /**
@@ -3034,6 +3037,35 @@ static const char *wma_get_status_str(uint32_t status)
 #endif
 
 /**
+ * wma_mgmt_pktdump_status_map() - map MGMT Tx completion status with
+ * packet dump Tx status
+ * @status: MGMT Tx completion status
+ *
+ * Return: packet dump tx_status enum
+ */
+static inline enum tx_status
+wma_mgmt_pktdump_status_map(WMI_MGMT_TX_COMP_STATUS_TYPE status)
+{
+	enum tx_status pktdump_status;
+
+	switch (status) {
+	case WMI_MGMT_TX_COMP_TYPE_COMPLETE_OK:
+		pktdump_status = tx_status_ok;
+		break;
+	case WMI_MGMT_TX_COMP_TYPE_DISCARD:
+		pktdump_status = tx_status_discard;
+		break;
+	case WMI_MGMT_TX_COMP_TYPE_COMPLETE_NO_ACK:
+		pktdump_status = tx_status_no_ack;
+		break;
+	default:
+		pktdump_status = tx_status_discard;
+		break;
+	}
+	return pktdump_status;
+}
+
+/**
  * wma_process_mgmt_tx_completion() - process mgmt completion
  * @wma_handle: wma handle
  * @desc_id: descriptor id
@@ -3049,6 +3081,7 @@ static int wma_process_mgmt_tx_completion(tp_wma_handle wma_handle,
 	uint8_t vdev_id = 0;
 	QDF_STATUS ret;
 	tp_wma_packetdump_cb packetdump_cb;
+	enum tx_status pktdump_status;
 
 	if (wma_handle == NULL) {
 		WMA_LOGE("%s: wma handle is NULL", __func__);
@@ -3072,9 +3105,11 @@ static int wma_process_mgmt_tx_completion(tp_wma_handle wma_handle,
 					  QDF_DMA_TO_DEVICE);
 
 	packetdump_cb = wma_handle->wma_mgmt_tx_packetdump_cb;
-	if (packetdump_cb)
-		packetdump_cb(buf, QDF_STATUS_SUCCESS,
+	if (packetdump_cb) {
+		pktdump_status = wma_mgmt_pktdump_status_map(status);
+		packetdump_cb(buf, pktdump_status,
 			vdev_id, TX_MGMT_PKT);
+	}
 
 	ret = mgmt_txrx_tx_completion_handler(pdev, desc_id, status, NULL);
 

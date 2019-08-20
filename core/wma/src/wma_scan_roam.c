@@ -1593,8 +1593,11 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 			WMA_LOGE("Sending start for roam scan filter failed");
 			break;
 		}
-		qdf_status = wma_roam_scan_btm_offload(wma_handle, roam_req);
-		if (qdf_status != QDF_STATUS_SUCCESS) {
+
+		/* Send BTM config as disabled during RSO Stop */
+		qdf_status = wma_roam_scan_btm_offload(wma_handle,
+						       roam_req);
+		if (QDF_IS_STATUS_ERROR(qdf_status)) {
 			WMA_LOGE("Sending BTM config to fw failed");
 			break;
 		}
@@ -1603,20 +1606,17 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 		 * Send 11k offload enable and bss load trigger parameters
 		 * to FW as part of RSO Start
 		 */
-		if (roam_req->reason == REASON_CTX_INIT) {
-			qdf_status = wma_send_offload_11k_params(wma_handle,
-						&roam_req->offload_11k_params);
-			if (qdf_status != QDF_STATUS_SUCCESS) {
-				WMA_LOGE("11k offload enable not sent, status %d",
-					 qdf_status);
-				break;
-			}
+		qdf_status = wma_send_offload_11k_params(wma_handle,
+					&roam_req->offload_11k_params);
+		if (QDF_IS_STATUS_ERROR(qdf_status)) {
+			WMA_LOGE("11k offload enable not sent, status %d",
+				 qdf_status);
+			break;
+		}
 
-			if (roam_req->bss_load_trig_enabled) {
-				bss_load_cfg = &roam_req->bss_load_config;
-				wma_send_roam_bss_load_config(wma_handle,
-							      bss_load_cfg);
-			}
+		if (roam_req->bss_load_trig_enabled) {
+			bss_load_cfg = &roam_req->bss_load_config;
+			wma_send_roam_bss_load_config(wma_handle, bss_load_cfg);
 		}
 		break;
 
@@ -2315,14 +2315,29 @@ static void wma_roam_update_vdev(tp_wma_handle wma,
 	vdev_id = roam_synch_ind_ptr->roamedVdevId;
 	wma->interfaces[vdev_id].nss = roam_synch_ind_ptr->nss;
 	del_bss_params = qdf_mem_malloc(sizeof(*del_bss_params));
+	if (!del_bss_params)
+		return;
+
 	del_sta_params = qdf_mem_malloc(sizeof(*del_sta_params));
-	set_link_params = qdf_mem_malloc(sizeof(*set_link_params));
-	add_sta_params = qdf_mem_malloc(sizeof(*add_sta_params));
-	if (!del_bss_params || !del_sta_params ||
-		!set_link_params || !add_sta_params) {
-		WMA_LOGE("%s: failed to allocate memory", __func__);
+	if (!del_sta_params) {
+		qdf_mem_free(del_bss_params);
 		return;
 	}
+
+	set_link_params = qdf_mem_malloc(sizeof(*set_link_params));
+	if (!set_link_params) {
+		qdf_mem_free(del_bss_params);
+		qdf_mem_free(del_sta_params);
+		return;
+	}
+	add_sta_params = qdf_mem_malloc(sizeof(*add_sta_params));
+	if (!add_sta_params) {
+		qdf_mem_free(del_bss_params);
+		qdf_mem_free(del_sta_params);
+		qdf_mem_free(set_link_params);
+		return;
+	}
+
 	qdf_mem_zero(del_bss_params, sizeof(*del_bss_params));
 	qdf_mem_zero(del_sta_params, sizeof(*del_sta_params));
 	qdf_mem_zero(set_link_params, sizeof(*set_link_params));
@@ -3699,6 +3714,7 @@ int wma_extscan_operations_event_handler(void *handle,
 			WMA_LOGE("FW mesg num_buk %d more than TLV hdr %d",
 				 oprn_event->num_buckets,
 				 param_buf->num_bucket_id);
+			qdf_mem_free(oprn_ind);
 			return -EINVAL;
 		}
 

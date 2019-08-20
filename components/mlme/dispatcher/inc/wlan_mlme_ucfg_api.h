@@ -92,4 +92,14 @@ void ucfg_mlme_update_oce_flags(struct wlan_objmgr_pdev *pdev,
 	wlan_mlme_update_oce_flags(pdev, cfg_value);
 }
 
+/**
+ * ucfg_mlme_force_objmgr_vdev_peer_cleanup() - Cleanup ObjMgr Vdev peers
+ * during SSR
+ * @vdev_id: vdev ID
+ *
+ * Return: none
+ */
+
+void ucfg_mlme_force_objmgr_vdev_peer_cleanup(uint8_t vdev_id);
+
 #endif /* _WLAN_MLME_UCFG_API_H_ */

@@ -1604,30 +1604,6 @@ int pld_is_fw_rejuvenate(struct device *dev)
 	return ret;
 }
 
-/**
- * pld_block_shutdown() - Block/Unblock modem shutdown
- * @dev: device
- * @status: status true or false
- *
- * This API will be called to Block/Unblock modem shutdown.
- * True - Block shutdown
- * False - Unblock shutdown
- *
- * Return: None
- */
-void pld_block_shutdown(struct device *dev, bool status)
-{
-	enum pld_bus_type type = pld_get_bus_type(dev);
-
-	switch (type) {
-	case PLD_BUS_TYPE_SNOC:
-		pld_snoc_block_shutdown(status);
-		break;
-	default:
-		break;
-	}
-}
-
 int pld_idle_shutdown(struct device *dev,
 		      int (*shutdown_cb)(struct device *dev))
 {
@@ -1641,9 +1617,11 @@ int pld_idle_shutdown(struct device *dev,
 	switch (type) {
 	case PLD_BUS_TYPE_SDIO:
 	case PLD_BUS_TYPE_USB:
-	case PLD_BUS_TYPE_SNOC:
 	case PLD_BUS_TYPE_PCIE:
 		errno = shutdown_cb(dev);
+		break;
+	case PLD_BUS_TYPE_SNOC:
+		errno = pld_snoc_idle_shutdown(dev);
 		break;
 	default:
 		pr_err("Invalid device type %d\n", type);
@@ -1666,9 +1644,11 @@ int pld_idle_restart(struct device *dev,
 	switch (type) {
 	case PLD_BUS_TYPE_SDIO:
 	case PLD_BUS_TYPE_USB:
-	case PLD_BUS_TYPE_SNOC:
 	case PLD_BUS_TYPE_PCIE:
 		errno = restart_cb(dev);
+		break;
+	case PLD_BUS_TYPE_SNOC:
+		errno = pld_snoc_idle_restart(dev);
 		break;
 	default:
 		pr_err("Invalid device type %d\n", type);

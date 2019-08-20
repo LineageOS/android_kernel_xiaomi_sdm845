@@ -136,7 +136,6 @@ void *ol_txrx_find_peer_by_addr(struct cdp_pdev *pdev,
 				uint8_t *peer_id);
 
 void htt_pkt_log_init(struct cdp_pdev *pdev_handle, void *scn);
-void peer_unmap_timer_work_function(void *);
 void peer_unmap_timer_handler(void *data);
 
 int ol_txrx_fw_stats_desc_pool_init(struct ol_txrx_pdev_t *pdev,

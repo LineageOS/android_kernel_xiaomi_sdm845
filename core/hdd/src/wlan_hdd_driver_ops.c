@@ -1641,6 +1641,33 @@ static int wlan_hdd_pld_runtime_resume(struct device *dev,
 }
 #endif
 
+/**
+ * wlan_hdd_pld_idle_shutdown() - wifi module idle shutdown after interface
+ *                                inactivity timeout has trigerred idle shutdown
+ * @dev: device to remove
+ * @pld_bus_type: PLD bus type
+ *
+ * Return: 0 for success and negative error code for failure
+ */
+static int wlan_hdd_pld_idle_shutdown(struct device *dev,
+				       enum pld_bus_type bus_type)
+{
+	return hdd_psoc_idle_shutdown(dev);
+}
+
+/**
+ * wlan_hdd_pld_idle_restart() - wifi module idle restart after idle shutdown
+ * @dev: device to remove
+ * @pld_bus_type: PLD bus type
+ *
+ * Return: 0 for success and negative error code for failure
+ */
+static int wlan_hdd_pld_idle_restart(struct device *dev,
+				     enum pld_bus_type bus_type)
+{
+	return hdd_psoc_idle_restart(dev);
+}
+
 struct pld_driver_ops wlan_drv_ops = {
 	.probe      = wlan_hdd_pld_probe,
 	.remove     = wlan_hdd_pld_remove,
@@ -1658,6 +1685,9 @@ struct pld_driver_ops wlan_drv_ops = {
 	.runtime_suspend = wlan_hdd_pld_runtime_suspend,
 	.runtime_resume = wlan_hdd_pld_runtime_resume,
 #endif
+	.idle_shutdown = wlan_hdd_pld_idle_shutdown,
+	.idle_restart = wlan_hdd_pld_idle_restart,
+
 };
 
 int wlan_hdd_register_driver(void)

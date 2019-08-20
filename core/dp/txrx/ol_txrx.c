@@ -2382,7 +2382,6 @@ static void ol_txrx_pdev_detach(struct cdp_pdev *ppdev, int force)
 
 	htt_pdev_free(pdev->htt_pdev);
 	ol_txrx_peer_find_detach(pdev);
-	qdf_flush_work(&pdev->peer_unmap_timer_work);
 	ol_txrx_tso_stats_deinit(pdev);
 	ol_txrx_fw_stats_desc_pool_deinit(pdev);
 
@@ -3968,16 +3967,6 @@ static QDF_STATUS ol_txrx_clear_peer(struct cdp_pdev *ppdev, uint8_t sta_id)
 	return status;
 }
 
-void peer_unmap_timer_work_function(void *param)
-{
-	WMA_LOGI("Enter: %s", __func__);
-	/* Added for debugging only */
-	ol_txrx_dump_peer_access_list(param);
-	ol_txrx_peer_release_ref(param, PEER_DEBUG_ID_OL_UNMAP_TIMER_WORK);
-	wlan_roam_debug_dump_table();
-	cds_trigger_recovery(QDF_PEER_UNMAP_TIMEDOUT);
-}
-
 /**
  * peer_unmap_timer_handler() - peer unmap timer function
  * @data: peer object pointer
@@ -3987,7 +3976,6 @@ void peer_unmap_timer_work_function(void *param)
 void peer_unmap_timer_handler(void *data)
 {
 	ol_txrx_peer_handle peer = (ol_txrx_peer_handle)data;
-	ol_txrx_pdev_handle txrx_pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	ol_txrx_err("all unmap events not received for peer %pK, ref_cnt %d",
 		    peer, qdf_atomic_read(&peer->ref_cnt));
@@ -3996,15 +3984,13 @@ void peer_unmap_timer_handler(void *data)
 		    peer->mac_addr.raw[0], peer->mac_addr.raw[1],
 		    peer->mac_addr.raw[2], peer->mac_addr.raw[3],
 		    peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
-	if (!cds_is_driver_recovering() && !cds_is_fw_down()) {
-		qdf_create_work(0, &txrx_pdev->peer_unmap_timer_work,
-				peer_unmap_timer_work_function,
-				peer);
-		/* Make sure peer is present before scheduling work */
-		ol_txrx_peer_get_ref(peer, PEER_DEBUG_ID_OL_UNMAP_TIMER_WORK);
-		qdf_sched_work(0, &txrx_pdev->peer_unmap_timer_work);
+	if (cds_is_self_recovery_enabled()) {
+		if (!cds_is_driver_recovering() && !cds_is_fw_down())
+			cds_trigger_recovery(QDF_PEER_UNMAP_TIMEDOUT);
+		else
+			ol_txrx_err("Recovery is in progress, ignore!");
 	} else {
-		ol_txrx_err("Recovery is in progress, ignore!");
+		QDF_BUG(0);
 	}
 }
 

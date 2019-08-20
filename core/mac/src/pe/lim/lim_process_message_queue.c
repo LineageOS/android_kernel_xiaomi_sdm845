@@ -625,6 +625,7 @@ __lim_ext_scan_forward_bcn_probe_rsp(tpAniSirGlobal pmac, uint8_t *rx_pkt_info,
 
 	if (NULL == bssdescr) {
 		pe_err("qdf_mem_malloc(length=%d) failed", frame_len);
+		qdf_mem_free(result);
 		return;
 	}
 
