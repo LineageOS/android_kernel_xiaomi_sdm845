@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
  * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -8743,6 +8743,13 @@ static int tavil_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static int tavil_set_dai_sysclk(struct snd_soc_dai *dai,
+		int clk_id, unsigned int freq, int dir)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+
 static struct snd_soc_dai_ops tavil_dai_ops = {
 	.startup = tavil_startup,
 	.shutdown = tavil_shutdown,
@@ -8757,6 +8764,7 @@ static struct snd_soc_dai_ops tavil_i2s_dai_ops = {
 	.shutdown = tavil_shutdown,
 	.hw_params = tavil_hw_params,
 	.prepare = tavil_prepare,
+	.set_sysclk = tavil_set_dai_sysclk,
 	.set_fmt = tavil_set_dai_fmt,
 };
 
