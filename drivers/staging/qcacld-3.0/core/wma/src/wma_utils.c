@@ -3270,20 +3270,6 @@ int wma_stats_event_handler(void *handle, uint8_t *cmd_param_info,
 	event = param_buf->fixed_param;
 	temp = (uint8_t *) param_buf->data;
 
-	buf_len = event->num_pdev_stats * sizeof(wmi_pdev_stats) +
-		event->num_vdev_stats * sizeof(wmi_vdev_stats) +
-		event->num_peer_stats * sizeof(wmi_peer_stats) +
-		event->num_bcnflt_stats * sizeof(wmi_bcnfilter_stats_t) +
-		event->num_chan_stats * sizeof(wmi_chan_stats) +
-		event->num_mib_stats * sizeof(wmi_mib_stats) +
-		event->num_bcn_stats * sizeof(wmi_bcn_stats) +
-		event->num_peer_extd_stats * sizeof(wmi_peer_extd_stats);
-
-	if (buf_len != param_buf->num_data) {
-		WMA_LOGE("Invalid Buffer len %d received, Expected %d",
-			 buf_len, param_buf->num_data);
-		return -EINVAL;
-	}
 
 	do {
 		if (event->num_pdev_stats > ((WMI_SVC_MSG_MAX_SIZE -

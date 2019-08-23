@@ -406,6 +406,9 @@
 #define VHT_MCS_1x1 0xFFFC
 #define VHT_MCS_2x2 0xFFF3
 
+/* Mask to check if BTM offload is enabled/disabled*/
+#define BTM_OFFLOAD_ENABLED_MASK     0x01
+
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 #define SIR_MAC_QCOM_VENDOR_EID      200
 #define SIR_MAC_QCOM_VENDOR_OUI      "\x00\xA0\xC6"

@@ -203,8 +203,15 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	/* HT capability */
 	if (pBPR->HTCaps.present) {
 		pBssDescr->ht_caps_present = 1;
-		if (pBPR->HTCaps.supportedChannelWidthSet)
-			pBssDescr->chan_width = eHT_CHANNEL_WIDTH_40MHZ;
+		if (pBPR->HTCaps.supportedChannelWidthSet) {
+			if (!pBPR->HTInfo.present) {
+				pBssDescr->chan_width =
+						eHT_CHANNEL_WIDTH_40MHZ;
+			} else if (pBPR->HTInfo.recommendedTxWidthSet) {
+				pBssDescr->chan_width =
+						eHT_CHANNEL_WIDTH_40MHZ;
+			}
+		}
 	}
 
 	/* VHT Parameters */

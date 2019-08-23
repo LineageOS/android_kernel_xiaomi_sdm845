@@ -9743,8 +9743,9 @@ int wma_dfs_indicate_radar(struct ieee80211com *ic,
 	if (!pmac->sap.SapDfsInfo.disable_dfs_ch_switch)
 		wma->dfs_ic->disable_phy_err_processing = true;
 
-	if ((ichan->ic_ieee != (wma->dfs_ic->last_radar_found_chan)) ||
-	    (pmac->sap.SapDfsInfo.disable_dfs_ch_switch == true)) {
+	if (!cds_is_sta_sap_scc_allowed_on_dfs_channel() &&
+	    ((ichan->ic_ieee != (wma->dfs_ic->last_radar_found_chan)) ||
+	    (pmac->sap.SapDfsInfo.disable_dfs_ch_switch == true))) {
 		radar_event = (struct wma_dfs_radar_indication *)
 			qdf_mem_malloc(sizeof(struct wma_dfs_radar_indication));
 		if (radar_event == NULL) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1214,6 +1214,9 @@ populate_dot11f_ext_cap(tpAniSirGlobal pMac,
 
 	if (psessionEntry && psessionEntry->enable_bcast_probe_rsp)
 		p_ext_cap->fils_capability = 1;
+
+	if (pMac->roam.configParam.btm_offload_config & BTM_OFFLOAD_ENABLED_MASK)
+		p_ext_cap->bss_transition = 1;
 
 	/* Need to calulate the num_bytes based on bits set */
 	if (pDot11f->present)
