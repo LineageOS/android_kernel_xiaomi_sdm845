@@ -236,6 +236,12 @@ static int sdx_hifi_control;
 static atomic_t mi2s_ref_count;
 static atomic_t sec_mi2s_ref_count;
 
+static struct dev_config proxy_cfg = {
+	.sample_rate = SAMPLE_RATE_48KHZ,
+	.bit_format = SNDRV_PCM_FORMAT_S16_LE,
+	.channels = 2,
+};
+
 static struct snd_soc_card snd_soc_card_tavil_sdx = {
 	.name = "sdx-tavil-i2s-snd-card",
 };
@@ -2789,6 +2795,20 @@ static struct snd_soc_dai_link sdx_common_misc_fe_dai_links[] = {
 	},
 };
 
+static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+				  struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *rate = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_CHANNELS);
+
+	channels->min = channels->max = proxy_cfg.channels;
+	rate->min = rate->max = proxy_cfg.sample_rate;
+	return 0;
+}
+
+
 static struct snd_soc_dai_link sdx_common_be_dai_links[] = {
 	/* Backend AFE DAI Links */
 	{
@@ -2800,6 +2820,7 @@ static struct snd_soc_dai_link sdx_common_be_dai_links[] = {
 		.codec_dai_name = "msm-stub-rx",
 		.no_pcm = 1,
 		.dpcm_playback = 1,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.id = MSM_BACKEND_DAI_AFE_PCM_RX,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
@@ -2813,6 +2834,7 @@ static struct snd_soc_dai_link sdx_common_be_dai_links[] = {
 		.codec_dai_name = "msm-stub-tx",
 		.no_pcm = 1,
 		.dpcm_capture = 1,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.id = MSM_BACKEND_DAI_AFE_PCM_TX,
 		.ignore_suspend = 1,
 	},
