@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "a89c4d9a_38b89ac0",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-08-24T12:38:34Z",
+      "side": 1,
+      "message": "Where are these sha1sums coming from?",
+      "revId": "5a85ba196c85b4b755d8a4f0e746dbcae79bcb16",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
