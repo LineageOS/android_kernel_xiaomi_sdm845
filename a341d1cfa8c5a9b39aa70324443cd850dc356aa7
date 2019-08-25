@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "420d0987_9cf73dc8",
+        "filename": "drivers/media/platform/msm/camera/cam_sensor_module/cam_eeprom/cam_eeprom_core.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 455,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2019-08-25T23:02:14Z",
+      "side": 0,
+      "message": "Looks like this is 34 on beryllium and I suppose the rest of the 845 devices. Only polaris is normal. XD",
+      "range": {
+        "startLine": 455,
+        "startChar": 6,
+        "endLine": 455,
+        "endChar": 33
+      },
+      "revId": "a341d1cfa8c5a9b39aa70324443cd850dc356aa7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
