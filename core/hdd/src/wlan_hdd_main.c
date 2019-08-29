@@ -9615,6 +9615,8 @@ int hdd_psoc_idle_restart(struct device *dev)
 
 int hdd_trigger_psoc_idle_restart(struct hdd_context *hdd_ctx)
 {
+	int ret;
+
 	QDF_BUG(rtnl_is_locked());
 
 	mutex_lock(&hdd_ctx->iface_change_lock);
@@ -9626,8 +9628,8 @@ int hdd_trigger_psoc_idle_restart(struct hdd_context *hdd_ctx)
 	}
 
 	mutex_unlock(&hdd_ctx->iface_change_lock);
-	pld_idle_restart(hdd_ctx->parent_dev, hdd_psoc_idle_restart);
-	return 0;
+	ret = pld_idle_restart(hdd_ctx->parent_dev, hdd_psoc_idle_restart);
+	return ret;
 }
 
 int hdd_psoc_idle_shutdown(struct device *dev)
