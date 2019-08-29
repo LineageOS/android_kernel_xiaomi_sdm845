@@ -1476,6 +1476,7 @@ QDF_STATUS hdd_wlan_shutdown(void)
 	}
 
 	pHddCtx->is_ssr_in_progress = true;
+	cds_set_connection_in_progress(false);
 
 	cds_clear_concurrent_session_count();
 

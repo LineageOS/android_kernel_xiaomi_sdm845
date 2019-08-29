@@ -3036,6 +3036,8 @@ bool cds_is_connection_in_progress(uint8_t *session_id,
 			}
 			if (hdd_ctx->connection_in_progress) {
 				cds_debug("AP/GO: connection is in progress");
+				*session_id = adapter->sessionId;
+				*reason = eHDD_SAP_CONNECTION_IN_PROGRESS;
 				return true;
 			}
 		}
