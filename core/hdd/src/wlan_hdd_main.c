@@ -14911,6 +14911,8 @@ bool hdd_is_connection_in_progress(uint8_t *session_id,
 			}
 			if (hdd_ctx->connection_in_progress) {
 				hdd_debug("AP/GO: connection is in progress");
+				*reason = SAP_CONNECTION_IN_PROGRESS;
+				*session_id = adapter->session_id;
 				return true;
 			}
 		}

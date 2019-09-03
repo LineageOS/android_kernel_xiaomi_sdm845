@@ -7012,6 +7012,7 @@ struct sme_rcpi_req {
  * @REASSOC_IN_PROGRESS: reassociation is in progress
  * @EAPOL_IN_PROGRESS: STA/P2P-CLI is in middle of EAPOL/WPS exchange
  * @SAP_EAPOL_IN_PROGRESS: SAP/P2P-GO is in middle of EAPOL/WPS exchange
+ * @SAP_CONNECTION_IN_PROGRESS: SAP/P2P-GO is in middle of connection.
  */
 enum scan_reject_states {
 	SCAN_REJECT_DEFAULT = 0,
@@ -7019,6 +7020,7 @@ enum scan_reject_states {
 	REASSOC_IN_PROGRESS,
 	EAPOL_IN_PROGRESS,
 	SAP_EAPOL_IN_PROGRESS,
+	SAP_CONNECTION_IN_PROGRESS,
 };
 
 /**
