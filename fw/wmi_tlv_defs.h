@@ -1001,6 +1001,7 @@ typedef enum {
     WMITLV_TAG_STRUC_wmi_get_elna_bypass_cmd_fixed_param,
     WMITLV_TAG_STRUC_wmi_get_elna_bypass_event_fixed_param,
     WMITLV_TAG_STRUC_wmi_roam_pmkid_request_event_fixed_param,
+    WMITLV_TAG_STRUC_wmi_peer_cfr_capture_event_phase_fixed_param,
 } WMITLV_TAG_ID;
 
 /*
@@ -3093,7 +3094,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_ROAM_IDLE_CONFIG_CMDID);
 /* Roam Pre-Authentication completion status */
 #define WMITLV_TABLE_WMI_ROAM_PREAUTH_STATUS_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_roam_preauth_status_cmd_fixed_param, wmi_roam_preauth_status_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, pmkid, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, pmkid, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, pmk, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_ROAM_PREAUTH_STATUS_CMDID);
 
 /** Roam PMKID request event */
@@ -3270,7 +3272,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_REQUEST_STATS_EXT_CMDID);
 #define WMITLV_TABLE_WMI_OBSS_SCAN_ENABLE_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_STRUC_wmi_obss_scan_enable_cmd_fixed_param, wmi_obss_scan_enable_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
     WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, channels, WMITLV_SIZE_VAR) \
-    WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, ie_field, WMITLV_SIZE_VAR)
+    WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_BYTE, A_UINT8, ie_field, WMITLV_SIZE_VAR) \
+    WMITLV_ELEM(id, op, buf, len, WMITLV_TAG_ARRAY_UINT32, A_UINT32, chan_freqs, WMITLV_SIZE_VAR)
 WMITLV_CREATE_PARAM_STRUC(WMI_OBSS_SCAN_ENABLE_CMDID);
 
 /* 2.4Ghz HT40 OBSS scan disable */
@@ -4012,6 +4015,22 @@ WMITLV_CREATE_PARAM_STRUC(WMI_PDEV_OBSS_PD_SPATIAL_REUSE_CMDID);
 /* Peer CFR capture cmd */
 #define WMITLV_TABLE_WMI_PEER_CFR_CAPTURE_CMDID(id,op,buf,len) \
     WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_peer_cfr_capture_cmd_fixed_param, wmi_peer_cfr_capture_cmd_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+/*
+ * NOTE: from approximately 7/25/19 to 8/16/19, the below TLV was incorrectly
+ * added to this WMI_PEER_CFR_CAPTURE_CMDID message.
+ * Any targets compiled with these versions of the WMI definitions will
+ * expect that if there is a 2nd TLV in the WMI_PEER_CFR_CAPTURE_CMDID,
+ * it will be
+ * WMITLV_TAG_STRUC_wmi_peer_cfr_capture_event_phase_fixed_param
+ * If in the future a new 2nd TLV is added to this WMI_PEER_CFR_CAPTURE_CMDID
+ * message, that would cause a target compiled with the erroneous old
+ * definitions to reject the WMI_PEER_CFR_CAPTURE_CMDID message containing
+ * the new 2nd TLV, because it would not match the
+ * WMITLV_TAG_STRUC_wmi_peer_cfr_capture_event_phase_fixed_param
+ * tag expected by the old target.
+ *
+ *  WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_peer_cfr_capture_event_phase_fixed_param, wmi_peer_cfr_capture_event_phase_fixed_param, phase_param, WMITLV_SIZE_FIX)
+ */
 WMITLV_CREATE_PARAM_STRUC(WMI_PEER_CFR_CAPTURE_CMDID);
 
 /* CHANNEL WIDTH SWITCH commands for peers. */
@@ -5482,7 +5501,8 @@ WMITLV_CREATE_PARAM_STRUC(WMI_ESP_ESTIMATE_EVENTID);
 
 /* Peer CFR capture event */
 #define WMITLV_TABLE_WMI_PEER_CFR_CAPTURE_EVENTID(id,op,buf,len) \
-    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_peer_cfr_capture_event_fixed_param, wmi_peer_cfr_capture_event_fixed_param, fixed_param, WMITLV_SIZE_FIX)
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_peer_cfr_capture_event_fixed_param, wmi_peer_cfr_capture_event_fixed_param, fixed_param, WMITLV_SIZE_FIX) \
+    WMITLV_ELEM(id,op,buf,len, WMITLV_TAG_STRUC_wmi_peer_cfr_capture_event_phase_fixed_param, wmi_peer_cfr_capture_event_phase_fixed_param, phase_param, WMITLV_SIZE_FIX)
 WMITLV_CREATE_PARAM_STRUC(WMI_PEER_CFR_CAPTURE_EVENTID);
 
 #define WMITLV_TABLE_WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID(id,op,buf,len) \
