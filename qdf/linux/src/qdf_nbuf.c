@@ -2680,6 +2680,8 @@ qdf_export_symbol(qdf_nbuf_alloc_debug);
 
 void qdf_nbuf_free_debug(qdf_nbuf_t nbuf, uint8_t *file, uint32_t line)
 {
+	qdf_nbuf_t ext_list;
+
 	if (qdf_unlikely(!nbuf))
 		return;
 
@@ -2690,6 +2692,17 @@ void qdf_nbuf_free_debug(qdf_nbuf_t nbuf, uint8_t *file, uint32_t line)
 	qdf_nbuf_panic_on_free_if_mapped(nbuf, file, line);
 	qdf_net_buf_debug_delete_node(nbuf);
 	qdf_nbuf_history_add(nbuf, file, line, QDF_NBUF_FREE);
+
+	/* Take care to delete the debug entries for frag_list */
+	ext_list = qdf_nbuf_get_ext_list(nbuf);
+	while (ext_list) {
+		if (qdf_nbuf_get_users(ext_list) == 1) {
+			qdf_nbuf_panic_on_free_if_mapped(ext_list, file, line);
+			qdf_net_buf_debug_delete_node(ext_list);
+		}
+
+		ext_list = qdf_nbuf_queue_next(ext_list);
+	}
 
 free_buf:
 	__qdf_nbuf_free(nbuf);

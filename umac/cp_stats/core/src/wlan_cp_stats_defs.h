@@ -46,6 +46,8 @@
  * @psoc_cp_stats_lock: lock to protect object
  * @cmn_stats: stats common for AP and STA devices
  * @obj_stats: stats specific to AP or STA devices
+ * @legacy_stats_cb: callback to update the stats received from FW in
+ * asynchronous events.
  */
 struct psoc_cp_stats {
 	struct wlan_objmgr_psoc *psoc_obj;
@@ -53,6 +55,7 @@ struct psoc_cp_stats {
 	qdf_spinlock_t psoc_cp_stats_lock;
 	struct psoc_cmn_cp_stats *cmn_stats;
 	void *obj_stats;
+	void (*legacy_stats_cb)(void *stats);
 };
 
 /**
