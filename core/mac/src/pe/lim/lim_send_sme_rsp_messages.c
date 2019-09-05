@@ -380,7 +380,7 @@ static void lim_handle_join_rsp_status(tpAniSirGlobal mac_ctx,
 			SIR_MAC_VENDOR_AP_1_OUI, SIR_MAC_VENDOR_AP_1_OUI_LEN,
 			bss_ies, bss_ie_len) != NULL);
 
-		if (mac_ctx->roam.configParam.is_force_1x1 &&
+		if (mac_ctx->roam.configParam.is_force_1x1_enable &&
 		    is_vendor_ap_1_present && (session_entry->nss == 2) &&
 		    (mac_ctx->lteCoexAntShare == 0 ||
 				IS_5G_CH(session_entry->currentOperChannel))) {
@@ -2323,6 +2323,9 @@ lim_send_sme_ap_channel_switch_resp(tpAniSirGlobal pMac,
 	bool is_ch_dfs = false;
 	enum phy_ch_width ch_width;
 	uint8_t ch_center_freq_seg1;
+
+	qdf_runtime_pm_allow_suspend(&psessionEntry->ap_ecsa_runtime_lock);
+	qdf_wake_lock_release(&psessionEntry->ap_ecsa_wakelock, 0);
 
 	pSmeSwithChnlParams = (tSwitchChannelParams *)
 			      qdf_mem_malloc(sizeof(tSwitchChannelParams));

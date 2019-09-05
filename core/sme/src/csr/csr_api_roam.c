@@ -2821,8 +2821,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 	if (pParam) {
 		pMac->roam.configParam.pkt_err_disconn_th =
 			pParam->pkt_err_disconn_th;
-		pMac->roam.configParam.is_force_1x1 =
-			pParam->is_force_1x1;
+		pMac->roam.configParam.is_force_1x1_enable =
+			pParam->is_force_1x1_enable;
 		pMac->roam.configParam.WMMSupportMode = pParam->WMMSupportMode;
 		cfg_set_int(pMac, WNI_CFG_WME_ENABLED,
 			(pParam->WMMSupportMode == eCsrRoamWmmNoQos) ? 0 : 1);
@@ -3431,7 +3431,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		return QDF_STATUS_E_INVAL;
 
 	pParam->pkt_err_disconn_th = cfg_params->pkt_err_disconn_th;
-	pParam->is_force_1x1 = cfg_params->is_force_1x1;
+	pParam->is_force_1x1_enable = cfg_params->is_force_1x1_enable;
 	pParam->WMMSupportMode = cfg_params->WMMSupportMode;
 	pParam->Is11eSupportEnabled = cfg_params->Is11eSupportEnabled;
 	pParam->FragmentationThreshold = cfg_params->FragmentationThreshold;
@@ -16003,14 +16003,18 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 				sme_debug("1x1 with 1 Chain AP");
 		}
 
-		if (pMac->roam.configParam.is_force_1x1 &&
-		    pMac->lteCoexAntShare &&
-		    is_vendor_ap_present) {
+		if ((pMac->roam.configParam.is_force_1x1_enable ==
+					FORCE_1X1_ENABLED_FORCED ||
+		     (pMac->roam.configParam.is_force_1x1_enable ==
+					FORCE_1X1_ENABLED_FOR_AS &&
+		     pMac->lteCoexAntShare)) && is_vendor_ap_present) {
 			pSession->supported_nss_1x1 = true;
 			pSession->vdev_nss = 1;
 			pSession->nss = 1;
 			pSession->nss_forced_1x1 = true;
-			sme_debug("For special ap, NSS: %d", pSession->nss);
+			sme_debug("For special ap, NSS: %d force 1x1 %d",
+				  pSession->nss,
+				  pMac->roam.configParam.is_force_1x1_enable);
 		}
 
 		/*
@@ -16038,7 +16042,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 			ucfg_action_oui_search(pMac->psoc,
 					       &vendor_ap_search_attr,
 					       ACTION_OUI_SWITCH_TO_11N_MODE);
-		if (pMac->roam.configParam.is_force_1x1 &&
+		if (pMac->roam.configParam.is_force_1x1_enable &&
 		    pMac->lteCoexAntShare &&
 		    is_vendor_ap_present &&
 		    (ucDot11Mode == WNI_CFG_DOT11_MODE_ALL ||

@@ -98,7 +98,7 @@
 
 /* SME timeout for vdev delete is set to 10 secs */
 #define SME_VDEV_DELETE_CMD_TIMEOUT (10 * 1000)
-#define SME_CMD_VDEV_CREATE_DELETE_TIMEOUT (SME_VDEV_DELETE_CMD_TIMEOUT + 1000)
+#define SME_CMD_VDEV_CREATE_DELETE_TIMEOUT (SME_VDEV_DELETE_CMD_TIMEOUT + 5000)
 
 /*--------------------------------------------------------------------------
   Type declarations

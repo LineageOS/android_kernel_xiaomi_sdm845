@@ -227,8 +227,9 @@ static uint8_t sap_random_channel_sel(struct sap_context *sap_ctx)
 	ch_params->ch_width = ch_wd;
 	if (sap_ctx->acs_cfg) {
 		acs_info.acs_mode = sap_ctx->acs_cfg->acs_mode;
-		acs_info.channel_list = sap_ctx->acs_cfg->ch_list;
-		acs_info.num_of_channel = sap_ctx->acs_cfg->ch_list_count;
+		acs_info.channel_list = sap_ctx->acs_cfg->master_ch_list;
+		acs_info.num_of_channel =
+					sap_ctx->acs_cfg->master_ch_list_count;
 	} else {
 		acs_info.acs_mode = false;
 	}
@@ -807,34 +808,10 @@ sap_chan_bond_dfs_sub_chan(struct sap_context *sap_context,
 
 uint8_t sap_select_default_oper_chan(struct sap_acs_cfg *acs_cfg)
 {
-	uint8_t channel;
-
-	if (NULL == acs_cfg) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			"ACS config invalid!");
-		QDF_BUG(0);
+	if (!acs_cfg || !acs_cfg->ch_list)
 		return 0;
-	}
 
-	if (acs_cfg->hw_mode == eCSR_DOT11_MODE_11a) {
-		channel = SAP_DEFAULT_5GHZ_CHANNEL;
-	} else if ((acs_cfg->hw_mode == eCSR_DOT11_MODE_11n) ||
-		   (acs_cfg->hw_mode == eCSR_DOT11_MODE_11n_ONLY) ||
-		   (acs_cfg->hw_mode == eCSR_DOT11_MODE_11ac) ||
-		   (acs_cfg->hw_mode == eCSR_DOT11_MODE_11ac_ONLY) ||
-		   (acs_cfg->hw_mode == eCSR_DOT11_MODE_11ax) ||
-		   (acs_cfg->hw_mode == eCSR_DOT11_MODE_11ax_ONLY)) {
-		if (WLAN_REG_IS_5GHZ_CH(acs_cfg->start_ch))
-			channel = SAP_DEFAULT_5GHZ_CHANNEL;
-		else
-			channel = SAP_DEFAULT_24GHZ_CHANNEL;
-	} else {
-		channel = SAP_DEFAULT_24GHZ_CHANNEL;
-	}
-
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
-			FL("channel selected to start bss %d"), channel);
-	return channel;
+	return acs_cfg->ch_list[0];
 }
 
 QDF_STATUS
@@ -1096,6 +1073,19 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 					eSAP_SKIP_ACS_SCAN) {
 #endif
 
+	if (sap_context->channelList) {
+		qdf_mem_free(sap_context->channelList);
+		sap_context->channelList = NULL;
+		sap_context->num_of_channel = 0;
+	}
+
+	sap_get_channel_list(sap_context, &channel_list, &num_of_channels);
+	if (!num_of_channels) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			  FL("No channel suitable for SAP, hotspot failed"));
+		return QDF_STATUS_E_NOSUPPORT;
+	}
+
 	req = qdf_mem_malloc(sizeof(*req));
 	if (!req) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
@@ -1126,7 +1116,6 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 	req->scan_req.scan_req_id = sap_context->req_id;
 	req->scan_req.scan_priority = SCAN_PRIORITY_HIGH;
 	req->scan_req.scan_f_bcast_probe = true;
-	sap_get_channel_list(sap_context, &channel_list, &num_of_channels);
 
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
 	if (num_of_channels != 0) {
@@ -1136,11 +1125,6 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 		for (i = 0; i < num_of_channels; i++)
 			req->scan_req.chan_list.chan[i].freq =
 				wlan_chan_to_freq(channel_list[i]);
-		if (sap_context->channelList) {
-			qdf_mem_free(sap_context->channelList);
-			sap_context->channelList = NULL;
-			sap_context->num_of_channel = 0;
-		}
 		sap_context->channelList = channel_list;
 		sap_context->num_of_channel = num_of_channels;
 		/* Set requestType to Full scan */

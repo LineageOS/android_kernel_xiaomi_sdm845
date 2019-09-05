@@ -3304,6 +3304,9 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 	wma_handle->enable_tx_compl_tsf64 =
 			cds_cfg->enable_tx_compl_tsf64;
 
+	wma_handle->enable_three_way_coex_config_legacy =
+			cds_cfg->enable_three_way_coex_config_legacy;
+
 	/* Register Converged Event handlers */
 	init_deinit_register_tgt_psoc_ev_handlers(psoc);
 
@@ -6814,6 +6817,14 @@ int wma_rx_service_ready_ext_event(void *handle, uint8_t *event,
 	} else {
 		wlan_res_cfg->tstamp64_en = false;
 		cdp_cfg_set_tx_compl_tsf64(soc, false);
+	}
+
+	if (wma_handle->enable_three_way_coex_config_legacy &&
+	    wmi_service_enabled(wmi_handle,
+				wmi_service_three_way_coex_config_legacy)) {
+		wlan_res_cfg->three_way_coex_config_legacy_en = true;
+	} else {
+		wlan_res_cfg->three_way_coex_config_legacy_en = false;
 	}
 
 	return 0;

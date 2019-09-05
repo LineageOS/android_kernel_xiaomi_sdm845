@@ -489,13 +489,14 @@ uint8_t sap_channel_in_acs_channel_list(uint8_t channel_num,
 {
 	uint8_t i = 0;
 
-	if ((NULL == sap_ctx->acs_cfg->ch_list) ||
+	if ((NULL == sap_ctx->acs_cfg->master_ch_list) ||
 	    (NULL == spect_info_params))
 		return channel_num;
 
 	if (channel_num > 0 && channel_num <= 252) {
-		for (i = 0; i < sap_ctx->acs_cfg->ch_list_count; i++) {
-			if ((sap_ctx->acs_cfg->ch_list[i]) == channel_num)
+		for (i = 0; i < sap_ctx->acs_cfg->master_ch_list_count; i++) {
+			if ((sap_ctx->acs_cfg->master_ch_list[i]) ==
+								channel_num)
 				return channel_num;
 		}
 		return SAP_CHANNEL_NOT_SELECTED;
@@ -2551,105 +2552,6 @@ static bool sap_is_ch_non_overlap(struct sap_context *sap_ctx, uint16_t ch)
 	return false;
 }
 
-#ifdef FEATURE_WLAN_CH_AVOID
-/**
- * sap_select_channel_no_scan_result() - select SAP channel when no scan results
- * are available.
- * @sap_ctx: Sap context
- *
- * Returns: channel number if success, 0 otherwise
- */
-static uint8_t sap_select_channel_no_scan_result(tHalHandle hal,
-						 struct sap_context *sap_ctx)
-{
-	enum channel_state ch_type;
-	uint8_t i, first_safe_ch_in_range = SAP_CHANNEL_NOT_SELECTED;
-	uint32_t dfs_master_cap_enabled;
-	uint32_t start_ch_num = sap_ctx->acs_cfg->start_ch;
-	uint32_t end_ch_num = sap_ctx->acs_cfg->end_ch;
-	tpAniSirGlobal mac_ctx = NULL;
-
-	mac_ctx = PMAC_STRUCT(hal);
-
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  FL("start - end: %d - %d"), start_ch_num, end_ch_num);
-
-	sme_cfg_get_int(hal, WNI_CFG_DFS_MASTER_ENABLED,
-				&dfs_master_cap_enabled);
-
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		"%s: dfs_master %x", __func__, dfs_master_cap_enabled);
-
-	/* get a channel in PCL and within the range */
-	for (i = 0; i < sap_ctx->acs_cfg->pcl_ch_count; i++) {
-		if ((sap_ctx->acs_cfg->pcl_channels[i] < start_ch_num) ||
-		    (sap_ctx->acs_cfg->pcl_channels[i] > end_ch_num))
-			continue;
-
-		first_safe_ch_in_range = sap_ctx->acs_cfg->pcl_channels[i];
-		break;
-	}
-
-	if (SAP_CHANNEL_NOT_SELECTED != first_safe_ch_in_range)
-		return first_safe_ch_in_range;
-
-	for (i = 0; i < NUM_CHANNELS; i++) {
-		if ((safe_channels[i].channelNumber < start_ch_num) ||
-		    (safe_channels[i].channelNumber > end_ch_num))
-			continue;
-
-		ch_type = wlan_reg_get_channel_state(mac_ctx->pdev,
-				safe_channels[i].channelNumber);
-
-		if ((ch_type == CHANNEL_STATE_DISABLE) ||
-			(ch_type == CHANNEL_STATE_INVALID))
-			continue;
-		if ((!dfs_master_cap_enabled) &&
-			(CHANNEL_STATE_DFS == ch_type)) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				"%s: DFS master mode disabled. Skip DFS channel %d",
-				__func__, safe_channels[i].channelNumber);
-			continue;
-		}
-		if ((sap_ctx->dfs_mode == ACS_DFS_MODE_DISABLE) &&
-		    (CHANNEL_STATE_DFS == ch_type))
-			continue;
-
-		if (safe_channels[i].isSafe == true) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				FL("channel %d in the configuration is safe"),
-				safe_channels[i].channelNumber);
-			first_safe_ch_in_range = safe_channels[i].channelNumber;
-			break;
-		}
-
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			FL("channel %d in the configuration is unsafe"),
-			safe_channels[i].channelNumber);
-	}
-
-	/* if no channel selected return SAP_CHANNEL_NOT_SELECTED */
-	return first_safe_ch_in_range;
-}
-#else
-static uint8_t sap_select_channel_no_scan_result(tHalHandle hal,
-						 struct sap_context *sap_ctx)
-{
-	uint32_t start_ch_num = sap_ctx->acs_cfg->start_ch;
-
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  FL("start - end: %d - %d"),
-		  start_ch_num,
-		  sap_ctx->acs_cfg->end_ch);
-
-	sap_ctx->acs_cfg->pri_ch = start_ch_num;
-	sap_ctx->acs_cfg->ht_sec_ch = 0;
-
-	/* pick the first channel in configured range */
-	return start_ch_num;
-}
-#endif /* FEATURE_WLAN_CH_AVOID */
-
 /**
  * sap_select_channel() - select SAP channel
  * @hal: Pointer to HAL handle
@@ -2697,7 +2599,7 @@ uint8_t sap_select_channel(tHalHandle hal, struct sap_context *sap_ctx,
 #ifndef SOFTAP_CHANNEL_RANGE
 		return SAP_CHANNEL_NOT_SELECTED;
 #else
-		return sap_select_channel_no_scan_result(hal, sap_ctx);
+		return sap_select_default_oper_chan(sap_ctx->acs_cfg);
 #endif
 	}
 

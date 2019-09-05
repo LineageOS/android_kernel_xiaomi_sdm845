@@ -3939,6 +3939,13 @@ struct reg_table_entry g_registry_table[] = {
 #endif /* WLAN_FEATURE_TSF_PLUS */
 #endif
 
+	REG_VARIABLE(CFG_ENABLE_TW_COEX_LEGACY_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_three_way_coex_config_legacy,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_TW_COEX_LEGACY_DEFAULT,
+		     CFG_ENABLE_TW_COEX_LEGACY_MIN,
+		     CFG_ENABLE_TW_COEX_LEGACY_MAX),
+
 	REG_VARIABLE(CFG_ROAM_DENSE_TRAFFIC_THRESHOLD, WLAN_PARAM_Integer,
 		struct hdd_config, roam_dense_traffic_thresh,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -4857,7 +4864,7 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_DROPPED_PKT_DISCONNECT_TH_MAX),
 
 	REG_VARIABLE(CFG_FORCE_1X1_NAME, WLAN_PARAM_Integer,
-		struct hdd_config, is_force_1x1,
+		struct hdd_config, is_force_1x1_enable,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
 		CFG_FORCE_1X1_DEFAULT,
 		CFG_FORCE_1X1_MIN,
@@ -7773,7 +7780,7 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 
 	hdd_debug("Name = [%s] value = [%u]",
 		 CFG_FORCE_1X1_NAME,
-		 hdd_ctx->config->is_force_1x1);
+		 hdd_ctx->config->is_force_1x1_enable);
 	hdd_debug("Name = [%s] Value = %u",
 		CFG_ENABLE_CONNECTED_SCAN_NAME,
 		hdd_ctx->config->enable_connected_scan);
@@ -7973,6 +7980,9 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		  CFG_ENABLE_PEER_UNMAP_CONF_NAME,
 		  hdd_ctx->config->enable_peer_unmap_conf_support);
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ENABLE_TW_COEX_LEGACY_NAME,
+		  hdd_ctx->config->enable_three_way_coex_config_legacy);
 	hdd_cfg_print_action_oui(hdd_ctx);
 	hdd_cfg_print_btc_params(hdd_ctx);
 	hdd_cfg_print_roam_preauth(hdd_ctx);
@@ -9776,8 +9786,8 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 	smeConfig->csrConfig.num_disallowed_aps =
 			hdd_ctx->config->num_disallowed_aps;
 
-	smeConfig->csrConfig.is_force_1x1 =
-			hdd_ctx->config->is_force_1x1;
+	smeConfig->csrConfig.is_force_1x1_enable =
+			hdd_ctx->config->is_force_1x1_enable;
 	smeConfig->csrConfig.num_11b_tx_chains =
 			hdd_ctx->config->num_11b_tx_chains;
 	smeConfig->csrConfig.num_11ag_tx_chains =

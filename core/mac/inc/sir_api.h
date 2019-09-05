@@ -2135,6 +2135,18 @@ struct lim_channel_status {
 };
 
 /**
+ * enum force_1x1_type - enum to specify the type of forced 1x1 ini provided.
+ * @FORCE_1X1_DISABLED: even if the AP is present in OUI, 1x1 will not be forced
+ * @FORCE_1X1_ENABLED_FOR_AS: If antenna sharing supported, then only do 1x1.
+ * @FORCE_1X1_ENABLED_FORCED: If AP present in OUI, force 1x1 connection.
+ */
+enum force_1x1_type {
+	FORCE_1X1_DISABLED,
+	FORCE_1X1_ENABLED_FOR_AS,
+	FORCE_1X1_ENABLED_FORCED,
+};
+
+/**
  * struct lim_scan_channel_status
  * @total_channel: total number of be scanned channel
  * @channel_status_list: channel status info store in this array

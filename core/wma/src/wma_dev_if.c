@@ -2268,11 +2268,12 @@ int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
 
 		status = wma_remove_bss_peer(wma, pdev, resp_event->vdev_id,
 					     params);
-		if (status != 0) {
-			WMA_LOGE("%s Del bss failed vdev:%d", __func__,
-				 resp_event->vdev_id);
-			wma_cleanup_target_req_param(req_msg);
-			goto free_req_msg;
+		if (status) {
+			WMA_LOGE("%s Del bss failed  call vdev down vdev:%d",
+				 __func__, resp_event->vdev_id);
+			wma_send_del_bss_response(wma, req_msg,
+						  resp_event->vdev_id);
+			 goto free_req_msg;
 		}
 
 		if (wmi_service_enabled(wma->wmi_handle,
@@ -3649,19 +3650,17 @@ void wma_vdev_resp_timer(void *data)
 		 * Trigger host crash if the flag is set or if the timeout
 		 * is not due to fw down
 		 */
-		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash) == true) {
+		if (wma_crash_on_fw_timeout(wma->fw_timeout_crash))
 			wma_trigger_recovery_assert_on_fw_timeout(
 				WMA_DELETE_BSS_REQ);
-			wma_cleanup_target_req_param(tgt_req);
-			goto free_tgt_req;
-		}
 
 		status = wma_remove_bss_peer(wma, pdev, tgt_req->vdev_id,
 					     params);
-		if (status != 0) {
-			WMA_LOGE("Del BSS failed vdev_id:%d", tgt_req->vdev_id);
-			wma_cleanup_target_req_param(tgt_req);
-			goto free_tgt_req;
+		if (status) {
+			WMA_LOGE("Del BSS failed call del bss response vdev_id:%d",
+				 tgt_req->vdev_id);
+			wma_send_del_bss_response(wma, tgt_req,
+						  tgt_req->vdev_id);
 		}
 
 		if (wmi_service_enabled(wma->wmi_handle,

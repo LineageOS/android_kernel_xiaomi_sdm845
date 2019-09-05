@@ -412,4 +412,15 @@ int wlan_hdd_request_station_stats(struct hdd_adapter *adapter);
  * Return: none
  */
 void wlan_hdd_display_txrx_stats(struct hdd_context *hdd_ctx);
+
+/**
+ * wlan_hdd_register_cp_stats_cb() - Register hdd stats specific
+ * callbacks to the cp stats component
+ * @hdd_ctx: hdd context
+ *
+ * Return: none
+ */
+
+void wlan_hdd_register_cp_stats_cb(struct hdd_context *hdd_ctx);
+
 #endif /* end #if !defined(WLAN_HDD_STATS_H) */
