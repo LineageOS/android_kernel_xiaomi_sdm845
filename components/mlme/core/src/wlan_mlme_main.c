@@ -300,3 +300,31 @@ mlme_peer_object_destroyed_notification(struct wlan_objmgr_peer *peer,
 
 	return status;
 }
+
+void mlme_set_peer_pmf_status(struct wlan_objmgr_peer *peer,
+			      bool is_pmf_enabled)
+{
+	struct peer_mlme_priv_obj *peer_priv;
+
+	peer_priv = wlan_objmgr_peer_get_comp_private_obj(peer,
+							  WLAN_UMAC_COMP_MLME);
+	if (!peer_priv) {
+		mlme_err(" peer mlme component object is NULL");
+		return;
+	}
+	peer_priv->is_pmf_enabled = is_pmf_enabled;
+}
+
+bool mlme_get_peer_pmf_status(struct wlan_objmgr_peer *peer)
+{
+	struct peer_mlme_priv_obj *peer_priv;
+
+	peer_priv = wlan_objmgr_peer_get_comp_private_obj(peer,
+							  WLAN_UMAC_COMP_MLME);
+	if (!peer_priv) {
+		mlme_err("peer mlme component object is NULL");
+		return false;
+	}
+
+	return peer_priv->is_pmf_enabled;
+}
