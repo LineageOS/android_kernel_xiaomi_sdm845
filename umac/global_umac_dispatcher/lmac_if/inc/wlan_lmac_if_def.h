@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -470,7 +470,6 @@ struct sta_uapsd_trig_params;
  * @set_offchan_mode: function to set tdls offchannel mode
  * @tdls_reg_ev_handler: function to register for tdls events
  * @tdls_unreg_ev_handler: function to unregister for tdls events
- * @tdls_set_uapsd: function to set upasdt trigger command
  *
  * tdls module uses these functions to avail ol/da lmac services
  */
@@ -485,8 +484,6 @@ struct wlan_lmac_if_tdls_tx_ops {
 					 void *arg);
 	QDF_STATUS (*tdls_unreg_ev_handler) (struct wlan_objmgr_psoc *psoc,
 					    void *arg);
-	QDF_STATUS (*tdls_set_uapsd)(struct wlan_objmgr_psoc *psoc,
-				    struct sta_uapsd_trig_params *params);
 };
 
 /* fwd declarations for tdls rx ops */
