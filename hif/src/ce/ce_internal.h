@@ -517,7 +517,9 @@ int hif_get_wake_ce_id(struct hif_softc *scn, uint8_t *ce_id);
  */
 #if defined(HIF_CONFIG_SLUB_DEBUG_ON) || defined(HIF_CE_DEBUG_DATA_BUF)
 
-#define HIF_CE_HISTORY_MAX 512
+#ifndef HIF_CE_HISTORY_MAX
+#define HIF_CE_HISTORY_MAX 1024
+#endif
 
 #define CE_DEBUG_MAX_DATA_BUF_SIZE 64
 /**
@@ -540,6 +542,11 @@ struct hif_ce_desc_event {
 	uint8_t *data;
 	ssize_t actual_data_len;
 #endif
+
+#ifdef HIF_CONFIG_SLUB_DEBUG_ON
+	qdf_dma_addr_t dma_to_phy;
+	qdf_dma_addr_t virt_to_phy;
+#endif
 };
 
 #if HIF_CE_DEBUG_DATA_BUF
@@ -547,4 +554,26 @@ QDF_STATUS alloc_mem_ce_debug_hist_data(struct hif_softc *scn, uint32_t ce_id);
 void free_mem_ce_debug_hist_data(struct hif_softc *scn, uint32_t ce_id);
 #endif /*HIF_CE_DEBUG_DATA_BUF*/
 #endif /* #if defined(HIF_CONFIG_SLUB_DEBUG_ON) || HIF_CE_DEBUG_DATA_BUF */
+
+#if defined(HIF_CONFIG_SLUB_DEBUG_ON) && defined(HIF_RECORD_RX_PADDR)
+/**
+ * hif_ce_desc_record_rx_paddr() - record physical address for IOMMU
+ * IOVA addr and MMU virtual addr for Rx
+ * @scn: hif_softc
+ * @event: structure detailing a ce event
+ *
+ * record physical address for ce_event_type HIF_RX_DESC_POST and
+ * HIF_RX_DESC_COMPLETION
+ *
+ * Return: none
+ */
+void hif_ce_desc_record_rx_paddr(struct hif_softc *scn,
+				 struct hif_ce_desc_event *event);
+#else
+static inline
+void hif_ce_desc_record_rx_paddr(struct hif_softc *scn,
+				 struct hif_ce_desc_event *event)
+{
+}
+#endif
 #endif /* __COPY_ENGINE_INTERNAL_H__ */
