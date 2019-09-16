@@ -310,14 +310,13 @@ ENTRY(__kernel_clock_getres)
 	ccmp	w0, #CLOCK_MONOTONIC_RAW, #0x4, ne
 	b.ne	1f
 
-	adr	vdso_data, _vdso_data
-	ldr	w2, [vdso_data, #CLOCK_REALTIME_RES]
+	ldr	x2, 5f
 	b	2f
 1:
 	cmp	w0, #CLOCK_REALTIME_COARSE
 	ccmp	w0, #CLOCK_MONOTONIC_COARSE, #0x4, ne
 	b.ne	4f
-	ldr	x2, 5f
+	ldr	x2, 6f
 2:
 	cbz	x1, 3f
 	stp	xzr, x2, [x1]
@@ -331,6 +330,8 @@ ENTRY(__kernel_clock_getres)
 	svc	#0
 	ret
 5:
+	.quad	CLOCK_REALTIME_RES
+6:
 	.quad	CLOCK_COARSE_RES
 	.cfi_endproc
 ENDPROC(__kernel_clock_getres)
