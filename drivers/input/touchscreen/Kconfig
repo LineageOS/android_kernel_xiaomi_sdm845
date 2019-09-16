@@ -243,7 +243,7 @@ config TOUCHSCREEN_CYTTSP4_SPI
 
 config TOUCHSCREEN_CYPRESS_CYTTSP5
 	tristate "Parade TrueTouch Gen5 Touchscreen Driver"
-	default y
+	default n
 	help
 	  Core driver for Parade TrueTouch(tm) Standard Product
 	  Geneartion5 touchscreen controllers.
@@ -258,7 +258,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5
 config TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICETREE_SUPPORT
 	bool "Enable Device Tree support"
 	depends on TOUCHSCREEN_CYPRESS_CYTTSP5 && OF
-	default y
+	default n
 	help
 	  Devicetree parsor for Parade TrueTouch(tm) Standard Product
 	  Geneartion5 touchscreen controllers. Say Y here to enable
@@ -270,7 +270,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_I2C
 	tristate "Parade TrueTouch Gen5 I2C"
 	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
 	select I2C
-	default y
+	default n
 	help
 	  Say Y here to enable I2C bus interface to Parade
 	  TrueTouch(tm) Standard Product Generation5 touchscreen
@@ -312,7 +312,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_MT_A
 config TOUCHSCREEN_CYPRESS_CYTTSP5_MT_B
 	bool "Parade TrueTouch Gen5 MultiTouch Protocol B"
 	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
-	default y
+	default n
 	help
 	  This option controls which MultiTouch protocol will be
 	  used to report the touch events. This depends on your
@@ -327,7 +327,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_MT_B
 config TOUCHSCREEN_CYPRESS_CYTTSP5_BUTTON
 	bool "Parade TrueTouch Gen5 MultiTouch CapSense Button"
 	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
-	default y
+	default n
 	help
 	  Say Y here to enable CapSense reporting on Parade
 	  TrueTouch(tm) Standard Product Generation5 touchscreen
@@ -338,7 +338,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_BUTTON
 config TOUCHSCREEN_CYPRESS_CYTTSP5_PROXIMITY
 	bool "Parade TrueTouch Gen5 Proximity"
 	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
-	default y
+	default n
 	help
 	  Say Y here to enable proximity reporting on Parade
 	  TrueTouch(tm) Standard Product Generation5 touchscreen
@@ -349,7 +349,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_PROXIMITY
 config TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICE_ACCESS
 	tristate "Parade TrueTouch Gen5 MultiTouch Device Access"
 	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
-	default y
+	default n
 	help
 	  Say Y here to enable Parade TrueTouch(tm) Standard Product
 	  Generation5 touchscreen controller device access module.
