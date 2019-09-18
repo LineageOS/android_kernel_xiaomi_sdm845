@@ -1049,6 +1049,17 @@ QDF_STATUS wlansap_set_mac_acl(struct sap_context *sap_ctx,
 			       tsap_config_t *pConfig);
 
 /**
+ * sap_undo_acs() - Undo acs i.e free the allocated ch lists
+ * @sap_ctx: pointer to the SAP context
+ *
+ * This function will free the memory allocated to the sap ctx channel list, acs
+ * cfg ch list and master ch list.
+ *
+ * Return: None
+ */
+void sap_undo_acs(struct sap_context *sap_context);
+
+/**
  * wlansap_disassoc_sta() - initiate disassociation of station.
  * @sap_ctx: Pointer to the SAP context
  * @p_del_sta_params: pointer to station deletion parameters
