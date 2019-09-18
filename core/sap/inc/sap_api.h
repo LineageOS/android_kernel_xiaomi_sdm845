@@ -1057,7 +1057,7 @@ QDF_STATUS wlansap_set_mac_acl(struct sap_context *sap_ctx,
  *
  * Return: None
  */
-void sap_undo_acs(struct sap_context *sap_context);
+void sap_undo_acs(struct sap_context *sap_context, struct sap_config *sap_cfg);
 
 /**
  * wlansap_disassoc_sta() - initiate disassociation of station.

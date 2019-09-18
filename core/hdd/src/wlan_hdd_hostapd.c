@@ -6433,7 +6433,6 @@ QDF_STATUS hdd_init_ap_mode(struct hdd_adapter *adapter, bool reinit)
 
 	if (!reinit) {
 		adapter->session.ap.sap_config.acs_cfg.acs_mode = false;
-		wlan_hdd_undo_acs(adapter);
 		qdf_mem_zero(&adapter->session.ap.sap_config.acs_cfg,
 			     sizeof(struct sap_acs_cfg));
 	}
@@ -6467,7 +6466,6 @@ void hdd_deinit_ap_mode(struct hdd_context *hdd_ctx,
 		clear_bit(WMM_INIT_DONE, &adapter->event_flags);
 	}
 	qdf_atomic_set(&adapter->session.ap.acs_in_progress, 0);
-	wlan_hdd_undo_acs(adapter);
 	hdd_softap_deinit_tx_rx(adapter);
 	/*
 	 * if we are being called during driver unload,
@@ -8541,7 +8539,6 @@ error:
 	}
 	clear_bit(SOFTAP_INIT_DONE, &adapter->event_flags);
 	qdf_atomic_set(&adapter->session.ap.acs_in_progress, 0);
-	wlan_hdd_undo_acs(adapter);
 	wlansap_reset_sap_config_add_ie(pConfig, eUPDATE_IE_ALL);
 
 free:
@@ -8667,9 +8664,6 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	}
 	adapter->session.ap.sap_config.acs_cfg.acs_mode = false;
 	qdf_atomic_set(&adapter->session.ap.acs_in_progress, 0);
-	wlan_hdd_undo_acs(adapter);
-	qdf_mem_zero(&adapter->session.ap.sap_config.acs_cfg,
-						sizeof(struct sap_acs_cfg));
 	hdd_debug("Disabling queues");
 	wlan_hdd_netif_queue_control(adapter,
 				     WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,

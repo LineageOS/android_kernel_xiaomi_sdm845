@@ -1250,6 +1250,7 @@ void sap_scan_event_callback(struct wlan_objmgr_vdev *vdev,
 	bool success = false;
 	eCsrScanStatus scan_status = eCSR_SCAN_FAILURE;
 	tHalHandle hal_handle;
+	struct sap_context *sap_ctx = arg;
 
 	session_id = wlan_vdev_get_id(vdev);
 	scan_id = event->scan_id;
@@ -1269,7 +1270,12 @@ void sap_scan_event_callback(struct wlan_objmgr_vdev *vdev,
 	if (success)
 		scan_status = eCSR_SCAN_SUCCESS;
 
+	if (!sap_ctx->acs_ch_list_protect)
+		return;
+
+	qdf_mutex_acquire(sap_ctx->acs_ch_list_protect);
 	wlansap_pre_start_bss_acs_scan_callback(hal_handle,
 						arg, session_id,
 						scan_id, scan_status);
+	qdf_mutex_release(sap_ctx->acs_ch_list_protect);
 }

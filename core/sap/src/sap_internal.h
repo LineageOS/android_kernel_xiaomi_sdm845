@@ -134,6 +134,7 @@ struct sap_context {
 	uint32_t channel;
 	uint32_t secondary_ch;
 
+	qdf_mutex_t *acs_ch_list_protect;
 	/* Include the SME(CSR) sessionId here */
 	uint8_t sessionId;
 

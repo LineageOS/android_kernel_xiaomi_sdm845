@@ -2740,7 +2740,6 @@ out:
 			return cfg80211_vendor_cmd_reply(temp_skbuff);
 	}
 	qdf_atomic_set(&adapter->session.ap.acs_in_progress, 0);
-	wlan_hdd_undo_acs(adapter);
 	clear_bit(ACS_IN_PROGRESS, &hdd_ctx->g_event_flags);
 
 	return ret;
@@ -2784,7 +2783,8 @@ static int wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 void wlan_hdd_undo_acs(struct hdd_adapter *adapter)
 {
-	sap_undo_acs(WLAN_HDD_GET_SAP_CTX_PTR(adapter));
+	sap_undo_acs(WLAN_HDD_GET_SAP_CTX_PTR(adapter),
+		     &adapter->session.ap.sap_config);
 }
 
 /**
