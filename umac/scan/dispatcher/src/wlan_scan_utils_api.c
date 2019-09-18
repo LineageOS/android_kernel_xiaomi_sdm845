@@ -199,17 +199,16 @@ util_scan_get_phymode_5g(struct scan_cache_entry *scan_params)
 	if (htcap)
 		ht_cap = le16toh(htcap->hc_cap);
 
+	if (ht_cap & WLAN_HTCAP_C_CHWIDTH40)
+		phymode = WLAN_PHYMODE_11NA_HT40;
+	else
+		phymode = WLAN_PHYMODE_11NA_HT20;
+
 	if (util_scan_entry_vhtcap(scan_params) && vhtop) {
 		switch (vhtop->vht_op_chwidth) {
 		case WLAN_VHTOP_CHWIDTH_2040:
-			if ((ht_cap & WLAN_HTCAP_C_CHWIDTH40) &&
-			   (htinfo->hi_extchoff ==
-			   WLAN_HTINFO_EXTOFFSET_ABOVE))
-				phymode = WLAN_PHYMODE_11AC_VHT40PLUS;
-			else if ((ht_cap & WLAN_HTCAP_C_CHWIDTH40) &&
-			   (htinfo->hi_extchoff ==
-			   WLAN_HTINFO_EXTOFFSET_BELOW))
-				phymode = WLAN_PHYMODE_11AC_VHT40MINUS;
+			if (ht_cap & WLAN_HTCAP_C_CHWIDTH40)
+				phymode = WLAN_PHYMODE_11AC_VHT40;
 			else
 				phymode = WLAN_PHYMODE_11AC_VHT20;
 			break;
@@ -230,16 +229,10 @@ util_scan_get_phymode_5g(struct scan_cache_entry *scan_params)
 		default:
 			scm_err("bad channel: %d",
 					vhtop->vht_op_chwidth);
+			phymode = WLAN_PHYMODE_11AC_VHT20;
 			break;
 		}
-	} else if ((ht_cap & WLAN_HTCAP_C_CHWIDTH40) &&
-	   (htinfo->hi_extchoff == WLAN_HTINFO_EXTOFFSET_ABOVE))
-		phymode = WLAN_PHYMODE_11NA_HT40PLUS;
-	else if ((ht_cap & WLAN_HTCAP_C_CHWIDTH40) &&
-	   (htinfo->hi_extchoff == WLAN_HTINFO_EXTOFFSET_BELOW))
-		phymode = WLAN_PHYMODE_11NA_HT40MINUS;
-	else
-		phymode = WLAN_PHYMODE_11NA_HT20;
+	}
 
 	return phymode;
 }
@@ -285,6 +278,29 @@ util_scan_get_phymode_2g(struct scan_cache_entry *scan_params)
 				phymode = WLAN_PHYMODE_11B;
 		} else {
 			phymode = WLAN_PHYMODE_11B;
+		}
+	}
+
+	/* Check for VHT only if HT cap is present */
+	if (!IS_WLAN_PHYMODE_HT(phymode))
+		return phymode;
+
+	if (util_scan_entry_vhtcap(scan_params) && vhtop) {
+		switch (vhtop->vht_op_chwidth) {
+		case WLAN_VHTOP_CHWIDTH_2040:
+			if (phymode == WLAN_PHYMODE_11NG_HT40PLUS)
+				phymode = WLAN_PHYMODE_11AC_VHT40PLUS_2G;
+			else if (phymode == WLAN_PHYMODE_11NG_HT40MINUS)
+				phymode = WLAN_PHYMODE_11AC_VHT40MINUS_2G;
+			else
+				phymode = WLAN_PHYMODE_11AC_VHT20_2G;
+
+			break;
+		default:
+			scm_info("bad vht_op_chwidth: %d",
+				 vhtop->vht_op_chwidth);
+			phymode = WLAN_PHYMODE_11AC_VHT20_2G;
+			break;
 		}
 	}
 

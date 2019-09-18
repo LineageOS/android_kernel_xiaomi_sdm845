@@ -815,13 +815,14 @@ QDF_STATUS scm_handle_bcn_probe(struct scheduler_msg *msg)
 			continue;
 		}
 
-		scm_nofl_debug("Received %s from BSSID: %pM tsf_delta = %u Seq Num: %d  ssid:%.*s, rssi: %d channel %d",
+		scm_nofl_debug("Received %s from BSSID: %pM tsf_delta = %u Seq Num: %d  ssid:%.*s, rssi: %d channel %d phy_mode %d",
 			       (bcn->frm_type == MGMT_SUBTYPE_PROBE_RESP) ?
 			       "Probe Rsp" : "Beacon", scan_entry->bssid.bytes,
 			       scan_entry->tsf_delta, scan_entry->seq_num,
 			       scan_entry->ssid.length, scan_entry->ssid.ssid,
 			       scan_entry->rssi_raw,
-			       scan_entry->channel.chan_idx);
+			       scan_entry->channel.chan_idx,
+			       scan_entry->phy_mode);
 
 		if (scan_obj->cb.update_beacon)
 			scan_obj->cb.update_beacon(pdev, scan_entry);
