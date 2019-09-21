@@ -2956,8 +2956,6 @@ int hdd_softap_set_channel_change(struct net_device *dev, int target_channel,
 	/* Disable Roaming on all adapters before doing channel change */
 	wlan_hdd_disable_roaming(adapter);
 
-	if (wlan_vdev_mlme_get_opmode(adapter->vdev) == QDF_P2P_GO_MODE)
-		is_p2p_go_session = true;
 	/*
 	 * Post the Channel Change request to SAP.
 	 */
