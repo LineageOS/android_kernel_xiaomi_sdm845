@@ -631,7 +631,6 @@ int hdd_ndi_delete(uint8_t vdev_id, char *iface_name, uint16_t transaction_id)
 
 	/* Since, the interface is being deleted, remove the broadcast id. */
 	hdd_ctx->sta_to_adapter[sta_id] = NULL;
-	sta_ctx->broadcast_staid = HDD_WLAN_INVALID_STA_ID;
 
 	os_if_nan_set_ndp_delete_transaction_id(adapter->vdev,
 						transaction_id);

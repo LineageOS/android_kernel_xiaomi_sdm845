@@ -3977,6 +3977,9 @@ void peer_unmap_timer_handler(void *data)
 {
 	ol_txrx_peer_handle peer = (ol_txrx_peer_handle)data;
 
+	if (!peer)
+		return;
+
 	ol_txrx_err("all unmap events not received for peer %pK, ref_cnt %d",
 		    peer, qdf_atomic_read(&peer->ref_cnt));
 	ol_txrx_err("peer %pK (%02x:%02x:%02x:%02x:%02x:%02x)",

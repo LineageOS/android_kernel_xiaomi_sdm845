@@ -3415,12 +3415,16 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 	} else {
 		*ch_list = NULL;
 		qdf_mem_free(list);
+		return QDF_STATUS_SUCCESS;
 	}
 
 	for (loop_count = 0; loop_count < ch_count; loop_count++) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 			FL("channel number: %d"), list[loop_count]);
+		sap_ctx->acs_cfg->ch_list[loop_count] = list[loop_count];
 	}
+	sap_ctx->acs_cfg->ch_list_count = ch_count;
+
 	return QDF_STATUS_SUCCESS;
 }
 #endif

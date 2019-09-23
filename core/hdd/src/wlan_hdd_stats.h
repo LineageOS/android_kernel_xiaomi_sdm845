@@ -413,6 +413,7 @@ int wlan_hdd_request_station_stats(struct hdd_adapter *adapter);
  */
 void wlan_hdd_display_txrx_stats(struct hdd_context *hdd_ctx);
 
+#ifdef QCA_SUPPORT_CP_STATS
 /**
  * wlan_hdd_register_cp_stats_cb() - Register hdd stats specific
  * callbacks to the cp stats component
@@ -422,5 +423,8 @@ void wlan_hdd_display_txrx_stats(struct hdd_context *hdd_ctx);
  */
 
 void wlan_hdd_register_cp_stats_cb(struct hdd_context *hdd_ctx);
+#else
+static inline void wlan_hdd_register_cp_stats_cb(struct hdd_context *hdd_ctx) {}
+#endif
 
 #endif /* end #if !defined(WLAN_HDD_STATS_H) */

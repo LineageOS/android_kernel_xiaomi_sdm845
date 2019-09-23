@@ -384,11 +384,14 @@ void hdd_rssi_threshold_breached(void *hddctx,
  * interface that BSS might have been lost.
  * @adapter: adapter
  * @bssid: bssid which might have been lost
+ * @ssid: SSID
+ * @ssid_len: length of the SSID
  *
  * Return: void
  */
 void wlan_hdd_cfg80211_unlink_bss(struct hdd_adapter *adapter,
-				  tSirMacAddr bssid);
+				  tSirMacAddr bssid, uint8_t *ssid,
+				  uint8_t ssid_len);
 
 void wlan_hdd_cfg80211_acs_ch_select_evt(struct hdd_adapter *adapter);
 

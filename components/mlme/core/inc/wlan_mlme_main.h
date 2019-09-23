@@ -35,9 +35,11 @@
 /**
  * struct peer_mlme_priv_obj - peer MLME component object
  * @ucast_key_cipher: unicast crypto type.
+ * @is_pmf_enabled: True if PMF is enabled
  */
 struct peer_mlme_priv_obj {
 	uint32_t ucast_key_cipher;
+	bool is_pmf_enabled;
 };
 
 /**
@@ -199,4 +201,23 @@ mlme_peer_object_created_notification(struct wlan_objmgr_peer *peer,
 QDF_STATUS
 mlme_peer_object_destroyed_notification(struct wlan_objmgr_peer *peer,
 					void *arg);
+
+/**
+ * mlme_set_peer_pmf_status() - set pmf status of peer
+ * @peer: PEER object
+ * @is_pmf_enabled: Carries if PMF is enabled or not
+ *
+ * is_pmf_enabled will be set to true if PMF is enabled by peer
+ *
+ * Return: void
+ */
+void mlme_set_peer_pmf_status(struct wlan_objmgr_peer *peer,
+			      bool is_pmf_enabled);
+/**
+ * mlme_get_peer_pmf_status() - get if peer is of pmf capable
+ * @peer: PEER object
+ *
+ * Return: Value of is_pmf_enabled; True if PMF is enabled by peer
+ */
+bool mlme_get_peer_pmf_status(struct wlan_objmgr_peer *peer);
 #endif
