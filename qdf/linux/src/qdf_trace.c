@@ -3515,7 +3515,7 @@ qdf_export_symbol(QDF_PRINT_INFO);
 void qdf_logging_init(void)
 {
 	wlan_logging_sock_init_svc();
-	nl_srv_init(NULL);
+	nl_srv_init(NULL, WLAN_NLINK_PROTO_FAMILY);
 }
 
 void qdf_logging_exit(void)
