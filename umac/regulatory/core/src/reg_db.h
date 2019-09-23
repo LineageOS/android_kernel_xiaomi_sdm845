@@ -25,6 +25,9 @@
 #ifndef __REG_DB_H
 #define __REG_DB_H
 
+/* Alpha2 code for world reg domain */
+#define REG_WORLD_ALPHA2 "00"
+
 #define REGULATORY_CHAN_DISABLED     (1<<0)
 #define REGULATORY_CHAN_NO_IR        (1<<1)
 #define REGULATORY_CHAN_RADAR        (1<<3)

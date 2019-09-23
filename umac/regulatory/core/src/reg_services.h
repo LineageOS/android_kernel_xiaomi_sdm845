@@ -95,6 +95,14 @@
 /* EEPROM setting is a country code */
 #define    COUNTRY_ERD_FLAG     0x8000
 
+/**
+ * reg_is_world_ctry_code() - Check if the given country code is WORLD regdomain
+ * @ctry_code: Country code value.
+ *
+ * Return: If country code is WORLD regdomain return true else false
+ */
+bool reg_is_world_ctry_code(uint16_t ctry_code);
+
 extern const struct chan_map *channel_map;
 
 enum channel_enum reg_get_chan_enum(uint32_t chan_num);
