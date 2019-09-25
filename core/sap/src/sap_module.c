@@ -2690,6 +2690,25 @@ void wlan_sap_enable_phy_error_logs(tHalHandle hal, uint32_t enable_log)
 			sizeof(uint32_t), NULL, NULL, &error);
 }
 
+/**
+ * wlan_sap_set_dfs_pri_multiplier() - Set dfs_pri_multiplier
+ * @hal:        global hal handle
+ * @val:        value to set
+ *
+ * Return: none
+ */
+#ifdef DFS_PRI_MULTIPLIER
+void wlan_sap_set_dfs_pri_multiplier(tHalHandle hal, uint32_t val)
+{
+	int error;
+
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+	tgt_dfs_control(mac_ctx->pdev, DFS_SET_PRI_MULTIPILER, &val,
+			sizeof(uint32_t), NULL, NULL, &error);
+}
+#endif
+
 uint32_t wlansap_get_chan_width(struct sap_context *sap_ctx)
 {
 	return wlan_sap_get_vht_ch_width(sap_ctx);

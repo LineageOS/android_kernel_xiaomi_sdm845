@@ -1408,6 +1408,20 @@ static inline QDF_STATUS wlansap_set_dfs_nol(struct sap_context *sap_ctx,
 #endif
 
 /**
+ * wlan_sap_set_dfs_pri_multiplier() - Set dfs_pri_multiplier
+ * @hal:        global hal handle
+ * @val:        value to set
+ *
+ * Return: none
+ */
+#ifdef DFS_PRI_MULTIPLIER
+void wlan_sap_set_dfs_pri_multiplier(tHalHandle hal, uint32_t val);
+#else
+static inline void wlan_sap_set_dfs_pri_multiplier(tHalHandle hal, uint32_t val)
+{
+}
+#endif
+/**
  * wlan_sap_set_vendor_acs() - Set vendor specific acs in sap context
  * @sap_context: SAP context
  * @is_vendor_acs: if vendor specific acs is enabled
