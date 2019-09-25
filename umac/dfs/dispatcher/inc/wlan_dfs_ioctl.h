@@ -52,6 +52,8 @@
 #define DFS_SHOW_PRECAC_LISTS    24
 #define DFS_RESET_PRECAC_LISTS   25
 
+#define DFS_SET_PRI_MULTIPILER   29
+
 /*
  * Spectral IOCTLs use DFS_LAST_IOCTL as the base.
  * This must always be the last IOCTL in DFS and have
