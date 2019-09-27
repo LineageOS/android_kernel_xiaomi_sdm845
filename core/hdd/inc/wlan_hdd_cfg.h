@@ -7308,6 +7308,11 @@ enum hdd_link_speed_rpt_type {
 #define CFG_IPA_LOW_BANDWIDTH_MBPS_MAX           (100)
 #define CFG_IPA_LOW_BANDWIDTH_MBPS_DEFAULT       (100)
 
+#define CFG_IPA_FORCE_VOTING_ENABLE              "gIPAForceVotingEnable"
+#define CFG_IPA_FORCE_VOTING_ENABLE_MIN          (0)
+#define CFG_IPA_FORCE_VOTING_ENABLE_MAX          (1)
+#define CFG_IPA_FORCE_VOTING_ENABLE_DEFAULT      (0)
+
 /*
  * Firmware uart print
  */
@@ -16630,6 +16635,7 @@ struct hdd_config {
 	uint32_t IpaHighBandwidthMbps;
 	uint32_t IpaMediumBandwidthMbps;
 	uint32_t IpaLowBandwidthMbps;
+	bool IpaForceVoting;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	uint32_t WlanMccToSccSwitchMode;
 #endif
