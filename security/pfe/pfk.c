@@ -199,6 +199,8 @@ static inline bool pfk_is_ready(void)
  */
 static struct inode *pfk_bio_get_inode(const struct bio *bio)
 {
+	struct inode *inode;
+
 	if (!bio)
 		return NULL;
 	if (!bio_has_data((struct bio *)bio))
@@ -208,11 +210,9 @@ static struct inode *pfk_bio_get_inode(const struct bio *bio)
 	if (!bio->bi_io_vec->bv_page)
 		return NULL;
 
-	if (PageAnon(bio->bi_io_vec->bv_page)) {
-		struct inode *inode;
-
-		/* Using direct-io (O_DIRECT) without page cache */
-		inode = dio_bio_get_inode((struct bio *)bio);
+	/* Using direct-io (O_DIRECT) without page cache */
+	inode = dio_bio_get_inode((struct bio *)bio);
+	if (inode) {
 		pr_debug("inode on direct-io, inode = 0x%pK.\n", inode);
 
 		return inode;
