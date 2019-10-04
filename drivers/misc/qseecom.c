@@ -4725,7 +4725,6 @@ recheck:
 		strlcpy(entry->app_name, app_name, MAX_APP_NAME_SIZE);
 		if (__qseecom_get_fw_size(app_name, &fw_size, &app_arch)) {
 			ret = -EIO;
-			kfree(entry);
 			goto exit_entry_free;
 		}
 		entry->app_arch = app_arch;
