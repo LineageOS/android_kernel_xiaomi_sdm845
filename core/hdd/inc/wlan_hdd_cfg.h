@@ -575,6 +575,32 @@ enum hdd_dot11_mode {
 #define CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MAX          (60000)
 #define CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_DEFAULT      (20000)
 
+/**
+ * <ini>
+ * gFullRoamScanPeriod - Set full roam scan refresh period
+ * @Min: 0
+ * @Max: 600
+ * @Default: 0
+ *
+ * This ini is used by firmware to set full roam scan period in secs.
+ * Full roam scan period is the minimum idle period in seconds between two
+ * successive full channel roam scans. If this is configured as a non-zero,
+ * full roam scan will be triggered for every configured interval.
+ * If this configured as 0, full roam scan will not be triggered at all.
+ *
+ * Related: None
+ *
+ * Supported Feature: LFR Scan
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_NAME         "gFullRoamScanPeriod"
+#define CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_MIN          (0)
+#define CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_MAX          (600)
+#define CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_DEFAULT      (0)
+
 /*
  * <ini>
  * gEmptyScanRefreshPeriod - Set empty scan refresh period
