@@ -11160,7 +11160,6 @@ QDF_STATUS sme_abort_roam_scan(tHalHandle hHal, uint8_t sessionId)
 	return status;
 }
 
-#ifdef FEATURE_WLAN_EXTSCAN
 /**
  * sme_get_valid_channels_by_band() - to fetch valid channels filtered by band
  * @hHal: HAL context
@@ -11278,6 +11277,7 @@ QDF_STATUS sme_get_valid_channels_by_band(tHalHandle hHal,
 	return status;
 }
 
+#ifdef FEATURE_WLAN_EXTSCAN
 /*
  * sme_ext_scan_get_capabilities() -
  * SME API to fetch extscan capabilities
