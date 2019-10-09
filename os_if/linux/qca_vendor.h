@@ -1338,7 +1338,6 @@ enum qca_wlan_vendor_attr {
 		QCA_WLAN_VENDOR_ATTR_MAX = QCA_WLAN_VENDOR_ATTR_AFTER_LAST - 1
 };
 
-#ifdef FEATURE_WLAN_EXTSCAN
 enum qca_wlan_vendor_attr_extscan_config_params {
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_INVALID = 0,
 
@@ -1753,7 +1752,6 @@ enum qca_wlan_vendor_attr_extscan_results {
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_MAX =
 	QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_AFTER_LAST - 1,
 };
-#endif
 
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 
