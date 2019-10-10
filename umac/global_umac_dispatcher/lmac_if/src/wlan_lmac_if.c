@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -284,6 +284,9 @@ static void wlan_lmac_if_umac_reg_rx_ops_register(
 
 	rx_ops->reg_rx_ops.reg_get_current_regdomain =
 		wlan_reg_get_curr_regdomain;
+
+	rx_ops->reg_rx_ops.reg_ignore_fw_reg_offload_ind =
+		tgt_reg_ignore_fw_reg_offload_ind;
 }
 
 #ifdef CONVERGED_P2P_ENABLE

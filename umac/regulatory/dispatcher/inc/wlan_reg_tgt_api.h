@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -69,4 +69,13 @@ QDF_STATUS tgt_reg_set_11d_offloaded(struct wlan_objmgr_psoc *psoc,
  */
 QDF_STATUS tgt_reg_process_ch_avoid_event(struct wlan_objmgr_psoc *psoc,
 		struct ch_avoid_ind_type *ch_avoid_evnt);
+
+/**
+ * tgt_reg_ignore_fw_reg_offload_ind() - Check whether regdb offload indication
+ * from FW needs to be ignored.
+ *
+ * @psoc: Pointer to psoc
+ */
+bool tgt_reg_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc);
+
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -694,5 +694,22 @@ bool reg_chan_in_range(struct regulatory_channel *chan_list,
 		uint32_t low_freq_5g,
 		uint32_t high_freq_5g,
 		enum channel_enum ch_enum);
+
+/**
+ * reg_set_ignore_fw_reg_offload_ind() - Set if regdb offload indication
+ * needs to be ignored
+ * @psoc: Pointer to psoc
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS reg_set_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * reg_get_ignore_fw_reg_offload_ind() - Check whether regdb offload indication
+ * needs to be ignored
+ *
+ * @psoc: Pointer to psoc
+ */
+bool reg_get_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc);
 
 #endif
