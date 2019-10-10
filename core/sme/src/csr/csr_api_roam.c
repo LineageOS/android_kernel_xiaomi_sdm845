@@ -10064,6 +10064,8 @@ QDF_STATUS csr_roam_save_connected_information(tpAniSirGlobal pMac,
 		pConnectProfile->mcEncryptionType =
 			pProfile->negotiatedMCEncryptionType;
 		pConnectProfile->mcEncryptionInfo = pProfile->mcEncryptionType;
+		pConnectProfile->mgmt_encryption_type =
+				pProfile->mgmt_encryption_type;
 		pConnectProfile->BSSType = pProfile->BSSType;
 		pConnectProfile->modifyProfileFields.uapsd_mask =
 			pProfile->uapsd_mask;
@@ -19864,6 +19866,41 @@ csr_add_ch_lst_from_roam_scan_list(tpAniSirGlobal mac_ctx,
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef WLAN_FEATURE_11W
+/**
+ * csr_rso_command_fill_11w_params() - Fill the 11w related parameters
+ * into the roam buffer
+ * @mac_ctx: Global mac context buffer
+ * @rso_req: RSO command buffer to be filled
+ *
+ * Return: None
+ */
+static void
+csr_rso_command_fill_11w_params(tpAniSirGlobal mac_ctx,
+				uint8_t session_id,
+				tSirRoamOffloadScanReq *rso_req)
+{
+	tSirRoamNetworkType *network_cfg = &rso_req->ConnectedNetwork;
+	tCsrRoamConnectedProfile session_connected_profile =
+			mac_ctx->roam.roamSession[session_id].connectedProfile;
+	tAniEdType group_mgmt_cipher;
+
+	network_cfg->mfp_enabled = session_connected_profile.MFPEnabled;
+	group_mgmt_cipher = session_connected_profile.mgmt_encryption_type;
+	if (network_cfg->mfp_enabled)
+		network_cfg->gp_mgmt_cipher_suite = group_mgmt_cipher;
+	else
+		network_cfg->gp_mgmt_cipher_suite = eSIR_ED_NONE;
+}
+
+#else
+static inline
+void csr_rso_command_fill_11w_params(tpAniSirGlobal mac_ctx,
+				     uint8_t session_id,
+				     tSirRoamOffloadScanReq *rso_req)
+{}
+#endif
+
 /**
  * csr_create_roam_scan_offload_request() - init roam offload scan request
  *
@@ -19955,10 +19992,9 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		connectedProfile.mcEncryptionType;
 	/* Copy the RSN capabilities in roam offload request from session*/
 	req_buf->rsn_caps = session->rsn_caps;
-#ifdef WLAN_FEATURE_11W
-	req_buf->ConnectedNetwork.mfp_enabled =
-	    mac_ctx->roam.roamSession[session_id].connectedProfile.MFPEnabled;
-#endif
+
+	csr_rso_command_fill_11w_params(mac_ctx, session_id, req_buf);
+
 	req_buf->delay_before_vdev_stop =
 		roam_info->cfgParams.delay_before_vdev_stop;
 	req_buf->OpportunisticScanThresholdDiff =
