@@ -16233,6 +16233,38 @@ enum hdd_external_acs_policy {
 #define CFG_ENABLE_RTT_SUPPORT_MAX        (1)
 
 /*
+ * <ini>
+ * ignore_fw_reg_offload_ind - If set, Ignore the FW offload indication
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to ignore regdb offload indication from FW and
+ * regulatory will be treated as non offload.
+ * There is a case where FW is sending the offload indication in
+ * service ready event but not sending the cc list event
+ * WMI_REG_CHAN_LIST_CC_EVENTID and because of this driver is not
+ * able to populate the channel list. To address this issue, this ini
+ * is added. If this ini is enabled, regulatory will always be treated as
+ * non offload solution.
+ *
+ * This ini should only be enabled to circumvent the above mentioned firmware
+ * bug.
+ *
+ * Related: None
+ *
+ * Supported Feature: STA/AP
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_IGNORE_FW_REG_OFFLOAD_IND            "ignore_fw_reg_offload_ind"
+#define CFG_IGNORE_FW_REG_OFFLOAD_IND_DEFAULT    (0)
+#define CFG_IGNORE_FW_REG_OFFLOAD_IND_MIN        (0)
+#define CFG_IGNORE_FW_REG_OFFLOAD_IND_MAX        (1)
+
+/*
  * Type declarations
  */
 
@@ -17204,6 +17236,8 @@ struct hdd_config {
 	uint32_t bss_load_sample_time;
 
 	bool enable_beacon_reception_stats;
+
+	bool ignore_fw_reg_offload_ind;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

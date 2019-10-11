@@ -5968,6 +5968,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_RTT_SUPPORT_DEFAULT,
 		     CFG_ENABLE_RTT_SUPPORT_MIN,
 		     CFG_ENABLE_RTT_SUPPORT_MAX),
+
+	REG_VARIABLE(CFG_IGNORE_FW_REG_OFFLOAD_IND, WLAN_PARAM_Integer,
+		     struct hdd_config, ignore_fw_reg_offload_ind,
+		     VAR_FLAGS_OPTIONAL,
+		     CFG_IGNORE_FW_REG_OFFLOAD_IND_DEFAULT,
+		     CFG_IGNORE_FW_REG_OFFLOAD_IND_MIN,
+		     CFG_IGNORE_FW_REG_OFFLOAD_IND_MAX),
 };
 
 
@@ -8004,6 +8011,10 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_cfg_print_action_oui(hdd_ctx);
 	hdd_cfg_print_btc_params(hdd_ctx);
 	hdd_cfg_print_roam_preauth(hdd_ctx);
+
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_IGNORE_FW_REG_OFFLOAD_IND,
+		  hdd_ctx->config->ignore_fw_reg_offload_ind);
 }
 
 /**
