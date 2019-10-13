@@ -6992,6 +6992,8 @@ QDF_STATUS sme_set_roam_scan_control(tHalHandle hHal, uint8_t sessionId,
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tCsrChannelInfo *specific_channel_info;
+	tCsrNeighborRoamControlInfo *neighbor_roam_info;
 
 	MTRACE(qdf_trace(QDF_MODULE_ID_SME,
 			 TRACE_CODE_SME_RX_HDD_SET_SCANCTRL, NO_SESSION, 0));
@@ -7003,29 +7005,32 @@ QDF_STATUS sme_set_roam_scan_control(tHalHandle hHal, uint8_t sessionId,
 	}
 
 	status = sme_acquire_global_lock(&pMac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "LFR runtime successfully set roam scan control to %d - old value is %d - roam state is %s",
-			  roamScanControl,
-			  pMac->roam.configParam.nRoamScanControl,
-			  mac_trace_get_neighbour_roam_state(pMac->roam.
-							     neighborRoamInfo
-							     [sessionId].
-							    neighborRoamState));
-		pMac->roam.configParam.nRoamScanControl = roamScanControl;
-		if (0 == roamScanControl) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-				  "LFR runtime successfully cleared roam scan cache");
-			csr_flush_cfg_bg_scan_roam_channel_list(pMac,
-								sessionId);
-			if (pMac->roam.configParam.isRoamOffloadScanEnabled) {
-				csr_roam_offload_scan(pMac, sessionId,
-						   ROAM_SCAN_OFFLOAD_UPDATE_CFG,
-						     REASON_FLUSH_CHANNEL_LIST);
-			}
-		}
-		sme_release_global_lock(&pMac->sme);
+	if (QDF_IS_STATUS_ERROR(status))
+		return status;
+	neighbor_roam_info = &pMac->roam.neighborRoamInfo[sessionId];
+	sme_debug("LFR runtime successfully set roam scan control to %d - old value is %d - roam state is %s",
+		  roamScanControl,
+		  pMac->roam.configParam.nRoamScanControl,
+		  mac_trace_get_neighbour_roam_state(
+			neighbor_roam_info->neighborRoamState));
+	if (!roamScanControl && pMac->roam.configParam.nRoamScanControl) {
+		/**
+		 * Clear the specific channel info cache when roamScanControl
+		 * is set to 0. If any preffered channel list is configured,
+		 * that will be sent to firmware for further roam scans.
+		 */
+		sme_debug("LFR runtime successfully cleared roam scan cache");
+		specific_channel_info =
+			&neighbor_roam_info->cfgParams.specific_chan_info;
+		csr_flush_cfg_bg_scan_roam_channel_list(specific_channel_info);
+		if (pMac->roam.configParam.isRoamOffloadScanEnabled)
+			csr_roam_offload_scan(pMac, sessionId,
+					      ROAM_SCAN_OFFLOAD_UPDATE_CFG,
+					      REASON_FLUSH_CHANNEL_LIST);
 	}
+	pMac->roam.configParam.nRoamScanControl = roamScanControl;
+	sme_release_global_lock(&pMac->sme);
+
 	return status;
 }
 
@@ -8223,7 +8228,7 @@ uint8_t sme_get_roam_rssi_diff(tHalHandle hHal)
  * sme_change_roam_scan_channel_list() - to change scan channel list
  * @hHal: pointer HAL handle returned by mac_open
  * @sessionId: sme session id
- * @pChannelList: Output channel list
+ * @channel_list: Output channel list
  * @numChannels: Output number of channels
  *
  * This routine is called to Change roam scan channel list.
@@ -8232,7 +8237,7 @@ uint8_t sme_get_roam_rssi_diff(tHalHandle hHal)
  * Return: QDF_STATUS
  */
 QDF_STATUS sme_change_roam_scan_channel_list(tHalHandle hHal, uint8_t sessionId,
-					     uint8_t *pChannelList,
+					     uint8_t *channel_list,
 					     uint8_t numChannels)
 {
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -8255,7 +8260,7 @@ QDF_STATUS sme_change_roam_scan_channel_list(tHalHandle hHal, uint8_t sessionId,
 		sme_err("Failed to acquire SME lock");
 		return status;
 	}
-	chan_info = &pNeighborRoamInfo->cfgParams.channelInfo;
+	chan_info = &pNeighborRoamInfo->cfgParams.specific_chan_info;
 
 	if (NULL != chan_info->ChannelList) {
 		for (i = 0; i < chan_info->numOfChannels; i++) {
@@ -8268,9 +8273,9 @@ QDF_STATUS sme_change_roam_scan_channel_list(tHalHandle hHal, uint8_t sessionId,
 				break;
 		}
 	}
-	csr_flush_cfg_bg_scan_roam_channel_list(pMac, sessionId);
-	csr_create_bg_scan_roam_channel_list(pMac, sessionId, pChannelList,
-			numChannels);
+	csr_flush_cfg_bg_scan_roam_channel_list(chan_info);
+	csr_create_bg_scan_roam_channel_list(pMac, chan_info, channel_list,
+					     numChannels);
 	sme_set_roam_scan_control(hHal, sessionId, 1);
 	if (NULL != chan_info->ChannelList) {
 		j = 0;
@@ -8318,6 +8323,7 @@ QDF_STATUS sme_get_roam_scan_channel_list(tHalHandle hHal,
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo = NULL;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tCsrChannelInfo *specific_chan_info;
 
 	if (sessionId >= CSR_ROAM_SESSION_MAX) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -8329,7 +8335,8 @@ QDF_STATUS sme_get_roam_scan_channel_list(tHalHandle hHal,
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		return status;
-	if (NULL == pNeighborRoamInfo->cfgParams.channelInfo.ChannelList) {
+	specific_chan_info = &pNeighborRoamInfo->cfgParams.specific_chan_info;
+	if (!specific_chan_info->ChannelList) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_WARN,
 			FL("Roam Scan channel list is NOT yet initialized"));
 		*pNumChannels = 0;
@@ -8337,10 +8344,10 @@ QDF_STATUS sme_get_roam_scan_channel_list(tHalHandle hHal,
 		return status;
 	}
 
-	*pNumChannels = pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels;
+	*pNumChannels = specific_chan_info->numOfChannels;
 	for (i = 0; i < (*pNumChannels); i++)
 		pOutPtr[i] =
-			pNeighborRoamInfo->cfgParams.channelInfo.ChannelList[i];
+		pNeighborRoamInfo->cfgParams.specific_chan_info.ChannelList[i];
 
 	pOutPtr[i] = '\0';
 	sme_release_global_lock(&pMac->sme);
