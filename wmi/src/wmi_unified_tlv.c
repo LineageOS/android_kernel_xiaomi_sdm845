@@ -15922,6 +15922,8 @@ static QDF_STATUS send_roam_scan_offload_ap_profile_cmd_tlv(wmi_unified_t wmi_ha
  * @scan_period: scan period
  * @scan_age: scan age
  * @vdev_id: vdev id
+ * @full_scan_period: Full scan period is the idle period in seconds
+ *		      between two successive full channel roam scans.
  *
  * Send WMI_ROAM_SCAN_PERIOD parameters to fw.
  *
@@ -15930,7 +15932,8 @@ static QDF_STATUS send_roam_scan_offload_ap_profile_cmd_tlv(wmi_unified_t wmi_ha
 static QDF_STATUS send_roam_scan_offload_scan_period_cmd_tlv(wmi_unified_t wmi_handle,
 					     uint32_t scan_period,
 					     uint32_t scan_age,
-					     uint32_t vdev_id)
+					     uint32_t vdev_id,
+					     uint32_t full_scan_period)
 {
 	QDF_STATUS status;
 	wmi_buf_t buf = NULL;
@@ -15954,8 +15957,14 @@ static QDF_STATUS send_roam_scan_offload_scan_period_cmd_tlv(wmi_unified_t wmi_h
 			       (wmi_roam_scan_period_fixed_param));
 	/* fill in scan period values */
 	scan_period_fp->vdev_id = vdev_id;
-	scan_period_fp->roam_scan_period = scan_period; /* 20 seconds */
+	scan_period_fp->roam_scan_period = scan_period;
 	scan_period_fp->roam_scan_age = scan_age;
+
+	/* Firmware expects the full scan preriod in msec whereas host
+	 * provides the same in seconds.
+	 * Convert it to msec and send to firmware
+	 */
+	scan_period_fp->roam_full_scan_period = full_scan_period * 1000;
 
 	wmi_mtrace(WMI_ROAM_SCAN_PERIOD, NO_SESSION, 0);
 	status = wmi_unified_cmd_send(wmi_handle, buf,
@@ -15966,8 +15975,8 @@ static QDF_STATUS send_roam_scan_offload_scan_period_cmd_tlv(wmi_unified_t wmi_h
 		goto error;
 	}
 
-	WMI_LOGI("%s: WMI --> WMI_ROAM_SCAN_PERIOD roam_scan_period=%d, roam_scan_age=%d",
-		__func__, scan_period, scan_age);
+	WMI_LOGI("%s: WMI --> WMI_ROAM_SCAN_PERIOD roam_scan_period=%d, roam_scan_age=%d, full_scan_period= %u",
+		__func__, scan_period, scan_age, full_scan_period);
 	return QDF_STATUS_SUCCESS;
 error:
 	wmi_buf_free(buf);
