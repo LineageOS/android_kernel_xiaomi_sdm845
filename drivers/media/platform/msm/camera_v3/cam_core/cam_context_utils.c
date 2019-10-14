@@ -462,6 +462,17 @@ int32_t cam_context_prepare_dev_to_hw(struct cam_context *ctx,
 				ctx->dev_name, ctx->ctx_id, req->request_id);
 
 		for (j = 0; j < req->num_in_map_entries; j++) {
+			rc = cam_sync_check_valid(
+				req->in_map_entries[j].sync_id);
+			if (rc) {
+				CAM_ERR(CAM_CTXT,
+					"invalid in map sync object %d",
+					req->in_map_entries[j].sync_id);
+				goto put_ref;
+			}
+		}
+
+		for (j = 0; j < req->num_in_map_entries; j++) {
 			cam_context_getref(ctx);
 			rc = cam_sync_register_callback(
 					cam_context_sync_callback,
@@ -482,7 +493,9 @@ int32_t cam_context_prepare_dev_to_hw(struct cam_context *ctx,
 						ctx->dev_name, ctx->ctx_id,
 						req->request_id);
 
-				goto put_ctx_ref;
+				cam_context_putref(ctx);
+				goto put_ref;
+
 			}
 			CAM_DBG(CAM_CTXT, "register in fence cb: %d ret = %d",
 				req->in_map_entries[j].sync_id, rc);
@@ -491,9 +504,6 @@ int32_t cam_context_prepare_dev_to_hw(struct cam_context *ctx,
 	}
 
 	return rc;
-put_ctx_ref:
-	for (--j; j >= 0; j--)
-		cam_context_putref(ctx);
 put_ref:
 	for (--i; i >= 0; i--) {
 		rc = cam_sync_put_obj_ref(req->out_map_entries[i].sync_id);
@@ -1027,5 +1037,45 @@ int32_t cam_context_dump_pf_info_to_hw(struct cam_context *ctx,
 	}
 
 end:
+	return rc;
+}
+
+int32_t cam_context_dump_dev_to_hw(struct cam_context *ctx,
+	struct cam_dump_req_cmd *cmd)
+{
+	int rc = 0;
+	struct cam_hw_dump_args dump_args;
+
+	if (!ctx || !cmd) {
+		CAM_ERR(CAM_CTXT, "Invalid input params %pK %pK", ctx, cmd);
+		return -EINVAL;
+	}
+	if (!ctx->hw_mgr_intf) {
+		CAM_ERR(CAM_CTXT, "[%s][%d] HW interface is not ready",
+			ctx->dev_name, ctx->ctx_id);
+		return -EFAULT;
+	}
+	memset(&dump_args, 0, sizeof(dump_args));
+	if (ctx->hw_mgr_intf->hw_dump) {
+		dump_args.ctxt_to_hw_map = ctx->ctxt_to_hw_map;
+		dump_args.buf_handle = cmd->buf_handle;
+		dump_args.offset = cmd->offset;
+		dump_args.request_id = cmd->issue_req_id;
+		rc  = ctx->hw_mgr_intf->hw_dump(
+			ctx->hw_mgr_intf->hw_mgr_priv,
+			&dump_args);
+		if (rc) {
+			CAM_ERR(CAM_CTXT, "[%s][%d] handle[%u] failed",
+			    ctx->dev_name, ctx->ctx_id, dump_args.buf_handle);
+			return rc;
+		}
+		CAM_INFO(CAM_CTXT, "[%s] ctx: %d Filled Length %d",
+		    ctx->dev_name, ctx->ctx_id,
+		    dump_args.offset - cmd->offset);
+		/* Drivers update offest upto which the buffer is written*/
+		cmd->offset  = dump_args.offset;
+	} else {
+		CAM_INFO(CAM_CTXT, "%s hw dump not registered", ctx->dev_name);
+	}
 	return rc;
 }
