@@ -106,17 +106,16 @@ QDF_STATUS ucfg_reg_get_current_cc(struct wlan_objmgr_pdev *pdev,
 	return reg_get_current_cc(pdev, rd);
 }
 
-/**
- * ucfg_reg_set_band() - Sets the band information for the PDEV
- * @pdev: The physical pdev to set the band for
- * @band: The set band parameter to configure for the pysical device
- *
- * Return: QDF_STATUS
- */
 QDF_STATUS ucfg_reg_set_band(struct wlan_objmgr_pdev *pdev,
 			     enum band_info band)
 {
 	return reg_set_band(pdev, band);
+}
+
+QDF_STATUS ucfg_reg_get_band(struct wlan_objmgr_pdev *pdev,
+			     enum band_info *band)
+{
+	return reg_get_band(pdev, band);
 }
 
 /**

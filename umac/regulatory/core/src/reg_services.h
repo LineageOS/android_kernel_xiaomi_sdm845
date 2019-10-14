@@ -149,6 +149,15 @@ void reg_set_channel_params(struct wlan_objmgr_pdev *pdev,
 QDF_STATUS reg_set_band(struct wlan_objmgr_pdev *pdev, enum band_info band);
 
 /**
+ * reg_get_band() - Get the band information for the PDEV
+ * @pdev: The physical dev to get the band for
+ * @band: The band parameters of the physical device
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS reg_get_band(struct wlan_objmgr_pdev *pdev, enum band_info *band);
+
+/**
  * reg_restore_cached_channels() - Cache the current state of the channles
  * @pdev: The physical dev to cache the channels for
  */

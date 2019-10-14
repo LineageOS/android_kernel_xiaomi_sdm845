@@ -294,11 +294,6 @@ static QDF_STATUS tdls_process_reset_all_peers(struct wlan_objmgr_vdev *vdev)
 		return status;
 	}
 
-	if (!tdls_soc->connected_peer_count) {
-		tdls_debug("No tdls connected peers");
-		return status;
-	}
-
 	reset_session_id = tdls_vdev->session_id;
 	for (staidx = 0; staidx < tdls_soc->max_num_tdls_sta;
 							staidx++) {
@@ -794,6 +789,11 @@ tdls_process_decrement_active_session(struct wlan_objmgr_psoc *psoc)
 	if (!psoc)
 		return QDF_STATUS_E_NULL_VALUE;
 
+	if(!policy_mgr_is_hw_dbs_2x2_capable(psoc) &&
+	   policy_mgr_is_current_hwmode_dbs(psoc)) {
+		tdls_err("Current HW mode is 1*1 DBS. Wait for Opportunistic timer to expire to enable TDLS in FW");
+		return QDF_STATUS_SUCCESS;
+	}
 	tdls_obj_vdev = tdls_get_vdev(psoc, WLAN_TDLS_NB_ID);
 	if (tdls_obj_vdev) {
 		tdls_debug("Enable TDLS in FW and host as only one active sta/p2p_cli interface is present");
