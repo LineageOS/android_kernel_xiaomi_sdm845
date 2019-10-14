@@ -738,6 +738,8 @@ typedef struct sAniSirLim {
 	wlan_scan_requester req_id;
 	bool global_obss_offload_enabled;
 	bool global_obss_color_collision_det_offload;
+	QDF_STATUS (*sme_bcn_rcv_callback)(hdd_handle_t hdd_handle,
+				struct wlan_beacon_report *beacon_report);
 } tAniSirLim, *tpAniSirLim;
 
 struct mgmt_frm_reg_info {

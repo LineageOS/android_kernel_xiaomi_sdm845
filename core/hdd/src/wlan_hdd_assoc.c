@@ -61,6 +61,7 @@
 #include "wlan_p2p_ucfg_api.h"
 #include "wlan_ipa_ucfg_api.h"
 #include "wlan_hdd_scan.h"
+#include "wlan_hdd_bcn_recv.h"
 
 #include "wlan_hdd_nud_tracking.h"
 /* These are needed to recognize WPA and RSN suite types */
@@ -133,7 +134,6 @@ uint8_t ccp_rsn_oui_90[HDD_RSN_OUI_SIZE] = {0x00, 0x0F, 0xAC, 0x09};
 #define FT_ASSOC_RSP_IES_OFFSET 6  /* Capability(2) + AID(2) + Status Code(2) */
 #define FT_ASSOC_REQ_IES_OFFSET 4  /* Capability(2) + LI(2) */
 
-#define BEACON_FRAME_IES_OFFSET 12
 #define HDD_PEER_AUTHORIZE_WAIT 10
 
 /**
@@ -442,13 +442,7 @@ static int hdd_remove_beacon_filter(struct hdd_adapter *adapter)
 	return 0;
 }
 
-/**
- * hdd_add_beacon_filter() - add beacon filter
- * @adapter: Pointer to the hdd adapter
- *
- * Return: 0 on success and errno on failure
- */
-static int hdd_add_beacon_filter(struct hdd_adapter *adapter)
+int hdd_add_beacon_filter(struct hdd_adapter *adapter)
 {
 	int i;
 	uint32_t ie_map[SIR_BCN_FLT_MAX_ELEMS_IE_LIST] = {0};
@@ -1811,8 +1805,15 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 	mac_handle = hdd_ctx->mac_handle;
 	sme_ft_reset(mac_handle, adapter->session_id);
 	sme_reset_key(mac_handle, adapter->session_id);
-	if (hdd_remove_beacon_filter(adapter) != 0)
-		hdd_err("hdd_remove_beacon_filter() failed");
+	if (!hdd_remove_beacon_filter(adapter)) {
+		if (sme_is_beacon_report_started(mac_handle,
+						 adapter->session_id)) {
+			hdd_beacon_recv_pause_indication((hdd_handle_t)hdd_ctx,
+							 adapter->session_id,
+							 SCAN_EVENT_TYPE_MAX,
+							 true);
+		}
+	}
 
 	if (eCSR_ROAM_IBSS_LEAVE == roamStatus) {
 		uint8_t i;

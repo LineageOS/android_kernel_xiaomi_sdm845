@@ -642,12 +642,21 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
- * wake_lock_in_user_scan - use wake lock during user scan
+ * wake_lock_in_user_scan - use to acquire wake lock during user scan
  * @Min: 0
  * @Max: 1
  * @Default: 0
  *
  * This ini is used to define if wake lock is held used during user scan req
+ * This INI is added for a specific OEM on their request, who don’t want to
+ * use PNO offload scan (sched scans). This is useful only if PNO scan offload
+ * is disabled. If PNO scan is enabled this INI should be disabled and its
+ * by default disabled intentionally.
+ * This is used to acquire wake lock to handle the case where PNO scan offload
+ * is disabled so that wlan is not suspended during scan before connect and
+ * thus scan is not aborted in between. In case PNO scan is offloaded, the FW
+ * will take care of connect scans and will wake up host when candidate is found
+ *
  *
  * Related: Scan
  *
@@ -7299,6 +7308,11 @@ enum hdd_link_speed_rpt_type {
 #define CFG_IPA_LOW_BANDWIDTH_MBPS_MAX           (100)
 #define CFG_IPA_LOW_BANDWIDTH_MBPS_DEFAULT       (100)
 
+#define CFG_IPA_FORCE_VOTING_ENABLE              "gIPAForceVotingEnable"
+#define CFG_IPA_FORCE_VOTING_ENABLE_MIN          (0)
+#define CFG_IPA_FORCE_VOTING_ENABLE_MAX          (1)
+#define CFG_IPA_FORCE_VOTING_ENABLE_DEFAULT      (0)
+
 /*
  * Firmware uart print
  */
@@ -8240,6 +8254,63 @@ enum hdd_link_speed_rpt_type {
 #define CFG_WLAN_LOGGING_CONSOLE_SUPPORT_ENABLE  (1)
 #define CFG_WLAN_LOGGING_CONSOLE_SUPPORT_DISABLE (0)
 #define CFG_WLAN_LOGGING_CONSOLE_SUPPORT_DEFAULT (1)
+
+/*
+ * <ini>
+ * host_log_custom_nl_proto - Host log netlink protocol
+ * @Min: 0
+ * @Max: 32
+ * @Default: 2
+ *
+ * This ini is used to set host log netlink protocol. The default
+ * value is 2 (NETLINK_USERSOCK), customer should avoid selecting the
+ * netlink protocol that already used on their platform by other
+ * applications or services. By choosing the non-default value(2),
+ * Customer need to change the netlink protocol of application receive
+ * tool(cnss_diag) accordingly. Available values could be:
+ *
+ * host_log_custom_nl_proto = 0 -	NETLINK_ROUTE, Routing/device hook
+ * host_log_custom_nl_proto = 1 -	NETLINK_UNUSED, Unused number
+ * host_log_custom_nl_proto = 2 -	NETLINK_USERSOCK, Reserved for user
+ *					mode socket protocols
+ * host_log_custom_nl_proto = 3 -	NETLINK_FIREWALL, Unused number,
+ *					formerly ip_queue
+ * host_log_custom_nl_proto = 4 -	NETLINK_SOCK_DIAG, socket monitoring
+ * host_log_custom_nl_proto = 5 -	NETLINK_NFLOG, netfilter/iptables ULOG
+ * host_log_custom_nl_proto = 6 -	NETLINK_XFRM, ipsec
+ * host_log_custom_nl_proto = 7 -	NETLINK_SELINUX, SELinux event
+ *					notifications
+ * host_log_custom_nl_proto = 8 -	NETLINK_ISCSI, Open-iSCSI
+ * host_log_custom_nl_proto = 9 -	NETLINK_AUDIT, auditing
+ * host_log_custom_nl_proto = 10 -	NETLINK_FIB_LOOKUP
+ * host_log_custom_nl_proto = 11 -	NETLINK_CONNECTOR
+ * host_log_custom_nl_proto = 12 -	NETLINK_NETFILTER, netfilter subsystem
+ * host_log_custom_nl_proto = 13 -	NETLINK_IP6_FW
+ * host_log_custom_nl_proto = 14 -	NETLINK_DNRTMSG, DECnet routing messages
+ * host_log_custom_nl_proto = 15 -	NETLINK_KOBJECT_UEVENT, Kernel
+ *					messages to userspace
+ * host_log_custom_nl_proto = 16 -	NETLINK_GENERIC, leave room for
+ *					NETLINK_DM (DM Events)
+ * host_log_custom_nl_proto = 18 -	NETLINK_SCSITRANSPORT, SCSI Transports
+ * host_log_custom_nl_proto = 19 -	NETLINK_ECRYPTFS
+ * host_log_custom_nl_proto = 20 -	NETLINK_RDMA
+ * host_log_custom_nl_proto = 21 -	NETLINK_CRYPTO, Crypto layer
+ * host_log_custom_nl_proto = 22 -	NETLINK_SMC, SMC monitoring
+ *
+ * The max value is: MAX_LINKS which is 32
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_HOST_LOG_CUSTOM_NETLINK_PROTO    "host_log_custom_nl_proto"
+#define CFG_HOST_LOG_CUSTOM_NETLINK_PROTO_MIN           (0)
+#define CFG_HOST_LOG_CUSTOM_NETLINK_PROTO_MAX           (32)
+#define CFG_HOST_LOG_CUSTOM_NETLINK_PROTO_DEFAULT       (2)
 #endif /* WLAN_LOGGING_SOCK_SVC_ENABLE */
 
 #ifdef WLAN_FEATURE_LPSS
@@ -16564,6 +16635,7 @@ struct hdd_config {
 	uint32_t IpaHighBandwidthMbps;
 	uint32_t IpaMediumBandwidthMbps;
 	uint32_t IpaLowBandwidthMbps;
+	bool IpaForceVoting;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	uint32_t WlanMccToSccSwitchMode;
 #endif
@@ -16678,6 +16750,7 @@ struct hdd_config {
 	/* WLAN Logging */
 	bool wlan_logging_enable;
 	bool wlan_logging_to_console;
+	uint8_t host_log_custom_nl_proto;
 #endif /* WLAN_LOGGING_SOCK_SVC_ENABLE */
 
 #ifdef WLAN_FEATURE_LPSS

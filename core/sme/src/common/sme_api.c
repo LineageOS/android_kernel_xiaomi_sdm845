@@ -1243,6 +1243,26 @@ QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal)
 	return status;
 }
 
+#ifdef WLAN_BCN_RECV_FEATURE
+QDF_STATUS
+sme_register_bcn_report_pe_cb(mac_handle_t mac_handle, beacon_report_cb cb)
+{
+	struct scheduler_msg msg = {0};
+	QDF_STATUS status;
+
+	msg.type = WNI_SME_REGISTER_BCN_REPORT_SEND_CB;
+	msg.callback = cb;
+
+	status = scheduler_post_message(QDF_MODULE_ID_SME,
+					QDF_MODULE_ID_PE,
+					QDF_MODULE_ID_PE, &msg);
+	if (QDF_IS_STATUS_ERROR(status))
+		sme_err("Failed to post message to LIM");
+
+	return status;
+}
+#endif
+
 QDF_STATUS sme_get_valid_channels(uint8_t *chan_list, uint32_t *list_len)
 {
 	tpAniSirGlobal mac_ctx = sme_get_mac_context();
@@ -13723,6 +13743,128 @@ QDF_STATUS sme_update_mimo_power_save(tHalHandle hal,
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef WLAN_BCN_RECV_FEATURE
+QDF_STATUS sme_handle_bcn_recv_start(mac_handle_t mac_handle,
+				     uint32_t vdev_id, uint32_t nth_value,
+				     bool do_not_resume)
+{
+	struct sAniSirGlobal *mac_ctx = MAC_CONTEXT(mac_handle);
+	struct csr_roam_session *session;
+	QDF_STATUS status;
+	int ret;
+
+	if (!CSR_IS_SESSION_VALID(mac_ctx, vdev_id)) {
+		sme_err("CSR session not valid: %d", vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	session = CSR_GET_SESSION(mac_ctx, vdev_id);
+	if (!session) {
+		sme_err("vdev_id %d not found", vdev_id);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		if (session->is_bcn_recv_start) {
+			sme_release_global_lock(&mac_ctx->sme);
+			sme_err("Beacon receive already started");
+			return QDF_STATUS_SUCCESS;
+		}
+		session->is_bcn_recv_start = true;
+		session->beacon_report_do_not_resume = do_not_resume;
+		sme_release_global_lock(&mac_ctx->sme);
+	}
+
+	/*
+	 * Allows fw to send beacons of connected AP to driver.
+	 * MSB set : means fw do not wakeup host in wow mode
+	 * LSB set: Value of beacon report period (say n), Means fw sends nth
+	 * beacons of connected AP to HOST
+	 */
+	ret = sme_cli_set_command(vdev_id,
+				  WMI_VDEV_PARAM_NTH_BEACON_TO_HOST,
+				  nth_value, VDEV_CMD);
+	if (ret) {
+		status = sme_acquire_global_lock(&mac_ctx->sme);
+		if (QDF_IS_STATUS_SUCCESS(status)) {
+			session->is_bcn_recv_start = false;
+			session->beacon_report_do_not_resume = false;
+			sme_release_global_lock(&mac_ctx->sme);
+		}
+		sme_err("WMI_VDEV_PARAM_NTH_BEACON_TO_HOST %d", ret);
+		status = qdf_status_from_os_return(ret);
+	}
+
+	return status;
+}
+
+void sme_stop_beacon_report(mac_handle_t mac_handle, uint32_t session_id)
+{
+	struct sAniSirGlobal *mac_ctx = MAC_CONTEXT(mac_handle);
+	struct csr_roam_session *session;
+	QDF_STATUS status;
+	int ret;
+
+	session = CSR_GET_SESSION(mac_ctx, session_id);
+	if (!session) {
+		sme_err("vdev_id %d not found", session_id);
+		return;
+	}
+
+	ret = sme_cli_set_command(session_id,
+				  WMI_VDEV_PARAM_NTH_BEACON_TO_HOST, 0,
+				  VDEV_CMD);
+	if (ret)
+		sme_err("WMI_VDEV_PARAM_NTH_BEACON_TO_HOST command failed to FW");
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		session->is_bcn_recv_start = false;
+		session->beacon_report_do_not_resume = false;
+		sme_release_global_lock(&mac_ctx->sme);
+	}
+}
+
+bool sme_is_beacon_report_started(mac_handle_t mac_handle, uint32_t session_id)
+{
+	struct sAniSirGlobal *mac_ctx = MAC_CONTEXT(mac_handle);
+	struct csr_roam_session *session;
+
+	session = CSR_GET_SESSION(mac_ctx, session_id);
+	if (!session) {
+		sme_err("vdev_id %d not found", session_id);
+		return false;
+	}
+
+	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
+		sme_err("CSR session not valid: %d", session_id);
+		return false;
+	}
+
+	return session->is_bcn_recv_start;
+}
+
+bool sme_is_beacon_reporting_do_not_resume(mac_handle_t mac_handle,
+					   uint32_t session_id)
+{
+	struct sAniSirGlobal *mac_ctx = MAC_CONTEXT(mac_handle);
+	struct csr_roam_session *session;
+
+	session = CSR_GET_SESSION(mac_ctx, session_id);
+	if (!session) {
+		sme_err("vdev_id %d not found", session_id);
+		return false;
+	}
+
+	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
+		sme_err("CSR session not valid: %d", session_id);
+		return false;
+	}
+
+	return session->beacon_report_do_not_resume;
+}
+#endif
+
 /**
  * sme_is_sta_smps_allowed() - check if the supported nss for
  * the session is greater than 1x1 to enable sta SMPS
@@ -16197,3 +16339,73 @@ sme_get_mws_coex_info(mac_handle_t mac_handle, uint32_t vdev_id,
 	return status;
 }
 #endif /* WLAN_MWS_INFO_DEBUGFS */
+
+#ifdef WLAN_BCN_RECV_FEATURE
+/**
+ * sme_scan_event_handler() - Scan complete event handler
+ * @vdev: vdev obj manager
+ * @event: scan event
+ * @arg: arg of scan event
+ *
+ * This function is getting called after Host receive scan start
+ *
+ * Return: None
+ */
+static void sme_scan_event_handler(struct wlan_objmgr_vdev *vdev,
+				   struct scan_event *event,
+				   void *arg)
+{
+	struct sAniSirGlobal *mac = arg;
+	struct csr_roam_session *session;
+
+	if (!mac) {
+		sme_err("Invalid mac context");
+		return;
+	}
+
+	if (!CSR_IS_SESSION_VALID(mac, vdev->vdev_objmgr.vdev_id)) {
+		sme_err("Invalid vdev_id: %d", vdev->vdev_objmgr.vdev_id);
+		return;
+	}
+
+	session = CSR_GET_SESSION(mac, vdev->vdev_objmgr.vdev_id);
+
+	if (event->type == SCAN_EVENT_TYPE_STARTED) {
+		if (mac->sme.beacon_pause_cb)
+			mac->sme.beacon_pause_cb(mac->hdd_handle,
+				vdev->vdev_objmgr.vdev_id, event->type, false);
+	}
+}
+
+QDF_STATUS sme_register_bcn_recv_pause_ind_cb(mac_handle_t mac_handle,
+					      beacon_pause_cb cb)
+{
+	QDF_STATUS status;
+	struct sAniSirGlobal *mac = MAC_CONTEXT(mac_handle);
+
+	if (!mac) {
+		sme_err("Invalid mac context");
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	/* scan event de-registration */
+	if (!cb) {
+		ucfg_scan_unregister_event_handler(mac->pdev,
+						   sme_scan_event_handler, mac);
+		return QDF_STATUS_SUCCESS;
+	}
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		mac->sme.beacon_pause_cb = cb;
+		sme_release_global_lock(&mac->sme);
+	}
+
+	/* scan event registration */
+	status = ucfg_scan_register_event_handler(mac->pdev,
+						  sme_scan_event_handler, mac);
+	if (QDF_IS_STATUS_ERROR(status))
+		sme_err("scan event register failed ");
+
+	return status;
+}
+#endif

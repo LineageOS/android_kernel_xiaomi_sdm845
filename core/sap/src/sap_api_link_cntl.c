@@ -1247,9 +1247,11 @@ void sap_scan_event_callback(struct wlan_objmgr_vdev *vdev,
 {
 	uint32_t scan_id;
 	uint8_t session_id;
+	QDF_STATUS status;
 	bool success = false;
 	eCsrScanStatus scan_status = eCSR_SCAN_FAILURE;
 	tHalHandle hal_handle;
+	struct sap_context *sap_ctx = arg;
 
 	session_id = wlan_vdev_get_id(vdev);
 	scan_id = event->scan_id;
@@ -1260,6 +1262,22 @@ void sap_scan_event_callback(struct wlan_objmgr_vdev *vdev,
 		return;
 	}
 
+	/*
+	 * It may happen that the SAP was deleted before the scan
+	 * cb was called. Here the sap context which was passed as an
+	 * arg to the ACS cb is used after free then, and there is no way
+	 * currently to validate the pointer. Now try get vdev ref before
+	 * the weight calculation algo kicks in, and return if the
+	 * reference cannot be taken to avoid use after free for SAP-context
+	 */
+	status = wlan_objmgr_vdev_try_get_ref(vdev, WLAN_LEGACY_MAC_ID);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Hotspot fail, vdev ref get error"));
+		return;
+	}
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+
 	qdf_mtrace(QDF_MODULE_ID_SCAN, QDF_MODULE_ID_SAP, event->type,
 		   event->vdev_id, event->scan_id);
 
@@ -1269,7 +1287,12 @@ void sap_scan_event_callback(struct wlan_objmgr_vdev *vdev,
 	if (success)
 		scan_status = eCSR_SCAN_SUCCESS;
 
+	if (!sap_ctx->acs_ch_list_protect)
+		return;
+
+	qdf_mutex_acquire(sap_ctx->acs_ch_list_protect);
 	wlansap_pre_start_bss_acs_scan_callback(hal_handle,
 						arg, session_id,
 						scan_id, scan_status);
+	qdf_mutex_release(sap_ctx->acs_ch_list_protect);
 }

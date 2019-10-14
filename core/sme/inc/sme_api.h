@@ -354,6 +354,28 @@ QDF_STATUS sme_set11dinfo(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams);
 QDF_STATUS sme_get_soft_ap_domain(tHalHandle hHal,
 		v_REGDOMAIN_t *domainIdSoftAp);
 QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal);
+
+#ifdef WLAN_BCN_RECV_FEATURE
+/*
+ * sme_register_bcn_report_pe_cb() - Register SME callback
+ * @mac_handle: The handle returned by mac_open.
+ * @cb: cb of type beacon_report_cb
+ *
+ * This function Register SME callback in order to send
+ * beacon report to upper layer
+ *
+ * Return QDF_STATUS_SUCCESS -
+ */
+QDF_STATUS
+sme_register_bcn_report_pe_cb(mac_handle_t mac_handle, beacon_report_cb cb);
+#else
+static inline QDF_STATUS
+sme_register_bcn_report_pe_cb(mac_handle_t mac_handle, beacon_report_cb cb)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 /**
  * sme_ser_cmd_callback() - callback from serialization module
  * @cmd: serialization command
@@ -1338,6 +1360,81 @@ QDF_STATUS sme_update_mimo_power_save(tHalHandle hHal,
 				      uint8_t is_ht_smps_enabled,
 				      uint8_t ht_smps_mode,
 				      bool send_smps_action);
+#ifdef WLAN_BCN_RECV_FEATURE
+/**
+ * sme_handle_bcn_recv_start() - Enable fw to start sending
+ * beacons of the current connected AP
+ * @mac_handle: Opaque handle to the global MAC context
+ * @vdev_id: SME session id
+ * @nth_value: Beacon report period
+ * @do_not_resume: beacon reporting resume after a pause is completed
+ *
+ * This function remove beacon filter. It allow fw to send
+ * all beacons from connected peer to driver.
+ *
+ * Return: QDF_STATUS enumeration
+ */
+QDF_STATUS sme_handle_bcn_recv_start(mac_handle_t mac_handle,
+				     uint32_t vdev_id,
+				     uint32_t nth_value,
+				     bool do_not_resume);
+
+/**
+ * sme_is_beacon_report_started() - Check bcn recv started
+ * @mac_handle: Opaque handle to the global MAC context
+ * @session_id: SME session id
+ *
+ * This function is to check beacon report started or not.
+ *
+ * Return: true on success
+ */
+bool sme_is_beacon_report_started(mac_handle_t mac_handle,
+				  uint32_t session_id);
+
+/**
+ * sme_is_beacon_reporting_do_not_resume() - Check auto resume allowed or not
+ * @mac_handle: Opaque handle to the global MAC context
+ * @session_id: SME session id
+ *
+ * This function is to check auto resume of beacon reporting is allowed or not.
+ *
+ * Return: true on success
+ */
+bool sme_is_beacon_reporting_do_not_resume(mac_handle_t mac_handle,
+					   uint32_t session_id);
+
+/**
+ * stop_beacon_report() - To stop beacon report
+ * @mac_handle: Opaque handle to the global MAC context
+ * @session_id: SME session id
+ *
+ * Return: None
+ */
+void sme_stop_beacon_report(mac_handle_t mac_handle,
+			    uint32_t session_id);
+
+#else
+static inline
+bool sme_is_beacon_report_started(mac_handle_t mac_handle,
+				  uint32_t session_id)
+{
+	return true;
+}
+
+static inline
+bool sme_is_beacon_reporting_do_not_resume(mac_handle_t mac_handle,
+					   uint32_t session_id)
+{
+	return false;
+}
+
+static inline
+void sme_stop_beacon_report(mac_handle_t mac_handle,
+			    uint32_t session_id)
+{
+}
+
+#endif
 
 bool sme_is_sta_smps_allowed(tHalHandle hHal, uint8_t session_id);
 QDF_STATUS sme_add_beacon_filter(tHalHandle hal,
@@ -2592,4 +2689,28 @@ sme_get_mws_coex_info(mac_handle_t mac_handle, uint32_t vdev_id,
 							   cmd_id),
 		      void *context);
 #endif
+
+#ifdef WLAN_BCN_RECV_FEATURE
+/**
+ * sme_register_bcn_recv_pause_ind_cb() - Register pause ind cb
+ * mac_handle: man handler
+ * cb: callback function to HDD
+ *
+ * This function register HDD callback in order to indicate beacon
+ * receive pause indication to userspace.
+ *
+ * return QDF_STATUS of cb registration
+ */
+QDF_STATUS sme_register_bcn_recv_pause_ind_cb(mac_handle_t mac_handle,
+					      beacon_pause_cb cb);
+
+#else
+static inline
+QDF_STATUS sme_register_bcn_recv_pause_ind_cb(mac_handle_t mac_handle,
+					      beacon_pause_cb cb)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 #endif /* #if !defined( __SME_API_H ) */

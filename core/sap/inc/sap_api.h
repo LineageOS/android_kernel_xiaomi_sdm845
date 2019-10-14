@@ -1049,6 +1049,17 @@ QDF_STATUS wlansap_set_mac_acl(struct sap_context *sap_ctx,
 			       tsap_config_t *pConfig);
 
 /**
+ * sap_undo_acs() - Undo acs i.e free the allocated ch lists
+ * @sap_ctx: pointer to the SAP context
+ *
+ * This function will free the memory allocated to the sap ctx channel list, acs
+ * cfg ch list and master ch list.
+ *
+ * Return: None
+ */
+void sap_undo_acs(struct sap_context *sap_context, struct sap_config *sap_cfg);
+
+/**
  * wlansap_disassoc_sta() - initiate disassociation of station.
  * @sap_ctx: Pointer to the SAP context
  * @p_del_sta_params: pointer to station deletion parameters
@@ -1396,6 +1407,20 @@ static inline QDF_STATUS wlansap_set_dfs_nol(struct sap_context *sap_ctx,
 }
 #endif
 
+/**
+ * wlan_sap_set_dfs_pri_multiplier() - Set dfs_pri_multiplier
+ * @hal:        global hal handle
+ * @val:        value to set
+ *
+ * Return: none
+ */
+#ifdef DFS_PRI_MULTIPLIER
+void wlan_sap_set_dfs_pri_multiplier(tHalHandle hal, uint32_t val);
+#else
+static inline void wlan_sap_set_dfs_pri_multiplier(tHalHandle hal, uint32_t val)
+{
+}
+#endif
 /**
  * wlan_sap_set_vendor_acs() - Set vendor specific acs in sap context
  * @sap_context: SAP context

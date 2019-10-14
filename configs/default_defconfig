@@ -75,6 +75,9 @@ ifeq ($(CONFIG_ARCH_QCS40X), y)
 	CONFIG_WLAN_SYNC_TSF_PLUS_NOIRQ := y
 	CONFIG_RX_PERFORMANCE := y
 	CONFIG_TGT_NUM_MSDU_DESC := 900
+	CONFIG_MULTI_IF_LOG := y
+	CONFIG_DFS_PRI_MULTIPLIER := y
+	CONFIG_DFS_OVERRIDE_RF_THRESHOLD := y
 endif
 
 #Flag to enable Legacy Fast Roaming2(LFR2)
@@ -566,6 +569,9 @@ CONFIG_WLAN_WBUFF := y
 
 #Flag to enable set and get disable channel list feature
 CONFIG_DISABLE_CHANNEL_LIST :=y
+
+#Flag to enable beacon receive feature
+CONFIG_WLAN_BCN_RECV_FEATURE := y
 
 CONFIG_WIFI_POS_CONVERGED := y
 ifneq ($(CONFIG_WIFI_POS_CONVERGED), y)

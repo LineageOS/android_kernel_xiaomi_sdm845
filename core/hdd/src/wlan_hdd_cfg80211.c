@@ -112,6 +112,7 @@
 #include "wlan_hdd_object_manager.h"
 #include "wlan_hdd_coex_config.h"
 #include "wlan_hdd_hw_capability.h"
+#include "wlan_hdd_bcn_recv.h"
 
 #define g_mode_rates_size (12)
 #define a_mode_rates_size (8)
@@ -1439,6 +1440,9 @@ static const struct nl80211_vendor_cmd_info wlan_hdd_cfg80211_vendor_events[] = 
 		.vendor_id = QCA_NL80211_VENDOR_ID,
 		.subcmd = QCA_NL80211_VENDOR_SUBCMD_THROUGHPUT_CHANGE_EVENT,
 	},
+
+	BCN_RECV_FEATURE_VENDOR_EVENTS
+
 #ifdef WLAN_UMAC_CONVERGENCE
 	COMMON_VENDOR_EVENTS
 #endif
@@ -2740,7 +2744,6 @@ out:
 			return cfg80211_vendor_cmd_reply(temp_skbuff);
 	}
 	qdf_atomic_set(&adapter->session.ap.acs_in_progress, 0);
-	wlan_hdd_undo_acs(adapter);
 	clear_bit(ACS_IN_PROGRESS, &hdd_ctx->g_event_flags);
 
 	return ret;
@@ -2784,21 +2787,8 @@ static int wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 
 void wlan_hdd_undo_acs(struct hdd_adapter *adapter)
 {
-	if (adapter == NULL)
-		return;
-	if (adapter->session.ap.sap_config.acs_cfg.ch_list) {
-		hdd_debug("Clear acs cfg channel list");
-		qdf_mem_free(adapter->session.ap.sap_config.acs_cfg.ch_list);
-		adapter->session.ap.sap_config.acs_cfg.ch_list = NULL;
-	}
-	adapter->session.ap.sap_config.acs_cfg.ch_list_count = 0;
-	if (adapter->session.ap.sap_config.acs_cfg.master_ch_list) {
-		hdd_debug("Clear acs cfg channel list");
-		qdf_mem_free(
-			adapter->session.ap.sap_config.acs_cfg.master_ch_list);
-		adapter->session.ap.sap_config.acs_cfg.master_ch_list = NULL;
-	}
-	adapter->session.ap.sap_config.acs_cfg.master_ch_list_count = 0;
+	sap_undo_acs(WLAN_HDD_GET_SAP_CTX_PTR(adapter),
+		     &adapter->session.ap.sap_config);
 }
 
 /**
@@ -15023,6 +15013,9 @@ const struct wiphy_vendor_command hdd_wiphy_vendor_commands[] = {
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wlan_hdd_cfg80211_get_sar_power_limits
 	},
+
+	BCN_RECV_FEATURE_VENDOR_COMMANDS
+
 	{
 		.info.vendor_id = QCA_NL80211_VENDOR_ID,
 		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS,

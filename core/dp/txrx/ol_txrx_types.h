@@ -1053,6 +1053,8 @@ struct ol_txrx_pdev_t {
 	uint8_t peer_id_unmap_ref_cnt;
 	bool enable_peer_unmap_conf_support;
 	bool enable_tx_compl_tsf64;
+	uint64_t last_host_time;
+	uint64_t last_tsf64_time;
 };
 
 struct ol_txrx_vdev_t {

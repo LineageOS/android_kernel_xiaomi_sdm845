@@ -333,6 +333,20 @@ QDF_STATUS sap_init_ctx(struct sap_context *sap_ctx,
 			__func__, qdf_ret_status);
 		return QDF_STATUS_E_FAILURE;
 	}
+	if (sap_ctx->acs_ch_list_protect) {
+		qdf_mutex_destroy(sap_ctx->acs_ch_list_protect);
+		qdf_mem_free(sap_ctx->acs_ch_list_protect);
+		sap_ctx->acs_ch_list_protect = NULL;
+	}
+	sap_ctx->acs_ch_list_protect =
+			qdf_mem_malloc(sizeof(*sap_ctx->acs_ch_list_protect));
+	if (sap_ctx->acs_ch_list_protect) {
+		qdf_ret_status = qdf_mutex_create(sap_ctx->acs_ch_list_protect);
+		if (QDF_IS_STATUS_ERROR(qdf_ret_status)) {
+			qdf_mem_free(sap_ctx->acs_ch_list_protect);
+			sap_ctx->acs_ch_list_protect = NULL;
+		}
+	}
 	/* Register with scan component only during init */
 	if (!reinit)
 		sap_ctx->req_id =
@@ -370,6 +384,8 @@ QDF_STATUS sap_deinit_ctx(struct sap_context *sap_ctx)
 		sap_ctx->channelList = NULL;
 		sap_ctx->num_of_channel = 0;
 	}
+	qdf_mem_free(sap_ctx->acs_ch_list_protect);
+	sap_ctx->acs_ch_list_protect = NULL;
 	sap_free_roam_profile(&sap_ctx->csr_roamProfile);
 	if (sap_ctx->sessionId != CSR_SESSION_ID_INVALID) {
 		/* empty queues/lists/pkts if any */
@@ -882,6 +898,47 @@ QDF_STATUS wlansap_get_acl_deny_list(struct sap_context *sap_ctx,
 	       (sap_ctx->nDenyMac * QDF_MAC_ADDR_SIZE));
 	*nDenyList = sap_ctx->nDenyMac;
 	return QDF_STATUS_SUCCESS;
+}
+
+void sap_undo_acs(struct sap_context *sap_ctx, struct sap_config *sap_cfg)
+{
+	struct sap_acs_cfg *acs_cfg;
+
+	if (!sap_ctx)
+		return;
+
+	acs_cfg = &sap_cfg->acs_cfg;
+	if (!acs_cfg)
+		return;
+
+	if (sap_ctx->acs_ch_list_protect)
+		qdf_mutex_acquire(sap_ctx->acs_ch_list_protect);
+
+	if (acs_cfg->ch_list) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			  "Clearing ACS cfg ch list");
+		qdf_mem_free(acs_cfg->ch_list);
+		acs_cfg->ch_list = NULL;
+	}
+	if (acs_cfg->master_ch_list) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			  "Clearing ACS cfg master ch list");
+		qdf_mem_free(acs_cfg->master_ch_list);
+		acs_cfg->master_ch_list = NULL;
+	}
+	if (sap_ctx->channelList) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			  "Clearing sap ctx acs ch list");
+		qdf_mem_free(sap_ctx->channelList);
+		sap_ctx->channelList = NULL;
+	}
+	acs_cfg->ch_list_count = 0;
+	acs_cfg->master_ch_list_count = 0;
+	acs_cfg->acs_mode = false;
+	sap_ctx->num_of_channel = 0;
+
+	if (sap_ctx->acs_ch_list_protect)
+		qdf_mutex_release(sap_ctx->acs_ch_list_protect);
 }
 
 QDF_STATUS wlansap_clear_acl(struct sap_context *sap_ctx)
@@ -2632,6 +2689,25 @@ void wlan_sap_enable_phy_error_logs(tHalHandle hal, uint32_t enable_log)
 	tgt_dfs_control(mac_ctx->pdev, DFS_SET_DEBUG_LEVEL, &enable_log,
 			sizeof(uint32_t), NULL, NULL, &error);
 }
+
+/**
+ * wlan_sap_set_dfs_pri_multiplier() - Set dfs_pri_multiplier
+ * @hal:        global hal handle
+ * @val:        value to set
+ *
+ * Return: none
+ */
+#ifdef DFS_PRI_MULTIPLIER
+void wlan_sap_set_dfs_pri_multiplier(tHalHandle hal, uint32_t val)
+{
+	int error;
+
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+
+	tgt_dfs_control(mac_ctx->pdev, DFS_SET_PRI_MULTIPILER, &val,
+			sizeof(uint32_t), NULL, NULL, &error);
+}
+#endif
 
 uint32_t wlansap_get_chan_width(struct sap_context *sap_ctx)
 {
