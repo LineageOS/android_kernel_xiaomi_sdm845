@@ -15465,6 +15465,74 @@ enum hw_filter_mode {
 #define CFG_PKTCAPTURE_MODE_MAX      (3)
 #define CFG_PKTCAPTURE_MODE_DEFAULT  (0)
 
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+/*
+ * thermal_sampling_time - Configure the thermal mitigation sampling time in ms.
+ *
+ * @Min: 10
+ * @Max: 100
+ * @Default: 100
+ *
+ * This ini will control the sampling time that the thermal mitigation in FW
+ * will consider while applying the duty cycle.
+ *
+ * Usage: External
+ *
+ * Supported features: Thermal Mitigation
+ *
+ * </ini>
+ */
+#define CFG_THERMAL_SAMPLING_TIME_NAME     "thermal_sampling_time"
+#define CFG_THERMAL_SAMPLING_TIME_MIN      (10)
+#define CFG_THERMAL_SAMPLING_TIME_MAX      (100)
+#define CFG_THERMAL_SAMPLING_TIME_DEFAULT  (100)
+
+/*
+ * thermal_throt_dc - Configure the thermal mitigation duty cycling percentage
+ *
+ * @Min: 0
+ * @Max: 100
+ * @Default: 50
+ *
+ * This ini will control the duty cycle that will be enforced by the firmware.
+ * If for example the duty cycle is 50 percent and the sampling time
+ * (thermal_sampling_time) is 100ms then the FW will constrain rx/tx for 50ms
+ * out of the 100ms.
+ *
+ * Usage: External
+ *
+ * Supported features: Thermal Mitigation
+ *
+ * </ini>
+ */
+#define CFG_THERMAL_THROT_DC_NAME     "thermal_throt_dc"
+#define CFG_THERMAL_THROT_DC_MIN      (10)
+#define CFG_THERMAL_THROT_DC_MAX      (100)
+#define CFG_THERMAL_THROT_DC_DEFAULT  (50)
+#endif
+/*
+ * <ini>
+ * disable_4way_hs_offload - Enable/Disable 4 way handshake offload to firmware
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * 0  4-way HS to be handled in firmware
+ * 1  4-way HS to be handled in supplicant
+ *
+ * Related: None
+ *
+ * Supported Feature: STA Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DISABLE_4WAY_HS_OFFLOAD           "disable_4way_hs_offload"
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_MIN       (0)
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_MAX       (1)
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT   (0)
+
 /*
  * Type declarations
  */
@@ -16425,6 +16493,12 @@ struct hdd_config {
 
 	bool pktcap_mode_enable;
 	uint8_t pktcapture_mode;
+
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+	uint16_t thermal_sampling_time;
+	uint16_t thermal_throt_dc;
+#endif
+	bool disable_4way_hs_offload;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

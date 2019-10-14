@@ -519,6 +519,7 @@ typedef struct sSirSmeReadyReq {
 	void *pe_roam_synch_cb;
 	void *sme_msg_cb;
 	void *stop_roaming_cb;
+	void *csr_roam_pmkid_req_cb;
 } tSirSmeReadyReq, *tpSirSmeReadyReq;
 
 /**
@@ -3645,6 +3646,14 @@ struct mawc_params {
 	int8_t mawc_roam_ap_rssi_threshold;
 	uint8_t mawc_roam_rssi_high_adjust;
 	uint8_t mawc_roam_rssi_low_adjust;
+};
+
+/**
+ * struct roam_sync_timeout_timer_info - Info related to roam sync timer
+ * @vdev_id: Vdev id for which host waiting roam sync ind from fw
+ */
+struct roam_sync_timeout_timer_info {
+	uint8_t vdev_id;
 };
 
 typedef struct sSirRoamOffloadScanReq {

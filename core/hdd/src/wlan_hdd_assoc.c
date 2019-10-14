@@ -316,6 +316,18 @@ bool hdd_is_connecting(hdd_station_ctx_t *hdd_sta_ctx)
 }
 
 /**
+ * hdd_is_disconnecting() - Function to check disconnection progress
+ * @hdd_sta_ctx:    pointer to global HDD Station context
+ *
+ * Return: true if disconnecting, false otherwise
+ */
+bool hdd_is_disconnecting(hdd_station_ctx_t *hdd_sta_ctx)
+{
+	return hdd_sta_ctx->conn_info.connState ==
+		eConnectionState_Disconnecting;
+}
+
+/**
  * hdd_conn_is_connected() - Function to check connection status
  * @pHddStaCtx:    pointer to global HDD Station context
  *
@@ -1657,6 +1669,15 @@ static QDF_STATUS hdd_dis_connect_handler(hdd_adapter_t *pAdapter,
 		hdd_err("net_dev is released return");
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	if (!pHddCtx) {
+		hdd_err("HDD context is null");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	/* Disable mitigation in FW if STA gets disconnected */
+	hdd_send_thermal_notification(pHddCtx, HDD_THERMAL_STATE_NORMAL);
+
 	/* notify apps that we can't pass traffic anymore */
 	hdd_info("Disabling queues");
 	wlan_hdd_netif_queue_control(pAdapter,
@@ -2609,6 +2630,7 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 	bool hddDisconInProgress = false;
 	unsigned long rc;
 	tSirResultCodes timeout_reason = 0;
+	uint16_t thermal_state = HDD_THERMAL_STATE_NORMAL;
 
 	if (!pHddCtx) {
 		hdd_err("HDD context is NULL");
@@ -2702,6 +2724,13 @@ static QDF_STATUS hdd_association_completion_handler(hdd_adapter_t *pAdapter,
 			if (QDF_IS_STATUS_ERROR(qdf_status))
 				hdd_err("Failed to set nth beacon reporting");
 		}
+
+		/* Send the thermal mitigation status to FW */
+		if (pHddCtx->is_thermal_system_registered &&
+		    !pld_get_thermal_state(pHddCtx->parent_dev, &thermal_state))
+			hdd_send_thermal_notification(pHddCtx,
+						      hdd_map_thermal_states(
+						      thermal_state));
 
 		if (cds_is_mcc_in_24G()) {
 			if (pHddCtx->miracast_value)
@@ -5470,7 +5499,11 @@ hdd_sme_roam_callback(void *pContext, tCsrRoamInfo *pRoamInfo, uint32_t roamId,
 		if (pRoamInfo)
 			wlan_hdd_sae_callback(pAdapter, pRoamInfo);
 		break;
-
+	case eCSR_ROAM_FIPS_PMK_REQUEST:
+		/* notify the supplicant of a new candidate */
+		qdf_ret_status = wlan_hdd_cfg80211_pmksa_candidate_notify(
+					pAdapter, pRoamInfo, 1, false);
+		break;
 	default:
 		break;
 	}
@@ -6139,6 +6172,10 @@ int hdd_set_csr_auth_type(hdd_adapter_t *pAdapter, eCsrAuthType RSNAuthType)
 					RSNAuthType;
 				hdd_debug("updated profile authtype as %d",
 					RSNAuthType);
+			} else if (RSNAuthType ==  eCSR_AUTH_TYPE_SAE) {
+				/* SAE with open authentication case */
+				pRoamProfile->AuthType.authType[0] =
+					eCSR_AUTH_TYPE_SAE;
 			} else if ((RSNAuthType ==
 				  eCSR_AUTH_TYPE_SUITEB_EAP_SHA256) &&
 				  ((pWextState->

@@ -2066,6 +2066,7 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	u_int8_t vdev_id;
 	struct sir_set_tx_rx_aggregation_size tx_rx_aggregation_size;
 	struct sir_set_tx_aggr_sw_retry_threshold tx_aggr_sw_retry_threshold;
+	uint32_t flags;
 
 	WMA_LOGD("mac %pM, vdev_id %hu, type %d, sub_type %d, nss 2g %d, 5g %d",
 		self_sta_req->self_mac_addr, self_sta_req->session_id,
@@ -2330,11 +2331,14 @@ ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 	if ((self_sta_req->type == WMI_VDEV_TYPE_STA) &&
 	    (self_sta_req->sub_type == 0)) {
 		wma_handle->roam_offload_enabled = true;
+		flags = (WMI_ROAM_FW_OFFLOAD_ENABLE_FLAG |
+					WMI_ROAM_BMISS_FINAL_SCAN_ENABLE_FLAG);
+		if (self_sta_req->disable_4way_hs_offload)
+			flags |= WMI_VDEV_PARAM_SKIP_ROAM_EAPOL_4WAY_HANDSHAKE;
 		ret = wma_vdev_set_param(wma_handle->wmi_handle,
 					self_sta_req->session_id,
 					WMI_VDEV_PARAM_ROAM_FW_OFFLOAD,
-					(WMI_ROAM_FW_OFFLOAD_ENABLE_FLAG |
-					WMI_ROAM_BMISS_FINAL_SCAN_ENABLE_FLAG));
+					flags);
 		if (QDF_IS_STATUS_ERROR(ret))
 			WMA_LOGE("Failed to set WMI_VDEV_PARAM_ROAM_FW_OFFLOAD");
 
@@ -2714,16 +2718,6 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 		params.beacon_intval = req->beacon_intval;
 		params.dtim_period = req->dtim_period;
 
-		/* Copy the SSID */
-		if (req->ssid.length) {
-			params.ssid.length = req->ssid.length;
-			if (req->ssid.length < sizeof(cmd->ssid.ssid))
-				temp_ssid_len = req->ssid.length;
-			else
-				temp_ssid_len = sizeof(cmd->ssid.ssid);
-			qdf_mem_copy(params.ssid.mac_ssid, req->ssid.ssId,
-				     temp_ssid_len);
-		}
 
 		params.pmf_enabled = req->pmf_enabled;
 		params.ldpc_rx_enabled = req->ldpc_rx_enabled;
@@ -2734,6 +2728,17 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 		if (req->ldpc_rx_enabled)
 			temp_flags |= WMI_UNIFIED_VDEV_START_LDPC_RX_ENABLED;
 	}
+	/* Copy the SSID */
+	if (req->ssid.length) {
+		params.ssid.length = req->ssid.length;
+		if (req->ssid.length < sizeof(cmd->ssid.ssid))
+			temp_ssid_len = req->ssid.length;
+		else
+			temp_ssid_len = sizeof(cmd->ssid.ssid);
+		qdf_mem_copy(params.ssid.mac_ssid, req->ssid.ssId,
+			     temp_ssid_len);
+	}
+
 	params.hidden_ssid = req->hidden_ssid;
 	if (req->hidden_ssid)
 		temp_flags |= WMI_UNIFIED_VDEV_START_HIDDEN_SSID;

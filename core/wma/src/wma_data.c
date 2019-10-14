@@ -828,8 +828,7 @@ static void wma_data_tx_ack_work_handler(void *ack_work)
 
 	/* Call the Ack Cb registered by UMAC */
 	if (ack_cb)
-		ack_cb((tpAniSirGlobal) (wma_handle->mac_context),
-			work->status ? 0 : 1);
+		ack_cb(wma_handle->mac_context, work->status ? 0 : 1);
 	else
 		WMA_LOGE("Data Tx Ack Cb is NULL");
 
@@ -1390,8 +1389,7 @@ static void wma_mgmt_tx_ack_work_handler(void *ack_work)
 		 work->sub_type, work->status);
 
 	/* Call the Ack Cb registered by UMAC */
-	ack_cb((tpAniSirGlobal) (wma_handle->mac_context),
-	       work->status ? 0 : 1);
+	ack_cb(wma_handle->mac_context, work->status ? 0 : 1);
 end:
 	qdf_mem_free(work);
 	wma_handle->mgmt_ack_work_ctx = NULL;

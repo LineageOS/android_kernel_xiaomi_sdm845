@@ -509,6 +509,9 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 		}
 		if (status != QDF_STATUS_SUCCESS)
 			pe_err("cannot create or start protectionFieldsResetTimer");
+		qdf_wake_lock_create(&session_ptr->ap_ecsa_wakelock,
+				     "ap_ecsa_wakelock");
+		qdf_runtime_lock_init(&session_ptr->ap_ecsa_runtime_lock);
 		status = qdf_mc_timer_init(&session_ptr->ap_ecsa_timer,
 			 QDF_TIMER_TYPE_WAKE_APPS, lim_process_ap_ecsa_timeout,
 			 (void *)&pMac->lim.gpSession[i]);
@@ -686,6 +689,8 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 		session->dfsIncludeChanSwIe = 0;
 		qdf_mc_timer_stop(&session->ap_ecsa_timer);
 		qdf_mc_timer_destroy(&session->ap_ecsa_timer);
+		qdf_runtime_lock_deinit(&session->ap_ecsa_runtime_lock);
+		qdf_wake_lock_destroy(&session->ap_ecsa_wakelock);
 		lim_del_pmf_sa_query_timer(mac_ctx, session);
 	}
 

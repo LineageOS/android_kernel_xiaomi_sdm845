@@ -5825,6 +5825,29 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_PKTCAPTURE_MODE_DEFAULT,
 		     CFG_PKTCAPTURE_MODE_MIN,
 		     CFG_PKTCAPTURE_MODE_MAX),
+
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+	REG_VARIABLE(CFG_THERMAL_SAMPLING_TIME_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, thermal_sampling_time,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_THERMAL_SAMPLING_TIME_DEFAULT,
+		     CFG_THERMAL_SAMPLING_TIME_MIN,
+		     CFG_THERMAL_SAMPLING_TIME_MAX),
+
+	REG_VARIABLE(CFG_THERMAL_THROT_DC_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, thermal_throt_dc,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_THERMAL_THROT_DC_DEFAULT,
+		     CFG_THERMAL_THROT_DC_MIN,
+		     CFG_THERMAL_THROT_DC_MAX),
+#endif
+
+	REG_VARIABLE(CFG_DISABLE_4WAY_HS_OFFLOAD, WLAN_PARAM_Integer,
+		     struct hdd_config, disable_4way_hs_offload,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT,
+		     CFG_DISABLE_4WAY_HS_OFFLOAD_MIN,
+		     CFG_DISABLE_4WAY_HS_OFFLOAD_MAX),
 };
 
 /**
@@ -6878,6 +6901,28 @@ static void hdd_cfg_print_btc_params(hdd_context_t *hdd_ctx)
 		  hdd_ctx->config->set_bt_interference_high_ul);
 }
 
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+/**
+ * hdd_cfg_print_thermal_config - Print thermal config inis
+ * @hdd_ctx: HDD context structure
+ *
+ * Return: None
+ */
+static inline void hdd_cfg_print_thermal_config(hdd_context_t *hdd_ctx)
+{
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_THERMAL_SAMPLING_TIME_NAME,
+		  hdd_ctx->config->thermal_sampling_time);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_THERMAL_THROT_DC_NAME,
+		  hdd_ctx->config->thermal_throt_dc);
+}
+#else
+static inline void hdd_cfg_print_thermal_config(hdd_context_t *hdd_ctx)
+{
+}
+#endif
+
 /**
  * hdd_cfg_print() - print the hdd configuration
  * @iniTable: pointer to hdd context
@@ -7875,6 +7920,9 @@ void hdd_cfg_print(hdd_context_t *pHddCtx)
 		  CFG_PKTCAP_MODE_ENABLE_NAME, pHddCtx->config->pktcap_mode_enable);
 	hdd_debug("Name = [%s] value = [%d]",
 		  CFG_PKTCAPTURE_MODE_NAME, pHddCtx->config->pktcapture_mode);
+	hdd_cfg_print_thermal_config(pHddCtx);
+	hdd_debug("Name = [%s] value = [%d]",
+		  CFG_DISABLE_4WAY_HS_OFFLOAD, pHddCtx->config->disable_4way_hs_offload);
 }
 
 /**
@@ -10597,6 +10645,8 @@ QDF_STATUS hdd_set_sme_config(hdd_context_t *pHddCtx)
 			pHddCtx->config->btm_sticky_time;
 	smeConfig->csrConfig.btm_query_bitmask =
 			pHddCtx->config->btm_query_bitmask;
+	smeConfig->csrConfig.disable_4way_hs_offload =
+			pHddCtx->config->disable_4way_hs_offload;
 
 	hdd_update_bss_score_params(pHddCtx->config,
 			&smeConfig->csrConfig.bss_score_params);

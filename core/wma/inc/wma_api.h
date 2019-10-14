@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -607,4 +607,18 @@ void wma_cleanup_vdev_resp_and_hold_req(void *priv);
  */
 QDF_STATUS wma_send_dhcp_ind(uint16_t type, uint8_t device_mode,
 			     uint8_t *mac_addr, uint8_t *sta_mac_addr);
+
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+/**
+ * wma_update_thermal_mitigation_to_fw() - update thermal mitigation to fw
+ * @wma: wma handle
+ * @thermal_level: thermal level
+ *
+ * This function sends down thermal mitigation params to the fw
+ *
+ * Returns: QDF_STATUS_SUCCESS for success otherwise failure
+ */
+QDF_STATUS wma_update_thermal_mitigation_to_fw(uint8_t thermal_level);
+#endif
+
 #endif

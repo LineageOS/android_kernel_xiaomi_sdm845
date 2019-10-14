@@ -3771,6 +3771,8 @@ static const u8 *wma_wow_wake_reason_str(A_INT32 wake_reason)
 		return "DEBUG_TEST";
 	case WOW_REASON_CHIP_POWER_FAILURE_DETECT:
 		return "CHIP_POWER_FAILURE_DETECT";
+	case WOW_REASON_ROAM_PMKID_REQUEST:
+		return "ROAM_PMKID_REQUEST";
 	default:
 		return "unknown";
 	}
@@ -4089,6 +4091,9 @@ static int wow_get_wmi_eventid(int32_t reason, uint32_t tag)
 	case WOW_REASON_ROAM_HO:
 		event_id = WMI_ROAM_EVENTID;
 		break;
+	case WOW_REASON_ROAM_PMKID_REQUEST:
+		event_id = WMI_ROAM_PMKID_REQUEST_EVENTID;
+		break;
 	default:
 		WMA_LOGD(FL("Unexpected WOW reason : %s(%d)"),
 			 wma_wow_wake_reason_str(reason), reason);
@@ -4125,6 +4130,7 @@ static bool tlv_check_required(int32_t reason)
 	case WOW_REASON_NAN_EVENT:
 	case WOW_REASON_NAN_DATA:
 	case WOW_REASON_ROAM_HO:
+	case WOW_REASON_ROAM_PMKID_REQUEST:
 		return true;
 	default:
 		return false;
@@ -5051,6 +5057,14 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		del_sta_ctx->reasonCode = HAL_DEL_STA_REASON_CODE_KEEP_ALIVE;
 		wma_send_msg(wma, SIR_LIM_DELETE_STA_CONTEXT_IND,
 			     (void *)del_sta_ctx, 0);
+		break;
+	case WOW_REASON_ROAM_PMKID_REQUEST:
+		WMA_LOGD("Host woken up because of PMKID request event");
+		if (param_buf->wow_packet_buffer)
+			wma_roam_pmkid_request_event_handler(handle,
+				wmi_cmd_struct_ptr, wow_buf_pkt_len);
+		else
+			WMA_LOGD("No wow_packet_buffer present");
 		break;
 	default:
 		break;

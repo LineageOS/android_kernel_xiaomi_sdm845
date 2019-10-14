@@ -116,6 +116,8 @@ ifeq ($(KERNEL_BUILD), 0)
 
 	ifeq ($(CONFIG_ARCH_SDM660), y)
 	CONFIG_QCACLD_FEATURE_METERING := y
+	#Flag to enable FIPS
+	CONFIG_WLAN_FEATURE_FIPS := y
 	endif
 
 	ifeq ($(CONFIG_ARCH_SDM630), y)
@@ -296,6 +298,9 @@ endif
 
 #Enable beacon reporting feature
 CONFIG_WLAN_BEACON_REPORTING := y
+
+#Enable/Disable FW thermal mitigation feature
+CONFIG_WLAN_FW_THERMAL_MITIGATION := n
 
 # Feature flags which are not (currently) configurable via Kconfig
 
@@ -1159,6 +1164,10 @@ ifeq ($(CONFIG_MPC_UT_FRAMEWORK),y)
 WMA_OBJS +=	$(WMA_SRC_DIR)/wma_utils_ut.o
 endif
 
+ifeq ($(CONFIG_WLAN_FW_THERMAL_MITIGATION), y)
+WMA_OBJS += $(WMA_SRC_DIR)/wma_thermal.o
+endif
+
 ############## PLD ##########
 PLD_DIR := core/pld
 PLD_INC_DIR := $(PLD_DIR)/inc
@@ -1310,6 +1319,10 @@ CDEFINES :=	-DANI_LITTLE_BYTE_ENDIAN \
 		-DWMI_CMD_STRINGS \
 		-DCONFIG_HDD_INIT_WITH_RTNL_LOCK \
 		-DMWS_COEX
+
+ifeq ($(CONFIG_WLAN_FEATURE_FIPS), y)
+CDEFINES += -DWLAN_FEATURE_FIPS
+endif
 
 ifneq ($(CONFIG_HIF_USB), 1)
 CDEFINES += -DWLAN_LOGGING_SOCK_SVC_ENABLE
@@ -1467,6 +1480,10 @@ endif
 
 ifeq ($(CONFIG_WLAN_BEACON_REPORTING),y)
 CDEFINES += -DNTH_BEACON_OFFLOAD
+endif
+
+ifeq ($(CONFIG_WLAN_FW_THERMAL_MITIGATION),y)
+CDEFINES += -DFW_THERMAL_THROTTLE_SUPPORT
 endif
 
 ifeq ($(BUILD_DIAG_VERSION),1)
