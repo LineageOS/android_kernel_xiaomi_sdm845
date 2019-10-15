@@ -848,12 +848,40 @@ uint8_t sme_get_roam_rssi_diff(tHalHandle hHal);
 QDF_STATUS sme_change_roam_scan_channel_list(tHalHandle hHal, uint8_t sessionId,
 		uint8_t *pChannelList,
 		uint8_t numChannels);
+
+/**
+ * sme_update_roam_scan_freq_list() - Update roam scan freq list
+ * @mac_handle: Opaque handle to the global MAC context
+ * @vdev_id: vdev identifier
+ * @freq_list: List of frequencies to be configured
+ * @num_channels: Number of frequencies to be configured
+ * @freq_list_type: Type of frequency list to be configured to
+ *
+ * Update the frequencies from freq_list to the corresponding channel list
+ * in neighborRoamInfo
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+sme_update_roam_scan_freq_list(mac_handle_t mac_handle, uint8_t vdev_id,
+			       uint32_t *freq_list, uint8_t num_chan,
+			       uint32_t freq_list_type);
 QDF_STATUS sme_set_ese_roam_scan_channel_list(tHalHandle hHal,
 		uint8_t sessionId, uint8_t *pChannelList,
 		uint8_t numChannels);
 QDF_STATUS sme_get_roam_scan_channel_list(tHalHandle hHal,
 		uint8_t *pChannelList, uint8_t *pNumChannels,
 		uint8_t sessionId);
+/**
+ * sme_dump_chan_list() - Dump the channels from given chan info
+ * @chan_info: Contains the channel list and number of frequencies
+ *
+ * Extract number of channels and channel list from chan_info and print
+ * to the logs.
+ *
+ * Return: None
+ */
+void sme_dump_chan_list(tCsrChannelInfo *chan_info);
 bool sme_get_is_ese_feature_enabled(tHalHandle hHal);
 bool sme_get_wes_mode(tHalHandle hHal);
 bool sme_get_roam_scan_control(tHalHandle hHal);
