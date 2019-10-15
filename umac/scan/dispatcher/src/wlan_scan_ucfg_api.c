@@ -908,10 +908,15 @@ ucfg_update_channel_list(struct scan_start_request *req,
 		return;
 
 	for (i = 0; i < req->scan_req.chan_list.num_chan; i++) {
-		if (wlan_reg_is_dfs_ch(pdev, wlan_reg_freq_to_chan(pdev,
-							req->scan_req.chan_list.
-							chan[i].freq)))
+		uint32_t freq;
+		uint32_t chan;
+
+		freq = req->scan_req.chan_list.chan[i].freq;
+		chan = wlan_reg_freq_to_chan(pdev, freq);
+
+		if (wlan_reg_chan_has_dfs_attribute(pdev, chan))
 			continue;
+
 		req->scan_req.chan_list.chan[num_scan_channels++] =
 				req->scan_req.chan_list.chan[i];
 	}
