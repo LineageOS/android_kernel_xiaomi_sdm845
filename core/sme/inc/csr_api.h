@@ -1819,4 +1819,7 @@ csr_get_channel_status(tpAniSirGlobal mac, uint32_t channel_id);
  * Return: none
  */
 void csr_clear_channel_status(tpAniSirGlobal mac);
+
+typedef void (*csr_ani_callback)(int8_t *ani, void *context);
+
 #endif

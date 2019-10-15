@@ -2046,6 +2046,11 @@ endif
 cppflags-$(CONFIG_WLAN_FEATURE_11AX) += -DWLAN_FEATURE_11AX
 cppflags-$(CONFIG_WLAN_FEATURE_11AX) += -DWLAN_FEATURE_11AX_BSS_COLOR
 
+#Enable support to get ANI value
+ifeq ($(CONFIG_ANI_LEVEL_REQUEST), y)
+cppflags-y += -DFEATURE_ANI_LEVEL_REQUEST
+endif
+
 # Dummy flag for WIN/MCL converged data path compilation
 cppflags-y += -DDP_PRINT_ENABLE=0
 cppflags-y += -DATH_SUPPORT_WRAP=0

@@ -815,6 +815,14 @@ struct mgmt_beacon_probe_filter {
 	uint8_t sap_channel[SIR_MAX_SUPPORTED_BSS];
 };
 
+#ifdef FEATURE_ANI_LEVEL_REQUEST
+struct ani_level_params {
+	void (*ani_level_cb)(struct wmi_host_ani_level_event *ani, uint8_t num,
+			     void *context);
+	void *context;
+};
+#endif
+
 /* ------------------------------------------------------------------- */
 /* / MAC Sirius parameter structure */
 typedef struct sAniSirGlobal {
@@ -890,6 +898,9 @@ typedef struct sAniSirGlobal {
 	/* Beacon stats enabled/disabled from ini */
 	bool enable_beacon_reception_stats;
 	uint32_t ft_akm_service_bitmap;
+#ifdef FEATURE_ANI_LEVEL_REQUEST
+	struct ani_level_params ani_params;
+#endif
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS
