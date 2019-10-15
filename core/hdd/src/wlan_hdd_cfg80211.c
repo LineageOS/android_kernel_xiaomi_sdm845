@@ -18233,10 +18233,11 @@ static int wlan_hdd_cfg80211_connect_start(struct hdd_adapter *adapter,
 					bssid_hint);
 		}
 
-		hdd_debug("Connect to SSID: %.*s operating Channel: %u",
-		       roam_profile->SSIDs.SSIDList->SSID.length,
-		       roam_profile->SSIDs.SSIDList->SSID.ssId,
-		       operatingChannel);
+		hdd_debug("vdevid %d: Connect to SSID: %.*s operating Channel: %u",
+			  adapter->session_id,
+			  roam_profile->SSIDs.SSIDList->SSID.length,
+			  roam_profile->SSIDs.SSIDList->SSID.ssId,
+			  operatingChannel);
 
 		if (hdd_sta_ctx->wpa_versions) {
 			hdd_set_genie_to_csr(adapter, &RSNAuthType);
@@ -19876,9 +19877,10 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 		   TRACE_CODE_HDD_CFG80211_CONNECT,
 		   adapter->session_id, adapter->device_mode);
 
-	hdd_debug("Device_mode %s(%d)",
-		hdd_device_mode_to_string(adapter->device_mode),
-		adapter->device_mode);
+	hdd_info("%s(vdevid-%d): Device_mode %s(%d)",
+		 ndev->name, adapter->session_id,
+		 hdd_device_mode_to_string(adapter->device_mode),
+		 adapter->device_mode);
 
 	if (adapter->device_mode != QDF_STA_MODE &&
 		adapter->device_mode != QDF_P2P_CLIENT_MODE) {
@@ -20359,8 +20361,9 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 		if (vdev)
 			hdd_objmgr_put_vdev(vdev);
 
-		hdd_info("Disconnect from userspace; reason:%d (%s)",
-			 reason, hdd_ieee80211_reason_code_to_str(reason));
+		hdd_info("%s(vdevid-%d): Disconnect from userspace; reason:%d (%s)",
+			 dev->name, adapter->session_id, reason,
+			 hdd_ieee80211_reason_code_to_str(reason));
 		status = wlan_hdd_disconnect(adapter, reasonCode);
 		if (0 != status) {
 			hdd_err("wlan_hdd_disconnect failed, status: %d", status);
