@@ -131,7 +131,15 @@ typedef enum {
 	SPLIT_SCAN_OCCUPIED_LIST = 1,
 } eNeighborRoamScanMode;
 
-/* Complete control information for neighbor roam algorithm */
+/**
+ * struct sCsr11rAssocNeighborInfo - Control info for neighbor roam algorithm
+ * @roam_control_enable: Flag used to cache the status of roam control
+ *			 configuration. This will be set only if the
+ *			 corresponding vendor command data is configured to
+ *			 driver/firmware successfully. The same shall be
+ *			 returned to userspace whenever queried for roam
+ *			 control config status.
+ */
 typedef struct sCsrNeighborRoamControlInfo {
 	eCsrNeighborRoamState neighborRoamState;
 	eCsrNeighborRoamState prevNeighborRoamState;
@@ -166,6 +174,7 @@ typedef struct sCsrNeighborRoamControlInfo {
 	uint8_t currentRoamBeaconRssiWeight;
 	uint8_t last_sent_cmd;
 	bool b_roam_scan_offload_started;
+	bool roam_control_enable;
 } tCsrNeighborRoamControlInfo, *tpCsrNeighborRoamControlInfo;
 
 /* All the necessary Function declarations are here */
