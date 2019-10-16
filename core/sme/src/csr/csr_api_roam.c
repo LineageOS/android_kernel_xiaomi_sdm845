@@ -3087,6 +3087,9 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		sme_debug("nRoamBeaconRssiWeight: %d",
 			pMac->roam.configParam.neighborRoamConfig.
 			nRoamBeaconRssiWeight);
+		sme_debug("full_scan_period: %u",
+			  pMac->roam.configParam.neighborRoamConfig.
+			  full_roam_scan_period);
 		pMac->roam.configParam.addTSWhenACMIsOff =
 			pParam->addTSWhenACMIsOff;
 		pMac->scan.fEnableBypass11d = pParam->fEnableBypass11d;
@@ -19311,6 +19314,8 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		roam_info->cfgParams.maxChannelScanTime;
 	req_buf->EmptyRefreshScanPeriod =
 		roam_info->cfgParams.emptyScanRefreshPeriod;
+	req_buf->full_roam_scan_period =
+		roam_info->cfgParams.full_roam_scan_period;
 	req_buf->RoamBmissFirstBcnt =
 		roam_info->cfgParams.nRoamBmissFirstBcnt;
 	req_buf->RoamBmissFinalBcnt =

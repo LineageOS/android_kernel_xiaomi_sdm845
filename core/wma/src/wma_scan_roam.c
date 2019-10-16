@@ -548,10 +548,11 @@ QDF_STATUS wma_roam_scan_offload_rssi_thresh(tp_wma_handle wma_handle,
 QDF_STATUS wma_roam_scan_offload_scan_period(tp_wma_handle wma_handle,
 					     uint32_t scan_period,
 					     uint32_t scan_age,
-					     uint32_t vdev_id)
+					     uint32_t vdev_id,
+					     uint32_t full_roam_scan_period)
 {
 	return wmi_unified_roam_scan_offload_scan_period(wma_handle->wmi_handle,
-				  scan_period, scan_age, vdev_id);
+				  scan_period, scan_age, vdev_id, full_roam_scan_period);
 }
 
 /**
@@ -1524,7 +1525,8 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 				wma_roam_scan_offload_scan_period(wma_handle,
 					  roam_req->EmptyRefreshScanPeriod,
 					  roam_req->EmptyRefreshScanPeriod * 3,
-					  roam_req->sessionId);
+					  roam_req->sessionId,
+					  roam_req->full_roam_scan_period);
 			if (qdf_status != QDF_STATUS_SUCCESS)
 				break;
 
@@ -1828,7 +1830,8 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 					wma_handle,
 					roam_req->EmptyRefreshScanPeriod,
 					roam_req->EmptyRefreshScanPeriod * 3,
-					roam_req->sessionId);
+					roam_req->sessionId,
+					roam_req->full_roam_scan_period);
 			if (qdf_status != QDF_STATUS_SUCCESS)
 				break;
 

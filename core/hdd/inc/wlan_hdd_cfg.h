@@ -17264,6 +17264,7 @@ struct hdd_config {
 	bool enable_beacon_reception_stats;
 
 	bool ignore_fw_reg_offload_ind;
+	uint32_t roam_full_scan_period;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

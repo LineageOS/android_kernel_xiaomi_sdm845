@@ -813,6 +813,20 @@ uint16_t sme_get_neighbor_scan_refresh_period(tHalHandle hHal);
 uint16_t sme_get_empty_scan_refresh_period(tHalHandle hHal);
 QDF_STATUS sme_update_empty_scan_refresh_period(tHalHandle hHal,
 		uint8_t sessionId, uint16_t nEmptyScanRefreshPeriod);
+/**
+ * sme_update_full_roam_scan_period() - Send full roam scan period to SME
+ * @mac_handle: Opaque handle to the MAC context
+ * @vdev_id: vdev id
+ * @full_roam_scan_period: Idle period in seconds between two successive
+ * full channel roam scans
+ *
+ * Updated full scan period in roam info and a roam_offload_scan request.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_update_full_roam_scan_period(mac_handle_t mac_handle,
+					    uint8_t vdev_id,
+					    uint32_t full_roam_scan_period);
 QDF_STATUS sme_set_neighbor_scan_min_chan_time(tHalHandle hHal,
 		const uint16_t nNeighborScanMinChanTime,
 		uint8_t sessionId);

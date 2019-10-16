@@ -1281,6 +1281,9 @@ QDF_STATUS csr_neighbor_roam_init(tpAniSirGlobal pMac, uint8_t sessionId)
 	pNeighborRoamInfo->cfgParams.emptyScanRefreshPeriod =
 		pMac->roam.configParam.neighborRoamConfig.
 		nEmptyScanRefreshPeriod;
+	pNeighborRoamInfo->cfgParams.full_roam_scan_period =
+		pMac->roam.configParam.neighborRoamConfig.
+		full_roam_scan_period;
 
 	specific_chan_info = &pNeighborRoamInfo->cfgParams.specific_chan_info;
 	specific_chan_info->numOfChannels =
