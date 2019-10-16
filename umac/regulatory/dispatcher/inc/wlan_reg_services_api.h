@@ -255,6 +255,16 @@ uint16_t wlan_reg_dmn_get_opclass_from_channel(uint8_t *country,
 					       uint8_t offset);
 
 /**
+ * wlan_reg_dmn_print_channels_in_opclass() - Print channels in op-class
+ * @country: country alpha2
+ * @opclass: oplcass
+ *
+ * Return: void
+ */
+void wlan_reg_dmn_print_channels_in_opclass(uint8_t *country,
+					    uint8_t opclass);
+
+/**
  * wlan_reg_dmn_get_chanwidth_from_opclass() - get channel width from
  *                                             operating class
  * @country: country alpha2

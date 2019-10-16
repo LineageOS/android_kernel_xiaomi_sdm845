@@ -333,6 +333,16 @@ uint16_t reg_dmn_get_opclass_from_channel(uint8_t *country,
 					  uint8_t channel,
 					  uint8_t offset);
 
+/**
+ * reg_dmn_get_opclass_from_channe() - Print channels in op class.
+ * @country: Country code.
+ * @opclass: opclass.
+ *
+ * Return: Void.
+ */
+void reg_dmn_print_channels_in_opclass(uint8_t *country,
+					uint8_t op_class);
+
 uint16_t reg_dmn_set_curr_opclasses(uint8_t num_classes, uint8_t *class);
 
 uint16_t reg_dmn_get_curr_opclasses(uint8_t *num_classes, uint8_t *class);
