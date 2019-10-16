@@ -3120,6 +3120,7 @@ struct tdls_peer_state_params {
  * @teardown_notification_ms: tdls teardown notification interval
  * @tdls_peer_kickout_threshold: tdls packet threshold for
  *    peer kickout operation
+ * @tdls_discovery_wake_timeout: Discovery wake timeout
  */
 struct wmi_tdls_params {
 	uint32_t vdev_id;
@@ -3137,6 +3138,7 @@ struct wmi_tdls_params {
 	uint32_t puapsd_rx_frame_threshold;
 	uint32_t teardown_notification_ms;
 	uint32_t tdls_peer_kickout_threshold;
+	uint32_t tdls_discovery_wake_timeout;
 };
 
 #ifndef CONVERGED_TDLS_ENABLE
