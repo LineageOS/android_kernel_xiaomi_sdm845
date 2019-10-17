@@ -19426,7 +19426,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		mac_ctx->roam.roamSession[session_id].
 		connectedProfile.MDID.mobilityDomain;
 	req_buf->sessionId = session_id;
-	req_buf->nProbes = mac_ctx->roam.configParam.nProbes;
+	req_buf->nProbes = roam_info->cfgParams.roam_scan_n_probes;
 	req_buf->HomeAwayTime = roam_info->cfgParams.roam_scan_home_away_time;
 
 	/*
