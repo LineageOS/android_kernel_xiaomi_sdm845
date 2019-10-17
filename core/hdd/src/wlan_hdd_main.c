@@ -8335,8 +8335,9 @@ static void __hdd_bus_bw_work_handler(struct work_struct *work)
 					      adapter->prev_rx_packets);
 
 		if (adapter->device_mode == QDF_SAP_MODE ||
-				adapter->device_mode == QDF_P2P_GO_MODE ||
-				adapter->device_mode == QDF_IBSS_MODE) {
+		    adapter->device_mode == QDF_P2P_GO_MODE ||
+		    adapter->device_mode == QDF_IBSS_MODE ||
+		    adapter->device_mode == QDF_NDI_MODE) {
 
 			ret = cdp_get_intra_bss_fwd_pkts_count(
 				cds_get_context(QDF_MODULE_ID_SOC),
@@ -8358,12 +8359,12 @@ static void __hdd_bus_bw_work_handler(struct work_struct *work)
 		total_rx += adapter->stats.rx_packets;
 		total_tx += adapter->stats.tx_packets;
 
-		spin_lock_bh(&hdd_ctx->bus_bw_lock);
+		qdf_spin_lock_bh(&hdd_ctx->bus_bw_lock);
 		adapter->prev_tx_packets = adapter->stats.tx_packets;
 		adapter->prev_rx_packets = adapter->stats.rx_packets;
 		adapter->prev_fwd_tx_packets = fwd_tx_packets;
 		adapter->prev_fwd_rx_packets = fwd_rx_packets;
-		spin_unlock_bh(&hdd_ctx->bus_bw_lock);
+		qdf_spin_unlock_bh(&hdd_ctx->bus_bw_lock);
 		connected = true;
 	}
 
@@ -8444,7 +8445,7 @@ int hdd_bus_bandwidth_init(struct hdd_context *hdd_ctx)
 {
 	hdd_enter();
 
-	spin_lock_init(&hdd_ctx->bus_bw_lock);
+	qdf_spinlock_create(&hdd_ctx->bus_bw_lock);
 	INIT_WORK(&hdd_ctx->bus_bw_work, hdd_bus_bw_work_handler);
 	hdd_ctx->bus_bw_timer_running = false;
 	qdf_spinlock_create(&hdd_ctx->bus_bw_timer_lock);
@@ -8464,8 +8465,35 @@ void hdd_bus_bandwidth_deinit(struct hdd_context *hdd_ctx)
 
 	qdf_timer_free(&hdd_ctx->bus_bw_timer);
 	qdf_spinlock_destroy(&hdd_ctx->bus_bw_timer_lock);
+	qdf_spinlock_destroy(&hdd_ctx->bus_bw_lock);
 
 	hdd_exit();
+}
+
+void hdd_bus_bw_compute_prev_txrx_stats(struct hdd_adapter *adapter)
+{
+	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	qdf_spin_lock_bh(&hdd_ctx->bus_bw_lock);
+	adapter->prev_tx_packets = adapter->stats.tx_packets;
+	adapter->prev_rx_packets = adapter->stats.rx_packets;
+	cdp_get_intra_bss_fwd_pkts_count(cds_get_context(QDF_MODULE_ID_SOC),
+					 adapter->session_id,
+					 &adapter->prev_fwd_tx_packets,
+					 &adapter->prev_fwd_rx_packets);
+	qdf_spin_unlock_bh(&hdd_ctx->bus_bw_lock);
+}
+
+void hdd_bus_bw_compute_reset_prev_txrx_stats(struct hdd_adapter *adapter)
+{
+	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	qdf_spin_lock_bh(&hdd_ctx->bus_bw_lock);
+	adapter->prev_tx_packets = 0;
+	adapter->prev_rx_packets = 0;
+	adapter->prev_fwd_tx_packets = 0;
+	adapter->prev_fwd_rx_packets = 0;
+	qdf_spin_unlock_bh(&hdd_ctx->bus_bw_lock);
 }
 
 #endif /* MSM_PLATFORM */
