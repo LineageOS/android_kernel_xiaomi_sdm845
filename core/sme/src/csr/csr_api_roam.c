@@ -19299,7 +19299,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		roam_info->cfgParams.nOpportunisticThresholdDiff;
 	req_buf->RoamRescanRssiDiff =
 		roam_info->cfgParams.nRoamRescanRssiDiff;
-	req_buf->RoamRssiDiff = mac_ctx->roam.configParam.RoamRssiDiff;
+	req_buf->RoamRssiDiff = roam_info->cfgParams.roam_rssi_diff;
 	req_buf->rssi_abs_thresh = mac_ctx->roam.configParam.rssi_abs_thresh;
 	req_buf->reason = reason;
 	req_buf->NeighborScanTimerPeriod =

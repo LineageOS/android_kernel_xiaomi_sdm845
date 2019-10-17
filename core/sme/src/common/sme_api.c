@@ -6704,51 +6704,36 @@ uint16_t sme_get_roam_scan_home_away_time(tHalHandle hHal)
 	return pMac->roam.configParam.nRoamScanHomeAwayTime;
 }
 
-/*
- * sme_update_roam_rssi_diff() -
- * Update RoamRssiDiff
- *	    This function is called through dynamic setConfig callback function
- *	    to configure RoamRssiDiff
- *	    Usage: adb shell iwpriv wlan0 setConfig RoamRssiDiff=[0 .. 125]
- *
- * hHal - HAL handle for device
- * sessionId - Session Identifier
- * RoamRssiDiff - minimum rssi difference between potential
- *	    candidate and current AP.
- * Return Success or failure
- */
-
-QDF_STATUS sme_update_roam_rssi_diff(tHalHandle hHal, uint8_t sessionId,
-				     uint8_t RoamRssiDiff)
+QDF_STATUS sme_update_roam_rssi_diff(mac_handle_t mac_handle, uint8_t vdev_id,
+				     uint8_t roam_rssi_diff)
 {
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
+	QDF_STATUS status;
+	tCsrNeighborRoamControlInfo *neighbor_roam_info;
 
-	if (sessionId >= CSR_ROAM_SESSION_MAX) {
+	if (vdev_id >= CSR_ROAM_SESSION_MAX) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  FL("Invalid sme session id: %d"), sessionId);
+			  FL("Invalid sme session id: %d"), vdev_id);
 		return QDF_STATUS_E_INVAL;
 	}
 
-	status = sme_acquire_global_lock(&pMac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "LFR runtime successfully set roam rssi diff to %d - old value is %d - roam state is %s",
-			  RoamRssiDiff,
-			  pMac->roam.configParam.RoamRssiDiff,
-			  mac_trace_get_neighbour_roam_state(pMac->roam.
-							     neighborRoamInfo
-							     [sessionId].
-							    neighborRoamState));
-		pMac->roam.configParam.RoamRssiDiff = RoamRssiDiff;
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status))
+		return status;
+	neighbor_roam_info = &mac->roam.neighborRoamInfo[vdev_id];
+	sme_debug("LFR runtime successfully set roam rssi diff to %d - old value is %d - roam state is %s",
+		  roam_rssi_diff,
+		  neighbor_roam_info->cfgParams.roam_rssi_diff,
+		  mac_trace_get_neighbour_roam_state(
+		  neighbor_roam_info->neighborRoamState));
 
-		if (pMac->roam.configParam.isRoamOffloadScanEnabled)
-			csr_roam_offload_scan(pMac, sessionId,
-					      ROAM_SCAN_OFFLOAD_UPDATE_CFG,
-					      REASON_RSSI_DIFF_CHANGED);
+	neighbor_roam_info->cfgParams.roam_rssi_diff = roam_rssi_diff;
+	if (mac->roam.configParam.isRoamOffloadScanEnabled)
+		csr_roam_offload_scan(mac, vdev_id,
+				      ROAM_SCAN_OFFLOAD_UPDATE_CFG,
+				      REASON_RSSI_DIFF_CHANGED);
+	sme_release_global_lock(&mac->sme);
 
-		sme_release_global_lock(&pMac->sme);
-	}
 	return status;
 }
 
@@ -8274,18 +8259,25 @@ QDF_STATUS sme_set_neighbor_scan_min_period(tHalHandle hal,
 	return status;
 }
 
-/*
- * sme_get_roam_rssi_diff() - get Roam rssi diff
- *  This is a synchronous call
- *
- * hHal - The handle returned by mac_open.
- * Return uint16_t - Rssi diff value
- */
-uint8_t sme_get_roam_rssi_diff(tHalHandle hHal)
+QDF_STATUS sme_get_roam_rssi_diff(mac_handle_t mac_handle, uint8_t vdev_id,
+				  uint8_t *rssi_diff)
 {
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
+	tCsrNeighborRoamControlInfo *neighbor_roam_info;
+	QDF_STATUS status;
 
-	return pMac->roam.configParam.RoamRssiDiff;
+	if (vdev_id >= CSR_ROAM_SESSION_MAX) {
+		sme_err("Invalid vdev_id: %d", vdev_id);
+		return QDF_STATUS_E_INVAL;
+	}
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status))
+		return status;
+	neighbor_roam_info = &mac->roam.neighborRoamInfo[vdev_id];
+	*rssi_diff = neighbor_roam_info->cfgParams.roam_rssi_diff;
+	sme_release_global_lock(&mac->sme);
+
+	return QDF_STATUS_SUCCESS;
 }
 
 void sme_dump_chan_list(tCsrChannelInfo *chan_info)

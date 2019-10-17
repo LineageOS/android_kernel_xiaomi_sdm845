@@ -1324,6 +1324,9 @@ QDF_STATUS csr_neighbor_roam_init(tpAniSirGlobal pMac, uint8_t sessionId)
 	pNeighborRoamInfo->cfgParams.hi_rssi_scan_rssi_ub =
 		pMac->roam.configParam.neighborRoamConfig.
 			nhi_rssi_scan_rssi_ub;
+	pNeighborRoamInfo->cfgParams.roam_rssi_diff =
+		pMac->roam.configParam.neighborRoamConfig.
+			roam_rssi_diff;
 
 	qdf_zero_macaddr(&pNeighborRoamInfo->currAPbssid);
 	pNeighborRoamInfo->currentNeighborLookupThreshold =
