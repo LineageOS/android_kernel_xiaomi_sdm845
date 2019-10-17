@@ -7731,6 +7731,13 @@ uint16_t sme_get_neighbor_scan_refresh_period(tHalHandle hHal)
 	       nNeighborResultsRefreshPeriod;
 }
 
+uint16_t sme_get_empty_scan_refresh_period_global(mac_handle_t mac_handle)
+{
+	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
+
+	return mac->roam.configParam.neighborRoamConfig.nEmptyScanRefreshPeriod;
+}
+
 QDF_STATUS sme_get_empty_scan_refresh_period(mac_handle_t mac_handle,
 					     uint8_t vdev_id,
 					     uint16_t *refresh_threshold)
@@ -16683,6 +16690,13 @@ QDF_STATUS sme_get_roam_config_status(mac_handle_t mac_handle,
 	sme_release_global_lock(&mac->sme);
 
 	return status;
+}
+
+uint16_t sme_get_full_roam_scan_period_global(mac_handle_t mac_handle)
+{
+	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
+
+	return mac->roam.configParam.neighborRoamConfig.full_roam_scan_period;
 }
 
 QDF_STATUS
