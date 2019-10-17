@@ -3277,15 +3277,26 @@ static int drv_cmd_get_roam_trigger(struct hdd_adapter *adapter,
 				    struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	uint8_t lookUpThreshold =
-		sme_get_neighbor_lookup_rssi_threshold(hdd_ctx->mac_handle);
-	int rssi = (-1) * lookUpThreshold;
 	char extra[32];
+	uint8_t lookup_threshold;
+	int rssi;
 	uint8_t len = 0;
+	QDF_STATUS status;
+
+	status = sme_get_neighbor_lookup_rssi_threshold(hdd_ctx->mac_handle,
+							adapter->session_id,
+							&lookup_threshold);
+	if (QDF_IS_STATUS_ERROR(status))
+		return qdf_status_to_os_return(status);
 
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_GETROAMTRIGGER_IOCTL,
-		   adapter->session_id, lookUpThreshold);
+		   adapter->session_id, lookup_threshold);
+
+	hdd_debug("vdev_id: %u, lookup_threshold: %u",
+		  adapter->session_id, lookup_threshold);
+
+	rssi = (-1) * lookup_threshold;
 
 	len = scnprintf(extra, sizeof(extra), "%s %d", command, rssi);
 	len = QDF_MIN(priv_data->total_len, len + 1);
