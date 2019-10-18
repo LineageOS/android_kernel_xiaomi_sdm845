@@ -343,6 +343,16 @@ QDF_STATUS sme_open_session(tHalHandle hal, struct sme_session_params *params);
  * Other status means SME is failed to open the session.
  */
 QDF_STATUS sme_close_session(tHalHandle hal, uint8_t sessionId);
+
+/**
+ * sme_cleanup_session() -  clean up sme session info for vdev
+ * @mac_handle: mac handle
+ * @vdev_id: vdev id
+ *
+ * Return: none
+ */
+void sme_cleanup_session(mac_handle_t mac_handle, uint8_t vdev_id);
+
 void sme_set_curr_device_mode(tHalHandle hHal,
 		enum QDF_OPMODE currDeviceMode);
 QDF_STATUS sme_update_roam_params(tHalHandle hHal, uint8_t session_id,
