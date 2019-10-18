@@ -1032,11 +1032,8 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 	struct wlan_objmgr_vdev *vdev = NULL;
 	uint8_t i;
 	uint8_t pdev_id;
-
-#ifdef SOFTAP_CHANNEL_RANGE
 	uint8_t *channel_list = NULL;
 	uint8_t num_of_channels = 0;
-#endif
 	tHalHandle h_hal;
 	uint8_t con_ch;
 	uint8_t vdev_id;
@@ -1111,6 +1108,7 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 	if (!req) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("Failed to allocate memory"));
+		qdf_mem_free(channel_list);
 		return QDF_STATUS_E_NOMEM;
 	}
 
@@ -1124,6 +1122,7 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("Invalid vdev objmgr"));
 		qdf_mem_free(req);
+		qdf_mem_free(channel_list);
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -1138,61 +1137,54 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 	req->scan_req.scan_priority = SCAN_PRIORITY_HIGH;
 	req->scan_req.scan_f_bcast_probe = true;
 
+	req->scan_req.chan_list.num_chan = num_of_channels;
+	for (i = 0; i < num_of_channels; i++)
+		req->scan_req.chan_list.chan[i].freq =
+			wlan_chan_to_freq(channel_list[i]);
+	sap_context->channelList = channel_list;
+	sap_context->num_of_channel = num_of_channels;
+	/* Set requestType to Full scan */
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+		  FL("calling ucfg_scan_start"));
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
-	if (num_of_channels != 0) {
+	if (sap_context->acs_cfg->skip_scan_status ==
+	    eSAP_DO_NEW_ACS_SCAN)
 #endif
+		sme_scan_flush_result(h_hal);
 
-		req->scan_req.chan_list.num_chan = num_of_channels;
-		for (i = 0; i < num_of_channels; i++)
-			req->scan_req.chan_list.chan[i].freq =
-				wlan_chan_to_freq(channel_list[i]);
-		sap_context->channelList = channel_list;
-		sap_context->num_of_channel = num_of_channels;
-		/* Set requestType to Full scan */
+	qdf_ret_status = ucfg_scan_start(req);
+	if (qdf_ret_status != QDF_STATUS_SUCCESS) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("scan request  fail %d!!!"),
+			  qdf_ret_status);
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("calling ucfg_scan_start"));
-#ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
-		if (sap_context->acs_cfg->skip_scan_status ==
-		    eSAP_DO_NEW_ACS_SCAN)
-#endif
-			sme_scan_flush_result(h_hal);
-		qdf_ret_status = ucfg_scan_start(req);
-		if (qdf_ret_status != QDF_STATUS_SUCCESS) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				  FL("scan request  fail %d!!!"),
-				  qdf_ret_status);
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				  FL("SAP Configuring default channel, Ch=%d"),
-				  sap_context->channel);
-			sap_context->channel = sap_select_default_oper_chan(
-					sap_context->acs_cfg);
-
-#ifdef SOFTAP_CHANNEL_RANGE
-			if (sap_context->channelList != NULL) {
-				sap_context->channel =
-					sap_context->channelList[0];
-				qdf_mem_free(sap_context->
-					channelList);
-				sap_context->channelList = NULL;
-				sap_context->num_of_channel = 0;
-			}
-#endif
-			/*
-			* In case of ACS req before start Bss,
-			* return failure so that the calling
-			* function can use the default channel.
-			*/
-			qdf_ret_status = QDF_STATUS_E_FAILURE;
-			goto release_vdev_ref;
-		} else {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				 FL("return sme_ScanReq, scanID=%d, Ch=%d"),
-				 scan_id,
-				 sap_context->channel);
-			host_log_acs_scan_start(scan_id, vdev_id);
+			  FL("SAP Configuring default channel, Ch=%d"),
+			  sap_context->channel);
+		sap_context->channel = sap_select_default_oper_chan(
+				sap_context->acs_cfg);
+		if (sap_context->channelList != NULL) {
+			sap_context->channel =
+				sap_context->channelList[0];
+			qdf_mem_free(sap_context->
+				channelList);
+			sap_context->channelList = NULL;
+			sap_context->num_of_channel = 0;
 		}
+		/*
+		* In case of ACS req before start Bss,
+		* return failure so that the calling
+		* function can use the default channel.
+		*/
+		qdf_ret_status = QDF_STATUS_E_FAILURE;
+		goto release_vdev_ref;
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			 FL("return sme_ScanReq, scanID=%d, Ch=%d"),
+			 scan_id,
+			 sap_context->channel);
+		host_log_acs_scan_start(scan_id, vdev_id);
+	}
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
-		}
 	} else {
 		sap_context->acs_cfg->skip_scan_status = eSAP_SKIP_ACS_SCAN;
 	}
