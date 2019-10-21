@@ -2468,6 +2468,17 @@ void policy_mgr_trim_acs_channel_list(struct wlan_objmgr_psoc *psoc,
 		uint8_t *org_ch_list, uint8_t *org_ch_list_count);
 
 /**
+ * policy_mgr_scan_trim_5g_chnls_for_dfs_ap() - check if sta scan should skip
+ * 5g channel when dfs ap is present.
+ *
+ * @psoc: pointer to soc
+ *
+ * Return: true if sta scan 5g chan should be skipped
+ */
+bool policy_mgr_scan_trim_5g_chnls_for_dfs_ap(struct wlan_objmgr_psoc *psoc);
+
+
+/**
  * policy_mgr_is_hwmode_set_for_given_chnl() - to check for given channel
  * if the hw mode is properly set.
  * @psoc: pointer to psoc
