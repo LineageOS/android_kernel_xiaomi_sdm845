@@ -4520,7 +4520,8 @@ static int wlan_hdd_get_sta_stats(struct wiphy *wiphy,
 						   tx_rate_flags,
 						   tx_mcs_index,
 						   my_tx_rate,
-						   tx_nss);
+						   wlan_vdev_mlme_get_nss(
+						   adapter->vdev));
 
 		rx_rate_calc = hdd_report_max_rate(mac_handle, pCfg,
 						   &sinfo->rxrate,
@@ -4528,7 +4529,8 @@ static int wlan_hdd_get_sta_stats(struct wiphy *wiphy,
 						   rx_rate_flags,
 						   rx_mcs_index,
 						   my_rx_rate,
-						   rx_nss);
+						   wlan_vdev_mlme_get_nss(
+						   adapter->vdev));
 
 		if (!tx_rate_calc || !rx_rate_calc)
 			/* Keep GUI happy */
