@@ -1801,6 +1801,9 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			goto stopbss;
 		}
 		wlansap_get_dfs_ignore_cac(mac_handle, &ignoreCAC);
+		if (!policy_mgr_get_dfs_master_dynamic_enabled(
+				hdd_ctx->psoc, adapter->session_id))
+			ignoreCAC = true;
 
 		/* DFS requirement: DO NOT transmit during CAC. */
 		if (CHANNEL_STATE_DFS !=
@@ -8061,10 +8064,7 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 			goto error;
 		}
 
-		if (iniConfig->ignoreCAC ||
-		    ((iniConfig->WlanMccToSccSwitchMode !=
-		    QDF_MCC_TO_SCC_SWITCH_DISABLE) &&
-		    iniConfig->sta_sap_scc_on_dfs_chan))
+		if (iniConfig->ignoreCAC)
 			ignore_cac = 1;
 
 		wlansap_set_dfs_ignore_cac(mac_handle, ignore_cac);
@@ -8991,11 +8991,14 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 	/* if sta_sap_scc_on_dfs_chan ini is set, DFS master capability is
 	 * assumed disabled in the driver.
 	 */
-	if ((reg_get_channel_state(hdd_ctx->pdev, channel) ==
-	     CHANNEL_STATE_DFS) && sta_sap_scc_on_dfs_chan && !sta_cnt) {
-		hdd_err("SAP not allowed on DFS channel!!");
+	if ((wlan_reg_get_channel_state(hdd_ctx->pdev, channel) ==
+	     CHANNEL_STATE_DFS) && !sta_cnt && sta_sap_scc_on_dfs_chan &&
+	     !policy_mgr_get_dfs_master_dynamic_enabled(
+				hdd_ctx->psoc, adapter->session_id)) {
+		hdd_err("SAP not allowed on DFS channel if no dfs master capability!!");
 		return -EINVAL;
 	}
+
 	if (!reg_is_etsi13_srd_chan_allowed_master_mode(hdd_ctx->pdev) &&
 	     reg_is_etsi13_srd_chan(hdd_ctx->pdev, channel)) {
 		hdd_err("SAP not allowed on SRD channel.");
