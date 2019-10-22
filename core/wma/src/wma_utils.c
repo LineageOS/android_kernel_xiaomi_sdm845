@@ -4744,6 +4744,9 @@ QDF_STATUS wma_send_vdev_up_to_fw(t_wma_handle *wma,
 		return QDF_STATUS_SUCCESS;
 	}
 
+	if (!wma_is_vdev_valid(params->vdev_id))
+		return QDF_STATUS_E_FAILURE;
+
 	wma_update_roam_offload_flag(wma, params->vdev_id, true);
 	status = wmi_unified_vdev_up_send(wma->wmi_handle, bssid, params);
 	wma_release_wakelock(&vdev->vdev_start_wakelock);
