@@ -3952,8 +3952,8 @@ hdd_send_roam_full_scan_period_to_sme(struct hdd_context *hdd_ctx,
 	QDF_STATUS status;
 	uint32_t full_roam_scan_period_current, full_roam_scan_period_global;
 
-	if (full_roam_scan_period < CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_MIN
-	    || full_roam_scan_period > CFG_FAST_TRANSITION_ENABLED_NAME_MAX) {
+	if (full_roam_scan_period < CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_MIN ||
+	    full_roam_scan_period > CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_MAX) {
 		hdd_err("Full roam scan period value %d is out of range (Min: %d Max: %d)",
 			full_roam_scan_period,
 			CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_MIN,
