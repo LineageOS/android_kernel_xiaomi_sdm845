@@ -16724,3 +16724,39 @@ sme_get_full_roam_scan_period(mac_handle_t mac_handle, uint8_t vdev_id,
 
 	return status;
 }
+
+QDF_STATUS sme_set_roam_triggers(mac_handle_t mac_handle,
+				 struct roam_triggers *triggers)
+{
+	QDF_STATUS status;
+	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
+	struct scheduler_msg message = {0};
+	struct roam_triggers *roam_trigger_data;
+
+	/* per contract must make a copy of the params when messaging */
+	roam_trigger_data = qdf_mem_malloc(sizeof(*roam_trigger_data));
+	if (!roam_trigger_data)
+		return QDF_STATUS_E_NOMEM;
+	*roam_trigger_data = *triggers;
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		qdf_mem_free(roam_trigger_data);
+		return status;
+	}
+
+	/* Serialize the req through MC thread */
+	message.bodyptr = roam_trigger_data;
+	message.type = SIR_HAL_SET_ROAM_TRIGGERS;
+	status = scheduler_post_message(QDF_MODULE_ID_SME,
+					QDF_MODULE_ID_WMA,
+					QDF_MODULE_ID_WMA,
+					&message);
+	sme_release_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		sme_err("failed to post ROAM_TRIGGERS msg");
+		qdf_mem_free(roam_trigger_data);
+	}
+
+	return status;
+}

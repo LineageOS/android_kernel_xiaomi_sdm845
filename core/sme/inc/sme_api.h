@@ -2942,4 +2942,19 @@ uint16_t sme_get_full_roam_scan_period_global(mac_handle_t mac_handle);
 QDF_STATUS sme_get_full_roam_scan_period(mac_handle_t mac_handle,
 					 uint8_t vdev_id,
 					 uint32_t *full_roam_scan_period);
+
+/**
+ * sme_set_roam_triggers() - Send roam trigger bitmap to WMA
+ * @mac_handle: Opaque handle to the MAC context
+ * @triggers: Carries pointer of the object containing vdev id and
+ *	      roam_trigger_bitmap.
+ *
+ * Send the roam trigger bitmap received to WMA/WMI. WMI converts
+ * the bitmap to firmware compatible bitmap as per reasons
+ * defined @WMI_ROAM_TRIGGER_REASON_ID
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_set_roam_triggers(mac_handle_t mac_handle,
+				 struct roam_triggers *triggers);
 #endif /* #if !defined( __SME_API_H ) */
