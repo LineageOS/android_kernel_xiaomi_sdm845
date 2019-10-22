@@ -7887,6 +7887,56 @@ out:
 	return status;
 }
 
+QDF_STATUS sme_roam_control_restore_default_config(mac_handle_t mac_handle,
+						   uint8_t vdev_id)
+{
+	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
+	QDF_STATUS status;
+	tpCsrNeighborRoamControlInfo neighbor_roam_info;
+
+	if (!CSR_IS_SESSION_VALID(mac, vdev_id)) {
+		sme_err("Invalid vdev_id: %d", vdev_id);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status))
+		return status;
+
+	if (!mac->roam.configParam.isRoamOffloadScanEnabled) {
+		sme_err("roam_scan_offload_enabled is not supported");
+		status = QDF_STATUS_E_INVAL;
+		goto out;
+	}
+
+	sme_debug("%s default roam scoring",
+		  mac->roam.configParam.neighborRoamConfig.enable_scoring_for_roam ?
+		  "Enable" : "Disable");
+
+	neighbor_roam_info = &mac->roam.neighborRoamInfo[vdev_id];
+
+	neighbor_roam_info->cfgParams.enable_scoring_for_roam =
+		mac->roam.configParam.neighborRoamConfig.enable_scoring_for_roam;
+
+	neighbor_roam_info->cfgParams.emptyScanRefreshPeriod =
+		mac->roam.configParam.neighborRoamConfig.nEmptyScanRefreshPeriod;
+
+	neighbor_roam_info->cfgParams.full_roam_scan_period =
+		mac->roam.configParam.neighborRoamConfig.full_roam_scan_period;
+
+	sme_debug("Restore scan period to: %u and full scan period to: %u",
+		  neighbor_roam_info->cfgParams.emptyScanRefreshPeriod,
+		  neighbor_roam_info->cfgParams.full_roam_scan_period);
+
+	csr_roam_offload_scan(mac, vdev_id,
+			      ROAM_SCAN_OFFLOAD_UPDATE_CFG,
+			      REASON_SCORING_CRITERIA_CHANGED);
+out:
+	sme_release_global_lock(&mac->sme);
+
+	return status;
+}
+
 /*
  * sme_set_neighbor_scan_min_chan_time() -
  * Update nNeighborScanMinChanTime

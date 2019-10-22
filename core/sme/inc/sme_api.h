@@ -2957,4 +2957,18 @@ QDF_STATUS sme_get_full_roam_scan_period(mac_handle_t mac_handle,
  */
 QDF_STATUS sme_set_roam_triggers(mac_handle_t mac_handle,
 				 struct roam_triggers *triggers);
+
+/**
+ * sme_roam_control_restore_default_config - Restore roam config to default
+ * @mac_handle: Opaque handle to the global MAC context
+ * @vdev_id: vdev Identifier
+ *
+ * Restore enable_scoring_for_roam, emptyScanRefreshPeriod,
+ * full_roam_scan_period to their default values and send RSO command to
+ * firmware with the updated values.
+ *
+ * Return: Success or failure
+ */
+QDF_STATUS sme_roam_control_restore_default_config(mac_handle_t mac_handle,
+						   uint8_t vdev_id);
 #endif /* #if !defined( __SME_API_H ) */
