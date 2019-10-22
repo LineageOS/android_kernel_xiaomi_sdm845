@@ -125,6 +125,8 @@ struct hdd_apf_context {
 };
 #endif /* FEATURE_WLAN_APF */
 
+#define ACS_COMPLETE_TIMEOUT 3000
+
 /** Number of Tx Queues */
 #if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 #define NUM_TX_QUEUES 5
@@ -1230,6 +1232,7 @@ struct hdd_context;
  * @vdev: object manager vdev context
  * @vdev_lock: lock to protect vdev context access
  * @event_flags: a bitmap of hdd_adapter_flags
+ * @acs_complete_event: acs complete event
  */
 struct hdd_adapter {
 	/* Magic cookie for adapter sanity verification.  Note that this
@@ -1293,6 +1296,7 @@ struct hdd_adapter {
 
 	/* QDF event for session close */
 	qdf_event_t qdf_session_close_event;
+	qdf_event_t acs_complete_event;
 
 	/* QDF event for session open */
 	qdf_event_t qdf_session_open_event;
