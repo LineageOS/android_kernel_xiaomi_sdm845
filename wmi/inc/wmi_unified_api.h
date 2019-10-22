@@ -2463,4 +2463,18 @@ void wmi_process_fw_event_worker_thread_ctx(struct wmi_unified *wmi_handle,
  */
 QDF_STATUS wmi_unified_send_mws_coex_req_cmd(struct wmi_unified *wmi_handle,
 					     uint32_t vdev_id, uint32_t cmd_id);
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+/**
+ * wmi_unified_set_roam_triggers() - send roam trigger bitmap
+ * @wmi_handle: wmi handle
+ * @triggers: Roam trigger bitmap params as defined @roam_control_trigger_reason
+ *
+ * This function passes the roam trigger bitmap to fw
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_set_roam_triggers(wmi_unified_t wmi_handle,
+					 struct roam_triggers *triggers);
+#endif
 #endif /* _WMI_UNIFIED_API_H_ */
