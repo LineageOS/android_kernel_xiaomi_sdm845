@@ -15828,6 +15828,8 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	struct vdev_type_nss *vdev_type_nss;
 	struct action_oui_search_attr vendor_ap_search_attr;
 	tDot11fIEVHTCaps *vht_caps = NULL;
+	struct wlan_objmgr_vdev *vdev;
+	struct vdev_mlme_priv_obj *vdev_mlme;
 
 	if (!pSession) {
 		sme_err("session %d not found", sessionId);
@@ -15977,6 +15979,24 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 					IS_24G_CH(pBssDescription->channelId);
 		vendor_ap_search_attr.enable_5g =
 					IS_5G_CH(pBssDescription->channelId);
+
+		is_vendor_ap_present = ucfg_action_oui_search(pMac->psoc,
+					   &vendor_ap_search_attr,
+					   ACTION_OUI_DISABLE_AGGRESSIVE_EDCA);
+
+		vdev = wlan_objmgr_get_vdev_by_id_from_psoc(pMac->psoc,
+							    sessionId,
+							    WLAN_LEGACY_MAC_ID);
+		if (vdev) {
+			vdev_mlme = wlan_vdev_mlme_get_priv_obj(vdev);
+			if (vdev_mlme) {
+				if (is_vendor_ap_present)
+					vdev_mlme->follow_ap_edca = true;
+				else
+					vdev_mlme->follow_ap_edca = false;
+			}
+			wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+		}
 
 		is_vendor_ap_present =
 				ucfg_action_oui_search(pMac->psoc,

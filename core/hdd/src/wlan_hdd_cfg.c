@@ -5104,6 +5104,14 @@ struct reg_table_entry g_registry_table[] = {
 			    (void *)
 			    CFG_ACTION_OUI_DISABLE_AGGRESSIVE_TX_DEFAULT),
 
+	REG_VARIABLE_STRING(CFG_ACTION_OUI_DISABLE_AGGRESSIVE_EDCA,
+			    WLAN_PARAM_String,
+			    struct hdd_config,
+			    action_oui_str[ACTION_OUI_DISABLE_AGGRESSIVE_EDCA],
+			    VAR_FLAGS_OPTIONAL,
+			    (void *)
+			    CFG_ACTION_OUI_DISABLE_AGGRESSIVE_EDCA_DEFAULT),
+
 	REG_VARIABLE(CFG_DTIM_1CHRX_ENABLE_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, enable_dtim_1chrx,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -7006,6 +7014,10 @@ static void hdd_cfg_print_action_oui(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] value = [%s]",
 		  CFG_ACTION_OUI_DISABLE_AGGRESSIVE_TX_NAME,
 		  config->action_oui_str[ACTION_OUI_DISABLE_AGGRESSIVE_TX]);
+
+	hdd_debug("Name = [%s] value = [%s]",
+		  CFG_ACTION_OUI_DISABLE_AGGRESSIVE_EDCA,
+		  config->action_oui_str[ACTION_OUI_DISABLE_AGGRESSIVE_EDCA]);
 }
 
 /**

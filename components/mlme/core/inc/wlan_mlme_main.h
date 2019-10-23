@@ -47,11 +47,13 @@ struct peer_mlme_priv_obj {
  * @dynamic_cfg: current configuration of nss, chains for vdev.
  * @ini_cfg: Max configuration of nss, chains supported for vdev.
  * @sta_dynamic_oce_value: Dyanmic oce flags value for sta
+ * @follow_ap_edca: if true, it is forced to follow the AP's edca
  */
 struct vdev_mlme_priv_obj {
 	struct mlme_nss_chains dynamic_cfg;
 	struct mlme_nss_chains ini_cfg;
 	uint8_t sta_dynamic_oce_value;
+	bool follow_ap_edca;
 };
 
 
