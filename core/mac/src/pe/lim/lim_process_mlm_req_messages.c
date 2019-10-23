@@ -2233,7 +2233,7 @@ static void lim_process_periodic_join_probe_req_timer(tpAniSirGlobal mac_ctx)
 static void lim_process_auth_retry_timer(tpAniSirGlobal mac_ctx)
 {
 	tpPESession session_entry;
-	tAniAuthType auth_type = mac_ctx->lim.gpLimMlmAuthReq->authType;
+	tAniAuthType auth_type;
 	tLimTimers *lim_timers = &mac_ctx->lim.limTimers;
 	uint16_t vdev_id =
 		lim_timers->g_lim_periodic_auth_retry_timer.sessionId;
@@ -2253,14 +2253,16 @@ static void lim_process_auth_retry_timer(tpAniSirGlobal mac_ctx)
 		 * Send the auth retry only in case we have received ack failure
 		 * else just restart the retry timer.
 		 */
-		if (LIM_AUTH_ACK_RCD_FAILURE == mac_ctx->auth_ack_status) {
+		if (LIM_AUTH_ACK_RCD_FAILURE == mac_ctx->auth_ack_status &&
+		    mac_ctx->lim.gpLimMlmAuthReq) {
+			auth_type = mac_ctx->lim.gpLimMlmAuthReq->authType;
+
 			/* Prepare & send Authentication frame */
 			if (session_entry->sae_pmk_cached &&
 			    auth_type == eSIR_AUTH_TYPE_SAE)
 				auth_frame.authAlgoNumber = eSIR_OPEN_SYSTEM;
 			else
-				auth_frame.authAlgoNumber = (uint8_t)
-					mac_ctx->lim.gpLimMlmAuthReq->authType;
+				auth_frame.authAlgoNumber = (uint8_t)auth_type;
 
 			auth_frame.authTransactionSeqNumber =
 						SIR_MAC_AUTH_FRAME_1;
