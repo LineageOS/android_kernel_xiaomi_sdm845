@@ -5608,6 +5608,7 @@ typedef enum {
 	wmi_vdev_get_mws_coex_idrx_state_eventid,
 	wmi_vdev_get_mws_coex_antenna_sharing_state_eventid,
 	wmi_coex_report_antenna_isolation_event_id,
+	wmi_get_ani_level_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 
@@ -8853,4 +8854,17 @@ struct roam_triggers {
 	uint32_t vdev_id;
 	uint32_t trigger_bitmap;
 };
+
+#ifdef FEATURE_ANI_LEVEL_REQUEST
+/* Maximum number of freqs for which ANI level can be requested */
+#define MAX_NUM_FREQS_FOR_ANI_LEVEL 20
+
+/* A valid ANI level lies between 0 to 9 */
+#define MAX_ANI_LEVEL 9
+
+struct wmi_host_ani_level_event {
+	uint32_t chan_freq;
+	uint32_t ani_level;
+};
+#endif /* FEATURE_ANI_LEVEL_REQUEST */
 #endif /* _WMI_UNIFIED_PARAM_H_ */
