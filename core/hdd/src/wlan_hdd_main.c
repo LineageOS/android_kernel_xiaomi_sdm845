@@ -6117,7 +6117,8 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 			wlansap_reset_sap_config_add_ie(sap_config,
 							eUPDATE_IE_ALL);
 		ucfg_ipa_flush(hdd_ctx->pdev);
-		if (!(flag & HDD_IN_CAC_WORK_TH_CONTEXT))
+		if ((!(flag & HDD_IN_CAC_WORK_TH_CONTEXT)) &&
+		    (hdd_ctx->sap_pre_cac_work.fn))
 			cds_flush_work(&hdd_ctx->sap_pre_cac_work);
 		/* fallthrough */
 
@@ -6291,7 +6292,8 @@ QDF_STATUS hdd_stop_all_adapters(struct hdd_context *hdd_ctx)
 
 	hdd_enter();
 
-	cds_flush_work(&hdd_ctx->sap_pre_cac_work);
+	if (hdd_ctx->sap_pre_cac_work.fn)
+		cds_flush_work(&hdd_ctx->sap_pre_cac_work);
 
 	hdd_for_each_adapter(hdd_ctx, adapter)
 		hdd_stop_adapter(hdd_ctx, adapter);
