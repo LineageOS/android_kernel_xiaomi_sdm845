@@ -10740,7 +10740,7 @@ enum dot11p_mode {
 #define CFG_BUG_ON_REINIT_FAILURE_NAME     "g_bug_on_reinit_failure"
 #define CFG_BUG_ON_REINIT_FAILURE_MIN      (0)
 #define CFG_BUG_ON_REINIT_FAILURE_MAX      (1)
-#define CFG_BUG_ON_REINIT_FAILURE_DEFAULT  (1)
+#define CFG_BUG_ON_REINIT_FAILURE_DEFAULT  (0)
 
 /*
  * <ini>
