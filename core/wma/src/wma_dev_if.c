@@ -756,6 +756,7 @@ static void wma_remove_objmgr_peer(tp_wma_handle wma, uint8_t vdev_id,
 	struct wlan_objmgr_peer *obj_peer;
 	struct wlan_objmgr_vdev *obj_vdev;
 	struct wlan_objmgr_pdev *obj_pdev;
+	struct wma_txrx_node *iface = &wma->interfaces[vdev_id];
 	uint8_t pdev_id = 0;
 
 	psoc = wma->psoc;
@@ -772,6 +773,8 @@ static void wma_remove_objmgr_peer(tp_wma_handle wma, uint8_t vdev_id,
 	}
 	obj_pdev = wlan_vdev_get_pdev(obj_vdev);
 	pdev_id = wlan_objmgr_pdev_get_pdev_id(obj_pdev);
+
+	qdf_spin_lock_bh(&iface->peer_lock);
 	obj_peer = wlan_objmgr_get_peer(psoc, pdev_id, peer_addr,
 					WLAN_LEGACY_WMA_ID);
 	if (obj_peer) {
@@ -782,6 +785,7 @@ static void wma_remove_objmgr_peer(tp_wma_handle wma, uint8_t vdev_id,
 	} else {
 		WMA_LOGE("Peer %pM not found", peer_addr);
 	}
+	qdf_spin_unlock_bh(&iface->peer_lock);
 
 	wlan_objmgr_vdev_release_ref(obj_vdev, WLAN_LEGACY_WMA_ID);
 }
