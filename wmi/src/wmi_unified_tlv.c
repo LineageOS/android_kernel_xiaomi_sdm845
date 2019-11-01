@@ -24102,6 +24102,7 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_coex_report_antenna_isolation_event_id] =
 				WMI_COEX_REPORT_ANTENNA_ISOLATION_EVENTID;
 	event_ids[wmi_get_ani_level_event_id] = WMI_GET_CHANNEL_ANI_EVENTID;
+	event_ids[wmi_oem_data_event_id] = WMI_OEM_DATA_EVENTID;
 }
 
 /**
