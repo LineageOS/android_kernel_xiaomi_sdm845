@@ -57,6 +57,7 @@
 #include <cdp_txrx_peer_ops.h>
 #include "lim_process_fils.h"
 #include "wlan_utility.h"
+#include <wlan_mlme_main.h>
 
 /**
  *
@@ -2774,6 +2775,30 @@ static QDF_STATUS lim_deauth_tx_complete_cnf_handler(void *context,
 }
 
 /**
+ * lim_append_ies_to_frame() - Append IEs to the frame
+ *
+ * @frame: Pointer to the frame buffer that needs to be populated
+ * @frame_len: Pointer for current frame length
+ * @ie: pointer for disconnect IEs
+ *
+ * This function is called by lim_send_disassoc_mgmt_frame and
+ * lim_send_deauth_mgmt_frame APIs as part of disconnection.
+ * Append IEs and update frame length.
+ *
+ * Return: None
+ */
+static void
+lim_append_ies_to_frame(uint8_t *frame, uint32_t *frame_len,
+			struct wlan_ies *ie)
+{
+	if (!ie || !ie->len || !ie->data)
+		return;
+	qdf_mem_copy(frame, ie->data, ie->len);
+	*frame_len += ie->len;
+	pe_debug("Appended IEs len: %u", ie->len);
+}
+
+/**
  * \brief This function is called to send Disassociate frame.
  *
  *
@@ -2803,6 +2828,7 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 	uint8_t txFlag = 0;
 	uint32_t val = 0;
 	uint8_t smeSessionId = 0;
+	struct wlan_ies *discon_ie;
 
 	if (NULL == psessionEntry) {
 		return;
@@ -2839,6 +2865,10 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 
 	nBytes = nPayload + sizeof(tSirMacMgmtHdr);
 
+	discon_ie = hdd_get_self_disconnect_ies(pMac, smeSessionId);
+	if (discon_ie && discon_ie->len)
+		nBytes += discon_ie->len;
+
 	qdf_status = cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				      (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
@@ -2873,6 +2903,11 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 		pe_warn("There were warnings while packing a Disassociation (0x%08x)",
 			nStatus);
 	}
+
+	/* Copy disconnect IEs to the end of the frame */
+	lim_append_ies_to_frame(pFrame + sizeof(tSirMacMgmtHdr) + nPayload,
+				&nPayload, discon_ie);
+	hdd_free_self_disconnect_ies(pMac, smeSessionId);
 
 	pe_debug("***Sessionid %d Sending Disassociation frame with "
 		   "reason %u and waitForAck %d to " MAC_ADDRESS_STR " ,From "
@@ -2982,6 +3017,7 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 	tpDphHashNode pStaDs;
 #endif
 	uint8_t smeSessionId = 0;
+	struct wlan_ies *discon_ie;
 
 	if (NULL == psessionEntry) {
 		return;
@@ -3017,6 +3053,9 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 	}
 
 	nBytes = nPayload + sizeof(tSirMacMgmtHdr);
+	discon_ie = hdd_get_self_disconnect_ies(pMac, smeSessionId);
+	if (discon_ie && discon_ie->len)
+		nBytes += discon_ie->len;
 
 	qdf_status = cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				      (void **)&pPacket);
@@ -3051,6 +3090,12 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 		pe_warn("There were warnings while packing a De-Authentication (0x%08x)",
 			nStatus);
 	}
+
+	/* Copy disconnect IEs to the end of the frame */
+	lim_append_ies_to_frame(pFrame + sizeof(tSirMacMgmtHdr) + nPayload,
+				&nPayload, discon_ie);
+	hdd_free_self_disconnect_ies(pMac, smeSessionId);
+
 	pe_debug("***Sessionid %d Sending Deauth frame with "
 		       "reason %u and waitForAck %d to " MAC_ADDRESS_STR
 		       " ,From " MAC_ADDRESS_STR,

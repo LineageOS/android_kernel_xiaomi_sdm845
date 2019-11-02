@@ -8487,3 +8487,36 @@ void lim_process_ap_ecsa_timeout(void *data)
 	}
 }
 
+struct wlan_ies *
+hdd_get_self_disconnect_ies(tpAniSirGlobal mac_ctx, uint8_t vdev_id)
+{
+	struct wlan_ies *discon_ie = NULL;
+	struct wlan_objmgr_vdev *vdev =
+		wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
+						     vdev_id,
+						     WLAN_MLME_SB_ID);
+	if (!vdev) {
+		pe_err("Got NULL vdev obj, returning");
+		return NULL;
+	}
+	discon_ie = mlme_get_self_disconnect_ies(vdev);
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_SB_ID);
+
+	return discon_ie;
+}
+
+void hdd_free_self_disconnect_ies(tpAniSirGlobal mac_ctx, uint8_t vdev_id)
+{
+	struct wlan_objmgr_vdev *vdev =
+		wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
+						     vdev_id,
+						     WLAN_MLME_SB_ID);
+	if (!vdev) {
+		pe_err("Got NULL vdev obj, returning");
+		return;
+	}
+	mlme_free_self_disconnect_ies(vdev);
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_MLME_SB_ID);
+
+	return;
+}

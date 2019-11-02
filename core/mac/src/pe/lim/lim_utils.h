@@ -1472,4 +1472,8 @@ static inline void lim_set_peer_twt_cap(tpPESession session,
 }
 #endif
 
+struct wlan_ies *
+hdd_get_self_disconnect_ies(tpAniSirGlobal mac_ctx, uint8_t vdev_id);
+
+void hdd_free_self_disconnect_ies(tpAniSirGlobal mac_ctx, uint8_t vdev_id);
 #endif /* __LIM_UTILS_H */
