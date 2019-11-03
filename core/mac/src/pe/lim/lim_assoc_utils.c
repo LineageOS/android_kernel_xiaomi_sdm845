@@ -4935,6 +4935,12 @@ void lim_extract_ies_from_deauth_disassoc(tpAniSirGlobal mac_ctx,
 	uint16_t reason_code, ie_offset;
 	struct wlan_ies ie;
 
+	/* Get the offset of IEs */
+	ie_offset = sizeof(struct wlan_frame_hdr) + sizeof(reason_code);
+
+	if (!deauth_disassoc_frame || deauth_disassoc_frame_len <= ie_offset)
+		return;
+
 	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
 						    vdev_id,
 						    WLAN_LEGACY_MAC_ID);
@@ -4942,12 +4948,6 @@ void lim_extract_ies_from_deauth_disassoc(tpAniSirGlobal mac_ctx,
 		pe_err("Got NULL vdev obj, returning");
 		return;
 	}
-
-	/* Get the offset of IEs */
-	ie_offset = sizeof(struct wlan_frame_hdr) + sizeof(reason_code);
-
-	if (!deauth_disassoc_frame || deauth_disassoc_frame_len <= ie_offset)
-		return;
 
 	ie.data = deauth_disassoc_frame + ie_offset;
 	ie.len = deauth_disassoc_frame_len - ie_offset;

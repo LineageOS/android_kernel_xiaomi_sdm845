@@ -89,6 +89,8 @@ void lim_set_active_edca_params(tpAniSirGlobal pMac,
 #define DS_PARAM_CHANNEL_MASK   0x0
 #define VHTOP_CHWIDTH_MASK      0xFC
 
+#define MAX_VENDOR_IES_LEN 1532
+
 #ifdef WLAN_FEATURE_11W
 QDF_STATUS lim_send_exclude_unencrypt_ind(tpAniSirGlobal pMac,
 					     bool excludeUnenc,
