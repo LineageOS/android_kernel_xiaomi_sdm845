@@ -6692,7 +6692,7 @@ QDF_STATUS lim_strip_ie(tpAniSirGlobal mac_ctx,
 	int left = *addn_ielen;
 	uint8_t *ptr = addn_ie;
 	uint8_t elem_id;
-	uint16_t elem_len;
+	uint16_t elem_len, ie_len, extracted_ie_len = 0;
 
 	if (NULL == addn_ie) {
 		pe_debug("NULL addn_ie pointer");
@@ -6704,6 +6704,9 @@ QDF_STATUS lim_strip_ie(tpAniSirGlobal mac_ctx,
 		pe_err("Unable to allocate memory");
 		return QDF_STATUS_E_NOMEM;
 	}
+
+	if (extracted_ie)
+		qdf_mem_zero(extracted_ie, eid_max_len + size_of_len_field + 1);
 
 	while (left >= 2) {
 		elem_id  = ptr[0];
@@ -6735,11 +6738,13 @@ QDF_STATUS lim_strip_ie(tpAniSirGlobal mac_ctx,
 			 * take oui IE and store in provided buffer.
 			 */
 			if (NULL != extracted_ie) {
-				qdf_mem_zero(extracted_ie,
-					   eid_max_len + size_of_len_field + 1);
-				if (elem_len <= eid_max_len)
-					qdf_mem_copy(extracted_ie, &ptr[0],
-					elem_len + size_of_len_field + 1);
+				ie_len = elem_len + size_of_len_field + 1;
+				if (ie_len <= eid_max_len - extracted_ie_len) {
+					qdf_mem_copy(
+					extracted_ie + extracted_ie_len,
+					&ptr[0], ie_len);
+					extracted_ie_len += ie_len;
+				}
 			}
 		}
 		left -= elem_len;
