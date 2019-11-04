@@ -46,7 +46,7 @@ typedef struct sCsrNeighborRoamCfgParams {
 	uint8_t maxNeighborRetries;
 	uint32_t neighborScanPeriod;
 	uint32_t neighbor_scan_min_period;
-	tCsrChannelInfo channelInfo;
+	tCsrChannelInfo specific_chan_info;
 	uint8_t neighborLookupThreshold;
 	int8_t rssi_thresh_offset_5g;
 	uint8_t neighborReassocThreshold;
@@ -64,6 +64,12 @@ typedef struct sCsrNeighborRoamCfgParams {
 	uint32_t hi_rssi_scan_rssi_delta;
 	uint32_t hi_rssi_scan_delay;
 	int32_t hi_rssi_scan_rssi_ub;
+	tCsrChannelInfo pref_chan_info;
+	uint32_t full_roam_scan_period;
+	bool enable_scoring_for_roam;
+	uint8_t roam_rssi_diff;
+	uint16_t roam_scan_home_away_time;
+	uint8_t roam_scan_n_probes;
 } tCsrNeighborRoamCfgParams, *tpCsrNeighborRoamCfgParams;
 
 #define CSR_NEIGHBOR_ROAM_INVALID_CHANNEL_INDEX    255
@@ -129,7 +135,15 @@ typedef enum {
 	SPLIT_SCAN_OCCUPIED_LIST = 1,
 } eNeighborRoamScanMode;
 
-/* Complete control information for neighbor roam algorithm */
+/**
+ * struct sCsr11rAssocNeighborInfo - Control info for neighbor roam algorithm
+ * @roam_control_enable: Flag used to cache the status of roam control
+ *			 configuration. This will be set only if the
+ *			 corresponding vendor command data is configured to
+ *			 driver/firmware successfully. The same shall be
+ *			 returned to userspace whenever queried for roam
+ *			 control config status.
+ */
 typedef struct sCsrNeighborRoamControlInfo {
 	eCsrNeighborRoamState neighborRoamState;
 	eCsrNeighborRoamState prevNeighborRoamState;
@@ -164,6 +178,7 @@ typedef struct sCsrNeighborRoamControlInfo {
 	uint8_t currentRoamBeaconRssiWeight;
 	uint8_t last_sent_cmd;
 	bool b_roam_scan_offload_started;
+	bool roam_control_enable;
 } tCsrNeighborRoamControlInfo, *tpCsrNeighborRoamControlInfo;
 
 /* All the necessary Function declarations are here */
@@ -325,6 +340,8 @@ void csr_roam_reset_roam_params(tpAniSirGlobal mac_ptr);
 #define REASON_FILS_PARAMS_CHANGED                  41
 #define REASON_SME_ISSUED                           42
 #define REASON_DRIVER_ENABLED                       43
+#define REASON_ROAM_FULL_SCAN_PERIOD_CHANGED        44
+#define REASON_SCORING_CRITERIA_CHANGED             45
 
 #if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
 QDF_STATUS csr_roam_offload_scan(tpAniSirGlobal pMac, uint8_t sessionId,

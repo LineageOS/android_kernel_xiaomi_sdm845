@@ -3004,6 +3004,14 @@ int hdd_enable_disable_ca_event(struct hdd_context *hddctx,
 				uint8_t set_value);
 void wlan_hdd_undo_acs(struct hdd_adapter *adapter);
 
+void
+hdd_modify_nss_in_hdd_cfg(struct hdd_context *hdd_ctx,
+			  uint8_t rx_nss, uint8_t tx_nss,
+			  enum QDF_OPMODE vdev_op_mode,
+			  enum nss_chains_band_info band);
+
+void hdd_store_nss_chains_cfg_in_vdev(struct hdd_adapter *adapter);
+
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0))
 static inline int
 hdd_wlan_nla_put_u64(struct sk_buff *skb, int attrtype, u64 value)

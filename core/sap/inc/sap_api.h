@@ -794,14 +794,6 @@ typedef struct sap_SoftapStats_s {
 	uint32_t rxRate;
 } tSap_SoftapStats, *tpSap_SoftapStats;
 
-#ifdef FEATURE_WLAN_CH_AVOID
-/* Store channel safety information */
-typedef struct {
-	uint16_t channelNumber;
-	bool isSafe;
-} sapSafeChannelType;
-#endif /* FEATURE_WLAN_CH_AVOID */
-
 /**
  * struct sap_context - per-BSS Context for SAP
  *

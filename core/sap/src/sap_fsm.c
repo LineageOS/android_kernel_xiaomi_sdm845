@@ -71,10 +71,6 @@
 /*----------------------------------------------------------------------------
  *  External declarations for global context
  * -------------------------------------------------------------------------*/
-#ifdef FEATURE_WLAN_CH_AVOID
-extern sapSafeChannelType safe_channels[];
-#endif /* FEATURE_WLAN_CH_AVOID */
-
 /*----------------------------------------------------------------------------
  * Static Variable Definitions
  * -------------------------------------------------------------------------*/
@@ -808,8 +804,33 @@ sap_chan_bond_dfs_sub_chan(struct sap_context *sap_context,
 
 uint8_t sap_select_default_oper_chan(struct sap_acs_cfg *acs_cfg)
 {
-	if (!acs_cfg || !acs_cfg->ch_list)
+	uint16_t i;
+
+	if (!acs_cfg || !acs_cfg->ch_list || !acs_cfg->ch_list_count)
 		return 0;
+
+	/*
+	 * There could be both 2.4Ghz and 5ghz channels present in the list
+	 * based upon the Hw mode received from hostapd, it is always better
+	 * to chose a default 5ghz operating channel than 2.4ghz, as it can
+	 * provide a better throughput, latency than 2.4ghz. Also 40 Mhz is
+	 * rare in 2.4ghz band, so 5ghz should be preferred. If we get a 5Ghz
+	 * chan in the acs cfg ch list , we should go for that first else the
+	 * default channel can be 2.4ghz.
+	 */
+
+	for (i = 0; i < acs_cfg->ch_list_count; i++) {
+		if (WLAN_CHAN_IS_5GHZ(acs_cfg->ch_list[i])) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+				  FL("default 5ghz channel chosen as %d"),
+				  acs_cfg->ch_list[i]);
+			return acs_cfg->ch_list[i];
+		}
+	}
+
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+		  FL("default channel chosen as %d"),
+		  acs_cfg->ch_list[0]);
 
 	return acs_cfg->ch_list[0];
 }
@@ -1011,11 +1032,8 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 	struct wlan_objmgr_vdev *vdev = NULL;
 	uint8_t i;
 	uint8_t pdev_id;
-
-#ifdef SOFTAP_CHANNEL_RANGE
 	uint8_t *channel_list = NULL;
 	uint8_t num_of_channels = 0;
-#endif
 	tHalHandle h_hal;
 	uint8_t con_ch;
 	uint8_t vdev_id;
@@ -1090,6 +1108,7 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 	if (!req) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("Failed to allocate memory"));
+		qdf_mem_free(channel_list);
 		return QDF_STATUS_E_NOMEM;
 	}
 
@@ -1103,6 +1122,7 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("Invalid vdev objmgr"));
 		qdf_mem_free(req);
+		qdf_mem_free(channel_list);
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -1117,61 +1137,54 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 	req->scan_req.scan_priority = SCAN_PRIORITY_HIGH;
 	req->scan_req.scan_f_bcast_probe = true;
 
+	req->scan_req.chan_list.num_chan = num_of_channels;
+	for (i = 0; i < num_of_channels; i++)
+		req->scan_req.chan_list.chan[i].freq =
+			wlan_chan_to_freq(channel_list[i]);
+	sap_context->channelList = channel_list;
+	sap_context->num_of_channel = num_of_channels;
+	/* Set requestType to Full scan */
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+		  FL("calling ucfg_scan_start"));
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
-	if (num_of_channels != 0) {
+	if (sap_context->acs_cfg->skip_scan_status ==
+	    eSAP_DO_NEW_ACS_SCAN)
 #endif
+		sme_scan_flush_result(h_hal);
 
-		req->scan_req.chan_list.num_chan = num_of_channels;
-		for (i = 0; i < num_of_channels; i++)
-			req->scan_req.chan_list.chan[i].freq =
-				wlan_chan_to_freq(channel_list[i]);
-		sap_context->channelList = channel_list;
-		sap_context->num_of_channel = num_of_channels;
-		/* Set requestType to Full scan */
+	qdf_ret_status = ucfg_scan_start(req);
+	if (qdf_ret_status != QDF_STATUS_SUCCESS) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("scan request  fail %d!!!"),
+			  qdf_ret_status);
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("calling ucfg_scan_start"));
-#ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
-		if (sap_context->acs_cfg->skip_scan_status ==
-		    eSAP_DO_NEW_ACS_SCAN)
-#endif
-			sme_scan_flush_result(h_hal);
-		qdf_ret_status = ucfg_scan_start(req);
-		if (qdf_ret_status != QDF_STATUS_SUCCESS) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				  FL("scan request  fail %d!!!"),
-				  qdf_ret_status);
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				  FL("SAP Configuring default channel, Ch=%d"),
-				  sap_context->channel);
-			sap_context->channel = sap_select_default_oper_chan(
-					sap_context->acs_cfg);
-
-#ifdef SOFTAP_CHANNEL_RANGE
-			if (sap_context->channelList != NULL) {
-				sap_context->channel =
-					sap_context->channelList[0];
-				qdf_mem_free(sap_context->
-					channelList);
-				sap_context->channelList = NULL;
-				sap_context->num_of_channel = 0;
-			}
-#endif
-			/*
-			* In case of ACS req before start Bss,
-			* return failure so that the calling
-			* function can use the default channel.
-			*/
-			qdf_ret_status = QDF_STATUS_E_FAILURE;
-			goto release_vdev_ref;
-		} else {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				 FL("return sme_ScanReq, scanID=%d, Ch=%d"),
-				 scan_id,
-				 sap_context->channel);
-			host_log_acs_scan_start(scan_id, vdev_id);
+			  FL("SAP Configuring default channel, Ch=%d"),
+			  sap_context->channel);
+		sap_context->channel = sap_select_default_oper_chan(
+				sap_context->acs_cfg);
+		if (sap_context->channelList != NULL) {
+			sap_context->channel =
+				sap_context->channelList[0];
+			qdf_mem_free(sap_context->
+				channelList);
+			sap_context->channelList = NULL;
+			sap_context->num_of_channel = 0;
 		}
+		/*
+		* In case of ACS req before start Bss,
+		* return failure so that the calling
+		* function can use the default channel.
+		*/
+		qdf_ret_status = QDF_STATUS_E_FAILURE;
+		goto release_vdev_ref;
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			 FL("return sme_ScanReq, scanID=%d, Ch=%d"),
+			 scan_id,
+			 sap_context->channel);
+		host_log_acs_scan_start(scan_id, vdev_id);
+	}
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
-		}
 	} else {
 		sap_context->acs_cfg->skip_scan_status = eSAP_SKIP_ACS_SCAN;
 	}
@@ -3220,9 +3233,6 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 	uint8_t end_ch_num, band_end_ch;
 	uint32_t en_lte_coex;
 	tHalHandle hal = CDS_GET_HAL_CB();
-#ifdef FEATURE_WLAN_CH_AVOID
-	uint8_t i;
-#endif
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	tSapChSelSpectInfo spect_info_obj = { NULL, 0 };
 	uint16_t ch_width;
@@ -3350,13 +3360,6 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 				continue;
 		}
 
-#ifdef FEATURE_WLAN_CH_AVOID
-		for (i = 0; i < NUM_CHANNELS; i++) {
-			if (safe_channels[i].channelNumber ==
-			     WLAN_REG_CH_NUM(loop_count)) {
-				/* Check if channel is safe */
-				if (true == safe_channels[i].isSafe) {
-#endif
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
 		uint8_t ch;
 
@@ -3392,12 +3395,6 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 #else
 		list[ch_count] = WLAN_REG_CH_NUM(loop_count);
 		ch_count++;
-#endif
-#ifdef FEATURE_WLAN_CH_AVOID
-				}
-				break;
-			}
-		}
 #endif
 	}
 	if (0 == ch_count) {

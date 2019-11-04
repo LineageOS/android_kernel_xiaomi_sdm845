@@ -674,28 +674,19 @@ rrm_process_beacon_report_req(tpAniSirGlobal pMac,
 	return eRRM_SUCCESS;
 }
 
-/* -------------------------------------------------------------------- */
 /**
- * rrm_fill_beacon_ies
- *
- * FUNCTION:
- *
- * LOGIC: Fills Fixed fields and Ies in bss description to an array of uint8_t.
- *
- * ASSUMPTIONS:
- *
- * NOTE:
- *
- * @param pIes - pointer to the buffer that should be populated with ies.
- * @param pNumIes - returns the num of ies filled in this param.
- * @param pIesMaxSize - Max size of the buffer pIes.
- * @param eids - pointer to array of eids. If NULL, all ies will be populated.
- * @param numEids - number of elements in array eids.
+ * rrm_fill_beacon_ies() - Fills fixed fields and Ies in bss description to an
+ * array of uint8_t.
+ * @pIes - pointer to the buffer that should be populated with ies.
+ * @pNumIes - returns the num of ies filled in this param.
+ * @pIesMaxSize - Max size of the buffer pIes.
+ * @eids - pointer to array of eids. If NULL, all ies will be populated.
+ * @numEids - number of elements in array eids.
  * @start_offset: Offset from where the IEs in the bss_desc should be parsed
- * @param pBssDesc - pointer to Bss Description.
+ * @pBssDesc - pointer to Bss Description.
  *
- * Returns: Remaining length of IEs in current bss_desc which are not included
- *	    in pIes.
+ * Return: Remaining length of IEs in current bss_desc which are not included
+ *	   in pIes.
  */
 static uint8_t
 rrm_fill_beacon_ies(tpAniSirGlobal pMac,
@@ -703,8 +694,8 @@ rrm_fill_beacon_ies(tpAniSirGlobal pMac,
 		    uint8_t *eids, uint8_t numEids, uint8_t start_offset,
 		    tpSirBssDescription pBssDesc)
 {
-	uint8_t len, *pBcnIes, count = 0, i;
-	uint16_t BcnNumIes, total_ies_len;
+	uint8_t *pBcnIes, count = 0, i;
+	uint16_t BcnNumIes, total_ies_len, len;
 	uint8_t rem_len = 0;
 
 	if ((pIes == NULL) || (pNumIes == NULL) || (pBssDesc == NULL)) {
@@ -753,8 +744,8 @@ rrm_fill_beacon_ies(tpAniSirGlobal pMac,
 		pe_debug("EID = %d, len = %d total = %d",
 			*pBcnIes, *(pBcnIes + 1), len);
 
-		if (!len) {
-			pe_err("Invalid length");
+		if (len <= 2) {
+			pe_err("RRM: Invalid IE");
 			break;
 		}
 

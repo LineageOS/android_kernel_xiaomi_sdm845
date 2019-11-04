@@ -3277,15 +3277,26 @@ static int drv_cmd_get_roam_trigger(struct hdd_adapter *adapter,
 				    struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	uint8_t lookUpThreshold =
-		sme_get_neighbor_lookup_rssi_threshold(hdd_ctx->mac_handle);
-	int rssi = (-1) * lookUpThreshold;
 	char extra[32];
+	uint8_t lookup_threshold;
+	int rssi;
 	uint8_t len = 0;
+	QDF_STATUS status;
+
+	status = sme_get_neighbor_lookup_rssi_threshold(hdd_ctx->mac_handle,
+							adapter->session_id,
+							&lookup_threshold);
+	if (QDF_IS_STATUS_ERROR(status))
+		return qdf_status_to_os_return(status);
 
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_GETROAMTRIGGER_IOCTL,
-		   adapter->session_id, lookUpThreshold);
+		   adapter->session_id, lookup_threshold);
+
+	hdd_debug("vdev_id: %u, lookup_threshold: %u",
+		  adapter->session_id, lookup_threshold);
+
+	rssi = (-1) * lookup_threshold;
 
 	len = scnprintf(extra, sizeof(extra), "%s %d", command, rssi);
 	len = QDF_MIN(priv_data->total_len, len + 1);
@@ -3363,19 +3374,28 @@ static int drv_cmd_get_roam_scan_period(struct hdd_adapter *adapter,
 					struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	uint16_t nEmptyScanRefreshPeriod =
-		sme_get_empty_scan_refresh_period(hdd_ctx->mac_handle);
+	uint16_t empty_scan_refresh_period;
 	char extra[32];
 	uint8_t len;
+	QDF_STATUS status;
+
+	status = sme_get_empty_scan_refresh_period(hdd_ctx->mac_handle,
+						   adapter->session_id,
+						   &empty_scan_refresh_period);
+	if (QDF_IS_STATUS_ERROR(status))
+		return qdf_status_to_os_return(status);
+
+	hdd_debug("vdev_id: %u, empty_scan_refresh_period: %u",
+		  adapter->session_id, empty_scan_refresh_period);
 
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_GETROAMSCANPERIOD_IOCTL,
 		   adapter->session_id,
-		   nEmptyScanRefreshPeriod);
+		   empty_scan_refresh_period);
 
 	len = scnprintf(extra, sizeof(extra), "%s %d",
 			"GETROAMSCANPERIOD",
-			(nEmptyScanRefreshPeriod / 1000));
+			(empty_scan_refresh_period / 1000));
 	/* Returned value is in units of seconds */
 	len = QDF_MIN(priv_data->total_len, len + 1);
 	if (copy_to_user(priv_data->buf, &extra, len)) {
@@ -3627,17 +3647,25 @@ static int drv_cmd_get_roam_delta(struct hdd_adapter *adapter,
 				  struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	uint8_t roamRssiDiff =
-		sme_get_roam_rssi_diff(hdd_ctx->mac_handle);
+	uint8_t rssi_diff;
 	char extra[32];
 	uint8_t len;
+	QDF_STATUS status;
+
+	status = sme_get_roam_rssi_diff(hdd_ctx->mac_handle,
+					adapter->session_id,
+					&rssi_diff);
+	if (QDF_IS_STATUS_ERROR(status))
+		return qdf_status_to_os_return(status);
+
+	hdd_debug("vdev_id: %u, rssi_diff: %u", adapter->session_id, rssi_diff);
 
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_GETROAMDELTA_IOCTL,
-		   adapter->session_id, roamRssiDiff);
+		   adapter->session_id, rssi_diff);
 
 	len = scnprintf(extra, sizeof(extra), "%s %d",
-			command, roamRssiDiff);
+			command, rssi_diff);
 	len = QDF_MIN(priv_data->total_len, len + 1);
 
 	if (copy_to_user(priv_data->buf, &extra, len)) {
@@ -4223,9 +4251,19 @@ static int drv_cmd_get_scan_n_probes(struct hdd_adapter *adapter,
 				     struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	uint8_t val = sme_get_roam_scan_n_probes(hdd_ctx->mac_handle);
+	uint8_t val;
 	char extra[32];
 	uint8_t len = 0;
+	QDF_STATUS status;
+
+	status = sme_get_roam_scan_n_probes(hdd_ctx->mac_handle,
+					    adapter->session_id,
+					    &val);
+	if (QDF_IS_STATUS_ERROR(status))
+		return qdf_status_to_os_return(status);
+
+	hdd_debug("vdev_id: %u, scan_n_probes: %u",
+		  adapter->session_id, val);
 
 	len = scnprintf(extra, sizeof(extra), "%s %d", command, val);
 	len = QDF_MIN(priv_data->total_len, len + 1);
@@ -4279,14 +4317,10 @@ static int drv_cmd_set_scan_home_away_time(struct hdd_adapter *adapter,
 	hdd_debug("Received Command to Set scan away time = %d",
 		  homeAwayTime);
 
-	if (hdd_ctx->config->nRoamScanHomeAwayTime !=
-	    homeAwayTime) {
-		hdd_ctx->config->nRoamScanHomeAwayTime = homeAwayTime;
-		sme_update_roam_scan_home_away_time(hdd_ctx->mac_handle,
-						    adapter->session_id,
-						    homeAwayTime,
-						    true);
-	}
+	sme_update_roam_scan_home_away_time(hdd_ctx->mac_handle,
+					    adapter->session_id,
+					    homeAwayTime,
+					    true);
 
 exit:
 	return ret;
@@ -4299,9 +4333,19 @@ static int drv_cmd_get_scan_home_away_time(struct hdd_adapter *adapter,
 					   struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	uint16_t val = sme_get_roam_scan_home_away_time(hdd_ctx->mac_handle);
+	uint16_t val;
 	char extra[32];
 	uint8_t len = 0;
+	QDF_STATUS status;
+
+	status = sme_get_roam_scan_home_away_time(hdd_ctx->mac_handle,
+						  adapter->session_id,
+						  &val);
+	if (QDF_IS_STATUS_ERROR(status))
+		return qdf_status_to_os_return(status);
+
+	hdd_debug("vdev_id: %u, scan home away time: %u",
+		  adapter->session_id, val);
 
 	len = scnprintf(extra, sizeof(extra), "%s %d", command, val);
 	len = QDF_MIN(priv_data->total_len, len + 1);

@@ -838,6 +838,7 @@ stop_wmi:
 	}
 	htc_stop(gp_cds_context->htc_ctx);
 
+	wma_wmi_work_close();
 exit_with_status:
 	return status;
 }

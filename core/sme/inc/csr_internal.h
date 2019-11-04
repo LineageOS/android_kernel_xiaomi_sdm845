@@ -394,6 +394,9 @@ struct csr_neighbor_roamconfig {
 	uint32_t nhi_rssi_scan_rssi_delta;
 	uint32_t nhi_rssi_scan_delay;
 	int32_t nhi_rssi_scan_rssi_ub;
+	uint32_t full_roam_scan_period;
+	bool enable_scoring_for_roam;
+	uint8_t roam_rssi_diff;
 };
 
 /*

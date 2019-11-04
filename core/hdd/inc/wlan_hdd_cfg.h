@@ -575,6 +575,32 @@ enum hdd_dot11_mode {
 #define CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MAX          (60000)
 #define CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_DEFAULT      (20000)
 
+/**
+ * <ini>
+ * gFullRoamScanPeriod - Set full roam scan refresh period
+ * @Min: 0
+ * @Max: 600
+ * @Default: 0
+ *
+ * This ini is used by firmware to set full roam scan period in secs.
+ * Full roam scan period is the minimum idle period in seconds between two
+ * successive full channel roam scans. If this is configured as a non-zero,
+ * full roam scan will be triggered for every configured interval.
+ * If this configured as 0, full roam scan will not be triggered at all.
+ *
+ * Related: None
+ *
+ * Supported Feature: LFR Scan
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_NAME         "gFullRoamScanPeriod"
+#define CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_MIN          (0)
+#define CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_MAX          (600)
+#define CFG_FULL_ROAM_SCAN_REFRESH_PERIOD_DEFAULT      (0)
+
 /*
  * <ini>
  * gEmptyScanRefreshPeriod - Set empty scan refresh period
@@ -16233,6 +16259,38 @@ enum hdd_external_acs_policy {
 #define CFG_ENABLE_RTT_SUPPORT_MAX        (1)
 
 /*
+ * <ini>
+ * ignore_fw_reg_offload_ind - If set, Ignore the FW offload indication
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to ignore regdb offload indication from FW and
+ * regulatory will be treated as non offload.
+ * There is a case where FW is sending the offload indication in
+ * service ready event but not sending the cc list event
+ * WMI_REG_CHAN_LIST_CC_EVENTID and because of this driver is not
+ * able to populate the channel list. To address this issue, this ini
+ * is added. If this ini is enabled, regulatory will always be treated as
+ * non offload solution.
+ *
+ * This ini should only be enabled to circumvent the above mentioned firmware
+ * bug.
+ *
+ * Related: None
+ *
+ * Supported Feature: STA/AP
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_IGNORE_FW_REG_OFFLOAD_IND            "ignore_fw_reg_offload_ind"
+#define CFG_IGNORE_FW_REG_OFFLOAD_IND_DEFAULT    (0)
+#define CFG_IGNORE_FW_REG_OFFLOAD_IND_MIN        (0)
+#define CFG_IGNORE_FW_REG_OFFLOAD_IND_MAX        (1)
+
+/*
  * Type declarations
  */
 
@@ -17204,6 +17262,9 @@ struct hdd_config {
 	uint32_t bss_load_sample_time;
 
 	bool enable_beacon_reception_stats;
+
+	bool ignore_fw_reg_offload_ind;
+	uint32_t roam_full_scan_period;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

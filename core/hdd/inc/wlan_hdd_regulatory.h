@@ -91,4 +91,14 @@ void hdd_modify_indoor_channel_state_flags(
 	struct regulatory_channel *cds_chan,
 	enum channel_enum chan_enum, int chan_num, bool disable);
 
+/**
+ * hdd_update_regdb_offload_config() - Update regdb offload disable ini
+ * for regulatory component.
+ *
+ * @psoc: psoc ptr
+ *
+ * Return: None
+ */
+void hdd_update_regdb_offload_config(struct hdd_context *hdd_ctx);
+
 #endif
