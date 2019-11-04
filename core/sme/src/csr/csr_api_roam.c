@@ -10879,6 +10879,7 @@ csr_roam_send_disconnect_done_indication(tpAniSirGlobal mac_ctx, tSirSmeRsp
 				(struct sir_sme_discon_done_ind *)(msg_ptr);
 	struct csr_roam_info roam_info;
 	struct csr_roam_session *session;
+	struct wlan_objmgr_vdev *vdev;
 
 	sme_debug("DISCONNECT_DONE_IND RC:%d", discon_ind->reason_code);
 
@@ -10892,10 +10893,20 @@ csr_roam_send_disconnect_done_indication(tpAniSirGlobal mac_ctx, tSirSmeRsp
 		roam_info.tx_rate = mac_ctx->peer_txrate;
 		roam_info.rx_rate = mac_ctx->peer_rxrate;
 		roam_info.disassoc_reason = discon_ind->reason_code;
+		vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
+							discon_ind->session_id,
+							WLAN_LEGACY_SME_ID);
+		if (vdev)
+			roam_info.disconnect_ies =
+				mlme_get_peer_disconnect_ies(vdev);
 
 		csr_roam_call_callback(mac_ctx, discon_ind->session_id,
 				       &roam_info, 0, eCSR_ROAM_LOSTLINK,
 				       eCSR_ROAM_RESULT_DISASSOC_IND);
+		if (vdev) {
+			mlme_free_peer_disconnect_ies(vdev);
+			wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+		}
 		session = CSR_GET_SESSION(mac_ctx, discon_ind->session_id);
 		if (session &&
 		   !CSR_IS_INFRA_AP(&session->connectedProfile))

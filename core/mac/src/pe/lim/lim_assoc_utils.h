@@ -221,4 +221,21 @@ QDF_STATUS lim_populate_vht_mcs_set(tpAniSirGlobal pMac,
 				       tpPESession psessionEntry,
 				       uint8_t nss);
 
+/**
+ * lim_extract_ies_from_deauth_disassoc() - Extract IEs from deauth/disassoc
+ *
+ * @session: PE session entry
+ * @deauth_disassoc_frame: A pointer to the deauth/disconnect frame buffer
+ *			   received from WMA.
+ * @deauth_disassoc_frame_leni: Length of the deauth/disconnect frame.
+ *
+ * This function receives deauth/disassoc frame from header. It extracts
+ * the IEs(tagged params) from the frame and caches in vdev object.
+ *
+ * Return: None
+ */
+void lim_extract_ies_from_deauth_disassoc(tpAniSirGlobal mac_ctx,
+					  uint8_t vdev_id,
+					  uint8_t *deauth_disassoc_frame,
+					  uint16_t deauth_disassoc_frame_len);
 #endif /* __LIM_ASSOC_UTILS_H */

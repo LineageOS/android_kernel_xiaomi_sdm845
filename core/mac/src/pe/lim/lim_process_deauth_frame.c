@@ -313,6 +313,9 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 		}
 	}
 
+	lim_extract_ies_from_deauth_disassoc(pMac, roamSessionId,
+					     (uint8_t *)pHdr,
+					WMA_GET_RX_MPDU_LEN(pRxPacketInfo));
 	lim_perform_deauth(pMac, psessionEntry, reasonCode, pHdr->sa,
 			   frame_rssi);
 

@@ -53,6 +53,7 @@
 #include "wma_types.h"
 #include "lim_types.h"
 #include "wlan_utility.h"
+#include <wlan_mlme_main.h>
 
 #ifdef FEATURE_WLAN_TDLS
 #define IS_TDLS_PEER(type)  ((type) == STA_ENTRY_TDLS_PEER)
@@ -4924,3 +4925,33 @@ void lim_send_sme_tsm_ie_ind(tpAniSirGlobal pMac, tpPESession psessionEntry,
 	return;
 }
 #endif /* FEATURE_WLAN_ESE */
+
+void lim_extract_ies_from_deauth_disassoc(tpAniSirGlobal mac_ctx,
+					  uint8_t vdev_id,
+					  uint8_t *deauth_disassoc_frame,
+					  uint16_t deauth_disassoc_frame_len)
+{
+	struct wlan_objmgr_vdev *vdev;
+	uint16_t reason_code, ie_offset;
+	struct wlan_ies ie;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
+						    vdev_id,
+						    WLAN_LEGACY_MAC_ID);
+	if (!vdev) {
+		pe_err("Got NULL vdev obj, returning");
+		return;
+	}
+
+	/* Get the offset of IEs */
+	ie_offset = sizeof(struct wlan_frame_hdr) + sizeof(reason_code);
+
+	if (!deauth_disassoc_frame || deauth_disassoc_frame_len <= ie_offset)
+		return;
+
+	ie.data = deauth_disassoc_frame + ie_offset;
+	ie.len = deauth_disassoc_frame_len - ie_offset;
+
+	mlme_set_peer_disconnect_ies(vdev, &ie);
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+}

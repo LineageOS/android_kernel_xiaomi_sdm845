@@ -1466,6 +1466,7 @@ struct csr_roam_info {
 	struct sir_sae_info *sae_info;
 #endif
 	uint16_t roam_reason;
+	struct wlan_ies *disconnect_ies;
 };
 
 typedef struct tagCsrFreqScanInfo {
