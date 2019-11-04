@@ -3050,6 +3050,8 @@ QDF_STATUS wmi_unified_send_roam_scan_offload_ap_cmd(void *wmi_hdl,
  * @scan_period: scan period
  * @scan_age: scan age
  * @vdev_id: vdev id
+ * @full_scan_period: Full scan period is the idle period in seconds
+ *		      between two successive full channel roam scans.
  *
  * Send WMI_ROAM_SCAN_PERIOD parameters to fw.
  *
@@ -3058,13 +3060,15 @@ QDF_STATUS wmi_unified_send_roam_scan_offload_ap_cmd(void *wmi_hdl,
 QDF_STATUS wmi_unified_roam_scan_offload_scan_period(void *wmi_hdl,
 					     uint32_t scan_period,
 					     uint32_t scan_age,
-					     uint32_t vdev_id)
+					     uint32_t vdev_id,
+					     uint32_t full_scan_period)
 {
 	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
 
 	if (wmi_handle->ops->send_roam_scan_offload_scan_period_cmd)
 		return wmi_handle->ops->send_roam_scan_offload_scan_period_cmd(wmi_handle,
-				  scan_period, scan_age, vdev_id);
+				  scan_period, scan_age, vdev_id,
+				  full_scan_period);
 
 	return QDF_STATUS_E_FAILURE;
 }
@@ -7406,6 +7410,18 @@ QDF_STATUS wmi_unified_invoke_neighbor_report_cmd(void *wmi_hdl,
 
 	return QDF_STATUS_E_FAILURE;
 }
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+QDF_STATUS wmi_unified_set_roam_triggers(wmi_unified_t wmi_handle,
+					 struct roam_triggers *triggers)
+{
+	if (wmi_handle->ops->send_set_roam_trigger_cmd)
+		return wmi_handle->ops->send_set_roam_trigger_cmd(wmi_handle,
+				triggers->vdev_id, triggers->trigger_bitmap);
+
+	return QDF_STATUS_E_FAILURE;
+}
+#endif
 
 #ifdef WLAN_SUPPORT_GREEN_AP
 QDF_STATUS wmi_extract_green_ap_egap_status_info(

@@ -823,7 +823,8 @@ QDF_STATUS (*send_roam_scan_offload_cmd)(wmi_unified_t wmi_handle,
 QDF_STATUS (*send_roam_scan_offload_scan_period_cmd)(wmi_unified_t wmi_handle,
 				     uint32_t scan_period,
 				     uint32_t scan_age,
-				     uint32_t vdev_id);
+				     uint32_t vdev_id,
+				     uint32_t full_scan_period);
 
 QDF_STATUS (*send_roam_scan_offload_chan_list_cmd)(wmi_unified_t wmi_handle,
 				   uint8_t chan_count,
@@ -1738,6 +1739,10 @@ QDF_STATUS (*extract_dfs_status_from_fw)(wmi_unified_t wmi_handle,
 #endif
 QDF_STATUS (*send_mws_coex_status_req_cmd)(wmi_unified_t wmi_handle,
 					   uint32_t vdev_id, uint32_t cmd_id);
+
+QDF_STATUS (*send_set_roam_trigger_cmd)(wmi_unified_t wmi_handle,
+					uint32_t vdev_id,
+					uint32_t trigger_bitmap);
 };
 
 /* Forward declartion for psoc*/

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -40,5 +40,14 @@ QDF_STATUS target_if_register_regulatory_tx_ops(struct wlan_lmac_if_tx_ops
  * Return: Success or Failure
  */
 QDF_STATUS target_if_reg_set_offloaded_info(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * target_if_regulatory_get_rx_ops() - Get regdb rx ops
+ * @psoc: Pointer to psoc object
+ *
+ * Return: Reg rx_ops
+ */
+struct wlan_lmac_if_reg_rx_ops *
+target_if_regulatory_get_rx_ops(struct wlan_objmgr_psoc *psoc);
 
 #endif /* __TARGET_IF_REG_H__ */
