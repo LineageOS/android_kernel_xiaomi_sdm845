@@ -145,7 +145,15 @@ enum htt_dbg_ext_stats_type {
      *           6 bit htt_msdu_flow_stats_tlv
      *   - config_param2: [Bit31 : Bit0] mac_addr31to0
      *   - config_param3: [Bit15 : Bit0] mac_addr47to32
-     *                    [Bit31 : Bit16] reserved
+     *                    [Bit 16] If this bit is set, reset per peer stats
+     *                             of corresponding tlv indicated by config
+     *                             param 1.
+     *                             HTT_DBG_EXT_PEER_STATS_RESET_GET will be
+     *                             used to get this bit position.
+     *                             WMI_SERVICE_PER_PEER_HTT_STATS_RESET
+     *                             indicates that FW supports per peer HTT
+     *                             stats reset.
+     *                    [Bit31 : Bit17] reserved
      * RESP MSG:
      *   - htt_peer_stats_t
      */
@@ -218,7 +226,8 @@ enum htt_dbg_ext_stats_type {
     /* HTT_DBG_EXT_STATS_PDEV_CCA_STATS
      * PARAMS:
      *   - config_param0:
-     *      [Bit0] - 1 sec interval histogram
+     *      [Bit0] - Clear bit0 to read 1sec,100ms & cumulative CCA stats.
+     *               Set bit0 to 1 to read 1sec interval histogram.
      *      [Bit1] - 100ms interval histogram
      *      [Bit3] - Cumulative CCA stats
      * RESP MSG:
@@ -248,7 +257,8 @@ enum htt_dbg_ext_stats_type {
      * PARAMS:
      *   - config_param0:
      *      [Bit0]          vdev_id_set:1
-     *          set to 1 if vdev_id is set and vdev stats are requested
+     *          set to 1 if vdev_id is set and vdev stats are requested.
+     *          set to 0 if pdev_stats sounding stats are requested.
      *      [Bit8 : Bit1]   vdev_id:8
      *          note:0xFF to get all active vdevs based on pdev_mask.
      *      [Bit31 : Bit9]  rsvd:22
@@ -284,10 +294,50 @@ enum htt_dbg_ext_stats_type {
      */
     HTT_DBG_EXT_STATS_LATENCY_PROF_STATS = 25,
 
+    /* HTT_DBG_EXT_STATS_PDEV_UL_TRIGGER
+     * PARAMS:
+     *   - No Params
+     * RESP MSG:
+     *   - htt_rx_pdev_ul_trig_stats_t
+     */
+    HTT_DBG_EXT_STATS_PDEV_UL_TRIG_STATS = 26,
+
+    /* HTT_DBG_EXT_STATS_PDEV_UL_MUMIMO_TRIG_STATS = 27
+     * PARAMS:
+     *   - No Params
+     * RESP MSG:
+     *   - htt_rx_pdev_ul_mumimo_trig_stats_t
+     */
+    HTT_DBG_EXT_STATS_PDEV_UL_MUMIMO_TRIG_STATS = 27,
+
+    /* HTT_DBG_EXT_STATS_FSE_RX
+     * PARAMS:
+     *   - No Params
+     * RESP MSG:
+     *   - htt_rx_fse_stats_t
+     */
+    HTT_DBG_EXT_STATS_FSE_RX = 28,
 
     /* keep this last */
     HTT_DBG_NUM_EXT_STATS = 256,
 };
+
+/*
+ * Macros to get/set the bit field in config param[3] that indicates to
+ * clear corresponding per peer stats specified by config param 1
+ */
+#define HTT_DBG_EXT_PEER_STATS_RESET_M 0x00010000
+#define HTT_DBG_EXT_PEER_STATS_RESET_S 16
+
+#define HTT_DBG_EXT_PEER_STATS_RESET_GET(_var) \
+    (((_var) & HTT_DBG_EXT_PEER_STATS_RESET_M) >> \
+     HTT_DBG_EXT_PEER_STATS_RESET_S)
+
+#define HTT_DBG_EXT_PEER_STATS_RESET_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_DBG_EXT_PEER_STATS_RESET, _val); \
+        ((_var) |= ((_val) << HTT_DBG_EXT_PEER_STATS_RESET_S)); \
+    } while (0)
 
 typedef enum {
     HTT_STATS_TX_PDEV_CMN_TAG                      = 0,  /* htt_tx_pdev_stats_cmn_tlv */
@@ -384,6 +434,11 @@ typedef enum {
     HTT_STATS_LATENCY_PROF_STATS_TAG               = 91, /* htt_latency_prof_stats_tlv */
     HTT_STATS_LATENCY_CTX_TAG                      = 92, /* htt_latency_prof_ctx_tlv */
     HTT_STATS_LATENCY_CNT_TAG                      = 93, /* htt_latency_prof_cnt_tlv */
+    HTT_STATS_RX_PDEV_UL_TRIG_STATS_TAG            = 94, /* htt_rx_pdev_ul_trigger_stats_tlv */
+    HTT_STATS_RX_PDEV_UL_OFDMA_USER_STATS_TAG      = 95, /* htt_rx_pdev_ul_ofdma_user_stats_tlv */
+    HTT_STATS_RX_PDEV_UL_MIMO_USER_STATS_TAG       = 96, /* htt_rx_pdev_ul_mimo_user_stats_tlv */
+    HTT_STATS_RX_PDEV_UL_MUMIMO_TRIG_STATS_TAG     = 97, /* htt_rx_pdev_ul_mumimo_trig_stats_tlv */
+    HTT_STATS_RX_FSE_STATS_TAG                     = 98, /* htt_rx_fse_stats_tlv */
 
     HTT_STATS_MAX_TAG,
 } htt_tlv_tag_t;
@@ -780,6 +835,11 @@ typedef struct {
     A_UINT32 wal_rx_recovery_rst_rx_busy_count;
     A_UINT32 wal_rx_recovery_rst_phy_mac_hang_count;
     A_UINT32 rx_flush_cnt; /* Num rx flush issued */
+    A_UINT32 phy_warm_reset_reason_tx_lifetime_expiry_cca_stuck;
+    A_UINT32 phy_warm_reset_reason_tx_consecutive_flush9_war;
+    A_UINT32 phy_warm_reset_reason_tx_hwsch_reset_war;
+    A_UINT32 phy_warm_reset_reason_hwsch_wdog_or_cca_wdog_war;
+    A_UINT32 fw_rx_rings_reset;
 } htt_hw_stats_pdev_errs_tlv;
 
 typedef struct {
@@ -1155,9 +1215,28 @@ typedef enum {
 } HTT_STATS_PREAM_TYPE;
 
 #define HTT_TX_PEER_STATS_NUM_MCS_COUNTERS 12
+/* HTT_TX_PEER_STATS_NUM_GI_COUNTERS:
+ * GI Index 0:  WHAL_GI_800
+ * GI Index 1:  WHAL_GI_400
+ * GI Index 2:  WHAL_GI_1600
+ * GI Index 3:  WHAL_GI_3200
+ */
 #define HTT_TX_PEER_STATS_NUM_GI_COUNTERS 4
 #define HTT_TX_PEER_STATS_NUM_DCM_COUNTERS 5
+ /* HTT_TX_PEER_STATS_NUM_BW_COUNTERS:
+  * bw index 0: rssi_pri20_chain0
+  * bw index 1: rssi_ext20_chain0
+  * bw index 2: rssi_ext40_low20_chain0
+  * bw index 3: rssi_ext40_high20_chain0
+  */
 #define HTT_TX_PEER_STATS_NUM_BW_COUNTERS 4
+/* HTT_RX_PEER_STATS_NUM_BW_EXT_COUNTERS:
+ * bw index 4 (bw ext index 0): rssi_ext80_low20_chain0
+ * bw index 5 (bw ext index 1): rssi_ext80_low_high20_chain0
+ * bw index 6 (bw ext index 2): rssi_ext80_high_low20_chain0
+ * bw index 7 (bw ext index 3): rssi_ext80_high20_chain0
+ */
+#define HTT_RX_PEER_STATS_NUM_BW_EXT_COUNTERS 4
 #define HTT_TX_PEER_STATS_NUM_SPATIAL_STREAMS 8
 #define HTT_TX_PEER_STATS_NUM_PREAMBLE_TYPES HTT_STATS_PREAM_COUNT
 
@@ -1236,6 +1315,8 @@ typedef struct _htt_rx_peer_rate_stats_tlv {
     A_UINT32 rx_ulmumimo_data_ppdu;       /* ppdu level */
     A_UINT32 rx_ulmumimo_mpdu_ok;         /* mpdu level */
     A_UINT32 rx_ulmumimo_mpdu_fail;       /* mpdu level */
+
+    A_UINT8  rssi_chain_ext[HTT_RX_PEER_STATS_NUM_SPATIAL_STREAMS][HTT_RX_PEER_STATS_NUM_BW_EXT_COUNTERS]; /* units = dB above noise floor */
 } htt_rx_peer_rate_stats_tlv;
 
 typedef enum {
@@ -1706,6 +1787,7 @@ typedef struct {
 #define HTT_TX_PDEV_STATS_NUM_AC_MUMIMO_USER_STATS 4
 #define HTT_TX_PDEV_STATS_NUM_AX_MUMIMO_USER_STATS 8
 #define HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS 74
+#define HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS 8
 
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
@@ -1723,6 +1805,22 @@ typedef struct {
     A_UINT32 ac_mu_mimo_sch_nusers[HTT_TX_PDEV_STATS_NUM_AC_MUMIMO_USER_STATS];
     A_UINT32 ax_mu_mimo_sch_nusers[HTT_TX_PDEV_STATS_NUM_AX_MUMIMO_USER_STATS];
     A_UINT32 ax_ofdma_sch_nusers[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+    A_UINT32 ax_ul_ofdma_basic_sch_nusers[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+    A_UINT32 ax_ul_ofdma_bsr_sch_nusers[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+    A_UINT32 ax_ul_ofdma_bar_sch_nusers[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+    A_UINT32 ax_ul_ofdma_brp_sch_nusers[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+
+    /* UL MUMIMO */
+    /*
+     * ax_ul_mumimo_basic_sch_nusers[i] is the number of basic triggers sent
+     * for (i+1) users
+     */
+    A_UINT32 ax_ul_mumimo_basic_sch_nusers[HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS];
+    /*
+     * ax_ul_mumimo_brp_sch_nusers[i] is the number of brp triggers sent
+     * for (i+1) users
+     */
+    A_UINT32 ax_ul_mumimo_brp_sch_nusers[HTT_TX_PDEV_STATS_NUM_UL_MUMIMO_USER_STATS];
 } htt_tx_pdev_mu_mimo_sch_stats_tlv;
 
 typedef struct {
@@ -3010,11 +3108,30 @@ typedef struct {
 #define HTT_RX_PDEV_STATS_NUM_DCM_COUNTERS 5
 #define HTT_RX_PDEV_STATS_NUM_BW_COUNTERS 4
 #define HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS 8
+#define HTT_RX_PDEV_STATS_ULMUMIMO_NUM_SPATIAL_STREAMS 8
 #define HTT_RX_PDEV_STATS_NUM_PREAMBLE_TYPES HTT_STATS_PREAM_COUNT
 #define HTT_RX_PDEV_MAX_OFDMA_NUM_USER 8
 #define HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER 8
 #define HTT_RX_PDEV_STATS_RXEVM_MAX_PILOTS_PER_NSS 16
+/*HTT_RX_PDEV_STATS_NUM_RU_SIZE_COUNTERS:
+ * RU size index 0: HTT_UL_OFDMA_V0_RU_SIZE_RU_26
+ * RU size index 1: HTT_UL_OFDMA_V0_RU_SIZE_RU_52
+ * RU size index 2: HTT_UL_OFDMA_V0_RU_SIZE_RU_106
+ * RU size index 3: HTT_UL_OFDMA_V0_RU_SIZE_RU_242
+ * RU size index 4: HTT_UL_OFDMA_V0_RU_SIZE_RU_484
+ * RU size index 5: HTT_UL_OFDMA_V0_RU_SIZE_RU_996
+ */
 #define HTT_RX_PDEV_STATS_NUM_RU_SIZE_COUNTERS 6
+/* HTT_RX_PDEV_STATS_NUM_RU_SIZE_160MHZ_CNTRS:
+ * RU size index 0: HTT_UL_OFDMA_V0_RU_SIZE_RU_26
+ * RU size index 1: HTT_UL_OFDMA_V0_RU_SIZE_RU_52
+ * RU size index 2: HTT_UL_OFDMA_V0_RU_SIZE_RU_106
+ * RU size index 3: HTT_UL_OFDMA_V0_RU_SIZE_RU_242
+ * RU size index 4: HTT_UL_OFDMA_V0_RU_SIZE_RU_484
+ * RU size index 5: HTT_UL_OFDMA_V0_RU_SIZE_RU_996
+ * RU size index 6: HTT_UL_OFDMA_V0_RU_SIZE_RU_996x2
+ */
+#define HTT_RX_PDEV_STATS_NUM_RU_SIZE_160MHZ_CNTRS 7 /* includes 996x2 */
 
 #define HTT_RX_PDEV_RATE_STATS_MAC_ID_M 0x000000ff
 #define HTT_RX_PDEV_RATE_STATS_MAC_ID_S 0
@@ -3115,6 +3232,8 @@ typedef struct {
     A_UINT32 rx_ulmumimo_data_ppdu[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];     /* ppdu level */
     A_UINT32 rx_ulmumimo_mpdu_ok[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];       /* mpdu level */
     A_UINT32 rx_ulmumimo_mpdu_fail[HTT_RX_PDEV_MAX_ULMUMIMO_NUM_USER];     /* mpdu level */
+    A_UINT32 rx_ulofdma_non_data_nusers[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];
+    A_UINT32 rx_ulofdma_data_nusers[HTT_RX_PDEV_MAX_OFDMA_NUM_USER];
 } htt_rx_pdev_rate_stats_tlv;
 
 /* STATS_TYPE : HTT_DBG_EXT_STATS_PDEV_RX_RATE
@@ -3129,7 +3248,109 @@ typedef struct {
     htt_rx_pdev_rate_stats_tlv rate_tlv;
 } htt_rx_pdev_rate_stats_t;
 
+#define HTT_STATS_CMN_MAC_ID_M 0x000000ff
+#define HTT_STATS_CMN_MAC_ID_S 0
+
+#define HTT_STATS_CMN_MAC_ID_GET(_var) \
+    (((_var) & HTT_STATS_CMN_MAC_ID_M) >> \
+     HTT_STATS_CMN_MAC_ID_S)
+
+#define HTT_STATS_CMN_MAC_ID_SET(_var, _val) \
+    do { \
+        HTT_CHECK_SET_VAL(HTT_STATS_CMN_MAC_ID, _val); \
+        ((_var) |= ((_val) << HTT_STATS_CMN_MAC_ID_S)); \
+    } while (0)
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+
+    /* BIT [ 7 :  0]   :- mac_id
+     * BIT [31 :  8]   :- reserved
+     */
+    A_UINT32 mac_id__word;
+
+    A_UINT32 rx_11ax_ul_ofdma;
+
+    A_UINT32 ul_ofdma_rx_mcs[HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS];
+    A_UINT32 ul_ofdma_rx_gi[HTT_RX_PDEV_STATS_NUM_GI_COUNTERS][HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS];
+    A_UINT32 ul_ofdma_rx_nss[HTT_RX_PDEV_STATS_NUM_SPATIAL_STREAMS];
+    A_UINT32 ul_ofdma_rx_bw[HTT_RX_PDEV_STATS_NUM_BW_COUNTERS];
+    A_UINT32 ul_ofdma_rx_stbc;
+    A_UINT32 ul_ofdma_rx_ldpc;
+
+    /*
+     * These are arrays to hold the number of PPDUs that we received per RU.
+     * E.g. PPDUs (data or non data) received in RU26 will be incremented in
+     * array offset 0 and similarly RU52 will be incremented in array offset 1
+     */
+    A_UINT32 rx_ulofdma_data_ru_size_ppdu[HTT_RX_PDEV_STATS_NUM_RU_SIZE_160MHZ_CNTRS];      /* ppdu level */
+    A_UINT32 rx_ulofdma_non_data_ru_size_ppdu[HTT_RX_PDEV_STATS_NUM_RU_SIZE_160MHZ_CNTRS];  /* ppdu level */
+
+} htt_rx_pdev_ul_trigger_stats_tlv;
+
+/* STATS_TYPE : HTT_DBG_EXT_STATS_PDEV_UL_TRIG_STATS
+ * TLV_TAGS:
+ *      - HTT_STATS_RX_PDEV_UL_TRIG_STATS_TAG
+ * NOTE:
+ * This structure is for documentation, and cannot be safely used directly.
+ * Instead, use the constituent TLV structures to fill/parse.
+ */
+typedef struct {
+    htt_rx_pdev_ul_trigger_stats_tlv ul_trigger_tlv;
+} htt_rx_pdev_ul_trigger_stats_t;
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+
+    A_UINT32 user_index;
+    A_UINT32 rx_ulofdma_non_data_ppdu; /* ppdu level */
+    A_UINT32 rx_ulofdma_data_ppdu;     /* ppdu level */
+    A_UINT32 rx_ulofdma_mpdu_ok;       /* mpdu level */
+    A_UINT32 rx_ulofdma_mpdu_fail;     /* mpdu level */
+    A_UINT32 rx_ulofdma_non_data_nusers;
+    A_UINT32 rx_ulofdma_data_nusers;
+} htt_rx_pdev_ul_ofdma_user_stats_tlv;
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+
+    A_UINT32 user_index;
+    A_UINT32 rx_ulmumimo_non_data_ppdu; /* ppdu level */
+    A_UINT32 rx_ulmumimo_data_ppdu;     /* ppdu level */
+    A_UINT32 rx_ulmumimo_mpdu_ok;       /* mpdu level */
+    A_UINT32 rx_ulmumimo_mpdu_fail;     /* mpdu level */
+} htt_rx_pdev_ul_mimo_user_stats_tlv;
+
 /* == RX PDEV/SOC STATS == */
+
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+
+    /*
+     * BIT [7:0]  :- mac_id
+     * BIT [31:8] :- reserved
+     *
+     * Refer to HTT_STATS_CMN_MAC_ID_GET/SET macros.
+     */
+    A_UINT32 mac_id__word;
+
+    A_UINT32 rx_11ax_ul_mumimo;
+
+    A_UINT32 ul_mumimo_rx_mcs[HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS];
+    A_UINT32 ul_mumimo_rx_gi[HTT_RX_PDEV_STATS_NUM_GI_COUNTERS][HTT_RX_PDEV_STATS_NUM_MCS_COUNTERS];
+    A_UINT32 ul_mumimo_rx_nss[HTT_RX_PDEV_STATS_ULMUMIMO_NUM_SPATIAL_STREAMS];
+    A_UINT32 ul_mumimo_rx_bw[HTT_RX_PDEV_STATS_NUM_BW_COUNTERS];
+    A_UINT32 ul_mumimo_rx_stbc;
+    A_UINT32 ul_mumimo_rx_ldpc;
+} htt_rx_pdev_ul_mumimo_trig_stats_tlv;
+
+/* STATS_TYPE : HTT_DBG_EXT_STATS_PDEV_UL_MUMIMO_TRIG_STATS
+ * TLV_TAGS:
+ *    - HTT_STATS_RX_PDEV_UL_MUMIMO_TRIG_STATS_TAG
+ */
+typedef struct {
+    htt_rx_pdev_ul_mumimo_trig_stats_tlv ul_mumimo_trig_tlv;
+} htt_rx_pdev_ul_mumimo_trig_stats_t;
 
 typedef struct {
     htt_tlv_hdr_t tlv_hdr;
@@ -3814,6 +4035,20 @@ typedef struct {
 
     A_UINT32 num_obss_tx_ppdu_success;
     A_UINT32 num_obss_tx_ppdu_failure;
+    /* num_sr_tx_transmissions:
+     * Counter of TX done by aborting other BSS RX with spatial reuse
+     * (for cases where rx RSSI from other BSS is below the packet-detection
+     * threshold for doing spatial reuse)
+     */
+    union {
+        A_UINT32 num_sr_tx_transmissions; /* CORRECTED - use this one */
+        A_UINT32 num_sr_tx_tranmissions;  /* DEPRECATED - has typo in name */
+    };
+    /* num_sr_rx_ge_pd_rssi_thr
+     * counter of rx from other BSS for which RSSI was above the
+     * packet-detection threshold specified for enabling spatial reuse
+     */
+    A_UINT32 num_sr_rx_ge_pd_rssi_thr;
 } htt_pdev_obss_pd_stats_tlv;
 
 /* NOTE:
@@ -3929,6 +4164,131 @@ typedef struct {
     htt_latency_prof_ctx_tlv latency_ctx_stat;
     htt_latency_prof_cnt_tlv latency_cnt_stat;
 } htt_soc_latency_stats_t;
+
+#define HTT_RX_MAX_PEAK_OCCUPANCY_INDEX 10
+#define HTT_RX_MAX_CURRENT_OCCUPANCY_INDEX 10
+#define HTT_RX_SQUARE_INDEX 6
+#define HTT_RX_MAX_PEAK_SEARCH_INDEX 4
+#define HTT_RX_MAX_PENDING_SEARCH_INDEX 4
+
+/* STATS_TYPE : HTT_DBG_EXT_RX_FSE_STATS
+ * TLV_TAGS:
+ *    - HTT_STATS_RX_FSE_STATS_TAG
+ */
+typedef struct {
+    htt_tlv_hdr_t tlv_hdr;
+
+    /*
+     * Number of times host requested for fse enable/disable
+     */
+    A_UINT32 fse_enable_cnt;
+    A_UINT32 fse_disable_cnt;
+    /*
+     * Number of times host requested for fse cache invalidation
+     * individual entries or full cache
+     */
+    A_UINT32 fse_cache_invalidate_entry_cnt;
+    A_UINT32 fse_full_cache_invalidate_cnt;
+
+    /*
+     * Cache hits count will increase if there is a matching flow in the cache
+     * There is no register for cache miss but the number of cache misses can
+     * be calculated as
+     *    cache miss = (num_searches - cache_hits)
+     * Thus, there is no need to have a separate variable for cache misses.
+     * Num searches is flow search times done in the cache.
+     */
+    A_UINT32 fse_num_cache_hits_cnt;
+    A_UINT32 fse_num_searches_cnt;
+    /**
+     * Cache Occupancy holds 2 types of values: Peak and Current.
+     * 10 bins are used to keep track of peak occupancy.
+     * 8 of these bins represent ranges of values, while the first and last
+     * bins represent the extreme cases of the cache being completely empty
+     * or completely full.
+     * For the non-extreme bins, the number of cache occupancy values per
+     * bin is the maximum cache occupancy (128), divided by the number of
+     * non-extreme bins (8), so 128/8 = 16 values per bin.
+     * The range of values for each histogram bins is specified below:
+     * Bin0 = Counter increments when cache occupancy is empty
+     * Bin1 = Counter increments when cache occupancy is within [1 to 16]
+     * Bin2 = Counter increments when cache occupancy is within [17 to 32]
+     * Bin3 = Counter increments when cache occupancy is within [33 to 48]
+     * Bin4 = Counter increments when cache occupancy is within [49 to 64]
+     * Bin5 = Counter increments when cache occupancy is within [65 to 80]
+     * Bin6 = Counter increments when cache occupancy is within [81 to 96]
+     * Bin7 = Counter increments when cache occupancy is within [97 to 112]
+     * Bin8 = Counter increments when cache occupancy is within [113 to 127]
+     * Bin9 = Counter increments when cache occupancy is equal to 128
+     * The above histogram bin definitions apply to both the peak-occupancy
+     * histogram and the current-occupancy histogram.
+     *
+     * @fse_cache_occupancy_peak_cnt:
+     * Array records periodically PEAK cache occupancy values.
+     * Peak Occupancy will increment only if it is greater than current
+     * occupancy value.
+     *
+     * @fse_cache_occupancy_curr_cnt:
+     * Array records periodically current cache occupancy value.
+     * Current Cache occupancy always holds instant snapshot of
+     * current number of cache entries.
+     **/
+    A_UINT32 fse_cache_occupancy_peak_cnt[HTT_RX_MAX_PEAK_OCCUPANCY_INDEX];
+    A_UINT32 fse_cache_occupancy_curr_cnt[HTT_RX_MAX_CURRENT_OCCUPANCY_INDEX];
+    /*
+     * Square stat is sum of squares of cache occupancy to better understand
+     * any variation/deviation within each cache set, over a given time-window.
+     *
+     * Square stat is calculated this way:
+     *     Square =  SUM(Squares of all Occupancy in a Set) / 8
+     * The cache has 16-way set associativity, so the occupancy of a
+     * set can vary from 0 to 16.  There are 8 sets within the cache.
+     * Therefore, the minimum possible square value is 0, and the maximum
+     * possible square value is (8*16^2) / 8 = 256.
+     *
+     * 6 bins are used to keep track of square stats:
+     * Bin0 = increments when square of current cache occupancy is zero
+     * Bin1 = increments when square of current cache occupancy is within
+     *        [1 to 50]
+     * Bin2 = increments when square of current cache occupancy is within
+     *        [51 to 100]
+     * Bin3 = increments when square of current cache occupancy is within
+     *        [101 to 200]
+     * Bin4 = increments when square of current cache occupancy is within
+     *        [201 to 255]
+     * Bin5 = increments when square of current cache occupancy is 256
+     */
+    A_UINT32 fse_search_stat_square_cnt[HTT_RX_SQUARE_INDEX];
+    /**
+     * Search stats has 2 types of values: Peak Pending and Number of
+     * Search Pending.
+     * GSE command ring for FSE can hold maximum of 5 Pending searches
+     * at any given time.
+     *
+     * 4 bins are used to keep track of search stats:
+     * Bin0 = Counter increments when there are NO pending searches
+     *        (For peak, it will be number of pending searches greater
+     *        than GSE command ring FIFO outstanding requests.
+     *        For Search Pending, it will be number of pending search
+     *        inside GSE command ring FIFO.)
+     * Bin1 = Counter increments when number of pending searches are within
+     *        [1 to 2]
+     * Bin2 = Counter increments when number of pending searches are within
+     *        [3 to 4]
+     * Bin3 = Counter increments when number of pending searches are
+     *        greater/equal to [ >= 5]
+     */
+    A_UINT32 fse_search_stat_peak_cnt[HTT_RX_MAX_PEAK_SEARCH_INDEX];
+    A_UINT32 fse_search_stat_search_pending_cnt[HTT_RX_MAX_PENDING_SEARCH_INDEX];
+} htt_rx_fse_stats_tlv;
+
+/* NOTE:
+ * This structure is for documentation, and cannot be safely used directly.
+ * Instead, use the constituent TLV structures to fill/parse.
+ */
+typedef struct {
+    htt_rx_fse_stats_tlv rx_fse_stats;
+} htt_rx_fse_stats_t;
 
 
 #endif /* __HTT_STATS_H__ */
