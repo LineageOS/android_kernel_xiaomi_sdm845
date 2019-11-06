@@ -1538,12 +1538,14 @@ struct peer_debug_info {
  * @bandcapability: band capability configured through ini
  * @ito_repeat_count: Indicates ito repeated count
  * @critical_events_in_flight: number of suspend preventing events in flight
+ * @thermal_sampling_time: Thermal throttling sampling time in ms
+ * @thermal_throt_dc: Thermal throttling duty cycle that is to be enforced
  */
 typedef struct {
 	void *wmi_handle;
 	void *htc_handle;
 	void *cds_context;
-	void *mac_context;
+	tAniSirGlobal *mac_context;
 	qdf_event_t wma_ready_event;
 	qdf_event_t wma_resume_event;
 	qdf_event_t target_suspend;
@@ -1726,6 +1728,8 @@ typedef struct {
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr,
 		enum sir_roam_op_code reason);
+	QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
+		struct roam_pmkid_req_event *bss_list);
 	qdf_wake_lock_t wmi_cmd_rsp_wake_lock;
 	qdf_runtime_lock_t wmi_cmd_rsp_runtime_lock;
 	qdf_runtime_lock_t wma_runtime_resume_lock;
@@ -1763,6 +1767,11 @@ typedef struct {
 	atomic_t in_d0wow;
 #endif
 	bool is_pktcapture_enabled;
+
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+	uint32_t thermal_sampling_time;
+	uint32_t thermal_throt_dc;
+#endif
 } t_wma_handle, *tp_wma_handle;
 
 /**
@@ -2641,6 +2650,18 @@ bool wma_is_wow_bitmask_zero(uint32_t *bitmask,
  */
 QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 				     tSirRoamOffloadScanReq *roam_req);
+
+/**
+ * wma_handle_roam_sync_timeout() - Update roaming status at wma layer
+ * @wma_handle: wma handle
+ * @info: Info for roaming start timer
+ *
+ * This function gets called in case of roaming offload timer get expired
+ *
+ * Return: None
+ */
+void wma_handle_roam_sync_timeout(tp_wma_handle wma_handle,
+				  struct roam_sync_timeout_timer_info *info);
 
 /**
  * wma_register_phy_err_event_handler() - register phy error event handler

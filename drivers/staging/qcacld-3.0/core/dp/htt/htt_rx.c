@@ -1237,7 +1237,6 @@ htt_rx_amsdu_pop_ll(htt_pdev_handle pdev,
 			  + HTT_RX_PPDU_DESC_SIZE32));
 	}
 	msdu = *head_msdu = htt_rx_netbuf_pop(pdev);
-	*head_mon_msdu = NULL;
 	while (1) {
 		int last_msdu, msdu_len_invalid, msdu_chained;
 		int byte_offset;
@@ -1515,7 +1514,6 @@ htt_rx_amsdu_pop_hl(
 				   (qdf_nbuf_data(rx_ind_msg)));
 
 	qdf_nbuf_set_next(*tail_msdu, NULL);
-	*head_mon_msdu = NULL;
 	return 0;
 }
 
@@ -1540,7 +1538,6 @@ htt_rx_frag_pop_hl(
 	*head_msdu = *tail_msdu = frag_msg;
 
 	qdf_nbuf_set_next(*tail_msdu, NULL);
-	*mon_head_msdu = NULL;
 	return 0;
 }
 
@@ -2193,7 +2190,6 @@ static int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 				 HTT_RX_IN_ORD_PADDR_IND_HDR_BYTES);
 	paddr = htt_rx_in_ord_paddr_get(msg_word);
 	msdu = htt_rx_in_order_netbuf_pop(pdev, paddr);
-	*head_mon_msdu = NULL;
 
 	if (qdf_unlikely(NULL == msdu)) {
 		qdf_print("%s: netbuf pop failed!\n", __func__);
@@ -2439,9 +2435,6 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 	paddr = htt_rx_in_ord_paddr_get(msg_word);
 	(*head_msdu) = msdu = htt_rx_in_order_netbuf_pop(pdev, paddr);
 
-	if (head_mon_msdu)
-		(*head_mon_msdu) = NULL;
-
 	if (qdf_unlikely(NULL == msdu)) {
 		qdf_print("%s: netbuf pop failed!\n", __func__);
 		*tail_msdu = NULL;
@@ -2506,7 +2499,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 
 		msdu_count--;
 
-		if (cds_get_pktcap_mode_enable() &&
+		if (head_mon_msdu && cds_get_pktcap_mode_enable() &&
 		    (ol_cfg_pktcapture_mode(pdev->ctrl_pdev) &
 		     PKT_CAPTURE_MODE_DATA_ONLY) &&
 		    pdev->txrx_pdev->mon_cb && !frag_ind) {

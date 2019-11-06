@@ -2519,6 +2519,9 @@ lim_send_sme_ap_channel_switch_resp(tpAniSirGlobal pMac,
 	enum phy_ch_width ch_width;
 	uint8_t ch_center_freq_seg1;
 
+	qdf_runtime_pm_allow_suspend(&psessionEntry->ap_ecsa_runtime_lock);
+	qdf_wake_lock_release(&psessionEntry->ap_ecsa_wakelock, 0);
+
 	pSmeSwithChnlParams = (tSwitchChannelParams *)
 			      qdf_mem_malloc(sizeof(tSwitchChannelParams));
 	if (NULL == pSmeSwithChnlParams) {

@@ -6407,6 +6407,9 @@ void wma_set_sta_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmap_size)
 	wma_set_wow_event_bitmap(WOW_TDLS_CONN_TRACKER_EVENT,
 			     WMI_WOW_MAX_EVENT_BM_LEN,
 			     bitmask);
+	wma_set_wow_event_bitmap(WOW_ROAM_PMKID_REQUEST_EVENT,
+				 WMI_WOW_MAX_EVENT_BM_LEN,
+				 bitmask);
 	/* Add further STA wakeup events above this line. */
 }
 

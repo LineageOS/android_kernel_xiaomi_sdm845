@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -307,7 +307,7 @@ struct sir_mgmt_msg {
 #define SIR_HAL_WOW_ADD_PTRN               (SIR_HAL_ITC_MSG_TYPES_BEGIN + 82)
 #define SIR_HAL_WOW_DEL_PTRN               (SIR_HAL_ITC_MSG_TYPES_BEGIN + 83)
 #define SIR_HAL_WOWL_ENTER_REQ             (SIR_HAL_ITC_MSG_TYPES_BEGIN + 84)
-#define SIR_HAL_WOWL_ENTER_RSP             (SIR_HAL_ITC_MSG_TYPES_BEGIN + 85)
+#define SIR_HAL_WMA_ROAM_SYNC_TIMEOUT      (SIR_HAL_ITC_MSG_TYPES_BEGIN + 85)
 #define SIR_HAL_WOWL_EXIT_REQ              (SIR_HAL_ITC_MSG_TYPES_BEGIN + 86)
 #define SIR_HAL_WOWL_EXIT_RSP              (SIR_HAL_ITC_MSG_TYPES_BEGIN + 87)
 /* / PE <-> HAL statistics messages */

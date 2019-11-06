@@ -4302,6 +4302,7 @@ QDF_STATUS wma_de_register_mgmt_frm_client(void *cds_ctx)
  * @cds_ctx: CDS Context
  * @csr_roam_synch_cb: CSR roam synch callback routine pointer
  * @pe_roam_synch_cb: PE roam synch callback routine pointer
+ * @csr_roam_pmkid_req_cb: CSR roam pmkid callback routine pointer
  *
  * Register the SME and PE callback routines with WMA for
  * handling roaming
@@ -4316,7 +4317,9 @@ QDF_STATUS wma_register_roaming_callbacks(void *cds_ctx,
 	QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr,
-		enum sir_roam_op_code reason))
+		enum sir_roam_op_code reason),
+	QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
+		struct roam_pmkid_req_event *bss_list))
 {
 
 	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
@@ -4328,6 +4331,8 @@ QDF_STATUS wma_register_roaming_callbacks(void *cds_ctx,
 	wma->csr_roam_synch_cb = csr_roam_synch_cb;
 	wma->pe_roam_synch_cb = pe_roam_synch_cb;
 	WMA_LOGD("Registered roam synch callbacks with WMA successfully");
+
+	wma->csr_roam_pmkid_req_cb = csr_roam_pmkid_req_cb;
 	return QDF_STATUS_SUCCESS;
 }
 #endif

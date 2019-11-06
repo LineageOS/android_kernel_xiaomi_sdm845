@@ -1491,6 +1491,60 @@ static int wlan_hdd_pld_runtime_resume(struct device *dev,
 }
 #endif
 
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+/**
+ * wlan_hdd_pld_set_therm_state() - Notify the thermal state
+ * @dev: device
+ * @state: the thermal state
+ *
+ * This callback is registered with PLD to send thermal state change
+ * notification to the WLAN host. When the thermal subsystem triggers a state
+ * change notification to the PLD, the PLD uses this callback to forward the
+ * notification.
+ *
+ * Return: 0 on success, error code otherwise
+ */
+static int wlan_hdd_pld_set_therm_state(struct device *dev, int state)
+{
+	hdd_context_t *hdd_ctx;
+
+	if (cds_is_driver_in_bad_state() && cds_is_driver_recovering() &&
+	    cds_is_fw_down()) {
+		hdd_err("Rejecting thermal notif during FW down/bad state");
+		return -EBUSY;
+	}
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		hdd_err("hdd_ctx is NULL return");
+		return -EINVAL;
+	}
+
+	hdd_debug("thermal state: %d notification", state);
+	if (state != HDD_THERMAL_STATE_HIGH)
+		cds_set_driver_thermal_mitigated(false);
+
+	switch (state) {
+	case HDD_THERMAL_STATE_HIGH:
+		hdd_send_thermal_notification(hdd_ctx,
+					      HDD_THERMAL_STATE_HIGH);
+		break;
+	case HDD_THERMAL_STATE_MEDIUM:
+		hdd_send_thermal_notification(hdd_ctx,
+					      HDD_THERMAL_STATE_MEDIUM);
+		break;
+	case HDD_THERMAL_STATE_NORMAL:
+		hdd_send_thermal_notification(hdd_ctx,
+					      HDD_THERMAL_STATE_NORMAL);
+		break;
+	default:
+		hdd_debug("Invalid thermal state");
+	}
+
+	return 0;
+}
+#endif
+
 struct pld_driver_ops wlan_drv_ops = {
 	.probe      = wlan_hdd_pld_probe,
 	.remove     = wlan_hdd_pld_remove,
@@ -1507,6 +1561,9 @@ struct pld_driver_ops wlan_drv_ops = {
 #ifdef FEATURE_RUNTIME_PM
 	.runtime_suspend = wlan_hdd_pld_runtime_suspend,
 	.runtime_resume = wlan_hdd_pld_runtime_resume,
+#endif
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+	.set_curr_therm_state = wlan_hdd_pld_set_therm_state,
 #endif
 };
 

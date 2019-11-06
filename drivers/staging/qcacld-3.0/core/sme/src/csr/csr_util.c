@@ -288,6 +288,7 @@ const char *get_e_roam_cmd_status_str(eRoamCmdStatus val)
 		CASE_RETURN_STR(eCSR_ROAM_ABORT);
 		CASE_RETURN_STR(eCSR_ROAM_NAPI_OFF);
 		CASE_RETURN_STR(eCSR_ROAM_SAE_COMPUTE);
+		CASE_RETURN_STR(eCSR_ROAM_FIPS_PMK_REQUEST);
 	default:
 		return "unknown";
 	}
@@ -3083,6 +3084,8 @@ static void csr_check_sae_auth(tpAniSirGlobal mac_ctx,
 	   c_auth_suites, authentication)) {
 		if (eCSR_AUTH_TYPE_SAE == auth_type->authType[index])
 			*neg_authtype = eCSR_AUTH_TYPE_SAE;
+		if (eCSR_AUTH_TYPE_OPEN_SYSTEM == auth_type->authType[index])
+			*neg_authtype = eCSR_AUTH_TYPE_OPEN_SYSTEM;
 	}
 	sme_debug("negotiated auth type is %d", *neg_authtype);
 }

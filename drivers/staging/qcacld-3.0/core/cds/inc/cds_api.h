@@ -57,6 +57,7 @@
 * CDS_DRIVER_STATE_BAD: Driver in bad state.
 * CDS_DRIVER_STATE_FW_READY:
 * CDS_DRIVER_STATE_MODULE_STOPPING: Module stop in progress.
+* CDS_DRIVER_STATE_THERMAL_STATE: Driver in thermal mitigated state
 */
 enum cds_driver_state {
 CDS_DRIVER_STATE_UNINITIALIZED	 = 0,
@@ -67,6 +68,7 @@ CDS_DRIVER_STATE_RECOVERING	 = BIT(3),
 CDS_DRIVER_STATE_BAD		 = BIT(4),
 CDS_DRIVER_STATE_FW_READY	 = BIT(5),
 CDS_DRIVER_STATE_MODULE_STOPPING = BIT(6),
+CDS_DRIVER_STATE_THERMAL_STATE	 = BIT(7),
 };
 
 #define __CDS_IS_DRIVER_STATE(_state, _mask) (((_state) & (_mask)) == (_mask))
@@ -371,6 +373,44 @@ enum cds_driver_state state = cds_get_driver_state();
 return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_LOADED);
 }
 
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+/**
+ * cds_set_driver_thermal_mitigated() - Setting the flag to indicate that driver
+ * is in thermal mitigation state.
+ *
+ * @value: A boolean value to indicate to set or reset
+ *
+ * Return: None
+ */
+static inline void cds_set_driver_thermal_mitigated(bool value)
+{
+	if (value)
+		cds_set_driver_state(CDS_DRIVER_STATE_THERMAL_STATE);
+	else
+		cds_clear_driver_state(CDS_DRIVER_STATE_THERMAL_STATE);
+}
+
+/**
+ * cds_is_driver_thermal_mitigated() - Check if driver is in power save state
+ *
+ * Return: True if in power save state, false otherwise
+ */
+static inline bool cds_is_driver_thermal_mitigated(void)
+{
+	enum cds_driver_state state = cds_get_driver_state();
+
+	return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_THERMAL_STATE);
+}
+#else
+static inline void cds_set_driver_thermal_mitigated(bool value)
+{
+}
+
+static inline bool cds_is_driver_thermal_mitigated(void)
+{
+	return false;
+}
+#endif
 v_CONTEXT_t cds_init(void);
 void cds_deinit(void);
 

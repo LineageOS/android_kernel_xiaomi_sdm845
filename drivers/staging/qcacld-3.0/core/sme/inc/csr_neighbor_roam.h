@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -384,10 +384,52 @@ QDF_STATUS csr_roam_read_tsf(tpAniSirGlobal pMac, uint8_t *pTimestamp,
 QDF_STATUS csr_roam_synch_callback(tpAniSirGlobal mac,
 	roam_offload_synch_ind *roam_synch_data,
 	tpSirBssDescription  bss_desc_ptr, enum sir_roam_op_code reason);
+
+#ifdef WLAN_FEATURE_FIPS
+/**
+ * csr_roam_pmkid_req_callback() - Registered CSR Callback function to handle
+ * roam event from firmware for pmkid generation fallback.
+ * @vdev_id: Vdev id
+ * @bss_list: candidate AP bssid list
+ */
+QDF_STATUS
+csr_roam_pmkid_req_callback(uint8_t vdev_id,
+			    struct roam_pmkid_req_event *bss_list);
+
+/**
+ * csr_process_roam_pmkid_req_callback() - API to trigger the pmkid
+ * generation fallback event for candidate AP received from firmware.
+ * @mac_ctx: Global mac context pointer
+ * @vdev_id: Vdev id
+ * @roam_bsslist: roam candidate AP bssid list
+ *
+ * This function calls the hdd_sme_roam_callback with reason
+ * eCSR_ROAM_FIPS_PMK_REQUEST to trigger pmkid generation in supplicant.
+ */
+QDF_STATUS
+csr_process_roam_pmkid_req_callback(tpAniSirGlobal mac_ctx,
+				    uint8_t vdev_id,
+				    struct roam_pmkid_req_event *roam_bsslist);
+#else
+static inline QDF_STATUS
+csr_roam_pmkid_req_callback(uint8_t vdev_id,
+			    struct roam_pmkid_req_event *bss_list)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif /* WLAN_FEATURE_FIPS */
+
 #else
 static inline QDF_STATUS csr_roam_synch_callback(tpAniSirGlobal mac,
 	roam_offload_synch_ind *roam_synch_data,
 	tpSirBssDescription  bss_desc_ptr, enum sir_roam_op_code reason)
+{
+	return QDF_STATUS_E_NOSUPPORT;
+}
+
+static inline QDF_STATUS
+csr_roam_pmkid_req_callback(tpAniSirGlobal mac_ctx, uint8_t vdev_id,
+			    struct roam_pmkid_req_event *bss_list)
 {
 	return QDF_STATUS_E_NOSUPPORT;
 }

@@ -7259,13 +7259,11 @@ static int hdd_parse_disable_chan_cmd(hdd_adapter_t *adapter, uint8_t *ptr)
 	hdd_debug("Number of channel to disable are: %d", temp_int);
 
 	if (!temp_int) {
-		if (!wlan_hdd_restore_channels(hdd_ctx)) {
-			/*
-			 * Free the cache channels only when the command is
-			 * received with num channels as 0
-			 */
-			wlan_hdd_free_cache_channels(hdd_ctx);
-		}
+		/*
+		 * Restore and Free the cache channels when the command is
+		 * received with num channels as 0
+		 */
+		wlan_hdd_restore_channels(hdd_ctx);
 		return 0;
 	}
 

@@ -3036,6 +3036,8 @@ bool cds_is_connection_in_progress(uint8_t *session_id,
 			}
 			if (hdd_ctx->connection_in_progress) {
 				cds_debug("AP/GO: connection is in progress");
+				*session_id = adapter->sessionId;
+				*reason = eHDD_SAP_CONNECTION_IN_PROGRESS;
 				return true;
 			}
 		}
@@ -11372,7 +11374,6 @@ bool cds_is_valid_channel_for_channel_switch(uint8_t channel)
 	uint32_t sap_count;
 	enum channel_state state;
 	hdd_context_t *hdd_ctx;
-	bool is_safe;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 
@@ -11384,14 +11385,12 @@ bool cds_is_valid_channel_for_channel_switch(uint8_t channel)
 	sta_sap_scc_on_dfs_chan = cds_is_sta_sap_scc_allowed_on_dfs_channel();
 	sap_count = cds_mode_specific_connection_count(CDS_SAP_MODE, NULL);
 	state = cds_get_channel_state(channel);
-	is_safe = cds_is_safe_channel(channel);
 
-	cds_debug("is_safe %u, sta_sap_scc_on_dfs_chan %u, sap_count %u, channel %u, state %u",
-			is_safe, sta_sap_scc_on_dfs_chan, sap_count, channel,
-			state);
+	cds_debug("sta_sap_scc_on_dfs_chan %u, sap_count %u, channel %u, state %u",
+		  sta_sap_scc_on_dfs_chan, sap_count, channel, state);
 
-	if (is_safe && ((state == CHANNEL_STATE_ENABLE) || (sap_count == 0) ||
-		((state == CHANNEL_STATE_DFS) && sta_sap_scc_on_dfs_chan))) {
+	if ((state == CHANNEL_STATE_ENABLE) || (sap_count == 0) ||
+		((state == CHANNEL_STATE_DFS) && sta_sap_scc_on_dfs_chan)) {
 		cds_debug("Valid channel for channel switch");
 		return true;
 	}

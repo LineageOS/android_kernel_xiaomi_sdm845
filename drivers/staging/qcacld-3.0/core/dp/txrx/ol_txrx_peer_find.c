@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -759,7 +759,6 @@ void ol_txrx_peer_remove_obj_map_entries(ol_txrx_pdev_handle pdev,
 				peer_id_ref_cnt);
 		num_deleted_maps += peer_id_ref_cnt;
 		pdev->peer_id_to_obj_map[peer_id].peer = NULL;
-		peer->peer_ids[i] = HTT_INVALID_PEER;
 
 		if (peer_id_ref_cnt)
 			pdev->peer_id_to_obj_map[peer_id].peer_ref = peer;

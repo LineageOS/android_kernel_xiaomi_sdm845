@@ -6011,6 +6011,8 @@ void lim_send_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
 
 }
 
+#define MAX_WAKELOCK_FOR_CSA         5000
+
 /**
  * lim_process_sme_dfs_csa_ie_request() - process sme dfs csa ie req
  *
@@ -6130,6 +6132,9 @@ static void lim_process_sme_dfs_csa_ie_request(tpAniSirGlobal mac_ctx,
 		dfs_csa_ie_req->ch_params.center_freq_seg0;
 skip_vht:
 	/* Send CSA IE request from here */
+	qdf_wake_lock_timeout_acquire(&session_entry->ap_ecsa_wakelock,
+				      MAX_WAKELOCK_FOR_CSA);
+	qdf_runtime_pm_prevent_suspend(&session_entry->ap_ecsa_runtime_lock);
 	lim_send_dfs_chan_sw_ie_update(mac_ctx, session_entry);
 
 	if (dfs_csa_ie_req->ch_params.ch_width == CH_WIDTH_80MHZ)

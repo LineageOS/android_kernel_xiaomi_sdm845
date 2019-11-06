@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -156,6 +156,8 @@ enum cds_auto_pwr_detect_failure_mode_t {
  * @etsi_srd_chan_in_master_mode: Use of ETSI SRD chan in SAP/P2P-GO ACS/PCL
  * @dot11p_mode: dot11p user configuration
  * @dfs_master_enable: DFS master capability
+ * @thermal_sampling_time: Thermal throttling sampling time in ms
+ * @thermal_throt_dc: Thermal throttling duty cycle to be enforced
  * Structure for holding cds ini parameters.
  */
 
@@ -223,6 +225,10 @@ struct cds_config_info {
 	bool etsi_srd_chan_in_master_mode;
 	uint8_t dot11p_mode;
 	bool dfs_master_enable;
+#ifdef FW_THERMAL_THROTTLE_SUPPORT
+	uint16_t thermal_sampling_time;
+	uint16_t thermal_throt_dc;
+#endif
 };
 
 #ifdef WLAN_FEATURE_FILS_SK

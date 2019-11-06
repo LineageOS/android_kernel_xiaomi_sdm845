@@ -94,7 +94,8 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint16_t peSessionId;
 	uint8_t smeSessionId;
 	uint16_t transactionId;
-
+	qdf_wake_lock_t ap_ecsa_wakelock;
+	qdf_runtime_lock_t ap_ecsa_runtime_lock;
 	/* In AP role: BSSID and selfMacAddr will be the same. */
 	/* In STA role: they will be different */
 	tSirMacAddr bssId;
