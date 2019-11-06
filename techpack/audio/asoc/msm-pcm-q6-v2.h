@@ -126,6 +126,7 @@ struct output_meta_data_st {
 struct msm_plat_data {
 	int perf_mode;
 	struct snd_pcm *pcm[MSM_FRONTEND_DAI_MAX];
+	struct mutex lock;
 };
 
 #endif /*_MSM_PCM_H*/

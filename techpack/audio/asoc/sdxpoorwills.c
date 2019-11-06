@@ -236,6 +236,12 @@ static int sdx_hifi_control;
 static atomic_t mi2s_ref_count;
 static atomic_t sec_mi2s_ref_count;
 
+static struct dev_config proxy_cfg = {
+	.sample_rate = SAMPLE_RATE_48KHZ,
+	.bit_format = SNDRV_PCM_FORMAT_S16_LE,
+	.channels = 2,
+};
+
 static struct snd_soc_card snd_soc_card_tavil_sdx = {
 	.name = "sdx-tavil-i2s-snd-card",
 };
@@ -2270,6 +2276,7 @@ static void *def_tavil_mbhc_cal(void)
 static struct snd_soc_dai_link sdx_common_dai_links[] = {
 	/* FrontEnd DAI Links */
 	{
+	/*hw:x,0*/
 		.name = SDX_DAILINK_NAME(Media1),
 		.stream_name = "MultiMedia1",
 		.cpu_dai_name = "MultiMedia1",
@@ -2284,26 +2291,83 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.ignore_suspend = 1,
 		/* This dainlink has playback support */
 		.ignore_pmdown_time = 1,
-		.id = MSM_FRONTEND_DAI_MULTIMEDIA1
+		.id = MSM_FRONTEND_DAI_MULTIMEDIA1,
 	},
 	{
+	/*hw:x,1*/
+		.name = SDX_DAILINK_NAME(Media2),
+		.stream_name = "MultiMedia2",
+		.cpu_dai_name   = "MultiMedia2",
+		.platform_name  = "msm-pcm-dsp.0",
+		.dynamic = 1,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.ignore_suspend = 1,
+		/* this dai link has playback support */
+		.ignore_pmdown_time = 1,
+		.id = MSM_FRONTEND_DAI_MULTIMEDIA2,
+	},
+	{
+	/*hw:x,2*/
+		.name = "SDX VoiceMMode1",
+		.stream_name = "VoiceMMode1",
+		.cpu_dai_name = "VoiceMMode1",
+		.platform_name = "msm-pcm-voice",
+		.dynamic = 1,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		/* This dainlink has Voice support */
+		.ignore_pmdown_time = 1,
+		.id = MSM_FRONTEND_DAI_VOICEMMODE1,
+	},
+	{
+	/*hw:x,3*/
 		.name = "MSM VoIP",
 		.stream_name = "VoIP",
-		.cpu_dai_name = "VoIP",
-		.platform_name = "msm-voip-dsp",
+		.cpu_dai_name	= "VoIP",
+		.platform_name  = "msm-voip-dsp",
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-			    SND_SOC_DPCM_TRIGGER_POST},
+			SND_SOC_DPCM_TRIGGER_POST},
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.ignore_suspend = 1,
-		/* This dainlink has VOIP support */
+		/* this dai link has playback support */
 		.ignore_pmdown_time = 1,
 		.id = MSM_FRONTEND_DAI_VOIP,
 	},
 	{
+	/*hw:x,4*/
+		.name = SDX_DAILINK_NAME(Media3),
+		.stream_name = "MultiMedia3",
+		.cpu_dai_name   = "MultiMedia3",
+		.platform_name  = "msm-pcm-dsp.0",
+		.dynamic = 1,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.ignore_suspend = 1,
+		/* this dai link has playback support */
+		.ignore_pmdown_time = 1,
+		.id = MSM_FRONTEND_DAI_MULTIMEDIA3,
+	},
+	{
+	/*hw:x,5*/
 		.name = "Primary MI2S RX Hostless",
 		.stream_name = "Primary MI2S_RX Hostless Playback",
 		.cpu_dai_name = "PRI_MI2S_RX_HOSTLESS",
@@ -2312,14 +2376,30 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-			    SND_SOC_DPCM_TRIGGER_POST},
+			SND_SOC_DPCM_TRIGGER_POST},
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 	},
+	{/* hw:x,6 */
+		.name = "INT_FM Hostless",
+		.stream_name = "INT_FM_HOSTLESS Playback",
+		.cpu_dai_name	= "INT_FM_HOSTLESS",
+		.platform_name  = "msm-pcm-hostless",
+		.dynamic = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		/* this dainlink has playback support */
+		.ignore_pmdown_time = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
 	{
+	/*hw:x,7*/
 		.name = "MSM AFE-PCM RX",
 		.stream_name = "AFE-PROXY RX",
 		.cpu_dai_name = "msm-dai-q6-dev.241",
@@ -2331,6 +2411,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.ignore_pmdown_time = 1,
 	},
 	{
+	/*hw:x,8*/
 		.name = "MSM AFE-PCM TX",
 		.stream_name = "AFE-PROXY TX",
 		.cpu_dai_name = "msm-dai-q6-dev.240",
@@ -2340,6 +2421,26 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.ignore_suspend = 1,
 	},
 	{
+	/*hw:x,9*/
+		.name = SDX_DAILINK_NAME(Compress1),
+		.stream_name = "COMPR",
+		.cpu_dai_name = "MultiMedia4",
+		.platform_name = "msm-compress-dsp",
+		.dynamic = 1,
+		.async_ops = ASYNC_DPCM_SND_SOC_HW_PARAMS,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.id = MSM_FRONTEND_DAI_MULTIMEDIA4,
+	},
+
+	{
+	/*hw:x,10*/
 		.name = "DTMF RX Hostless",
 		.stream_name = "DTMF RX Hostless",
 		.cpu_dai_name = "DTMF_RX_HOSTLESS",
@@ -2356,6 +2457,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 	},
 	{
+	/*hw:x,11*/
 		.name = "DTMF TX",
 		.stream_name = "DTMF TX",
 		.cpu_dai_name = "msm-dai-stub-dev.4",
@@ -2365,40 +2467,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.ignore_suspend = 1,
 	},
 	{
-		.name = SDX_DAILINK_NAME(Compress1),
-		.stream_name = "COMPR",
-		.cpu_dai_name = "MultiMedia4",
-		.platform_name = "msm-compress-dsp",
-		.dynamic = 1,
-		.async_ops = ASYNC_DPCM_SND_SOC_HW_PARAMS,
-		.dpcm_playback = 1,
-		.dpcm_capture = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-			    SND_SOC_DPCM_TRIGGER_POST},
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
-		.id = MSM_FRONTEND_DAI_MULTIMEDIA4,
-	},
-	{
-		.name = SDX_DAILINK_NAME(Media2),
-		.stream_name = "MultiMedia2",
-		.cpu_dai_name = "MultiMedia2",
-		.platform_name = "msm-pcm-dsp.0",
-		.dynamic = 1,
-		.dpcm_playback = 1,
-		.dpcm_capture = 1,
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-			    SND_SOC_DPCM_TRIGGER_POST},
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
-		/* this dainlink has playback support */
-		.id = MSM_FRONTEND_DAI_MULTIMEDIA2,
-	},
-	{
+	/*hw:x,12*/
 		.name = "Primary MI2S TX Hostless",
 		.stream_name = "Primary MI2S_TX Hostless Playback",
 		.cpu_dai_name = "PRI_MI2S_TX_HOSTLESS",
@@ -2413,6 +2482,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 	},
 	{
+	/*hw:x,13*/
 		.name = SDX_DAILINK_NAME(LowLatency),
 		.stream_name = "MultiMedia5",
 		.cpu_dai_name = "MultiMedia5",
@@ -2430,24 +2500,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA5,
 	},
 	{
-		.name = "SDX VoiceMMode1",
-		.stream_name = "VoiceMMode1",
-		.cpu_dai_name = "VoiceMMode1",
-		.platform_name = "msm-pcm-voice",
-		.dynamic = 1,
-		.dpcm_playback = 1,
-		.dpcm_capture = 1,
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-			    SND_SOC_DPCM_TRIGGER_POST},
-		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
-		.ignore_suspend = 1,
-		/* This dainlink has Voice support */
-		.ignore_pmdown_time = 1,
-		.id = MSM_FRONTEND_DAI_VOICEMMODE1,
-	},
-	{
+	/*hw:x,14*/
 		.name = "SDX VoiceMMode2",
 		.stream_name = "VoiceMMode2",
 		.cpu_dai_name = "VoiceMMode2",
@@ -2466,6 +2519,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.id = MSM_FRONTEND_DAI_VOICEMMODE2,
 	},
 	{
+	/*hw:x,15*/
 		.name = "VoiceMMode1 HOST RX CAPTURE",
 		.stream_name = "VoiceMMode1 HOST RX CAPTURE",
 		.cpu_dai_name = "msm-dai-stub-dev.5",
@@ -2477,6 +2531,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 			    SND_SOC_DPCM_TRIGGER_POST},
 	},
 	{
+	/*hw:x,16*/
 		.name = "VoiceMMode1 HOST RX PLAYBACK",
 		.stream_name = "VoiceMMode1 HOST RX PLAYBACK",
 		.cpu_dai_name = "msm-dai-stub-dev.6",
@@ -2487,6 +2542,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.ignore_pmdown_time = 1,
 	},
 	{
+	/*hw:x,17*/
 		.name = "VoiceMMode1 HOST TX CAPTURE",
 		.stream_name = "VoiceMMode1 HOST TX CAPTURE",
 		.cpu_dai_name = "msm-dai-stub-dev.7",
@@ -2498,6 +2554,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 			    SND_SOC_DPCM_TRIGGER_POST},
 	},
 	{
+	/*hw:x,18*/
 		.name = "VoiceMMode1 HOST TX PLAYBACK",
 		.stream_name = "VoiceMMode1 HOST TX PLAYBACK",
 		.cpu_dai_name = "msm-dai-stub-dev.8",
@@ -2508,6 +2565,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.ignore_pmdown_time = 1,
 	},
 	{
+	/*hw:x,19*/
 		.name = "VoiceMMode2 HOST RX CAPTURE",
 		.stream_name = "VoiceMMode2 HOST RX CAPTURE",
 		.cpu_dai_name = "msm-dai-stub-dev.5",
@@ -2519,6 +2577,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 			    SND_SOC_DPCM_TRIGGER_POST},
 	},
 	{
+	/*hw:x,20*/
 		.name = "VoiceMMode2 HOST RX PLAYBACK",
 		.stream_name = "VOiceMMode2 HOST RX PLAYBACK",
 		.cpu_dai_name = "msm-dai-stub-dev.6",
@@ -2529,6 +2588,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.ignore_pmdown_time = 1,
 	},
 	{
+	/*hw:x,21*/
 		.name = "VoiceMMode2 HOST TX CAPTURE",
 		.stream_name = "VoiceMMode2 HOST TX CAPTURE",
 		.cpu_dai_name = "msm-dai-stub-dev.7",
@@ -2540,6 +2600,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 			    SND_SOC_DPCM_TRIGGER_POST},
 	},
 	{
+	/*hw:x,22*/
 		.name = "VoiceMMode2 HOST TX PLAYBACK",
 		.stream_name = "VOiceMMode2 HOST TX PLAYBACK",
 		.cpu_dai_name = "msm-dai-stub-dev.8",
@@ -2550,6 +2611,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.ignore_pmdown_time = 1,
 	},
 	{
+	/*hw:x,23*/
 		.name = "Secondary MI2S RX Hostless",
 		.stream_name = "Secondary MI2S_RX Hostless Playback",
 		.cpu_dai_name = "SEC_MI2S_RX_HOSTLESS",
@@ -2566,6 +2628,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 	},
 	{
+	/*hw:x,24*/
 		.name = "Secondary MI2S TX Hostless",
 		.stream_name = "Secondary MI2S_TX Hostless Playback",
 		.cpu_dai_name = "SEC_MI2S_TX_HOSTLESS",
@@ -2580,6 +2643,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 	},
 	{
+	/*hw:x,25*/
 		.name = "Primary AUXPCM RX Hostless",
 		.stream_name = "AUXPCM_HOSTLESS Playback",
 		.cpu_dai_name = "AUXPCM_HOSTLESS",
@@ -2596,6 +2660,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 	},
 	{
+	/*hw:x,26*/
 		.name = "Primary AUXPCM TX Hostless",
 		.stream_name = "AUXPCM_HOSTLESS Capture",
 		.cpu_dai_name = "AUXPCM_HOSTLESS",
@@ -2610,6 +2675,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 	},
 	{
+	/*hw:x,27*/
 		.name = "Secondary AUXPCM RX Hostless",
 		.stream_name = "SEC_AUXPCM_HOSTLESS Playback",
 		.cpu_dai_name = "SEC_AUXPCM_RX_HOSTLESS",
@@ -2626,6 +2692,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 	},
 	{
+	/*hw:x,28*/
 		.name = "Secondary AUXPCM TX Hostless",
 		.stream_name = "SEC_AUXPCM_HOSTLESS Capture",
 		.cpu_dai_name = "SEC_AUXPCM_TX_HOSTLESS",
@@ -2640,6 +2707,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 	},
 	{
+	/*hw:x,29*/
 		.name = "Primary TDM0 RX Hostless",
 		.stream_name = "Primary TDM0 Hostless Playback",
 		.cpu_dai_name = "PRI_TDM_RX_0_HOSTLESS",
@@ -2656,6 +2724,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 	},
 	{
+	/*hw:x,30*/
 		.name = "Primary TDM0 TX Hostless",
 		.stream_name = "Primary TDM0 Hostless Capture",
 		.cpu_dai_name = "PRI_TDM_TX_0_HOSTLESS",
@@ -2670,6 +2739,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 	},
 	{
+	/*hw:x,31*/
 		.name = "Secondary TDM RX 0 Hostless",
 		.stream_name = "Secondary TDM RX 0 Hostless",
 		.cpu_dai_name = "SEC_TDM_RX_0_HOSTLESS",
@@ -2685,6 +2755,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 	},
 	{
+	/*hw:x,32*/
 		.name = "Secondary TDM TX 0 Hostless",
 		.stream_name = "Secondary TDM TX 0 Hostless",
 		.cpu_dai_name = "SEC_TDM_TX_0_HOSTLESS",
@@ -2704,6 +2775,7 @@ static struct snd_soc_dai_link sdx_common_dai_links[] = {
 
 static struct snd_soc_dai_link sdx_common_misc_fe_dai_links[] = {
 	{
+	/*hw:x,33*/
 		.name = SDX_DAILINK_NAME(ASM Loopback),
 		.stream_name = "MultiMedia6",
 		.cpu_dai_name = "MultiMedia6",
@@ -2723,6 +2795,20 @@ static struct snd_soc_dai_link sdx_common_misc_fe_dai_links[] = {
 	},
 };
 
+static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+				  struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *rate = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_CHANNELS);
+
+	channels->min = channels->max = proxy_cfg.channels;
+	rate->min = rate->max = proxy_cfg.sample_rate;
+	return 0;
+}
+
+
 static struct snd_soc_dai_link sdx_common_be_dai_links[] = {
 	/* Backend AFE DAI Links */
 	{
@@ -2734,6 +2820,7 @@ static struct snd_soc_dai_link sdx_common_be_dai_links[] = {
 		.codec_dai_name = "msm-stub-rx",
 		.no_pcm = 1,
 		.dpcm_playback = 1,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.id = MSM_BACKEND_DAI_AFE_PCM_RX,
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
@@ -2747,6 +2834,7 @@ static struct snd_soc_dai_link sdx_common_be_dai_links[] = {
 		.codec_dai_name = "msm-stub-tx",
 		.no_pcm = 1,
 		.dpcm_capture = 1,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.id = MSM_BACKEND_DAI_AFE_PCM_TX,
 		.ignore_suspend = 1,
 	},
