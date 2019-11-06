@@ -2032,6 +2032,13 @@ static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 	} else {
 		dbg_event(0xFF, "Pullup_disable", is_on);
 		dwc3_gadget_disable_irq(dwc);
+
+		/*
+		 * Reset the err_evt_seen so that the interrupts on
+		 * next connect/session is processed correctly.
+		 */
+		dwc->err_evt_seen = false;
+
 		__dwc3_gadget_ep_disable(dwc->eps[0]);
 		__dwc3_gadget_ep_disable(dwc->eps[1]);
 
@@ -3218,6 +3225,8 @@ static void dwc3_gadget_conndone_interrupt(struct dwc3 *dwc)
 	speed = reg & DWC3_DSTS_CONNECTSPD;
 	dwc->speed = speed;
 
+	/* Reset the retry on erratic error event count */
+	dwc->retries_on_error = 0;
 	dwc3_update_ram_clk_sel(dwc, speed);
 
 	switch (speed) {
@@ -3589,7 +3598,7 @@ static void dwc3_gadget_interrupt(struct dwc3 *dwc,
 		break;
 	case DWC3_DEVICE_EVENT_ERRATIC_ERROR:
 		dwc3_trace(trace_dwc3_gadget, "Erratic Error");
-		dbg_event(0xFF, "ERROR", 0);
+		dbg_event(0xFF, "ERROR", dwc->retries_on_error);
 		dwc->dbg_gadget_events.erratic_error++;
 		break;
 	case DWC3_DEVICE_EVENT_CMD_CMPL:
@@ -3671,6 +3680,7 @@ static irqreturn_t dwc3_process_event_buf(struct dwc3 *dwc)
 			if (dwc3_notify_event(dwc,
 						DWC3_CONTROLLER_ERROR_EVENT, 0))
 				dwc->err_evt_seen = 0;
+			dwc->retries_on_error++;
 			break;
 		}
 

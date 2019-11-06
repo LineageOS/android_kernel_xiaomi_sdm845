@@ -2788,21 +2788,20 @@ out:
 
 static int fg_get_cycle_count(struct fg_chip *chip)
 {
-	int count = 0;
-	int i = 0;
+	int i, len = 0;
 
 	if (!chip->cyc_ctr.en)
 		return 0;
 
-	if ((chip->cyc_ctr.id <= 0) || (chip->cyc_ctr.id > BUCKET_COUNT))
-		return -EINVAL;
-
 	mutex_lock(&chip->cyc_ctr.lock);
 	for (i = 0; i < BUCKET_COUNT; i++)
-		count += chip->cyc_ctr.count[i];
-	count /= BUCKET_COUNT;
+		len += chip->cyc_ctr.count[i];
+
 	mutex_unlock(&chip->cyc_ctr.lock);
-	return count;
+
+	len = len / BUCKET_COUNT;
+
+	return len;
 }
 
 static const char *fg_get_cycle_counts(struct fg_chip *chip)

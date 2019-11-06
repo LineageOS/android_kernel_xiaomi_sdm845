@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
  * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -654,6 +654,9 @@ static struct msm_soc_info cpu_of_id[] = {
 
 	/* QM215 ID */
 	[386] = {MSM_CPU_QM215, "QM215"},
+
+	/* QCM2150 ID */
+	[436] = {MSM_CPU_QCM2150, "QCM2150"},
 	/* Uninitialized IDs are not known to run Linux.
 	 * MSM_CPU_UNKNOWN is set to 0 to ensure these IDs are
 	 * considered as unknown CPU.
@@ -1648,6 +1651,10 @@ static void * __init setup_dummy_socinfo(void)
 	} else if (early_machine_is_qm215()) {
 		dummy_socinfo.id = 386;
 		strlcpy(dummy_socinfo.build_id, "qm215 - ",
+				sizeof(dummy_socinfo.build_id));
+	} else if (early_machine_is_qcm2150()) {
+		dummy_socinfo.id = 436;
+		strlcpy(dummy_socinfo.build_id, "qcm2150 - ",
 				sizeof(dummy_socinfo.build_id));
 	}
 

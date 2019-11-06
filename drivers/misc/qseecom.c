@@ -535,7 +535,7 @@ static int qseecom_scm_call2(uint32_t svc_id, uint32_t tz_cmd_id,
 			smc_id = TZ_OS_APP_SHUTDOWN_ID;
 			desc.arginfo = TZ_OS_APP_SHUTDOWN_ID_PARAM_ID;
 			desc.args[0] = req->app_id;
-			ret = __qseecom_scm_call2_locked(smc_id, &desc);
+			ret = scm_call2(smc_id, &desc);
 			break;
 		}
 		case QSEOS_APP_LOOKUP_COMMAND: {
@@ -3437,6 +3437,33 @@ int __boundary_checks_offset(struct qseecom_send_modfd_cmd_req *req,
 	return 0;
 }
 
+static int __boundary_checks_offset_64(struct qseecom_send_modfd_cmd_req *req,
+			struct qseecom_send_modfd_listener_resp *lstnr_resp,
+			struct qseecom_dev_handle *data, int i)
+{
+
+	if ((data->type != QSEECOM_LISTENER_SERVICE) &&
+						(req->ifd_data[i].fd > 0)) {
+		if ((req->cmd_req_len < sizeof(uint64_t)) ||
+			(req->ifd_data[i].cmd_buf_offset >
+			req->cmd_req_len - sizeof(uint64_t))) {
+			pr_err("Invalid offset (req len) 0x%x\n",
+				req->ifd_data[i].cmd_buf_offset);
+			return -EINVAL;
+		}
+	} else if ((data->type == QSEECOM_LISTENER_SERVICE) &&
+					(lstnr_resp->ifd_data[i].fd > 0)) {
+		if ((lstnr_resp->resp_len < sizeof(uint64_t)) ||
+			(lstnr_resp->ifd_data[i].cmd_buf_offset >
+			lstnr_resp->resp_len - sizeof(uint64_t))) {
+			pr_err("Invalid offset (lstnr resp len) 0x%x\n",
+				lstnr_resp->ifd_data[i].cmd_buf_offset);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 static int __qseecom_update_cmd_buf(void *msg, bool cleanup,
 			struct qseecom_dev_handle *data)
 {
@@ -3796,7 +3823,8 @@ static int __qseecom_update_cmd_buf_64(void *msg, bool cleanup,
 		if (sg_ptr->nents == 1) {
 			uint64_t *update_64bit;
 
-			if (__boundary_checks_offset(req, lstnr_resp, data, i))
+			if (__boundary_checks_offset_64(req, lstnr_resp,
+							data, i))
 				goto err;
 				/* 64bit app uses 64bit address */
 			update_64bit = (uint64_t *) field;
@@ -4697,7 +4725,6 @@ recheck:
 		strlcpy(entry->app_name, app_name, MAX_APP_NAME_SIZE);
 		if (__qseecom_get_fw_size(app_name, &fw_size, &app_arch)) {
 			ret = -EIO;
-			kfree(entry);
 			goto exit_entry_free;
 		}
 		entry->app_arch = app_arch;

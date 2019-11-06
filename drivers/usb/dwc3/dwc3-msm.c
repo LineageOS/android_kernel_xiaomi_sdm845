@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1861,8 +1861,13 @@ static void dwc3_msm_notify_event(struct dwc3 *dwc, unsigned int event,
 		reg |= DWC3_GCTL_CORESOFTRESET;
 		dwc3_msm_write_reg(mdwc->base, DWC3_GCTL, reg);
 
-		/* restart USB which performs full reset and reconnect */
-		schedule_work(&mdwc->restart_usb_work);
+		/*
+		 * If the core could not recover after MAX_ERROR_RECOVERY_TRIES,
+		 * skip the restart USB work and keep the core in softreset
+		 * state.
+		 */
+		if (dwc->retries_on_error < MAX_ERROR_RECOVERY_TRIES)
+			schedule_work(&mdwc->restart_usb_work);
 		break;
 	case DWC3_CONTROLLER_RESET_EVENT:
 		dev_dbg(mdwc->dev, "DWC3_CONTROLLER_RESET_EVENT received\n");
