@@ -16548,21 +16548,21 @@ static void wlan_hdd_update_band_cap(struct hdd_context *hdd_ctx)
 	}
 
 	if (!sme_is_feature_supported_by_fw(DOT11AC)) {
-		if (!hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ]) {
+		if (hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ]) {
 			hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ]->
 						vht_cap.vht_supported = 0;
 			hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ]->
 						vht_cap.cap = 0;
 		}
 
-		if (!hdd_ctx->wiphy->bands[HDD_NL80211_BAND_5GHZ]) {
+		if (hdd_ctx->wiphy->bands[HDD_NL80211_BAND_5GHZ]) {
 			hdd_ctx->wiphy->bands[HDD_NL80211_BAND_5GHZ]->
 						vht_cap.vht_supported = 0;
 			hdd_ctx->wiphy->bands[HDD_NL80211_BAND_5GHZ]->
 						vht_cap.cap = 0;
 		}
 	} else {
-		if (!hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ]) {
+		if (hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ]) {
 			if (hdd_ctx->config->enableVhtFor24GHzBand)
 				hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ]->
 						vht_cap.vht_supported = 1;
