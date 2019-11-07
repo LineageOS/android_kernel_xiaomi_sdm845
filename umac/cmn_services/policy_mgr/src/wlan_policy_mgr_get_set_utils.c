@@ -3242,12 +3242,6 @@ bool policy_mgr_allow_multiple_sta_connections(struct wlan_objmgr_psoc *psoc,
 				 wmi_service_sta_plus_sta_support))
 		return false;
 
-	if (second_sta_chan && second_sta_chan != first_sta_chan &&
-	    WLAN_REG_IS_SAME_BAND_CHANNELS(second_sta_chan, first_sta_chan)) {
-		policy_mgr_err("STA+STA MCC isn't permitted");
-		return false;
-	}
-
 	return true;
 }
 
