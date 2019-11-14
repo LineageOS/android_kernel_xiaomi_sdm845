@@ -114,8 +114,13 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 #define SIR_KRK_KEY_LEN 16
 #define SIR_BTK_KEY_LEN 32
 #define SIR_KCK_KEY_LEN 16
+#define KCK_192BIT_KEY_LEN 24
+#define KCK_256BIT_KEY_LEN 32
+
 #define SIR_KEK_KEY_LEN 16
 #define SIR_KEK_KEY_LEN_FILS 64
+#define KEK_256BIT_KEY_LEN 32
+
 #define SIR_REPLAY_CTR_LEN 8
 #define SIR_PMK_LEN  48
 #define SIR_PMKID_LEN 16
@@ -132,6 +137,13 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 #define SIR_UAPSD_GET(ac, mask)      (((mask) & (SIR_UAPSD_FLAG_ ## ac)) >> SIR_UAPSD_BITOFFSET_ ## ac)
 
 #endif
+
+/*
+ * AKM suites supported by firmware for roaming
+ */
+#define AKM_FT_SAE           0
+#define AKM_FT_SUITEB_SHA384 1
+#define AKM_FT_FILS          2
 
 /**
  * enum sir_roam_op_code - Operation to be done by the callback.
@@ -3934,7 +3946,8 @@ typedef struct sSirSmeRoamOffloadSynchInd {
 	uint8_t rssi;
 	uint8_t roamReason;
 	uint32_t chan_freq;
-	uint8_t kck[SIR_KCK_KEY_LEN];
+	uint8_t kck[KCK_256BIT_KEY_LEN];
+	uint8_t kck_len;
 	uint32_t kek_len;
 	uint8_t kek[SIR_KEK_KEY_LEN_FILS];
 	uint32_t   pmk_len;

@@ -42,6 +42,7 @@
  * @twt_requestor: TWT requestor capability
  * @twt_responder: TWT responder capability
  * @bcn_reception_stats: Beacon Reception stats capability
+ * @ft_akm_service_bitmap: bitmap of FT akm supported by firmware
  */
 struct wma_tgt_services {
 	uint32_t sta_power_save;
@@ -73,6 +74,7 @@ struct wma_tgt_services {
 	bool twt_requestor;
 	bool twt_responder;
 	bool bcn_reception_stats;
+	uint32_t ft_akm_service_bitmap;
 };
 
 /**
@@ -183,6 +185,7 @@ struct board_info {
  * @obss_color_collision_offloaded: obss color collision offloaded to firmware
  * @sar_version: Version of SAR supported by firmware
  * @dynamic_nss_chains_support: per vdev dynamic nss, chains update
+ * @ft_akm_service_bitmap: bitmap of FT akm supported by firmware
  */
 struct wma_tgt_cfg {
 	uint32_t target_fw_version;
@@ -224,5 +227,6 @@ struct wma_tgt_cfg {
 	struct board_info hw_bd_info;
 	enum sar_version sar_version;
 	bool dynamic_nss_chains_support;
+	uint32_t ft_akm_service_bitmap;
 };
 #endif /* WMA_TGT_CFG_H */

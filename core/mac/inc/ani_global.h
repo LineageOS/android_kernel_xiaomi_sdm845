@@ -889,6 +889,7 @@ typedef struct sAniSirGlobal {
 	bool bcn_reception_stats;
 	/* Beacon stats enabled/disabled from ini */
 	bool enable_beacon_reception_stats;
+	uint32_t ft_akm_service_bitmap;
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS

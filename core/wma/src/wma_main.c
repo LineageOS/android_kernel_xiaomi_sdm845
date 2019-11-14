@@ -5008,6 +5008,16 @@ static inline void wma_update_target_services(struct wmi_unified *wmi_handle,
 				wmi_service_11k_neighbour_report_support))
 		cfg->is_11k_offload_supported = true;
 
+	if (wmi_service_enabled(wmi_handle, wmi_service_wpa3_ft_sae_support))
+		cfg->ft_akm_service_bitmap |= (1 << AKM_FT_SAE);
+
+	if (wmi_service_enabled(wmi_handle,
+				wmi_service_wpa3_ft_suite_b_support))
+		cfg->ft_akm_service_bitmap |= (1 << AKM_FT_SUITEB_SHA384);
+
+	if (wmi_service_enabled(wmi_handle, wmi_service_ft_fils))
+		cfg->ft_akm_service_bitmap |= (1 << AKM_FT_FILS);
+
 	if (wmi_service_enabled(wmi_handle, wmi_service_twt_requestor))
 		cfg->twt_requestor = true;
 	if (wmi_service_enabled(wmi_handle, wmi_service_twt_responder))

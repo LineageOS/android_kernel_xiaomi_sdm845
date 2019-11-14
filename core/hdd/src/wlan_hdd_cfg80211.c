@@ -6756,9 +6756,9 @@ wlan_hdd_cfg80211_get_logger_supp_feature(struct wiphy *wiphy,
 
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
 void wlan_hdd_save_gtk_offload_params(struct hdd_adapter *adapter,
-				      uint8_t *kck_ptr, uint8_t *kek_ptr,
-				      uint32_t kek_len, uint8_t *replay_ctr,
-				      bool big_endian)
+				      uint8_t *kck_ptr, uint8_t kck_len,
+				      uint8_t *kek_ptr, uint32_t kek_len,
+				      uint8_t *replay_ctr, bool big_endian)
 {
 	struct hdd_station_ctx *hdd_sta_ctx;
 	uint8_t *buf;
@@ -6774,8 +6774,13 @@ void wlan_hdd_save_gtk_offload_params(struct hdd_adapter *adapter,
 	}
 
 	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
-	if (kck_ptr)
-		qdf_mem_copy(gtk_req->kck, kck_ptr, NL80211_KCK_LEN);
+	if (kck_ptr) {
+		if (kck_len > sizeof(gtk_req->kck)) {
+			kck_len = sizeof(gtk_req->kck);
+			QDF_ASSERT(0);
+		}
+		qdf_mem_copy(gtk_req->kck, kck_ptr, kck_len);
+	}
 
 	if (kek_ptr) {
 		/* paranoia */
@@ -6805,15 +6810,6 @@ void wlan_hdd_save_gtk_offload_params(struct hdd_adapter *adapter,
 		hdd_err("Failed to cache GTK Offload");
 end:
 	qdf_mem_free(gtk_req);
-}
-#else
-void wlan_hdd_save_gtk_offload_params(struct hdd_adapter *adapter,
-					     uint8_t *kck_ptr,
-					     uint8_t *kek_ptr,
-					     uint32_t kek_len,
-					     uint8_t *replay_ctr,
-					     bool big_endian)
-{
 }
 #endif
 
@@ -6974,7 +6970,7 @@ int wlan_hdd_send_roam_auth_event(struct hdd_adapter *adapter, uint8_t *bssid,
 		if (roam_info_ptr->kek_len > SIR_KEK_KEY_LEN_FILS ||
 		    nla_put(skb,
 			QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_PTK_KCK,
-			SIR_KCK_KEY_LEN, roam_info_ptr->kck) ||
+			roam_info_ptr->kck_len, roam_info_ptr->kck) ||
 		    nla_put(skb,
 			QCA_WLAN_VENDOR_ATTR_ROAM_AUTH_PTK_KEK,
 			roam_info_ptr->kek_len, roam_info_ptr->kek)) {
@@ -6994,6 +6990,7 @@ int wlan_hdd_send_roam_auth_event(struct hdd_adapter *adapter, uint8_t *bssid,
 		 * into power save state.
 		 */
 		wlan_hdd_save_gtk_offload_params(adapter, roam_info_ptr->kck,
+						 roam_info_ptr->kck_len,
 						 roam_info_ptr->kek,
 						 roam_info_ptr->kek_len,
 						 roam_info_ptr->replay_ctr,
@@ -19874,10 +19871,19 @@ static int wlan_hdd_set_akm_suite(struct hdd_adapter *adapter, u32 key_mgmt)
 		sta_ctx->auth_key_mgmt |= HDD_AUTH_KEY_MGMT_802_1X;
 		break;
 
+	case WLAN_AKM_SUITE_FT_SAE:
+		hdd_debug("setting key mgmt type to FT-SAE");
+		sta_ctx->auth_key_mgmt |= HDD_AUTH_KEY_MGMT_802_1X;
+		break;
+
+	case WLAN_AKM_SUITE_FT_EAP_SHA_384:
+		hdd_debug("setting key mgmt type to FT-EAP-SHA384");
+		sta_ctx->auth_key_mgmt |= HDD_AUTH_KEY_MGMT_802_1X;
+		break;
+
 	default:
 		hdd_err("Unsupported key mgmt type: %d", key_mgmt);
 		return -EINVAL;
-
 	}
 	return 0;
 }

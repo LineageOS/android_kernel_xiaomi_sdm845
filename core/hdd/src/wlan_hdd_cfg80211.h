@@ -115,6 +115,14 @@ struct hdd_context;
 #define WLAN_AKM_SUITE_SAE 0x000FAC08
 #endif
 
+#ifndef WLAN_AKM_SUITE_FT_SAE
+#define WLAN_AKM_SUITE_FT_SAE 0x000FAC09
+#endif
+
+#ifndef WLAN_AKM_SUITE_FT_EAP_SHA_384
+#define WLAN_AKM_SUITE_FT_EAP_SHA_384 0x000FAC0D
+#endif
+
 #ifdef FEATURE_WLAN_TDLS
 #define WLAN_IS_TDLS_SETUP_ACTION(action) \
 	((SIR_MAC_TDLS_SETUP_REQ <= action) && \
@@ -597,6 +605,7 @@ int wlan_hdd_merge_avoid_freqs(struct ch_avoid_ind_type *destFreqList,
  */
 void hdd_bt_activity_cb(hdd_handle_t hdd_handle, uint32_t bt_activity);
 
+#ifdef WLAN_FEATURE_GTK_OFFLOAD
 /**
  * wlan_hdd_save_gtk_offload_params() - Save gtk offload parameters in STA
  *                                      context for offload operations.
@@ -610,11 +619,17 @@ void hdd_bt_activity_cb(hdd_handle_t hdd_handle, uint32_t bt_activity);
  * Return: None
  */
 void wlan_hdd_save_gtk_offload_params(struct hdd_adapter *adapter,
-					     uint8_t *kck_ptr,
-					     uint8_t *kek_ptr,
-					     uint32_t kek_len,
-					     uint8_t *replay_ctr,
-					     bool big_endian);
+				      uint8_t *kck_ptr, uint8_t  kck_len,
+				      uint8_t *kek_ptr, uint32_t kek_len,
+				      uint8_t *replay_ctr, bool big_endian);
+#else
+void wlan_hdd_save_gtk_offload_params(struct hdd_adapter *adapter,
+				      uint8_t *kck_ptr, uint8_t kck_len,
+				      uint8_t *kek_ptr, uint32_t kek_len,
+				      uint8_t *replay_ctr, bool big_endian)
+{}
+#endif
+
 /*
  * wlan_hdd_send_mode_change_event() - API to send hw mode change event to
  * userspace
