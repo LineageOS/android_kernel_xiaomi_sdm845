@@ -9328,8 +9328,10 @@ void hdd_sap_indicate_disconnect_for_sta(struct hdd_adapter *adapter)
 				 adapter);
 
 			if (qdf_is_macaddr_broadcast(
-				&adapter->sta_info[sta_id].sta_mac))
+				&adapter->sta_info[sta_id].sta_mac)) {
+				hdd_softap_deregister_sta(adapter, sta_id);
 				continue;
+			}
 
 			sap_event.sapHddEventCode = eSAP_STA_DISASSOC_EVENT;
 			qdf_mem_copy(

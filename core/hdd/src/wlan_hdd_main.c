@@ -6080,7 +6080,6 @@ QDF_STATUS hdd_reset_all_adapters(struct hdd_context *hdd_ctx)
 	struct hdd_adapter *adapter;
 	struct hdd_station_ctx *sta_ctx;
 	struct qdf_mac_addr peerMacAddr;
-	int sta_id;
 	struct wlan_objmgr_vdev *vdev;
 
 	hdd_enter();
@@ -6113,18 +6112,17 @@ QDF_STATUS hdd_reset_all_adapters(struct hdd_context *hdd_ctx)
 						&adapter->acs_pending_work);
 				clear_bit(ACS_PENDING, &adapter->event_flags);
 			}
-
-			if (test_bit(SOFTAP_BSS_STARTED,
-						&adapter->event_flags)) {
-				hdd_sap_indicate_disconnect_for_sta(adapter);
-				clear_bit(SOFTAP_BSS_STARTED,
-					  &adapter->event_flags);
-			}
-
 		} else {
 			wlan_hdd_netif_queue_control(adapter,
 					   WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					   WLAN_CONTROL_PATH);
+		}
+
+		if ((adapter->device_mode == QDF_P2P_GO_MODE ||
+		     adapter->device_mode == QDF_SAP_MODE) &&
+		    test_bit(SOFTAP_BSS_STARTED, &adapter->event_flags)) {
+			hdd_sap_indicate_disconnect_for_sta(adapter);
+			clear_bit(SOFTAP_BSS_STARTED, &adapter->event_flags);
 		}
 
 		hdd_reset_scan_operation(hdd_ctx, adapter);
@@ -6160,17 +6158,6 @@ QDF_STATUS hdd_reset_all_adapters(struct hdd_context *hdd_ctx)
 			qdf_copy_macaddr(&peerMacAddr,
 					 &sta_ctx->conn_info.bssId);
 
-		} else if (adapter->device_mode == QDF_P2P_GO_MODE) {
-			clear_bit(SOFTAP_BSS_STARTED, &adapter->event_flags);
-			for (sta_id = 0; sta_id < WLAN_MAX_STA_COUNT; sta_id++) {
-				if (adapter->sta_info[sta_id].in_use) {
-					hdd_debug("[SSR] deregister STA with ID %d",
-						  sta_id);
-					hdd_softap_deregister_sta(adapter,
-								  sta_id);
-					adapter->sta_info[sta_id].in_use = 0;
-				}
-			}
 		}
 
 		hdd_nud_ignore_tracking(adapter, true);
