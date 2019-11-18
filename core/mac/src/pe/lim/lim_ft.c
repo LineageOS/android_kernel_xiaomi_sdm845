@@ -544,6 +544,7 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	pftSessionEntry->limWsmEnabled = psessionEntry->limWsmEnabled;
 	pftSessionEntry->lim11hEnable = psessionEntry->lim11hEnable;
 	pftSessionEntry->isOSENConnection = psessionEntry->isOSENConnection;
+	pftSessionEntry->connected_akm = psessionEntry->connected_akm;
 
 	/* Fields to be filled later */
 	pftSessionEntry->pLimJoinReq = NULL;
