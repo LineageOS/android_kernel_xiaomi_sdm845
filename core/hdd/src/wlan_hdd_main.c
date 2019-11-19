@@ -14994,34 +14994,48 @@ bool hdd_is_roaming_in_progress(struct hdd_context *hdd_ctx)
 }
 
 /**
- * hdd_is_connection_in_progress() - check if connection is in
- * progress
- * @session_id: session id
- * @reason: scan reject reason
- *
- * Go through each adapter and check if Connection is in progress
- *
- * Return: true if connection is in progress else false
+ * struct hdd_is_connection_in_progress_priv - adapter connection info
+ * @out_vdev_id: id of vdev where connection is occurring
+ * @out_reason: scan reject reason
  */
-bool hdd_is_connection_in_progress(uint8_t *session_id,
-				enum scan_reject_states *reason)
+struct hdd_is_connection_in_progress_priv {
+	uint8_t out_vdev_id;
+	enum scan_reject_states out_reason;
+	bool connection_in_progress;
+};
+
+/**
+ * hdd_is_connection_in_progress_iterator() - Check adapter connection based
+ * on device mode
+ * @adapter: current adapter of interest
+ * @context: user context supplied
+ *
+ * Check if connection is in progress for the current adapter according to the
+ * device mode
+ *
+ * Return:
+ * * QDF_STATUS_SUCCESS if iteration should continue
+ * * QDF_STATUS_E_ABORTED if iteration should be aborted
+ */
+static QDF_STATUS hdd_is_connection_in_progress_iterator(
+					struct hdd_adapter *adapter,
+					void *ctx)
 {
-	struct hdd_station_ctx *hdd_sta_ctx = NULL;
-	struct hdd_adapter *adapter = NULL;
+	struct hdd_station_ctx *hdd_sta_ctx;
 	uint8_t sta_id = 0;
-	uint8_t *sta_mac = NULL;
+	uint8_t *sta_mac;
 	struct hdd_context *hdd_ctx;
 	mac_handle_t mac_handle;
+	struct hdd_is_connection_in_progress_priv *context = ctx;
 
 	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 	if (!hdd_ctx) {
 		hdd_err("HDD context is NULL");
-		return false;
+		return QDF_STATUS_E_ABORTED;
 	}
 
 	mac_handle = hdd_ctx->mac_handle;
 
-	hdd_for_each_adapter(hdd_ctx, adapter) {
 		hdd_debug("Adapter with device mode %s(%d) exists",
 			hdd_device_mode_to_string(adapter->device_mode),
 			adapter->device_mode);
@@ -15034,11 +15048,11 @@ bool hdd_is_connection_in_progress(uint8_t *session_id,
 			hdd_debug("%pK(%d) Connection is in progress",
 				WLAN_HDD_GET_STATION_CTX_PTR(adapter),
 				adapter->session_id);
-			if (session_id && reason) {
-				*session_id = adapter->session_id;
-				*reason = CONNECTION_IN_PROGRESS;
-			}
-			return true;
+
+			context->out_vdev_id = adapter->session_id;
+			context->out_reason = CONNECTION_IN_PROGRESS;
+			context->connection_in_progress = true;
+			return QDF_STATUS_E_ABORTED;
 		}
 		/*
 		 * sme_neighbor_middle_of_roaming is for LFR2
@@ -15052,12 +15066,12 @@ bool hdd_is_connection_in_progress(uint8_t *session_id,
 			hdd_debug("%pK(%d) Reassociation in progress",
 				WLAN_HDD_GET_STATION_CTX_PTR(adapter),
 				adapter->session_id);
-			if (session_id && reason) {
-				*session_id = adapter->session_id;
-				*reason = REASSOC_IN_PROGRESS;
-			}
-			return true;
+			context->out_vdev_id = adapter->session_id;
+			context->out_reason = REASSOC_IN_PROGRESS;
+			context->connection_in_progress = true;
+			return QDF_STATUS_E_ABORTED;
 		}
+
 		if ((QDF_STA_MODE == adapter->device_mode) ||
 			(QDF_P2P_CLIENT_MODE == adapter->device_mode) ||
 			(QDF_P2P_DEVICE_MODE == adapter->device_mode)) {
@@ -15072,11 +15086,11 @@ bool hdd_is_connection_in_progress(uint8_t *session_id,
 				hdd_debug("client " MAC_ADDRESS_STR
 					" is in middle of WPS/EAPOL exchange.",
 					MAC_ADDR_ARRAY(sta_mac));
-				if (session_id && reason) {
-					*session_id = adapter->session_id;
-					*reason = EAPOL_IN_PROGRESS;
-				}
-				return true;
+				context->out_vdev_id = adapter->session_id;
+				context->out_reason = EAPOL_IN_PROGRESS;
+				context->connection_in_progress = true;
+
+				return QDF_STATUS_E_ABORTED;
 			}
 		} else if ((QDF_SAP_MODE == adapter->device_mode) ||
 				(QDF_P2P_GO_MODE == adapter->device_mode)) {
@@ -15093,24 +15107,46 @@ bool hdd_is_connection_in_progress(uint8_t *session_id,
 				hdd_debug("client " MAC_ADDRESS_STR
 				" of SAP/GO is in middle of WPS/EAPOL exchange",
 				MAC_ADDR_ARRAY(sta_mac));
-				if (session_id && reason) {
-					*session_id = adapter->session_id;
-					*reason = SAP_EAPOL_IN_PROGRESS;
-				}
-				return true;
+
+				context->out_vdev_id = adapter->session_id;
+				context->out_reason = SAP_EAPOL_IN_PROGRESS;
+				context->connection_in_progress = true;
+
+				return QDF_STATUS_E_ABORTED;
 			}
 			if (hdd_ctx->connection_in_progress) {
 				hdd_debug("AP/GO: connection is in progress");
-				if (session_id && reason) {
-					*reason = SAP_CONNECTION_IN_PROGRESS;
-					*session_id = adapter->session_id;
-				}
-				return true;
+				context->out_reason = SAP_CONNECTION_IN_PROGRESS;
+				context->out_vdev_id = adapter->session_id;
+				context->connection_in_progress = true;
+
+				return QDF_STATUS_E_ABORTED;
 			}
 		}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+bool hdd_is_connection_in_progress(uint8_t *out_vdev_id,
+				   enum scan_reject_states *out_reason)
+{
+	struct hdd_is_connection_in_progress_priv hdd_conn;
+	hdd_adapter_iterate_cb cb;
+
+	hdd_conn.out_vdev_id = 0;
+	hdd_conn.out_reason = SCAN_REJECT_DEFAULT;
+	hdd_conn.connection_in_progress = false;
+
+	cb = hdd_is_connection_in_progress_iterator;
+
+	hdd_adapter_iterate(cb, &hdd_conn);
+
+	if (hdd_conn.connection_in_progress && out_vdev_id && out_reason) {
+		*out_vdev_id = hdd_conn.out_vdev_id;
+		*out_reason = hdd_conn.out_reason;
 	}
 
-	return false;
+	return hdd_conn.connection_in_progress;
 }
 
 /**
