@@ -696,25 +696,30 @@ QDF_STATUS policy_mgr_get_pcl(struct wlan_objmgr_psoc *psoc,
 		}
 
 		break;
-	case 2:
-		third_index =
-			policy_mgr_get_third_connection_pcl_table_index(psoc);
-		if (PM_MAX_TWO_CONNECTION_MODE == third_index) {
-			policy_mgr_err(
-				"couldn't find index for 3rd connection pcl table");
-			return status;
-		}
-		if (policy_mgr_is_hw_dbs_capable(psoc) == true) {
-			pcl = (*third_connection_pcl_dbs_table)
-				[third_index][mode][conc_system_pref];
-		} else {
-			pcl = third_connection_pcl_nodbs_table
-				[third_index][mode][conc_system_pref];
-		}
-		break;
+/*
+ * Disable 3 connection as they are not PORed, take out this code out
+ * from comments if needed in future.
+ *	case 2:
+ *		third_index =
+ *			policy_mgr_get_third_connection_pcl_table_index(psoc);
+ *		if (PM_MAX_TWO_CONNECTION_MODE == third_index) {
+ *			policy_mgr_err(
+ *				"couldn't find index for 3rd connection pcl table");
+ *			return status;
+ *		}
+ *		if (policy_mgr_is_hw_dbs_capable(psoc) == true) {
+ *			pcl = (*third_connection_pcl_dbs_table)
+ *				[third_index][mode][conc_system_pref];
+ *		} else {
+ *			pcl = third_connection_pcl_nodbs_table
+ *				[third_index][mode][conc_system_pref];
+ *		}
+ *		break;
+*/
 	default:
 		policy_mgr_err("unexpected num_connections value %d",
 			num_connections);
+		pcl = PM_MAX_PCL_TYPE;
 		break;
 	}
 
@@ -725,8 +730,9 @@ QDF_STATUS policy_mgr_get_pcl(struct wlan_objmgr_psoc *psoc,
 	/* once the PCL enum is obtained find out the exact channel list with
 	 * help from sme_get_cfg_valid_channels
 	 */
+
 	status = policy_mgr_get_channel_list(psoc, pcl, pcl_channels, len, mode,
-					pcl_weight, weight_len);
+					     pcl_weight, weight_len);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		policy_mgr_err("failed to get channel list:%d", status);
 		return status;
