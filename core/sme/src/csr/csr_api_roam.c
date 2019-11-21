@@ -19238,10 +19238,14 @@ csr_populate_roam_chan_list(tpAniSirGlobal mac_ctx,
 	for (i = 0; i < src->numOfChannels; i++) {
 		if (csr_is_channel_present_in_list(dst->ChannelCache,
 						   num_channels,
-						   *ch_lst))
+						   *ch_lst)) {
+			ch_lst++;
 			continue;
-		if (!csr_check_band_channel_match(band, *ch_lst))
+		}
+		if (!csr_check_band_channel_match(band, *ch_lst)) {
+			ch_lst++;
 			continue;
+		}
 		/* Allow DFS channels only if the DFS roaming is enabled */
 		if ((!mac_ctx->roam.configParam.allowDFSChannelRoam ||
 		    (mac_ctx->roam.configParam.sta_roam_policy.dfs_mode ==
