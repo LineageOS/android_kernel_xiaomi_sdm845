@@ -483,6 +483,8 @@ extern struct mutex hdd_init_deinit_lock;
 
 #define NUM_TX_RX_HISTOGRAM_MASK (NUM_TX_RX_HISTOGRAM - 1)
 
+#define HDD_NOISE_FLOOR_DBM (-96)
+
 /**
  * enum hdd_auth_key_mgmt - auth key mgmt protocols
  * @HDD_AUTH_KEY_MGMT_802_1X: 802.1x
