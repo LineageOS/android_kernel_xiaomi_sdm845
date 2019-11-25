@@ -1745,7 +1745,18 @@ sme_apf_read_work_memory(tHalHandle hal,
 #endif /* FEATURE_WLAN_APF */
 
 uint32_t sme_get_wni_dot11_mode(tHalHandle hal);
-QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
+
+/**
+ * sme_create_mon_session() - post message to create PE session for monitormode
+ * operation
+ * @hal_handle: Handle to the HAL
+ * @bssid: pointer to bssid
+ * @vdev_id: vdev id
+ *
+ * Return: QDF_STATUS_SUCCESS on success, non-zero error code on failure.
+ */
+QDF_STATUS sme_create_mon_session(tHalHandle hal_handle,
+				  uint8_t *bssid, uint8_t vdev_id);
 /**
  * sme_delete_mon_session() - post message to delete PE session for mon_mode
  * operation

@@ -14630,15 +14630,8 @@ uint32_t sme_get_wni_dot11_mode(tHalHandle hal)
 		mac_ctx->roam.configParam.uCfgDot11Mode);
 }
 
-/**
- * sme_create_mon_session() - post message to create PE session for monitormode
- * operation
- * @hal_handle: Handle to the HAL
- * @bssid: pointer to bssid
- *
- * Return: QDF_STATUS_SUCCESS on success, non-zero error code on failure.
- */
-QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, tSirMacAddr bss_id)
+QDF_STATUS sme_create_mon_session(tHalHandle hal_handle,
+				  tSirMacAddr bss_id, uint8_t vdev_id)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	struct sir_create_session *msg;
@@ -14648,6 +14641,7 @@ QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, tSirMacAddr bss_id)
 		msg->type = eWNI_SME_MON_INIT_SESSION;
 		msg->msg_len = sizeof(*msg);
 		qdf_mem_copy(msg->bss_id.bytes, bss_id, QDF_MAC_ADDR_SIZE);
+		msg->vdev_id = vdev_id;
 		status = umac_send_mb_message_to_mac(msg);
 	}
 	return status;

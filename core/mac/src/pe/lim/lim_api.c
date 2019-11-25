@@ -2393,8 +2393,9 @@ pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	status = QDF_STATUS_E_FAILURE;
 	ft_session_ptr = pe_create_session(mac_ctx, bss_desc->bssId,
 			&session_id, mac_ctx->lim.maxStation,
-			eSIR_INFRASTRUCTURE_MODE);
-	if (ft_session_ptr == NULL) {
+			session_ptr->bssType, session_ptr->smeSessionId,
+			session_ptr->opmode);
+	if (!ft_session_ptr) {
 		pe_err("LFR3:Cannot create PE Session");
 		lim_print_mac_addr(mac_ctx, bss_desc->bssId, LOGE);
 		return status;
@@ -2808,8 +2809,9 @@ void lim_mon_init_session(tpAniSirGlobal mac_ptr,
 	psession_entry = pe_create_session(mac_ptr, msg->bss_id.bytes,
 					   &session_id,
 					   mac_ptr->lim.maxStation,
-					   eSIR_MONITOR_MODE);
-	if (psession_entry == NULL) {
+					   eSIR_MONITOR_MODE,
+					   msg->vdev_id, QDF_MONITOR_MODE);
+	if (!psession_entry) {
 		pe_err("Monitor mode: Session Can not be created");
 		lim_print_mac_addr(mac_ptr, msg->bss_id.bytes, LOGE);
 		return;

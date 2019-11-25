@@ -563,3 +563,4 @@ hb_handler_fail:
 					 WLAN_WAKE_ALL_NETIF_QUEUE,
 					 WLAN_CONTROL_PATH);
 }
+
