@@ -406,6 +406,9 @@ union ce_desc {
  * @NAPI_POLL_ENTER: records the start of the napi poll function
  * @NAPI_COMPLETE: records when interrupts are reenabled
  * @NAPI_POLL_EXIT: records when the napi poll function returns
+ * @HIF_RX_DESC_PRE_NBUF_ALLOC: record the packet before nbuf allocation
+ * @HIF_RX_DESC_PRE_NBUF_MAP: record the packet before nbuf map
+ * @HIF_RX_DESC_POST_NBUF_MAP: record the packet after nbuf map
  */
 enum hif_ce_event_type {
 	HIF_RX_DESC_POST,
@@ -435,6 +438,10 @@ enum hif_ce_event_type {
 	HIF_RX_NBUF_ALLOC_FAILURE = 0x20,
 	HIF_RX_NBUF_MAP_FAILURE,
 	HIF_RX_NBUF_ENQUEUE_FAILURE,
+
+	HIF_RX_DESC_PRE_NBUF_ALLOC,
+	HIF_RX_DESC_PRE_NBUF_MAP,
+	HIF_RX_DESC_POST_NBUF_MAP,
 };
 
 void ce_init_ce_desc_event_log(struct hif_softc *scn, int ce_id, int size);

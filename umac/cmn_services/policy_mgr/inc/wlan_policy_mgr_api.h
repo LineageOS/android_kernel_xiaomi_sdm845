@@ -65,6 +65,53 @@ typedef const enum policy_mgr_conc_next_action
 	 PM_FW_MODE_STA_P2P_BIT_POS)
 
 /**
+ * enum PM_AP_DFS_MASTER_MODE - AP dfs master mode
+ * @PM_STA_SAP_ON_DFS_DEFAULT - Disallow STA+SAP SCC on DFS channel
+ * @PM_STA_SAP_ON_DFS_MASTER_MODE_DISABLED - Allow STA+SAP SCC
+ *        on DFS channel with master mode disabled
+ * @PM_STA_SAP_ON_DFS_MASTER_MODE_FLEX - enhance
+ *        "PM_STA_SAP_ON_DFS_MASTER_MODE_DISABLED" with below requirement:
+ *	 a. Allow single SAP (GO) start on DFS channel.
+ *	 b. Allow CAC process on DFS channel in single SAP (GO) mode
+ *	 c. Allow DFS radar event process in single SAP (GO) mode
+ *	 d. Disallow CAC and radar event process in SAP (GO) + STA mode.
+ *
+ * This enum value will be used to set to INI g_sta_sap_scc_on_dfs_chan to
+ * config the sta+sap on dfs channel behaviour expected by user.
+ */
+enum PM_AP_DFS_MASTER_MODE {
+	PM_STA_SAP_ON_DFS_DEFAULT,
+	PM_STA_SAP_ON_DFS_MASTER_MODE_DISABLED,
+	PM_STA_SAP_ON_DFS_MASTER_MODE_FLEX,
+};
+
+/**
+ * policy_mgr_get_dfs_master_dynamic_enabled() - support dfs master or not
+ * on AP interafce when STA+SAP(GO) concurrency
+ * @psoc: pointer to psoc
+ * @vdev_id: sap vdev id
+ *
+ * This API is used to check AP dfs master functionality enabled or not when
+ * STA+SAP(GO) concurrency.
+ * If g_sta_sap_scc_on_dfs_chan is non-zero, the STA+SAP(GO) concurrency
+ * is allowed on DFS channel SCC and the SAP's DFS master functionality
+ * should be enable/disable according to:
+ * 1. g_sta_sap_scc_on_dfs_chan is 0: function return true - dfs master
+ *     capability enabled.
+ * 2. g_sta_sap_scc_on_dfs_chan is 1: function return false - dfs master
+ *     capability disabled.
+ * 3. g_sta_sap_scc_on_dfs_chan is 2: dfs master capability based on STA on
+ *     5G or not:
+ *      a. 5G STA active - return false
+ *      b. no 5G STA active -return true
+ *
+ * Return: true if dfs master functionality should be enabled.
+ */
+bool
+policy_mgr_get_dfs_master_dynamic_enabled(struct wlan_objmgr_psoc *psoc,
+					  uint8_t vdev_id);
+
+/**
  * policy_mgr_set_concurrency_mode() - To set concurrency mode
  * @psoc: PSOC object data
  * @mode: device mode
@@ -2419,6 +2466,17 @@ bool policy_mgr_is_sta_connected_2g(struct wlan_objmgr_psoc *psoc);
  */
 void policy_mgr_trim_acs_channel_list(struct wlan_objmgr_psoc *psoc,
 		uint8_t *org_ch_list, uint8_t *org_ch_list_count);
+
+/**
+ * policy_mgr_scan_trim_5g_chnls_for_dfs_ap() - check if sta scan should skip
+ * 5g channel when dfs ap is present.
+ *
+ * @psoc: pointer to soc
+ *
+ * Return: true if sta scan 5g chan should be skipped
+ */
+bool policy_mgr_scan_trim_5g_chnls_for_dfs_ap(struct wlan_objmgr_psoc *psoc);
+
 
 /**
  * policy_mgr_is_hwmode_set_for_given_chnl() - to check for given channel

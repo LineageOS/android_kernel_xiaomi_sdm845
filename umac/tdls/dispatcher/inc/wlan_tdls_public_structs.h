@@ -437,6 +437,7 @@ enum tdls_feature_bit {
  * @tdls_pre_off_chan_num: tdls off channel number
  * @tdls_pre_off_chan_bw: tdls off channel bandwidth
  * @tdls_peer_kickout_threshold: sta kickout threshold for tdls peer
+ * @tdls_discovery_wake_timeout: Discovery wake timeout
  * @delayed_trig_framint: delayed trigger frame interval
  * @tdls_vdev_nss_2g: tdls NSS setting for 2G band
  * @tdls_vdev_nss_5g: tdls NSS setting for 5G band
@@ -459,6 +460,7 @@ struct tdls_user_config {
 	uint32_t tdls_pre_off_chan_num;
 	uint32_t tdls_pre_off_chan_bw;
 	uint32_t tdls_peer_kickout_threshold;
+	uint32_t tdls_discovery_wake_timeout;
 	uint32_t delayed_trig_framint;
 	uint8_t tdls_vdev_nss_2g;
 	uint8_t tdls_vdev_nss_5g;
@@ -797,6 +799,7 @@ struct tdls_oper_config_force_peer_request {
  * @teardown_notification_ms: tdls teardown notification interval
  * @tdls_peer_kickout_threshold: tdls packets threshold
  *    for peer kickout operation
+ * @tdls_discovery_wake_timeout: Discovery wake timeout
  */
 struct tdls_info {
 	uint32_t vdev_id;
@@ -814,6 +817,7 @@ struct tdls_info {
 	uint32_t puapsd_rx_frame_threshold;
 	uint32_t teardown_notification_ms;
 	uint32_t tdls_peer_kickout_threshold;
+	uint32_t tdls_discovery_wake_timeout;
 };
 
 /**

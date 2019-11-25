@@ -1160,8 +1160,6 @@ static void reg_set_5g_channel_params(struct wlan_objmgr_pdev *pdev,
 	 * Set channel parameters like center frequency for a bonded channel
 	 * state. Also return the maximum bandwidth supported by the channel.
 	 */
-
-	enum phy_ch_width next_lower_bw;
 	enum channel_state chan_state = CHANNEL_STATE_ENABLE;
 	enum channel_state chan_state2 = CHANNEL_STATE_ENABLE;
 	const struct bonded_channel *bonded_chan_ptr = NULL;
@@ -1178,11 +1176,8 @@ static void reg_set_5g_channel_params(struct wlan_objmgr_pdev *pdev,
 		else
 			ch_params->ch_width = CH_WIDTH_160MHZ;
 	}
-	next_lower_bw = ch_params->ch_width;
 
 	while (ch_params->ch_width != CH_WIDTH_INVALID) {
-		ch_params->ch_width = next_lower_bw;
-		next_lower_bw = get_next_lower_bw[ch_params->ch_width];
 		bonded_chan_ptr = NULL;
 		bonded_chan_ptr2 = NULL;
 		chan_state = reg_get_5g_bonded_channel(pdev, ch,
@@ -1202,7 +1197,7 @@ static void reg_set_5g_channel_params(struct wlan_objmgr_pdev *pdev,
 
 		if ((CHANNEL_STATE_ENABLE != chan_state) &&
 		    (CHANNEL_STATE_DFS != chan_state))
-			continue;
+			goto update_bw;
 		if (CH_WIDTH_20MHZ >= ch_params->ch_width) {
 			ch_params->sec_ch_offset = NO_SEC_CH;
 			ch_params->center_freq_seg0 = ch;
@@ -1213,7 +1208,7 @@ static void reg_set_5g_channel_params(struct wlan_objmgr_pdev *pdev,
 					QDF_ARRAY_SIZE(bonded_chan_40mhz_list),
 					&bonded_chan_ptr2);
 			if (!bonded_chan_ptr || !bonded_chan_ptr2)
-				continue;
+				goto update_bw;
 			if (ch == bonded_chan_ptr2->start_ch)
 				ch_params->sec_ch_offset = LOW_PRIMARY_CH;
 			else
@@ -1224,6 +1219,8 @@ static void reg_set_5g_channel_params(struct wlan_objmgr_pdev *pdev,
 				 bonded_chan_ptr->end_ch)/2;
 			break;
 		}
+update_bw:
+		ch_params->ch_width = get_next_lower_bw[ch_params->ch_width];
 	}
 
 	if (CH_WIDTH_160MHZ == ch_params->ch_width) {
@@ -1930,21 +1927,57 @@ enum band_info reg_chan_to_band(uint32_t chan_num)
 	return BAND_5G;
 }
 
-uint16_t reg_dmn_get_chanwidth_from_opclass(uint8_t *country,
-					    uint8_t channel,
+/**
+ * reg_get_class_from_country()- Get Class from country
+ * @country- Country
+ *
+ * Return: class.
+ */
+static const struct
+reg_dmn_op_class_map_t *reg_get_class_from_country(uint8_t *country)
+{
+	const struct reg_dmn_op_class_map_t *class = NULL;
+
+	qdf_debug("Country %c%c 0x%x",
+		  country[0], country[1], country[2]);
+
+	switch (country[2]) {
+	case OP_CLASS_US:
+		class = us_op_class;
+		break;
+
+	case OP_CLASS_EU:
+	class = euro_op_class;
+		break;
+
+	case OP_CLASS_JAPAN:
+	class = japan_op_class;
+		break;
+
+	case OP_CLASS_GLOBAL:
+	class = global_op_class;
+		break;
+
+	default:
+		if (!qdf_mem_cmp(country, "US", 2))
+			class = us_op_class;
+		else if (!qdf_mem_cmp(country, "EU", 2))
+			class = euro_op_class;
+		else if (!qdf_mem_cmp(country, "JP", 2))
+			class = japan_op_class;
+		else
+			class = global_op_class;
+	}
+	return class;
+}
+
+uint16_t reg_dmn_get_chanwidth_from_opclass(uint8_t *country, uint8_t channel,
 					    uint8_t opclass)
 {
 	const struct reg_dmn_op_class_map_t *class;
 	uint16_t i;
 
-	if (!qdf_mem_cmp(country, "US", 2))
-		class = us_op_class;
-	else if (!qdf_mem_cmp(country, "EU", 2))
-		class = euro_op_class;
-	else if (!qdf_mem_cmp(country, "JP", 2))
-		class = japan_op_class;
-	else
-		class = global_op_class;
+	class = reg_get_class_from_country(country);
 
 	while (class->op_class) {
 		if (opclass == class->op_class) {
@@ -1970,16 +2003,9 @@ uint16_t reg_dmn_get_opclass_from_channel(uint8_t *country,
 	const struct reg_dmn_op_class_map_t *class = NULL;
 	uint16_t i = 0;
 
-	if (!qdf_mem_cmp(country, "US", 2))
-		class = us_op_class;
-	else if (!qdf_mem_cmp(country, "EU", 2))
-		class = euro_op_class;
-	else if (!qdf_mem_cmp(country, "JP", 2))
-		class = japan_op_class;
-	else
-		class = global_op_class;
+	class = reg_get_class_from_country(country);
 
-	while (class->op_class) {
+	while (class && class->op_class) {
 		if ((offset == class->offset) || (offset == BWALL)) {
 			for (i = 0;
 			     (i < REG_MAX_CHANNELS_PER_OPERATING_CLASS &&
@@ -1992,6 +2018,30 @@ uint16_t reg_dmn_get_opclass_from_channel(uint8_t *country,
 	}
 
 	return 0;
+}
+
+void reg_dmn_print_channels_in_opclass(uint8_t *country,
+					uint8_t op_class)
+{
+	const struct reg_dmn_op_class_map_t *class = NULL;
+	uint16_t i = 0;
+
+	class = reg_get_class_from_country(country);
+	while (class && class->op_class) {
+		if (class->op_class == op_class) {
+			for (i = 0;
+			     (i < REG_MAX_CHANNELS_PER_OPERATING_CLASS &&
+			      class->channels[i]); i++) {
+				reg_debug("Valid channel(%d) in requested RC(%d)",
+					  class->channels[i], op_class);
+			}
+			break;
+		}
+		class++;
+	}
+	if (!class->op_class)
+		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
+			  "Invalid requested RC (%d)", op_class);
 }
 
 uint16_t reg_dmn_set_curr_opclasses(uint8_t num_classes,
