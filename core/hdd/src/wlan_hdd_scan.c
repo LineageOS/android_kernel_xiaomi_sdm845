@@ -1295,11 +1295,15 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	struct hdd_context *hdd_ctx;
 	struct wlan_objmgr_vdev *vdev;
 	int ret;
+	enum QDF_GLOBAL_MODE curr_mode;
 
 	hdd_enter();
 
-	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_err("Command not allowed in FTM mode");
+	curr_mode = hdd_get_conparam();
+
+	if (QDF_GLOBAL_FTM_MODE == curr_mode ||
+	    QDF_GLOBAL_MONITOR_MODE == curr_mode) {
+		hdd_err_rl("Command not allowed in FTM/Monitor mode");
 		return -EINVAL;
 	}
 
@@ -1410,11 +1414,15 @@ static int __wlan_hdd_cfg80211_sched_scan_stop(struct net_device *dev)
 {
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	int errno;
+	enum QDF_GLOBAL_MODE curr_mode;
 
 	hdd_enter();
 
-	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_err_rl("Command not allowed in FTM mode");
+	curr_mode = hdd_get_conparam();
+
+	if (QDF_GLOBAL_FTM_MODE == curr_mode ||
+	    QDF_GLOBAL_MONITOR_MODE == curr_mode) {
+		hdd_err_rl("Command not allowed in FTM/Monitor mode");
 		return -EINVAL;
 	}
 

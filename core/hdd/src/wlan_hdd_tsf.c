@@ -1235,7 +1235,7 @@ enum hdd_tsf_op_result hdd_netbuf_timestamp(qdf_nbuf_t netbuf,
 		if (!ret) {
 			hwtstamps.hwtstamp = soc_time;
 			*skb_hwtstamps(netbuf) = hwtstamps;
-			netbuf->tstamp = 0;
+			netbuf->tstamp = ktime_set(0, 0);
 			return HDD_TSF_OP_SUCC;
 		}
 	}
@@ -1324,7 +1324,7 @@ int hdd_rx_timestamp(qdf_nbuf_t netbuf, uint64_t target_time)
 		return 0;
 
 	/* reset tstamp when failed */
-	netbuf->tstamp = 0;
+	netbuf->tstamp = ktime_set(0, 0);
 	return -EINVAL;
 }
 

@@ -28,6 +28,22 @@
 
 /* 12.12.2.5.3 80211-ai draft */
 #define PTK_KEY_LABEL "FILS PTK Derivation"
+#define FT_PMK_R0_KEY_LABEL "FT-R0"
+#define FT_PMK_R0_NAME_KEY_LABEL "FT-R0N"
+#define FT_PMK_R1_NAME_KEY_LABEL "FT-R1N"
+
+#define PMKR0_SCATTER_LIST_ELEM 2
+#define PMKR1_SCATTER_LIST_ELEM 4
+
+#define SCTR_LST_ELEM0 0
+#define SCTR_LST_ELEM1 1
+#define SCTR_LST_ELEM2 2
+#define SCTR_LST_ELEM3 3
+
+/* Length of "FT-R1N" */
+#define SCTR_LST_R0_LABEL_LEN 6
+#define SCTR_LST_R1_LABEL_LEN 6
+
 #define MAX_ICK_LEN 48
 #define MAX_KEK_LEN 64
 #define MAX_TK_LEN 32
@@ -55,8 +71,17 @@
 #define TK_LEN_CCMP 16
 #define TK_LEN_AES_128_CMAC 32
 
-#define FILS_SHA256_PKM_LEN 32
-#define FILS_SHA384_PKM_LEN 48
+#define FILS_SHA256_PMK_LEN 32
+#define FILS_SHA384_PMK_LEN 48
+
+#define FILS_FT_SHA256_LEN 32
+#define FILS_FT_SHA384_LEN 48
+
+#define FILS_FT_MAX_R0_KEY_DATA_LEN 64
+
+/* 12.7.1.7.3 802.11ai */
+#define FILS_SHA256_Q_LEN 32
+#define FILS_SHA384_Q_LEN 48
 
 #define PMKID_LEN 16
 
@@ -176,6 +201,87 @@ struct fils_auth_rsp_info {
 	uint8_t assoc_delay;
 };
 
+#define FT_R0KH_ID_MAX_LEN 48
+#define FT_R1KH_ID_LEN     6
+#define FT_NONCE_LEN       32
+
+/* MIC Length Specified in Table 12-8- 802.11-2016 Spec */
+#define FT_MIC_LEN         16
+#define FT_GTK_RSC_LEN     8
+#define FT_GTK_KEY_LEN     32
+#define FT_IGTK_KEY_ID_LEN 2
+#define FT_IGTK_IPN_LEN    6
+#define FT_IGTK_KEY_LEN    24
+
+/**
+ * struct mac_ft_gtk_ie - structure to parse the gtk ie
+ * @present: flag to indicate ie is present
+ * @key_id: Key-Id
+ * @reserved: reserved bits
+ * @key_length: gtk key length
+ * @rsc: denotes the last TSC or PN sent using the GTK
+ * @num_key: number of keys
+ * @key: actual keys
+ */
+struct mac_ft_gtk_ie {
+	uint8_t present;
+	uint16_t key_id:2;
+	uint16_t reserved:14;
+	uint8_t key_len;
+	uint8_t rsc[FT_GTK_RSC_LEN];
+	uint8_t num_key;
+	uint8_t key[FT_GTK_KEY_LEN];
+};
+
+/**
+ * struct mac_ft_gtk_ie - structure to parse the gtk ie
+ * @present: IE present or not present
+ * @key_id: 2Byte Key-ID
+ * @ipn: icorresponds to the last packet number used by broadcaster/multicaster
+ * @key_len: IGTK key length
+ * @key: IGTK Key
+ */
+struct mac_ft_igtk_ie {
+	uint8_t present;
+	uint8_t key_id[FT_IGTK_KEY_ID_LEN];
+	uint8_t ipn[FT_IGTK_IPN_LEN];
+	uint8_t key_len;
+	uint8_t key[FT_IGTK_KEY_LEN];
+};
+
+/**
+ * struct mac_ft_ie - structure to parse the FT ie from auth frame
+ * @present: true if IE is present in Auth Frame
+ * @element_count: number of elements
+ * @mic: MIC. Will be zero in auth frame sent from AP. (Refer 13.2.4 802.11ai)
+ * @anonce: Authenticator NONCE. Will be zero in auth frame sent from AP.
+ * @snonce: Supplicant NONCE. Will be zero in auth frame
+ * @r1kh_id: R1KH ID. Length of R1KH ID is fixed(6 bytes).
+ * @r0kh_id_len: Length of R0KH ID
+ * @r0kh_id: R0KH id
+ * @gtk_ie: GTK subelement in FTIE
+ * @igtk_ie: IGTK subelement in FTIE
+ */
+struct mac_ft_ie {
+	bool present;
+	uint8_t element_count;
+	uint8_t mic[FT_MIC_LEN];
+	uint8_t anonce[FT_NONCE_LEN];
+	uint8_t snonce[FT_NONCE_LEN];
+	uint8_t r1kh_id[FT_R1KH_ID_LEN];
+	uint8_t r0kh_id_len;
+	uint8_t r0kh_id[FT_R0KH_ID_MAX_LEN];
+	struct mac_ft_gtk_ie gtk_ie;
+	struct mac_ft_igtk_ie igtk_ie;
+};
+
+#define FILS_PMK_LEN 32
+#define FILS_PMK_NAME_LEN 16
+#define FILS_FT_MAX_LEN 48
+#define FILS_FT_PMK_R0_SALT_LEN 16
+#define FILS_MAX_KEY_DATA_LEN \
+	(MAX_ICK_LEN + MAX_KEK_LEN + MAX_TK_LEN + FILS_FT_MAX_LEN)
+
 /*
  * struct pe_fils_session: fils session info used in PE session
  * @is_fils_connection: whether connection is fils or not
@@ -195,6 +301,13 @@ struct fils_auth_rsp_info {
  * @fils_nonce: fils snonce
  * @rsn_ie: rsn ie used in auth request
  * @rsn_ie_len: rsn ie length
+ * @group_mgmt_cipher_suite_present: Check if group management cipher suite
+ * is present in the FILS RSN IE
+ * @ft_ie: structure to store the parsed FTIE from auth response frame
+ * @pmkr0: PMKR0
+ * @pmkr0_len: length of PMKR0 key
+ * @pmkr0_name: PMK_R0 name derived
+ * @pmkr1_name: PMKR1 Name derived
  * @fils_eap_finish_pkt: pointer to eap finish packet
  * @fils_eap_finish_pkt_len: eap finish packet length
  * @fils_rmsk: rmsk data pointer
@@ -215,6 +328,8 @@ struct fils_auth_rsp_info {
  * @ap_key_auth_len:  ap key data length
  * @gtk_len: gtk key length
  * @gtk: pointer to gtk data
+ * @fils_ft: xx_key data
+ * @fils_ft_len: xx_key length
  * @rsc: rsc value
  * @igtk_len: igtk length
  * @igtk: igtk data pointer
@@ -242,6 +357,12 @@ struct pe_fils_session {
 	uint8_t fils_nonce[SIR_FILS_NONCE_LENGTH];
 	uint8_t rsn_ie[MAX_IE_LENGTH];
 	uint8_t rsn_ie_len;
+	bool group_mgmt_cipher_present;
+	struct mac_ft_ie ft_ie;
+	uint8_t pmkr0[FILS_PMK_LEN];
+	uint8_t pmkr0_len;
+	uint8_t pmkr0_name[FILS_PMK_NAME_LEN];
+	uint8_t pmkr1_name[FILS_PMK_NAME_LEN];
 	uint8_t *fils_eap_finish_pkt;
 	uint8_t fils_eap_finish_pkt_len;
 	uint8_t *fils_rmsk;
@@ -256,6 +377,8 @@ struct pe_fils_session {
 	uint8_t kek_len;
 	uint8_t tk[MAX_TK_LEN];
 	uint8_t tk_len;
+	uint8_t fils_ft[FILS_FT_MAX_LEN];
+	uint8_t fils_ft_len;
 	uint8_t key_auth[MAX_KEY_AUTH_DATA_LEN];
 	uint8_t key_auth_len;
 	uint8_t ap_key_auth_data[MAX_KEY_AUTH_DATA_LEN];

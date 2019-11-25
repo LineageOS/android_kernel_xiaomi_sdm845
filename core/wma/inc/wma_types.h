@@ -207,6 +207,7 @@
 #define WMA_ENABLE_UAPSD_REQ            SIR_HAL_ENABLE_UAPSD_REQ
 #define WMA_DISABLE_UAPSD_REQ           SIR_HAL_DISABLE_UAPSD_REQ
 
+#define WMA_ROAM_SYNC_TIMEOUT          SIR_HAL_WMA_ROAM_SYNC_TIMEOUT
 /* / PE <-> HAL statistics messages */
 #define WMA_GET_STATISTICS_REQ         SIR_HAL_GET_STATISTICS_REQ
 #define WMA_GET_STATISTICS_RSP         SIR_HAL_GET_STATISTICS_RSP
@@ -466,6 +467,7 @@
 #ifdef WLAN_MWS_INFO_DEBUGFS
 #define WMA_GET_MWS_COEX_INFO_REQ            SIR_HAL_GET_MWS_COEX_INFO_REQ
 #endif
+#define WMA_SET_ROAM_TRIGGERS                SIR_HAL_SET_ROAM_TRIGGERS
 
 /* Bit 6 will be used to control BD rate for Management frames */
 #define HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME 0x40

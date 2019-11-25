@@ -45,7 +45,7 @@
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 #include "host_diag_core_log.h"
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
-
+#include "wlan_mlme_main.h"
 #include "wma.h"
 /**
  * Number of bytes of variation in beacon length from the last beacon
@@ -1196,6 +1196,9 @@ sch_beacon_edca_process(tpAniSirGlobal pMac, tSirMacEdcaParamSetIE *edca,
 			tpPESession session)
 {
 	uint8_t i;
+	struct wlan_objmgr_vdev *vdev;
+	struct vdev_mlme_priv_obj *vdev_mlme;
+	bool follow_ap_edca = false;
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 	host_log_qos_edca_pkt_type *log_ptr = NULL;
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
@@ -1209,7 +1212,17 @@ sch_beacon_edca_process(tpAniSirGlobal pMac, tSirMacEdcaParamSetIE *edca,
 	session->gLimEdcaParams[EDCA_AC_VI] = edca->acvi;
 	session->gLimEdcaParams[EDCA_AC_VO] = edca->acvo;
 
-	if (pMac->roam.configParam.enable_edca_params) {
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(pMac->psoc,
+						    session->smeSessionId,
+						    WLAN_LEGACY_MAC_ID);
+	if (vdev) {
+		vdev_mlme = wlan_vdev_mlme_get_priv_obj(vdev);
+		if (vdev_mlme)
+			follow_ap_edca = vdev_mlme->follow_ap_edca;
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+	}
+
+	if (pMac->roam.configParam.enable_edca_params && !follow_ap_edca) {
 		session->gLimEdcaParams[EDCA_AC_VO].aci.aifsn =
 			pMac->roam.configParam.edca_vo_aifs;
 		session->gLimEdcaParams[EDCA_AC_VI].aci.aifsn =

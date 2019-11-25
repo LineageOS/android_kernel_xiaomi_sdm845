@@ -1801,6 +1801,9 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			goto stopbss;
 		}
 		wlansap_get_dfs_ignore_cac(mac_handle, &ignoreCAC);
+		if (!policy_mgr_get_dfs_master_dynamic_enabled(
+				hdd_ctx->psoc, adapter->session_id))
+			ignoreCAC = true;
 
 		/* DFS requirement: DO NOT transmit during CAC. */
 		if (CHANNEL_STATE_DFS !=
@@ -2218,26 +2221,13 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			QDF_TRACE_DEFAULT_PDEV_ID,
 			QDF_PROTO_TYPE_MGMT, QDF_PROTO_MGMT_ASSOC));
 
-#ifdef MSM_PLATFORM
 		/* start timer in sap/p2p_go */
 		if (ap_ctx->ap_active == false) {
-			spin_lock_bh(&hdd_ctx->bus_bw_lock);
-			adapter->prev_tx_packets =
-				adapter->stats.tx_packets;
-			adapter->prev_rx_packets =
-				adapter->stats.rx_packets;
-
-			cdp_get_intra_bss_fwd_pkts_count(
-				cds_get_context(QDF_MODULE_ID_SOC),
-				adapter->session_id,
-				&adapter->prev_fwd_tx_packets,
-				&adapter->prev_fwd_rx_packets);
-
-			spin_unlock_bh(&hdd_ctx->bus_bw_lock);
+			hdd_bus_bw_compute_prev_txrx_stats(adapter);
 			hdd_bus_bw_compute_timer_start(hdd_ctx);
 		}
-#endif
 		ap_ctx->ap_active = true;
+
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 		wlan_hdd_auto_shutdown_enable(hdd_ctx, false);
 #endif
@@ -2405,18 +2395,13 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 						NULL,
 						adapter->device_mode);
 		}
-#ifdef MSM_PLATFORM
+
 		/*stop timer in sap/p2p_go */
 		if (ap_ctx->ap_active == false) {
-			spin_lock_bh(&hdd_ctx->bus_bw_lock);
-			adapter->prev_tx_packets = 0;
-			adapter->prev_rx_packets = 0;
-			adapter->prev_fwd_tx_packets = 0;
-			adapter->prev_fwd_rx_packets = 0;
-			spin_unlock_bh(&hdd_ctx->bus_bw_lock);
+			hdd_bus_bw_compute_reset_prev_txrx_stats(adapter);
 			hdd_bus_bw_compute_timer_try_stop(hdd_ctx);
 		}
-#endif
+
 		hdd_green_ap_del_sta(hdd_ctx);
 		break;
 
@@ -2581,6 +2566,7 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 			pSapEvent->sapevt.sap_ch_selected.ch_width;
 		wlan_hdd_cfg80211_acs_ch_select_evt(adapter);
 		qdf_atomic_set(&adapter->session.ap.acs_in_progress, 0);
+		qdf_event_set(&adapter->acs_complete_event);
 		return QDF_STATUS_SUCCESS;
 	case eSAP_ECSA_CHANGE_CHAN_IND:
 		hdd_debug("Channel change indication from peer for channel %d",
@@ -8060,10 +8046,7 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 			goto error;
 		}
 
-		if (iniConfig->ignoreCAC ||
-		    ((iniConfig->WlanMccToSccSwitchMode !=
-		    QDF_MCC_TO_SCC_SWITCH_DISABLE) &&
-		    iniConfig->sta_sap_scc_on_dfs_chan))
+		if (iniConfig->ignoreCAC)
 			ignore_cac = 1;
 
 		wlansap_set_dfs_ignore_cac(mac_handle, ignore_cac);
@@ -8990,11 +8973,14 @@ static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 	/* if sta_sap_scc_on_dfs_chan ini is set, DFS master capability is
 	 * assumed disabled in the driver.
 	 */
-	if ((reg_get_channel_state(hdd_ctx->pdev, channel) ==
-	     CHANNEL_STATE_DFS) && sta_sap_scc_on_dfs_chan && !sta_cnt) {
-		hdd_err("SAP not allowed on DFS channel!!");
+	if ((wlan_reg_get_channel_state(hdd_ctx->pdev, channel) ==
+	     CHANNEL_STATE_DFS) && !sta_cnt && sta_sap_scc_on_dfs_chan &&
+	     !policy_mgr_get_dfs_master_dynamic_enabled(
+				hdd_ctx->psoc, adapter->session_id)) {
+		hdd_err("SAP not allowed on DFS channel if no dfs master capability!!");
 		return -EINVAL;
 	}
+
 	if (!reg_is_etsi13_srd_chan_allowed_master_mode(hdd_ctx->pdev) &&
 	     reg_is_etsi13_srd_chan(hdd_ctx->pdev, channel)) {
 		hdd_err("SAP not allowed on SRD channel.");

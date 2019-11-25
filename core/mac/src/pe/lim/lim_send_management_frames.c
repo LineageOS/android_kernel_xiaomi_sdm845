@@ -57,6 +57,7 @@
 #include <cdp_txrx_peer_ops.h>
 #include "lim_process_fils.h"
 #include "wlan_utility.h"
+#include <wlan_mlme_main.h>
 
 /**
  *
@@ -1649,7 +1650,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	uint8_t qos_enabled, wme_enabled, wsm_enabled;
 	void *packet;
 	QDF_STATUS qdf_status;
-	uint16_t add_ie_len;
+	uint16_t add_ie_len, current_len = 0, vendor_ie_len = 0;
 	uint8_t *add_ie;
 	const uint8_t *wps_ie = NULL;
 	uint8_t power_caps = false;
@@ -1666,7 +1667,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	uint32_t bcn_ie_len = 0;
 	uint32_t aes_block_size_len = 0;
 	enum rateid min_rid = RATEID_DEFAULT;
-	uint8_t *mbo_ie = NULL;
+	uint8_t *mbo_ie = NULL, *vendor_ies = NULL;
 	uint8_t mbo_ie_len = 0;
 
 	if (NULL == pe_session) {
@@ -1906,9 +1907,17 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 			(unsigned int) bssdescr->mdie[2]);
 		populate_mdie(mac_ctx, &frm->MobilityDomain,
 			pe_session->pLimJoinReq->bssDescription.mdie);
-	} else {
-		/* No 11r IEs dont send any MDIE */
-		pe_debug("MDIE not present");
+
+		/*
+		 * IEEE80211-ai [13.2.4 FT initial mobility domain association
+		 * over FILS in an RSN]
+		 * Populate FT IE in association request. This FT IE should be
+		 * same as the FT IE received in auth response frame during the
+		 * FT-FILS authentication.
+		 */
+		if (lim_is_fils_connection(pe_session))
+			populate_fils_ft_info(mac_ctx, &frm->FTInfo,
+					      pe_session);
 	}
 
 #ifdef FEATURE_WLAN_ESE
@@ -1998,12 +2007,38 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 					  mbo_ie, DOT11F_IE_MBO_IE_MAX_LEN);
 		if (QDF_IS_STATUS_ERROR(qdf_status)) {
 			pe_err("Failed to strip MBO IE");
-			goto free_mbo_ie;
+			goto end;
 		}
 
 		/* Include the EID and length fields */
 		mbo_ie_len = mbo_ie[1] + 2;
 		pe_debug("Stripped MBO IE of length %d", mbo_ie_len);
+	}
+
+	/*
+	 * Strip rest of the vendor IEs and append to the assoc request frame.
+	 * Append the IEs just before MBO IEs as MBO IEs have to be at the
+	 * end of the frame.
+	 */
+	if (wlan_get_ie_ptr_from_eid(WLAN_ELEMID_VENDOR, add_ie, add_ie_len)) {
+		vendor_ies = qdf_mem_malloc(MAX_VENDOR_IES_LEN + 2);
+		if (vendor_ies) {
+			current_len = add_ie_len;
+			qdf_status = lim_strip_ie(mac_ctx, add_ie, &add_ie_len,
+						  WLAN_ELEMID_VENDOR, ONE_BYTE,
+						  NULL,
+						  0,
+						  vendor_ies,
+						  MAX_VENDOR_IES_LEN);
+			if (QDF_IS_STATUS_ERROR(qdf_status)) {
+				pe_err("Failed to strip Vendor IEs");
+				goto end;
+			}
+
+			vendor_ie_len = current_len - add_ie_len;
+			pe_debug("Stripped vendor IEs of size: %u",
+				 current_len);
+		}
 	}
 
 	/*
@@ -2032,7 +2067,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	}
 
 	bytes = payload + sizeof(tSirMacMgmtHdr) +
-			aes_block_size_len + mbo_ie_len;
+			aes_block_size_len + mbo_ie_len + vendor_ie_len;
 
 	qdf_status = cds_packet_alloc((uint16_t) bytes, (void **)&frame,
 				(void **)&packet);
@@ -2072,6 +2107,11 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		pe_warn("Assoc request pack warning (0x%08x)", status);
 	}
 
+	/* Copy the vendor IEs to the end of the frame */
+	qdf_mem_copy(frame + sizeof(tSirMacMgmtHdr) + payload,
+		     vendor_ies, vendor_ie_len);
+	payload = payload + vendor_ie_len;
+
 	/* Copy the MBO IE to the end of the frame */
 	qdf_mem_copy(frame + sizeof(tSirMacMgmtHdr) + payload,
 		     mbo_ie, mbo_ie_len);
@@ -2088,8 +2128,7 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 						    frame, &payload);
 		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			cds_packet_free((void *)packet);
-			qdf_mem_free(frm);
-			return;
+			goto end;
 		}
 	}
 
@@ -2143,11 +2182,11 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 				pe_session, SENT_FAIL, QDF_STATUS_E_FAILURE);
 		/* Pkt will be freed up by the callback */
 	}
-free_mbo_ie:
-	if (mbo_ie)
-		qdf_mem_free(mbo_ie);
 
 end:
+	qdf_mem_free(vendor_ies);
+	qdf_mem_free(mbo_ie);
+
 	/* Free up buffer allocated for mlm_assoc_req */
 	qdf_mem_free(mlm_assoc_req);
 	mlm_assoc_req = NULL;
@@ -2291,6 +2330,13 @@ lim_send_auth_mgmt_frame(tpAniSirGlobal mac_ctx,
 				frame_len += (2 + SIR_MDIE_SIZE);
 			}
 		}
+
+		/* include MDIE in FILS authentication frame */
+		if (session->pLimJoinReq &&
+		    session->pLimJoinReq->is11Rconnection &&
+		    auth_frame->authAlgoNumber == SIR_FILS_SK_WITHOUT_PFS &&
+		    session->pLimJoinReq->bssDescription.mdiePresent)
+			frame_len += (2 + SIR_MDIE_SIZE);
 		break;
 
 	case SIR_MAC_AUTH_FRAME_2:
@@ -2468,10 +2514,11 @@ alloc_packet:
 						pbssDescription->mdie[0],
 					SIR_MDIE_SIZE);
 			}
-		} else if (auth_frame->authAlgoNumber ==
-				SIR_FILS_SK_WITHOUT_PFS) {
-			/* TODO MDIE */
-			pe_debug("appending fils Auth data");
+		} else if ((auth_frame->authAlgoNumber ==
+					SIR_FILS_SK_WITHOUT_PFS) &&
+			   (auth_frame->authTransactionSeqNumber ==
+						SIR_MAC_AUTH_FRAME_1)) {
+			pe_debug("FILS: appending fils Auth data");
 			lim_add_fils_data_to_auth_frame(session, body);
 		}
 
@@ -2774,6 +2821,30 @@ static QDF_STATUS lim_deauth_tx_complete_cnf_handler(void *context,
 }
 
 /**
+ * lim_append_ies_to_frame() - Append IEs to the frame
+ *
+ * @frame: Pointer to the frame buffer that needs to be populated
+ * @frame_len: Pointer for current frame length
+ * @ie: pointer for disconnect IEs
+ *
+ * This function is called by lim_send_disassoc_mgmt_frame and
+ * lim_send_deauth_mgmt_frame APIs as part of disconnection.
+ * Append IEs and update frame length.
+ *
+ * Return: None
+ */
+static void
+lim_append_ies_to_frame(uint8_t *frame, uint32_t *frame_len,
+			struct wlan_ies *ie)
+{
+	if (!ie || !ie->len || !ie->data)
+		return;
+	qdf_mem_copy(frame, ie->data, ie->len);
+	*frame_len += ie->len;
+	pe_debug("Appended IEs len: %u", ie->len);
+}
+
+/**
  * \brief This function is called to send Disassociate frame.
  *
  *
@@ -2803,6 +2874,7 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 	uint8_t txFlag = 0;
 	uint32_t val = 0;
 	uint8_t smeSessionId = 0;
+	struct wlan_ies *discon_ie;
 
 	if (NULL == psessionEntry) {
 		return;
@@ -2839,6 +2911,10 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 
 	nBytes = nPayload + sizeof(tSirMacMgmtHdr);
 
+	discon_ie = hdd_get_self_disconnect_ies(pMac, smeSessionId);
+	if (discon_ie && discon_ie->len)
+		nBytes += discon_ie->len;
+
 	qdf_status = cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				      (void **)&pPacket);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
@@ -2873,6 +2949,11 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 		pe_warn("There were warnings while packing a Disassociation (0x%08x)",
 			nStatus);
 	}
+
+	/* Copy disconnect IEs to the end of the frame */
+	lim_append_ies_to_frame(pFrame + sizeof(tSirMacMgmtHdr) + nPayload,
+				&nPayload, discon_ie);
+	hdd_free_self_disconnect_ies(pMac, smeSessionId);
 
 	pe_debug("***Sessionid %d Sending Disassociation frame with "
 		   "reason %u and waitForAck %d to " MAC_ADDRESS_STR " ,From "
@@ -2982,6 +3063,7 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 	tpDphHashNode pStaDs;
 #endif
 	uint8_t smeSessionId = 0;
+	struct wlan_ies *discon_ie;
 
 	if (NULL == psessionEntry) {
 		return;
@@ -3017,6 +3099,9 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 	}
 
 	nBytes = nPayload + sizeof(tSirMacMgmtHdr);
+	discon_ie = hdd_get_self_disconnect_ies(pMac, smeSessionId);
+	if (discon_ie && discon_ie->len)
+		nBytes += discon_ie->len;
 
 	qdf_status = cds_packet_alloc((uint16_t) nBytes, (void **)&pFrame,
 				      (void **)&pPacket);
@@ -3051,6 +3136,12 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 		pe_warn("There were warnings while packing a De-Authentication (0x%08x)",
 			nStatus);
 	}
+
+	/* Copy disconnect IEs to the end of the frame */
+	lim_append_ies_to_frame(pFrame + sizeof(tSirMacMgmtHdr) + nPayload,
+				&nPayload, discon_ie);
+	hdd_free_self_disconnect_ies(pMac, smeSessionId);
+
 	pe_debug("***Sessionid %d Sending Deauth frame with "
 		       "reason %u and waitForAck %d to " MAC_ADDRESS_STR
 		       " ,From " MAC_ADDRESS_STR,

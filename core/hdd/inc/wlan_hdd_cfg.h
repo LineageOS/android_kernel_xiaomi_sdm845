@@ -1903,7 +1903,7 @@ enum hdd_dot11_mode {
 #define CFG_FORCE_1X1_NAME      "gForce1x1Exception"
 #define CFG_FORCE_1X1_MIN       (0)
 #define CFG_FORCE_1X1_MAX       (2)
-#define CFG_FORCE_1X1_DEFAULT   (2)
+#define CFG_FORCE_1X1_DEFAULT   (1)
 
 /*
  * <ini>
@@ -7032,6 +7032,31 @@ enum hdd_link_speed_rpt_type {
 #define CFG_TDLS_PEER_KICKOUT_THRESHOLD_MAX        (5000)
 #define CFG_TDLS_PEER_KICKOUT_THRESHOLD_DEFAULT    (96)
 
+/*
+ * <ini>
+ * gTDLSDiscoveryWakeTimeout - TDLS discovery WAKE timeout in ms.
+ * @Min: 10
+ * @Max: 5000
+ * @Default: 96
+ *
+ * DUT will wake until this timeout to receive TDLS discovery response
+ * from peer. If tdls_discovery_wake_timeout is 0x0, the DUT will
+ * choose autonomously what wake timeout value to use.
+ *
+ *
+ * Related: gEnableTDLSSupport.
+ *
+ * Supported Feature: TDLS
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_TDLS_DISCOVERY_WAKE_TIMEOUT            "gTDLSDiscoveryWakeTimeout"
+#define CFG_TDLS_DISCOVERY_WAKE_TIMEOUT_MIN        (0)
+#define CFG_TDLS_DISCOVERY_WAKE_TIMEOUT_MAX        (2000)
+#define CFG_TDLS_DISCOVERY_WAKE_TIMEOUT_DEFAULT    (200)
+
 #endif
 
 /*
@@ -10011,14 +10036,18 @@ enum dot11p_mode {
  * g_sta_sap_scc_on_dfs_chan - Allow STA+SAP SCC on DFS channel with master
  * mode support disabled.
  * @Min: 0
- * @Max: 1
+ * @Max: 2
  * @Default: 0
  *
  * This ini is used to allow STA+SAP SCC on DFS channel with master mode
- * support disabled.
+ * support disabled, the value is defined by enum PM_AP_DFS_MASTER_MODE.
  * 0 - Disallow STA+SAP SCC on DFS channel
  * 1 - Allow STA+SAP SCC on DFS channel with master mode disabled
- *
+ * 2 - enhance "1" with below requirement
+ *	 a. Allow single SAP (GO) start on DFS channel.
+ *	 b. Allow CAC process on DFS channel in single SAP (GO) mode
+ *	 c. Allow DFS radar event process in single SAP (GO) mode
+ *	 d. Disallow CAC and radar event process in SAP (GO) + STA mode.
  * Related: None.
  *
  * Supported Feature: Non-DBS, DBS
@@ -10736,7 +10765,7 @@ enum dot11p_mode {
 #define CFG_BUG_ON_REINIT_FAILURE_NAME     "g_bug_on_reinit_failure"
 #define CFG_BUG_ON_REINIT_FAILURE_MIN      (0)
 #define CFG_BUG_ON_REINIT_FAILURE_MAX      (1)
-#define CFG_BUG_ON_REINIT_FAILURE_DEFAULT  (1)
+#define CFG_BUG_ON_REINIT_FAILURE_DEFAULT  (0)
 
 /*
  * <ini>
@@ -15514,6 +15543,36 @@ enum hdd_external_acs_policy {
 #define CFG_ACTION_OUI_DISABLE_AGGRESSIVE_TX_NAME "gActionOUIDisableAggressiveTX"
 #define CFG_ACTION_OUI_DISABLE_AGGRESSIVE_TX_DEFAULT "FFFFFF 00 2A F85971000000 E0 50 FFFFFF 00 2A 14ABC5000000 E0 50"
 
+/*
+ * <ini>
+ * gActionOUIDisableAggressiveEDCA - Used to specify action OUIs to control
+ * EDCA configuration when join the candidate AP
+ *
+ * @Default: NULL
+ * Note: User should strictly add new action OUIs at the end of this
+ * default value.
+ *
+ * This ini is used to specify AP OUIs. The station's EDCA should follow the
+ * APs' when connecting to those AP, even if the gEnableEdcaParams is set.
+ * For example, it follows the AP's EDCA whose OUI is 0050F2 with the
+ * following setting:
+ *     gActionOUIDisableAggressiveEDCA=0050F2 00 01
+ *          Explain: 0050F2: OUI
+ *                   00: data length is 0
+ *                   01: info mask, only OUI present in Info mask
+ * Refer to gEnableActionOUI for more detail about the format.
+ *
+ * Related: gEnableEdcaParams, gEnableActionOUI
+ *
+ * Supported Feature: Action OUIs
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ACTION_OUI_DISABLE_AGGRESSIVE_EDCA "gActionOUIDisableAggressiveEDCA"
+#define CFG_ACTION_OUI_DISABLE_AGGRESSIVE_EDCA_DEFAULT ""
+
 /* End of action oui inis */
 
 
@@ -16650,6 +16709,7 @@ struct hdd_config {
 	uint8_t fTDLSPrefOffChanBandwidth;
 	uint8_t enable_tdls_scan;
 	uint32_t tdls_peer_kickout_threshold;
+	uint32_t tdls_discovery_wake_timeout;
 #endif
 	uint8_t scanAgingTimeout;
 	uint8_t disableLDPCWithTxbfAP;

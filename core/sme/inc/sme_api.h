@@ -343,6 +343,16 @@ QDF_STATUS sme_open_session(tHalHandle hal, struct sme_session_params *params);
  * Other status means SME is failed to open the session.
  */
 QDF_STATUS sme_close_session(tHalHandle hal, uint8_t sessionId);
+
+/**
+ * sme_cleanup_session() -  clean up sme session info for vdev
+ * @mac_handle: mac handle
+ * @vdev_id: vdev id
+ *
+ * Return: none
+ */
+void sme_cleanup_session(mac_handle_t mac_handle, uint8_t vdev_id);
+
 void sme_set_curr_device_mode(tHalHandle hHal,
 		enum QDF_OPMODE currDeviceMode);
 QDF_STATUS sme_update_roam_params(tHalHandle hHal, uint8_t session_id,
@@ -1195,10 +1205,11 @@ QDF_STATUS sme_update_dfs_scan_mode(tHalHandle hHal,
 		uint8_t allowDFSChannelRoam);
 uint8_t sme_get_dfs_scan_mode(tHalHandle hHal);
 
-#ifdef FEATURE_WLAN_EXTSCAN
 QDF_STATUS sme_get_valid_channels_by_band(tHalHandle hHal, uint8_t wifiBand,
 		uint32_t *aValidChannels,
 		uint8_t *pNumChannels);
+
+#ifdef FEATURE_WLAN_EXTSCAN
 QDF_STATUS sme_ext_scan_get_capabilities(tHalHandle hHal,
 		tSirGetExtScanCapabilitiesReqParams *pReq);
 QDF_STATUS sme_ext_scan_start(tHalHandle hHal,
@@ -2942,4 +2953,45 @@ uint16_t sme_get_full_roam_scan_period_global(mac_handle_t mac_handle);
 QDF_STATUS sme_get_full_roam_scan_period(mac_handle_t mac_handle,
 					 uint8_t vdev_id,
 					 uint32_t *full_roam_scan_period);
+
+/**
+ * sme_set_roam_triggers() - Send roam trigger bitmap to WMA
+ * @mac_handle: Opaque handle to the MAC context
+ * @triggers: Carries pointer of the object containing vdev id and
+ *	      roam_trigger_bitmap.
+ *
+ * Send the roam trigger bitmap received to WMA/WMI. WMI converts
+ * the bitmap to firmware compatible bitmap as per reasons
+ * defined @WMI_ROAM_TRIGGER_REASON_ID
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_set_roam_triggers(mac_handle_t mac_handle,
+				 struct roam_triggers *triggers);
+
+/**
+ * sme_roam_control_restore_default_config - Restore roam config to default
+ * @mac_handle: Opaque handle to the global MAC context
+ * @vdev_id: vdev Identifier
+ *
+ * Restore enable_scoring_for_roam, emptyScanRefreshPeriod,
+ * full_roam_scan_period to their default values and send RSO command to
+ * firmware with the updated values.
+ *
+ * Return: Success or failure
+ */
+QDF_STATUS sme_roam_control_restore_default_config(mac_handle_t mac_handle,
+						   uint8_t vdev_id);
+
+/**
+ * sme_set_disconnect_ies() - set disconnect IEs
+ * @mac_handle: handle returned by mac_open
+ * @vdev_id: vdev id
+ * @ie_data: Disconnect IE data
+ * @ie_len: Disconnect IE length
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_set_disconnect_ies(mac_handle_t mac_handle, uint8_t vdev_id,
+				  uint8_t *ie_data, uint16_t ie_len);
 #endif /* #if !defined( __SME_API_H ) */

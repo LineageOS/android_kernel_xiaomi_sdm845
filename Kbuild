@@ -2050,6 +2050,7 @@ cppflags-$(CONFIG_WLAN_FEATURE_11AX) += -DWLAN_FEATURE_11AX_BSS_COLOR
 cppflags-y += -DDP_PRINT_ENABLE=0
 cppflags-y += -DATH_SUPPORT_WRAP=0
 cppflags-y += -DQCA_HOST2FW_RXBUF_RING
+cppflags-y += -DHIF_CE_HISTORY_MAX=8192
 #endof dummy flags
 
 # Enable lock of serialization component to avoid race condition issues

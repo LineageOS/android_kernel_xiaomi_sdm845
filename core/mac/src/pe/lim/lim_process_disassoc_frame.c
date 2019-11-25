@@ -309,6 +309,9 @@ lim_process_disassoc_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 
 	} /* if (pStaDs->mlmStaContext.mlmState != eLIM_MLM_LINK_ESTABLISHED_STATE) */
 
+	lim_extract_ies_from_deauth_disassoc(pMac, psessionEntry->peSessionId,
+					     (uint8_t *)pHdr,
+					WMA_GET_RX_MPDU_LEN(pRxPacketInfo));
 	lim_perform_disassoc(pMac, frame_rssi, reasonCode,
 			     psessionEntry, pHdr->sa);
 
