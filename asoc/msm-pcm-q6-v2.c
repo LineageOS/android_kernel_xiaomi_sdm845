@@ -1174,7 +1174,6 @@ static int msm_pcm_adsp_stream_cmd_put(struct snd_kcontrol *kcontrol,
 		goto done;
 	}
 
-	mutex_lock(&pdata->lock);
 	event_data = (struct msm_adsp_event_data *)ucontrol->value.bytes.data;
 	if ((event_data->event_type < ADSP_STREAM_PP_EVENT) ||
 	    (event_data->event_type >= ADSP_STREAM_EVENT_MAX)) {
@@ -1653,9 +1652,6 @@ static int msm_pcm_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 		pr_err("%s: platform data is NULL\n", __func__);
 		return -EINVAL;
 	}
-
-	memset(ucontrol->value.integer.value, 0,
-		sizeof(ucontrol->value.integer.value));
 
 	mutex_lock(&pdata->lock);
 	prtd = substream->runtime->private_data;

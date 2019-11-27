@@ -587,19 +587,19 @@ static int msm_pcm_close(struct snd_pcm_substream *substream)
 	int ret = 0;
 
 	if (!soc_prtd) {
-               pr_debug("%s private_data not found\n",
-                       __func__);
-               return 0;
-       }
+		pr_debug("%s private_data not found\n",
+			__func__);
+		return 0;
+	}
 
-       pdata = (struct msm_plat_data *)
-                       dev_get_drvdata(soc_prtd->platform->dev);
-       if (!pdata) {
-               pr_err("%s: pdata not found\n", __func__);
-               return -ENODEV;
-       }
+	pdata = (struct msm_plat_data *)
+			dev_get_drvdata(soc_prtd->platform->dev);
+	if (!pdata) {
+		pr_err("%s: pdata not found\n", __func__);
+		return -ENODEV;
+	}
 
-       mutex_lock(&pdata->lock);
+	mutex_lock(&pdata->lock);
 
 	if (ac) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
