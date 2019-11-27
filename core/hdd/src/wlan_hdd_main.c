@@ -4274,6 +4274,7 @@ int hdd_vdev_destroy(struct hdd_adapter *adapter)
 			sme_cleanup_session(hdd_ctx->mac_handle, vdev_id);
 		} else if (adapter->qdf_session_close_event.force_set) {
 			hdd_info("SSR occurred during sme close session");
+			ucfg_mlme_force_objmgr_vdev_peer_cleanup(vdev_id);
 		} else {
 			hdd_err("failed to wait for sme close session; status:%u",
 				status);
