@@ -136,6 +136,28 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 #define SIR_UAPSD_FLAG_ACBE     (1 << SIR_UAPSD_BITOFFSET_ACBE)
 #define SIR_UAPSD_GET(ac, mask)      (((mask) & (SIR_UAPSD_FLAG_ ## ac)) >> SIR_UAPSD_BITOFFSET_ ## ac)
 
+/* Roam debugging related macro defines */
+#define MAX_ROAM_DEBUG_BUF_SIZE    250
+#define MAX_ROAM_EVENTS_SUPPORTED  5
+#define ROAM_FAILURE_BUF_SIZE      40
+#define TIME_STRING_LEN            24
+
+#define ROAM_CHANNEL_BUF_SIZE      300
+#define LINE_STR "========================================="
+
+/**
+ * struct mlme_roam_debug_info - Roam debug information storage structure.
+ * @trigger:            Roam trigger related data
+ * @scan:               Roam scan related data structure.
+ * @result:             Roam result parameters.
+ * @data_11kv:          Neighbor report/BTM parameters.
+ */
+struct mlme_roam_debug_info {
+       struct wmi_roam_trigger_info trigger;
+       struct wmi_roam_scan_data scan;
+       struct wmi_roam_result result;
+       struct wmi_neighbor_report_data data_11kv;
+};
 #endif
 
 /*
