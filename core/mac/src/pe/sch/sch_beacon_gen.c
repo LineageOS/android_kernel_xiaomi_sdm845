@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -922,6 +922,12 @@ static QDF_STATUS write_beacon_to_memory(tpAniSirGlobal pMac, uint16_t size,
 
 	/* copy end of beacon only if length > 0 */
 	if (length > 0) {
+		if (size + psessionEntry->schBeaconOffsetEnd >
+		    SIR_MAX_BEACON_SIZE) {
+			pe_err("beacon tmp fail size %d BeaconOffsetEnd %d",
+			       size, psessionEntry->schBeaconOffsetEnd);
+			return QDF_STATUS_E_FAILURE;
+		}
 		for (i = 0; i < psessionEntry->schBeaconOffsetEnd; i++)
 			psessionEntry->pSchBeaconFrameBegin[size++] =
 				psessionEntry->pSchBeaconFrameEnd[i];
