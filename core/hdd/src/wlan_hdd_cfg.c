@@ -5990,8 +5990,15 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_IGNORE_FW_REG_OFFLOAD_IND_DEFAULT,
 		     CFG_IGNORE_FW_REG_OFFLOAD_IND_MIN,
 		     CFG_IGNORE_FW_REG_OFFLOAD_IND_MAX),
-};
 
+	REG_VARIABLE(CFG_NAN_NDP_INACTIVITY_TIMEOUT, WLAN_PARAM_Integer,
+		     struct hdd_config, ndp_inactivity_timeout,
+		     VAR_FLAGS_OPTIONAL,
+		     CFG_NAN_NDP_INACTIVITY_TIMEOUT_DEFAULT,
+		     CFG_NAN_NDP_INACTIVITY_TIMEOUT_MIN,
+		     CFG_NAN_NDP_INACTIVITY_TIMEOUT_MAX),
+
+};
 
 /**
  * get_next_line() - find and locate the new line pointer
@@ -8034,6 +8041,9 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		  CFG_IGNORE_FW_REG_OFFLOAD_IND,
 		  hdd_ctx->config->ignore_fw_reg_offload_ind);
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_NAN_NDP_INACTIVITY_TIMEOUT,
+		  hdd_ctx->config->ndp_inactivity_timeout);
 }
 
 /**

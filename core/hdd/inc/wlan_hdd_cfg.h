@@ -16350,6 +16350,29 @@ enum hdd_external_acs_policy {
 #define CFG_IGNORE_FW_REG_OFFLOAD_IND_MAX        (1)
 
 /*
+ * <ini>
+ * ndp_inactivity_timeout - To configure duration of how many seconds
+ * without TX/RX data traffic, NDI vdev can kickout the connected
+ * peer(i.e. NDP Termination).
+ *
+ * @Min: 0
+ * @Max: 180
+ * @Default: 60
+ *
+ * Related: None
+ *
+ * Supported Feature: NAN
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NAN_NDP_INACTIVITY_TIMEOUT         "ndp_inactivity_timeout"
+#define CFG_NAN_NDP_INACTIVITY_TIMEOUT_DEFAULT (60)
+#define CFG_NAN_NDP_INACTIVITY_TIMEOUT_MAX     (1800)
+#define CFG_NAN_NDP_INACTIVITY_TIMEOUT_MIN     (0)
+
+/*
  * Type declarations
  */
 
@@ -17325,6 +17348,7 @@ struct hdd_config {
 
 	bool ignore_fw_reg_offload_ind;
 	uint32_t roam_full_scan_period;
+	uint16_t ndp_inactivity_timeout;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
