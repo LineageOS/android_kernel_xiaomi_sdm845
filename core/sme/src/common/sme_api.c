@@ -6129,15 +6129,9 @@ QDF_STATUS sme_set_freq_band(tHalHandle hHal, uint8_t sessionId,
  */
 QDF_STATUS sme_get_freq_band(tHalHandle hHal, enum band_info *pBand)
 {
-	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
-	status = sme_acquire_global_lock(&pMac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		*pBand = csr_get_current_band(hHal);
-		sme_release_global_lock(&pMac->sme);
-	}
-	return status;
+	return ucfg_reg_get_band(pMac->pdev, pBand);
 }
 
 /*
