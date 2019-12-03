@@ -2306,6 +2306,8 @@ static void ol_txrx_pdev_pre_detach(struct cdp_pdev *ppdev, int force)
 	OL_RX_REORDER_TRACE_DETACH(pdev);
 	OL_RX_PN_TRACE_DETACH(pdev);
 
+	htt_pktlogmod_exit(pdev);
+
 	/*
 	 * WDI event detach
 	 */
@@ -2346,8 +2348,6 @@ static void ol_txrx_pdev_detach(struct cdp_pdev *ppdev, int force)
 			   "NULL pdev passed to %s\n", __func__);
 		return;
 	}
-
-	htt_pktlogmod_exit(pdev);
 
 	qdf_spin_lock_bh(&pdev->req_list_spinlock);
 	if (pdev->req_list_depth > 0)
