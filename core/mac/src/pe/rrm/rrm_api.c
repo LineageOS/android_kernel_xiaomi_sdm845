@@ -751,9 +751,16 @@ rrm_fill_beacon_ies(tpAniSirGlobal pMac,
 	}
 
 	while (BcnNumIes > 0) {
-		len = *(pBcnIes + 1) + 2;       /* element id + length. */
+		len = *(pBcnIes + 1);
+		len += 2;       /* element id + length. */
 		pe_debug("EID = %d, len = %d total = %d",
 			*pBcnIes, *(pBcnIes + 1), len);
+
+		if (BcnNumIes < len) {
+			pe_err("RRM: Invalid IE len:%d exp_len:%d",
+			       len, BcnNumIes);
+			break;
+		}
 
 		if (len <= 2) {
 			pe_err("RRM: Invalid IE");
