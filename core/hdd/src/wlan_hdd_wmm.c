@@ -54,8 +54,6 @@
 #include <cds_sched.h>
 #include "sme_api.h"
 
-#define WLAN_HDD_MAX_DSCP 0x3f
-
 #define HDD_WMM_UP_TO_AC_MAP_SIZE 8
 
 const uint8_t hdd_wmm_up_to_ac_map[] = {
@@ -1283,7 +1281,7 @@ QDF_STATUS hdd_wmm_init(struct hdd_adapter *adapter)
 	/* DSCP to User Priority Lookup Table
 	 * By default use the 3 Precedence bits of DSCP as the User Priority
 	 */
-	for (dscp = 0; dscp <= WLAN_HDD_MAX_DSCP; dscp++)
+	for (dscp = 0; dscp <= WLAN_MAX_DSCP; dscp++)
 		dscp_to_up_map[dscp] = dscp >> 3;
 
 	/* Special case for Expedited Forwarding (DSCP 46) */
