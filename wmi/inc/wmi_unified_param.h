@@ -1980,6 +1980,7 @@ struct roam_fils_params {
  * @roam_fils_params: roam fils params
  * @rct_validity_timer: duration value for which the entries in
  * roam candidate table are valid
+ * @adaptve_11r: Adaptive 11r AP
  */
 struct roam_offload_scan_params {
 	uint8_t is_roam_req_valid;
@@ -2002,6 +2003,7 @@ struct roam_offload_scan_params {
 	bool fw_okc;
 	bool fw_pmksa_cache;
 	uint32_t rct_validity_timer;
+	bool is_adaptive_11r;
 #endif
 	uint32_t min_delay_btw_roam_scans;
 	uint32_t roam_trigger_reason_bitmask;
@@ -6050,6 +6052,7 @@ typedef enum {
 	wmi_service_wpa3_ft_sae_support,
 	wmi_service_wpa3_ft_suite_b_support,
 	wmi_service_ft_fils,
+	wmi_service_adaptive_11r_support,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF
