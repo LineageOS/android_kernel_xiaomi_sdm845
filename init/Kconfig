@@ -1498,6 +1498,7 @@ config SCHED_AUTOGROUP
 
 config SCHED_TUNE
 	bool "Boosting for CFS tasks (EXPERIMENTAL)"
+	depends on !UCLAMP_TASK
 	depends on SMP
 	help
 	  This option enables the system-wide support for task boosting.
