@@ -7038,10 +7038,15 @@ QDF_STATUS sme_set_roam_scan_control(tHalHandle hHal, uint8_t sessionId,
 		specific_channel_info =
 			&neighbor_roam_info->cfgParams.specific_chan_info;
 		csr_flush_cfg_bg_scan_roam_channel_list(specific_channel_info);
-		if (pMac->roam.configParam.isRoamOffloadScanEnabled)
+		if (pMac->roam.configParam.isRoamOffloadScanEnabled) {
 			csr_roam_offload_scan(pMac, sessionId,
 					      ROAM_SCAN_OFFLOAD_UPDATE_CFG,
 					      REASON_FLUSH_CHANNEL_LIST);
+
+			csr_roam_offload_scan(pMac, sessionId,
+					      ROAM_SCAN_OFFLOAD_UPDATE_CFG,
+					      REASON_CHANNEL_LIST_CHANGED);
+		}
 	}
 	pMac->roam.configParam.nRoamScanControl = roamScanControl;
 	sme_release_global_lock(&pMac->sme);

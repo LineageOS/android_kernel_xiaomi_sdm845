@@ -19741,6 +19741,9 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 					qdf_mem_free(req_buf);
 					return NULL;
 				}
+			} else if (reason == REASON_FLUSH_CHANNEL_LIST) {
+				req_buf->ChannelCacheType = CHANNEL_LIST_STATIC;
+				req_buf->ConnectedNetwork.ChannelCount = 0;
 			} else {
 				csr_fetch_ch_lst_from_occupied_lst(mac_ctx,
 						session_id, reason, req_buf,
@@ -19767,7 +19770,8 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		}
 #endif
 	}
-	if (req_buf->ConnectedNetwork.ChannelCount == 0) {
+	if (req_buf->ConnectedNetwork.ChannelCount == 0 &&
+	    reason != REASON_FLUSH_CHANNEL_LIST) {
 		/* Maintain the Valid Channels List */
 		status = csr_fetch_valid_ch_lst(mac_ctx, req_buf, session_id);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
@@ -21055,7 +21059,6 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	else if (ROAM_SCAN_OFFLOAD_STOP == command)
 		roam_info->b_roam_scan_offload_started = false;
 	policy_mgr_set_pcl_for_existing_combo(mac_ctx->psoc, PM_STA_MODE);
-
 	if (!QDF_IS_STATUS_SUCCESS(
 		csr_roam_send_rso_cmd(mac_ctx, session_id, req_buf))) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
