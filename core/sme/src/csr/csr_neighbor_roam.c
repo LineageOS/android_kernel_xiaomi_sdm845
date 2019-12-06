@@ -334,6 +334,18 @@ static void csr_neighbor_roam_reset_init_state_control_info(tpAniSirGlobal pMac,
 	csr_neighbor_roam_reset_report_scan_state_control_info(pMac, sessionId);
 }
 
+#ifdef WLAN_FEATURE_11W
+void
+csr_update_pmf_cap_from_connected_profile(tCsrRoamConnectedProfile *profile,
+					  struct scan_filter *filter)
+{
+	if (profile->MFPCapable || profile->MFPEnabled)
+		filter->pmf_cap = WLAN_PMF_CAPABLE;
+	if (profile->MFPRequired)
+		filter->pmf_cap = WLAN_PMF_REQUIRED;
+}
+#endif
+
 /**
  * csr_neighbor_roam_prepare_scan_profile_filter()
  *
