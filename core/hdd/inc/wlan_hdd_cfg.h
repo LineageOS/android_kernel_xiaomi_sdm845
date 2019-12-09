@@ -2318,7 +2318,9 @@ enum hdd_dot11_mode {
  * WMI_ROAM_TRIGGER_REASON_BTM - 10
  * WMI_ROAM_TRIGGER_REASON_UNIT_TEST - 11
  * WMI_ROAM_TRIGGER_REASON_BSS_LOAD - 12
- * WMI_ROAM_TRIGGER_REASON_MAX - 13
+ * WMI_ROAM_TRIGGER_REASON_DEAUTH - 13
+ * WMI_ROAM_TRIGGER_REASON_IDLE - 14
+ * WMI_ROAM_TRIGGER_REASON_MAX - 15
  *
  * For Ex: 0xDA (PER, LOW_RSSI, HIGH_RSSI, MAWC, DENSE)
  *
@@ -16394,6 +16396,183 @@ enum hdd_external_acs_policy {
 #define CFG_NAN_NDP_INACTIVITY_TIMEOUT_MIN     (0)
 
 /*
+ * <ini>
+ * enable_disconnect_roam_offload - Enable/Disable emergency roaming during
+ * deauth/disassoc
+ * @Min: 0 - Disabled
+ * @Max: 1 - Enabled
+ * @Default: 1
+ *
+ * When this ini is enabled firmware will trigger roam scan and roam to a new ap
+ * if candidate is found and it will not send the deauth/disassoc frame to
+ * the host driver.
+ * If roaming fails after this deauth, then firmware will send
+ * WMI_ROAM_REASON_DEAUTH event to the host. If roaming is successful, driver
+ * follows the normal roam synch event path.
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_LFR_ENABLE_DISCONNECT_ROAM      "enable_disconnect_roam_offload"
+#define CFG_LFR_ENABLE_DISCONNECT_ROAM_MIN     (false)
+#define CFG_LFR_ENABLE_DISCONNECT_ROAM_MAX     (true)
+#define CFG_LFR_ENABLE_DISCONNECT_ROAM_DEFAULT (true)
+
+/*
+ * <ini>
+ * enable_idle_roam - Enable/Disable idle roaming
+ * @Min: 0 - Disabled
+ * @Max: 1 - Enabled
+ * @Default: 0
+ *
+ * When this ini is enabled firmware will trigger roam scan and roam to a new
+ * ap if current connected AP rssi falls below the threshold. To consider the
+ * connection as idle, the following conditions should be met if this ini
+ * "enable_idle_roam" is enabled:
+ * 1. User space sends "SET SUSPENDMODE" command with value 0.
+ * 2. No TX/RX data for idle time configured via ini "idle_roam_inactive_time".
+ * 3. Connected AP rssi change doesn't exceed a specific delta value.
+ * (configured via ini idle_roam_rssi_delta)
+ * 4. Connected AP rssi falls below minimum rssi (configured via ini
+ * "idle_roam_min_rssi").
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_LFR_ENABLE_IDLE_ROAM    "enable_idle_roam"
+#define CFG_LFR_ENABLE_IDLE_ROAM_MIN     (false)
+#define CFG_LFR_ENABLE_IDLE_ROAM_MAX     (true)
+#define CFG_LFR_ENABLE_IDLE_ROAM_DEFAULT (false)
+
+/*
+ * <ini>
+ * idle_roam_rssi_delta - This threshold is the criteria to decide whether DUT
+ * is idle or moving. If rssi delta is more than configured thresold then its
+ * considered as not idle. RSSI delta is entered in dBm. Idle roaming can be
+ * triggered if the connected AP rssi change exceeds or falls below the
+ * rssi delta and if other criteria of ini "enable_idle_roam" is met
+ * @Min: 0
+ * @Max: 50
+ * @Default: 5
+ *
+ * Related: enable_idle_roam
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_LFR_IDLE_ROAM_RSSI_DELTA   "idle_roam_rssi_delta"
+#define CFG_LFR_IDLE_ROAM_RSSI_DELTA_MIN      (0)
+#define CFG_LFR_IDLE_ROAM_RSSI_DELTA_MAX      (50)
+#define CFG_LFR_IDLE_ROAM_RSSI_DELTA_DEFAULT  (5)
+
+/*
+ * <ini>
+ * idle_roam_inactive_time - Time duration in millseconds for which the
+ * connection is idle.
+ * @Min: 0
+ * @Max: 0xFFFFFFFF
+ * @Default: 10000
+ *
+ * This ini is used to configure the time in seconds for which the connection
+ * candidate is idle and after which idle roam scan can be triggered if
+ * other criteria of ini "enable_idle_roam" is met.
+ *
+ * Related: enable_idle_roam
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_LFR_IDLE_ROAM_INACTIVE_TIME   "idle_roam_inactive_time"
+#define CFG_LFR_IDLE_ROAM_INACTIVE_TIME_MIN        (0)
+#define CFG_LFR_IDLE_ROAM_INACTIVE_TIME_MAX      (0xFFFFFFFF)
+#define CFG_LFR_IDLE_ROAM_INACTIVE_TIME_DEFAULT  (10000)
+
+/*
+ * <ini>
+ * idle_data_packet_count - No of tx/rx packets above which the connection is
+ * not idle.
+ * @Min: 0
+ * @Max: 0xFFFFFFFF
+ * @Default: 10
+ *
+ * This ini is used to configure the acceptable number of tx/rx packets below
+ * which the connection is idle. Ex: If idle_data_packet_count is 10
+ * and if the tx/rx packet count is less than 10, the connection is
+ * idle. If there are more than 10 packets, the connection is active one.
+ *
+ * Related: enable_idle_roam
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_LFR_IDLE_ROAM_PACKET_COUNT       "idle_data_packet_count"
+#define CFG_LFR_IDLE_ROAM_PACKET_COUNT_MIN            (0)
+#define CFG_LFR_IDLE_ROAM_PACKET_COUNT_MAX        (0xFFFFFFFF)
+#define CFG_LFR_IDLE_ROAM_PACKET_COUNT_DEFAULT        (10)
+
+/*
+ * <ini>
+ * idle_roam_min_rssi - Minimum RSSI of connected AP, below which
+ * idle roam scan can be triggered if other criteria of ini "enable_idle_roam"
+ * is met.
+ * @Min: -96
+ * @Max: 0
+ * @Default: -65
+ *
+ * Related: enable_idle_roam
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_LFR_IDLE_ROAM_MIN_RSSI    "idle_roam_min_rssi"
+#define CFG_LFR_IDLE_ROAM_MIN_RSSI_MIN      (-96)
+#define CFG_LFR_IDLE_ROAM_MIN_RSSI_MAX       (0)
+#define CFG_LFR_IDLE_ROAM_MIN_RSSI_DEFAULT  (-65)
+
+/*
+ * <ini>
+ * idle_roam_band - Band on which idle roam scan will be
+ * enabled
+ * @Min: 0
+ * @Max: 2
+ * @Default: 0
+ *
+ * Value 0 - Allow idle roam on both bands
+ * Value 1 - Allow idle roam only on 2G band
+ * Value 2 - Allow idle roam only on 5G band
+ *
+ * Related: enable_idle_roam
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_LFR_IDLE_ROAM_BAND      "idle_roam_band"
+#define CFG_LFR_IDLE_ROAM_BAND_MIN      (0)
+#define CFG_LFR_IDLE_ROAM_BAND_MAX      (2)
+#define CFG_LFR_IDLE_ROAM_BAND_DEFAULT  (0)
+
+/*
  * Type declarations
  */
 
@@ -17334,6 +17513,13 @@ struct hdd_config {
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	uint32_t roam_preauth_retry_count;
 	uint32_t roam_preauth_no_ack_timeout;
+	bool enable_disconnect_roam_offload;
+	bool enable_idle_roam;
+	uint32_t idle_roam_rssi_delta;
+	uint32_t idle_roam_inactive_time;
+	uint32_t idle_data_packet_count;
+	uint32_t idle_roam_band;
+	int32_t idle_roam_min_rssi;
 #endif
 	uint32_t num_tx_chains_2g;
 	uint32_t num_tx_chains_5g;
