@@ -540,6 +540,13 @@ struct csr_config {
 	uint8_t allowDFSChannelRoam;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	bool isRoamOffloadEnabled;
+	bool enable_disconnect_roam_offload;
+	bool enable_idle_roam;
+	uint32_t idle_roam_rssi_delta;
+	uint32_t idle_roam_inactive_time;
+	uint32_t idle_data_packet_count;
+	uint32_t idle_roam_band;
+	int32_t idle_roam_min_rssi;
 #endif
 	bool obssEnabled;
 	bool ignore_peer_erp_info;

@@ -1208,6 +1208,13 @@ typedef struct tagCsrConfigParam {
 	uint32_t roam_preauth_retry_count;
 	uint32_t roam_preauth_no_ack_timeout;
 	bool isRoamOffloadEnabled;
+	bool enable_disconnect_roam_offload;
+	bool enable_idle_roam;
+	uint32_t idle_roam_rssi_delta;
+	uint32_t idle_roam_inactive_time;
+	uint32_t idle_data_packet_count;
+	uint32_t idle_roam_band;
+	int32_t idle_roam_min_rssi;
 #endif
 	bool obssEnabled;
 	uint8_t conc_custom_rule1;

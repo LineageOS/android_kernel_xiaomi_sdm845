@@ -9708,6 +9708,20 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	smeConfig->csrConfig.isRoamOffloadEnabled =
 		hdd_ctx->config->isRoamOffloadEnabled;
+	smeConfig->csrConfig.enable_disconnect_roam_offload =
+		hdd_ctx->config->enable_disconnect_roam_offload;
+	smeConfig->csrConfig.enable_idle_roam =
+		hdd_ctx->config->enable_idle_roam;
+	smeConfig->csrConfig.idle_roam_rssi_delta =
+		hdd_ctx->config->idle_roam_rssi_delta;
+	smeConfig->csrConfig.idle_roam_inactive_time =
+		hdd_ctx->config->idle_roam_inactive_time;
+	smeConfig->csrConfig.idle_data_packet_count =
+		hdd_ctx->config->idle_data_packet_count;
+	smeConfig->csrConfig.idle_roam_band =
+		hdd_ctx->config->idle_roam_band;
+	smeConfig->csrConfig.idle_roam_min_rssi =
+		hdd_ctx->config->idle_roam_min_rssi;
 #endif
 	smeConfig->csrConfig.conc_custom_rule1 =
 		hdd_ctx->config->conc_custom_rule1;

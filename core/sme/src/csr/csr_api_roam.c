@@ -3159,6 +3159,20 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 		pMac->roam.configParam.isRoamOffloadEnabled =
 			pParam->isRoamOffloadEnabled;
+		pMac->roam.configParam.enable_disconnect_roam_offload =
+			pParam->enable_disconnect_roam_offload;
+		pMac->roam.configParam.enable_idle_roam =
+			pParam->enable_idle_roam;
+		pMac->roam.configParam.idle_roam_rssi_delta =
+			pParam->idle_roam_rssi_delta;
+		pMac->roam.configParam.idle_roam_inactive_time =
+			pParam->idle_roam_inactive_time;
+		pMac->roam.configParam.idle_data_packet_count =
+			pParam->idle_data_packet_count;
+		pMac->roam.configParam.idle_roam_band =
+			pParam->idle_roam_band;
+		pMac->roam.configParam.idle_roam_min_rssi =
+			pParam->idle_roam_min_rssi;
 #endif
 		pMac->roam.configParam.obssEnabled = pParam->obssEnabled;
 		pMac->roam.configParam.vendor_vht_sap =
@@ -3548,6 +3562,14 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->initial_scan_no_dfs_chnl = cfg_params->initial_scan_no_dfs_chnl;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	pParam->isRoamOffloadEnabled = cfg_params->isRoamOffloadEnabled;
+	pParam->enable_disconnect_roam_offload =
+		cfg_params->enable_disconnect_roam_offload;
+	pParam->enable_idle_roam = cfg_params->enable_idle_roam;
+	pParam->idle_roam_rssi_delta = cfg_params->idle_roam_rssi_delta;
+	pParam->idle_roam_inactive_time = cfg_params->idle_roam_inactive_time;
+	pParam->idle_data_packet_count = cfg_params->idle_data_packet_count;
+	pParam->idle_roam_band = cfg_params->idle_roam_band;
+	pParam->idle_roam_min_rssi = cfg_params->idle_roam_min_rssi;
 #endif
 	pParam->enable_dot11p = pMac->enable_dot11p;
 	csr_set_channels(pMac, pParam);
@@ -19143,6 +19165,17 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 				     tSirRoamOffloadScanReq *req_buf,
 				     struct csr_roam_session *session)
 {
+	req_buf->RoamOffloadEnabled = csr_roamIsRoamOffloadEnabled(mac_ctx);
+	/* Roam Offload piggybacks upon the Roam Scan offload command. */
+	if (req_buf->RoamOffloadEnabled)
+		return;
+
+	req_buf->RoamKeyMgmtOffloadEnabled = session->RoamKeyMgmtOffloadEnabled;
+	req_buf->pmkid_modes = session->pmkid_modes;
+	qdf_mem_copy(&req_buf->roam_params,
+		     &mac_ctx->roam.configParam.roam_params,
+		     sizeof(req_buf->roam_params));
+
 	qdf_mem_copy(req_buf->PSK_PMK, session->psk_pmk,
 		     sizeof(req_buf->PSK_PMK));
 	req_buf->pmk_len = session->pmk_len;
@@ -19176,6 +19209,23 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 			mac_ctx->roam.configParam.bss_load_sample_time;
 	req_buf->bss_load_config.vdev_id = session->sessionId;
 
+	req_buf->disconnect_roam_params.enable =
+		mac_ctx->roam.configParam.enable_disconnect_roam_offload;
+	req_buf->disconnect_roam_params.vdev_id = session->sessionId;
+
+	req_buf->idle_roam_params.vdev_id = session->sessionId;
+	req_buf->idle_roam_params.enable =
+		mac_ctx->roam.configParam.enable_idle_roam;
+	req_buf->idle_roam_params.conn_ap_rssi_delta =
+		mac_ctx->roam.configParam.idle_roam_rssi_delta;
+	req_buf->idle_roam_params.inactive_time =
+		mac_ctx->roam.configParam.idle_roam_inactive_time;
+	req_buf->idle_roam_params.data_pkt_count =
+		mac_ctx->roam.configParam.idle_data_packet_count;
+	req_buf->idle_roam_params.band =
+		mac_ctx->roam.configParam.idle_roam_band;
+	req_buf->idle_roam_params.conn_ap_min_rssi =
+		mac_ctx->roam.configParam.idle_roam_min_rssi;
 
 	if (wlan_cfg_get_int(mac_ctx, WNI_CFG_REASSOCIATION_FAILURE_TIMEOUT,
 			     (uint32_t *) &req_buf->ReassocFailureTimeout)
@@ -19193,6 +19243,12 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	req_buf->AcUapsd.acvi_uapsd = SIR_UAPSD_GET(ACVI, session->uapsd_mask);
 	req_buf->AcUapsd.acvo_uapsd = SIR_UAPSD_GET(ACVO, session->uapsd_mask);
 }
+#else
+static inline void
+csr_update_roam_scan_offload_request(struct mac_context *mac_ctx,
+				     struct roam_offload_scan_req *req_buf,
+				     struct csr_roam_session *session)
+{}
 #endif /* WLAN_FEATURE_ROAM_OFFLOAD */
 
 #if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
@@ -19713,12 +19769,12 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		(csr_is_auth_type_ese(req_buf->
 			ConnectedNetwork.authentication)));
 	req_buf->is_11r_assoc = roam_info->is11rAssoc;
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			"IsEseAssoc: %d is_11r_assoc: %d middle of roaming: %d ese_neighbor_list_recvd: %d cur no of chan: %d",
-			req_buf->IsESEAssoc, req_buf->is_11r_assoc,
-			req_buf->middle_of_roaming,
-			ese_neighbor_list_recvd,
-			curr_ch_lst_info->numOfChannels);
+	sme_debug("IsEseAssoc: %d is_11r_assoc: %d middle of roaming: %d",
+		  req_buf->IsESEAssoc, req_buf->is_11r_assoc,
+		  req_buf->middle_of_roaming);
+
+	sme_debug("ese_neighbor_list_recvd: %d cur no of chan: %d",
+		  ese_neighbor_list_recvd, curr_ch_lst_info->numOfChannels);
 #endif
 
 	if (!CSR_IS_ROAM_INTRA_BAND_ENABLED(mac_ctx)) {
@@ -19775,8 +19831,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		/* Maintain the Valid Channels List */
 		status = csr_fetch_valid_ch_lst(mac_ctx, req_buf, session_id);
 		if (!QDF_IS_STATUS_SUCCESS(status)) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-					"Fetch channel list fail");
+			sme_err("Fetch channel list fail");
 			qdf_mem_free(req_buf);
 			return NULL;
 		}
@@ -19791,8 +19846,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		} else
 			break;
 	}
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		 FL("ChnlCacheType:%d, No of Chnls:%d,Channels: %s"),
+	sme_debug("ChnlCacheType:%d, No of Chnls:%d,Channels: %s",
 		  req_buf->ChannelCacheType,
 		  req_buf->ConnectedNetwork.ChannelCount, ch_cache_str);
 
@@ -19811,10 +19865,10 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	 * where RFS is the RF Switching time. It is twice RFS to consider the
 	 * time to go off channel and return to the home channel.
 	 */
-	if (req_buf->HomeAwayTime < (req_buf->NeighborScanChannelMaxTime +
+	if (req_buf->HomeAwayTime <
+	    (req_buf->NeighborScanChannelMaxTime +
 	     (2 * CSR_ROAM_SCAN_CHANNEL_SWITCH_TIME))) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			 "Invalid config, Home away time(%d) is less than (twice RF switching time + channel max time)(%d). Hence enforcing home away time to disable (0)",
+		sme_debug("Disable Home away time(%d) as it is less than (2*RF switching time + channel max time)(%d)",
 			  req_buf->HomeAwayTime,
 			  (req_buf->NeighborScanChannelMaxTime +
 			   (2 * CSR_ROAM_SCAN_CHANNEL_SWITCH_TIME)));
@@ -19842,6 +19896,18 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	req_buf->lca_config_params.num_disallowed_aps =
 		mac_ctx->roam.configParam.num_disallowed_aps;
 
+	sme_debug("HomeAwayTime=%d EarlyStopFeature Enable=%d",
+		  req_buf->HomeAwayTime, req_buf->early_stop_scan_enable);
+
+	sme_debug("MinThresh=%d, MaxThresh=%d",
+		  req_buf->early_stop_scan_min_threshold,
+		  req_buf->early_stop_scan_max_threshold);
+
+	sme_debug("disallow_dur=%d rssi_chan_pen=%d num_disallowed_aps=%d",
+		  req_buf->lca_config_params.disallow_duration,
+		  req_buf->lca_config_params.rssi_channel_penalization,
+		  req_buf->lca_config_params.num_disallowed_aps);
+
 	/* For RSO Stop, we need to notify FW to deinit BTM */
 	if (command == ROAM_SCAN_OFFLOAD_STOP)
 		req_buf->btm_offload_config = 0;
@@ -19860,27 +19926,7 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	req_buf->disassoc_timer_threshold =
 			mac_ctx->roam.configParam.btm_disassoc_timer_threshold;
 
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		  FL("HomeAwayTime=%d EarlyStopFeature Enable=%d, MinThresh=%d, MaxThresh=%d PMK len=%d disallow_dur=%d rssi_chan_pen=%d num_disallowed_aps=%d"),
-		  req_buf->HomeAwayTime,
-		  req_buf->early_stop_scan_enable,
-		  req_buf->early_stop_scan_min_threshold,
-		  req_buf->early_stop_scan_max_threshold,
-		  req_buf->pmk_len,
-		  req_buf->lca_config_params.disallow_duration,
-		  req_buf->lca_config_params.rssi_channel_penalization,
-		  req_buf->lca_config_params.num_disallowed_aps);
-	req_buf->RoamOffloadEnabled = csr_roamIsRoamOffloadEnabled(mac_ctx);
-	req_buf->RoamKeyMgmtOffloadEnabled = session->RoamKeyMgmtOffloadEnabled;
-	req_buf->pmkid_modes = session->pmkid_modes;
-	/* Roam Offload piggybacks upon the Roam Scan offload command. */
-	if (req_buf->RoamOffloadEnabled)
-		csr_update_roam_scan_offload_request(mac_ctx, req_buf, session);
-	qdf_mem_copy(&req_buf->roam_params,
-		&mac_ctx->roam.configParam.roam_params,
-		sizeof(req_buf->roam_params));
-#endif
+	csr_update_roam_scan_offload_request(mac_ctx, req_buf, session);
 	return req_buf;
 }
 
