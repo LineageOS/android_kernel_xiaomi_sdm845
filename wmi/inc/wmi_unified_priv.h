@@ -1633,6 +1633,12 @@ QDF_STATUS (*send_btm_config)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*send_roam_bss_load_config)(wmi_unified_t wmi_handle,
 					struct wmi_bss_load_config *params);
+QDF_STATUS (*send_disconnect_roam_params)(
+			wmi_unified_t wmi_handle,
+			struct wmi_disconnect_roam_params *req);
+
+QDF_STATUS (*send_idle_roam_params)(wmi_unified_t wmi_handle,
+				    struct wmi_idle_roam_params *req);
 
 QDF_STATUS (*send_obss_detection_cfg_cmd)(wmi_unified_t wmi_handle,
 		struct wmi_obss_detection_cfg_param *obss_cfg_param);

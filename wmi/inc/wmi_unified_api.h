@@ -2232,6 +2232,29 @@ QDF_STATUS wmi_unified_send_bss_load_config(void *wmi_hdl,
 					    struct wmi_bss_load_config *params);
 
 /**
+ * wmi_unified_send_disconnect_roam_params() - Send disconnect roam trigger
+ * parameters to firmware
+ * @wmi_hdl:  wmi handle
+ * @params: pointer to wmi_disconnect_roam_params
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_send_disconnect_roam_params(wmi_unified_t wmi_handle,
+					struct wmi_disconnect_roam_params *req);
+
+/**
+ * wmi_unified_send_idle_roam_params() - Send idle roam trigger params to fw
+ * @wmi_hdl:  wmi handle
+ * @params: pointer to wmi_idle_roam_params
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_send_idle_roam_params(wmi_unified_t wmi_handle,
+				  struct wmi_idle_roam_params *req);
+
+/**
  * wmi_unified_send_obss_detection_cfg_cmd() - WMI function to send obss
  *  detection configuration to FW.
  * @wmi_hdl: wmi handle

@@ -7372,6 +7372,26 @@ QDF_STATUS wmi_unified_send_bss_load_config(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 
+QDF_STATUS
+wmi_unified_send_disconnect_roam_params(wmi_unified_t wmi_handle,
+					struct wmi_disconnect_roam_params *req)
+{
+	if (wmi_handle->ops->send_disconnect_roam_params)
+		return wmi_handle->ops->send_disconnect_roam_params(wmi_handle,
+								    req);
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS
+wmi_unified_send_idle_roam_params(wmi_unified_t wmi_handle,
+				  struct wmi_idle_roam_params *req)
+{
+	if (wmi_handle->ops->send_idle_roam_params)
+		return wmi_handle->ops->send_idle_roam_params(wmi_handle,
+							      req);
+	return QDF_STATUS_E_FAILURE;
+}
+
 QDF_STATUS wmi_unified_send_obss_detection_cfg_cmd(void *wmi_hdl,
 		struct wmi_obss_detection_cfg_param *obss_cfg_param)
 {
