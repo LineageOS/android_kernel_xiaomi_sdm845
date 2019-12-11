@@ -16572,6 +16572,38 @@ enum hdd_external_acs_policy {
 #define CFG_LFR_IDLE_ROAM_BAND_MAX      (2)
 #define CFG_LFR_IDLE_ROAM_BAND_DEFAULT  (0)
 
+#ifdef WLAN_ADAPTIVE_11R
+/*
+ * <ini>
+ * adaptive_11r - Enable/disable adaptive 11r feature.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Adaptive 11r feature enables the AP to support FT-AKM without
+ * configuring the FT-AKM in the network. The AP will advertise non-FT akm
+ * with a vendor specific IE having Adaptive 11r bit set to 1 in the IE data.
+ * The AP also advertises the MDE in beacon/probe response.
+ *
+ * STA should check the adaptive 11r capability if the AP advertises MDE in
+ * beacon/probe and adaptive 11r capability in vendor specific IE.  If adaptive
+ * 11r capability is found, STA can advertise the FT equivalent of the non-FT
+ * AKM and connect with 11r protocol.
+ *
+ * Related: None.
+ *
+ * Supported Feature: Fast BSS Transition
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ADAPTIVE_11R        "enable_adaptive_11r"
+#define CFG_ADAPTIVE_11R_MIN      (false)
+#define CFG_ADAPTIVE_11R_MAX      (true)
+#define CFG_ADAPTIVE_11R_DEFAULT  (false)
+#endif
+
 /*
  * Type declarations
  */
@@ -17557,6 +17589,9 @@ struct hdd_config {
 	bool ignore_fw_reg_offload_ind;
 	uint32_t roam_full_scan_period;
 	uint16_t ndp_inactivity_timeout;
+#ifdef WLAN_ADAPTIVE_11R
+	bool enable_adaptive_11r;
+#endif
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

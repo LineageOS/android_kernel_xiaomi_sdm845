@@ -43,6 +43,7 @@
  * @twt_responder: TWT responder capability
  * @bcn_reception_stats: Beacon Reception stats capability
  * @ft_akm_service_bitmap: bitmap of FT akm supported by firmware
+ * @is_adaptive_11r_roam_supported: Adaptive 11r target capability
  */
 struct wma_tgt_services {
 	uint32_t sta_power_save;
@@ -75,6 +76,7 @@ struct wma_tgt_services {
 	bool twt_responder;
 	bool bcn_reception_stats;
 	uint32_t ft_akm_service_bitmap;
+	bool is_adaptive_11r_roam_supported;
 };
 
 /**

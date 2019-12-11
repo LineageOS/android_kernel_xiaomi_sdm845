@@ -2446,6 +2446,31 @@ static enum wlan_phymode csr_convert_dotllmod_phymode(eCsrPhyMode dotllmode)
 	return con_phy_mode;
 }
 
+#ifdef WLAN_ADAPTIVE_11R
+/**
+ * csr_update_adaptive_11r_scan_filter - Copy adaptive 11r ini to scan
+ * module
+ * @mac_ctx: Pointer to mac_context
+ * @scan_filter: Scan filter to be sent to scan module
+ *
+ * Return: None
+ */
+static void
+csr_update_adaptive_11r_scan_filter(tpAniSirGlobal mac_ctx,
+				    struct scan_filter *filter)
+{
+	filter->enable_adaptive_11r =
+		mac_ctx->roam.configParam.enable_adaptive_11r;
+}
+#else
+static inline void
+csr_update_adaptive_11r_scan_filter(tpAniSirGlobal mac_ctx,
+				    struct scan_filter *filter)
+{
+	filter->enable_adaptive_11r = false;
+}
+#endif
+
 static QDF_STATUS csr_prepare_scan_filter(tpAniSirGlobal mac_ctx,
 	tCsrScanResultFilter *pFilter, struct scan_filter *filter)
 {
@@ -2554,6 +2579,9 @@ static QDF_STATUS csr_prepare_scan_filter(tpAniSirGlobal mac_ctx,
 		filter->bss_scoring_required = true;
 	else
 		filter->bss_scoring_required = false;
+
+	csr_update_adaptive_11r_scan_filter(mac_ctx, filter);
+
 	if (!pFilter->BSSIDs.numOfBSSIDs) {
 		if (policy_mgr_map_concurrency_mode(
 		   &pFilter->csrPersona, &new_mode)) {
@@ -2723,6 +2751,7 @@ static QDF_STATUS csr_fill_bss_from_scan_entry(tpAniSirGlobal mac_ctx,
 			  IEEE80211_FC0_SUBTYPE_PROBE_RESP);
 	bss_desc->seq_ctrl = hdr->seqControl;
 	bss_desc->tsf_delta = scan_entry->tsf_delta;
+	bss_desc->adaptive_11r_ap = scan_entry->adaptive_11r_ap;
 
 	qdf_mem_copy((uint8_t *) &bss_desc->ieFields,
 		ie_ptr, ie_len);

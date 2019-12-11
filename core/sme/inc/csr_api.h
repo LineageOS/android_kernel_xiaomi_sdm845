@@ -1323,6 +1323,9 @@ typedef struct tagCsrConfigParam {
 	bool enable_bss_load_roam_trigger;
 	uint32_t bss_load_threshold;
 	uint32_t bss_load_sample_time;
+#ifdef WLAN_ADAPTIVE_11R
+	bool enable_adaptive_11r;
+#endif
 } tCsrConfigParam;
 
 /* Tush */

@@ -634,6 +634,9 @@ struct csr_config {
 	uint32_t bss_load_threshold;
 	uint32_t bss_load_sample_time;
 	bool roaming_scan_policy;
+#ifdef WLAN_ADAPTIVE_11R
+	bool enable_adaptive_11r;
+#endif
 };
 
 struct csr_channel_powerinfo {
@@ -978,6 +981,7 @@ struct csr_roam_session {
 	bool is_fils_connection;
 	uint16_t fils_seq_num;
 	bool discon_in_progress;
+	bool is_adaptive_11r_connection;
 	struct csr_disconnect_stats disconnect_stats;
 };
 

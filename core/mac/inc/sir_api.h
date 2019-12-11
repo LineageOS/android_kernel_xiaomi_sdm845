@@ -771,6 +771,7 @@ struct bss_description {
 	uint8_t WscIeProbeRsp[WSCIE_PROBE_RSP_LEN];
 	uint8_t reservedPadding4;
 	uint32_t tsf_delta;
+	uint32_t adaptive_11r_ap;
 #ifdef WLAN_FEATURE_FILS_SK
 	struct fils_ind_elements fils_info_element;
 #endif
@@ -1090,6 +1091,7 @@ typedef struct sSirSmeJoinReq {
 #endif
 
 	bool is11Rconnection;
+	bool is_adaptive_11r_connection;
 #ifdef FEATURE_WLAN_ESE
 	bool isESEFeatureIniEnabled;
 	bool isESEconnection;
@@ -3010,6 +3012,9 @@ typedef struct sSirRoamOffloadScanReq {
 	struct wmi_bss_load_config bss_load_config;
 	bool roaming_scan_policy;
 	uint32_t full_roam_scan_period;
+#ifdef WLAN_ADAPTIVE_11R
+	bool is_adaptive_11r_connection;
+#endif
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {
