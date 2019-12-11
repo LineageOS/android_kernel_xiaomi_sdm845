@@ -91,6 +91,11 @@ QDF_STATUS sme_acquire_global_lock(tSmeStruct *psSme)
 	return status;
 }
 
+uint32_t sme_get_vht_ch_width(void)
+{
+	return wma_get_vht_ch_width();
+}
+
 void
 sme_store_nss_chains_cfg_in_vdev(struct wlan_objmgr_vdev *vdev,
 				 struct mlme_nss_chains *vdev_ini_cfg)
