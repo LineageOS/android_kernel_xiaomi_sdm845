@@ -1298,6 +1298,7 @@ struct ap_ps_params {
 /**
  * struct scan_chan_list_params  - scan channel list cmd parameter
  * @num_scan_chans: no of scan channels
+ * @@max_bw_support_present: max BW support present
  * @chan_info: pointer to wmi channel info
  */
 #ifdef CONFIG_MCL
@@ -1322,6 +1323,7 @@ typedef struct {
 struct scan_chan_list_params {
 	uint32_t pdev_id;
 	uint8_t num_scan_chans;
+	bool max_bw_support_present;
 	wmi_channel_param *chan_info;
 };
 #else
