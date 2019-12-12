@@ -2564,17 +2564,26 @@ QDF_STATUS sme_send_mgmt_tx(tHalHandle hal, uint8_t session_id,
 #ifdef WLAN_FEATURE_SAE
 /**
  * sme_handle_sae_msg() - Sends SAE message received from supplicant
- * @hal: The handle returned by mac_open
+ * @mac_handle: The handle returned by mac_open
  * @session_id: session id
  * @sae_status: status of SAE authentication
+ * @peer_mac_addr: mac address of the peer to be authenticated
+ * @pmkid: PMKID derived at the end of SAE authentication
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS sme_handle_sae_msg(tHalHandle hal, uint8_t session_id,
-		uint8_t sae_status);
+QDF_STATUS sme_handle_sae_msg(mac_handle_t mac_handle,
+			      uint8_t session_id,
+			      uint8_t sae_status,
+			      struct qdf_mac_addr peer_mac_addr,
+			      const uint8_t *pmkid);
+
 #else
-static inline QDF_STATUS sme_handle_sae_msg(tHalHandle hal, uint8_t session_id,
-		uint8_t sae_status)
+QDF_STATUS sme_handle_sae_msg(mac_handle_t mac_handle,
+			      uint8_t session_id,
+			      uint8_t sae_status,
+			      struct qdf_mac_addr peer_mac_addr,
+			      const uint8_t *pmkid)
 {
 	return QDF_STATUS_SUCCESS;
 }

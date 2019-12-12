@@ -23874,6 +23874,23 @@ wlan_hdd_cfg80211_update_connect_params(struct wiphy *wiphy,
 #if defined(WLAN_FEATURE_SAE) && \
 	defined(CFG80211_EXTERNAL_AUTH_SUPPORT)
 /**
+ * wlan_hdd_extauth_copy_pmkid() - Copy the pmkid received from the
+ * external authentication command received from the userspace.
+ * @params: pointer to auth params
+ * @pmkid: Pointer to destination pmkid buffer to be filled
+ *
+ * The caller should ensure that destination pmkid buffer is not NULL.
+ *
+ * Return: None
+ */
+static void
+wlan_hdd_extauth_copy_pmkid(struct cfg80211_external_auth_params *params,
+			    uint8_t *pmkid)
+{
+	qdf_mem_copy(pmkid, params->pmkid, PMKID_LEN);
+}
+
+/**
  * __wlan_hdd_cfg80211_external_auth() - Handle external auth
  * @wiphy: Pointer to wireless phy
  * @dev: net device
@@ -23890,6 +23907,8 @@ __wlan_hdd_cfg80211_external_auth(struct wiphy *wiphy,
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	int ret;
 	mac_handle_t mac_handle;
+	uint8_t pmkid[PMKID_LEN] = {0};
+	struct qdf_mac_addr peer_mac_addr;
 
 	if (hdd_get_conparam() == QDF_GLOBAL_FTM_MODE) {
 		hdd_err("Command not allowed in FTM mode");
@@ -23903,11 +23922,14 @@ __wlan_hdd_cfg80211_external_auth(struct wiphy *wiphy,
 	if (ret)
 		return ret;
 
+	hdd_debug("external_auth status: %d peer mac: " QDF_MAC_ADDR_STR,
+		  params->status, QDF_MAC_ADDR_ARRAY(params->bssid));
 
-	hdd_debug("external_auth status: %d", params->status);
 	mac_handle = hdd_ctx->mac_handle;
-	sme_handle_sae_msg(mac_handle, adapter->session_id, params->status);
-
+	qdf_mem_copy(peer_mac_addr.bytes, params->bssid, QDF_MAC_ADDR_SIZE);
+	wlan_hdd_extauth_copy_pmkid(params, pmkid);
+	sme_handle_sae_msg(mac_handle, adapter->session_id, params->status,
+			   peer_mac_addr, pmkid);
 	return ret;
 }
 
