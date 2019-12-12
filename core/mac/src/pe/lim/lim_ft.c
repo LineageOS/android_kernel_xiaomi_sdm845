@@ -472,8 +472,9 @@ void lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 /**
  * lim_fill_dot11mode() - to fill 802.11 mode in FT session
  * @mac_ctx: pointer to mac ctx
- * @pftSessionEntry: FT session
+ * @ft_session: FT session
  * @psessionEntry: PE session
+ * @bcn: AP beacon pointer
  *
  * This API fills FT session's dot11mode either from pe session or
  * from CFG depending on the condition.
@@ -481,18 +482,49 @@ void lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
  * Return: none
  */
 static void lim_fill_dot11mode(tpAniSirGlobal mac_ctx,
-			tpPESession pftSessionEntry, tpPESession psessionEntry)
+			       tpPESession ft_session,
+			       tpPESession psessionEntry,
+			       tSchBeaconStruct *bcn)
 {
 	uint32_t self_dot11_mode;
 
 	if (psessionEntry->ftPEContext.pFTPreAuthReq &&
 			!mac_ctx->roam.configParam.isRoamOffloadEnabled) {
-		pftSessionEntry->dot11mode =
+		ft_session->dot11mode =
 			psessionEntry->ftPEContext.pFTPreAuthReq->dot11mode;
-	} else {
-		wlan_cfg_get_int(mac_ctx, WNI_CFG_DOT11_MODE, &self_dot11_mode);
-		pe_debug("selfDot11Mode: %d", self_dot11_mode);
-		pftSessionEntry->dot11mode = self_dot11_mode;
+		return;
+	}
+
+	wlan_cfg_get_int(mac_ctx, WNI_CFG_DOT11_MODE, &self_dot11_mode);
+	pe_debug("selfDot11Mode: %d", self_dot11_mode);
+
+	if (ft_session->limRFBand == BAND_2G)
+		ft_session->dot11mode = WNI_CFG_DOT11_MODE_11G;
+	else
+		ft_session->dot11mode = WNI_CFG_DOT11_MODE_11A;
+
+	switch (self_dot11_mode) {
+	case WNI_CFG_DOT11_MODE_11AX:
+	case WNI_CFG_DOT11_MODE_11AX_ONLY:
+		if (bcn->he_cap.present)
+			ft_session->dot11mode = WNI_CFG_DOT11_MODE_11AX;
+		else if (bcn->VHTCaps.present)
+			ft_session->dot11mode = WNI_CFG_DOT11_MODE_11AC;
+		else if (bcn->HTCaps.present)
+			ft_session->dot11mode = WNI_CFG_DOT11_MODE_11N;
+		break;
+	case WNI_CFG_DOT11_MODE_11AC:
+	case WNI_CFG_DOT11_MODE_11AC_ONLY:
+		if (bcn->VHTCaps.present)
+			ft_session->dot11mode = WNI_CFG_DOT11_MODE_11AC;
+		else if (bcn->HTCaps.present)
+			ft_session->dot11mode = WNI_CFG_DOT11_MODE_11N;
+		break;
+	case WNI_CFG_DOT11_MODE_11N:
+	case WNI_CFG_DOT11_MODE_11N_ONLY:
+		if (bcn->HTCaps.present)
+			ft_session->dot11mode = WNI_CFG_DOT11_MODE_11N;
+		break;
 	}
 }
 #elif defined(WLAN_FEATURE_HOST_ROAM)
@@ -501,13 +533,16 @@ static void lim_fill_dot11mode(tpAniSirGlobal mac_ctx,
  * @mac_ctx: pointer to mac ctx
  * @pftSessionEntry: FT session
  * @psessionEntry: PE session
+ * @bcn: AP beacon pointer
  *
  * This API fills FT session's dot11mode either from pe session.
  *
  * Return: none
  */
 static void lim_fill_dot11mode(tpAniSirGlobal mac_ctx,
-			tpPESession pftSessionEntry, tpPESession psessionEntry)
+			       tpPESession pftSessionEntry,
+			       tpPESession psessionEntry,
+			       tSchBeaconStruct *bcn)
 {
 	pftSessionEntry->dot11mode =
 			psessionEntry->ftPEContext.pFTPreAuthReq->dot11mode;
@@ -570,7 +605,14 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	pftSessionEntry->ssId.length = pBeaconStruct->ssId.length;
 	qdf_mem_copy(pftSessionEntry->ssId.ssId, pBeaconStruct->ssId.ssId,
 		     pftSessionEntry->ssId.length);
-	lim_fill_dot11mode(pMac, pftSessionEntry, psessionEntry);
+
+	/* Copy The channel Id to the session Table */
+	pftSessionEntry->limReassocChannelId = pbssDescription->channelId;
+	pftSessionEntry->currentOperChannel = pbssDescription->channelId;
+
+	pftSessionEntry->limRFBand = lim_get_rf_band(
+				pftSessionEntry->currentOperChannel);
+	lim_fill_dot11mode(pMac, pftSessionEntry, psessionEntry, pBeaconStruct);
 
 	pe_debug("dot11mode: %d", pftSessionEntry->dot11mode);
 	pftSessionEntry->vhtCapability =
@@ -579,13 +621,6 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	pftSessionEntry->htCapability =
 		(IS_DOT11_MODE_HT(pftSessionEntry->dot11mode)
 		 && pBeaconStruct->HTCaps.present);
-
-	/* Copy The channel Id to the session Table */
-	pftSessionEntry->limReassocChannelId = pbssDescription->channelId;
-	pftSessionEntry->currentOperChannel = pbssDescription->channelId;
-
-	pftSessionEntry->limRFBand = lim_get_rf_band(
-				pftSessionEntry->currentOperChannel);
 
 	if (pftSessionEntry->limRFBand == BAND_2G) {
 		cbEnabledMode = pMac->roam.configParam.channelBondingMode24GHz;
