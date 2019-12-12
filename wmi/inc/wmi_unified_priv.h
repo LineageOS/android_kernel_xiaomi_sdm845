@@ -1633,6 +1633,9 @@ QDF_STATUS (*extract_ndp_sch_update)(wmi_unified_t wmi_handle,
 QDF_STATUS (*send_btm_config)(wmi_unified_t wmi_handle,
 			      struct wmi_btm_config *params);
 
+QDF_STATUS (*send_roam_preauth_status)(wmi_unified_t wmi_handle,
+				struct wmi_roam_auth_status_params *params);
+
 QDF_STATUS (*send_roam_bss_load_config)(wmi_unified_t wmi_handle,
 					struct wmi_bss_load_config *params);
 QDF_STATUS (*send_disconnect_roam_params)(

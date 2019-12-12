@@ -5723,6 +5723,7 @@ typedef enum {
 	wmi_coex_report_antenna_isolation_event_id,
 	wmi_get_ani_level_event_id,
 	wmi_oem_data_event_id,
+	wmi_roam_auth_offload_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 
@@ -6165,6 +6166,8 @@ typedef enum {
 	wmi_service_wpa3_ft_suite_b_support,
 	wmi_service_ft_fils,
 	wmi_service_adaptive_11r_support,
+	wmi_service_sae_roam_support,
+	wmi_service_owe_roam_support,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF
@@ -8353,6 +8356,24 @@ struct wmi_idle_roam_params {
 struct wmi_disconnect_roam_params {
 	uint32_t vdev_id;
 	bool enable;
+};
+
+/**
+ * struct wmi_roam_auth_status_params - WPA3 roam auth response status
+ * parameters
+ * @vdev_id: Vdev on which roam preauth is happening
+ * @preauth_status: Status of the Auth response.
+ *      IEEE80211_STATUS_SUCCESS(0) for success. Corresponding
+ *      IEEE80211 failure status code for failure.
+ *
+ * @bssid: Candidate BSSID
+ * @pmkid: PMKID derived for the auth
+ */
+struct wmi_roam_auth_status_params {
+	uint32_t vdev_id;
+	uint32_t preauth_status;
+	struct qdf_mac_addr bssid;
+	uint8_t pmkid[PMKID_LEN];
 };
 
 /**

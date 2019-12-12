@@ -6723,8 +6723,7 @@ static QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 				roam_offload_11i =
 				     (wmi_roam_11i_offload_tlv_param *) buf_ptr;
 
-				if (roam_req->roam_key_mgmt_offload_enabled &&
-				    roam_req->fw_okc) {
+				if (roam_req->fw_okc) {
 					WMI_SET_ROAM_OFFLOAD_OKC_ENABLED
 						(roam_offload_11i->flags);
 					WMI_LOGI("LFR3:OKC enabled");
@@ -6733,8 +6732,7 @@ static QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 						(roam_offload_11i->flags);
 					WMI_LOGI("LFR3:OKC disabled");
 				}
-				if (roam_req->roam_key_mgmt_offload_enabled &&
-				    roam_req->fw_pmksa_cache) {
+				if (roam_req->fw_pmksa_cache) {
 					WMI_SET_ROAM_OFFLOAD_PMK_CACHE_ENABLED
 						(roam_offload_11i->flags);
 					WMI_LOGI("LFR3:PMKSA caching enabled");
@@ -22356,6 +22354,60 @@ send_idle_roam_params_tlv(wmi_unified_t wmi_handle,
 
 	return QDF_STATUS_SUCCESS;
 }
+
+/**
+ * send_roam_preauth_status_tlv() - send roam pre-authentication status
+ * @wmi_handle: wmi handle
+ * @params: pre-auth status params
+ *
+ * This function sends the roam pre-authentication status for WPA3 SAE
+ * pre-auth to target.
+ *
+ * Return: QDF status
+ */
+static QDF_STATUS
+send_roam_preauth_status_tlv(wmi_unified_t wmi_handle,
+			     struct wmi_roam_auth_status_params *params)
+{
+	wmi_roam_preauth_status_cmd_fixed_param *cmd;
+	wmi_buf_t buf;
+	uint32_t len;
+	uint8_t *buf_ptr;
+
+	len = sizeof(*cmd) + WMI_TLV_HDR_SIZE + PMKID_LEN;
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf)
+		return QDF_STATUS_E_NOMEM;
+
+	buf_ptr = (uint8_t *)wmi_buf_data(buf);
+	cmd = (wmi_roam_preauth_status_cmd_fixed_param *)buf_ptr;
+	WMITLV_SET_HDR(
+	    &cmd->tlv_header,
+	    WMITLV_TAG_STRUC_wmi_roam_preauth_status_cmd_fixed_param,
+	    WMITLV_GET_STRUCT_TLVLEN(wmi_roam_preauth_status_cmd_fixed_param));
+
+	cmd->vdev_id = params->vdev_id;
+	cmd->preauth_status = params->preauth_status;
+	WMI_CHAR_ARRAY_TO_MAC_ADDR(params->bssid.bytes,
+				   &cmd->candidate_ap_bssid);
+
+	buf_ptr += sizeof(wmi_roam_preauth_status_cmd_fixed_param);
+	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_BYTE, PMKID_LEN);
+	buf_ptr += WMI_TLV_HDR_SIZE;
+
+	qdf_mem_copy(buf_ptr, params->pmkid, PMKID_LEN);
+	WMI_LOGD("%s: vdev_id:%d status:%d bssid:%pM", __func__, cmd->vdev_id,
+		 cmd->preauth_status, params->bssid.bytes);
+
+	wmi_mtrace(WMI_ROAM_PREAUTH_STATUS_CMDID, cmd->vdev_id, 0);
+	if (wmi_unified_cmd_send(wmi_handle, buf, len,
+				 WMI_ROAM_PREAUTH_STATUS_CMDID)) {
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
 #else
 static inline QDF_STATUS
 send_disconnect_roam_params_tlv(wmi_unified_t wmi_handle,
@@ -22367,6 +22419,13 @@ send_disconnect_roam_params_tlv(wmi_unified_t wmi_handle,
 static inline QDF_STATUS
 send_idle_roam_params_tlv(wmi_unified_t wmi_handle,
 			  struct wmi_idle_roam_params *idle_roam_params)
+{
+	return QDF_STATUS_E_FAILURE;
+}
+
+static inline QDF_STATUS
+send_roam_preauth_status_tlv(wmi_unified_t wmi_handle,
+			     struct wmi_roam_auth_status_params *params)
 {
 	return QDF_STATUS_E_FAILURE;
 }
@@ -23946,6 +24005,7 @@ struct wmi_ops tlv_ops =  {
 	.send_roam_bss_load_config = send_roam_bss_load_config_tlv,
 	.send_idle_roam_params = send_idle_roam_params_tlv,
 	.send_disconnect_roam_params = send_disconnect_roam_params_tlv,
+	.send_roam_preauth_status = send_roam_preauth_status_tlv,
 	.send_obss_detection_cfg_cmd = send_obss_detection_cfg_cmd_tlv,
 	.extract_obss_detection_info = extract_obss_detection_info_tlv,
 #ifdef WLAN_SUPPORT_FILS
@@ -24298,6 +24358,8 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 				WMI_COEX_REPORT_ANTENNA_ISOLATION_EVENTID;
 	event_ids[wmi_get_ani_level_event_id] = WMI_GET_CHANNEL_ANI_EVENTID;
 	event_ids[wmi_oem_data_event_id] = WMI_OEM_DATA_EVENTID;
+	event_ids[wmi_roam_auth_offload_event_id] =
+				WMI_ROAM_PREAUTH_START_EVENTID;
 }
 
 /**
@@ -24542,6 +24604,10 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_WPA3_FT_FILS;
 	wmi_service[wmi_service_adaptive_11r_support] =
 			WMI_SERVICE_ADAPTIVE_11R_ROAM;
+	wmi_service[wmi_service_sae_roam_support] =
+			WMI_SERVICE_WPA3_SAE_ROAM_SUPPORT;
+	wmi_service[wmi_service_owe_roam_support] =
+			WMI_SERVICE_WPA3_OWE_ROAM_SUPPORT;
 }
 
 #ifndef CONFIG_MCL
