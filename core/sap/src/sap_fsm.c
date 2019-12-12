@@ -919,6 +919,9 @@ sap_validate_chan(struct sap_context *sap_context,
 					"%s: Override ch %d to %d due to CC Intf",
 					__func__, sap_context->channel, con_ch);
 				sap_context->channel = con_ch;
+				if (WLAN_REG_IS_24GHZ_CH(con_ch))
+					sap_context->ch_params.ch_width =
+							CH_WIDTH_20MHZ;
 				wlan_reg_set_channel_params(mac_ctx->pdev,
 						sap_context->channel, 0,
 						&sap_context->ch_params);
@@ -985,6 +988,9 @@ sap_validate_chan(struct sap_context *sap_context,
 					"%s: Override ch %d to %d due to CC Intf",
 					__func__, sap_context->channel, con_ch);
 				sap_context->channel = con_ch;
+				if (WLAN_REG_IS_24GHZ_CH(con_ch))
+					sap_context->ch_params.ch_width =
+							CH_WIDTH_20MHZ;
 				wlan_reg_set_channel_params(mac_ctx->pdev,
 						sap_context->channel, 0,
 						&sap_context->ch_params);
