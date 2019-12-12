@@ -13920,13 +13920,13 @@ void sme_update_tgt_services(tHalHandle hal, struct wma_tgt_services *cfg)
 				cfg->is_fils_roaming_supported;
 	mac_ctx->is_11k_offload_supported =
 				cfg->is_11k_offload_supported;
-	mac_ctx->ft_akm_service_bitmap = cfg->ft_akm_service_bitmap;
+	mac_ctx->akm_service_bitmap = cfg->akm_service_bitmap;
 	mac_ctx->is_adaptive_11r_roam_supported =
 			cfg->is_adaptive_11r_roam_supported;
-	sme_debug("pmf_offload: %d fils_roam support %d 11k_offload %d ft_service_cap:%d adapt_11r:%d",
+	sme_debug("pmf_offload: %d fils_roam support %d 11k_offload %d akm_service_bitmap:%d adapt_11r:%d",
 		  mac_ctx->pmf_offload, mac_ctx->is_fils_roaming_supported,
 		  mac_ctx->is_11k_offload_supported,
-		  mac_ctx->ft_akm_service_bitmap,
+		  mac_ctx->akm_service_bitmap,
 		  mac_ctx->is_adaptive_11r_roam_supported);
 	mac_ctx->bcn_reception_stats = cfg->bcn_reception_stats;
 }

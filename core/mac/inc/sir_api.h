@@ -144,6 +144,8 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 #define AKM_FT_SAE           0
 #define AKM_FT_SUITEB_SHA384 1
 #define AKM_FT_FILS          2
+#define AKM_SAE              3
+#define AKM_OWE              4
 
 /**
  * enum sir_roam_op_code - Operation to be done by the callback.
