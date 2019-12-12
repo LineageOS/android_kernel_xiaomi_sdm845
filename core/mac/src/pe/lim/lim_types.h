@@ -455,8 +455,21 @@ void lim_process_probe_req_frame_multiple_bss(tpAniSirGlobal, uint8_t *,
 
 /* Process Auth frame when we have a session in progress. */
 void lim_process_auth_frame(tpAniSirGlobal, uint8_t *, tpPESession);
-QDF_STATUS lim_process_auth_frame_no_session(tpAniSirGlobal pMac, uint8_t *,
-						void *body);
+
+/**
+ * lim_process_auth_frame_no_session() - Process auth frame received from AP to
+ * which we are not connected currently.
+ * @mac: Pointer to global mac context
+ * @bd: Pointer to rx auth frame
+ * @body: Pointer to lim_msg->body_ptr
+ *
+ * This is possibly the pre-auth from the neighbor AP, in the same mobility
+ * domain or pre-authentication reply for WPA3 SAE roaming.
+ * This will be used in case of 11r FT.
+ */
+QDF_STATUS lim_process_auth_frame_no_session(tpAniSirGlobal mac,
+					     uint8_t *bd, void *body);
+
 
 void lim_process_assoc_req_frame(tpAniSirGlobal, uint8_t *, uint8_t, tpPESession);
 void lim_send_mlm_assoc_ind(tpAniSirGlobal pMac, tpDphHashNode pStaDs,
