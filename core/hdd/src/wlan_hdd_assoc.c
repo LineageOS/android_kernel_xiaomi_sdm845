@@ -1071,8 +1071,9 @@ hdd_send_ft_assoc_response(struct net_device *dev,
 	unsigned int len = 0;
 	u8 *pFTAssocRsp = NULL;
 
-	if (pCsrRoamInfo->nAssocRspLength == 0) {
-		hdd_debug("assoc rsp length is 0");
+	if (pCsrRoamInfo->nAssocRspLength < FT_ASSOC_RSP_IES_OFFSET) {
+		hdd_debug("Invalid assoc rsp length %d",
+			  pCsrRoamInfo->nAssocRspLength);
 		return;
 	}
 
@@ -1089,15 +1090,20 @@ hdd_send_ft_assoc_response(struct net_device *dev,
 		   (unsigned int)pFTAssocRsp[0],
 		   (unsigned int)pFTAssocRsp[1]);
 
+	/* Send the Assoc Resp, the supplicant needs this for initial Auth. */
+	len = pCsrRoamInfo->nAssocRspLength - FT_ASSOC_RSP_IES_OFFSET;
+	if (len > IW_GENERIC_IE_MAX) {
+		hdd_err("Invalid Assoc resp length %d", len);
+		return;
+	}
+	wrqu.data.length = len;
+
 	/* We need to send the IEs to the supplicant. */
 	buff = qdf_mem_malloc(IW_GENERIC_IE_MAX);
 	if (buff == NULL) {
 		hdd_err("unable to allocate memory");
 		return;
 	}
-	/* Send the Assoc Resp, the supplicant needs this for initial Auth. */
-	len = pCsrRoamInfo->nAssocRspLength - FT_ASSOC_RSP_IES_OFFSET;
-	wrqu.data.length = len;
 	memcpy(buff, pFTAssocRsp, len);
 	wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, buff);
 
