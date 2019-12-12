@@ -33,6 +33,9 @@
 #define CSR_INVALID_SCANRESULT_HANDLE       (NULL)
 #define CSR_NUM_WLM_LATENCY_LEVEL   4
 
+#define CFG_PMKID_MODES_OKC                        (0x1)
+#define CFG_PMKID_MODES_PMKSA_CACHING              (0x2)
+
 typedef enum {
 	/* never used */
 	eCSR_AUTH_TYPE_NONE,

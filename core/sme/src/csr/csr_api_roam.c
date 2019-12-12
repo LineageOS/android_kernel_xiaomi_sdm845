@@ -19356,6 +19356,8 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 				     tSirRoamOffloadScanReq *req_buf,
 				     struct csr_roam_session *session)
 {
+	uint32_t pmkid_modes = mac_ctx->akm_service_bitmap;
+
 	req_buf->RoamOffloadEnabled = csr_roamIsRoamOffloadEnabled(mac_ctx);
 	/* Roam Offload piggybacks upon the Roam Scan offload command. */
 	if (!req_buf->RoamOffloadEnabled) {
@@ -19364,7 +19366,11 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	}
 
 	req_buf->RoamKeyMgmtOffloadEnabled = session->RoamKeyMgmtOffloadEnabled;
-	req_buf->pmkid_modes = session->pmkid_modes;
+	req_buf->pmkid_modes.fw_okc =
+		(pmkid_modes & CFG_PMKID_MODES_OKC) ? 1 : 0;
+	req_buf->pmkid_modes.fw_pmksa_cache =
+		(pmkid_modes & CFG_PMKID_MODES_PMKSA_CACHING) ? 1 : 0;
+
 	qdf_mem_copy(&req_buf->roam_params,
 		     &mac_ctx->roam.configParam.roam_params,
 		     sizeof(req_buf->roam_params));
