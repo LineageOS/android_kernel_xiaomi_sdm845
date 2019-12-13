@@ -363,8 +363,10 @@ typedef struct {
 	__le16	access_date;		// aligned
 	__u8	create_time_ms;
 	__u8	modify_time_ms;
-	__u8	access_time_ms;
-	__u8	reserved2[9];
+	__u8	create_tz;
+	__u8	modify_tz;
+	__u8	access_tz;
+	__u8	reserved2[7];
 } FILE_DENTRY_T;
 
 /* EXFAT stream extension directory entry (32 bytes) */

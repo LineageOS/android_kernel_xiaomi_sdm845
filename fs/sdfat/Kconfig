@@ -120,3 +120,8 @@ config SDFAT_STATISTICS
 	bool "Enable statistics for bigdata"
 	depends on SDFAT_FS
 	default y
+
+config SDFAT_UEVENT
+	bool "enable uevent"
+	depends on SDFAT_FS
+	default y
