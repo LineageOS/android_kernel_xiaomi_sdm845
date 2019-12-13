@@ -55,10 +55,54 @@
 /*************************************************************************
  * FUNCTIONS WHICH HAS KERNEL VERSION DEPENDENCY
  *************************************************************************/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
-#define CURRENT_TIME_SEC	timespec_trunc(current_kernel_time(), NSEC_PER_SEC)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0)
+#define CURRENT_TIME_SEC	timespec64_trunc(current_kernel_time64(), NSEC_PER_SEC)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+#define CURRENT_TIME_SEC        timespec_trunc(current_kernel_time(), NSEC_PER_SEC)
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0) */
+       /* EMPTY */
 #endif
 
+
+#ifdef CONFIG_SDFAT_UEVENT
+static struct kobject sdfat_uevent_kobj;
+
+int sdfat_uevent_init(struct kset *sdfat_kset)
+{
+	int err;
+	struct kobj_type *ktype = get_ktype(&sdfat_kset->kobj);
+
+	sdfat_uevent_kobj.kset = sdfat_kset;
+	err = kobject_init_and_add(&sdfat_uevent_kobj, ktype, NULL, "uevent");
+	if (err)
+		pr_err("[SDFAT] Unable to create sdfat uevent kobj\n");
+
+	return err;
+}
+
+void sdfat_uevent_uninit(void)
+{
+	kobject_del(&sdfat_uevent_kobj);
+	memset(&sdfat_uevent_kobj, 0, sizeof(struct kobject));
+}
+
+void sdfat_uevent_ro_remount(struct super_block *sb)
+{
+	struct block_device *bdev = sb->s_bdev;
+	dev_t bd_dev = bdev ? bdev->bd_dev : 0;
+
+	char major[16], minor[16];
+	char *envp[] = { major, minor, NULL };
+
+	snprintf(major, sizeof(major), "MAJOR=%d", MAJOR(bd_dev));
+	snprintf(minor, sizeof(minor), "MINOR=%d", MINOR(bd_dev));
+
+	kobject_uevent_env(&sdfat_uevent_kobj, KOBJ_CHANGE, envp);
+
+	ST_LOG("[SDFAT](%s[%d:%d]): Uevent triggered\n",
+			sb->s_id, MAJOR(bd_dev), MINOR(bd_dev));
+}
+#endif
 
 /*
  * sdfat_fs_error reports a file system problem that might indicate fa data
@@ -103,6 +147,7 @@ void __sdfat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 		ST_LOG("[SDFAT](%s[%d:%d]): Filesystem has been set read-only\n",
 			sb->s_id, MAJOR(bd_dev), MINOR(bd_dev));
 #endif
+		sdfat_uevent_ro_remount(sb);
 	}
 }
 EXPORT_SYMBOL(__sdfat_fs_error);
@@ -178,9 +223,10 @@ static time_t accum_days_in_year[] = {
 	0, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 0, 0, 0,
 };
 
+#define TIMEZONE_SEC(x)	((x) * 15 * SECS_PER_MIN)
 /* Convert a FAT time/date pair to a UNIX date (seconds since 1 1 70). */
-void sdfat_time_fat2unix(struct sdfat_sb_info *sbi, struct timespec *ts,
-		DATE_TIME_T *tp)
+void sdfat_time_fat2unix(struct sdfat_sb_info *sbi, sdfat_timespec_t *ts,
+								DATE_TIME_T *tp)
 {
 	time_t year = tp->Year;
 	time_t ld; /* leap day */
@@ -195,22 +241,45 @@ void sdfat_time_fat2unix(struct sdfat_sb_info *sbi, struct timespec *ts,
 			+ (year * 365 + ld + accum_days_in_year[tp->Month]
 			+ (tp->Day - 1) + DAYS_DELTA_DECADE) * SECS_PER_DAY;
 
-	if (!sbi->options.tz_utc)
-		ts->tv_sec += sys_tz.tz_minuteswest * SECS_PER_MIN;
-
 	ts->tv_nsec = 0;
+
+	/* Treat as local time */
+	if (!sbi->options.tz_utc && !tp->Timezone.valid) {
+		ts->tv_sec += sys_tz.tz_minuteswest * SECS_PER_MIN;
+		return;
+	}
+
+	/* Treat as UTC time */
+	if (!tp->Timezone.valid)
+		return;
+
+	/* Treat as UTC time, but need to adjust timezone to UTC0 */
+	if (tp->Timezone.off <= 0x3F)
+		ts->tv_sec -= TIMEZONE_SEC(tp->Timezone.off);
+	else /* 0x40 <= (tp->Timezone & 0x7F) <=0x7F */
+		ts->tv_sec += TIMEZONE_SEC(0x80 - tp->Timezone.off);
 }
 
+#define TIMEZONE_CUR_OFFSET()	((sys_tz.tz_minuteswest / (-15)) & 0x7F)
 /* Convert linear UNIX date to a FAT time/date pair. */
-void sdfat_time_unix2fat(struct sdfat_sb_info *sbi, struct timespec *ts,
-		DATE_TIME_T *tp)
+void sdfat_time_unix2fat(struct sdfat_sb_info *sbi, sdfat_timespec_t *ts,
+								DATE_TIME_T *tp)
 {
+	bool tz_valid = (sbi->fsi.vol_type == EXFAT) ? true : false;
 	time_t second = ts->tv_sec;
 	time_t day, month, year;
 	time_t ld; /* leap day */
 
-	if (!sbi->options.tz_utc)
+	tp->Timezone.value = 0x00;
+
+	/* Treats as local time with proper time */
+	if (tz_valid || !sbi->options.tz_utc) {
 		second -= sys_tz.tz_minuteswest * SECS_PER_MIN;
+		if (tz_valid) {
+			tp->Timezone.valid = 1;
+			tp->Timezone.off = TIMEZONE_CUR_OFFSET();
+		}
+	}
 
 	/* Jan 1 GMT 00:00:00 1980. But what about another time zone? */
 	if (second < UNIX_SECS_1980) {
@@ -266,7 +335,7 @@ void sdfat_time_unix2fat(struct sdfat_sb_info *sbi, struct timespec *ts,
 
 TIMESTAMP_T *tm_now(struct sdfat_sb_info *sbi, TIMESTAMP_T *tp)
 {
-	struct timespec ts = CURRENT_TIME_SEC;
+	sdfat_timespec_t ts = CURRENT_TIME_SEC;
 	DATE_TIME_T dt;
 
 	sdfat_time_unix2fat(sbi, &ts, &dt);
@@ -277,6 +346,7 @@ TIMESTAMP_T *tm_now(struct sdfat_sb_info *sbi, TIMESTAMP_T *tp)
 	tp->hour = dt.Hour;
 	tp->min = dt.Minute;
 	tp->sec = dt.Second;
+	tp->tz.value = dt.Timezone.value;
 
 	return tp;
 }

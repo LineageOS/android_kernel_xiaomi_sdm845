@@ -98,6 +98,14 @@ typedef struct {
 /*  Type Definitions                                                    */
 /*----------------------------------------------------------------------*/
 /* should be merged it to DATE_TIME_T */
+typedef union {
+	struct {
+		u8 off : 7;
+		u8 valid : 1;
+	};
+	u8 value;
+} TIMEZONE_T;
+
 typedef struct {
 	u16      sec;        /* 0 ~ 59               */
 	u16      min;        /* 0 ~ 59               */
@@ -105,8 +113,8 @@ typedef struct {
 	u16      day;        /* 1 ~ 31               */
 	u16      mon;        /* 1 ~ 12               */
 	u16      year;       /* 0 ~ 127 (since 1980) */
+	TIMEZONE_T tz;
 } TIMESTAMP_T;
-
 
 typedef struct {
 	u16      Year;
@@ -116,6 +124,7 @@ typedef struct {
 	u16      Minute;
 	u16      Second;
 	u16      MilliSecond;
+	TIMEZONE_T Timezone;
 } DATE_TIME_T;
 
 typedef struct {

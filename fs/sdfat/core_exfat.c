@@ -222,24 +222,28 @@ static void exfat_set_entry_size(DENTRY_T *p_entry, u64 size)
 
 static void exfat_get_entry_time(DENTRY_T *p_entry, TIMESTAMP_T *tp, u8 mode)
 {
-	u16 t = 0x00, d = 0x21;
+	u16 t = 0x00, d = 0x21, tz = 0x00;
 	FILE_DENTRY_T *ep = (FILE_DENTRY_T *)p_entry;
 
 	switch (mode) {
 	case TM_CREATE:
 		t = le16_to_cpu(ep->create_time);
 		d = le16_to_cpu(ep->create_date);
+		tz = ep->create_tz;
 		break;
 	case TM_MODIFY:
 		t = le16_to_cpu(ep->modify_time);
 		d = le16_to_cpu(ep->modify_date);
+		tz = ep->modify_tz;
 		break;
 	case TM_ACCESS:
 		t = le16_to_cpu(ep->access_time);
 		d = le16_to_cpu(ep->access_date);
+		tz = ep->access_tz;
 		break;
 	}
 
+	tp->tz.value = tz;
 	tp->sec  = (t & 0x001F) << 1;
 	tp->min  = (t >> 5) & 0x003F;
 	tp->hour = (t >> 11);
@@ -260,14 +264,17 @@ static void exfat_set_entry_time(DENTRY_T *p_entry, TIMESTAMP_T *tp, u8 mode)
 	case TM_CREATE:
 		ep->create_time = cpu_to_le16(t);
 		ep->create_date = cpu_to_le16(d);
+		ep->create_tz = tp->tz.value;
 		break;
 	case TM_MODIFY:
 		ep->modify_time = cpu_to_le16(t);
 		ep->modify_date = cpu_to_le16(d);
+		ep->modify_tz = tp->tz.value;
 		break;
 	case TM_ACCESS:
 		ep->access_time = cpu_to_le16(t);
 		ep->access_date = cpu_to_le16(d);
+		ep->access_tz = tp->tz.value;
 		break;
 	}
 } /* end of exfat_set_entry_time */
@@ -285,7 +292,6 @@ static void __init_file_entry(struct super_block *sb, FILE_DENTRY_T *ep, u32 typ
 	exfat_set_entry_time((DENTRY_T *) ep, tp, TM_ACCESS);
 	ep->create_time_ms = 0;
 	ep->modify_time_ms = 0;
-	ep->access_time_ms = 0;
 } /* end of __init_file_entry */
 
 static void __init_strm_entry(STRM_DENTRY_T *ep, u8 flags, u32 start_clu, u64 size)
