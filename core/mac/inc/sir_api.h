@@ -3014,9 +3014,7 @@ typedef struct sSirRoamOffloadScanReq {
 	struct wmi_bss_load_config bss_load_config;
 	bool roaming_scan_policy;
 	uint32_t full_roam_scan_period;
-#ifdef WLAN_ADAPTIVE_11R
 	bool is_adaptive_11r_connection;
-#endif
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {
