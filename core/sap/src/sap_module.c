@@ -2863,13 +2863,15 @@ void wlansap_set_band_csa(struct sap_context *sap_ctx,
 	tHalHandle hal;
 	tpAniSirGlobal mac;
 
+	if (cds_is_driver_recovering())
+		return;
+
 	hal = CDS_GET_HAL_CB();
 	if (!hal) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("Invalid HAL pointer"));
 		return;
 	}
-
 	mac = PMAC_STRUCT(hal);
 
 	sap_band = WLAN_REG_CHAN_TO_BAND(sap_ctx->channel);
