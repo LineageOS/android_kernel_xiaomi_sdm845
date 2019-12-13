@@ -734,45 +734,6 @@ static bool csr_neighbor_roam_is_ssid_and_security_match(tpAniSirGlobal pMac,
 
 }
 
-bool csr_neighbor_roam_is_new_connected_profile(tpAniSirGlobal pMac,
-						uint8_t sessionId)
-{
-	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
-		&pMac->roam.neighborRoamInfo[sessionId];
-	tCsrRoamConnectedProfile *pCurrProfile = NULL;
-	tCsrRoamConnectedProfile *pPrevProfile = NULL;
-	tDot11fBeaconIEs *pIes = NULL;
-	tSirBssDescription *pBssDesc = NULL;
-	bool fNew = true;
-
-	if (!(pMac->roam.roamSession && CSR_IS_SESSION_VALID(pMac, sessionId)))
-		return fNew;
-
-	pCurrProfile = &pMac->roam.roamSession[sessionId].connectedProfile;
-	if (!pCurrProfile)
-		return fNew;
-
-	pPrevProfile = &pNeighborRoamInfo->prevConnProfile;
-	if (!pPrevProfile)
-		return fNew;
-
-	pBssDesc = pPrevProfile->pBssDesc;
-	if (pBssDesc) {
-		if (QDF_IS_STATUS_SUCCESS(
-		    csr_get_parsed_bss_description_ies(pMac, pBssDesc, &pIes))
-		    && csr_neighbor_roam_is_ssid_and_security_match(pMac,
-					pCurrProfile, pBssDesc, pIes)) {
-			fNew = false;
-		}
-		if (pIes)
-			qdf_mem_free(pIes);
-	}
-
-	sme_debug("roam profile match: %d", !fNew);
-
-	return fNew;
-}
-
 bool csr_neighbor_roam_connected_profile_match(tpAniSirGlobal pMac,
 					       uint8_t sessionId,
 					       struct tag_csrscan_result
