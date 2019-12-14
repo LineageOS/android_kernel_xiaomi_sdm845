@@ -1313,6 +1313,7 @@ typedef struct tagCsrConfigParam {
 	uint32_t btm_solicited_timeout;
 	uint32_t btm_max_attempt_cnt;
 	uint32_t btm_sticky_time;
+	uint32_t btm_trig_min_candidate_score;
 	uint32_t offload_11k_enable_bitmask;
 	bool wep_tkip_in_he;
 	struct csr_neighbor_report_offload_params neighbor_report_offload;
@@ -1323,6 +1324,15 @@ typedef struct tagCsrConfigParam {
 	bool enable_bss_load_roam_trigger;
 	uint32_t bss_load_threshold;
 	uint32_t bss_load_sample_time;
+	int32_t bss_load_trigger_rssi_threshold_5ghz;
+	int32_t bss_load_trigger_rssi_threshold_24ghz;
+	uint32_t roam_scan_inactivity_time;
+	uint32_t roam_inactive_data_packet_count;
+	uint32_t roam_scan_period_after_inactivity;
+	int32_t disconnect_roam_min_rssi;
+	int32_t bmiss_roam_min_rssi;
+	uint32_t btm_roam_score_delta;
+	uint32_t idle_roam_score_delta;
 #ifdef WLAN_ADAPTIVE_11R
 	bool enable_adaptive_11r;
 #endif

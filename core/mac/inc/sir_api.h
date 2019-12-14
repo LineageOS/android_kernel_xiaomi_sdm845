@@ -3004,6 +3004,7 @@ typedef struct sSirRoamOffloadScanReq {
 	uint32_t btm_sticky_time;
 	uint32_t rct_validity_timer;
 	uint32_t disassoc_timer_threshold;
+	uint32_t btm_trig_min_candidate_score;
 	struct wmi_11k_offload_params offload_11k_params;
 	uint32_t ho_delay_for_rx;
 	uint32_t min_delay_btw_roam_scans;
@@ -3013,7 +3014,12 @@ typedef struct sSirRoamOffloadScanReq {
 	bool bss_load_trig_enabled;
 	struct wmi_bss_load_config bss_load_config;
 	bool roaming_scan_policy;
+	uint32_t roam_scan_inactivity_time;
+	uint32_t roam_inactive_data_packet_count;
+	uint32_t roam_scan_period_after_inactivity;
 	uint32_t full_roam_scan_period;
+	struct roam_trigger_min_rssi min_rssi_params[NUM_OF_ROAM_TRIGGERS];
+	struct roam_trigger_score_delta score_delta_param[NUM_OF_ROAM_TRIGGERS];
 	bool is_adaptive_11r_connection;
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 

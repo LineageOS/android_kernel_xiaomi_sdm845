@@ -3404,6 +3404,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			pParam->btm_max_attempt_cnt;
 		pMac->roam.configParam.btm_sticky_time =
 			pParam->btm_sticky_time;
+		pMac->roam.configParam.btm_trig_min_candidate_score =
+				pParam->btm_trig_min_candidate_score;
 
 		pMac->roam.configParam.btm_validity_timer =
 				pParam->btm_validity_timer;
@@ -3415,6 +3417,25 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 				pParam->bss_load_threshold;
 		pMac->roam.configParam.bss_load_sample_time =
 				pParam->bss_load_sample_time;
+		pMac->roam.configParam.bss_load_trigger_rssi_threshold_5ghz =
+				pParam->bss_load_trigger_rssi_threshold_5ghz;
+		pMac->roam.configParam.bss_load_trigger_rssi_threshold_24ghz =
+				pParam->bss_load_trigger_rssi_threshold_24ghz;
+
+		pMac->roam.configParam.roam_scan_inactivity_time =
+				pParam->roam_scan_inactivity_time;
+		pMac->roam.configParam.roam_inactive_data_packet_count =
+				pParam->roam_inactive_data_packet_count;
+		pMac->roam.configParam.roam_scan_period_after_inactivity =
+				pParam->roam_scan_period_after_inactivity;
+		pMac->roam.configParam.disconnect_roam_min_rssi =
+				pParam->disconnect_roam_min_rssi;
+		pMac->roam.configParam.bmiss_roam_min_rssi =
+				pParam->bmiss_roam_min_rssi;
+		pMac->roam.configParam.btm_roam_score_delta =
+				pParam->btm_roam_score_delta;
+		pMac->roam.configParam.idle_roam_score_delta =
+				pParam->idle_roam_score_delta;
 
 		csr_get_adaptive_11r_config_param(pMac, pParam);
 		csr_update_he_config_param(pMac, pParam);
@@ -3760,6 +3781,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->btm_max_attempt_cnt =
 		pMac->roam.configParam.btm_max_attempt_cnt;
 	pParam->btm_sticky_time = pMac->roam.configParam.btm_sticky_time;
+	pParam->btm_trig_min_candidate_score =
+		pMac->roam.configParam.btm_trig_min_candidate_score;
 
 	pParam->mbo_thresholds.mbo_candidate_rssi_thres =
 		pMac->roam.configParam.mbo_thresholds.
@@ -3784,6 +3807,26 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 			pMac->roam.configParam.bss_load_threshold;
 	pParam->bss_load_sample_time =
 			pMac->roam.configParam.bss_load_sample_time;
+	pParam->bss_load_trigger_rssi_threshold_5ghz =
+		pMac->roam.configParam.bss_load_trigger_rssi_threshold_5ghz;
+	pParam->bss_load_trigger_rssi_threshold_24ghz =
+		pMac->roam.configParam.bss_load_trigger_rssi_threshold_24ghz;
+
+	pParam->roam_scan_inactivity_time =
+		pMac->roam.configParam.roam_scan_inactivity_time;
+	pParam->roam_inactive_data_packet_count =
+		pMac->roam.configParam.roam_inactive_data_packet_count;
+	pParam->roam_scan_period_after_inactivity =
+		pMac->roam.configParam.roam_scan_period_after_inactivity;
+	pParam->disconnect_roam_min_rssi =
+		pMac->roam.configParam.disconnect_roam_min_rssi;
+	pParam->bmiss_roam_min_rssi =
+		pMac->roam.configParam.bmiss_roam_min_rssi;
+	pParam->btm_roam_score_delta =
+		pMac->roam.configParam.btm_roam_score_delta;
+	pParam->idle_roam_score_delta =
+		pMac->roam.configParam.idle_roam_score_delta;
+
 	csr_get_adaptive_11r_config(pMac, pParam);
 	csr_get_he_config_param(pParam, pMac);
 
@@ -19289,6 +19332,30 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	req_buf->bss_load_config.bss_load_sample_time =
 			mac_ctx->roam.configParam.bss_load_sample_time;
 	req_buf->bss_load_config.vdev_id = session->sessionId;
+	req_buf->bss_load_config.rssi_threshold_5ghz =
+		mac_ctx->roam.configParam.bss_load_trigger_rssi_threshold_5ghz;
+	req_buf->bss_load_config.rssi_threshold_24ghz =
+		mac_ctx->roam.configParam.bss_load_trigger_rssi_threshold_24ghz;
+
+	req_buf->min_rssi_params[DEAUTH_MIN_RSSI].min_rssi =
+		mac_ctx->roam.configParam.disconnect_roam_min_rssi;
+	req_buf->min_rssi_params[DEAUTH_MIN_RSSI].trigger_reason =
+				ROAM_TRIGGER_REASON_DEAUTH;
+
+	req_buf->min_rssi_params[BMISS_MIN_RSSI].min_rssi =
+		mac_ctx->roam.configParam.bmiss_roam_min_rssi;
+	req_buf->min_rssi_params[BMISS_MIN_RSSI].trigger_reason =
+		ROAM_TRIGGER_REASON_BMISS;
+
+	req_buf->score_delta_param[IDLE_ROAM_TRIGGER].roam_score_delta =
+		mac_ctx->roam.configParam.idle_roam_score_delta;
+	req_buf->score_delta_param[IDLE_ROAM_TRIGGER].trigger_reason =
+		ROAM_TRIGGER_REASON_IDLE;
+
+	req_buf->score_delta_param[BTM_ROAM_TRIGGER].roam_score_delta =
+		mac_ctx->roam.configParam.btm_roam_score_delta;
+	req_buf->score_delta_param[BTM_ROAM_TRIGGER].trigger_reason =
+		ROAM_TRIGGER_REASON_BTM;
 
 	req_buf->disconnect_roam_params.enable =
 		mac_ctx->roam.configParam.enable_disconnect_roam_offload;
@@ -19824,8 +19891,15 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		roam_info->cfgParams.maxChannelScanTime;
 	req_buf->EmptyRefreshScanPeriod =
 		roam_info->cfgParams.emptyScanRefreshPeriod;
+	req_buf->roam_scan_inactivity_time =
+		mac_ctx->roam.configParam.roam_scan_inactivity_time;
+	req_buf->roam_inactive_data_packet_count =
+		mac_ctx->roam.configParam.roam_inactive_data_packet_count;
+	req_buf->roam_scan_period_after_inactivity =
+		mac_ctx->roam.configParam.roam_scan_period_after_inactivity;
 	req_buf->full_roam_scan_period =
 		roam_info->cfgParams.full_roam_scan_period;
+
 	req_buf->RoamBmissFirstBcnt =
 		roam_info->cfgParams.nRoamBmissFirstBcnt;
 	req_buf->RoamBmissFinalBcnt =
@@ -20002,6 +20076,9 @@ csr_create_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		mac_ctx->roam.configParam.btm_max_attempt_cnt;
 	req_buf->btm_sticky_time =
 		mac_ctx->roam.configParam.btm_sticky_time;
+	req_buf->btm_trig_min_candidate_score =
+		mac_ctx->roam.configParam.btm_trig_min_candidate_score;
+
 	req_buf->rct_validity_timer =
 			mac_ctx->roam.configParam.btm_validity_timer;
 	req_buf->disassoc_timer_threshold =

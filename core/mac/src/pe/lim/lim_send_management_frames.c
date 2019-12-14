@@ -1698,7 +1698,7 @@ static QDF_STATUS lim_fill_adaptive_11r_ie(tpPESession pe_session,
 
 #else
 static inline
-QDF_STATUS lim_fill_adaptive_11r_ie(struct pe_session *pe_session,
+QDF_STATUS lim_fill_adaptive_11r_ie(tpPESession pe_session,
 				    uint8_t **ie_buf, uint8_t *ie_len)
 {
 	return QDF_STATUS_SUCCESS;

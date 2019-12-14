@@ -6063,6 +6063,76 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ADAPTIVE_11R_MIN,
 		     CFG_ADAPTIVE_11R_MAX),
 #endif
+	REG_VARIABLE(CFG_BSS_LOAD_TRIG_5G_RSSI_THRES, WLAN_PARAM_SignedInteger,
+		     struct hdd_config, bss_load_trigger_rssi_threshold_5ghz,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_BSS_LOAD_TRIG_5G_RSSI_THRES_DEFAULT,
+		     CFG_BSS_LOAD_TRIG_5G_RSSI_THRES_MIN,
+		     CFG_BSS_LOAD_TRIG_5G_RSSI_THRES_MAX),
+
+	REG_VARIABLE(CFG_BSS_LOAD_TRIG_2G_RSSI_THRES, WLAN_PARAM_SignedInteger,
+		     struct hdd_config, bss_load_trigger_rssi_threshold_24ghz,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_BSS_LOAD_TRIG_2G_RSSI_THRES_DEFAULT,
+		     CFG_BSS_LOAD_TRIG_2G_RSSI_THRES_MIN,
+		     CFG_BSS_LOAD_TRIG_2G_RSSI_THRES_MAX),
+
+	REG_VARIABLE(CFG_ROAM_SCAN_INACTIVITY_TIME, WLAN_PARAM_Integer,
+		     struct hdd_config, roam_scan_inactivity_time,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ROAM_SCAN_INACTIVITY_TIME_DEFAULT,
+		     CFG_ROAM_SCAN_INACTIVITY_TIME_MIN,
+		     CFG_ROAM_SCAN_INACTIVITY_TIME_MAX),
+
+	REG_VARIABLE(CFG_ROAM_INACTIVE_COUNT, WLAN_PARAM_Integer,
+		     struct hdd_config, roam_inactive_data_packet_count,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ROAM_INACTIVE_COUNT_DEFAULT,
+		     CFG_ROAM_INACTIVE_COUNT_MIN,
+		     CFG_ROAM_INACTIVE_COUNT_MAX),
+
+	REG_VARIABLE(CFG_POST_INACTIVITY_ROAM_SCAN_PERIOD, WLAN_PARAM_Integer,
+		     struct hdd_config, roam_scan_period_after_inactivity,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_POST_INACTIVITY_ROAM_SCAN_PERIOD_DEFAULT,
+		     CFG_POST_INACTIVITY_ROAM_SCAN_PERIOD_MIN,
+		     CFG_POST_INACTIVITY_ROAM_SCAN_PERIOD_MAX),
+
+	REG_VARIABLE(CFG_DISCONNECT_ROAM_TRIGGER_MIN_RSSI,
+		     WLAN_PARAM_SignedInteger,
+		     struct hdd_config, disconnect_roam_min_rssi,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_DISCONNECT_ROAM_TRIGGER_MIN_RSSI_DEFAULT,
+		     CFG_DISCONNECT_ROAM_TRIGGER_MIN_RSSI_MIN,
+		     CFG_DISCONNECT_ROAM_TRIGGER_MIN_RSSI_MAX),
+
+	REG_VARIABLE(CFG_BMISS_ROAM_MIN_RSSI, WLAN_PARAM_SignedInteger,
+		     struct hdd_config, bmiss_roam_min_rssi,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_BMISS_ROAM_MIN_RSSI_DEFAULT,
+		     CFG_BMISS_ROAM_MIN_RSSI_MIN,
+		     CFG_BMISS_ROAM_MIN_RSSI_MAX),
+
+	REG_VARIABLE(CFG_IDLE_ROAM_SCORE_DELTA, WLAN_PARAM_Integer,
+		     struct hdd_config, idle_roam_score_delta,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_IDLE_ROAM_SCORE_DELTA_DEFAULT,
+		     CFG_IDLE_ROAM_SCORE_DELTA_MIN,
+		     CFG_IDLE_ROAM_SCORE_DELTA_MAX),
+
+	REG_VARIABLE(CFG_BTM_ROAM_SCORE_DELTA, WLAN_PARAM_Integer,
+		     struct hdd_config, btm_roam_score_delta,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_BTM_ROAM_SCORE_DELTA_DEFAULT,
+		     CFG_BTM_ROAM_SCORE_DELTA_MIN,
+		     CFG_BTM_ROAM_SCORE_DELTA_MAX),
+
+	REG_VARIABLE(CFG_MIN_BTM_CANDIDATE_SCORE, WLAN_PARAM_Integer,
+		     struct hdd_config, btm_trig_min_candidate_score,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_MIN_BTM_CANDIDATE_SCORE_DEFAULT,
+		     CFG_MIN_BTM_CANDIDATE_SCORE_MIN,
+		     CFG_MIN_BTM_CANDIDATE_SCORE_MAX),
 };
 
 /**
@@ -10000,6 +10070,27 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 	smeConfig->csrConfig.bss_load_threshold = pConfig->bss_load_threshold;
 	smeConfig->csrConfig.bss_load_sample_time =
 			pConfig->bss_load_sample_time;
+	smeConfig->csrConfig.bss_load_trigger_rssi_threshold_5ghz =
+			pConfig->bss_load_trigger_rssi_threshold_5ghz;
+	smeConfig->csrConfig.bss_load_trigger_rssi_threshold_24ghz =
+			pConfig->bss_load_trigger_rssi_threshold_24ghz;
+
+	smeConfig->csrConfig.roam_scan_inactivity_time =
+			pConfig->roam_scan_inactivity_time;
+	smeConfig->csrConfig.roam_inactive_data_packet_count =
+			pConfig->roam_inactive_data_packet_count;
+	smeConfig->csrConfig.roam_scan_period_after_inactivity =
+			pConfig->roam_scan_period_after_inactivity;
+	smeConfig->csrConfig.disconnect_roam_min_rssi =
+			pConfig->disconnect_roam_min_rssi;
+	smeConfig->csrConfig.bmiss_roam_min_rssi =
+			pConfig->bmiss_roam_min_rssi;
+	smeConfig->csrConfig.btm_roam_score_delta =
+			pConfig->btm_roam_score_delta;
+	smeConfig->csrConfig.idle_roam_score_delta =
+			pConfig->idle_roam_score_delta;
+	smeConfig->csrConfig.btm_trig_min_candidate_score =
+			pConfig->btm_trig_min_candidate_score;
 
 	sme_update_adaptive_11r_cap(smeConfig, pConfig);
 

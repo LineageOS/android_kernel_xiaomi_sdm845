@@ -267,11 +267,9 @@ QDF_STATUS wma_roam_scan_mawc_params(tp_wma_handle wma_handle,
 QDF_STATUS wma_roam_scan_offload_rssi_thresh(tp_wma_handle wma_handle,
 					     tSirRoamOffloadScanReq *roam_req);
 
-QDF_STATUS wma_roam_scan_offload_scan_period(tp_wma_handle wma_handle,
-					     uint32_t scan_period,
-					     uint32_t scan_age,
-					     uint32_t vdev_id,
-					     uint32_t roam_full_scan_period);
+QDF_STATUS
+wma_roam_scan_offload_scan_period(tp_wma_handle wma_handle,
+				  tSirRoamOffloadScanReq *roam_req);
 
 QDF_STATUS wma_roam_scan_offload_rssi_change(tp_wma_handle wma_handle,
 					     uint32_t vdev_id,
