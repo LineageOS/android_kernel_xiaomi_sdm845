@@ -1097,11 +1097,8 @@ QDF_STATUS wmi_unified_send_roam_scan_offload_ap_cmd(void *wmi_hdl,
 				   struct ap_profile_params *ap_profile);
 #endif
 
-QDF_STATUS wmi_unified_roam_scan_offload_scan_period(void *wmi_hdl,
-					     uint32_t scan_period,
-					     uint32_t scan_age,
-					     uint32_t vdev_id,
-					     uint32_t full_roam_scan_period);
+QDF_STATUS wmi_unified_roam_scan_offload_scan_period(
+		void *wmi_hdl, struct roam_scan_period_params *param);
 
 QDF_STATUS wmi_unified_roam_scan_offload_chan_list_cmd(void *wmi_hdl,
 				   uint8_t chan_count,

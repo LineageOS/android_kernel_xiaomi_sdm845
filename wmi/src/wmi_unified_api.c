@@ -3054,31 +3054,25 @@ QDF_STATUS wmi_unified_send_roam_scan_offload_ap_cmd(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 #endif
+
 /**
  * wmi_unified_roam_scan_offload_scan_period() - set roam offload scan period
  * @wmi_handle: wmi handle
- * @scan_period: scan period
- * @scan_age: scan age
- * @vdev_id: vdev id
- * @full_scan_period: Full scan period is the idle period in seconds
- *		      between two successive full channel roam scans.
+ * @param: pointer to roam scan period params to be sent to fw
  *
  * Send WMI_ROAM_SCAN_PERIOD parameters to fw.
  *
  * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
  */
-QDF_STATUS wmi_unified_roam_scan_offload_scan_period(void *wmi_hdl,
-					     uint32_t scan_period,
-					     uint32_t scan_age,
-					     uint32_t vdev_id,
-					     uint32_t full_scan_period)
+QDF_STATUS
+wmi_unified_roam_scan_offload_scan_period(void *wmi_hdl,
+					  struct roam_scan_period_params *param)
 {
 	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
 
 	if (wmi_handle->ops->send_roam_scan_offload_scan_period_cmd)
-		return wmi_handle->ops->send_roam_scan_offload_scan_period_cmd(wmi_handle,
-				  scan_period, scan_age, vdev_id,
-				  full_scan_period);
+		return wmi_handle->ops->send_roam_scan_offload_scan_period_cmd(
+							wmi_handle, param);
 
 	return QDF_STATUS_E_FAILURE;
 }
