@@ -8525,3 +8525,16 @@ void hdd_free_self_disconnect_ies(tpAniSirGlobal mac_ctx, uint8_t vdev_id)
 
 	return;
 }
+
+bool lim_is_sha384_akm(enum ani_akm_type akm)
+{
+	switch (akm) {
+	case ANI_AKM_TYPE_FILS_SHA384:
+	case ANI_AKM_TYPE_FT_FILS_SHA384:
+	case ANI_AKM_TYPE_SUITEB_EAP_SHA384:
+	case ANI_AKM_TYPE_FT_SUITEB_EAP_SHA384:
+		return true;
+	default:
+		return false;
+	}
+}

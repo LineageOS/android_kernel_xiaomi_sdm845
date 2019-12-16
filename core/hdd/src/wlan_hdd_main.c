@@ -2189,6 +2189,7 @@ int hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 	}
 
 	hdd_ctx->curr_band = hdd_ctx->config->nBandCapability;
+	hdd_ctx->psoc->soc_nif.user_config.band_capability = hdd_ctx->curr_band;
 
 	if (!cds_is_driver_recovering() || cds_is_driver_in_bad_state()) {
 		hdd_ctx->reg.reg_domain = cfg->reg_domain;
@@ -4273,6 +4274,7 @@ int hdd_vdev_destroy(struct hdd_adapter *adapter)
 			sme_cleanup_session(hdd_ctx->mac_handle, vdev_id);
 		} else if (adapter->qdf_session_close_event.force_set) {
 			hdd_info("SSR occurred during sme close session");
+			ucfg_mlme_force_objmgr_vdev_peer_cleanup(vdev_id);
 		} else {
 			hdd_err("failed to wait for sme close session; status:%u",
 				status);
@@ -5841,6 +5843,7 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 	case QDF_MONITOR_MODE:
 		wlan_hdd_scan_abort(adapter);
 		hdd_deregister_tx_flow_control(adapter);
+		sme_delete_mon_session(mac_handle, adapter->session_id);
 		hdd_vdev_destroy(adapter);
 		break;
 
@@ -6080,7 +6083,6 @@ QDF_STATUS hdd_reset_all_adapters(struct hdd_context *hdd_ctx)
 	struct hdd_adapter *adapter;
 	struct hdd_station_ctx *sta_ctx;
 	struct qdf_mac_addr peerMacAddr;
-	int sta_id;
 	struct wlan_objmgr_vdev *vdev;
 
 	hdd_enter();
@@ -6113,18 +6115,17 @@ QDF_STATUS hdd_reset_all_adapters(struct hdd_context *hdd_ctx)
 						&adapter->acs_pending_work);
 				clear_bit(ACS_PENDING, &adapter->event_flags);
 			}
-
-			if (test_bit(SOFTAP_BSS_STARTED,
-						&adapter->event_flags)) {
-				hdd_sap_indicate_disconnect_for_sta(adapter);
-				clear_bit(SOFTAP_BSS_STARTED,
-					  &adapter->event_flags);
-			}
-
 		} else {
 			wlan_hdd_netif_queue_control(adapter,
 					   WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER,
 					   WLAN_CONTROL_PATH);
+		}
+
+		if ((adapter->device_mode == QDF_P2P_GO_MODE ||
+		     adapter->device_mode == QDF_SAP_MODE) &&
+		    test_bit(SOFTAP_BSS_STARTED, &adapter->event_flags)) {
+			hdd_sap_indicate_disconnect_for_sta(adapter);
+			clear_bit(SOFTAP_BSS_STARTED, &adapter->event_flags);
 		}
 
 		hdd_reset_scan_operation(hdd_ctx, adapter);
@@ -6160,17 +6161,6 @@ QDF_STATUS hdd_reset_all_adapters(struct hdd_context *hdd_ctx)
 			qdf_copy_macaddr(&peerMacAddr,
 					 &sta_ctx->conn_info.bssId);
 
-		} else if (adapter->device_mode == QDF_P2P_GO_MODE) {
-			clear_bit(SOFTAP_BSS_STARTED, &adapter->event_flags);
-			for (sta_id = 0; sta_id < WLAN_MAX_STA_COUNT; sta_id++) {
-				if (adapter->sta_info[sta_id].in_use) {
-					hdd_debug("[SSR] deregister STA with ID %d",
-						  sta_id);
-					hdd_softap_deregister_sta(adapter,
-								  sta_id);
-					adapter->sta_info[sta_id].in_use = 0;
-				}
-			}
 		}
 
 		hdd_nud_ignore_tracking(adapter, true);

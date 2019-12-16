@@ -1041,6 +1041,8 @@ QDF_STATUS hdd_softap_deregister_sta(struct hdd_adapter *adapter,
 		spin_unlock_bh(&adapter->sta_info_lock);
 	}
 
+	hdd_softap_deinit_tx_rx_sta(adapter, sta_id);
+
 	hdd_ctx->sta_to_adapter[sta_id] = NULL;
 	sme_config = qdf_mem_malloc(sizeof(*sme_config));
 

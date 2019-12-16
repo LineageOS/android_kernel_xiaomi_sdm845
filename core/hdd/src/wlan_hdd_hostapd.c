@@ -8675,6 +8675,7 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 
 			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 				hdd_err("qdf wait for single_event failed!!");
+				hdd_sap_indicate_disconnect_for_sta(adapter);
 				QDF_ASSERT(0);
 			}
 		}
@@ -9328,8 +9329,10 @@ void hdd_sap_indicate_disconnect_for_sta(struct hdd_adapter *adapter)
 				 adapter);
 
 			if (qdf_is_macaddr_broadcast(
-				&adapter->sta_info[sta_id].sta_mac))
+				&adapter->sta_info[sta_id].sta_mac)) {
+				hdd_softap_deregister_sta(adapter, sta_id);
 				continue;
+			}
 
 			sap_event.sapHddEventCode = eSAP_STA_DISASSOC_EVENT;
 			qdf_mem_copy(

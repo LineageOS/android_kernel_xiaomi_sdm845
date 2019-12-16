@@ -2984,6 +2984,109 @@ static inline void fils_convert_assoc_rsp_frame2_struct(tDot11fAssocResponse
 { }
 #endif
 
+QDF_STATUS wlan_parse_ftie_sha384(uint8_t *frame, uint32_t frame_len,
+				  struct sSirAssocRsp *assoc_rsp)
+{
+	const uint8_t *ie, *ie_end, *pos;
+	uint8_t ie_len;
+	struct wlan_sha384_ftinfo_subelem *ft_subelem;
+
+	ie = wlan_get_ie_ptr_from_eid(DOT11F_EID_FTINFO, frame, frame_len);
+	if (!ie) {
+		pe_err("FT IE not present");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (!ie[1]) {
+		pe_err("FT IE length is zero");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	ie_len = ie[1];
+	if (ie_len < sizeof(struct wlan_sha384_ftinfo)) {
+		pe_err("Invalid FTIE len:%d", ie_len);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	pos = ie + 2;
+	qdf_mem_copy(&assoc_rsp->sha384_ft_info, pos,
+		     sizeof(struct wlan_sha384_ftinfo));
+	ie_end = ie + ie_len;
+	pos += sizeof(struct wlan_sha384_ftinfo);
+	ft_subelem = &assoc_rsp->sha384_ft_subelem;
+	qdf_mem_zero(ft_subelem, sizeof(*ft_subelem));
+
+	while (ie_end - pos >= 2) {
+		uint8_t id, len;
+
+		id = *pos++;
+		len = *pos++;
+		if (len < 1 ||
+		    (len > (ie_end - pos))) {
+			pe_err("Invalid FT subelem length %d", len);
+			return QDF_STATUS_E_FAILURE;
+		}
+
+		switch (id) {
+		case FTIE_SUBELEM_R1KH_ID:
+			if (len != FTIE_R1KH_LEN) {
+				pe_err("Invalid R1KH-ID length: %d", len);
+				return QDF_STATUS_E_FAILURE;
+			}
+			ft_subelem->r1kh_id.present = 1;
+			qdf_mem_copy(ft_subelem->r1kh_id.PMK_R1_ID,
+				     pos, FTIE_R1KH_LEN);
+			break;
+		case FTIE_SUBELEM_GTK:
+			if (ft_subelem->gtk) {
+				qdf_mem_zero(ft_subelem->gtk,
+					     ft_subelem->gtk_len);
+				ft_subelem->gtk_len = 0;
+				qdf_mem_free(ft_subelem->gtk);
+			}
+
+			ft_subelem->gtk = qdf_mem_malloc(len);
+			if (!ft_subelem->gtk)
+				return QDF_STATUS_E_NOMEM;
+
+			qdf_mem_copy(ft_subelem->gtk, pos, len);
+			ft_subelem->gtk_len = len;
+			break;
+		case FTIE_SUBELEM_R0KH_ID:
+			if (len < 1 || len > FTIE_R0KH_MAX_LEN) {
+				pe_err("Invalid R0KH-ID length: %d", len);
+				return QDF_STATUS_E_FAILURE;
+			}
+			ft_subelem->r0kh_id.present = 1;
+			ft_subelem->r0kh_id.num_PMK_R0_ID = len;
+			qdf_mem_copy(ft_subelem->r0kh_id.PMK_R0_ID,
+				     pos, len);
+			break;
+		case FTIE_SUBELEM_IGTK:
+			if (ft_subelem->igtk) {
+				qdf_mem_zero(ft_subelem->igtk,
+					     ft_subelem->igtk_len);
+				ft_subelem->igtk_len = 0;
+				qdf_mem_free(ft_subelem->igtk);
+			}
+			ft_subelem->igtk = qdf_mem_malloc(len);
+			if (!ft_subelem->igtk)
+				return QDF_STATUS_E_NOMEM;
+
+			qdf_mem_copy(ft_subelem->igtk, pos, len);
+			ft_subelem->igtk_len = len;
+			break;
+		default:
+			pe_debug("Unknown subelem id %d len:%d",
+				 id, len);
+			break;
+		}
+		pos += len;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
 QDF_STATUS
 sir_convert_assoc_resp_frame2_struct(tpAniSirGlobal pMac,
 		tpPESession session_entry,

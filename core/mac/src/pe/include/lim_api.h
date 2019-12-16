@@ -288,10 +288,21 @@ void lim_update_lost_link_info(tpAniSirGlobal mac, tpPESession session,
 void lim_mon_init_session(tpAniSirGlobal mac_ptr,
 			  struct sir_create_session *msg);
 
+/**
+ * lim_mon_deinit_session() - delete PE session for monitor mode operation
+ * @mac_ptr: mac pointer
+ * @msg: Pointer to struct sir_delete_session type.
+ *
+ * Return: NONE
+ */
+void lim_mon_deinit_session(tpAniSirGlobal mac_ptr,
+			    struct sir_delete_session *msg);
+
 #define limGetQosMode(psessionEntry, pVal) (*(pVal) = (psessionEntry)->limQosEnabled)
 #define limGetWmeMode(psessionEntry, pVal) (*(pVal) = (psessionEntry)->limWmeEnabled)
 #define limGetWsmMode(psessionEntry, pVal) (*(pVal) = (psessionEntry)->limWsmEnabled)
 #define limGet11dMode(psessionEntry, pVal) (*(pVal) = (psessionEntry)->lim11dEnabled)
+
 /* ----------------------------------------------------------------------- */
 static inline void lim_get_phy_mode(tpAniSirGlobal pMac, uint32_t *phyMode,
 				    tpPESession psessionEntry)

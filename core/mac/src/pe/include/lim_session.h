@@ -150,6 +150,8 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint16_t channelChangeReasonCode;
 	uint8_t dot11mode;
 	uint8_t htCapability;
+	enum ani_akm_type connected_akm;
+
 	/* Supported Channel Width Set: 0-20MHz 1 - 40MHz */
 	uint8_t htSupportedChannelWidthSet;
 	/* Recommended Tx Width Set

@@ -37,6 +37,7 @@
 #include "wlan_reg_services_api.h"
 #include <wlan_cfg80211_mc_cp_stats.h>
 #include "wlan_cp_stats_mc_ucfg_api.h"
+#include "wlan_mlme_ucfg_api.h"
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)) && !defined(WITH_BACKPORTS)
 #define HDD_INFO_SIGNAL                 STATION_INFO_SIGNAL
@@ -5894,6 +5895,8 @@ int wlan_hdd_get_station_stats(struct hdd_adapter *adapter)
 	int ret = 0;
 	uint8_t mcs_rate_flags;
 	struct stats_event *stats;
+	struct mlme_nss_chains *dynamic_cfg;
+	uint32_t tx_nss, rx_nss;
 
 	stats = wlan_cfg80211_mc_cp_stats_get_station_stats(adapter->vdev,
 							    &ret);
@@ -5940,11 +5943,29 @@ int wlan_hdd_get_station_stats(struct hdd_adapter *adapter)
 	adapter->hdd_stats.peer_stats.fcs_count =
 		stats->peer_adv_stats->fcs_count;
 
+	dynamic_cfg = mlme_get_dynamic_vdev_config(adapter->vdev);
+	if (!dynamic_cfg) {
+		hdd_err("nss chain dynamic config NULL");
+		return -EINVAL;
+	}
+
+	switch (hdd_conn_get_connected_band(&adapter->session.station)) {
+	case BAND_2G:
+		tx_nss = dynamic_cfg->tx_nss[NSS_CHAINS_BAND_2GHZ];
+		rx_nss = dynamic_cfg->rx_nss[NSS_CHAINS_BAND_2GHZ];
+		break;
+	case BAND_5G:
+		tx_nss = dynamic_cfg->tx_nss[NSS_CHAINS_BAND_5GHZ];
+		rx_nss = dynamic_cfg->rx_nss[NSS_CHAINS_BAND_5GHZ];
+		break;
+	default:
+		tx_nss = wlan_vdev_mlme_get_nss(adapter->vdev);
+		rx_nss = wlan_vdev_mlme_get_nss(adapter->vdev);
+	}
+
 	/* save class a stats to legacy location */
-	adapter->hdd_stats.class_a_stat.tx_nss =
-		wlan_vdev_mlme_get_nss(adapter->vdev);
-	adapter->hdd_stats.class_a_stat.rx_nss =
-		wlan_vdev_mlme_get_nss(adapter->vdev);
+	adapter->hdd_stats.class_a_stat.tx_nss = tx_nss;
+	adapter->hdd_stats.class_a_stat.rx_nss = rx_nss;
 	adapter->hdd_stats.class_a_stat.tx_rate = stats->tx_rate;
 	adapter->hdd_stats.class_a_stat.rx_rate = stats->rx_rate;
 	adapter->hdd_stats.class_a_stat.tx_rx_rate_flags = stats->tx_rate_flags;
