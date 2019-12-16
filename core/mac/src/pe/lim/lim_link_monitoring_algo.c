@@ -399,28 +399,28 @@ lim_tear_down_link_with_ap(tpAniSirGlobal pMac, uint8_t sessionId,
 		qdf_mem_copy((uint8_t *) &mlmDeauthInd.peerMacAddr,
 			     pStaDs->staAddr, sizeof(tSirMacAddr));
 
-	/*
-	* if send_deauth_before_con is enabled and reasoncode is
-	* Beacon Missed Store the MAC of AP in the flip flop
-	* buffer. This MAC will be used to send Deauth before
-	* connection, if we connect to same AP after HB failure.
-	*/
-	if (pMac->roam.configParam.send_deauth_before_con &&
-	    eSIR_BEACON_MISSED == reasonCode) {
-		int apCount = pMac->lim.gLimHeartBeatApMacIndex;
+		/*
+		 * if send_deauth_before_con is enabled and reasoncode is
+		 * Beacon Missed Store the MAC of AP in the flip flop
+		 * buffer. This MAC will be used to send Deauth before
+		 * connection, if we connect to same AP after HB failure.
+		 */
+		if (pMac->roam.configParam.send_deauth_before_con &&
+		    eSIR_BEACON_MISSED == reasonCode) {
+			int apCount = pMac->lim.gLimHeartBeatApMacIndex;
 
-		if (pMac->lim.gLimHeartBeatApMacIndex)
-			pMac->lim.gLimHeartBeatApMacIndex = 0;
-		else
-			pMac->lim.gLimHeartBeatApMacIndex = 1;
+			if (pMac->lim.gLimHeartBeatApMacIndex)
+				pMac->lim.gLimHeartBeatApMacIndex = 0;
+			else
+				pMac->lim.gLimHeartBeatApMacIndex = 1;
 
-		pe_debug("HB Failure on MAC "
-			MAC_ADDRESS_STR" Store it on Index %d",
-			MAC_ADDR_ARRAY(pStaDs->staAddr), apCount);
+			pe_debug("HB Failure on MAC "
+				 MAC_ADDRESS_STR" Store it on Index %d",
+				 MAC_ADDR_ARRAY(pStaDs->staAddr), apCount);
 
-		sir_copy_mac_addr(pMac->lim.gLimHeartBeatApMac[apCount],
-							pStaDs->staAddr);
-	}
+			sir_copy_mac_addr(pMac->lim.gLimHeartBeatApMac[apCount],
+					  pStaDs->staAddr);
+		}
 
 		mlmDeauthInd.reasonCode =
 			(uint8_t) pStaDs->mlmStaContext.disassocReason;

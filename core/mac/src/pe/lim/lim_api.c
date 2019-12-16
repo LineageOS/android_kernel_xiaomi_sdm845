@@ -2293,7 +2293,7 @@ pe_disconnect_callback(tpAniSirGlobal mac, uint8_t vdev_id)
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	lim_tear_down_link_with_ap(mac, vdev_id,
+	lim_tear_down_link_with_ap(mac, session->peSessionId,
 				   eSIR_MAC_UNSPEC_FAILURE_REASON);
 
 	return QDF_STATUS_SUCCESS;
