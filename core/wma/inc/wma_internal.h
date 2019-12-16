@@ -1476,6 +1476,18 @@ int wma_roam_scan_stats_event_handler(void *handle, uint8_t *event,
 int wma_cold_boot_cal_event_handler(void *wma_ctx, uint8_t *event_buff,
 				    uint32_t len);
 
+#ifdef FEATURE_OEM_DATA
+/**
+ * wma_oem_event_handler() - oem data event handler
+ * @wma_ctx: wma handle
+ * @event_buff: event data
+ * @len: length of event buffer
+ *
+ * Return: Success or Failure status
+ */
+int wma_oem_event_handler(void *wma_ctx, uint8_t *event_buff, uint32_t len);
+#endif
+
 /**
  * wma_set_roam_triggers() - Send roam trigger bitmap to WMI
  * @wma_handle: wma handle
