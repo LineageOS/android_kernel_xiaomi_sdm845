@@ -16230,6 +16230,26 @@ enum hdd_external_acs_policy {
 
 /*
  * <ini>
+ * mgmt_retry_max - Maximum Retries for mgmt frames
+ * @Min: 0
+ * @Max: 31
+ * @Default: 15
+ *
+ * This ini is used to set maximum retries for mgmt frames
+ *
+ * Supported Feature: STA/SAP
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_MGMT_RETRY_MAX         "mgmt_retry_max"
+#define CFG_MGMT_RETRY_MAX_MIN     0
+#define CFG_MGMT_RETRY_MAX_MAX     31
+#define CFG_MGMT_RETRY_MAX_DEFAULT 15
+
+/*
+ * <ini>
  * btm_disassoc_timer_threshold - Disassociation timer threshold to wait
  * after which the full scan for roaming can be started after the AP has sent
  * the disassoc imminent
@@ -17865,6 +17885,7 @@ struct hdd_config {
 	bool ignore_fw_reg_offload_ind;
 	uint32_t roam_full_scan_period;
 	uint16_t ndp_inactivity_timeout;
+	uint8_t mgmt_retry_max;
 #ifdef WLAN_ADAPTIVE_11R
 	bool enable_adaptive_11r;
 #endif

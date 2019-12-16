@@ -7723,8 +7723,8 @@ __wlan_hdd_cfg80211_wifi_configuration_set(struct wiphy *wiphy,
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_CONFIG_MGMT_RETRY]) {
 		retry = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_CONFIG_MGMT_RETRY]);
-		retry = retry > CFG_MGMT_RETRY_MAX ?
-				CFG_MGMT_RETRY_MAX : retry;
+		retry = retry > MGMT_RETRY_MAX ?
+				MGMT_RETRY_MAX : retry;
 		param_id = WMI_PDEV_PARAM_MGMT_RETRY_LIMIT;
 		ret_val = wma_cli_set_command(adapter->session_id, param_id,
 					      retry, PDEV_CMD);
