@@ -57,6 +57,7 @@
 #include <wlan_utility.h>
 #include "wlan_mlme_main.h"
 #include "wlan_policy_mgr_i.h"
+#include "wlan_scan_utils_api.h"
 
 #define MAX_PWR_FCC_CHAN_12 8
 #define MAX_PWR_FCC_CHAN_13 2
@@ -1031,6 +1032,37 @@ static void csr_add_social_channels(tpAniSirGlobal mac,
 }
 #endif
 
+/**
+ * csr_scan_event_handler() - callback for scan event
+ * @vdev: wlan objmgr vdev pointer
+ * @event: scan event
+ * @arg: global mac context pointer
+ *
+ * Return: void
+ */
+static void csr_scan_event_handler(struct wlan_objmgr_vdev *vdev,
+					    struct scan_event *event,
+					    void *arg)
+{
+	bool success = false;
+	QDF_STATUS lock_status;
+	tpAniSirGlobal pMac = arg;
+
+	if (!pMac)
+		return;
+
+	if (!util_is_scan_completed(event, &success))
+		return;
+
+	lock_status = sme_acquire_global_lock(&pMac->sme);
+	if (QDF_IS_STATUS_ERROR(lock_status))
+		return;
+
+	if (pMac->scan.pending_channel_list_req)
+		csr_update_channel_list(pMac);
+	sme_release_global_lock(&pMac->sme);
+}
+
 QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 {
 	tSirUpdateChanList *pChanList;
@@ -1046,12 +1078,31 @@ QDF_STATUS csr_update_channel_list(tpAniSirGlobal pMac)
 	uint16_t cnt = 0;
 	uint8_t  channel;
 	bool is_unsafe_chan;
+	enum scm_scan_status scan_status;
+	QDF_STATUS lock_status;
 	qdf_device_t qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 
 	if (!qdf_ctx) {
 		sme_err("qdf_ctx is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	lock_status = sme_acquire_global_lock(&pMac->sme);
+	if (QDF_IS_STATUS_ERROR(lock_status))
+		return lock_status;
+
+	if (pMac->roam.configParam.enable_pending_list_req) {
+		scan_status = ucfg_scan_get_pdev_status(pMac->pdev);
+		if (scan_status == SCAN_IS_ACTIVE ||
+		    scan_status == SCAN_IS_ACTIVE_AND_PENDING) {
+			pMac->scan.pending_channel_list_req = true;
+			sme_release_global_lock(&pMac->sme);
+			sme_debug("scan in progress postpone channel list req ");
+			return QDF_STATUS_SUCCESS;
+		}
+		pMac->scan.pending_channel_list_req = false;
+	}
+	sme_release_global_lock(&pMac->sme);
 
 	pld_get_wlan_unsafe_channel(qdf_ctx->dev, unsafe_chan,
 		    &unsafe_chan_cnt,
@@ -1252,6 +1303,14 @@ QDF_STATUS csr_start(tpAniSirGlobal pMac)
 						pMac->psoc,
 						"CSR", csr_scan_callback, pMac);
 		ucfg_scan_set_enable(pMac->psoc, true);
+
+		if (pMac->roam.configParam.enable_pending_list_req) {
+			status = ucfg_scan_register_event_handler(pMac->pdev,
+					csr_scan_event_handler, pMac);
+
+			if (QDF_IS_STATUS_ERROR(status))
+				sme_err("scan event registration failed ");
+		}
 	} while (0);
 	return status;
 }
@@ -1260,6 +1319,10 @@ QDF_STATUS csr_stop(tpAniSirGlobal pMac)
 {
 	uint32_t sessionId;
 
+	if (pMac->roam.configParam.enable_pending_list_req)
+		ucfg_scan_unregister_event_handler(pMac->pdev,
+						   csr_scan_event_handler,
+						   pMac);
 	ucfg_scan_set_enable(pMac->psoc, false);
 	ucfg_scan_unregister_requester(pMac->psoc, pMac->scan.requester_id);
 
@@ -3441,6 +3504,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		csr_update_he_config_param(pMac, pParam);
 		csr_set_11k_offload_config_param(&pMac->roam.configParam,
 						 pParam);
+		pMac->roam.configParam.enable_pending_list_req =
+					pParam->enable_pending_list_req;
 	}
 	return status;
 }
@@ -3839,6 +3904,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 			pMac->roam.configParam.wlm_latency_flags[i];
 	}
 
+	pParam->enable_pending_list_req =
+				pMac->roam.configParam.enable_pending_list_req;
 	return QDF_STATUS_SUCCESS;
 }
 

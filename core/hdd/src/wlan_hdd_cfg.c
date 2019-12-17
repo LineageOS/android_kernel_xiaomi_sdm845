@@ -6140,6 +6140,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_MIN_BTM_CANDIDATE_SCORE_DEFAULT,
 		     CFG_MIN_BTM_CANDIDATE_SCORE_MIN,
 		     CFG_MIN_BTM_CANDIDATE_SCORE_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_PENDING_CHAN_LIST_REQ, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_pending_list_req,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_PENDING_CHAN_LIST_REQ_DEFAULT,
+		     CFG_ENABLE_PENDING_CHAN_LIST_REQ_MIN,
+		     CFG_ENABLE_PENDING_CHAN_LIST_REQ_MAX),
 };
 
 /**
@@ -8190,6 +8197,10 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		  CFG_MGMT_RETRY_MAX,
 		  hdd_ctx->config->mgmt_retry_max);
+
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ENABLE_PENDING_CHAN_LIST_REQ,
+		  hdd_ctx->config->enable_pending_list_req);
 }
 
 /**
@@ -10102,7 +10113,8 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 			pConfig->idle_roam_score_delta;
 	smeConfig->csrConfig.btm_trig_min_candidate_score =
 			pConfig->btm_trig_min_candidate_score;
-
+	smeConfig->csrConfig.enable_pending_list_req =
+			pConfig->enable_pending_list_req;
 	sme_update_adaptive_11r_cap(smeConfig, pConfig);
 
 	sme_update_beacon_stats(mac_handle,
