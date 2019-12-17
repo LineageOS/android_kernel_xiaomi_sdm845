@@ -19289,8 +19289,10 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 {
 	req_buf->RoamOffloadEnabled = csr_roamIsRoamOffloadEnabled(mac_ctx);
 	/* Roam Offload piggybacks upon the Roam Scan offload command. */
-	if (req_buf->RoamOffloadEnabled)
+	if (!req_buf->RoamOffloadEnabled) {
+		sme_debug("LFR3: LFR3 INI is disabled");
 		return;
+	}
 
 	req_buf->RoamKeyMgmtOffloadEnabled = session->RoamKeyMgmtOffloadEnabled;
 	req_buf->pmkid_modes = session->pmkid_modes;
