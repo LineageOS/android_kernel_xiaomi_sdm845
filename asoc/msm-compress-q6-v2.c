@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018,2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -3889,6 +3889,7 @@ static int msm_compr_probe(struct snd_soc_platform *platform)
 	 * Gapless is disabled by default.
 	 */
 	pdata->use_dsp_gapless_mode = false;
+	mutex_init(&pdata->lock);
 	return 0;
 }
 
