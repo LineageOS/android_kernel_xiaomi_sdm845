@@ -3554,6 +3554,8 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 		     roamStatus == eCSR_ROAM_CANCELLED) &&
 		    hddDisconInProgress)
 			complete(&adapter->disconnect_comp_var);
+
+		policy_mgr_check_concurrent_intf_and_restart_sap(hdd_ctx->psoc);
 	}
 
 	hdd_periodic_sta_stats_start(adapter);
