@@ -879,6 +879,21 @@ static void scm_fill_adaptive_11r_cap(struct scan_cache_entry *scan_entry)
 }
 #endif
 
+static void util_scan_set_security(struct scan_cache_entry *scan_params)
+{
+	if (util_scan_entry_wpa(scan_params))
+		scan_params->security_type |= SCAN_SECURITY_TYPE_WPA;
+
+	if (util_scan_entry_rsn(scan_params))
+		scan_params->security_type |= SCAN_SECURITY_TYPE_RSN;
+	if (util_scan_entry_wapi(scan_params))
+		scan_params->security_type |= SCAN_SECURITY_TYPE_WAPI;
+
+	if (!scan_params->security_type &&
+	    scan_params->cap_info.wlan_caps.privacy)
+		scan_params->security_type |= SCAN_SECURITY_TYPE_WEP;
+}
+
 qdf_list_t *
 util_scan_unpack_beacon_frame(struct wlan_objmgr_pdev *pdev, uint8_t *frame,
 			      qdf_size_t frame_len, uint32_t frm_subtype,
@@ -1011,6 +1026,7 @@ util_scan_unpack_beacon_frame(struct wlan_objmgr_pdev *pdev, uint8_t *frame,
 
 	scan_entry->nss = util_scan_scm_calc_nss_supported_by_ap(scan_entry);
 	scm_fill_adaptive_11r_cap(scan_entry);
+	util_scan_set_security(scan_entry);
 
 	util_scan_scm_update_bss_with_esp_data(scan_entry);
 	qbss_load = (struct qbss_load_ie *)
