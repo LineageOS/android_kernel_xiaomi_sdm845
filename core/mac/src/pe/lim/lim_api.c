@@ -2666,8 +2666,8 @@ tMgmtFrmDropReason lim_is_pkt_candidate_for_drop(tpAniSirGlobal pMac,
 				  curr_seq_num);
 			return eMGMT_DROP_DUPLICATE_AUTH_FRAME;
 		}
-	} else if ((subType == SIR_MAC_MGMT_ASSOC_REQ) &&
-		   (subType == SIR_MAC_MGMT_DISASSOC) &&
+	} else if ((subType == SIR_MAC_MGMT_ASSOC_REQ) ||
+		   (subType == SIR_MAC_MGMT_DISASSOC) ||
 		   (subType == SIR_MAC_MGMT_DEAUTH)) {
 		uint16_t assoc_id;
 		dphHashTableClass *dph_table;
@@ -2678,15 +2678,15 @@ tMgmtFrmDropReason lim_is_pkt_candidate_for_drop(tpAniSirGlobal pMac,
 		psessionEntry = pe_find_session_by_bssid(pMac, pHdr->bssId,
 				&sessionId);
 		if (!psessionEntry)
-			return eMGMT_DROP_NO_DROP;
+			return eMGMT_DROP_SPURIOUS_FRAME;
 		dph_table = &psessionEntry->dph.dphHashTable;
 		sta_ds = dph_lookup_hash_entry(pMac, pHdr->sa, &assoc_id,
 					       dph_table);
 		if (!sta_ds) {
 			if (subType == SIR_MAC_MGMT_ASSOC_REQ)
-			    return eMGMT_DROP_NO_DROP;
+				return eMGMT_DROP_NO_DROP;
 			else
-			    return eMGMT_DROP_EXCESSIVE_MGMT_FRAME;
+				return eMGMT_DROP_SPURIOUS_FRAME;
 		}
 
 		if (subType == SIR_MAC_MGMT_ASSOC_REQ)
