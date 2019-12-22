@@ -2189,17 +2189,21 @@ lim_roam_fill_bss_descr(tpAniSirGlobal pMac,
 	qdf_mem_copy(&bss_desc_ptr->capabilityInfo,
 	&bcn_proberesp_ptr[SIR_MAC_HDR_LEN_3A + SIR_MAC_B_PR_CAPAB_OFFSET], 2);
 
-	if (qdf_is_macaddr_zero((struct qdf_mac_addr *)mac_hdr->bssId)) {
-		pe_debug("bssid is 0 in beacon/probe update it with bssId %pM in sync ind",
-			roam_offload_synch_ind_ptr->bssid.bytes);
-		qdf_mem_copy(mac_hdr->bssId,
-			roam_offload_synch_ind_ptr->bssid.bytes,
-			sizeof(tSirMacAddr));
-	}
+	/*
+	 * overwrite the BSSID with the firmware provided BSSID as some buggy
+	 * AP's are not sending correct BSSID in probe resp
+	 */
+	pe_debug("bssid is %pM in beacon/probe update it with bssId %pM in sync ind",
+		 mac_hdr->bssId, roam_offload_synch_ind_ptr->bssid.bytes);
+
+	qdf_mem_copy(mac_hdr->bssId,
+		     roam_offload_synch_ind_ptr->bssid.bytes,
+		     sizeof(tSirMacAddr));
 
 	qdf_mem_copy((uint8_t *) &bss_desc_ptr->bssId,
-			(uint8_t *) mac_hdr->bssId,
-			sizeof(tSirMacAddr));
+		     (uint8_t *) mac_hdr->bssId,
+		     sizeof(tSirMacAddr));
+
 	bss_desc_ptr->received_time =
 		      (uint64_t)qdf_mc_timer_get_system_time();
 	if (parsed_frm_ptr->mdiePresent) {
