@@ -19404,17 +19404,25 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 			mac_ctx->roam.configParam.bss_load_sample_time;
 	req_buf->bss_load_config.vdev_id = session->sessionId;
 	req_buf->bss_load_config.rssi_threshold_5ghz =
-		mac_ctx->roam.configParam.bss_load_trigger_rssi_threshold_5ghz;
+		(mac_ctx->roam.configParam.bss_load_trigger_rssi_threshold_5ghz -
+		 WMA_NOISE_FLOOR_DBM_DEFAULT);
+	req_buf->bss_load_config.rssi_threshold_5ghz &= 0x000000ff;
 	req_buf->bss_load_config.rssi_threshold_24ghz =
-		mac_ctx->roam.configParam.bss_load_trigger_rssi_threshold_24ghz;
+		(mac_ctx->roam.configParam.bss_load_trigger_rssi_threshold_24ghz -
+		 WMA_NOISE_FLOOR_DBM_DEFAULT);
+	req_buf->bss_load_config.rssi_threshold_24ghz &= 0x000000ff;
 
 	req_buf->min_rssi_params[DEAUTH_MIN_RSSI].min_rssi =
-		mac_ctx->roam.configParam.disconnect_roam_min_rssi;
+		(mac_ctx->roam.configParam.disconnect_roam_min_rssi -
+		 WMA_NOISE_FLOOR_DBM_DEFAULT);
+	req_buf->min_rssi_params[DEAUTH_MIN_RSSI].min_rssi &= 0x000000ff;
 	req_buf->min_rssi_params[DEAUTH_MIN_RSSI].trigger_reason =
 				ROAM_TRIGGER_REASON_DEAUTH;
 
 	req_buf->min_rssi_params[BMISS_MIN_RSSI].min_rssi =
-		mac_ctx->roam.configParam.bmiss_roam_min_rssi;
+		(mac_ctx->roam.configParam.bmiss_roam_min_rssi -
+		 WMA_NOISE_FLOOR_DBM_DEFAULT);
+	req_buf->min_rssi_params[BMISS_MIN_RSSI].min_rssi &= 0x000000ff;
 	req_buf->min_rssi_params[BMISS_MIN_RSSI].trigger_reason =
 		ROAM_TRIGGER_REASON_BMISS;
 
@@ -19444,7 +19452,9 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 	req_buf->idle_roam_params.band =
 		mac_ctx->roam.configParam.idle_roam_band;
 	req_buf->idle_roam_params.conn_ap_min_rssi =
-		mac_ctx->roam.configParam.idle_roam_min_rssi;
+		(mac_ctx->roam.configParam.idle_roam_min_rssi -
+		 WMA_NOISE_FLOOR_DBM_DEFAULT);
+	req_buf->idle_roam_params.conn_ap_min_rssi &= 0x000000ff;
 
 	if (wlan_cfg_get_int(mac_ctx, WNI_CFG_REASSOCIATION_FAILURE_TIMEOUT,
 			     (uint32_t *) &req_buf->ReassocFailureTimeout)
