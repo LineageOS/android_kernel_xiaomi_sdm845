@@ -10062,6 +10062,8 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 		hdd_ctx->config->mbo_candidate_rssi_btc_thres;
 	smeConfig->csrConfig.btm_offload_config =
 			hdd_ctx->config->btm_offload_config;
+	smeConfig->csrConfig.pmkid_modes = hdd_ctx->config->pmkid_modes;
+
 	smeConfig->csrConfig.btm_solicited_timeout =
 			hdd_ctx->config->btm_solicited_timeout;
 	smeConfig->csrConfig.btm_max_attempt_cnt =

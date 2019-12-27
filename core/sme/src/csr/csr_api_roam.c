@@ -3461,6 +3461,7 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 			     sizeof(struct sir_score_config));
 		pMac->roam.configParam.btm_offload_config =
 						     pParam->btm_offload_config;
+		pMac->roam.configParam.pmkid_modes = pParam->pmkid_modes;
 		pMac->roam.configParam.btm_solicited_timeout =
 			pParam->btm_solicited_timeout;
 		pMac->roam.configParam.btm_max_attempt_cnt =
@@ -3841,6 +3842,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		     &pMac->roam.configParam.bss_score_params,
 		     sizeof(struct sir_score_config));
 	pParam->btm_offload_config = pMac->roam.configParam.btm_offload_config;
+	pParam->pmkid_modes = pMac->roam.configParam.pmkid_modes;
 	pParam->btm_solicited_timeout =
 		pMac->roam.configParam.btm_solicited_timeout;
 	pParam->btm_max_attempt_cnt =
@@ -19360,7 +19362,7 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 				     tSirRoamOffloadScanReq *req_buf,
 				     struct csr_roam_session *session)
 {
-	uint32_t pmkid_modes = mac_ctx->akm_service_bitmap;
+	uint32_t pmkid_modes = mac_ctx->roam.configParam.pmkid_modes;
 
 	req_buf->RoamOffloadEnabled = csr_roamIsRoamOffloadEnabled(mac_ctx);
 	/* Roam Offload piggybacks upon the Roam Scan offload command. */
