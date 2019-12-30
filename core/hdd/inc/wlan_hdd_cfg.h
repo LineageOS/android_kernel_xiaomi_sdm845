@@ -16914,6 +16914,28 @@ enum hdd_external_acs_policy {
 #define CFG_ENABLE_PENDING_CHAN_LIST_REQ_DEFAULT       0
 
 /*
+ * <ini>
+ * gEnableRingBuffer - Enable Ring Buffer for Bug Report
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable Ring Buffer
+ *
+ * Related: None
+ *
+ * Supported Feature: STA/SAP
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_RING_BUFFER	   "gEnableRingBuffer"
+#define CFG_ENABLE_RING_BUFFER_MIN 0
+#define CFG_ENABLE_RING_BUFFER_MAX 1
+#define CFG_ENABLE_RING_BUFFER_DEFAULT 1
+
+/*
  * Type declarations
  */
 
@@ -17910,6 +17932,7 @@ struct hdd_config {
 	uint32_t roam_full_scan_period;
 	uint16_t ndp_inactivity_timeout;
 	uint8_t mgmt_retry_max;
+	uint8_t enable_ring_buffer;
 #ifdef WLAN_ADAPTIVE_11R
 	bool enable_adaptive_11r;
 #endif

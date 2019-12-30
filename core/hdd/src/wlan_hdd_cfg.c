@@ -1593,6 +1593,12 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_MGMT_RETRY_MAX_MIN,
 		     CFG_MGMT_RETRY_MAX_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_RING_BUFFER, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_ring_buffer,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_RING_BUFFER_DEFAULT,
+		     CFG_ENABLE_RING_BUFFER_MIN,
+		     CFG_ENABLE_RING_BUFFER_MAX),
 /* CFG_QDF_TRACE_ENABLE Parameters */
 	REG_VARIABLE(CFG_QDF_TRACE_ENABLE_WDI_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, qdf_trace_enable_wdi,
@@ -8201,6 +8207,10 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		  CFG_ENABLE_PENDING_CHAN_LIST_REQ,
 		  hdd_ctx->config->enable_pending_list_req);
+
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ENABLE_RING_BUFFER,
+		  hdd_ctx->config->enable_ring_buffer);
 }
 
 /**
