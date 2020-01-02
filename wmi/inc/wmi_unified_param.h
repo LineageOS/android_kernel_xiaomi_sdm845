@@ -3630,6 +3630,8 @@ struct hlp_params {
  * @cache_id: PMK Cache ID
  * @cat_flag: whether (bssid) or (ssid,cache_id) is valid
  * @action_flag: add/delete the entry
+ * @is_flush_all: FLAG to indicate PMKSA flush. True if PMKSA cache flush is
+ * needed.
  */
 struct wmi_unified_pmk_cache {
 	uint32_t            tlv_header;
@@ -3643,6 +3645,7 @@ struct wmi_unified_pmk_cache {
 	uint32_t            cache_id;
 	uint32_t            cat_flag;
 	uint32_t            action_flag;
+	bool                is_flush_all;
 };
 
 
