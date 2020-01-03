@@ -969,6 +969,12 @@ static void csr_neighbor_roam_info_ctx_init(
 		ngbr_roam_info->cfgParams.nRoamBeaconRssiWeight;
 	ngbr_roam_info->cfgParams.enable_scoring_for_roam =
 		pMac->roam.configParam.bss_score_params.enable_scoring_for_roam;
+	ngbr_roam_info->cfgParams.roam_scan_inactivity_time =
+		pMac->roam.configParam.roam_scan_inactivity_time;
+	ngbr_roam_info->cfgParams.roam_inactive_data_packet_count =
+		pMac->roam.configParam.roam_inactive_data_packet_count;
+	ngbr_roam_info->cfgParams.roam_scan_period_after_inactivity =
+		pMac->roam.configParam.roam_scan_period_after_inactivity;
 
 	/*
 	 * Now we can clear the preauthDone that
