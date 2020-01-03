@@ -7253,21 +7253,20 @@ QDF_STATUS sme_update_is_mawc_ini_feature_enabled(tHalHandle hHal,
  * Return QDF_STATUS_SUCCESS on success
  *	   Other status on failure
  */
-QDF_STATUS sme_stop_roaming(tHalHandle hal, uint8_t session_id, uint8_t reason)
+QDF_STATUS sme_stop_roaming(tHalHandle hal, uint8_t vdev_id, uint8_t reason)
 {
-	struct scheduler_msg wma_msg = {0};
 	QDF_STATUS status;
 	tSirRoamOffloadScanReq *req;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	tpCsrNeighborRoamControlInfo roam_info;
 	struct csr_roam_session *session;
 
-	if (!CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
+	if (!CSR_IS_SESSION_VALID(mac_ctx, vdev_id)) {
 		sme_err("incorrect session/vdev ID");
 		return QDF_STATUS_E_INVAL;
 	}
 
-	session = CSR_GET_SESSION(mac_ctx, session_id);
+	session = CSR_GET_SESSION(mac_ctx, vdev_id);
 
 	/*
 	 * set the driver_disabled_roaming flag to true even if roaming
@@ -7278,12 +7277,12 @@ QDF_STATUS sme_stop_roaming(tHalHandle hal, uint8_t session_id, uint8_t reason)
 	    session->pCurRoamProfile->csrPersona == QDF_STA_MODE) {
 		session->pCurRoamProfile->driver_disabled_roaming = true;
 		sme_debug("driver_disabled_roaming set for session %d",
-			  session_id);
+			  vdev_id);
 	}
 
-	roam_info = &mac_ctx->roam.neighborRoamInfo[session_id];
+	roam_info = &mac_ctx->roam.neighborRoamInfo[vdev_id];
 	if (!roam_info->b_roam_scan_offload_started) {
-		sme_debug("Roaming already disabled for session %d", session_id);
+		sme_debug("Roaming already disabled for session %d", vdev_id);
 		return QDF_STATUS_SUCCESS;
 	}
 	req = qdf_mem_malloc(sizeof(*req));
@@ -7297,8 +7296,8 @@ QDF_STATUS sme_stop_roaming(tHalHandle hal, uint8_t session_id, uint8_t reason)
 		req->reason = REASON_ROAM_STOP_ALL;
 	else
 		req->reason = REASON_SME_ISSUED;
-	req->sessionId = session_id;
-	if (csr_neighbor_middle_of_roaming(mac_ctx, session_id))
+	req->sessionId = vdev_id;
+	if (csr_neighbor_middle_of_roaming(mac_ctx, vdev_id))
 		req->middle_of_roaming = 1;
 	else
 		csr_roam_reset_roam_params(mac_ctx);
@@ -7306,15 +7305,12 @@ QDF_STATUS sme_stop_roaming(tHalHandle hal, uint8_t session_id, uint8_t reason)
 	/* Disable offload_11k_params and btm_offload_config for current vdev */
 	req->offload_11k_params.offload_11k_bitmask = 0;
 	req->btm_offload_config = 0;
-	req->offload_11k_params.vdev_id = session_id;
+	req->offload_11k_params.vdev_id = vdev_id;
 
-	wma_msg.type = WMA_ROAM_SCAN_OFFLOAD_REQ;
-	wma_msg.bodyptr = req;
-
-	status = wma_post_ctrl_msg(mac_ctx, &wma_msg);
-	if (QDF_STATUS_SUCCESS != status) {
-		sme_err("WMA_ROAM_SCAN_OFFLOAD_REQ failed, session_id: %d",
-			session_id);
+	status = csr_roam_send_rso_cmd(mac_ctx, vdev_id, req);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		sme_err("WMA_ROAM_SCAN_OFFLOAD_REQ failed, vdev_id: %d",
+			vdev_id);
 		qdf_mem_zero(req, sizeof(*req));
 		qdf_mem_free(req);
 		return QDF_STATUS_E_FAULT;

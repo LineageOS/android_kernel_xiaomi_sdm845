@@ -410,6 +410,17 @@ QDF_STATUS csr_roam_synch_callback(tpAniSirGlobal mac,
 	roam_offload_synch_ind *roam_synch_data,
 	tpSirBssDescription  bss_desc_ptr, enum sir_roam_op_code reason);
 
+/*
+ * csr_roam_send_rso_cmd() - API to send RSO command to PE
+ * @mac_ctx: Pointer to global MAC structure
+ * @vdev_id: Session ID
+ * @request_buf: Pointer to tSirRoamOffloadScanReq
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS csr_roam_send_rso_cmd(tpAniSirGlobal mac_ctx, uint8_t vdev_id,
+				 tSirRoamOffloadScanReq *request_buf);
+
 /**
  * csr_roam_auth_offload_callback() - Registered CSR Callback function to handle
  * WPA3 roam pre-auth event from firmware.
@@ -455,6 +466,13 @@ static inline QDF_STATUS
 csr_process_roam_auth_offload_callback(tpAniSirGlobal mac_ctx,
 				       uint8_t vdev_id,
 				       struct qdf_mac_addr roam_bssid)
+{
+	return QDF_STATUS_E_NOSUPPORT;
+}
+
+static inline QDF_STATUS
+csr_roam_send_rso_cmd(tpAniSirGlobal mac_ctx, uint8_t vdev_id,
+		      tSirRoamOffloadScanReq *request_buf)
 {
 	return QDF_STATUS_E_NOSUPPORT;
 }

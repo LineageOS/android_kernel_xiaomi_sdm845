@@ -20542,17 +20542,8 @@ static bool csr_is_RSO_cmd_allowed(tpAniSirGlobal mac_ctx,
 	return ret_val;
 }
 
-/*
- * csr_roam_send_rso_cmd() - API to send RSO command to PE
- * @mac_ctx: Pointer to global MAC structure
- * @session_id: Session ID
- * @request_buf: Pointer to tSirRoamOffloadScanReq
- *
- * Return: QDF_STATUS
- */
-static QDF_STATUS csr_roam_send_rso_cmd(tpAniSirGlobal mac_ctx,
-					uint8_t session_id,
-					tSirRoamOffloadScanReq *request_buf)
+QDF_STATUS csr_roam_send_rso_cmd(tpAniSirGlobal mac_ctx, uint8_t session_id,
+				 tSirRoamOffloadScanReq *request_buf)
 {
 	QDF_STATUS status;
 
