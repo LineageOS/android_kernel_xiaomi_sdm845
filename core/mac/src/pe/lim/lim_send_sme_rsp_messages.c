@@ -1951,6 +1951,7 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 	uint16_t aid = 0;
 	uint16_t chan_space = 0;
 	struct ch_params ch_params = {0};
+	uint32_t channel_bonding_mode;
 
 	tLimWiderBWChannelSwitchInfo *chnl_switch_info = NULL;
 	tLimChannelSwitchInfo *lim_ch_switch = NULL;
@@ -1966,6 +1967,13 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 	if (NULL == csa_offload_ind) {
 		pe_err("memalloc fail eWNI_SME_CSA_OFFLOAD_EVENT");
 		goto err;
+	}
+	if (WLAN_REG_IS_24GHZ_CH(csa_params->channel)) {
+		channel_bonding_mode =
+			mac_ctx->roam.configParam.channelBondingMode24GHz;
+	} else {
+		channel_bonding_mode =
+			mac_ctx->roam.configParam.channelBondingMode5GHz;
 	}
 
 	session_entry =
@@ -2023,15 +2031,18 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 		 csa_params->ies_present_flag,
 		 csa_params->channel,
 		 csa_params->sec_chan_offset);
-	pe_debug("seg1: %d seg2: %d width: %d country: %s class: %d",
+	pe_debug("seg1: %d seg2: %d width: %d country: %s class: %d, cbmode %d",
 		 csa_params->new_ch_freq_seg1,
 		 csa_params->new_ch_freq_seg2,
 		 csa_params->new_ch_width,
 		 mac_ctx->scan.countryCodeCurrent,
-		 csa_params->new_op_class);
+		 csa_params->new_op_class,
+		 channel_bonding_mode);
 
-	if (session_entry->vhtCapability &&
-			session_entry->htSupportedChannelWidthSet) {
+	session_entry->htSupportedChannelWidthSet = false;
+
+	if (session_entry->vhtCapability && session_entry->htCapability &&
+	    channel_bonding_mode) {
 		if ((csa_params->ies_present_flag & lim_wbw_ie_present) &&
 			(QDF_STATUS_SUCCESS == lim_process_csa_wbw_ie(mac_ctx,
 					csa_params, chnl_switch_info,
@@ -2047,6 +2058,8 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 				else
 					lim_ch_switch->sec_ch_offset =
 						PHY_DOUBLE_CHANNEL_HIGH_PRIMARY;
+				session_entry->htSupportedChannelWidthSet =
+									true;
 			}
 		} else if (csa_params->ies_present_flag
 				& lim_xcsa_ie_present) {
@@ -2061,9 +2074,14 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 			if (chan_space == 80) {
 				chnl_switch_info->newChanWidth =
 					CH_WIDTH_80MHZ;
+				session_entry->htSupportedChannelWidthSet =
+									true;
+
 			} else if (chan_space == 40) {
 				chnl_switch_info->newChanWidth =
 					CH_WIDTH_40MHZ;
+				session_entry->htSupportedChannelWidthSet =
+									true;
 			} else {
 				chnl_switch_info->newChanWidth =
 					CH_WIDTH_20MHZ;
@@ -2101,6 +2119,7 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 			chnl_switch_info->newCenterChanFreq0 =
 				ch_params.center_freq_seg0;
 			chnl_switch_info->newCenterChanFreq1 = 0;
+			session_entry->htSupportedChannelWidthSet = true;
 		}
 		session_entry->gLimChannelSwitch.ch_center_freq_seg0 =
 			chnl_switch_info->newCenterChanFreq0;
@@ -2109,7 +2128,7 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 		session_entry->gLimChannelSwitch.ch_width =
 			chnl_switch_info->newChanWidth;
 
-	} else if (session_entry->htSupportedChannelWidthSet) {
+	} else if (channel_bonding_mode && session_entry->htCapability) {
 		if (csa_params->ies_present_flag
 				& lim_xcsa_ie_present) {
 			chan_space =
@@ -2133,6 +2152,8 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 					ch_params.center_freq_seg0;
 				lim_ch_switch->sec_ch_offset =
 					ch_params.sec_ch_offset;
+				session_entry->htSupportedChannelWidthSet =
+								true;
 			} else {
 				lim_ch_switch->ch_width =
 					CH_WIDTH_20MHZ;
@@ -2155,11 +2176,13 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 				ch_params.center_freq_seg0;
 			lim_ch_switch->sec_ch_offset =
 				ch_params.sec_ch_offset;
+			session_entry->htSupportedChannelWidthSet = true;
 		}
 
 	}
-	pe_debug("new ch width: %d space: %d",
-			session_entry->gLimChannelSwitch.ch_width, chan_space);
+	pe_debug("new ch width: %d space: %d new ht width %d",
+		 session_entry->gLimChannelSwitch.ch_width, chan_space,
+		 session_entry->htSupportedChannelWidthSet);
 	if ((session_entry->currentOperChannel == csa_params->channel) &&
 		(session_entry->ch_width ==
 		 session_entry->gLimChannelSwitch.ch_width)) {
