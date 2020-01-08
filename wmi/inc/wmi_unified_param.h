@@ -6171,6 +6171,7 @@ typedef enum {
 	wmi_service_adaptive_11r_support,
 	wmi_service_sae_roam_support,
 	wmi_service_owe_roam_support,
+	wmi_service_nan_vdev,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF
