@@ -1,1 +1,3 @@
+#ifndef WIREGUARD_VERSION
 #define WIREGUARD_VERSION "1.0.20210606"
+#endif
