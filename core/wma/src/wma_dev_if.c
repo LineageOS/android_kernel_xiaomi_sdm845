@@ -213,6 +213,9 @@ static enum wlan_op_mode wma_get_txrx_vdev_type(uint32_t type)
 	case WMI_VDEV_TYPE_NDI:
 		vdev_type = wlan_op_mode_ndi;
 		break;
+	case WMI_VDEV_TYPE_NAN:
+		vdev_type = wlan_op_mode_nan;
+		break;
 	default:
 		WMA_LOGE("Invalid vdev type %u", type);
 		vdev_type = wlan_op_mode_unknown;

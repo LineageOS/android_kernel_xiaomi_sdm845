@@ -2216,11 +2216,11 @@ int hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 	qdf_mem_copy(&hdd_ctx->hw_bd_info, &cfg->hw_bd_info,
 		     sizeof(cfg->hw_bd_info));
 
-	if (cfg->max_intf_count > CSR_ROAM_SESSION_MAX) {
+	if (cfg->max_intf_count > WLAN_MAX_VDEVS) {
 		hdd_err("fw max vdevs (%u) > host max vdevs (%u); using %u",
-			cfg->max_intf_count, CSR_ROAM_SESSION_MAX,
-			CSR_ROAM_SESSION_MAX);
-		hdd_ctx->max_intf_count = CSR_ROAM_SESSION_MAX;
+			cfg->max_intf_count, WLAN_MAX_VDEVS,
+			WLAN_MAX_VDEVS);
+		hdd_ctx->max_intf_count = WLAN_MAX_VDEVS;
 	} else {
 		hdd_ctx->max_intf_count = cfg->max_intf_count;
 	}
@@ -5409,7 +5409,7 @@ struct hdd_adapter *hdd_open_adapter(struct hdd_context *hdd_ctx, uint8_t sessio
 	struct hdd_adapter *adapter = NULL;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
-	if (hdd_ctx->current_intf_count >= hdd_ctx->max_intf_count) {
+	if (hdd_ctx->current_intf_count >= WLAN_MAX_VDEVS) {
 		/*
 		 * Max limit reached on the number of vdevs configured by the
 		 * host. Return error
