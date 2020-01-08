@@ -5741,6 +5741,9 @@ static int wma_update_hdd_cfg(tp_wma_handle wma_handle)
 	for (i = 0; i < tgt_hdl->info.total_mac_phy_cnt; i++)
 		wma_fill_chain_cfg(&tgt_cfg, tgt_hdl, i);
 
+	if (wmi_service_enabled(wma_handle->wmi_handle, wmi_service_nan_vdev))
+		tgt_cfg.nan_seperate_vdev_support = true;
+
 	ret = wma_handle->tgt_cfg_update_cb(hdd_ctx, &tgt_cfg);
 	if (ret)
 		return -EINVAL;

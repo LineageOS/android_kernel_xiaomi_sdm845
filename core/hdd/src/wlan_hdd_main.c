@@ -2257,7 +2257,7 @@ int hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg)
 
 	hdd_update_hw_dbs_capable(hdd_ctx);
 	hdd_ctx->dynamic_nss_chains_support = cfg->dynamic_nss_chains_support;
-
+	hdd_ctx->nan_seperate_vdev_supported = cfg->nan_seperate_vdev_support;
 	hdd_ctx->config->fine_time_meas_cap &= cfg->fine_time_measurement_cap;
 	hdd_ctx->fine_time_meas_cap_target = cfg->fine_time_measurement_cap;
 	hdd_debug("fine_time_meas_cap: 0x%x",
