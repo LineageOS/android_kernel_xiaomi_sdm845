@@ -2574,6 +2574,7 @@ int hdd_start_adapter(struct hdd_adapter *adapter)
 	case QDF_OCB_MODE:
 	case QDF_STA_MODE:
 	case QDF_MONITOR_MODE:
+	case QDF_NAN_DISC_MODE:
 		ret = hdd_start_station_adapter(adapter);
 		if (ret)
 			goto err_start_adapter;
@@ -4735,6 +4736,7 @@ void hdd_deinit_adapter(struct hdd_context *hdd_ctx,
 	case QDF_P2P_DEVICE_MODE:
 	case QDF_IBSS_MODE:
 	case QDF_NDI_MODE:
+	case QDF_NAN_DISC_MODE:
 	{
 		hdd_deinit_station_mode(hdd_ctx, adapter, rtnl_held);
 		break;
@@ -5357,6 +5359,33 @@ static void hdd_reset_locally_admin_bit(struct hdd_context *hdd_ctx,
 		 MAC_ADDRESS_STR, MAC_ADDR_ARRAY(macAddr));
 }
 
+
+#if defined(WLAN_FEATURE_NAN) && \
+	   (KERNEL_VERSION(4, 14, 0) <= LINUX_VERSION_CODE)
+/**
+ * wlan_hdd_set_nan_if_type() - Set the NAN iftype
+ * @adapter: pointer to HDD adapter
+ *
+ * Set the NL80211_IFTYPE_NAN to wdev iftype.
+ *
+ * Return: None
+ */
+static void wlan_hdd_set_nan_if_type(struct hdd_adapter *adapter)
+{
+	adapter->wdev.iftype = NL80211_IFTYPE_NAN;
+}
+#else
+static QDF_STATUS wlan_hdd_convert_nan_type(enum nl80211_iftype nl_type,
+					    enum QDF_OPMODE *out_qdf_type)
+{
+	return QDF_STATUS_E_INVAL;
+}
+
+static void wlan_hdd_set_nan_if_type(struct hdd_adapter *adapter)
+{
+}
+#endif
+
 /**
  * hdd_open_adapter() - open and setup the hdd adatper
  * @hdd_ctx: global hdd context
@@ -5430,6 +5459,7 @@ struct hdd_adapter *hdd_open_adapter(struct hdd_context *hdd_ctx, uint8_t sessio
 	case QDF_OCB_MODE:
 	case QDF_NDI_MODE:
 	case QDF_MONITOR_MODE:
+	case QDF_NAN_DISC_MODE:
 		adapter = hdd_alloc_station_adapter(hdd_ctx, macAddr,
 						    name_assign_type,
 						    iface_name);
@@ -5446,6 +5476,8 @@ struct hdd_adapter *hdd_open_adapter(struct hdd_context *hdd_ctx, uint8_t sessio
 			adapter->wdev.iftype = NL80211_IFTYPE_P2P_DEVICE;
 		else if (QDF_MONITOR_MODE == session_type)
 			adapter->wdev.iftype = NL80211_IFTYPE_MONITOR;
+		else if (QDF_NAN_DISC_MODE == session_type)
+			wlan_hdd_set_nan_if_type(adapter);
 		else
 			adapter->wdev.iftype = NL80211_IFTYPE_STATION;
 
@@ -5781,6 +5813,7 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 	case QDF_IBSS_MODE:
 	case QDF_P2P_DEVICE_MODE:
 	case QDF_NDI_MODE:
+	case QDF_NAN_DISC_MODE:
 		if ((QDF_NDI_MODE == adapter->device_mode) ||
 			hdd_conn_is_connected(
 				WLAN_HDD_GET_STATION_CTX_PTR(adapter)) ||
@@ -6975,6 +7008,7 @@ QDF_STATUS hdd_start_all_adapters(struct hdd_context *hdd_ctx)
 		case QDF_STA_MODE:
 		case QDF_P2P_CLIENT_MODE:
 		case QDF_P2P_DEVICE_MODE:
+		case QDF_NAN_DISC_MODE:
 
 			connState = (WLAN_HDD_GET_STATION_CTX_PTR(adapter))
 					->conn_info.connState;
@@ -10379,6 +10413,17 @@ static int hdd_open_interfaces(struct hdd_context *hdd_ctx, bool rtnl_held)
 	ret = hdd_open_p2p_interface(hdd_ctx, rtnl_held);
 	if (ret)
 		goto err_close_adapters;
+
+	if (hdd_ctx->nan_seperate_vdev_supported) {
+		adapter = hdd_open_adapter(hdd_ctx, QDF_NAN_DISC_MODE, "wifi-aware%d",
+				   wlan_hdd_get_intf_addr(hdd_ctx,
+							  QDF_NAN_DISC_MODE),
+				   NET_NAME_UNKNOWN, rtnl_held);
+		if (!adapter) {
+			hdd_err("Failed to create nan interface");
+			goto err_close_adapters;
+		}
+	}
 
 	/* Open 802.11p Interface */
 	if (hdd_ctx->config->dot11p_mode == WLAN_HDD_11P_CONCURRENT) {

@@ -1646,6 +1646,9 @@ QDF_STATUS cds_get_vdev_types(enum QDF_OPMODE mode, uint32_t *type,
 	case QDF_NDI_MODE:
 		*type = WMI_VDEV_TYPE_NDI;
 		break;
+	case QDF_NAN_DISC_MODE:
+		*type = WMI_VDEV_TYPE_NAN;
+		break;
 	default:
 		cds_err("Invalid device mode %d", mode);
 		status = QDF_STATUS_E_INVAL;
