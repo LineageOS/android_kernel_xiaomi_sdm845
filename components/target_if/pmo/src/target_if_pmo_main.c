@@ -108,5 +108,7 @@ void target_if_pmo_register_tx_ops(struct wlan_pmo_tx_ops *pmo_tx_ops)
 	pmo_tx_ops->send_clear_pkt_filter =
 		target_if_pmo_clear_pkt_filter_req;
 
+	pmo_tx_ops->psoc_send_idle_roam_suspend_mode =
+		target_if_pmo_psoc_send_idle_monitor_cmd;
 }
 

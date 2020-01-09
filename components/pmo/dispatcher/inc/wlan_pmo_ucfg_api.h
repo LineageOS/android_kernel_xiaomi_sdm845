@@ -151,6 +151,18 @@ void pmo_ucfg_disable_wakeup_event(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS pmo_ucfg_cache_arp_offload_req(struct pmo_arp_req *arp_req);
 
 /**
+ * ucfg_pmo_check_arp_offload(): API to check if arp offload cache/send is req
+ * @psoc: objmgr psoc handle
+ * @trigger: trigger reason
+ * @vdev_id: vdev_id
+ *
+ * Return QDF_STATUS -in case of success else return error
+ */
+QDF_STATUS ucfg_pmo_check_arp_offload(struct wlan_objmgr_psoc *psoc,
+				      enum pmo_offload_trigger trigger,
+				      uint8_t vdev_id);
+
+/*
  * pmo_ucfg_flush_arp_offload_req(): API to flush arp req from pmo vdev priv ctx
  * @vdev: objmgr vdev param
  *
@@ -201,6 +213,18 @@ pmo_ucfg_get_arp_offload_params(struct wlan_objmgr_vdev *vdev,
 QDF_STATUS pmo_ucfg_cache_ns_offload_req(struct pmo_ns_req *ns_req);
 
 /**
+ * ucfg_pmo_ns_offload_check(): API to check if offload cache/send is required
+ * @psoc: pbjmgr psoc handle
+ * @trigger: trigger reason to enable ns offload
+ * @vdev_id: vdev id
+ *
+ * Return QDF_STATUS -in case of success else return error
+ */
+QDF_STATUS ucfg_pmo_ns_offload_check(struct wlan_objmgr_psoc *psoc,
+				     enum pmo_offload_trigger trigger,
+				     uint8_t vdev_id);
+
+/*
  * pmo_ucfg_flush_ns_offload_req(): API to flush ns req from pmo vdev priv ctx
  * @vdev: vdev ojbmgr handle
  *
@@ -697,6 +721,18 @@ QDF_STATUS pmo_ucfg_config_listen_interval(struct wlan_objmgr_vdev *vdev,
  */
 QDF_STATUS pmo_ucfg_config_modulated_dtim(struct wlan_objmgr_vdev *vdev,
 				       uint32_t mod_dtim);
+/**
+ * ucfg_pmo_tgt_psoc_send_idle_roam_suspend_mode() - Send suspend mode to
+ * firmware
+ * @psoc: pointer to psoc object
+ * @val: Set suspend mode on/off sent from userspace
+ *
+ * Return: QDF_STATUS_SUCCESS if suspend mode is sent to fw else return
+ * corresponding QDF_STATUS failure code.
+ */
+QDF_STATUS
+ucfg_pmo_tgt_psoc_send_idle_roam_suspend_mode(struct wlan_objmgr_psoc *psoc,
+					      uint8_t val);
 #else
 static inline uint32_t
 ucfg_pmo_get_apf_instruction_size(struct wlan_objmgr_psoc *psoc)
@@ -780,6 +816,14 @@ pmo_ucfg_cache_arp_offload_req(struct pmo_arp_req *arp_req)
 	return QDF_STATUS_SUCCESS;
 }
 
+static inline
+QDF_STATUS ucfg_pmo_check_arp_offload(struct wlan_objmgr_psoc *psoc,
+				      enum pmo_offload_trigger trigger,
+				      uint8_t vdev_id)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
 static inline QDF_STATUS
 pmo_ucfg_flush_arp_offload_req(struct wlan_objmgr_vdev *vdev)
 {
@@ -811,6 +855,13 @@ pmo_ucfg_get_arp_offload_params(struct wlan_objmgr_vdev *vdev,
 
 static inline QDF_STATUS
 pmo_ucfg_cache_ns_offload_req(struct pmo_ns_req *ns_req)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+QDF_STATUS ucfg_pmo_ns_offload_check(struct wlan_objmgr_psoc *psoc,
+				     enum pmo_offload_trigger trigger,
+				     uint8_t vdev_id)
 {
 	return QDF_STATUS_SUCCESS;
 }
@@ -1162,6 +1213,13 @@ pmo_ucfg_config_listen_interval(struct wlan_objmgr_vdev *vdev,
 static inline QDF_STATUS
 pmo_ucfg_config_modulated_dtim(struct wlan_objmgr_vdev *vdev,
 			       uint32_t mod_dtim)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS
+ucfg_pmo_tgt_psoc_send_idle_roam_suspend_mode(struct wlan_objmgr_psoc *psoc,
+					      uint8_t val)
 {
 	return QDF_STATUS_SUCCESS;
 }

@@ -690,6 +690,12 @@ void hdd_ndi_drv_ndi_create_rsp_handler(uint8_t vdev_id,
 		wlan_hdd_netif_queue_control(adapter,
 					WLAN_START_ALL_NETIF_QUEUE_N_CARRIER,
 					WLAN_CONTROL_PATH);
+
+		sme_cli_set_command(vdev_id,
+				    WMI_VDEV_PARAM_NDP_INACTIVITY_TIMEOUT,
+				    hdd_ctx->config->ndp_inactivity_timeout,
+				    VDEV_CMD);
+
 	} else {
 		hdd_alert("NDI interface creation failed with reason %d",
 			ndi_rsp->reason /* create_reason */);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -575,6 +575,11 @@ rrm_process_beacon_report_req(tpAniSirGlobal pMac,
 	}
 
 	if (pBeaconReq->measurement_request.Beacon.RequestedInfo.present) {
+		if (!pBeaconReq->measurement_request.Beacon.RequestedInfo.
+		    num_requested_eids) {
+			pe_debug("802.11k BCN RPT: Requested num of EID is 0");
+			return eRRM_FAILURE;
+		}
 		pCurrentReq->request.Beacon.reqIes.pElementIds =
 			qdf_mem_malloc(sizeof(uint8_t) *
 				       pBeaconReq->measurement_request.Beacon.
@@ -583,6 +588,7 @@ rrm_process_beacon_report_req(tpAniSirGlobal pMac,
 			pe_err("Unable to allocate memory for request IEs buffer");
 			return eRRM_FAILURE;
 		}
+
 		pCurrentReq->request.Beacon.reqIes.num =
 			pBeaconReq->measurement_request.Beacon.RequestedInfo.
 			num_requested_eids;
@@ -590,6 +596,11 @@ rrm_process_beacon_report_req(tpAniSirGlobal pMac,
 			     pBeaconReq->measurement_request.Beacon.
 			     RequestedInfo.requested_eids,
 			     pCurrentReq->request.Beacon.reqIes.num);
+		pe_debug("802.11k BCN RPT: Requested EIDs: num:[%d]",
+			 pCurrentReq->request.Beacon.reqIes.num);
+		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
+			   pCurrentReq->request.Beacon.reqIes.pElementIds,
+			   pCurrentReq->request.Beacon.reqIes.num);
 	}
 
 	if (pBeaconReq->measurement_request.Beacon.num_APChannelReport) {
@@ -740,9 +751,16 @@ rrm_fill_beacon_ies(tpAniSirGlobal pMac,
 	}
 
 	while (BcnNumIes > 0) {
-		len = *(pBcnIes + 1) + 2;       /* element id + length. */
+		len = *(pBcnIes + 1);
+		len += 2;       /* element id + length. */
 		pe_debug("EID = %d, len = %d total = %d",
 			*pBcnIes, *(pBcnIes + 1), len);
+
+		if (BcnNumIes < len) {
+			pe_err("RRM: Invalid IE len:%d exp_len:%d",
+			       len, BcnNumIes);
+			break;
+		}
 
 		if (len <= 2) {
 			pe_err("RRM: Invalid IE");

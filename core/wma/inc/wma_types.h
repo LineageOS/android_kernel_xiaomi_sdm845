@@ -255,6 +255,7 @@
 #endif
 
 #define WMA_ROAM_SCAN_OFFLOAD_REQ   SIR_HAL_ROAM_SCAN_OFFLOAD_REQ
+#define WMA_ROAM_PRE_AUTH_STATUS    SIR_HAL_ROAM_PRE_AUTH_STATUS_IND
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 #define WMA_ROAM_OFFLOAD_SYNCH_IND  SIR_HAL_ROAM_OFFLOAD_SYNCH_IND
@@ -760,20 +761,28 @@ QDF_STATUS wma_register_roaming_callbacks(
 			roam_offload_synch_ind *roam_synch_data,
 			tpSirBssDescription  bss_desc_ptr,
 			enum sir_roam_op_code reason),
+		QDF_STATUS (*csr_roam_auth_event_handle_cb)(tpAniSirGlobal mac,
+			uint8_t vdev_id, struct qdf_mac_addr bssid),
 		QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
 			roam_offload_synch_ind *roam_synch_data,
 			tpSirBssDescription  bss_desc_ptr,
-			enum sir_roam_op_code reason));
+			enum sir_roam_op_code reason),
+		QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
+						uint8_t vdev_id));
 #else
 static inline QDF_STATUS wma_register_roaming_callbacks(
 		QDF_STATUS (*csr_roam_synch_cb)(tpAniSirGlobal mac,
 			roam_offload_synch_ind *roam_synch_data,
 			tpSirBssDescription  bss_desc_ptr,
 			enum sir_roam_op_code reason),
+		QDF_STATUS (*csr_roam_auth_event_handle_cb)(tpAniSirGlobal mac,
+			uint8_t vdev_id, struct qdf_mac_addr bssid),
 		QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
 			roam_offload_synch_ind *roam_synch_data,
 			tpSirBssDescription  bss_desc_ptr,
-			enum sir_roam_op_code reason))
+			enum sir_roam_op_code reason),
+		QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
+						uint8_t vdev_id))
 {
 	return QDF_STATUS_E_NOSUPPORT;
 }

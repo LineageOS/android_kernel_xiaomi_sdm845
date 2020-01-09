@@ -120,6 +120,13 @@ QDF_STATUS pmo_ucfg_cache_arp_offload_req(struct pmo_arp_req *arp_req)
 	return pmo_core_cache_arp_offload_req(arp_req);
 }
 
+QDF_STATUS ucfg_pmo_check_arp_offload(struct wlan_objmgr_psoc *psoc,
+				      enum pmo_offload_trigger trigger,
+				      uint8_t vdev_id)
+{
+	return pmo_core_arp_check_offload(psoc, trigger, vdev_id);
+}
+
 QDF_STATUS pmo_ucfg_flush_arp_offload_req(struct wlan_objmgr_vdev *vdev)
 {
 	return pmo_core_flush_arp_offload_req(vdev);
@@ -147,6 +154,13 @@ pmo_ucfg_get_arp_offload_params(struct wlan_objmgr_vdev *vdev,
 QDF_STATUS pmo_ucfg_cache_ns_offload_req(struct pmo_ns_req *ns_req)
 {
 	return pmo_core_cache_ns_offload_req(ns_req);
+}
+
+QDF_STATUS ucfg_pmo_ns_offload_check(struct wlan_objmgr_psoc *psoc,
+				     enum pmo_offload_trigger trigger,
+				     uint8_t vdev_id)
+{
+	return pmo_core_ns_check_offload(psoc, trigger, vdev_id);
 }
 
 QDF_STATUS pmo_ucfg_flush_ns_offload_req(struct wlan_objmgr_vdev *vdev)
@@ -448,3 +462,9 @@ QDF_STATUS pmo_ucfg_config_modulated_dtim(struct wlan_objmgr_vdev *vdev,
 	return pmo_core_config_modulated_dtim(vdev, mod_dtim);
 }
 
+QDF_STATUS
+ucfg_pmo_tgt_psoc_send_idle_roam_suspend_mode(struct wlan_objmgr_psoc *psoc,
+					      uint8_t val)
+{
+	return pmo_tgt_psoc_send_idle_roam_monitor(psoc, val);
+}

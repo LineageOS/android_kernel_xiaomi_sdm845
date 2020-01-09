@@ -1422,7 +1422,7 @@ struct hdd_adapter {
 	bool offloads_configured;
 
 	/* DSCP to UP QoS Mapping */
-	enum sme_qos_wmmuptype dscp_to_up_map[WLAN_HDD_MAX_DSCP + 1];
+	enum sme_qos_wmmuptype dscp_to_up_map[WLAN_MAX_DSCP + 1];
 
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 	bool is_link_layer_stats_set;
@@ -2165,24 +2165,132 @@ int hdd_validate_channel_and_bandwidth(struct hdd_adapter *adapter,
 
 const char *hdd_device_mode_to_string(uint8_t device_mode);
 
+/**
+ * hdd_get_front_adapter() - Get the first adapter from the adapter list
+ * @hdd_ctx: pointer to the HDD context
+ * @current_adapter: pointer to the current adapter
+ * @out_adapter: double pointer to pass the next adapter
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS hdd_get_front_adapter(struct hdd_context *hdd_ctx,
 				 struct hdd_adapter **out_adapter);
 
+/**
+ * hdd_get_next_adapter() - Get the next adapter from the adapter list
+ * @hdd_ctx: pointer to the HDD context
+ * @current_adapter: pointer to the current adapter
+ * @out_adapter: double pointer to pass the next adapter
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS hdd_get_next_adapter(struct hdd_context *hdd_ctx,
 				struct hdd_adapter *current_adapter,
 				struct hdd_adapter **out_adapter);
 
+/**
+ * hdd_get_front_adapter_no_lock() - Get the first adapter from the adapter list
+ * This API doesnot use any lock in it's implementation. It is the caller's
+ * directive to ensure concurrency safety.
+ * @hdd_ctx: pointer to the HDD context
+ * @out_adapter: double pointer to pass the next adapter
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS hdd_get_front_adapter_no_lock(struct hdd_context *hdd_ctx,
+					 struct hdd_adapter **out_adapter);
+
+/**
+ * hdd_get_next_adapter_no_lock() - Get the next adapter from the adapter list
+ * This API doesnot use any lock in it's implementation. It is the caller's
+ * directive to ensure concurrency safety.
+ * @hdd_ctx: pointer to the HDD context
+ * @current_adapter: pointer to the current adapter
+ * @out_adapter: double pointer to pass the next adapter
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS hdd_get_next_adapter_no_lock(struct hdd_context *hdd_ctx,
+					struct hdd_adapter *current_adapter,
+					struct hdd_adapter **out_adapter);
+
+/**
+ * hdd_remove_adapter() - Remove the adapter from the adapter list
+ * @hdd_ctx: pointer to the HDD context
+ * @adapter: pointer to the adapter to be removed
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS hdd_remove_adapter(struct hdd_context *hdd_ctx,
 			      struct hdd_adapter *adapter);
 
+/**
+ * hdd_remove_front_adapter() - Remove the first adapter from the adapter list
+ * @hdd_ctx: pointer to the HDD context
+ * @out_adapter: pointer to the adapter to be removed
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS hdd_remove_front_adapter(struct hdd_context *hdd_ctx,
 				    struct hdd_adapter **out_adapter);
 
+/**
+ * hdd_add_adapter_back() - Add an adapter to the adapter list
+ * @hdd_ctx: pointer to the HDD context
+ * @adapter: pointer to the adapter to be added
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS hdd_add_adapter_back(struct hdd_context *hdd_ctx,
 				struct hdd_adapter *adapter);
 
+/**
+ * hdd_add_adapter_front() - Add an adapter to the head of the adapter list
+ * @hdd_ctx: pointer to the HDD context
+ * @adapter: pointer to the adapter to be added
+ *
+ * Return: QDF_STATUS
+ */
 QDF_STATUS hdd_add_adapter_front(struct hdd_context *hdd_ctx,
 				 struct hdd_adapter *adapter);
+
+/**
+ * typedef hdd_adapter_iterate_cb() – Iteration callback function
+ * @adapter: current adapter of interest
+ * @context: user context supplied to the iterator
+ *
+ * This specifies the type of a callback function to supply to
+ * hdd_adapter_iterate().
+ *
+ * Return:
+ * * QDF_STATUS_SUCCESS if further iteration should continue
+ * * QDF_STATUS_E_ABORTED if further iteration should be aborted
+ */
+typedef QDF_STATUS (*hdd_adapter_iterate_cb)(struct hdd_adapter *adapter,
+					     void *context);
+
+/**
+ * hdd_adapter_iterate() – Safely iterate over all adapters
+ * @cb: callback function to invoke for each adapter
+ * @context: user-supplied context to pass to @cb
+ *
+ * This function will iterate over all of the adapters known to the system in
+ * a safe manner, invoking the callback function for each adapter.
+ * The callback function will be invoked in the same context/thread as the
+ * caller without any additional locks in force.
+ * Iteration continues until either the callback has been invoked for all
+ * adapters or a callback returns a value of QDF_STATUS_E_ABORTED to indicate
+ * that further iteration should cease.
+ *
+ * Return:
+ * * QDF_STATUS_E_ABORTED if any callback function returns that value
+ * * QDF_STATUS_E_FAILURE if the callback was not invoked for all adapters due
+ * to concurrency (i.e. adapter was deleted while iterating)
+ * * QDF_STATUS_SUCCESS if @cb was invoked for each adapter and none returned
+ * an error
+ */
+QDF_STATUS hdd_adapter_iterate(hdd_adapter_iterate_cb cb,
+			       void *context);
 
 /**
  * hdd_for_each_adapter - adapter iterator macro
@@ -2193,6 +2301,76 @@ QDF_STATUS hdd_add_adapter_front(struct hdd_context *hdd_ctx,
 	for (hdd_get_front_adapter(hdd_ctx, &adapter); \
 	     adapter; \
 	     hdd_get_next_adapter(hdd_ctx, adapter, &adapter))
+
+/**
+ * __hdd_take_ref_and_fetch_front_adapter - Helper macro to lock, fetch front
+ * adapter, take ref and unlock.
+ * @hdd_ctx: the global HDD context
+ * @adapter: an hdd_adapter pointer to use as a cursor
+ */
+#define __hdd_take_ref_and_fetch_front_adapter(hdd_ctx, adapter) \
+	qdf_spin_lock_bh(&hdd_ctx->hdd_adapter_lock), \
+	hdd_get_front_adapter_no_lock(hdd_ctx, &adapter), \
+	(adapter) ? dev_hold(adapter->dev) : (false), \
+	qdf_spin_unlock_bh(&hdd_ctx->hdd_adapter_lock)
+
+/**
+ * __hdd_take_ref_and_fetch_next_adapter - Helper macro to lock, fetch next
+ * adapter, take ref and unlock.
+ * @hdd_ctx: the global HDD context
+ * @adapter: an hdd_adapter pointer to use as a cursor
+ */
+#define __hdd_take_ref_and_fetch_next_adapter(hdd_ctx, adapter) \
+	qdf_spin_lock_bh(&hdd_ctx->hdd_adapter_lock), \
+	hdd_get_next_adapter_no_lock(hdd_ctx, adapter, &adapter), \
+	(adapter) ? dev_hold(adapter->dev) : (false), \
+	qdf_spin_unlock_bh(&hdd_ctx->hdd_adapter_lock)
+
+/**
+ * __hdd_is_adapter_valid - Helper macro to return true/false for valid adapter.
+ * @adapter: an hdd_adapter pointer to use as a cursor
+ */
+#define __hdd_is_adapter_valid(_adapter) !!_adapter
+
+/**
+ * hdd_for_each_adapter_dev_held - Adapter iterator with dev_hold called
+ * @hdd_ctx: the global HDD context
+ * @adapter: an hdd_adapter pointer to use as a cursor
+ *
+ * This iterator will take the reference of the netdev associated with the
+ * given adapter so as to prevent it from being removed in other context.
+ * If the control goes inside the loop body then the dev_hold has been invoked.
+ *
+ *                           ***** NOTE *****
+ * Before the end of each iteration, dev_put(adapter->dev) must be
+ * called. Not calling this will keep hold of a reference, thus preventing
+ * unregister of the netdevice.
+ *
+ * Usage example:
+ *                 hdd_for_each_adapter_dev_held(hdd_ctx, adapter) {
+ *                         <work involving adapter>
+ *                         <some more work>
+ *                         dev_put(adapter->dev)
+ *                 }
+ */
+#define hdd_for_each_adapter_dev_held(hdd_ctx, adapter) \
+	for (__hdd_take_ref_and_fetch_front_adapter(hdd_ctx, adapter); \
+	     __hdd_is_adapter_valid(adapter); \
+	     __hdd_take_ref_and_fetch_next_adapter(hdd_ctx, adapter))
+
+/**
+ * wlan_hdd_get_adapter_by_vdev_id_from_objmgr() - Fetch adapter from objmgr
+ * using vdev_id.
+ * @hdd_ctx: the global HDD context
+ * @adapter: an hdd_adapter double pointer to store the address of the adapter
+ * @vdev: the vdev whose corresponding adapter has to be fetched
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wlan_hdd_get_adapter_by_vdev_id_from_objmgr(struct hdd_context *hdd_ctx,
+					    struct hdd_adapter **adapter,
+					    struct wlan_objmgr_vdev *vdev);
 
 struct hdd_adapter *hdd_open_adapter(struct hdd_context *hdd_ctx,
 				     uint8_t session_type,
@@ -2209,6 +2387,31 @@ QDF_STATUS hdd_reset_all_adapters(struct hdd_context *hdd_ctx);
 QDF_STATUS hdd_start_all_adapters(struct hdd_context *hdd_ctx);
 struct hdd_adapter *hdd_get_adapter_by_vdev(struct hdd_context *hdd_ctx,
 				       uint32_t vdev_id);
+
+/**
+ * hdd_adapter_get_by_reference() - Return adapter with the given reference
+ * @hdd_ctx: hdd context
+ * @reference: reference for the adapter to get
+ *
+ * This function is used to get the adapter with provided reference.
+ * The adapter reference will be held until being released by calling
+ * hdd_adapter_put().
+ *
+ * Return: adapter pointer if found
+ *
+ */
+struct hdd_adapter *hdd_adapter_get_by_reference(struct hdd_context *hdd_ctx,
+						 struct hdd_adapter *reference);
+
+/**
+ * hdd_adapter_put() - Release reference to adapter
+ * @adapter: adapter reference
+ *
+ * Release reference to adapter previously acquired via
+ * hdd_adapter_get_*() function
+ */
+void hdd_adapter_put(struct hdd_adapter *adapter);
+
 struct hdd_adapter *hdd_get_adapter_by_macaddr(struct hdd_context *hdd_ctx,
 					  tSirMacAddr macAddr);
 

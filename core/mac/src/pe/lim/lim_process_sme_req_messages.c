@@ -479,6 +479,7 @@ static bool __lim_process_sme_sys_ready_ind(tpAniSirGlobal pMac, uint32_t *pMsgB
 
 	if (ANI_DRIVER_TYPE(pMac) != QDF_DRIVER_TYPE_MFG) {
 		ready_req->pe_roam_synch_cb = pe_roam_synch_callback;
+		ready_req->pe_disconnect_cb = pe_disconnect_callback;
 		pe_register_mgmt_rx_frm_callback(pMac);
 		pe_register_callbacks_with_wma(pMac, ready_req);
 		pMac->lim.sme_msg_callback = ready_req->sme_msg_cb;
@@ -1504,6 +1505,8 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		 */
 		session->is11Rconnection = sme_join_req->is11Rconnection;
 		session->connected_akm = sme_join_req->akm;
+		session->is_adaptive_11r_connection =
+				sme_join_req->is_adaptive_11r_connection;
 #ifdef FEATURE_WLAN_ESE
 		session->isESEconnection = sme_join_req->isESEconnection;
 #endif
@@ -3767,7 +3770,6 @@ static void __lim_process_roam_scan_offload_req(tpAniSirGlobal mac_ctx,
 
 	wma_msg.type = WMA_ROAM_SCAN_OFFLOAD_REQ;
 	wma_msg.bodyptr = req_buffer;
-
 	status = wma_post_ctrl_msg(mac_ctx, &wma_msg);
 	if (QDF_STATUS_SUCCESS != status) {
 		pe_err("Posting WMA_ROAM_SCAN_OFFLOAD_REQ failed");

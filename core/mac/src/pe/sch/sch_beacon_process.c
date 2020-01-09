@@ -1132,6 +1132,8 @@ void sch_send_beacon_report(struct sAniSirGlobal *mac_ctx,
 				qdf_do_div(qdf_get_monotonic_boottime(),
 					   QDF_MC_TIMER_TO_MS_UNIT);
 
+		beacon_report.vdev_id = session->smeSessionId;
+
 		/* Send report to upper layer */
 		mac_ctx->lim.sme_bcn_rcv_callback(mac_ctx->hdd_handle,
 						  &beacon_report);

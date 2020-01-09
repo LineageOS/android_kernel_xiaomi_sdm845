@@ -540,6 +540,13 @@ struct csr_config {
 	uint8_t allowDFSChannelRoam;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	bool isRoamOffloadEnabled;
+	bool enable_disconnect_roam_offload;
+	bool enable_idle_roam;
+	uint32_t idle_roam_rssi_delta;
+	uint32_t idle_roam_inactive_time;
+	uint32_t idle_data_packet_count;
+	uint32_t idle_roam_band;
+	int32_t idle_roam_min_rssi;
 #endif
 	bool obssEnabled;
 	bool ignore_peer_erp_info;
@@ -613,9 +620,11 @@ struct csr_config {
 	uint8_t oce_feature_bitmap;
 	struct csr_mbo_thresholds mbo_thresholds;
 	uint32_t btm_offload_config;
+	uint32_t pmkid_modes;
 	uint32_t btm_solicited_timeout;
 	uint32_t btm_max_attempt_cnt;
 	uint32_t btm_sticky_time;
+	uint32_t btm_trig_min_candidate_score;
 	uint32_t offload_11k_enable_bitmask;
 	bool wep_tkip_in_he;
 	struct csr_neighbor_report_offload_params neighbor_report_offload;
@@ -627,6 +636,20 @@ struct csr_config {
 	uint32_t bss_load_threshold;
 	uint32_t bss_load_sample_time;
 	bool roaming_scan_policy;
+	int32_t bss_load_trigger_rssi_threshold_5ghz;
+	int32_t bss_load_trigger_rssi_threshold_24ghz;
+	uint32_t roam_scan_inactivity_time;
+	uint32_t roam_inactive_data_packet_count;
+	uint32_t roam_scan_period_after_inactivity;
+	int32_t disconnect_roam_min_rssi;
+	int32_t bmiss_roam_min_rssi;
+	uint32_t btm_roam_score_delta;
+	uint32_t idle_roam_score_delta;
+	uint32_t btm_min_candidate_score;
+#ifdef WLAN_ADAPTIVE_11R
+	bool enable_adaptive_11r;
+#endif
+	bool enable_pending_list_req;
 };
 
 struct csr_channel_powerinfo {
@@ -704,6 +727,7 @@ struct csr_scanstruct {
 	bool fcc_constraint;
 	uint8_t max_scan_count;
 	bool defer_update_channel_list;
+	bool pending_channel_list_req;
 	wlan_scan_requester requester_id;
 };
 
@@ -971,6 +995,7 @@ struct csr_roam_session {
 	bool is_fils_connection;
 	uint16_t fils_seq_num;
 	bool discon_in_progress;
+	bool is_adaptive_11r_connection;
 	struct csr_disconnect_stats disconnect_stats;
 };
 

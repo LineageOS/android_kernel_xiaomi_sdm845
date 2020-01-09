@@ -219,11 +219,11 @@ typedef enum {
 
 #define CFG_NON_AGG_RETRY_MAX                  (31)
 #define CFG_AGG_RETRY_MAX                      (31)
-#define CFG_MGMT_RETRY_MAX                     (31)
 #define CFG_CTRL_RETRY_MAX                     (31)
 #define CFG_PROPAGATION_DELAY_MAX              (63)
 #define CFG_PROPAGATION_DELAY_BASE             (64)
 #define CFG_AGG_RETRY_MIN                      (5)
+#define MGMT_RETRY_MAX                         (31)
 
 struct cfg80211_bss *
 wlan_hdd_cfg80211_update_bss_db(struct hdd_adapter *adapter,

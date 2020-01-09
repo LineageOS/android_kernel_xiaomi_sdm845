@@ -1775,6 +1775,8 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 		 * by kernel
 		 */
 		if (sendDisconInd) {
+			int reason = WLAN_REASON_UNSPECIFIED;
+
 			if (roam_info && roam_info->disconnect_ies) {
 				disconnect_ies.data =
 					roam_info->disconnect_ies->data;
@@ -1785,28 +1787,21 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 			 * To avoid wpa_supplicant sending "HANGED" CMD
 			 * to ICS UI.
 			 */
-			if (eCSR_ROAM_LOSTLINK == roamStatus) {
-				if (roam_info->reasonCode ==
+			if (roam_info && eCSR_ROAM_LOSTLINK == roamStatus) {
+				reason = roam_info->reasonCode;
+				if (reason ==
 				    eSIR_MAC_PEER_STA_REQ_LEAVING_BSS_REASON)
 					pr_info("wlan: disconnected due to poor signal, rssi is %d dB\n",
 						roam_info->rxRssi);
-				wlan_hdd_cfg80211_indicate_disconnect(
-							dev, false,
-							roam_info->reasonCode,
-							disconnect_ies.data,
-							disconnect_ies.len);
-			} else {
-				wlan_hdd_cfg80211_indicate_disconnect(
-							dev, false,
-							WLAN_REASON_UNSPECIFIED,
-							disconnect_ies.data,
-							disconnect_ies.len);
 			}
+			wlan_hdd_cfg80211_indicate_disconnect(
+							dev, false,
+							reason,
+							disconnect_ies.data,
+							disconnect_ies.len);
 
 			hdd_debug("sent disconnected event to nl80211, reason code %d",
-				(eCSR_ROAM_LOSTLINK == roamStatus) ?
-				roam_info->reasonCode :
-				WLAN_REASON_UNSPECIFIED);
+				  reason);
 		}
 
 		/* update P2P connection status */
@@ -1815,18 +1810,19 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 
 	hdd_wmm_adapter_clear(adapter);
 	mac_handle = hdd_ctx->mac_handle;
+
 	sme_ft_reset(mac_handle, adapter->session_id);
 	sme_reset_key(mac_handle, adapter->session_id);
-	if (!hdd_remove_beacon_filter(adapter)) {
-		if (sme_is_beacon_report_started(mac_handle,
-						 adapter->session_id)) {
-			hdd_beacon_recv_pause_indication((hdd_handle_t)hdd_ctx,
-							 adapter->session_id,
-							 SCAN_EVENT_TYPE_MAX,
-							 true);
-		}
-	}
 
+	if (hdd_remove_beacon_filter(adapter))
+		hdd_err("hdd_remove_beacon_filter() failed");
+
+	if (sme_is_beacon_report_started(mac_handle, adapter->session_id)) {
+		hdd_debug("Sending beacon pause indication to userspace");
+		hdd_beacon_recv_pause_indication((hdd_handle_t)hdd_ctx,
+						 adapter->session_id,
+						 SCAN_EVENT_TYPE_MAX, true);
+	}
 	if (eCSR_ROAM_IBSS_LEAVE == roamStatus) {
 		uint8_t i;
 
@@ -1892,11 +1888,13 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 	* eConnectionState_Connecting state mean that connection is in
 	* progress so no need to set state to eConnectionState_NotConnected
 	*/
-	if ((eConnectionState_Connecting != sta_ctx->conn_info.connState)) {
+	if (eConnectionState_Connecting != sta_ctx->conn_info.connState)
 		 hdd_conn_set_connection_state(adapter,
 					       eConnectionState_NotConnected);
-		 hdd_set_roaming_in_progress(false);
-	}
+
+	/* Clear roaming in progress flag */
+	hdd_set_roaming_in_progress(false);
+
 	pmo_ucfg_flush_gtk_offload_req(adapter->vdev);
 
 	if ((QDF_STA_MODE == adapter->device_mode) ||
@@ -2784,13 +2782,6 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 	 */
 	hdd_reset_scan_reject_params(hdd_ctx, roamStatus, roamResult);
 
-	/*
-	 * Enable roaming on other STA iface except this one.
-	 * Firmware dosent support connection on one STA iface while
-	 * roaming on other STA iface
-	 */
-	wlan_hdd_enable_roaming(adapter);
-
 	/* HDD has initiated disconnect, do not send connect result indication
 	 * to kernel as it will be handled by __cfg80211_disconnect.
 	 */
@@ -2817,6 +2808,13 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 			hdd_conn_set_connection_state(adapter,
 						   eConnectionState_Associated);
 		}
+
+		/*
+		 * Enable roaming on other STA iface except this one.
+		 * Firmware dosent support connection on one STA iface while
+		 * roaming on other STA iface
+		 */
+		wlan_hdd_enable_roaming(adapter);
 
 		/* Save the connection info from CSR... */
 		hdd_conn_save_connect_info(adapter, roam_info,
@@ -3459,6 +3457,13 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 		if (roamStatus == eCSR_ROAM_ASSOCIATION_FAILURE ||
 		    roamStatus == eCSR_ROAM_CANCELLED) {
 			ucfg_tdls_notify_connect_failure(hdd_ctx->psoc);
+
+			/*
+			 * Enable roaming on other STA iface except this one.
+			 * Firmware dosent support connection on one STA iface
+			 * while roaming on other STA iface
+			 */
+			wlan_hdd_enable_roaming(adapter);
 		}
 
 		/*

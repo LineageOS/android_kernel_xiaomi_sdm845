@@ -25,6 +25,8 @@
 #ifndef __WLAN_HDD_OEM_DATA_H__
 #define __WLAN_HDD_OEM_DATA_H__
 
+#include "wmi_unified_param.h"
+
 struct hdd_context;
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
@@ -46,7 +48,7 @@ struct hdd_context;
 #define OEM_CAP_MAX_NUM_CHANNELS   128
 
 /**
- * typedef eOemErrorCode - OEM error codes
+ * enum oem_err_code - OEM error codes
  * @OEM_ERR_NULL_CONTEXT: %NULL context
  * @OEM_ERR_APP_NOT_REGISTERED: OEM App is not registered
  * @OEM_ERR_INVALID_SIGNATURE: Invalid signature
@@ -219,4 +221,47 @@ static inline void hdd_update_channel_bw_info(struct hdd_context *hdd_ctx,
 					      uint16_t chan,
 					      void *hdd_chan_info) {}
 #endif /* FEATURE_OEM_DATA_SUPPORT */
+
+#ifdef FEATURE_OEM_DATA
+#define OEM_DATA_MAX_SIZE 1024
+/**
+ * wlan_hdd_cfg80211_oem_data_handler() - the handler for oem data
+ * @wiphy: wiphy structure pointer
+ * @wdev: Wireless device structure pointer
+ * @data: Pointer to the data received
+ * @data_len: Length of @data
+ *
+ * Return: 0 on success; errno on failure
+ */
+int wlan_hdd_cfg80211_oem_data_handler(struct wiphy *wiphy,
+				       struct wireless_dev *wdev,
+				       const void *data, int data_len);
+
+#define FEATURE_OEM_DATA_VENDOR_COMMANDS                        \
+{                                                               \
+	.info.vendor_id = QCA_NL80211_VENDOR_ID,                \
+	.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_OEM_DATA,      \
+	.flags = WIPHY_VENDOR_CMD_NEED_WDEV |                   \
+		WIPHY_VENDOR_CMD_NEED_NETDEV |                  \
+		WIPHY_VENDOR_CMD_NEED_RUNNING,                  \
+	.doit = wlan_hdd_cfg80211_oem_data_handler              \
+},
+#else
+#define FEATURE_OEM_DATA_VENDOR_COMMANDS
+#endif
+
+#ifdef FEATURE_OEM_DATA
+/**
+ * hdd_oem_event_handler_cb() - callback for oem data event
+ * @oem_event_data: oem data received in the event from the FW
+ *
+ * Return: None
+ */
+void hdd_oem_event_handler_cb(const struct oem_data *oem_event_data);
+#else
+static inline void hdd_oem_event_handler_cb(void *oem_event_data)
+{
+}
+#endif
+
 #endif /* __WLAN_HDD_OEM_DATA_H__ */

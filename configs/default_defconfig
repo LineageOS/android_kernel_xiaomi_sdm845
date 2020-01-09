@@ -149,6 +149,9 @@ CONFIG_QCOM_VOWIFI_11R := y
 #Flag to enable disable ACTION OUI feature
 CONFIG_WLAN_FEATURE_ACTION_OUI := y
 
+#Flag to enable Adaptive 11r feature
+CONFIG_ADAPTIVE_11R := y
+
 #Flag to enable FILS Feature (11ai)
 CONFIG_WLAN_FEATURE_FILS := y
 ifneq ($(CONFIG_QCA_CLD_WLAN),)
@@ -678,3 +681,9 @@ CONFIG_FEATURE_BECN_STATS := y
 ifeq ($(CONFIG_ARCH_QCS405), y)
 CONFIG_QCACLD_FEATURE_MPTA_HELPER := y
 endif
+
+#Enable support to get ANI level
+CONFIG_ANI_LEVEL_REQUEST := y
+
+#Enable OEM DATA feature
+CONFIG_FEATURE_OEM_DATA := y

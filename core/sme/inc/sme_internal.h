@@ -38,6 +38,7 @@
 #include "sme_power_save.h"
 #include "nan_api.h"
 #include "wmi_unified.h"
+#include "wmi_unified_param.h"
 
 struct wmi_twt_enable_complete_event_param;
 /*--------------------------------------------------------------------------
@@ -345,6 +346,10 @@ typedef struct tagSmeStruct {
 #ifdef WLAN_BCN_RECV_FEATURE
 	beacon_report_cb beacon_report_cb;
 	beacon_pause_cb beacon_pause_cb;
+#endif
+#ifdef FEATURE_OEM_DATA
+	void (*oem_data_event_handler_cb)
+			(const struct oem_data *oem_event_data);
 #endif
 } tSmeStruct, *tpSmeStruct;
 

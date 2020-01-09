@@ -3236,6 +3236,8 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 			"wlan_auto_shutdown_wl");
 		qdf_wake_lock_create(&wma_handle->roam_ho_wl,
 			"wlan_roam_ho_wl");
+		qdf_wake_lock_create(&wma_handle->roam_preauth_wl,
+				     "wlan_roam_preauth_wl");
 	}
 
 	qdf_status = wlan_objmgr_psoc_try_get_ref(psoc, WLAN_LEGACY_WMA_ID);
@@ -3549,6 +3551,13 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 					   wma_cold_boot_cal_event_handler,
 					   WMA_RX_WORK_CTX);
 
+#ifdef FEATURE_OEM_DATA
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   wmi_oem_data_event_id,
+					   wma_oem_event_handler,
+					   WMA_RX_WORK_CTX);
+#endif
+
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 	/* Register event handler for processing Link Layer Stats
 	 * response from the FW
@@ -3626,6 +3635,10 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 				   wmi_roam_synch_frame_event_id,
 				   wma_roam_synch_frame_event_handler,
 				   WMA_RX_SERIALIZER_CTX);
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   wmi_roam_auth_offload_event_id,
+					   wma_roam_auth_offload_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
 #endif /* WLAN_FEATURE_ROAM_OFFLOAD */
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
 				wmi_rssi_breach_event_id,
@@ -3685,6 +3698,10 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 				wma_pdev_div_info_evt_handler,
 				WMA_RX_WORK_CTX);
 
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   wmi_get_ani_level_event_id,
+					   wma_get_ani_level_evt_handler,
+					   WMA_RX_WORK_CTX);
 
 	wma_register_debug_callback();
 	wifi_pos_register_get_phy_mode_cb(wma_handle->psoc,
@@ -3771,6 +3788,7 @@ err_get_psoc_ref:
 		qdf_wake_lock_destroy(&wma_handle->wow_ap_assoc_lost_wl);
 		qdf_wake_lock_destroy(&wma_handle->wow_auto_shutdown_wl);
 		qdf_wake_lock_destroy(&wma_handle->roam_ho_wl);
+		qdf_wake_lock_destroy(&wma_handle->roam_preauth_wl);
 	}
 err_free_wma_handle:
 	cds_free_context(QDF_MODULE_ID_WMA, wma_handle);
@@ -4791,6 +4809,7 @@ QDF_STATUS wma_close(void)
 		qdf_wake_lock_destroy(&wma_handle->wow_ap_assoc_lost_wl);
 		qdf_wake_lock_destroy(&wma_handle->wow_auto_shutdown_wl);
 		qdf_wake_lock_destroy(&wma_handle->roam_ho_wl);
+		qdf_wake_lock_destroy(&wma_handle->roam_preauth_wl);
 	}
 
 	/* unregister Firmware debug log */
@@ -5009,14 +5028,23 @@ static inline void wma_update_target_services(struct wmi_unified *wmi_handle,
 		cfg->is_11k_offload_supported = true;
 
 	if (wmi_service_enabled(wmi_handle, wmi_service_wpa3_ft_sae_support))
-		cfg->ft_akm_service_bitmap |= (1 << AKM_FT_SAE);
+		cfg->akm_service_bitmap |= (1 << AKM_FT_SAE);
 
 	if (wmi_service_enabled(wmi_handle,
 				wmi_service_wpa3_ft_suite_b_support))
-		cfg->ft_akm_service_bitmap |= (1 << AKM_FT_SUITEB_SHA384);
+		cfg->akm_service_bitmap |= (1 << AKM_FT_SUITEB_SHA384);
 
-	if (wmi_service_enabled(wmi_handle, wmi_service_ft_fils))
-		cfg->ft_akm_service_bitmap |= (1 << AKM_FT_FILS);
+	if (wmi_service_enabled(wmi_handle,wmi_service_ft_fils))
+		cfg->akm_service_bitmap |= (1 << AKM_FT_FILS);
+
+	if (wmi_service_enabled(wmi_handle, wmi_service_owe_roam_support))
+		cfg->akm_service_bitmap |= (1 << AKM_OWE);
+
+	if (wmi_service_enabled(wmi_handle, wmi_service_sae_roam_support))
+		cfg->akm_service_bitmap |= (1 << AKM_SAE);
+
+	if (wmi_service_enabled(wmi_handle, wmi_service_adaptive_11r_support))
+		cfg->is_adaptive_11r_roam_supported = true;
 
 	if (wmi_service_enabled(wmi_handle, wmi_service_twt_requestor))
 		cfg->twt_requestor = true;
@@ -8318,6 +8346,11 @@ static QDF_STATUS wma_mc_process_msg(struct scheduler_msg *msg)
 		qdf_mem_free(msg->bodyptr);
 		break;
 
+	case WMA_ROAM_PRE_AUTH_STATUS:
+		wma_send_roam_preauth_status(wma_handle, msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		break;
+
 	case WMA_RATE_UPDATE_IND:
 		wma_process_rate_update_indicate(wma_handle,
 				(tSirRateUpdateInd *) msg->bodyptr);
@@ -9336,3 +9369,11 @@ QDF_STATUS wma_config_bmiss_bcnt_params(uint32_t vdev_id, uint32_t first_cnt,
 	return status;
 }
 
+#ifdef FEATURE_ANI_LEVEL_REQUEST
+QDF_STATUS wma_send_ani_level_request(tp_wma_handle wma_handle,
+				      uint32_t *freqs, uint8_t num_freqs)
+{
+	return wmi_unified_ani_level_cmd_send(wma_handle->wmi_handle, freqs,
+					      num_freqs);
+}
+#endif

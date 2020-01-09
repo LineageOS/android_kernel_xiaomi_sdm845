@@ -205,6 +205,19 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 					uint32_t len);
 
 /**
+ * wma_roam_auth_offload_event_handler() - Handle LFR-3.0 Roam authentication
+ * offload event.
+ * @handle: wma_handle
+ * @event:  rso auth offload event data pointer
+ * @len: length of the data
+ *
+ * Handles roam authentication offload event from firmware which is triggered
+ * after roam candidate selection.
+ */
+int wma_roam_auth_offload_event_handler(WMA_HANDLE handle, uint8_t *event,
+					uint32_t len);
+
+/**
  * wma_roam_synch_frame_event_handler() - roam synch frame event handler
  * @handle: wma handle
  * @event: event data
@@ -267,11 +280,9 @@ QDF_STATUS wma_roam_scan_mawc_params(tp_wma_handle wma_handle,
 QDF_STATUS wma_roam_scan_offload_rssi_thresh(tp_wma_handle wma_handle,
 					     tSirRoamOffloadScanReq *roam_req);
 
-QDF_STATUS wma_roam_scan_offload_scan_period(tp_wma_handle wma_handle,
-					     uint32_t scan_period,
-					     uint32_t scan_age,
-					     uint32_t vdev_id,
-					     uint32_t roam_full_scan_period);
+QDF_STATUS
+wma_roam_scan_offload_scan_period(tp_wma_handle wma_handle,
+				  tSirRoamOffloadScanReq *roam_req);
 
 QDF_STATUS wma_roam_scan_offload_rssi_change(tp_wma_handle wma_handle,
 					     uint32_t vdev_id,
@@ -1465,6 +1476,18 @@ int wma_roam_scan_stats_event_handler(void *handle, uint8_t *event,
 int wma_cold_boot_cal_event_handler(void *wma_ctx, uint8_t *event_buff,
 				    uint32_t len);
 
+#ifdef FEATURE_OEM_DATA
+/**
+ * wma_oem_event_handler() - oem data event handler
+ * @wma_ctx: wma handle
+ * @event_buff: event data
+ * @len: length of event buffer
+ *
+ * Return: Success or Failure status
+ */
+int wma_oem_event_handler(void *wma_ctx, uint8_t *event_buff, uint32_t len);
+#endif
+
 /**
  * wma_set_roam_triggers() - Send roam trigger bitmap to WMI
  * @wma_handle: wma handle
@@ -1474,4 +1497,18 @@ int wma_cold_boot_cal_event_handler(void *wma_ctx, uint8_t *event_buff,
  */
 QDF_STATUS wma_set_roam_triggers(tp_wma_handle wma_handle,
 				 struct roam_triggers *triggers);
+
+/**
+ * wma_get_ani_level_evt_handler - event handler to fetch ani level
+ * @handle: the wma handle
+ * @event_buf: buffer with event
+ * @len: buffer length
+ *
+ * This function receives ani level from firmware and passes the event
+ * to upper layer
+ *
+ * Return: 0 on success
+ */
+int wma_get_ani_level_evt_handler(void *handle, uint8_t *event_buf,
+				  uint32_t len);
 #endif

@@ -1877,6 +1877,26 @@ static void wma_set_peer_unicast_cipher(tp_wma_handle wma,
 }
 
 /**
+ * wma_skip_bip_key_set() - skip the BIP key step or not
+ * @wma_handle: wma handle
+ * @iface: txrx node
+ * @key_cipher: key cipher
+ *
+ * if target not support the BIP key cipher, skip the set key command.
+ *
+ * Return: true to skip set key to target, otherwise set key to target
+ */
+static bool
+wma_skip_bip_key_set(tp_wma_handle wma_handle, uint32_t key_cipher)
+{
+	if ((key_cipher == WMI_CIPHER_AES_GMAC) &&
+	    !wmi_service_enabled(wma_handle->wmi_handle,
+				 wmi_service_gmac_offload_support))
+		return true;
+	return false;
+}
+
+/**
  * wma_setup_install_key_cmd() - set key parameters
  * @wma_handle: wma handle
  * @key_params: key parameters
@@ -1903,6 +1923,7 @@ static QDF_STATUS wma_setup_install_key_cmd(tp_wma_handle wma_handle,
 	uint32_t pn[4] = {0, 0, 0, 0};
 	uint8_t peer_id;
 	struct cdp_peer *peer;
+	bool skip_set_key;
 
 	if ((key_params->key_type == eSIR_ED_NONE &&
 	     key_params->key_len) || (key_params->key_type != eSIR_ED_NONE &&
@@ -2099,8 +2120,11 @@ static QDF_STATUS wma_setup_install_key_cmd(tp_wma_handle wma_handle,
 	/* Set PN check & security type in data path */
 	cdp_set_pn_check(soc, txrx_vdev, peer, sec_type, pn);
 
-	status = wmi_unified_setup_install_key_cmd(wma_handle->wmi_handle,
-								&params);
+	skip_set_key = wma_skip_bip_key_set(wma_handle, params.key_cipher);
+	if (!skip_set_key)
+		status = wmi_unified_setup_install_key_cmd(
+				wma_handle->wmi_handle, &params);
+
 	if (!key_params->unicast) {
 		/* Its GTK release the wake lock */
 		WMA_LOGD("Release set key wake lock");
@@ -3749,7 +3773,8 @@ int wma_process_bip(tp_wma_handle wma_handle,
 
 	if (iface->key.key_cipher == WMI_CIPHER_AES_CMAC) {
 		mmie_size = cds_get_mmie_size();
-	} else if (iface->key.key_cipher == WMI_CIPHER_AES_GMAC) {
+	} else if (iface->key.key_cipher == WMI_CIPHER_AES_GMAC ||
+		   iface->key.key_cipher == WMI_CIPHER_BIP_GMAC_256) {
 		mmie_size = cds_get_gmac_mmie_size();
 	} else {
 		WMA_LOGE(FL("Invalid key cipher %d"), iface->key.key_cipher);
@@ -3796,6 +3821,7 @@ int wma_process_bip(tp_wma_handle wma_handle,
 		break;
 
 	case WMI_CIPHER_AES_GMAC:
+	case WMI_CIPHER_BIP_GMAC_256:
 		if (wmi_service_enabled(wma_handle->wmi_handle,
 				wmi_service_gmac_offload_support)) {
 			/*
@@ -4435,6 +4461,7 @@ QDF_STATUS wma_de_register_mgmt_frm_client(void)
  * wma_register_roaming_callbacks() - Register roaming callbacks
  * @csr_roam_synch_cb: CSR roam synch callback routine pointer
  * @pe_roam_synch_cb: PE roam synch callback routine pointer
+ * @csr_roam_auth_event_handle_cb: CSR callback routine pointer
  *
  * Register the SME and PE callback routines with WMA for
  * handling roaming
@@ -4446,10 +4473,16 @@ QDF_STATUS wma_register_roaming_callbacks(
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr,
 		enum sir_roam_op_code reason),
+	QDF_STATUS (*csr_roam_auth_event_handle_cb)(tpAniSirGlobal mac,
+						    uint8_t vdev_id,
+						    struct qdf_mac_addr bssid),
+
 	QDF_STATUS (*pe_roam_synch_cb)(tpAniSirGlobal mac,
 		roam_offload_synch_ind *roam_synch_data,
 		tpSirBssDescription  bss_desc_ptr,
-		enum sir_roam_op_code reason))
+		enum sir_roam_op_code reason),
+	QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
+					uint8_t vdev_id))
 {
 
 	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
@@ -4459,7 +4492,9 @@ QDF_STATUS wma_register_roaming_callbacks(
 		return QDF_STATUS_E_FAILURE;
 	}
 	wma->csr_roam_synch_cb = csr_roam_synch_cb;
+	wma->csr_roam_auth_event_handle_cb = csr_roam_auth_event_handle_cb;
 	wma->pe_roam_synch_cb = pe_roam_synch_cb;
+	wma->pe_disconnect_cb = pe_disconnect_cb;
 	WMA_LOGD("Registered roam synch callbacks with WMA successfully");
 	return QDF_STATUS_SUCCESS;
 }

@@ -334,6 +334,18 @@ static void csr_neighbor_roam_reset_init_state_control_info(tpAniSirGlobal pMac,
 	csr_neighbor_roam_reset_report_scan_state_control_info(pMac, sessionId);
 }
 
+#ifdef WLAN_FEATURE_11W
+void
+csr_update_pmf_cap_from_connected_profile(tCsrRoamConnectedProfile *profile,
+					  struct scan_filter *filter)
+{
+	if (profile->MFPCapable || profile->MFPEnabled)
+		filter->pmf_cap = WLAN_PMF_CAPABLE;
+	if (profile->MFPRequired)
+		filter->pmf_cap = WLAN_PMF_REQUIRED;
+}
+#endif
+
 /**
  * csr_neighbor_roam_prepare_scan_profile_filter()
  *
@@ -720,45 +732,6 @@ static bool csr_neighbor_roam_is_ssid_and_security_match(tpAniSirGlobal pMac,
 		return fMatch;
 	}
 
-}
-
-bool csr_neighbor_roam_is_new_connected_profile(tpAniSirGlobal pMac,
-						uint8_t sessionId)
-{
-	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
-		&pMac->roam.neighborRoamInfo[sessionId];
-	tCsrRoamConnectedProfile *pCurrProfile = NULL;
-	tCsrRoamConnectedProfile *pPrevProfile = NULL;
-	tDot11fBeaconIEs *pIes = NULL;
-	tSirBssDescription *pBssDesc = NULL;
-	bool fNew = true;
-
-	if (!(pMac->roam.roamSession && CSR_IS_SESSION_VALID(pMac, sessionId)))
-		return fNew;
-
-	pCurrProfile = &pMac->roam.roamSession[sessionId].connectedProfile;
-	if (!pCurrProfile)
-		return fNew;
-
-	pPrevProfile = &pNeighborRoamInfo->prevConnProfile;
-	if (!pPrevProfile)
-		return fNew;
-
-	pBssDesc = pPrevProfile->pBssDesc;
-	if (pBssDesc) {
-		if (QDF_IS_STATUS_SUCCESS(
-		    csr_get_parsed_bss_description_ies(pMac, pBssDesc, &pIes))
-		    && csr_neighbor_roam_is_ssid_and_security_match(pMac,
-					pCurrProfile, pBssDesc, pIes)) {
-			fNew = false;
-		}
-		if (pIes)
-			qdf_mem_free(pIes);
-	}
-
-	sme_debug("roam profile match: %d", !fNew);
-
-	return fNew;
 }
 
 bool csr_neighbor_roam_connected_profile_match(tpAniSirGlobal pMac,
