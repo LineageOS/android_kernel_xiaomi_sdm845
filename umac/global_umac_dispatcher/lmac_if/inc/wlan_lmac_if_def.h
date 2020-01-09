@@ -557,6 +557,9 @@ struct wlan_lmac_if_reg_tx_ops {
 			struct wlan_objmgr_psoc *psoc, void *arg);
 	QDF_STATUS (*unregister_ch_avoid_event_handler)(
 			struct wlan_objmgr_psoc *psoc, void *arg);
+
+	QDF_STATUS (*send_ctl_info)(struct wlan_objmgr_psoc *psoc,
+				    struct reg_ctl_params *params);
 };
 
 /**

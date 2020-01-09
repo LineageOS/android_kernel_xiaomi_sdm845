@@ -334,6 +334,10 @@
  *
  *	All the attributes used with this command are defined in
  *	enum qca_wlan_vendor_attr_beacon_reporting_params.
+ * @QCA_NL80211_VENDOR_SUBCMD_OEM_DATA: This command is used to send OEM data
+ *	binary blobs from application/service to firmware. The attributes
+ *	defined in enum qca_wlan_vendor_attr_oem_data_params are used to
+ *	deliver the parameters.
  */
 
 enum qca_nl80211_vendor_subcmds {
@@ -546,6 +550,7 @@ enum qca_nl80211_vendor_subcmds {
 	QCA_NL80211_VENDOR_SUBCMD_PEER_STATS_CACHE_FLUSH = 178,
 	QCA_NL80211_VENDOR_SUBCMD_MPTA_HELPER_CONFIG = 179,
 	QCA_NL80211_VENDOR_SUBCMD_BEACON_REPORTING = 180,
+	QCA_NL80211_VENDOR_SUBCMD_OEM_DATA = 182,
 };
 
 enum qca_wlan_vendor_tos {
@@ -976,6 +981,7 @@ enum qca_nl80211_vendor_subcmds_index {
 	QCA_NL80211_VENDOR_SUBCMD_THROUGHPUT_CHANGE_EVENT_INDEX,
 	QCA_NL80211_VENDOR_SUBCMD_BEACON_REPORTING_INDEX,
 	QCA_NL80211_VENDOR_SUBCMD_ROAM_INDEX,
+	QCA_NL80211_VENDOR_SUBCMD_OEM_DATA_INDEX,
 };
 
 /**
@@ -7135,4 +7141,22 @@ enum qca_wlan_vendor_attr_beacon_reporting_params {
 		QCA_WLAN_VENDOR_ATTR_BEACON_REPORTING_LAST - 1
 };
 
+/*
+ * enum qca_wlan_vendor_attr_oem_data_params - Used by the vendor command
+ * QCA_NL80211_VENDOR_SUBCMD_OEM_DATA.
+ *
+ * @QCA_WLAN_VENDOR_ATTR_OEM_DATA_CMD_DATA: The binary blob for the vendor
+ * command QCA_NL80211_VENDOR_SUBCMD_OEM_DATA are carried through this
+ * attribute.
+ * NLA_BINARY attribute, the max size is 1024 bytes.
+ */
+enum qca_wlan_vendor_attr_oem_data_params {
+	QCA_WLAN_VENDOR_ATTR_OEM_DATA_INVALID = 0,
+	QCA_WLAN_VENDOR_ATTR_OEM_DATA_CMD_DATA = 1,
+
+	/* keep last */
+	QCA_WLAN_VENDOR_ATTR_OEM_DATA_PARAMS_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_OEM_DATA_PARAMS_MAX =
+		QCA_WLAN_VENDOR_ATTR_OEM_DATA_PARAMS_AFTER_LAST - 1
+};
 #endif

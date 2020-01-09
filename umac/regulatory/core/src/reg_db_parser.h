@@ -30,6 +30,8 @@ extern const struct regulatory_rule reg_rules_2g[];
 extern const struct regdomain regdomains_2g[];
 extern const struct regulatory_rule reg_rules_5g[];
 extern const struct regdomain regdomains_5g[];
+extern const uint32_t reg_2g_sub_dmn_code[];
+extern const uint32_t reg_5g_sub_dmn_code[];
 
 QDF_STATUS reg_is_country_code_valid(uint8_t *alpha2);
 

@@ -631,7 +631,6 @@ QDF_STATUS policy_mgr_get_pcl(struct wlan_objmgr_psoc *psoc,
 	uint32_t num_connections = 0, i;
 	enum policy_mgr_conc_priority_mode first_index = 0;
 	enum policy_mgr_one_connection_mode second_index = 0;
-	enum policy_mgr_two_connection_mode third_index = 0;
 	enum policy_mgr_pcl_type pcl = PM_NONE;
 	enum policy_mgr_conc_priority_mode conc_system_pref = 0;
 	struct policy_mgr_psoc_priv_obj *pm_ctx;
@@ -723,8 +722,8 @@ QDF_STATUS policy_mgr_get_pcl(struct wlan_objmgr_psoc *psoc,
 		break;
 	}
 
-	policy_mgr_debug("index1:%d index2:%d index3:%d pcl:%d dbs:%d",
-		first_index, second_index, third_index,
+	policy_mgr_debug("index1:%d index2:%d pcl:%d dbs:%d",
+		first_index, second_index,
 		pcl, policy_mgr_is_hw_dbs_capable(psoc));
 
 	/* once the PCL enum is obtained find out the exact channel list with

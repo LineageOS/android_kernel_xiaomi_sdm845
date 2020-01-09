@@ -993,6 +993,16 @@ QDF_STATUS wmi_unified_set_sta_ps_mode(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 
+QDF_STATUS
+wmi_unified_send_idle_trigger_monitor(wmi_unified_t wmi_handle, uint8_t val)
+{
+	if (wmi_handle->ops->send_idle_roam_monitor_cmd)
+		return wmi_handle->ops->send_idle_roam_monitor_cmd(wmi_handle,
+								   val);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
 /**
  * wmi_set_mimops() - set MIMO powersave
  * @wmi_hdl: wmi handle
@@ -2193,7 +2203,7 @@ QDF_STATUS wmi_unified_oem_dma_ring_cfg(void *wmi_hdl,
 {
 	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
 
-	if (wmi_handle->ops->send_start_oem_data_cmd)
+	if (wmi_handle->ops->send_oem_dma_cfg_cmd)
 		return wmi_handle->ops->send_oem_dma_cfg_cmd(wmi_handle, cfg);
 
 	return QDF_STATUS_E_FAILURE;
@@ -2230,6 +2240,17 @@ QDF_STATUS wmi_unified_start_oem_data_cmd(void *wmi_hdl,
 
 	return QDF_STATUS_E_FAILURE;
 }
+
+#ifdef FEATURE_OEM_DATA
+QDF_STATUS wmi_unified_start_oemv2_data_cmd(wmi_unified_t wmi_handle,
+					    struct oem_data *params)
+{
+	if (wmi_handle->ops->send_start_oemv2_data_cmd)
+		return wmi_handle->ops->send_start_oemv2_data_cmd(wmi_handle,
+								  params);
+	return QDF_STATUS_E_FAILURE;
+}
+#endif
 
 /**
  * wmi_unified_dfs_phyerr_filter_offload_en_cmd() - enable dfs phyerr filter
@@ -3044,31 +3065,25 @@ QDF_STATUS wmi_unified_send_roam_scan_offload_ap_cmd(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 #endif
+
 /**
  * wmi_unified_roam_scan_offload_scan_period() - set roam offload scan period
  * @wmi_handle: wmi handle
- * @scan_period: scan period
- * @scan_age: scan age
- * @vdev_id: vdev id
- * @full_scan_period: Full scan period is the idle period in seconds
- *		      between two successive full channel roam scans.
+ * @param: pointer to roam scan period params to be sent to fw
  *
  * Send WMI_ROAM_SCAN_PERIOD parameters to fw.
  *
  * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
  */
-QDF_STATUS wmi_unified_roam_scan_offload_scan_period(void *wmi_hdl,
-					     uint32_t scan_period,
-					     uint32_t scan_age,
-					     uint32_t vdev_id,
-					     uint32_t full_scan_period)
+QDF_STATUS
+wmi_unified_roam_scan_offload_scan_period(void *wmi_hdl,
+					  struct roam_scan_period_params *param)
 {
 	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
 
 	if (wmi_handle->ops->send_roam_scan_offload_scan_period_cmd)
-		return wmi_handle->ops->send_roam_scan_offload_scan_period_cmd(wmi_handle,
-				  scan_period, scan_age, vdev_id,
-				  full_scan_period);
+		return wmi_handle->ops->send_roam_scan_offload_scan_period_cmd(
+							wmi_handle, param);
 
 	return QDF_STATUS_E_FAILURE;
 }
@@ -7362,6 +7377,36 @@ QDF_STATUS wmi_unified_send_bss_load_config(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 
+QDF_STATUS
+wmi_unified_send_disconnect_roam_params(wmi_unified_t wmi_handle,
+					struct wmi_disconnect_roam_params *req)
+{
+	if (wmi_handle->ops->send_disconnect_roam_params)
+		return wmi_handle->ops->send_disconnect_roam_params(wmi_handle,
+								    req);
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS
+wmi_unified_send_idle_roam_params(wmi_unified_t wmi_handle,
+				  struct wmi_idle_roam_params *req)
+{
+	if (wmi_handle->ops->send_idle_roam_params)
+		return wmi_handle->ops->send_idle_roam_params(wmi_handle,
+							      req);
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS
+wmi_unified_send_roam_preauth_status(wmi_unified_t wmi_handle,
+				     struct wmi_roam_auth_status_params *params)
+{
+	if (wmi_handle->ops->send_roam_preauth_status)
+		return wmi_handle->ops->send_roam_preauth_status(wmi_handle,
+								 params);
+	return QDF_STATUS_E_FAILURE;
+}
+
 QDF_STATUS wmi_unified_send_obss_detection_cfg_cmd(void *wmi_hdl,
 		struct wmi_obss_detection_cfg_param *obss_cfg_param)
 {
@@ -7565,3 +7610,28 @@ QDF_STATUS wmi_unified_send_mws_coex_req_cmd(struct wmi_unified *wmi_handle,
 
 	return QDF_STATUS_E_FAILURE;
 }
+
+#ifdef FEATURE_ANI_LEVEL_REQUEST
+QDF_STATUS wmi_unified_ani_level_cmd_send(wmi_unified_t wmi_handle,
+					  uint32_t *freqs,
+					  uint8_t num_freqs)
+{
+	if (wmi_handle->ops->send_ani_level_cmd)
+		return wmi_handle->ops->send_ani_level_cmd(wmi_handle, freqs,
+							   num_freqs);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS wmi_unified_extract_ani_level(wmi_unified_t wmi_handle,
+					 uint8_t *data,
+					 struct wmi_host_ani_level_event **info,
+					 uint32_t *num_channels)
+{
+	if (wmi_handle->ops->extract_ani_level)
+		return wmi_handle->ops->extract_ani_level(data, info,
+							  num_channels);
+
+	return QDF_STATUS_E_FAILURE;
+}
+#endif /* FEATURE_ANI_LEVEL_REQUEST */

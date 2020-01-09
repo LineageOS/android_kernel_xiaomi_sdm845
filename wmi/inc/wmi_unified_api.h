@@ -969,10 +969,34 @@ QDF_STATUS wmi_unified_oem_dma_ring_cfg(void *wmi_hdl,
 QDF_STATUS wmi_unified_dbr_ring_cfg(void *wmi_hdl,
 				struct direct_buf_rx_cfg_req *cfg);
 
+/**
+ * wmi_unified_start_oem_data_cmd() - start oem data request to target
+ * wmi_unified_start_oem_data_cmd() - start oem data request to target
+ * @data_len: the length of @data
+ * @data: the pointer to data buf
+ *
+ * This is legacy api for oem data request, using wmi command
+ * WMI_OEM_REQ_CMDID.
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
 QDF_STATUS wmi_unified_start_oem_data_cmd(void *wmi_hdl,
 			  uint32_t data_len,
 			  uint8_t *data);
 
+#ifdef FEATURE_OEM_DATA
+/**
+ * wmi_unified_start_oemv2_data_cmd() - start oem data cmd to target
+ * @wmi_handle: wmi handle
+ * @params: oem data params
+ *
+ * This is common api for oem data, using wmi command WMI_OEM_DATA_CMDID.
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_start_oemv2_data_cmd(wmi_unified_t wmi_handle,
+					    struct oem_data *params);
+#endif
 QDF_STATUS wmi_unified_dfs_phyerr_filter_offload_en_cmd(void *wmi_hdl,
 			bool dfs_phyerr_filter_offload);
 
@@ -1097,11 +1121,8 @@ QDF_STATUS wmi_unified_send_roam_scan_offload_ap_cmd(void *wmi_hdl,
 				   struct ap_profile_params *ap_profile);
 #endif
 
-QDF_STATUS wmi_unified_roam_scan_offload_scan_period(void *wmi_hdl,
-					     uint32_t scan_period,
-					     uint32_t scan_age,
-					     uint32_t vdev_id,
-					     uint32_t full_roam_scan_period);
+QDF_STATUS wmi_unified_roam_scan_offload_scan_period(
+		void *wmi_hdl, struct roam_scan_period_params *param);
 
 QDF_STATUS wmi_unified_roam_scan_offload_chan_list_cmd(void *wmi_hdl,
 				   uint8_t chan_count,
@@ -2232,6 +2253,44 @@ QDF_STATUS wmi_unified_send_bss_load_config(void *wmi_hdl,
 					    struct wmi_bss_load_config *params);
 
 /**
+ * wmi_unified_send_disconnect_roam_params() - Send disconnect roam trigger
+ * parameters to firmware
+ * @wmi_hdl:  wmi handle
+ * @params: pointer to wmi_disconnect_roam_params
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_send_disconnect_roam_params(wmi_unified_t wmi_handle,
+					struct wmi_disconnect_roam_params *req);
+
+/**
+ * wmi_unified_send_idle_roam_params() - Send idle roam trigger params to fw
+ * @wmi_hdl:  wmi handle
+ * @params: pointer to wmi_idle_roam_params
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_send_idle_roam_params(wmi_unified_t wmi_handle,
+				  struct wmi_idle_roam_params *req);
+
+/**
+ * wmi_unified_send_roam_preauth_status() - Send roam preauthentication status
+ * to target.
+ * @wmi_handle: wmi handle
+ * @param: Roam auth status params
+ *
+ * This function passes preauth status of WPA3 SAE auth to firmware. It is
+ * called when external_auth_status event is received from userspace.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_send_roam_preauth_status(wmi_unified_t wmi_handle,
+				     struct wmi_roam_auth_status_params *param);
+
+/**
  * wmi_unified_send_obss_detection_cfg_cmd() - WMI function to send obss
  *  detection configuration to FW.
  * @wmi_hdl: wmi handle
@@ -2464,6 +2523,17 @@ void wmi_process_fw_event_worker_thread_ctx(struct wmi_unified *wmi_handle,
 QDF_STATUS wmi_unified_send_mws_coex_req_cmd(struct wmi_unified *wmi_handle,
 					     uint32_t vdev_id, uint32_t cmd_id);
 
+/**
+ * wmi_unified_send_idle_trigger_monitor() - send idle trigger monitor command
+ * @wmi_handle: WMI handle
+ * @val: idle trigger monitor value - 1 for idle monitor on, 0 for idle monitor
+ * off
+ *
+ * Return: QDF_STATUS_SUCCESS if success, else returns proper error code.
+ */
+QDF_STATUS
+wmi_unified_send_idle_trigger_monitor(wmi_unified_t wmi_handle, uint8_t val);
+
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /**
  * wmi_unified_set_roam_triggers() - send roam trigger bitmap
@@ -2477,4 +2547,31 @@ QDF_STATUS wmi_unified_send_mws_coex_req_cmd(struct wmi_unified *wmi_handle,
 QDF_STATUS wmi_unified_set_roam_triggers(wmi_unified_t wmi_handle,
 					 struct roam_triggers *triggers);
 #endif
+
+#ifdef FEATURE_ANI_LEVEL_REQUEST
+/**
+ * wmi_unified_ani_level_cmd_send() - WMI function to send get ani level cmd
+ * @wmi_hdl: WMI handle
+ * @freqs: pointer to list of freqs for which ANI levels are to be fetched
+ * @num_freqs: number of freqs in the above parameter
+ *
+ * Return: QDF_STATUS_SUCCESS if success, else returns proper error code.
+ */
+QDF_STATUS wmi_unified_ani_level_cmd_send(wmi_unified_t wmi_handle,
+					  uint32_t *freqs,
+					  uint8_t num_freqs);
+
+/**
+ * wmi_unified_extract_ani_level() - WMI function to receive ani level cmd
+ * @wmi_hdl: WMI handle
+ * @info: pointer to ANI data received from the FW and stored in HOST
+ * @num_freqs: number of freqs in the above parameter
+ *
+ * Return: QDF_STATUS_SUCCESS if success, else returns proper error code.
+ */
+QDF_STATUS wmi_unified_extract_ani_level(wmi_unified_t wmi_handle,
+					 uint8_t *data,
+					 struct wmi_host_ani_level_event **info,
+					 uint32_t *num_freqs);
+#endif /* FEATURE_ANI_LEVEL_REQUEST */
 #endif /* _WMI_UNIFIED_API_H_ */

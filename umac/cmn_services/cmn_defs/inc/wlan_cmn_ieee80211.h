@@ -66,6 +66,13 @@
 #define QCA_OUI 0xf0fd8c
 #define QCA_OUI_WHC_TYPE  0x00
 
+#define ADAPTIVE_11R_OUI      0x964000
+#define ADAPTIVE_11R_OUI_TYPE 0x2C
+
+#define OUI_LENGTH              4
+#define OUI_TYPE_BITS           24
+#define MAX_ADAPTIVE_11R_IE_LEN 8
+
 /* Temporary vendor specific IE for 11n pre-standard interoperability */
 #define VENDOR_HT_OUI       0x00904c
 #define VENDOR_HT_CAP_ID    51
@@ -1354,6 +1361,21 @@ is_he_op_oui(uint8_t *frm)
 {
 	return (frm[1] > 4) && (LE_READ_4(frm + 2) ==
 		((ATH_HE_OP_SUBTYPE << 24) | ATH_HE_OUI));
+}
+
+/**
+ * is_adaptive_11r_oui() - Function to check if vendor IE is ADAPTIVE 11R OUI
+ * @frm: vendor IE pointer
+ *
+ * API to check if vendor IE is ADAPTIVE 11R OUI
+ *
+ * Return: true if its ADAPTIVE 11r OUI
+ */
+static inline bool
+is_adaptive_11r_oui(uint8_t *frm)
+{
+	return (frm[1] > OUI_LENGTH) && (LE_READ_4(frm + 2) ==
+		((ADAPTIVE_11R_OUI_TYPE << OUI_TYPE_BITS) | ADAPTIVE_11R_OUI));
 }
 
 /**

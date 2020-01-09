@@ -1017,4 +1017,20 @@ struct avoid_freq_ind_data {
 	struct unsafe_ch_list chan_list;
 };
 
+/**
+ * struct reg_ctl_params - reg ctl and regd info
+ * @regd: regdomain pair
+ * @regd_2g: 2g sub domain code
+ * @regd_5g: 5g sub domain code
+ * @ctl_2g: 2g ctl info
+ * @ctl_5g: 5g ctl info
+ */
+struct reg_ctl_params {
+	uint32_t regd;
+	uint16_t regd_2g;
+	uint16_t regd_5g;
+	uint8_t ctl_2g;
+	uint8_t ctl_5g;
+};
+
 #endif
