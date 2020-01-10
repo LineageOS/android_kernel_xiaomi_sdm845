@@ -1197,4 +1197,20 @@ enum qdf_context_mode {
 	QDF_CONTEXT_TASKLET = 1,
 };
 
+/**
+ * enum qdf_dp_tx_rx_status - TX/RX packet status
+ * @QDF_TX_RX_STATUS_INVALID: default invalid status
+ * @QDF_TX_RX_STATUS_OK: successfully sent + acked
+ * @QDF_TX_RX_STATUS_FW_DISCARD: packet not sent
+ * @QDF_TX_RX_STATUS_NO_ACK: packet sent but no ack
+ * @QDF_TX_RX_STATUS_DROP: packet dropped in host
+ */
+enum qdf_dp_tx_rx_status {
+	QDF_TX_RX_STATUS_INVALID,
+	QDF_TX_RX_STATUS_OK,
+	QDF_TX_RX_STATUS_FW_DISCARD,
+	QDF_TX_RX_STATUS_NO_ACK,
+	QDF_TX_RX_STATUS_DROP,
+};
+
 #endif /* __QDF_TYPES_H */
