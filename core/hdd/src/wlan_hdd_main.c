@@ -10617,6 +10617,7 @@ static int hdd_update_cds_config(struct hdd_context *hdd_ctx)
 	cds_cfg->delay_before_vdev_stop =
 		hdd_ctx->config->delay_before_vdev_stop;
 
+	cds_cfg->num_vdevs = hdd_ctx->config->num_vdevs;
 	cds_cfg->enable_peer_unmap_conf_support =
 		hdd_ctx->config->enable_peer_unmap_conf_support;
 

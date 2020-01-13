@@ -6153,6 +6153,12 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_PENDING_CHAN_LIST_REQ_DEFAULT,
 		     CFG_ENABLE_PENDING_CHAN_LIST_REQ_MIN,
 		     CFG_ENABLE_PENDING_CHAN_LIST_REQ_MAX),
+	REG_VARIABLE(CFG_NUM_VDEV_ENABLE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, num_vdevs,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_NUM_VDEV_ENABLE_DEFAULT,
+		     CFG_NUM_VDEV_ENABLE_MIN,
+		     CFG_NUM_VDEV_ENABLE_MAX),
 };
 
 /**
@@ -8211,6 +8217,8 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		  CFG_ENABLE_RING_BUFFER,
 		  hdd_ctx->config->enable_ring_buffer);
+	hdd_debug("Name = [num_vdevs] value = [0x%x]",
+		  hdd_ctx->config->num_vdevs);
 }
 
 /**

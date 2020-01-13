@@ -262,12 +262,13 @@ static void wma_reset_rx_decap_mode(target_resource_config *tgt_cfg)
  * Return: none
  */
 static void wma_set_default_tgt_config(tp_wma_handle wma_handle,
-				       target_resource_config *tgt_cfg)
+				       target_resource_config *tgt_cfg,
+				       struct cds_config_info *cds_cfg)
 {
 	uint8_t no_of_peers_supported;
 
 	qdf_mem_zero(tgt_cfg, sizeof(target_resource_config));
-	tgt_cfg->num_vdevs = CFG_TGT_NUM_VDEV;
+	tgt_cfg->num_vdevs = cds_cfg->num_vdevs;
 	tgt_cfg->num_peers = CFG_TGT_NUM_PEERS + CFG_TGT_NUM_VDEV + 2;
 	tgt_cfg->num_offload_peers = CFG_TGT_NUM_OFFLOAD_PEERS;
 	tgt_cfg->num_offload_reorder_buffs = CFG_TGT_NUM_OFFLOAD_REORDER_BUFFS;
@@ -3327,7 +3328,7 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 		goto err_wma_handle;
 	}
 
-	wma_set_default_tgt_config(wma_handle, wlan_res_cfg);
+	wma_set_default_tgt_config(wma_handle, wlan_res_cfg, cds_cfg);
 
 	wma_handle->tx_chain_mask_cck = cds_cfg->tx_chain_mask_cck;
 	wma_handle->self_gen_frm_pwr = cds_cfg->self_gen_frm_pwr;

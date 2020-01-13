@@ -16935,6 +16935,22 @@ enum hdd_external_acs_policy {
 #define CFG_ENABLE_RING_BUFFER_MAX 1
 #define CFG_ENABLE_RING_BUFFER_DEFAULT 1
 
+
+/*
+ * <ini>
+ * gNumVdevs - max number of VDEVs supported
+ * @Min: 0x1
+ * @Max: 0x4
+ * @Default: CFG_TGT_NUM_VDEV
+ *
+ * Usage: External
+ * </ini>
+ */
+#define CFG_NUM_VDEV_ENABLE_NAME      "gNumVdevs"
+#define CFG_NUM_VDEV_ENABLE_MIN       (0x1)
+#define CFG_NUM_VDEV_ENABLE_MAX       (0x4)
+#define CFG_NUM_VDEV_ENABLE_DEFAULT   (CFG_TGT_NUM_VDEV)
+
 /*
  * Type declarations
  */
@@ -17936,6 +17952,7 @@ struct hdd_config {
 #ifdef WLAN_ADAPTIVE_11R
 	bool enable_adaptive_11r;
 #endif
+	uint32_t num_vdevs;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
