@@ -3084,6 +3084,8 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	struct ch_params ch_params;
 	struct hdd_adapter *ap_adapter = wlan_hdd_get_adapter_from_vdev(
 					psoc, vdev_id);
+	struct sap_context *sap_context;
+
 	if (!ap_adapter) {
 		hdd_err("ap_adapter is NULL");
 		return QDF_STATUS_E_FAILURE;
@@ -3120,6 +3122,15 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 		hdd_err("mac_handle is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
+	sap_context = hdd_ap_ctx->sap_context;
+	if (!sap_context) {
+		hdd_err("sap_context is null");
+		return QDF_STATUS_E_FAILURE;
+	}
+	if (QDF_IS_STATUS_ERROR(wlansap_context_get(sap_context))) {
+		hdd_err("sap_context is invalid");
+		return QDF_STATUS_E_FAILURE;
+	}
 
 	if (policy_mgr_get_connection_count(psoc) == 1) {
 		/*
@@ -3140,8 +3151,8 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	 * supported, return from here if DBS is not supported.
 	 * Need to take care of 3 port cases with 2 STA iface in future.
 	 */
-	intf_ch = wlansap_check_cc_intf(hdd_ap_ctx->sap_context);
-	hdd_debug("intf_ch: %d", intf_ch);
+	intf_ch = wlansap_check_cc_intf(sap_context);
+	hdd_info("intf_ch: %d", intf_ch);
 	if (QDF_MCC_TO_SCC_SWITCH_FORCE_PREFERRED_WITHOUT_DISCONNECTION !=
 		hdd_ctx->config->WlanMccToSccSwitchMode) {
 		if (QDF_IS_STATUS_ERROR(
@@ -3152,7 +3163,7 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 					hdd_ctx->psoc, PM_SAP_MODE)))) {
 			hdd_debug("can't move sap to %d",
 				hdd_sta_ctx->conn_info.operationChannel);
-
+			wlansap_context_put(sap_context);
 			return QDF_STATUS_E_FAILURE;
 		}
 	}
@@ -3166,6 +3177,7 @@ sap_restart:
 		hdd_ap_ctx->sap_context->csa_reason =
 				CSA_REASON_CONCURRENT_STA_CHANGED_CHANNEL;
 	if (!intf_ch) {
+		wlansap_context_put(sap_context);
 		hdd_debug("interface channel is 0");
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -3188,6 +3200,7 @@ sap_restart:
 	hdd_sap_restart_chan_switch_cb(psoc, vdev_id,
 		intf_ch,
 		ch_params.ch_width, false);
+	wlansap_context_put(sap_context);
 
 	return QDF_STATUS_SUCCESS;
 }

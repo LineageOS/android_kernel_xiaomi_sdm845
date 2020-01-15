@@ -2861,6 +2861,11 @@ uint8_t wlansap_get_chan_band_restrict(struct sap_context *sap_ctx)
 	tpAniSirGlobal mac;
 	enum band_info band;
 
+	if (!sap_ctx) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("sap_ctx NULL parameter"));
+		return 0;
+	}
 	if (cds_is_driver_recovering())
 		return 0;
 
