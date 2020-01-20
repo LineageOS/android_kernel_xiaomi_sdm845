@@ -416,6 +416,18 @@ enum wlan_phymode {
 	((mode) == WLAN_PHYMODE_11AC_VHT160)  || \
 	((mode) == WLAN_PHYMODE_11AC_VHT80_80); })
 
+#define IS_WLAN_PHYMODE_HE(_mode) ({typeof(_mode) mode = (_mode); \
+	((mode) == WLAN_PHYMODE_11AXA_HE20) || \
+	((mode) == WLAN_PHYMODE_11AXG_HE20)     || \
+	((mode) == WLAN_PHYMODE_11AXA_HE40)  || \
+	((mode) == WLAN_PHYMODE_11AXG_HE40)  || \
+	((mode) == WLAN_PHYMODE_11AXG_HE40PLUS)  || \
+	((mode) == WLAN_PHYMODE_11AXG_HE40MINUS)  || \
+	((mode) == WLAN_PHYMODE_11AXA_HE80)  || \
+	((mode) == WLAN_PHYMODE_11AXG_HE80)  || \
+	((mode) == WLAN_PHYMODE_11AXA_HE160)  || \
+	((mode) == WLAN_PHYMODE_11AXA_HE80_80); })
+
 /**
  * enum wlan_phy_ch_width - channel width
  * @WLAN_CH_WIDTH_20MHZ: 20 mhz width
