@@ -1762,6 +1762,7 @@ static void hdd_update_tgt_vht_cap(struct hdd_context *hdd_ctx,
 		hdd_err("could not get GI 80 & 160");
 		value = 0;
 	}
+	pconfig->ShortGI160MhzEnable = cfg->vht_short_gi_160;
 	/* set the Guard interval 160MHz */
 	if (value && !cfg->vht_short_gi_160) {
 		status = sme_cfg_set_int(mac_handle,
@@ -1789,6 +1790,7 @@ static void hdd_update_tgt_vht_cap(struct hdd_context *hdd_ctx,
 		}
 	}
 
+	pconfig->ShortGI80MhzEnable = cfg->vht_short_gi_80;
 	if (cfg->vht_short_gi_80 & WMI_VHT_CAP_SGI_80MHZ)
 		band_5g->vht_cap.cap |= IEEE80211_VHT_CAP_SHORT_GI_80;
 	if (cfg->vht_short_gi_160 & WMI_VHT_CAP_SGI_160MHZ)

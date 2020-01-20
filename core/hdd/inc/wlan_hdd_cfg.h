@@ -17953,6 +17953,8 @@ struct hdd_config {
 	bool enable_adaptive_11r;
 #endif
 	uint32_t num_vdevs;
+	bool ShortGI80MhzEnable;
+	bool ShortGI160MhzEnable;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
