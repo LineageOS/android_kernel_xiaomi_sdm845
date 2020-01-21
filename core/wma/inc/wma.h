@@ -2129,6 +2129,25 @@ void wma_vdev_update_pause_bitmap(uint8_t vdev_id, uint16_t value)
 }
 
 /**
+ * wma_host_to_fw_phymode() - convert host to fw phymode
+ * @host_phymode: phymode to convert
+ *
+ * Return: one of the values defined in enum WMI_HOST_WLAN_PHY_MODE;
+ *         or WMI_HOST_MODE_UNKNOWN if the conversion fails
+ */
+WMI_HOST_WLAN_PHY_MODE
+wma_host_to_fw_phymode(enum wlan_phymode host_phymode);
+
+/**
+ * wma_fw_to_host_phymode() - convert fw to host phymode
+ * @phymode: phymode to convert
+ *
+ * Return: one of the values defined in enum wlan_phymode;
+ *         or WLAN_PHYMODE_AUTO if the conversion fails
+ */
+enum wlan_phymode wma_fw_to_host_phymode(WMI_HOST_WLAN_PHY_MODE phymode);
+
+/**
  * wma_vdev_get_pause_bitmap() - Get vdev pause bitmap
  * @vdev_id: the Id of the vdev to configure
  *
