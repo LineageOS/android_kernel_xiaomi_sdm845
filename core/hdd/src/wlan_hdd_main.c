@@ -5363,7 +5363,7 @@ static void hdd_reset_locally_admin_bit(struct hdd_context *hdd_ctx,
 
 
 #if defined(WLAN_FEATURE_NAN) && \
-	   (KERNEL_VERSION(4, 14, 0) <= LINUX_VERSION_CODE)
+	   (KERNEL_VERSION(4, 9, 0) <= LINUX_VERSION_CODE)
 /**
  * wlan_hdd_set_nan_if_type() - Set the NAN iftype
  * @adapter: pointer to HDD adapter
@@ -5377,12 +5377,6 @@ static void wlan_hdd_set_nan_if_type(struct hdd_adapter *adapter)
 	adapter->wdev.iftype = NL80211_IFTYPE_NAN;
 }
 #else
-static QDF_STATUS wlan_hdd_convert_nan_type(enum nl80211_iftype nl_type,
-					    enum QDF_OPMODE *out_qdf_type)
-{
-	return QDF_STATUS_E_INVAL;
-}
-
 static void wlan_hdd_set_nan_if_type(struct hdd_adapter *adapter)
 {
 }
