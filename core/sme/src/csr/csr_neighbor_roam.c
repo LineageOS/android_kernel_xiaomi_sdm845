@@ -781,6 +781,29 @@ void csr_roam_reset_roam_params(tpAniSirGlobal mac_ctx)
 			sizeof(tSirMacSSid) * MAX_SSID_ALLOWED_LIST);
 }
 
+#if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
+static void csr_roam_restore_default_config(tpAniSirGlobal mac_ctx,
+					    uint8_t vdev_id)
+{
+	struct roam_triggers triggers;
+
+	sme_debug("Disable roam control config done through SET");
+	sme_set_roam_config_enable(MAC_HANDLE(mac_ctx), vdev_id, 0);
+
+	triggers.vdev_id = vdev_id;
+	triggers.trigger_bitmap = 0xff;
+	sme_debug("Reset roam trigger bitmap to 0x%x", triggers.trigger_bitmap);
+	sme_set_roam_triggers(MAC_HANDLE(mac_ctx), &triggers);
+	sme_roam_control_restore_default_config(MAC_HANDLE(mac_ctx),
+						vdev_id);
+}
+#else
+static void csr_roam_restore_default_config(tpAniSirGlobal mac_ctx,
+					    uint8_t vdev_id)
+{
+}
+#endif
+
 /**
  * csr_neighbor_roam_indicate_disconnect() - To indicate disconnect
  * @pMac: The handle returned by mac_open
@@ -822,8 +845,10 @@ QDF_STATUS csr_neighbor_roam_indicate_disconnect(tpAniSirGlobal pMac,
 	 * clear the roaming parameters that are per connection.
 	 * For a new connection, they have to be programmed again.
 	 */
-	if (!csr_neighbor_middle_of_roaming(pMac, sessionId))
+	if (!csr_neighbor_middle_of_roaming(pMac, sessionId)) {
 		csr_roam_reset_roam_params(pMac);
+		csr_roam_restore_default_config(pMac, sessionId);
+	}
 	if (NULL != pSession) {
 		roam_session = &pMac->roam.roamSession[sessionId];
 		if (NULL != pSession->pCurRoamProfile && (QDF_STA_MODE !=
