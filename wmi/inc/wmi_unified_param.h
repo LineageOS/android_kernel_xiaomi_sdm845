@@ -5732,6 +5732,10 @@ typedef enum {
 	wmi_roam_auth_offload_event_id,
 	wmi_mgmt_offload_data_event_id,
 	wmi_roam_pmkid_request_event_id,
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+	wmi_wlan_time_sync_ftm_start_stop_event_id,
+	wmi_wlan_time_sync_q_master_slave_offset_eventid,
+#endif
 	wmi_events_max,
 } wmi_conv_event_id;
 

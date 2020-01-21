@@ -24453,6 +24453,12 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 				WMI_VDEV_MGMT_OFFLOAD_EVENTID;
 	event_ids[wmi_roam_pmkid_request_event_id] =
 				WMI_ROAM_PMKID_REQUEST_EVENTID;
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+	event_ids[wmi_wlan_time_sync_ftm_start_stop_event_id] =
+				WMI_VDEV_AUDIO_SYNC_START_STOP_EVENTID;
+	event_ids[wmi_wlan_time_sync_q_master_slave_offset_eventid] =
+			WMI_VDEV_AUDIO_SYNC_Q_MASTER_SLAVE_OFFSET_EVENTID;
+#endif
 }
 
 /**
