@@ -6182,6 +6182,7 @@ typedef enum {
 	wmi_service_owe_roam_support,
 	wmi_service_nan_vdev,
 	wmi_service_packet_capture_support,
+	wmi_service_time_sync_ftm,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF
@@ -6301,6 +6302,7 @@ struct wmi_host_fw_abi_ver {
  * @twt_ap_sta_count: Max no of STA with which TWT sessions can be formed
  *                    by the AP
  * @three_way_coex_config_legacy_en: enable three way coex legacy feature
+ * @time_sync_ftm: enable ftm based time sync
  */
 typedef struct {
 	uint32_t num_vdevs;
@@ -6380,6 +6382,7 @@ typedef struct {
 	uint32_t twt_ap_sta_count;
 	bool tstamp64_en;
 	bool three_way_coex_config_legacy_en;
+	bool time_sync_ftm;
 } target_resource_config;
 
 /**
