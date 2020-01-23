@@ -346,9 +346,9 @@ int wma_peer_sta_kickout_event_handler(void *handle, u8 *event, u32 len)
 		return -EINVAL;
 	}
 
-	WMA_LOGA("%s: PEER:[%pM], ADDR:[%pN], INTERFACE:%d, peer_id:%d, reason:%d",
-		__func__, macaddr, wma->interfaces[vdev_id].addr, vdev_id,
-		 peer_id, kickout_event->reason);
+	wma_nofl_info("STA kickout for %pM, on mac %pM, vdev %d, reason:%d",
+		      macaddr, wma->interfaces[vdev_id].addr,
+		      vdev_id, kickout_event->reason);
 	if (wma->interfaces[vdev_id].roaming_in_progress) {
 		WMA_LOGE("Ignore STA kick out since roaming is in progress");
 		return -EINVAL;

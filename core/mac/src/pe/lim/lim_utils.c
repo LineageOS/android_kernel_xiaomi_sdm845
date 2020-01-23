@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -5510,9 +5510,8 @@ void lim_handle_heart_beat_failure_timeout(tpAniSirGlobal mac_ctx)
 			 * beacon after connection.
 			 */
 			 (psession_entry->currentBssBeaconCnt == 0))) {
-			pe_debug("for session: %d",
-						psession_entry->peSessionId);
-
+			pe_nofl_info("HB fail session %d",
+				     psession_entry->peSessionId);
 			lim_send_deauth_mgmt_frame(mac_ctx,
 				eSIR_MAC_DISASSOC_DUE_TO_INACTIVITY_REASON,
 				psession_entry->bssId, psession_entry, false);

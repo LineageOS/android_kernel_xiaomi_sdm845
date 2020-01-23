@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2905,7 +2905,9 @@ static QDF_STATUS lim_deauth_tx_complete_cnf_handler(void *context,
 	QDF_STATUS status_code;
 	struct scheduler_msg msg = {0};
 
-	pe_debug("tx_success: %d", tx_success);
+	pe_info("tx_complete = %s tx_success = %d",
+		(tx_success == WMI_MGMT_TX_COMP_TYPE_COMPLETE_OK) ?
+		"success" : "fail", tx_success);
 
 	if (buf)
 		qdf_nbuf_free(buf);
@@ -3242,19 +3244,15 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 				&nPayload, discon_ie);
 	hdd_free_self_disconnect_ies(pMac, smeSessionId);
 
-	pe_debug("***Sessionid %d Sending Deauth frame with "
-		       "reason %u and waitForAck %d to " MAC_ADDRESS_STR
-		       " ,From " MAC_ADDRESS_STR,
-		psessionEntry->peSessionId, nReason, waitForAck,
-		MAC_ADDR_ARRAY(pMacHdr->da),
-		MAC_ADDR_ARRAY(psessionEntry->selfMacAddr));
+	pe_nofl_info("SessionId %d Deauth frame with reason %u and waitForAck %d to %pM from %pM",
+		     psessionEntry->peSessionId, nReason, waitForAck,
+		     pMacHdr->da, psessionEntry->selfMacAddr);
 
 	if ((BAND_5G == lim_get_rf_band(psessionEntry->currentOperChannel))
 	    || (psessionEntry->pePersona == QDF_P2P_CLIENT_MODE) ||
 	    (psessionEntry->pePersona == QDF_P2P_GO_MODE)
-	    ) {
+	    )
 		txFlag |= HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME;
-	}
 
 	txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
 #ifdef FEATURE_WLAN_TDLS
