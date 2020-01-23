@@ -2802,6 +2802,7 @@ struct roam_ext_params {
  * @pcl_weightage: PCL weightage
  * @channel_congestion_weightage: channel congestion weightage
  * @oce_wan_weightage: OCE WAN metrics weightage
+ * @vendor_roam_score_algorithm: Preferred vendor roam score algorithm
  */
 struct  sir_weight_config {
 	uint8_t rssi_weightage;
@@ -2815,6 +2816,7 @@ struct  sir_weight_config {
 	uint8_t pcl_weightage;
 	uint8_t channel_congestion_weightage;
 	uint8_t oce_wan_weightage;
+	uint32_t vendor_roam_score_algorithm;
 };
 
 struct sir_rssi_cfg_score  {

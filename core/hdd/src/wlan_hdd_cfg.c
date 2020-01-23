@@ -5294,6 +5294,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_OCE_WAN_WEIGHTAGE_MIN,
 		CFG_OCE_WAN_WEIGHTAGE_MAX),
 
+	REG_VARIABLE(CFG_VENDOR_ROAM_SCORE_ALGORITHM_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, vendor_roam_score_algorithm,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_VENDOR_ROAM_SCORE_ALGORITHM_DEFAULT,
+		CFG_VENDOR_ROAM_SCORE_ALGORITHM_MIN,
+		CFG_VENDOR_ROAM_SCORE_ALGORITHM_MAX),
+
 	REG_VARIABLE(CFG_BEST_RSSI_THRESHOLD_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, best_rssi_threshold,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -9400,6 +9407,8 @@ static void hdd_update_bss_score_params(struct hdd_config *config,
 	score_params->weight_cfg.channel_congestion_weightage =
 			config->channel_congestion_weightage;
 	score_params->weight_cfg.oce_wan_weightage = config->oce_wan_weightage;
+	score_params->weight_cfg.vendor_roam_score_algorithm =
+			config->vendor_roam_score_algorithm;
 
 	total_weight = score_params->weight_cfg.rssi_weightage +
 		       score_params->weight_cfg.ht_caps_weightage +

@@ -13687,6 +13687,31 @@ enum hdd_external_acs_policy {
 
 /*
  * <ini>
+ * vendor_roam_score_algorithm - Algorithm to calculate AP score
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * By default the value is 0 and default roam algorithm will be used.
+ * When the value is 1, the V2 roaming algorithm will be used:
+ * For this V2 algo, AP score calculation is based on below equation:
+ * AP Score = (RSSIfactor * rssiweight(0.65)) + (CUfactor *cuweight(0.35))
+ *
+ * Related: None
+ *
+ * Supported Feature: roam score algorithm
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_VENDOR_ROAM_SCORE_ALGORITHM_NAME  "vendor_roam_score_algorithm"
+#define CFG_VENDOR_ROAM_SCORE_ALGORITHM_MIN        0
+#define CFG_VENDOR_ROAM_SCORE_ALGORITHM_MAX        1
+#define CFG_VENDOR_ROAM_SCORE_ALGORITHM_DEFAULT    0
+
+/*
+ * <ini>
  * best_rssi_threshold - Best Rssi for score calculation
  * @Min: 0
  * @Max: 96
@@ -17955,6 +17980,7 @@ struct hdd_config {
 	uint32_t num_vdevs;
 	bool ShortGI80MhzEnable;
 	bool ShortGI160MhzEnable;
+	uint32_t vendor_roam_score_algorithm;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

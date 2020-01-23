@@ -20997,6 +20997,8 @@ static void csr_update_score_params(tpAniSirGlobal mac_ctx,
 	req_score_params->pcl_weightage =
 		weight_config->pcl_weightage;
 	req_score_params->oce_wan_weightage = weight_config->oce_wan_weightage;
+	req_score_params->vendor_roam_score_algorithm =
+		weight_config->vendor_roam_score_algorithm;
 
 	req_score_params->bw_index_score =
 		bss_score_params->bandwidth_weight_per_index;
