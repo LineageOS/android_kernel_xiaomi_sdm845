@@ -613,10 +613,10 @@
 
 		qcom,gpu-pwrlevel@7 {
 			reg = <7>;
-			qcom,gpu-freq = <180000000>;
-			qcom,bus-freq = <2>;
-			qcom,bus-min = <1>;
-			qcom,bus-max = <3>;
+			qcom,gpu-freq = <170000000>;
+			qcom,bus-freq = <3>;
+			qcom,bus-min = <2>;
+			qcom,bus-max = <4>;
 		};
 
 		qcom,gpu-pwrlevel@8 {
