@@ -433,6 +433,21 @@ csr_roam_auth_offload_callback(tpAniSirGlobal mac_ctx, uint8_t vdev_id,
 			       struct qdf_mac_addr bssid);
 
 /**
+ * csr_fast_reassoc() - invokes FAST REASSOC command
+ * @hal: handle returned by mac_open
+ * @profile: current connected profile
+ * @bssid: bssid to look for in scan cache
+ * @channel: channel on which reassoc should be send
+ * @vdev_id: vdev id
+ * @connected_bssid: bssid of currently connected profile
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS csr_fast_reassoc(tHalHandle hal, struct csr_roam_profile *profile,
+			    const tSirMacAddr bssid, int channel,
+			    uint8_t vdev_id, const tSirMacAddr connected_bssid);
+
+/**
  * csr_process_roam_auth_offload_callback() - API to trigger the
  * WPA3 pre-auth event for candidate AP received from firmware.
  * @vdev_id: vdev id
@@ -460,6 +475,14 @@ csr_roam_auth_offload_callback(tpAniSirGlobal mac_ctx,
 			       struct qdf_mac_addr bssid)
 {
 	return QDF_STATUS_E_NOSUPPORT;
+}
+
+static inline
+QDF_STATUS csr_fast_reassoc(tHalHandle hal, struct csr_roam_profile *profile,
+			    const tSirMacAddr bssid, int channel,
+			    uint8_t vdev_id, const tSirMacAddr connected_bssid)
+{
+	return QDF_STATUS_SUCCESS;
 }
 
 static inline QDF_STATUS
