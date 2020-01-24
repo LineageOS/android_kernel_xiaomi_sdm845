@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1717,7 +1717,7 @@ enum hdd_dot11_mode {
  * <ini>
  * RoamRssiDiff - Enable roam based on rssi
  * @Min: 0
- * @Max: 30
+ * @Max: 100
  * @Default: 5
  *
  * This INI is used to decide whether to Roam or not based on RSSI. AP1 is the
@@ -1736,7 +1736,7 @@ enum hdd_dot11_mode {
  */
 #define CFG_ROAM_RSSI_DIFF_NAME                             "RoamRssiDiff"
 #define CFG_ROAM_RSSI_DIFF_MIN                              (0)
-#define CFG_ROAM_RSSI_DIFF_MAX                              (30)
+#define CFG_ROAM_RSSI_DIFF_MAX                              (100)
 #define CFG_ROAM_RSSI_DIFF_DEFAULT                          (5)
 
 /*
