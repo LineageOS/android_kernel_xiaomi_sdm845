@@ -58,6 +58,7 @@
 #include "wlan_mlme_main.h"
 #include "wlan_policy_mgr_i.h"
 #include "wlan_scan_utils_api.h"
+#include <wlan_cp_stats_mc_ucfg_api.h>
 
 #define MAX_PWR_FCC_CHAN_12 8
 #define MAX_PWR_FCC_CHAN_13 2
@@ -14005,6 +14006,21 @@ void csr_roam_completion(tpAniSirGlobal pMac, uint32_t sessionId,
 	}
 }
 
+static void csr_get_peer_rssi_cb(struct stats_event *ev, void *cookie)
+{
+	tpAniSirGlobal mac = (tpAniSirGlobal)cookie;
+
+	if (!mac)
+		return;
+	if (!ev->peer_stats) {
+		sme_debug("%s no peer stats\n", __func__);
+		return;
+	}
+	mac->peer_rssi = ev->peer_stats->peer_rssi;
+	mac->peer_txrate = ev->peer_stats->tx_rate;
+	mac->peer_rxrate = ev->peer_stats->rx_rate;
+}
+
 static
 QDF_STATUS csr_roam_lost_link(tpAniSirGlobal pMac, uint32_t sessionId,
 			      uint32_t type, tSirSmeRsp *pSirMsg)
@@ -14047,11 +14063,32 @@ QDF_STATUS csr_roam_lost_link(tpAniSirGlobal pMac, uint32_t sessionId,
 	}
 
 	if (type == eWNI_SME_DISASSOC_IND || type == eWNI_SME_DEAUTH_IND) {
-		struct	sir_peer_info_req req;
+		struct wlan_objmgr_vdev *vdev;
+		struct request_info info = {0};
 
-		req.sessionid = sessionId;
-		req.peer_macaddr = roamInfo.peerMac;
-		sme_get_peer_stats(pMac, req);
+		vdev = wlan_objmgr_get_vdev_by_id_from_psoc(
+							pMac->psoc,
+							sessionId,
+							WLAN_LEGACY_SME_ID);
+		if (!vdev) {
+			sme_err("Invalid vdev");
+		} else {
+			info.cookie = pMac;
+			info.u.get_peer_rssi_cb = csr_get_peer_rssi_cb;
+			info.vdev_id = wlan_vdev_get_id(vdev);
+			info.pdev_id = wlan_objmgr_pdev_get_pdev_id(
+						wlan_vdev_get_pdev(vdev));
+			qdf_mem_copy(info.peer_mac_addr, &roamInfo.peerMac,
+				     QDF_MAC_ADDR_SIZE);
+			status = ucfg_mc_cp_stats_send_stats_request(
+							vdev,
+							TYPE_PEER_STATS,
+							&info);
+			if (QDF_IS_STATUS_ERROR(status))
+				sme_err("stats req failed: %d", status);
+			wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+		}
+
 	}
 	csr_roam_call_callback(pMac, sessionId, NULL, 0,
 			       eCSR_ROAM_LOSTLINK_DETECTED, result);

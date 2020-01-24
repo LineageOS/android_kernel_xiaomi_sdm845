@@ -8856,41 +8856,6 @@ QDF_STATUS sme_get_link_speed(tHalHandle hHal, tSirLinkSpeedInfo *lsReq,
 	return status;
 }
 
-QDF_STATUS sme_get_peer_stats(tpAniSirGlobal mac,
-			      struct sir_peer_info_req req)
-{
-	QDF_STATUS qdf_status;
-	struct scheduler_msg message = {0};
-
-	qdf_status = sme_acquire_global_lock(&mac->sme);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		sme_debug("Failed to get Lock");
-		return qdf_status;
-	}
-	/* serialize the req through MC thread */
-	message.bodyptr = qdf_mem_malloc(sizeof(req));
-	if (NULL == message.bodyptr) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Memory allocation failed.", __func__);
-		sme_release_global_lock(&mac->sme);
-		return QDF_STATUS_E_NOMEM;
-	}
-	qdf_mem_copy(message.bodyptr, &req, sizeof(req));
-	message.type = WMA_GET_PEER_INFO;
-	message.reserved = 0;
-	qdf_status = scheduler_post_message(QDF_MODULE_ID_SME,
-					    QDF_MODULE_ID_WMA,
-					    QDF_MODULE_ID_WMA, &message);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Post get peer info msg fail", __func__);
-		qdf_mem_free(message.bodyptr);
-		qdf_status = QDF_STATUS_E_FAILURE;
-	}
-	sme_release_global_lock(&mac->sme);
-	return qdf_status;
-}
-
 QDF_STATUS sme_get_peer_info(tHalHandle hal, struct sir_peer_info_req req,
 			void *context,
 			void (*callbackfn)(struct sir_peer_info_resp *param,
