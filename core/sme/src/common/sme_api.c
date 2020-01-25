@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1231,6 +1231,7 @@ QDF_STATUS sme_hdd_ready_ind(tHalHandle hHal)
 		msg->stop_roaming_cb = sme_stop_roaming;
 		msg->csr_roam_auth_event_handle_cb =
 				csr_roam_auth_offload_callback;
+		msg->csr_roam_pmkid_req_cb = csr_roam_pmkid_req_callback;
 
 		status = u_mac_post_ctrl_msg(hHal, (tSirMbMsg *)msg);
 		if (QDF_IS_STATUS_ERROR(status)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1551,6 +1551,16 @@ struct roam_blacklist_timeout {
 struct roam_blacklist_event {
 	uint32_t num_entries;
 	struct roam_blacklist_timeout roam_blacklist[];
+};
+
+/*
+ * struct roam_pmkid_req_event - Pmkid event with entries destination structure
+ * @num_entries: total entries sent over the event
+ * @ap_bssid: bssid list
+ */
+struct roam_pmkid_req_event {
+	uint32_t num_entries;
+	struct qdf_mac_addr ap_bssid[];
 };
 
 #endif /* _HALMSGAPI_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -465,6 +465,7 @@ typedef struct sSirSmeReadyReq {
 				 struct scheduler_msg *msg);
 	QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
 					uint8_t vdev_id);
+	void *csr_roam_pmkid_req_cb;
 } tSirSmeReadyReq, *tpSirSmeReadyReq;
 
 /**

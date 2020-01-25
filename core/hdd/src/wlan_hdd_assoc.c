@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -5000,6 +5000,12 @@ hdd_sme_roam_callback(void *pContext, struct csr_roam_info *roam_info,
 	case eCSR_ROAM_SAE_COMPUTE:
 		if (roam_info)
 			wlan_hdd_sae_callback(adapter, roam_info);
+		break;
+
+	case eCSR_ROAM_FIPS_PMK_REQUEST:
+		/* notify the supplicant of a new candidate */
+		qdf_ret_status = wlan_hdd_cfg80211_pmksa_candidate_notify(
+					adapter, roam_info, 1, false);
 		break;
 
 	default:
