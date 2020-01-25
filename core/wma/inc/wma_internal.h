@@ -230,6 +230,14 @@ static inline void
 wma_register_pmkid_req_event_handler(tp_wma_handle wma_handle)
 {
 }
+
+static inline int
+wma_roam_pmkid_request_event_handler(void *handle,
+				     uint8_t *event,
+				     uint32_t len)
+{
+	return 0;
+}
 #endif /* WLAN_FEATURE_FIPS */
 
 /**
@@ -261,6 +269,14 @@ int wma_roam_synch_frame_event_handler(void *handle, uint8_t *event,
 static inline int wma_mlme_roam_synch_event_handler_cb(void *handle,
 						       uint8_t *event,
 						       uint32_t len)
+{
+	return 0;
+}
+
+static inline int
+wma_roam_pmkid_request_event_handler(void *handle,
+				     uint8_t *event,
+				     uint32_t len)
 {
 	return 0;
 }

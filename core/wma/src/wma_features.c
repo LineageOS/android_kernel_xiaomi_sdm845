@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1778,6 +1778,8 @@ static const u8 *wma_wow_wake_reason_str(A_INT32 wake_reason)
 		return "SAP_OBSS_DETECTION";
 	case WOW_REASON_BSS_COLOR_COLLISION_DETECT:
 		return "BSS_COLOR_COLLISION_DETECT";
+	case WOW_REASON_ROAM_PMKID_REQUEST:
+		return "ROAM_PMKID_REQUEST";
 	default:
 		return "unknown";
 	}
@@ -2102,6 +2104,9 @@ static int wow_get_wmi_eventid(int32_t reason, uint32_t tag)
 	case WOW_ROAM_PREAUTH_START_EVENT:
 		event_id = WMI_ROAM_PREAUTH_STATUS_CMDID;
 		break;
+	case WOW_REASON_ROAM_PMKID_REQUEST:
+		event_id = WMI_ROAM_PMKID_REQUEST_EVENTID;
+		break;
 	default:
 		WMA_LOGD(FL("No Event Id for WOW reason %s(%d)"),
 			 wma_wow_wake_reason_str(reason), reason);
@@ -2140,6 +2145,7 @@ static bool is_piggybacked_event(int32_t reason)
 	case WOW_REASON_NAN_DATA:
 	case WOW_REASON_TDLS_CONN_TRACKER_EVENT:
 	case WOW_REASON_ROAM_HO:
+	case WOW_REASON_ROAM_PMKID_REQUEST:
 		return true;
 	default:
 		return false;
@@ -3064,7 +3070,11 @@ static int wma_wake_event_piggybacked(
 		wma_send_msg(wma, SIR_LIM_DELETE_STA_CONTEXT_IND, del_sta_ctx,
 			     0);
 		break;
-
+	case WOW_REASON_ROAM_PMKID_REQUEST:
+		WMA_LOGD("Host woken up because of PMKID request event");
+		errno = wma_roam_pmkid_request_event_handler(wma, pb_event,
+							     pb_event_len);
+		break;
 	default:
 		WMA_LOGE("Wake reason %s(%u) is not a piggybacked event",
 			 wma_wow_wake_reason_str(wake_reason), wake_reason);
