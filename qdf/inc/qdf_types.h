@@ -356,6 +356,7 @@ typedef bool (*qdf_irqlocked_func_t)(void *);
  * @QDF_MODULE_ID_ACTION_OUI: ACTION OUI module ID
  * @QDF_MODULE_ID_TARGET: Target module ID
  * @QDF_MODULE_ID_FTM_TIME_SYNC: FTM Time sync module ID
+ * @QDF_MODULE_ID_PKT_CAPTURE: PACKET CAPTURE module ID
  * @QDF_MODULE_ID_ANY: anything
  * @QDF_MODULE_ID_MAX: Max place holder module ID
  */
@@ -462,6 +463,7 @@ typedef enum {
 	QDF_MODULE_ID_ACTION_OUI,
 	QDF_MODULE_ID_TARGET,
 	QDF_MODULE_ID_FTM_TIME_SYNC,
+	QDF_MODULE_ID_PKT_CAPTURE,
 	QDF_MODULE_ID_ANY,
 	QDF_MODULE_ID_MAX,
 } QDF_MODULE_ID;
