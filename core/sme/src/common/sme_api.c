@@ -8702,7 +8702,7 @@ QDF_STATUS sme_get_roam_scan_channel_list(tHalHandle hHal,
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo = NULL;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	tCsrChannelInfo *specific_chan_info;
+	tCsrChannelInfo *chan_info;
 
 	if (sessionId >= CSR_ROAM_SESSION_MAX) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
@@ -8714,19 +8714,21 @@ QDF_STATUS sme_get_roam_scan_channel_list(tHalHandle hHal,
 	status = sme_acquire_global_lock(&pMac->sme);
 	if (!QDF_IS_STATUS_SUCCESS(status))
 		return status;
-	specific_chan_info = &pNeighborRoamInfo->cfgParams.specific_chan_info;
-	if (!specific_chan_info->ChannelList) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_WARN,
-			FL("Roam Scan channel list is NOT yet initialized"));
-		*pNumChannels = 0;
-		sme_release_global_lock(&pMac->sme);
-		return status;
+
+	chan_info = &pNeighborRoamInfo->cfgParams.specific_chan_info;
+	if (!chan_info->numOfChannels) {
+		chan_info = &pNeighborRoamInfo->cfgParams.pref_chan_info;
+		if (!chan_info->numOfChannels) {
+			sme_err("Roam Scan channel list is NOT yet initialized");
+			*pNumChannels = 0;
+			sme_release_global_lock(&pMac->sme);
+			return status;
+		}
 	}
 
-	*pNumChannels = specific_chan_info->numOfChannels;
+	*pNumChannels = chan_info->numOfChannels;
 	for (i = 0; i < (*pNumChannels); i++)
-		pOutPtr[i] =
-		pNeighborRoamInfo->cfgParams.specific_chan_info.ChannelList[i];
+		pOutPtr[i] = chan_info->ChannelList[i];
 
 	pOutPtr[i] = '\0';
 	sme_release_global_lock(&pMac->sme);
