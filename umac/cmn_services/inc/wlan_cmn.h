@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -250,6 +250,7 @@
  * @WLAN_UMAC_COMP_IPA:           IPA
  * @WLAN_UMAC_COMP_CP_STATS:      Control Plane Statistics
  * @WLAN_UMAC_COMP_ACTION_OUI:    ACTION OUI
+ * @WLAN_UMAC_COMP_FTM_TIME_SYNC: WLAN FTM TIMESYNC
  * @WLAN_UMAC_COMP_ID_MAX:        Maximum components in UMAC
  *
  * This id is static.
@@ -285,6 +286,7 @@ enum wlan_umac_comp_id {
 	WLAN_UMAC_COMP_IPA                = 26,
 	WLAN_UMAC_COMP_CP_STATS           = 27,
 	WLAN_UMAC_COMP_ACTION_OUI         = 28,
+	WLAN_UMAC_COMP_FTM_TIME_SYNC      = 29,
 	WLAN_UMAC_COMP_ID_MAX,
 };
 
