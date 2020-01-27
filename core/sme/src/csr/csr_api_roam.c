@@ -6971,8 +6971,9 @@ static void csr_get_peer_rssi(tpAniSirGlobal mac, uint32_t session_id,
 						vdev,
 						TYPE_PEER_STATS,
 						&info);
-		sme_err("peer_mac" QDF_MAC_ADDR_STR,
-			QDF_MAC_ADDR_ARRAY(peer_mac.bytes));
+
+		sme_debug("peer_mac" QDF_MAC_ADDR_STR,
+			  QDF_MAC_ADDR_ARRAY(peer_mac.bytes));
 		if (QDF_IS_STATUS_ERROR(status))
 			sme_err("stats req failed: %d", status);
 		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
@@ -6990,6 +6991,7 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 	QDF_STATUS lock_status, status = QDF_STATUS_SUCCESS;
 	uint32_t sessionId = pCommand->sessionId;
 	struct csr_roam_session *pSession = CSR_GET_SESSION(pMac, sessionId);
+	struct qdf_mac_addr peer_mac;
 
 	if (!pSession) {
 		sme_err("session %d not found", sessionId);
@@ -7077,6 +7079,11 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 				sessionId);
 		sme_debug("Disassociate issued with reason: %d",
 			pCommand->u.roamCmd.reason);
+
+		qdf_mem_copy(&peer_mac, &pCommand->u.roamCmd.peerMac,
+			     QDF_MAC_ADDR_SIZE);
+		csr_get_peer_rssi(pMac, sessionId, peer_mac);
+
 		status = csr_send_mb_disassoc_req_msg(pMac, sessionId,
 				pCommand->u.roamCmd.peerMac,
 				pCommand->u.roamCmd.reason);
@@ -7087,6 +7094,14 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand)
 				sessionId);
 		csr_roam_substate_change(pMac, eCSR_ROAM_SUBSTATE_DEAUTH_REQ,
 				sessionId);
+
+		sme_debug("Deauth issued with reason: %d",
+			  pCommand->u.roamCmd.reason);
+
+		qdf_mem_copy(&peer_mac, &pCommand->u.roamCmd.peerMac,
+			     QDF_MAC_ADDR_SIZE);
+		csr_get_peer_rssi(pMac, sessionId, peer_mac);
+
 		status = csr_send_mb_deauth_req_msg(pMac, sessionId,
 				pCommand->u.roamCmd.peerMac,
 				pCommand->u.roamCmd.reason);
