@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -122,7 +122,8 @@ static QDF_STATUS target_if_nan_event_dispatcher(struct scheduler_msg *msg)
 		goto free_res;
 	}
 
-	status = nan_rx_ops->nan_event_rx(msg);
+	if (nan_rx_ops->nan_event_rx)
+		status = nan_rx_ops->nan_event_rx(msg);
 free_res:
 	if (vdev)
 		wlan_objmgr_vdev_release_ref(vdev, WLAN_NAN_ID);

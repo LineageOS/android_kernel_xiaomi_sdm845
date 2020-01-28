@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -59,10 +59,12 @@ struct scheduler_msg;
  * struct nan_psoc_priv_obj - nan private psoc obj
  * @lock: lock to be acquired before reading or writing to object
  * @cb_obj: struct contaning callback pointers
+ * @request_context: NAN context to carry cookie for wait_for_complete
  */
 struct nan_psoc_priv_obj {
 	qdf_spinlock_t lock;
 	struct nan_callbacks cb_obj;
+	void *request_context;
 };
 
 /**
