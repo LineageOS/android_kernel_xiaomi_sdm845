@@ -28,6 +28,10 @@
 #include <qdf_types.h>
 #include "wlan_pkt_capture_objmgr.h"
 #include "wlan_pkt_capture_public_structs.h"
+#include "wlan_pkt_capture_mon_thread.h"
+#include "wmi_unified.h"
+#include "wmi_unified_param.h"
+#include <htt_types.h>
 
 #ifdef WLAN_FEATURE_PKT_CAPTURE
 /**
@@ -50,7 +54,7 @@ void ucfg_pkt_capture_deinit(void);
 
 /**
  * ucfg_pkt_capture_get_mode() - get packet capture mode
- * @psoc: pointer to psoc object
+ * @psoc: objmgr psoc handle
  *
  * Return: enum pkt_capture_mode
  */
@@ -118,12 +122,11 @@ void ucfg_pkt_capture_set_pktcap_mode(struct wlan_objmgr_psoc *psoc,
 
 /**
  * ucfg_pkt_capture_get_pktcap_mode - Get packet capture mode
- * @psoc: pointer to psoc object
  *
  * Return: enum pkt_capture_mode
  */
 enum pkt_capture_mode
-ucfg_pkt_capture_get_pktcap_mode(struct wlan_objmgr_psoc *psoc);
+ucfg_pkt_capture_get_pktcap_mode(void);
 
 /**
  * ucfg_pkt_capture_process_mgmt_tx_data() - process management tx packets
@@ -164,6 +167,38 @@ ucfg_pkt_capture_mgmt_tx_completion(
  * Return: 0 on success, -EINVAL on failure
  */
 int ucfg_pkt_capture_enable_ops(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * ucfg_pkt_capture_rx_msdu_process() -  process data rx pkts
+ * @bssid: bssid
+ * @head_msdu: pointer to head msdu
+ * @vdev_id: vdev_id
+ * @pdev: pdev handle
+ *
+ * Return: none
+ */
+void ucfg_pkt_capture_rx_msdu_process(
+				uint8_t *bssid,
+				qdf_nbuf_t head_msdu,
+				uint8_t vdev_id, htt_pdev_handle pdev);
+
+/**
+ * ucfg_pkt_capture_rx_offloaded_pkt() - check offloaded data pkt or not
+ * @rx_ind_msg: rx_ind_msg
+ *
+ * Return: 0 not an offload pkt
+ *         1 offload pkt
+ */
+bool ucfg_pkt_capture_rx_offloaded_pkt(qdf_nbuf_t rx_ind_msg);
+
+/**
+ * ucfg_pkt_capture_rx_drop_offload_pkt() - drop offload packets
+ * @head_msdu: pointer to head msdu
+ *
+ * Return: none
+ */
+void ucfg_pkt_capture_rx_drop_offload_pkt(qdf_nbuf_t head_msdu);
+
 #else
 static inline
 QDF_STATUS ucfg_pkt_capture_init(void)
@@ -221,7 +256,7 @@ void ucfg_pkt_capture_set_pktcap_mode(struct wlan_objmgr_psoc *psoc,
 }
 
 static inline enum pkt_capture_mode
-ucfg_pkt_capture_get_pktcap_mode(struct wlan_objmgr_psoc *psoc)
+ucfg_pkt_capture_get_pktcap_mode(void)
 {
 	return PACKET_CAPTURE_MODE_DISABLE;
 }
@@ -240,6 +275,25 @@ ucfg_pkt_capture_mgmt_tx_completion(struct wlan_objmgr_pdev *pdev,
 				    uint32_t desc_id,
 				    uint32_t status,
 				    struct mgmt_offload_event_params *params)
+{
+}
+
+static inline void
+ucfg_pkt_capture_rx_msdu_process(
+				uint8_t *bssid,
+				qdf_nbuf_t head_msdu,
+				uint8_t vdev_id, htt_pdev_handle pdev)
+{
+}
+
+static inline bool
+ucfg_pkt_capture_rx_offloaded_pkt(qdf_nbuf_t rx_ind_msg)
+{
+	return false;
+}
+
+static inline void
+ucfg_pkt_capture_rx_drop_offload_pkt(qdf_nbuf_t head_msdu)
 {
 }
 #endif /* WLAN_FEATURE_PKT_CAPTURE */

@@ -30,6 +30,7 @@
 #include <qdf_types.h>
 #include "wlan_pkt_capture_priv.h"
 #include "wlan_pkt_capture_objmgr.h"
+#include "wlan_objmgr_vdev_obj.h"
 
 #define pkt_capture_log(level, args...) \
 	QDF_TRACE(QDF_MODULE_ID_PKT_CAPTURE, level, ## args)
@@ -50,6 +51,14 @@
 
 #define PKT_CAPTURE_ENTER() pkt_capture_debug("enter")
 #define PKT_CAPTURE_EXIT() pkt_capture_debug("exit")
+
+#define NORMALIZED_TO_NOISE_FLOOR (-96)
+/**
+ * pkt_capture_get_vdev() - Get pkt capture objmgr vdev.
+ *
+ * Return: pkt capture objmgr vdev
+ */
+struct wlan_objmgr_vdev *pkt_capture_get_vdev(void);
 
 /**
  * pkt_capture_vdev_create_notification() - Handler for vdev create notify.
@@ -150,12 +159,11 @@ void pkt_capture_set_pktcap_mode(struct wlan_objmgr_psoc *psoc,
 
 /**
  * pkt_capture_get_pktcap_mode - Get packet capture mode
- * @psoc: pointer to psoc object
  *
  * Return: enum pkt_capture_mode
  */
 enum pkt_capture_mode
-pkt_capture_get_pktcap_mode(struct wlan_objmgr_psoc *psoc);
+pkt_capture_get_pktcap_mode(void);
 
 /**
  * pkt_capture_drop_nbuf_list() - drop an nbuf list

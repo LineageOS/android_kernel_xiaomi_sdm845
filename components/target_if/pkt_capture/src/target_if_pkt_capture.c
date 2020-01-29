@@ -107,7 +107,7 @@ target_if_mgmt_offload_data_event_handler(void *handle, uint8_t *data,
 		return -EINVAL;
 	}
 
-	if (!(ucfg_pkt_capture_get_pktcap_mode(psoc) &
+	if (!(ucfg_pkt_capture_get_pktcap_mode() &
 	      PKT_CAPTURE_MODE_MGMT_ONLY))
 		return -EINVAL;
 

@@ -45,9 +45,9 @@
  * Return: none
  */
 static void
-pkt_capture_mgmtpkt_cb(void *context, void *nbuf_list,
+pkt_capture_mgmtpkt_cb(void *context, void *ppdev, void *nbuf_list,
 		       uint8_t vdev_id, uint8_t tid, uint8_t status,
-		       bool pkt_format)
+		       bool pkt_format, uint8_t *bssid)
 {
 	struct pkt_capture_vdev_priv *vdev_priv;
 	struct wlan_objmgr_psoc *psoc = context;
@@ -295,7 +295,7 @@ pkt_capture_mgmt_rx_data_cb(struct wlan_objmgr_psoc *psoc,
 	qdf_nbuf_t nbuf;
 	int buf_len;
 
-	if (!(pkt_capture_get_mode(psoc) & PACKET_CAPTURE_MODE_MGMT_ONLY))
+	if (!(pkt_capture_get_pktcap_mode() & PACKET_CAPTURE_MODE_MGMT_ONLY))
 		return QDF_STATUS_E_FAILURE;
 
 	buf_len = qdf_nbuf_len(wbuf);
@@ -315,6 +315,7 @@ pkt_capture_mgmt_rx_data_cb(struct wlan_objmgr_psoc *psoc,
 	txrx_status.rate = (rx_params->rate / 1000);
 	txrx_status.ant_signal_db = rx_params->snr;
 	txrx_status.rssi_comb = rx_params->snr;
+	txrx_status.chan_noise_floor = NORMALIZED_TO_NOISE_FLOOR;
 	txrx_status.nr_ant = 1;
 	txrx_status.rtap_flags |=
 		((txrx_status.rate == 6 /* Mbps */) ? BIT(1) : 0);
