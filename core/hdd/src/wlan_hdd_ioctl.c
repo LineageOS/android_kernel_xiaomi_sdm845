@@ -4375,7 +4375,7 @@ static int drv_cmd_get_scan_home_away_time(struct hdd_adapter *adapter,
 {
 	int ret = 0;
 	uint16_t val;
-	char extra[32];
+	char extra[32] = {0};
 	uint8_t len = 0;
 	QDF_STATUS status;
 
@@ -4387,7 +4387,6 @@ static int drv_cmd_get_scan_home_away_time(struct hdd_adapter *adapter,
 
 	hdd_debug("vdev_id: %u, scan home away time: %u",
 		  adapter->session_id, val);
-
 	len = scnprintf(extra, sizeof(extra), "%s %d", command, val);
 	len = QDF_MIN(priv_data->total_len, len + 1);
 

@@ -4627,7 +4627,7 @@ QDF_STATUS hdd_init_station_mode(struct hdd_adapter *adapter)
 
 	qdf_mem_set(sta_ctx->conn_info.staId,
 		sizeof(sta_ctx->conn_info.staId), HDD_WLAN_INVALID_STA_ID);
-
+	sme_roam_reset_configs(mac_handle, adapter->session_id);
 	/* set fast roaming capability in sme session */
 	status = sme_config_fast_roaming(mac_handle, adapter->session_id,
 					 true);

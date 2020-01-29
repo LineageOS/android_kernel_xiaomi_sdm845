@@ -3043,6 +3043,15 @@ QDF_STATUS sme_roam_control_restore_default_config(mac_handle_t mac_handle,
 						   uint8_t vdev_id);
 
 /**
+ * sme_roam_reset_configs - API to reset roam configurations
+ * @mac_handle: Opaque handle to the global MAC context
+ * @vdev_id: vdev Identifier
+ *
+ * Return: Success or failure
+ */
+void sme_roam_reset_configs(mac_handle_t mac_handle, uint8_t vdev_id);
+
+/**
  * sme_set_disconnect_ies() - set disconnect IEs
  * @mac_handle: handle returned by mac_open
  * @vdev_id: vdev id
