@@ -28,9 +28,11 @@
 #define _WLAN_PKT_CAPTURE_DATA_TXRX_H_
 
 #include "cdp_txrx_cmn_struct.h"
-#include <ol_txrx_types.h>
 #include <qdf_nbuf.h>
+#include <htt_internal.h>
 
+#define SHORT_PREAMBLE 1
+#define LONG_PREAMBLE  0
 /**
  * pkt_capture_data_process_type - data pkt types to process
  * for packet capture mode
@@ -98,4 +100,63 @@ void pkt_capture_rx_in_order_drop_offload_pkt(qdf_nbuf_t head_msdu);
  *         true if it is offload packet
  */
 bool pkt_capture_rx_in_order_offloaded_pkt(qdf_nbuf_t rx_ind_msg);
+
+/**
+ * pkt_capture_offload_deliver_indication_handler() - Handle offload data pkts
+ * @msg: offload netbuf msg
+ * @vdev_id: vdev id
+ * @bssid: bssid
+ * @pdev: pdev handle
+ *
+ * Return: none
+ */
+void pkt_capture_offload_deliver_indication_handler(
+					void *msg, uint8_t vdev_id,
+					uint8_t *bssid, htt_pdev_handle pdev);
+
+/**
+ * pkt_capture_tx_hdr_elem_t - tx packets header struture to
+ * be used to update radiotap header for packet capture mode
+ * @timestamp: timestamp
+ * @preamble: preamble
+ * @mcs: MCS
+ * @rate: rate
+ * @rssi_comb: rssi in dBm
+ * @nss: if nss 1 means 1ss and 2 means 2ss
+ * @bw: BW (0=>20MHz, 1=>40MHz, 2=>80MHz, 3=>160MHz)
+ * @stbc: STBC
+ * @sgi: SGI
+ * @ldpc: LDPC
+ * @beamformed: beamformed
+ * @dir: direction rx: 0 and tx: 1
+ * @status: tx status
+ */
+struct pkt_capture_tx_hdr_elem_t {
+	uint32_t timestamp;
+	uint8_t preamble;
+	uint8_t mcs;
+	uint8_t rate;
+	uint8_t rssi_comb;
+	uint8_t nss;
+	uint8_t bw;
+	bool stbc;
+	bool sgi;
+	bool ldpc;
+	bool beamformed;
+	bool dir; /* rx:0 , tx:1 */
+	uint8_t status; /* tx status */
+};
+
+/**
+ * pkt_capture_tx_get_txcomplete_data_hdr() - extract Tx data hdr from Tx
+ * completion for pkt capture mode
+ * @msg_word: Tx completion htt msg
+ * @num_msdus: number of msdus
+ *
+ * Return: tx data hdr information
+ */
+struct htt_tx_data_hdr_information *pkt_capture_tx_get_txcomplete_data_hdr(
+						uint32_t *msg_word,
+						int num_msdus);
+
 #endif /* End  of _WLAN_PKT_CAPTURE_DATA_TXRX_H_ */

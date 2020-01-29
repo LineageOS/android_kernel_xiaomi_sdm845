@@ -32,6 +32,8 @@
 #include "wmi_unified.h"
 #include "wmi_unified_param.h"
 #include <htt_types.h>
+#include "wlan_pkt_capture_data_txrx.h"
+#include <ol_htt_api.h>
 
 #ifdef WLAN_FEATURE_PKT_CAPTURE
 /**
@@ -199,6 +201,52 @@ bool ucfg_pkt_capture_rx_offloaded_pkt(qdf_nbuf_t rx_ind_msg);
  */
 void ucfg_pkt_capture_rx_drop_offload_pkt(qdf_nbuf_t head_msdu);
 
+/**
+ * ucfg_pkt_capture_offload_deliver_indication_handler() - Handle offload
+ * data pkts
+ * @msg: offload netbuf msg
+ * @vdev_id: vdev id
+ * @bssid: bssid
+ * @pdev: pdev handle
+ *
+ * Return: none
+ */
+void ucfg_pkt_capture_offload_deliver_indication_handler(
+					void *msg, uint8_t vdev_id,
+					uint8_t *bssid, htt_pdev_handle pdev);
+
+/**
+ * ucfg_pkt_capture_tx_get_txcomplete_data_hdr() - extract Tx data hdr from Tx
+ * completion for pkt capture mode
+ * @msg_word: Tx completion htt msg
+ * @num_msdus: number of msdus
+ *
+ * Return: tx data hdr information
+ */
+struct htt_tx_data_hdr_information *ucfg_pkt_capture_tx_get_txcomplete_data_hdr(
+		uint32_t *msg_word,
+		int num_msdus);
+
+/**
+ * ucfg_pkt_capture_tx_completion_process() - process data tx packets
+ * @vdev_id: vdev id for which packet is captured
+ * @mon_buf_list: netbuf list
+ * @type: data process type
+ * @tid:  tid number
+ * @status: Tx status
+ * @pktformat: Frame format
+ * @bssid: bssid
+ * @pdev: pdev handle
+ *
+ * Return: none
+ */
+void ucfg_pkt_capture_tx_completion_process(
+			uint8_t vdev_id,
+			qdf_nbuf_t mon_buf_list,
+			enum pkt_capture_data_process_type type,
+			uint8_t tid, uint8_t status, bool pkt_format,
+			uint8_t *bssid, htt_pdev_handle pdev);
+
 #else
 static inline
 QDF_STATUS ucfg_pkt_capture_init(void)
@@ -279,6 +327,21 @@ ucfg_pkt_capture_mgmt_tx_completion(struct wlan_objmgr_pdev *pdev,
 }
 
 static inline void
+ucfg_pkt_capture_offload_deliver_indication_handler(
+					void *msg, uint8_t vdev_id,
+					uint8_t *bssid, htt_pdev_handle pdev)
+{
+}
+
+static inline
+struct htt_tx_data_hdr_information *ucfg_pkt_capture_tx_get_txcomplete_data_hdr(
+		uint32_t *msg_word,
+		int num_msdus)
+{
+	return NULL;
+}
+
+static inline void
 ucfg_pkt_capture_rx_msdu_process(
 				uint8_t *bssid,
 				qdf_nbuf_t head_msdu,
@@ -294,6 +357,17 @@ ucfg_pkt_capture_rx_offloaded_pkt(qdf_nbuf_t rx_ind_msg)
 
 static inline void
 ucfg_pkt_capture_rx_drop_offload_pkt(qdf_nbuf_t head_msdu)
+{
+}
+
+static inline void
+ucfg_pkt_capture_tx_completion_process(
+			uint8_t vdev_id,
+			qdf_nbuf_t mon_buf_list,
+			enum pkt_capture_data_process_type type,
+			uint8_t tid, uint8_t status, bool pkt_format,
+			uint8_t *bssid, htt_pdev_handle pdev)
+
 {
 }
 #endif /* WLAN_FEATURE_PKT_CAPTURE */
