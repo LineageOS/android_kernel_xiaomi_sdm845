@@ -1400,12 +1400,10 @@ hdd_parse_channellist(const uint8_t *pValue, uint8_t *pChannelList,
 		inPtr = strpbrk(inPtr, " ");
 		/* no channel list after the number of channels argument */
 		if (NULL == inPtr) {
-			if (0 != j) {
-				*pNumChannels = j;
+			if ((j != 0) && (j == *pNumChannels))
 				return 0;
-			} else {
-				return -EINVAL;
-			}
+			else
+				goto cnt_mismatch;
 		}
 
 		/* remove empty space */
@@ -1417,12 +1415,10 @@ hdd_parse_channellist(const uint8_t *pValue, uint8_t *pChannelList,
 		 * argument and spaces
 		 */
 		if ('\0' == *inPtr) {
-			if (0 != j) {
-				*pNumChannels = j;
+			if ((j != 0) && (j == *pNumChannels))
 				return 0;
-			} else {
-				return -EINVAL;
-			}
+			else
+				goto cnt_mismatch;
 		}
 
 		v = sscanf(inPtr, "%31s ", buf);
@@ -1442,6 +1438,11 @@ hdd_parse_channellist(const uint8_t *pValue, uint8_t *pChannelList,
 	}
 
 	return 0;
+
+cnt_mismatch:
+	hdd_err("Mismatch in ch cnt: %d  and num of ch: %d", *pNumChannels, j);
+	*pNumChannels = 0;
+	return -EINVAL;
 }
 
 /**
