@@ -2914,8 +2914,6 @@ static QDF_STATUS send_scan_start_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd->n_probes = params->n_probes;
 	cmd->scan_ctrl_flags_ext = params->scan_ctrl_flags_ext;
 
-	WMI_LOGD("scan_ctrl_flags_ext = %x", cmd->scan_ctrl_flags_ext);
-
 	if (params->scan_random.randomize)
 		wmi_copy_scan_random_mac(params->scan_random.mac_addr,
 					 params->scan_random.mac_mask,
