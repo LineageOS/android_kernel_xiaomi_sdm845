@@ -13901,7 +13901,7 @@ static QDF_STATUS hdd_component_init(void)
 	if (QDF_IS_STATUS_ERROR(status))
 		goto mlme_deinit;
 
-	status = ucfg_ftm_timesync_init();
+	status = ucfg_ftm_time_sync_init();
 	if (QDF_IS_STATUS_ERROR(status))
 		goto pkt_capture_deinit;
 
@@ -13935,7 +13935,7 @@ dispatcher_deinit:
 static void hdd_component_deinit(void)
 {
 	/* deinitialize non-converged components */
-	ucfg_ftm_timesync_deinit();
+	ucfg_ftm_time_sync_deinit();
 	ucfg_pkt_capture_deinit();
 	ucfg_mlme_deinit();
 	ucfg_action_oui_deinit();
@@ -14918,6 +14918,36 @@ static int hdd_update_pkt_capture_config(struct hdd_context *hdd_ctx)
 	return qdf_status_to_os_return(status);
 }
 
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+/**
+ * hdd_update_time_sync_ftm_config - Update time sync ftm config parameters
+ * @hdd_ctx: HDD context
+ *
+ * Return: 0 on success / error on failure
+ */
+static int hdd_update_time_sync_ftm_config(struct hdd_context *hdd_ctx)
+{
+	struct ftm_time_sync_cfg ftm_time_sync_cfg = {0};
+	QDF_STATUS status;
+
+	ftm_time_sync_cfg.enable = hdd_ctx->config->time_sync_ftm_enable;
+	ftm_time_sync_cfg.mode = hdd_ctx->config->time_sync_ftm_mode;
+	ftm_time_sync_cfg.role = hdd_ctx->config->time_sync_ftm_role;
+
+	status = ucfg_ftm_time_sync_psoc_config(hdd_ctx->psoc,
+						&ftm_time_sync_cfg);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("ftm time sync config failed");
+
+	return qdf_status_to_os_return(status);
+}
+#else
+static inline int hdd_update_time_sync_ftm_config(struct hdd_context *hdd_ctx)
+{
+	return 0;
+}
+#endif
+
 #ifdef FEATURE_WLAN_SCAN_PNO
 static inline void hdd_update_pno_config(struct pno_user_cfg *pno_cfg,
 	struct hdd_config *cfg)
@@ -15253,6 +15283,10 @@ int hdd_update_components_config(struct hdd_context *hdd_ctx)
 		return ret;
 
 	ret = hdd_update_pkt_capture_config(hdd_ctx);
+	if (ret)
+		return ret;
+
+	ret = hdd_update_time_sync_ftm_config(hdd_ctx);
 
 	return ret;
 }

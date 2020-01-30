@@ -6304,6 +6304,28 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT,
 		     CFG_DISABLE_4WAY_HS_OFFLOAD_MIN,
 		     CFG_DISABLE_4WAY_HS_OFFLOAD_MAX),
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+	REG_VARIABLE(CFG_ENABLE_TIME_SYNC_FTM, WLAN_PARAM_Integer,
+		     struct hdd_config, time_sync_ftm_enable,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_TIME_SYNC_FTM_DEFAULT,
+		     CFG_ENABLE_TIME_SYNC_FTM_MIN,
+		     CFG_ENABLE_TIME_SYNC_FTM_MAX),
+
+	REG_VARIABLE(CFG_TIME_SYNC_FTM_MODE, WLAN_PARAM_Integer,
+		     struct hdd_config, time_sync_ftm_mode,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TIME_SYNC_FTM_MODE_DEFAULT,
+		     CFG_TIME_SYNC_FTM_MODE_MIN,
+		     CFG_TIME_SYNC_FTM_MODE_MAX),
+
+	REG_VARIABLE(CFG_TIME_SYNC_FTM_ROLE, WLAN_PARAM_Integer,
+		     struct hdd_config, time_sync_ftm_role,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_TIME_SYNC_FTM_ROLE_DEFAULT,
+		     CFG_TIME_SYNC_FTM_ROLE_MIN,
+		     CFG_TIME_SYNC_FTM_ROLE_MAX),
+#endif
 };
 
 /**
@@ -8372,6 +8394,17 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] value = [%d]",
 		  CFG_DISABLE_4WAY_HS_OFFLOAD,
 		  hdd_ctx->config->disable_4way_hs_offload);
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+	hdd_debug("Name = [%s] Value =[%d]",
+		  CFG_ENABLE_TIME_SYNC_FTM,
+		  hdd_ctx->config->time_sync_ftm_enable);
+	hdd_debug("Name = [%s] Value =[%d]",
+		  CFG_TIME_SYNC_FTM_MODE,
+		  hdd_ctx->config->time_sync_ftm_mode);
+	hdd_debug("Name = [%s] Value =[%d]",
+		  CFG_TIME_SYNC_FTM_ROLE,
+		  hdd_ctx->config->time_sync_ftm_role);
+#endif
 }
 
 /**

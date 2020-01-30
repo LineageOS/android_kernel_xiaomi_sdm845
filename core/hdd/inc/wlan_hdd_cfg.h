@@ -17437,6 +17437,66 @@ enum hdd_external_acs_policy {
 #define CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT   (0)
 
 /*
+ * <ini>
+ * enable_time_sync_ftm - Time Sync FTM feature support
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0 - Disable feature
+ *
+ * When set to 1 Time Sync FTM feature will be enabled.
+ *
+ * Supported Feature: Time Sync FTM
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_TIME_SYNC_FTM		"enable_time_sync_ftm"
+#define CFG_ENABLE_TIME_SYNC_FTM_MIN		(0)
+#define CFG_ENABLE_TIME_SYNC_FTM_MAX		(1)
+#define CFG_ENABLE_TIME_SYNC_FTM_DEFAULT	(0)
+
+/*
+ * <ini>
+ * time_sync_ftm_mode- Time Sync FTM feature Mode configuration
+ * @Min: 0 - Aggregated Mode
+ * @Max: 1 - Burst Mode
+ * @Default: 0
+ *
+ * This ini is applicable only if enable_time_sync_ftm  is set to 1.
+ *
+ * Supported Feature: Time Sync FTM
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_TIME_SYNC_FTM_MODE			"time_sync_ftm_mode"
+#define CFG_TIME_SYNC_FTM_MODE_MIN		(0)
+#define CFG_TIME_SYNC_FTM_MODE_MAX		(1)
+#define CFG_TIME_SYNC_FTM_MODE_DEFAULT		(0)
+
+/*
+ * <ini>
+ * time_sync_ftm_role- Time Sync FTM feature Role configuration
+ * @Min: 0 - Slave Role
+ * @Max: 1 - Master Role
+ * @Default: 0
+ *
+ * This ini is applicable only if enable_time_sync_ftm is set to 1.
+ *
+ * Supported Feature: Time Sync FTM
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_TIME_SYNC_FTM_ROLE			"time_sync_ftm_role"
+#define CFG_TIME_SYNC_FTM_ROLE_MIN		(0)
+#define CFG_TIME_SYNC_FTM_ROLE_MAX		(1)
+#define CFG_TIME_SYNC_FTM_ROLE_DEFAULT		(0)
+
+/*
  * Type declarations
  */
 
@@ -18465,6 +18525,11 @@ struct hdd_config {
 	uint32_t mws_coex_pcc_channel_avoid_delay;
 
 	bool disable_4way_hs_offload;
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+	bool time_sync_ftm_enable;
+	bool time_sync_ftm_mode;
+	bool time_sync_ftm_role;
+#endif
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

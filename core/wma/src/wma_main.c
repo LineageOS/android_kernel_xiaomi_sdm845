@@ -91,6 +91,7 @@
 #include "wlan_cp_stats_mc_ucfg_api.h"
 #include "init_cmd_api.h"
 #include "wma_coex.h"
+#include <ftm_time_sync_ucfg_api.h>
 
 #define WMA_LOG_COMPLETION_TIMER 3000 /* 3 seconds */
 #define WMI_TLV_HEADROOM 128
@@ -6920,6 +6921,15 @@ int wma_rx_service_ready_ext_event(void *handle, uint8_t *event,
 		wlan_res_cfg->three_way_coex_config_legacy_en = true;
 	} else {
 		wlan_res_cfg->three_way_coex_config_legacy_en = false;
+	}
+
+	if (ucfg_is_ftm_time_sync_enable(wma_handle->psoc) &&
+	    wmi_service_enabled(wmi_handle, wmi_service_time_sync_ftm)) {
+		wlan_res_cfg->time_sync_ftm = true;
+		ucfg_ftm_time_sync_set_enable(wma_handle->psoc, true);
+	} else {
+		wlan_res_cfg->time_sync_ftm = false;
+		ucfg_ftm_time_sync_set_enable(wma_handle->psoc, false);
 	}
 
 	return 0;
