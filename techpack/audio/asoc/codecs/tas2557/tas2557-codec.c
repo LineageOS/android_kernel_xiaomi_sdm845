@@ -333,8 +333,6 @@ static int vendor_id_get(struct snd_kcontrol *kcontrol,
 		if (pTAS2557->spk_id_gpio_p)
 			ucontrol->value.integer.value[0] = spk_id_get(pTAS2557->spk_id_gpio_p);
 
-		if (get_hw_version_platform() == HARDWARE_PLATFORM_URSA)
-			ucontrol->value.integer.value[0] = VENDOR_ID_GOER;
 		return 0;
 }
 

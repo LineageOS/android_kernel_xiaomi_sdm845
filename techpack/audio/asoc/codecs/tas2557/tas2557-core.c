@@ -46,7 +46,8 @@
 #define	PPC_DRIVER_MTPLLSRC			0x00000400
 #define	PPC_DRIVER_CFGDEV_NONCRC	0x00000101
 
-#define TAS2557_CAL_NAME    "/persist/audio/tas2557_cal.bin"
+#define TAS2557_CAL_NAME    "/mnt/vendor/persist/audio/tas2557_cal.bin"
+#define RESTART_MAX 3
 
 
 static int tas2557_load_calibration(struct tas2557_priv *pTAS2557,
@@ -123,6 +124,21 @@ static unsigned int p_tas2557_shutdown_data[] = {
 	TAS2557_GPI_PIN_REG, 0x00,	/* disable DIN, MCLK, CCI */
 	0xFFFFFFFF, 0xFFFFFFFF
 };
+
+static int set_calibration_E1s_E8 = 0;
+static bool set_24bit = false;
+static int config_24bit_flag = 0;
+
+static int set_configuration_for_24bit(struct tas2557_priv *pTAS2557)
+{
+	int set_config_24bit = 0;
+	if (set_24bit)
+		set_config_24bit = set_calibration_E1s_E8;
+	else
+		set_config_24bit = 10;
+	dev_err(pTAS2557->dev,"%s :set_24bit = %d set_config_24bit = %d\n",__func__,set_24bit,set_config_24bit);
+	return set_config_24bit;
+}
 
 static int tas2557_dev_load_data(struct tas2557_priv *pTAS2557,
 	unsigned int *pData)
@@ -295,6 +311,13 @@ static void failsafe(struct tas2557_priv *pTAS2557)
 	pTAS2557->mnErrCode |= ERROR_FAILSAFE;
 	if (hrtimer_active(&pTAS2557->mtimer))
 		hrtimer_cancel(&pTAS2557->mtimer);
+	if (pTAS2557->mnRestart < RESTART_MAX) {
+		pTAS2557->mnRestart ++;
+		msleep(100);
+		dev_err(pTAS2557->dev, "I2C COMM error, restart SmartAmp.\n");
+		schedule_delayed_work(&pTAS2557->irq_work, msecs_to_jiffies(100));
+		return;
+	}
 	pTAS2557->enableIRQ(pTAS2557, false);
 	tas2557_dev_load_data(pTAS2557, p_tas2557_shutdown_data);
 	pTAS2557->mbPowerUp = false;
@@ -462,16 +485,42 @@ end:
 int tas2557_enable(struct tas2557_priv *pTAS2557, bool bEnable)
 {
 	int nResult = 0;
+	int config_24bit = 0;
 	unsigned int nValue;
+	const char *pFWName;
 	struct TProgram *pProgram;
 
 	dev_dbg(pTAS2557->dev, "Enable: %d\n", bEnable);
 
 	if ((pTAS2557->mpFirmware->mnPrograms == 0)
 		|| (pTAS2557->mpFirmware->mnConfigurations == 0)) {
-		dev_err(pTAS2557->dev, "%s, firmware not loaded\n", __func__);
-		goto end;
+		dev_err(pTAS2557->dev, "%s, firmware not loaded, try to load again\n", __func__);
+		/*Load firmware*/
+		if (pTAS2557->mnPGID == TAS2557_PG_VERSION_2P1) {
+			dev_info(pTAS2557->dev, "PG2.1 Silicon found\n");
+			pFWName = TAS2557_AAC_FW_NAME;
+		} else if (pTAS2557->mnPGID == TAS2557_PG_VERSION_1P0) {
+			dev_info(pTAS2557->dev, "PG1.0 Silicon found\n");
+			pFWName = TAS2557_PG1P0_FW_NAME;
+		} else {
+			nResult = -ENOTSUPP;
+			dev_info(pTAS2557->dev, "unsupport Silicon 0x%x\n", pTAS2557->mnPGID);
+			goto end;
+		}
+		if (pTAS2557->mnSpkType == VENDOR_ID_GOER)
+			pFWName = TAS2557_GOER_FW_NAME;
+		else if (pTAS2557->mnSpkType == VENDOR_ID_AAC)
+			pFWName = TAS2557_AAC_FW_NAME;
+		else
+			pFWName = TAS2557_DEFAULT_FW_NAME;
+
+		nResult = request_firmware_nowait(THIS_MODULE, 1, pFWName,
+				pTAS2557->dev, GFP_KERNEL, pTAS2557, tas2557_fw_ready);
+		if (nResult < 0)
+			goto end;
+		dev_dbg(pTAS2557->dev, "%s, firmware is loaded\n", __func__);
 	}
+
 	/* check safe guard*/
 	nResult = pTAS2557->read(pTAS2557, TAS2557_SAFE_GUARD_REG, &nValue);
 	if (nResult < 0)
@@ -479,6 +528,8 @@ int tas2557_enable(struct tas2557_priv *pTAS2557, bool bEnable)
 	if ((nValue&0xff) != TAS2557_SAFE_GUARD_PATTERN) {
 		dev_err(pTAS2557->dev, "ERROR safe guard failure!\n");
 		nResult = -EPIPE;
+		pTAS2557->mnErrCode = ERROR_SAFE_GUARD;
+		pTAS2557->mbPowerUp = true;
 		goto end;
 	}
 
@@ -520,6 +571,11 @@ int tas2557_enable(struct tas2557_priv *pTAS2557, bool bEnable)
 				goto end;
 
 			pTAS2557->mbPowerUp = true;
+			if (config_24bit_flag) {
+				config_24bit = set_configuration_for_24bit(pTAS2557);
+				tas2557_set_config(pTAS2557, config_24bit);
+				config_24bit_flag = 0;
+			}
 
 			nResult = tas2557_get_die_temperature(pTAS2557, &nValue);
 			if ((nValue == 0x80000000) || (nResult < 0)) {
@@ -538,6 +594,7 @@ int tas2557_enable(struct tas2557_priv *pTAS2557, bool bEnable)
 						ns_to_ktime((u64)LOW_TEMPERATURE_CHECK_PERIOD * NSEC_PER_MSEC), HRTIMER_MODE_REL);
 				}
 			}
+			pTAS2557->mnRestart = 0;
 		}
 	} else {
 		if (pTAS2557->mbPowerUp) {
@@ -554,6 +611,7 @@ int tas2557_enable(struct tas2557_priv *pTAS2557, bool bEnable)
 				goto end;
 
 			pTAS2557->mbPowerUp = false;
+			pTAS2557->mnRestart = 0;
 		}
 	}
 
@@ -561,7 +619,7 @@ int tas2557_enable(struct tas2557_priv *pTAS2557, bool bEnable)
 
 end:
 	if (nResult < 0) {
-		if (pTAS2557->mnErrCode & (ERROR_DEVA_I2C_COMM | ERROR_PRAM_CRCCHK | ERROR_YRAM_CRCCHK))
+		if (pTAS2557->mnErrCode & (ERROR_DEVA_I2C_COMM | ERROR_PRAM_CRCCHK | ERROR_YRAM_CRCCHK | ERROR_SAFE_GUARD))
 			failsafe(pTAS2557);
 	}
 
@@ -625,6 +683,8 @@ static void fw_print_header(struct tas2557_priv *pTAS2557, struct TFirmware *pFi
 	dev_info(pTAS2557->dev, "Timestamp     = %d", pFirmware->mnTimeStamp);
 	dev_info(pTAS2557->dev, "DDC Name      = %s", pFirmware->mpDDCName);
 	dev_info(pTAS2557->dev, "Description   = %s", pFirmware->mpDescription);
+	if (strnstr(pFirmware->mpDDCName,"E8", strlen(pFirmware->mpDDCName)))
+		set_24bit = true;
 }
 
 inline unsigned int fw_convert_number(unsigned char *pData)
@@ -1410,6 +1470,9 @@ static int tas2557_load_configuration(struct tas2557_priv *pTAS2557,
 
 	dev_dbg(pTAS2557->dev, "%s: %d\n", __func__, nConfiguration);
 
+	if (nConfiguration == 4 || nConfiguration == 10)
+		set_calibration_E1s_E8 = nConfiguration;
+
 	if ((!pTAS2557->mpFirmware->mpPrograms) ||
 		(!pTAS2557->mpFirmware->mpConfigurations)) {
 		dev_err(pTAS2557->dev, "Firmware not loaded\n");
@@ -1589,6 +1652,7 @@ static int tas2557_load_calibration(struct tas2557_priv *pTAS2557,	char *pFileNa
 	} else {
 		dev_err(pTAS2557->dev, "TAS2557 cannot open calibration file: %s\n",
 			pFileName);
+		config_24bit_flag = 1;
 		nResult = -EINVAL;
 	}
 
