@@ -8383,6 +8383,29 @@ enum hdd_link_speed_rpt_type {
 #define CFG_ENABLE_NAN_SUPPORT_DEFAULT                  (0)
 #define CFG_ENABLE_NAN_SUPPORT_MIN                      (0)
 #define CFG_ENABLE_NAN_SUPPORT_MAX                      (1)
+
+/*
+ * <ini>
+ * nan_separate_iface_support - Separate iface creation for NAN
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * Value is 1 when Host HDD supports separate iface creation for NAN
+ *
+ * Related: None
+ *
+ * Supported Feature: NAN
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NAN_SEPARATE_IFACE_SUPP                "nan_separate_iface_support"
+#define CFG_NAN_SEPARATE_IFACE_SUPP_DEFAULT        (1)
+#define CFG_NAN_SEPARATE_IFACE_SUPP_MIN            (0)
+#define CFG_NAN_SEPARATE_IFACE_SUPP_MAX            (1)
+
 #endif
 
 #define CFG_ENABLE_SELF_RECOVERY                   "gEnableSelfRecovery"
@@ -17503,6 +17526,7 @@ struct hdd_config {
 #endif
 #ifdef WLAN_FEATURE_NAN
 	bool enable_nan_support;
+	bool nan_separate_iface_support;
 #endif
 	bool enableSelfRecovery;
 #ifdef FEATURE_WLAN_FORCE_SAP_SCC

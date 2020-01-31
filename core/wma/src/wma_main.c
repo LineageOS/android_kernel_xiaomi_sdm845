@@ -3365,6 +3365,9 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 	wma_handle->is_lpass_enabled = cds_cfg->is_lpass_enabled;
 #endif
 	wma_set_nan_enable(wma_handle, cds_cfg);
+	wma_handle->nan_separate_iface_support =
+			cds_cfg->nan_separate_iface_support;
+
 	wma_handle->interfaces = qdf_mem_malloc(sizeof(struct wma_txrx_node) *
 						wma_handle->max_bssid);
 	if (!wma_handle->interfaces) {
@@ -5746,6 +5749,10 @@ static int wma_update_hdd_cfg(tp_wma_handle wma_handle)
 
 	if (wmi_service_enabled(wma_handle->wmi_handle, wmi_service_nan_vdev))
 		tgt_cfg.nan_seperate_vdev_support = true;
+
+	wlan_res_cfg->nan_separate_iface_support =
+			tgt_cfg.nan_seperate_vdev_support &&
+			wma_handle->nan_separate_iface_support;
 
 	ret = wma_handle->tgt_cfg_update_cb(hdd_ctx, &tgt_cfg);
 	if (ret)
