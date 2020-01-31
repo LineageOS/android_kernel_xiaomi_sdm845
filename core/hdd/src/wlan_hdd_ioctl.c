@@ -1440,7 +1440,7 @@ hdd_parse_channellist(const uint8_t *pValue, uint8_t *pChannelList,
 	return 0;
 
 cnt_mismatch:
-	hdd_err("Mismatch in ch cnt: %d  and num of ch: %d", *pNumChannels, j);
+	hdd_debug("Mismatch in ch cnt: %d and num of ch: %d", *pNumChannels, j);
 	*pNumChannels = 0;
 	return -EINVAL;
 }

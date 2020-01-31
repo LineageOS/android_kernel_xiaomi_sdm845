@@ -6666,7 +6666,6 @@ sme_update_roam_scan_home_away_time(mac_handle_t mac_handle, uint8_t vdev_id,
 		  roam_scan_home_away_time);
 	neighbor_roam_info->cfgParams.roam_scan_home_away_time =
 		roam_scan_home_away_time;
-
 	if (mac->roam.configParam.isRoamOffloadScanEnabled &&
 	    send_offload_cmd)
 		csr_roam_offload_scan(mac, vdev_id,
@@ -6777,7 +6776,6 @@ QDF_STATUS sme_get_roam_scan_home_away_time(mac_handle_t mac_handle,
 	neighbor_roam_info = &mac->roam.neighborRoamInfo[vdev_id];
 	*roam_scan_home_away_time =
 		neighbor_roam_info->cfgParams.roam_scan_home_away_time;
-
 	sme_release_global_lock(&mac->sme);
 
 	return status;
@@ -8037,11 +8035,6 @@ void sme_roam_reset_configs(mac_handle_t mac_handle, uint8_t vdev_id)
 {
 	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
 	tCsrNeighborRoamControlInfo *neighbor_roam_info;
-
-	if (vdev_id >= WLAN_MAX_VDEVS) {
-		sme_err("Invalid vdev_id: %d", vdev_id);
-		return;
-	}
 
 	neighbor_roam_info = &mac->roam.neighborRoamInfo[vdev_id];
 	sme_restore_default_roaming_params(mac, neighbor_roam_info);
