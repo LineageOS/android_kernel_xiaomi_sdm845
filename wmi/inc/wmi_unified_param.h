@@ -6303,6 +6303,7 @@ struct wmi_host_fw_abi_ver {
  *                    by the AP
  * @three_way_coex_config_legacy_en: enable three way coex legacy feature
  * @time_sync_ftm: enable ftm based time sync
+ * @nan_separate_iface_support: Separate iface creation for NAN
  */
 typedef struct {
 	uint32_t num_vdevs;
@@ -6383,6 +6384,7 @@ typedef struct {
 	bool tstamp64_en;
 	bool three_way_coex_config_legacy_en;
 	bool time_sync_ftm;
+	bool nan_separate_iface_support;
 } target_resource_config;
 
 /**
