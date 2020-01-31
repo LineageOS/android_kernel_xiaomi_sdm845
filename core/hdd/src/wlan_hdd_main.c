@@ -7984,8 +7984,6 @@ static void hdd_wlan_exit(struct hdd_context *hdd_ctx)
 	driver_status = hdd_objmgr_release_and_destroy_psoc(hdd_ctx);
 	if (driver_status)
 		hdd_err("Psoc delete failed");
-
-	hdd_context_destroy(hdd_ctx);
 }
 
 void __hdd_wlan_exit(void)
@@ -13874,6 +13872,7 @@ static void hdd_driver_unload(void)
 		hdd_psoc_idle_timer_stop(hdd_ctx);
 
 	wlan_hdd_unregister_driver();
+	hdd_context_destroy(hdd_ctx);
 	pld_deinit();
 	wlan_hdd_state_ctrl_param_destroy();
 	hdd_set_conparam(0);
