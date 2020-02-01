@@ -2238,6 +2238,7 @@ struct param_slot_scoring {
  * will be applied
  * @vendor_roam_score_algorithm: Preferred algorithm for roam candidate
  * selection
+ * @cand_min_roam_score_delta: candidate min roam score delta value
  * @rssi_scoring: RSSI scoring information.
  * @esp_qbss_scoring: ESP/QBSS scoring percentage information
  * @oce_wan_scoring: OCE WAN metrics percentage information
@@ -2261,6 +2262,7 @@ struct scoring_param {
 	uint32_t roam_score_delta;
 	uint32_t roam_trigger_bitmap;
 	uint32_t vendor_roam_score_algorithm;
+	uint32_t cand_min_roam_score_delta;
 	struct rssi_scoring rssi_scoring;
 	struct param_slot_scoring esp_qbss_scoring;
 	struct param_slot_scoring oce_wan_scoring;
