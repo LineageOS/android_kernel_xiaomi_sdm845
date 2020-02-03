@@ -2803,7 +2803,7 @@ static inline void csr_start_bss_copy_he_cap(tSirSmeStartBssReq *req,
 #endif
 
 /**
- * csr_set_11k_offload_config_param() - Update 11k neighbor report config
+ * csr_update_11k_offload_config_param() - Update 11k neighbor report config
  *
  * @csr_config: pointer to csr_config in MAC context
  * @pParam: pointer to config params from HDD
@@ -2811,7 +2811,7 @@ static inline void csr_start_bss_copy_he_cap(tSirSmeStartBssReq *req,
  * Return: none
  */
 static
-void csr_set_11k_offload_config_param(struct csr_config *csr_config,
+void csr_update_11k_offload_config_param(struct csr_config *csr_config,
 					tCsrConfigParam *param)
 {
 	csr_config->offload_11k_enable_bitmask =
@@ -2885,16 +2885,28 @@ static void csr_get_roam_preauth_config_param(tCsrConfigParam *pparam,
 
 #ifdef WLAN_ADAPTIVE_11R
 static void
-csr_get_adaptive_11r_config_param(tpAniSirGlobal mac,
-				  tCsrConfigParam *param)
+csr_update_adaptive_11r_config_param(tpAniSirGlobal mac, tCsrConfigParam *param)
 {
 	mac->roam.configParam.enable_adaptive_11r =
 		param->enable_adaptive_11r;
 }
 #else
 static void
-csr_get_adaptive_11r_config_param(tpAniSirGlobal mac,
-				  tCsrConfigParam *param)
+csr_update_adaptive_11r_config_param(tpAniSirGlobal mac, tCsrConfigParam *param)
+{
+}
+#endif
+
+#ifdef WLAN_SAE_SINGLE_PMK
+static void
+csr_update_sae_single_pmk_cfg_param(tpAniSirGlobal mac, tCsrConfigParam *param)
+{
+	mac->roam.configParam.sae_same_pmk_feature_enabled =
+		param->sae_same_pmk_feature_enabled;
+}
+#else
+static void
+csr_update_sae_single_pmk_cfg_param(tpAniSirGlobal mac, tCsrConfigParam *param)
 {
 }
 #endif
@@ -3457,9 +3469,10 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		pMac->roam.configParam.disable_4way_hs_offload =
 				pParam->disable_4way_hs_offload;
 
-		csr_get_adaptive_11r_config_param(pMac, pParam);
+		csr_update_adaptive_11r_config_param(pMac, pParam);
+		csr_update_sae_single_pmk_cfg_param(pMac, pParam);
 		csr_update_he_config_param(pMac, pParam);
-		csr_set_11k_offload_config_param(&pMac->roam.configParam,
+		csr_update_11k_offload_config_param(&pMac->roam.configParam,
 						 pParam);
 		pMac->roam.configParam.enable_pending_list_req =
 					pParam->enable_pending_list_req;
@@ -3508,6 +3521,20 @@ csr_get_adaptive_11r_config(tpAniSirGlobal mac, tCsrConfigParam *param)
 #else
 static inline void
 csr_get_adaptive_11r_config(tpAniSirGlobal mac, tCsrConfigParam *param)
+{
+}
+#endif
+
+#ifdef WLAN_SAE_SINGLE_PMK
+static void
+csr_get_sae_single_pmk_config(tpAniSirGlobal mac, tCsrConfigParam *param)
+{
+	param->sae_same_pmk_feature_enabled =
+			mac->roam.configParam.sae_same_pmk_feature_enabled;
+}
+#else
+static inline void
+csr_get_sae_single_pmk_config(tpAniSirGlobal mac, tCsrConfigParam *param)
 {
 }
 #endif
@@ -3847,6 +3874,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		pMac->roam.configParam.disable_4way_hs_offload;
 
 	csr_get_adaptive_11r_config(pMac, pParam);
+	csr_get_sae_single_pmk_config(pMac, pParam);
 	csr_get_he_config_param(pParam, pMac);
 
 	csr_get_11k_offload_config_param(&pMac->roam.configParam, pParam);

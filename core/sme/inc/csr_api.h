@@ -1346,6 +1346,9 @@ typedef struct tagCsrConfigParam {
 #ifdef WLAN_ADAPTIVE_11R
 	bool enable_adaptive_11r;
 #endif
+#ifdef WLAN_SAE_SINGLE_PMK
+	bool sae_same_pmk_feature_enabled;
+#endif
 	bool enable_pending_list_req;
 	bool disable_4way_hs_offload;
 } tCsrConfigParam;

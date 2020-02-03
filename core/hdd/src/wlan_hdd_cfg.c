@@ -6148,6 +6148,16 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ADAPTIVE_11R_MIN,
 		     CFG_ADAPTIVE_11R_MAX),
 #endif
+
+#ifdef WLAN_SAE_SINGLE_PMK
+	REG_VARIABLE(CFG_SAE_SINGLE_PMK, WLAN_PARAM_Integer,
+		     struct hdd_config, sae_same_pmk_feature_enabled,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_SAE_SINGLE_PMK_DEFAULT,
+		     CFG_SAE_SINGLE_PMK_MIN,
+		     CFG_SAE_SINGLE_PMK_MAX),
+#endif
+
 	REG_VARIABLE(CFG_BSS_LOAD_TRIG_5G_RSSI_THRES, WLAN_PARAM_SignedInteger,
 		     struct hdd_config, bss_load_trigger_rssi_threshold_5ghz,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -9781,6 +9791,22 @@ sme_update_adaptive_11r_cap(tSmeConfigParams *sme_config,
 }
 #endif
 
+#ifdef WLAN_SAE_SINGLE_PMK
+static void
+sme_update_sae_single_pmk_cfg(tSmeConfigParams *sme_config,
+			      struct hdd_config *ini_config)
+{
+	sme_config->csrConfig.sae_same_pmk_feature_enabled =
+		ini_config->sae_same_pmk_feature_enabled;
+}
+#else
+static inline void
+sme_update_sae_single_pmk_cfg(tSmeConfigParams *sme_config,
+			      struct hdd_config *ini_config)
+{
+}
+#endif
+
 /**
  * hdd_set_sme_config() -initializes the sme configuration parameters
  *
@@ -10349,6 +10375,7 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 	smeConfig->csrConfig.enable_pending_list_req =
 			pConfig->enable_pending_list_req;
 	sme_update_adaptive_11r_cap(smeConfig, pConfig);
+	sme_update_sae_single_pmk_cfg(smeConfig, pConfig);
 
 	sme_update_beacon_stats(mac_handle,
 				hdd_ctx->config->enable_beacon_reception_stats);

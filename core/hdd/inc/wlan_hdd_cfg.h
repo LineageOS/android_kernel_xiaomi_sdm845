@@ -16902,6 +16902,30 @@ enum hdd_external_acs_policy {
 #define CFG_ADAPTIVE_11R_DEFAULT  (false)
 #endif
 
+#ifdef WLAN_SAE_SINGLE_PMK
+/*
+ * <ini>
+ * sae_single_pmk_cfg - Enable/disable sae single pmk feature.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This INI is to enable/disable SAE Roaming with same PMK/PMKID feature support
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_SAE_SINGLE_PMK          "sae_same_pmk_feature_enabled"
+#define CFG_SAE_SINGLE_PMK_MIN      (false)
+#define CFG_SAE_SINGLE_PMK_MAX      (true)
+#define CFG_SAE_SINGLE_PMK_DEFAULT  (false)
+#endif
+
 /*
  * <ini>
  * bss_load_trigger_5g_rssi_threshold - Current AP minimum RSSI in dBm below
@@ -18570,6 +18594,9 @@ struct hdd_config {
 	uint8_t enable_ring_buffer;
 #ifdef WLAN_ADAPTIVE_11R
 	bool enable_adaptive_11r;
+#endif
+#ifdef WLAN_SAE_SINGLE_PMK
+	bool sae_same_pmk_feature_enabled;
 #endif
 	uint32_t num_vdevs;
 	bool ShortGI80MhzEnable;
