@@ -73,7 +73,6 @@ wlan_serialization_put_back_to_global_list(qdf_list_t *queue,
 		serialization_err("can't put command back to global pool");
 		QDF_ASSERT(0);
 	}
-	serialization_debug("cmd_id-%d, cmd_type-%d", cmd_id, cmd_type);
 
 	return status;
 }
@@ -190,7 +189,7 @@ static void wlan_serialization_generic_timer_callback(void *arg)
 	if (cmd->vdev)
 		vdev_id = wlan_vdev_get_id(cmd->vdev);
 
-	serialization_err("active cmd timeout for cmd_type[%d] vdev_id[%d]",
+	serialization_err("Active cmd timeout for cmd_type[%d] vdev_id[%d]",
 			  cmd->cmd_type, vdev_id);
 
 	if (cmd->cmd_cb)
@@ -311,10 +310,7 @@ wlan_serialization_find_and_stop_timer(struct wlan_objmgr_psoc *psoc,
 	}
 	wlan_serialization_release_lock(&psoc_ser_obj->timer_lock);
 
-	if (QDF_IS_STATUS_SUCCESS(status))
-		serialization_debug("Stopped timer for cmd_type %d cmd id %d",
-				    cmd->cmd_type, cmd->cmd_id);
-	else
+	if (QDF_IS_STATUS_ERROR(status))
 		serialization_err("can't find timer for cmd_type %d cmd_id %d",
 				  cmd->cmd_type, cmd->cmd_id);
 	return status;
@@ -376,8 +372,6 @@ wlan_serialization_find_and_start_timer(struct wlan_objmgr_psoc *psoc,
 			QDF_ASSERT(0);
 			return status;
 		}
-		serialization_debug("Started timer for cmd: type[%d] id[%d]",
-				    cmd->cmd_type, cmd->cmd_id);
 	} else {
 		serialization_err("Failed to start timer for cmd: type[%d] id[%d]",
 				  cmd->cmd_type, cmd->cmd_id);
@@ -449,10 +443,8 @@ wlan_serialization_is_active_scan_cmd_allowed(struct wlan_objmgr_pdev *pdev)
 	wlan_objmgr_iterate_obj_list(psoc, WLAN_PDEV_OP,
 			wlan_serialization_active_scan_cmd_count_handler,
 			&count, 1, WLAN_SERIALIZATION_ID);
-	if (count < ucfg_scan_get_max_active_scans(psoc)) {
-		serialization_debug("count is [%d]", count);
+	if (count < ucfg_scan_get_max_active_scans(psoc))
 		return true;
-	}
 
 	return false;
 }
@@ -543,10 +535,8 @@ wlan_serialization_is_scan_cmd_allowed(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS wlan_serialization_validate_cmdtype(
 		 enum wlan_serialization_cmd_type cmd_type)
 {
-	serialization_debug("validate cmd_type:%d", cmd_type);
-
 	if (cmd_type < 0 || cmd_type >= WLAN_SER_CMD_MAX) {
-		serialization_err("Invalid cmd or comp passed");
+		serialization_err("Invalid cmd %d passed", cmd_type);
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -557,12 +547,10 @@ QDF_STATUS wlan_serialization_validate_cmd(
 		 enum wlan_umac_comp_id comp_id,
 		 enum wlan_serialization_cmd_type cmd_type)
 {
-	serialization_debug("validate cmd_type:%d, comp_id:%d",
-			cmd_type, comp_id);
-	if (cmd_type < 0 || comp_id < 0 ||
-			cmd_type >= WLAN_SER_CMD_MAX ||
-			comp_id >= WLAN_UMAC_COMP_ID_MAX) {
-		serialization_err("Invalid cmd or comp passed");
+	if (cmd_type < 0 || comp_id < 0 || cmd_type >= WLAN_SER_CMD_MAX ||
+	    comp_id >= WLAN_UMAC_COMP_ID_MAX) {
+		serialization_err("Invalid cmd %d or comp %d passed",
+				  cmd_type, comp_id);
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -646,7 +634,6 @@ bool wlan_serialization_is_cmd_in_vdev_list(struct wlan_objmgr_vdev *vdev,
 	if (!queuelen) {
 		wlan_serialization_release_lock(
 					&ser_pdev_obj->pdev_ser_list_lock);
-		serialization_debug("queue empty");
 		return false;
 	}
 

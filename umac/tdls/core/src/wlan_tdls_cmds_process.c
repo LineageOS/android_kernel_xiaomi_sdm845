@@ -530,7 +530,6 @@ tdls_add_peer_serialize_callback(struct wlan_serialization_command *cmd,
 	}
 
 	req = cmd->umac_cmd;
-	tdls_debug("reason: %d, req %pK", reason, req);
 
 	switch (reason) {
 	case WLAN_SER_CB_ACTIVATE_CMD:
@@ -976,7 +975,6 @@ tdls_update_peer_serialize_callback(struct wlan_serialization_command *cmd,
 	}
 
 	req = cmd->umac_cmd;
-	tdls_debug("reason: %d, req %pK", reason, req);
 
 	switch (reason) {
 	case WLAN_SER_CB_ACTIVATE_CMD:
@@ -1099,7 +1097,6 @@ tdls_del_peer_serialize_callback(struct wlan_serialization_command *cmd,
 	}
 
 	req = cmd->umac_cmd;
-	tdls_debug("reason: %d, req %pK", reason, req);
 
 	switch (reason) {
 	case WLAN_SER_CB_ACTIVATE_CMD:
