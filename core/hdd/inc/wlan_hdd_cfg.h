@@ -5650,6 +5650,11 @@ enum hdd_link_speed_rpt_type {
 #else
 #define CFG_ENABLE_PACKET_LOG_DEFAULT    (0)
 #endif
+
+#define CFG_PACKET_LOG_BUFFER_SIZE_NAME    "PktlogBufSize"
+#define CFG_PACKET_LOG_BUFFER_SIZE_DEFAULT (10)
+#define CFG_PACKET_LOG_BUFFER_SIZE_MIN     (1)
+#define CFG_PACKET_LOG_BUFFER_SIZE_MAX     (10)
 #endif
 
 
@@ -17463,6 +17468,7 @@ struct hdd_config {
 
 #ifndef REMOVE_PKT_LOG
 	bool enablePacketLog;
+	uint8_t pktlog_buf_size;
 #endif
 
 #ifdef MSM_PLATFORM
