@@ -473,10 +473,13 @@ int pktlog_disable(struct hif_opaque_softc *scn)
 	return 0;
 }
 
+#define ONE_MEGABYTE (1024 * 1024)
+
 void pktlog_init(struct hif_opaque_softc *scn)
 {
 	struct pktlog_dev_t *pl_dev = get_pktlog_handle();
 	struct ath_pktlog_info *pl_info;
+	uint32_t buff_size;
 
 	if (pl_dev == NULL || pl_dev->pl_info == NULL) {
 		qdf_print("pl_dev or pl_info is invalid\n");
@@ -489,7 +492,9 @@ void pktlog_init(struct hif_opaque_softc *scn)
 	PKTLOG_LOCK_INIT(pl_info);
 	mutex_init(&pl_info->pktlog_mutex);
 
-	pl_info->buf_size = PKTLOG_DEFAULT_BUFSIZE;
+	buff_size = cds_get_packet_log_buffer_size() * ONE_MEGABYTE;
+
+	pl_info->buf_size = (buff_size ? buff_size : ONE_MEGABYTE);
 	pl_info->buf = NULL;
 	pl_info->log_state = 0;
 	pl_info->init_saved_state = 0;
@@ -678,14 +683,13 @@ int pktlog_enable(struct hif_opaque_softc *scn, int32_t log_state,
 	return err;
 }
 
-#define ONE_MEGABYTE (1024 * 1024)
-#define MAX_ALLOWED_PKTLOG_SIZE (16 * ONE_MEGABYTE)
-
 static int __pktlog_setsize(struct hif_opaque_softc *scn, int32_t size)
 {
 	struct pktlog_dev_t *pl_dev;
 	struct ath_pktlog_info *pl_info;
 	struct cdp_pdev *pdev;
+	uint32_t buff_size;
+	uint32_t max_allowed_buff_size;
 
 	pl_dev = get_pktlog_handle();
 
@@ -715,11 +719,14 @@ static int __pktlog_setsize(struct hif_opaque_softc *scn, int32_t size)
 
 	pl_info->curr_pkt_state = PKTLOG_OPR_IN_PROGRESS;
 
-	if (size < ONE_MEGABYTE || size > MAX_ALLOWED_PKTLOG_SIZE) {
+	buff_size = cds_get_packet_log_buffer_size() * ONE_MEGABYTE;
+	max_allowed_buff_size = (buff_size ? buff_size : ONE_MEGABYTE);
+
+	if (size < ONE_MEGABYTE || size > max_allowed_buff_size) {
 		qdf_print("%s: Cannot Set Pktlog Buffer size of %d bytes."
 			"Min required is %d MB and Max allowed is %d MB.\n",
 			__func__, size, (ONE_MEGABYTE/ONE_MEGABYTE),
-			(MAX_ALLOWED_PKTLOG_SIZE/ONE_MEGABYTE));
+			(max_allowed_buff_size / ONE_MEGABYTE));
 		pl_info->curr_pkt_state = PKTLOG_OPR_NOT_IN_PROGRESS;
 		qdf_print("%s: Invalid requested buff size", __func__);
 		return -EINVAL;
