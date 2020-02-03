@@ -2513,6 +2513,7 @@ static int __hdd_pktcapture_open(struct net_device *dev)
 	int ret;
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	struct hdd_adapter *sta_adapter;
 
 	hdd_enter_dev(dev);
 
@@ -2520,11 +2521,27 @@ static int __hdd_pktcapture_open(struct net_device *dev)
 	if (ret)
 		return ret;
 
+	sta_adapter = hdd_get_adapter(hdd_ctx, QDF_STA_MODE);
+	if (!sta_adapter) {
+		hdd_err("No station interface found");
+		return -EINVAL;
+	}
+
+	adapter->vdev = hdd_objmgr_get_vdev(sta_adapter);
+	if (!adapter->vdev)
+		return -EINVAL;
+
 	hdd_mon_mode_ether_setup(dev);
 
 	ret = ucfg_pkt_capture_register_callbacks(adapter->vdev,
 						  hdd_mon_rx_packet_cbk,
 						  adapter);
+	if (ret) {
+		hdd_objmgr_put_vdev(sta_adapter->vdev);
+		return ret;
+	}
+
+	ret = ucfg_pkt_capture_enable_ops(adapter->vdev);
 	if (!ret)
 		set_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 
@@ -3527,8 +3544,11 @@ static int __hdd_stop(struct net_device *dev)
 	if (adapter->device_mode == QDF_STA_MODE)
 		hdd_lpass_notify_stop(hdd_ctx);
 
-	if (wlan_hdd_is_session_type_monitor(adapter->device_mode))
+	if (wlan_hdd_is_session_type_monitor(adapter->device_mode)) {
 		ucfg_pkt_capture_deregister_callbacks(adapter->vdev);
+		hdd_objmgr_put_vdev(adapter->vdev);
+		adapter->vdev = NULL;
+	}
 
 	/*
 	 * NAN data interface is different in some sense. The traffic on NDI is
@@ -6031,6 +6051,16 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 		break;
 
 	case QDF_MONITOR_MODE:
+		if (wlan_hdd_is_session_type_monitor(QDF_MONITOR_MODE)) {
+			adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
+
+			if (adapter->vdev) {
+				ucfg_pkt_capture_deregister_callbacks(
+						adapter->vdev);
+				hdd_objmgr_put_vdev(adapter->vdev);
+				adapter->vdev = NULL;
+			}
+		}
 		wlan_hdd_scan_abort(adapter);
 		hdd_deregister_tx_flow_control(adapter);
 		sme_delete_mon_session(mac_handle, adapter->session_id);
@@ -7997,7 +8027,6 @@ static void wlan_hdd_cache_chann_mutex_destroy(struct hdd_context *hdd_ctx)
 static void hdd_wlan_exit(struct hdd_context *hdd_ctx)
 {
 	struct wiphy *wiphy = hdd_ctx->wiphy;
-	struct hdd_adapter *adapter;
 	int driver_status;
 
 	hdd_enter();
@@ -8057,13 +8086,6 @@ static void hdd_wlan_exit(struct hdd_context *hdd_ctx)
 		 */
 		hdd_abort_mac_scan_all_adapters(hdd_ctx);
 		hdd_abort_sched_scan_all_adapters(hdd_ctx);
-
-		if (wlan_hdd_is_session_type_monitor(QDF_MONITOR_MODE)) {
-			adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
-			if (adapter)
-				ucfg_pkt_capture_deregister_callbacks(
-						adapter->vdev);
-		}
 
 		hdd_stop_all_adapters(hdd_ctx);
 		hdd_deinit_all_adapters(hdd_ctx, false);
@@ -16178,6 +16200,11 @@ void wlan_hdd_del_monitor(struct hdd_context *hdd_ctx,
 	wlan_hdd_release_intf_addr(hdd_ctx, adapter->mac_addr.bytes);
 	hdd_stop_adapter(hdd_ctx, adapter);
 	hdd_close_adapter(hdd_ctx, adapter, true);
+
+	if (adapter->vdev) {
+		hdd_objmgr_put_vdev(adapter->vdev);
+		adapter->vdev = NULL;
+	}
 
 	hdd_open_p2p_interface(hdd_ctx, rtnl_held);
 }
