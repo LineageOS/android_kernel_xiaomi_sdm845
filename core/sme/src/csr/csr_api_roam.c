@@ -21259,6 +21259,8 @@ static void csr_update_score_params(tpAniSirGlobal mac_ctx,
 		bss_score_params->roam_score_delta;
 	req_score_params->roam_trigger_bitmap =
 		bss_score_params->roam_score_delta_bitmap;
+	req_score_params->cand_min_roam_score_delta =
+		bss_score_params->cand_min_roam_score_delta;
 
 	req_rssi_score->best_rssi_threshold = rssi_score->best_rssi_threshold;
 	req_rssi_score->good_rssi_threshold = rssi_score->good_rssi_threshold;

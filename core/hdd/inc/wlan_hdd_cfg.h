@@ -16145,6 +16145,37 @@ enum hdd_external_acs_policy {
 
 /*
  * <ini>
+ * min_roam_score_delta - Difference of roam score values between connected
+ * AP and roam candidate AP.
+ * @Min: 0
+ * @Max: 10000
+ * @Default: 1850
+ *
+ * This ini is used during CU and low rssi based roam triggers, consider
+ * AP as roam candidate only if its roam score is better than connected
+ * AP score by at least min_roam_score_delta.
+ * If user configured "roam_score_delta" and "min_roam_score_delta" both,
+ * then firmware selects roam candidate AP by considering values of both
+ * INIs.
+ * Example: If DUT is connected with AP1 and roam candidate AP2 has roam
+ * score greater than roam_score_delta and min_roam_score_delta then only
+ * firmware will trigger roaming to AP2.
+ *
+ * Related: roam_score_delta
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_CAND_MIN_ROAM_SCORE_DELTA "min_roam_score_delta"
+#define CFG_CAND_MIN_ROAM_SCORE_DELTA_DEFAULT 1850
+#define CFG_CAND_MIN_ROAM_SCORE_DELTA_MAX 10000
+#define CFG_CAND_MIN_ROAM_SCORE_DELTA_MIN 0
+
+/*
+ * <ini>
  * roam_score_delta_bitmap - bitmap to enable roam triggers on
  * which roam score delta is to be applied during roam candidate
  * selection
@@ -17978,6 +18009,7 @@ struct hdd_config {
 	uint8_t enable_rtt_support;
 
 	uint32_t roam_score_delta;
+	uint32_t min_roam_score_delta;
 	uint32_t roam_score_delta_bitmap;
 	bool prefer_btm_query;
 	bool btm_abridge_config;

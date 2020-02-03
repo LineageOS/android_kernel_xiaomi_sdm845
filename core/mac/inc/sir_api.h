@@ -2878,6 +2878,7 @@ struct sir_score_config {
 	uint32_t band_weight_per_index;
 	uint32_t roam_score_delta;
 	uint32_t roam_score_delta_bitmap;
+	uint32_t cand_min_roam_score_delta;
 };
 
 /**
