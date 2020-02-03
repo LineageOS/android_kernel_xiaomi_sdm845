@@ -1729,7 +1729,6 @@ void csr_assign_rssi_for_category(tpAniSirGlobal pMac, int8_t bestApRssi,
 {
 	int i;
 
-	sme_debug("best AP RSSI: %d cat offset: %d", bestApRssi, catOffset);
 	if (catOffset) {
 		pMac->roam.configParam.bCatRssiOffset = catOffset;
 		for (i = 0; i < CSR_NUM_RSSI_CAT; i++) {
@@ -3116,66 +3115,7 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		qdf_mem_copy(&pMac->roam.configParam.neighborRoamConfig,
 			     &pParam->neighborRoamConfig,
 			     sizeof(tCsrNeighborRoamConfigParams));
-		sme_debug("nNeighborScanTimerPerioid: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nNeighborScanTimerPeriod);
-		sme_debug("neighbor_scan_min_timer_period: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			neighbor_scan_min_timer_period);
-		sme_debug("nNeighborLookupRssiThreshold: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nNeighborLookupRssiThreshold);
-		sme_debug("rssi_thresh_offset_5g: %d",
-			pMac->roam.configParam.neighborRoamConfig.rssi_thresh_offset_5g);
-		sme_debug("nOpportunisticThresholdDiff: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nOpportunisticThresholdDiff);
-		sme_debug("nRoamRescanRssiDiff: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nRoamRescanRssiDiff);
-		sme_debug("nNeighborScanMinChanTime: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nNeighborScanMinChanTime);
-		sme_debug("nNeighborScanMaxChanTime: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nNeighborScanMaxChanTime);
-		sme_debug("nMaxNeighborRetries: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nMaxNeighborRetries);
-		sme_debug("nNeighborResultsRefreshPeriod: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nNeighborResultsRefreshPeriod);
-		sme_debug("nEmptyScanRefreshPeriod: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nEmptyScanRefreshPeriod);
-		{
-			int i;
 
-			sme_debug("Num of Channels in CFG Channel List: %d",
-				pMac->roam.configParam.neighborRoamConfig.
-				neighborScanChanList.numChannels);
-			for (i = 0;
-			     i <
-			     pMac->roam.configParam.neighborRoamConfig.
-			     neighborScanChanList.numChannels; i++) {
-				sme_debug("%d ",
-					pMac->roam.configParam.
-					neighborRoamConfig.neighborScanChanList.
-					channelList[i]);
-			}
-		}
-		sme_debug("nRoamBmissFirstBcnt: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nRoamBmissFirstBcnt);
-		sme_debug("nRoamBmissFinalBcnt: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nRoamBmissFinalBcnt);
-		sme_debug("nRoamBeaconRssiWeight: %d",
-			pMac->roam.configParam.neighborRoamConfig.
-			nRoamBeaconRssiWeight);
-		sme_debug("full_scan_period: %u",
-			  pMac->roam.configParam.neighborRoamConfig.
-			  full_roam_scan_period);
 		pMac->roam.configParam.addTSWhenACMIsOff =
 			pParam->addTSWhenACMIsOff;
 		pMac->scan.fEnableBypass11d = pParam->fEnableBypass11d;
@@ -3184,6 +3124,7 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		pMac->roam.configParam.fScanTwice = pParam->fScanTwice;
 		pMac->scan.fFirstScanOnly2GChnl = pParam->fFirstScanOnly2GChnl;
 		pMac->scan.max_scan_count = pParam->max_scan_count;
+
 		/* This parameter is not available in cfg and not passed from
 		 * upper layers. Instead it is initialized here This parametere
 		 * is used in concurrency to determine if there are concurrent
@@ -3651,15 +3592,6 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	qdf_mem_copy(&pParam->neighborRoamConfig,
 		     &cfg_params->neighborRoamConfig,
 		     sizeof(tCsrNeighborRoamConfigParams));
-	sme_debug("Num of Channels in CFG Channel List: %d",
-		cfg_params->neighborRoamConfig.
-		neighborScanChanList.numChannels);
-	for (i = 0; i < cfg_params->neighborRoamConfig.
-	     neighborScanChanList.numChannels; i++) {
-		sme_debug("%d ",
-			cfg_params->neighborRoamConfig.
-			neighborScanChanList.channelList[i]);
-	}
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	pParam->cc_switch_mode = cfg_params->cc_switch_mode;
