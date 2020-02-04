@@ -5848,9 +5848,7 @@ int wma_chan_info_event_handler(void *handle, uint8_t *event_buf,
 	tpAniSirGlobal mac = NULL;
 	struct lim_channel_status *channel_status;
 
-	WMA_LOGD("%s: Enter", __func__);
-
-	if (wma != NULL && wma->cds_context != NULL)
+	if (wma && wma->cds_context)
 		mac = (tpAniSirGlobal)cds_get_context(QDF_MODULE_ID_PE);
 
 	if (!mac) {
@@ -5858,7 +5856,7 @@ int wma_chan_info_event_handler(void *handle, uint8_t *event_buf,
 		return -EINVAL;
 	}
 
-	WMA_LOGD("%s: monitor:%d", __func__, mac->snr_monitor_enabled);
+
 	if (mac->snr_monitor_enabled && mac->chan_info_cb) {
 		param_buf =
 			(WMI_CHAN_INFO_EVENTID_param_tlvs *)event_buf;
@@ -5896,13 +5894,10 @@ int wma_chan_info_event_handler(void *handle, uint8_t *event_buf,
 			WMA_LOGE(FL("Mem alloc fail"));
 			return -ENOMEM;
 		}
-		WMA_LOGD(FL("freq=%d nf=%d rxcnt=%u cyccnt=%u tx_r=%d tx_t=%d"),
-			 event->freq,
-			 event->noise_floor,
-			 event->rx_clear_count,
-			 event->cycle_count,
-			 event->chan_tx_pwr_range,
-			 event->chan_tx_pwr_tp);
+		wma_debug("freq %d nf %d rxcnt %u cyccnt %u tx_r %d tx_t %d",
+			  event->freq, event->noise_floor,
+			  event->rx_clear_count, event->cycle_count,
+			  event->chan_tx_pwr_range, event->chan_tx_pwr_tp);
 
 		channel_status->channelfreq = event->freq;
 		channel_status->noise_floor = event->noise_floor;
