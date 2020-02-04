@@ -6053,7 +6053,7 @@ void wma_delete_bss(tp_wma_handle wma, tpDeleteBssParams params)
 	wma_wait_tx_complete(wma, params->smesessionId);
 
 	if (cdp_get_tx_pending(soc, pdev)) {
-		WMA_LOGW(FL("Outstanding msdu packets before VDEV_STOP : %d"),
+		WMA_LOGD(FL("Outstanding msdu packets before VDEV_STOP : %d"),
 			 cdp_get_tx_pending(soc, pdev));
 	}
 
