@@ -6973,13 +6973,13 @@ void sme_free_join_rsp_fils_params(struct csr_roam_info *roam_info)
 	struct fils_join_rsp_params *roam_fils_params;
 
 	if (!roam_info) {
-		sme_err("FILS Roam Info NULL");
+		sme_debug("FILS Roam Info NULL");
 		return;
 	}
 
 	roam_fils_params = roam_info->fils_join_rsp;
 	if (!roam_fils_params) {
-		sme_err("FILS Roam Param NULL");
+		sme_debug("FILS Roam Param NULL");
 		return;
 	}
 

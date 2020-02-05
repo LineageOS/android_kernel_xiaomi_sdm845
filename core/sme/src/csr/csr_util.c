@@ -1120,12 +1120,13 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 		intf_lfreq = intf_cfreq - intf_hbw;
 		intf_hfreq = intf_cfreq + intf_hbw;
 
-		sme_err("SAP:  OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d INTF: OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d",
-			sap_ch, cds_chan_to_freq(sap_ch),
-			cds_freq_to_chan(sap_cfreq), sap_cfreq, sap_hbw * 2,
-			sap_lfreq, sap_hfreq, intf_ch,
-			cds_chan_to_freq(intf_ch), cds_freq_to_chan(intf_cfreq),
-			intf_cfreq, intf_hbw * 2, intf_lfreq, intf_hfreq);
+		sme_debug("SAP:  OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d INTF: OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d",
+			  sap_ch, cds_chan_to_freq(sap_ch),
+			  cds_freq_to_chan(sap_cfreq), sap_cfreq, sap_hbw * 2,
+			  sap_lfreq, sap_hfreq, intf_ch,
+			  cds_chan_to_freq(intf_ch),
+			  cds_freq_to_chan(intf_cfreq),
+			  intf_cfreq, intf_hbw * 2, intf_lfreq, intf_hfreq);
 
 		if (!(((sap_lfreq > intf_lfreq && sap_lfreq < intf_hfreq) ||
 			(sap_hfreq > intf_lfreq && sap_hfreq < intf_hfreq)) ||
@@ -1164,8 +1165,8 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 	if (intf_ch == sap_ch)
 		intf_ch = 0;
 
-	sme_err("##Concurrent Channels %s Interfering",
-		intf_ch == 0 ? "Not" : "Are");
+	sme_debug("##Concurrent Channels %s Interfering",
+		  intf_ch == 0 ? "Not" : "Are");
 	return intf_ch;
 }
 #endif
@@ -2600,7 +2601,7 @@ static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
 		 *  MCC should not be enabled so making it
 		 * false to enforce on same channel
 		 */
-		sme_err("*** MCC with SAP+STA sessions ****");
+		sme_debug("*** MCC with SAP+STA sessions ****");
 		*status = QDF_STATUS_SUCCESS;
 		return true;
 	}
