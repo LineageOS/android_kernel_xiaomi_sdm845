@@ -70,7 +70,7 @@ void lim_ft_cleanup_all_ft_sessions(tpAniSirGlobal pMac)
 void lim_ft_cleanup(tpAniSirGlobal pMac, tpPESession psessionEntry)
 {
 	if (NULL == psessionEntry) {
-		pe_err("psessionEntry is NULL");
+		pe_debug("psessionEntry is NULL");
 		return;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, 2014-2015, 2017-2018 The Linux Foundation. All
+ * Copyright (c) 2011-2012, 2014-2015, 2017-2018, 2020 The Linux Foundation. All
  * rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -49,6 +49,17 @@
 #define pe_warn(params...) QDF_TRACE_WARN(QDF_MODULE_ID_PE, params)
 #define pe_info(params...) QDF_TRACE_INFO(QDF_MODULE_ID_PE, params)
 #define pe_debug(params...) QDF_TRACE_DEBUG(QDF_MODULE_ID_PE, params)
+
+#define pe_nofl_alert(params...) \
+	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_PE, params)
+#define pe_nofl_err(params...) \
+	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_PE, params)
+#define pe_nofl_warn(params...) \
+	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_PE, params)
+#define pe_nofl_info(params...) \
+	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_PE, params)
+#define pe_nofl_debug(params...) \
+	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_PE, params)
 
 #define PE_ENTER() pe_debug("enter")
 #define PE_EXIT() pe_debug("exit")

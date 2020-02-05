@@ -1016,7 +1016,7 @@ void lim_handle_update_olbc_cache(tpAniSirGlobal mac_ctx)
 	tpPESession psessionEntry = lim_is_ap_session_active(mac_ctx);
 
 	if (psessionEntry == NULL) {
-		pe_err(" Session not found");
+		pe_debug(" Session not found");
 		return;
 	}
 
