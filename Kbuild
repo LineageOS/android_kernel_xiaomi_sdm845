@@ -193,6 +193,9 @@ ifeq ($(CONFIG_QCACLD_FEATURE_HW_CAPABILITY), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_hw_capability.o
 endif
 
+#Flag to enable SAR Safety Feature
+cppflags-$(CONFIG_SAR_SAFETY_FEATURE) += -DSAR_SAFETY_FEATURE
+
 ########### HOST DIAG LOG ###########
 HOST_DIAG_LOG_DIR :=	$(WLAN_COMMON_ROOT)/utils/host_diag_log
 
