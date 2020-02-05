@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -485,7 +485,7 @@ static void hdd_get_transmit_sta_id(struct hdd_adapter *adapter,
  */
 static void hdd_clear_tx_rx_connectivity_stats(struct hdd_adapter *adapter)
 {
-	hdd_info("Clear txrx connectivity stats");
+	hdd_debug("Clear txrx connectivity stats");
 	qdf_mem_zero(&adapter->hdd_stats.hdd_arp_stats,
 		     sizeof(adapter->hdd_stats.hdd_arp_stats));
 	qdf_mem_zero(&adapter->hdd_stats.hdd_dns_stats,
@@ -1476,7 +1476,7 @@ static void hdd_resolve_rx_ol_mode(struct hdd_context *hdd_ctx)
 	    hdd_ctx->config->gro_enable)) {
 #ifdef WLAN_DEBUG
 		hdd_ctx->config->lro_enable && hdd_ctx->config->gro_enable ?
-		hdd_err("Can't enable both LRO and GRO, disabling Rx offload") :
+		hdd_debug("Can't enable both LRO and GRO, disabling Rx offload") :
 		hdd_debug("LRO and GRO both are disabled");
 #endif
 		hdd_ctx->ol_enable = 0;
@@ -2422,11 +2422,11 @@ void hdd_send_rps_ind(struct hdd_adapter *adapter)
 	hdd_ctxt = WLAN_HDD_GET_CTX(adapter);
 	rps_data.num_queues = NUM_TX_QUEUES;
 
-	hdd_info("cpu_map_list '%s'", hdd_ctxt->config->cpu_map_list);
+	hdd_debug("cpu_map_list '%s'", hdd_ctxt->config->cpu_map_list);
 
 	/* in case no cpu map list is provided, simply return */
 	if (!strlen(hdd_ctxt->config->cpu_map_list)) {
-		hdd_err("no cpu map list found");
+		hdd_debug("no cpu map list found");
 		goto err;
 	}
 
@@ -2444,7 +2444,7 @@ void hdd_send_rps_ind(struct hdd_adapter *adapter)
 				cpu_map_list_len : rps_data.num_queues;
 
 	for (i = 0; i < rps_data.num_queues; i++) {
-		hdd_info("cpu_map_list[%d] = 0x%x",
+		hdd_debug("cpu_map_list[%d] = 0x%x",
 			i, rps_data.cpu_map_list[i]);
 	}
 
@@ -2459,7 +2459,7 @@ void hdd_send_rps_ind(struct hdd_adapter *adapter)
 	return;
 
 err:
-	hdd_err("Wrong RPS configuration. enabling rx_thread");
+	hdd_debug("Wrong RPS configuration. enabling rx_thread");
 	cds_cfg->rps_enabled = false;
 }
 

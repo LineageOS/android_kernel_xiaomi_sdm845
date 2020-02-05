@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -326,6 +326,17 @@ enum hdd_driver_flags {
 #define hdd_warn(params...) QDF_TRACE_WARN(QDF_MODULE_ID_HDD, params)
 #define hdd_info(params...) QDF_TRACE_INFO(QDF_MODULE_ID_HDD, params)
 #define hdd_debug(params...) QDF_TRACE_DEBUG(QDF_MODULE_ID_HDD, params)
+
+#define hdd_nofl_alert(params...) \
+	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_HDD, params)
+#define hdd_nofl_err(params...) \
+	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_HDD, params)
+#define hdd_nofl_warn(params...) \
+	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_HDD, params)
+#define hdd_nofl_info(params...) \
+	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_HDD, params)
+#define hdd_nofl_debug(params...) \
+	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_HDD, params)
 
 #define hdd_alert_rl(params...) QDF_TRACE_FATAL_RL(QDF_MODULE_ID_HDD, params)
 #define hdd_err_rl(params...) QDF_TRACE_ERROR_RL(QDF_MODULE_ID_HDD, params)

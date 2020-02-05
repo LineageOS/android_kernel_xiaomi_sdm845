@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1025,8 +1025,8 @@ QDF_STATUS hdd_softap_deregister_sta(struct hdd_adapter *adapter,
 			(struct cdp_pdev *)cds_get_context(QDF_MODULE_ID_TXRX),
 			sta_id);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		hdd_err("cdp_clear_peer failed for staID %d, Status=%d [0x%08X]",
-			sta_id, qdf_status, qdf_status);
+		hdd_debug("cdp_clear_peer failed for staID %d, Status=%d [0x%08X]",
+			  sta_id, qdf_status, qdf_status);
 	}
 
 	if (adapter->sta_info[sta_id].in_use) {
@@ -1038,7 +1038,7 @@ QDF_STATUS hdd_softap_deregister_sta(struct hdd_adapter *adapter,
 					  WLAN_IPA_CLIENT_DISCONNECT,
 					  adapter->sta_info[sta_id].sta_mac.
 					  bytes) != QDF_STATUS_SUCCESS)
-				hdd_err("WLAN_CLIENT_DISCONNECT event failed");
+				hdd_debug("WLAN_CLIENT_DISCONNECT event failed");
 		}
 		spin_lock_bh(&adapter->sta_info_lock);
 		qdf_mem_zero(&adapter->sta_info[sta_id],
@@ -1090,7 +1090,7 @@ QDF_STATUS hdd_softap_register_sta(struct hdd_adapter *adapter,
 	 * Clean up old entry if it is not cleaned up properly
 	 */
 	if (adapter->sta_info[sta_id].in_use) {
-		hdd_info("clean up old entry for STA %d", sta_id);
+		hdd_debug("clean up old entry for STA %d", sta_id);
 		hdd_softap_deregister_sta(adapter, sta_id);
 	}
 
@@ -1120,8 +1120,8 @@ QDF_STATUS hdd_softap_register_sta(struct hdd_adapter *adapter,
 	qdf_status = cdp_peer_register(soc,
 			(struct cdp_pdev *)pdev, &staDesc);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		hdd_err("cdp_peer_register() failed to register.  Status = %d [0x%08X]",
-			qdf_status, qdf_status);
+		hdd_debug("cdp_peer_register() failed to register.  Status = %d [0x%08X]",
+			  qdf_status, qdf_status);
 		return qdf_status;
 	}
 
@@ -1135,8 +1135,8 @@ QDF_STATUS hdd_softap_register_sta(struct hdd_adapter *adapter,
 	adapter->sta_info[sta_id].is_qos_enabled = wmm_enabled;
 
 	if (!auth_required) {
-		hdd_info("open/shared auth StaId= %d.  Changing TL state to AUTHENTICATED at Join time",
-			 adapter->sta_info[sta_id].sta_id);
+		hdd_debug("open/shared auth StaId= %d.  Changing TL state to AUTHENTICATED at Join time",
+			  adapter->sta_info[sta_id].sta_id);
 
 		/* Connections that do not need Upper layer auth,
 		 * transition TL directly to 'Authenticated' state.
@@ -1147,8 +1147,8 @@ QDF_STATUS hdd_softap_register_sta(struct hdd_adapter *adapter,
 		adapter->sta_info[sta_id].peer_state = OL_TXRX_PEER_STATE_AUTH;
 	} else {
 
-		hdd_info("ULA auth StaId= %d.  Changing TL state to CONNECTED at Join time",
-			 adapter->sta_info[sta_id].sta_id);
+		hdd_debug("ULA auth StaId= %d.  Changing TL state to CONNECTED at Join time",
+			  adapter->sta_info[sta_id].sta_id);
 
 		qdf_status = hdd_change_peer_state(adapter, staDesc.sta_id,
 						OL_TXRX_PEER_STATE_CONN, false);
@@ -1243,8 +1243,8 @@ QDF_STATUS hdd_softap_stop_bss(struct hdd_adapter *adapter)
 		if (adapter->sta_info[sta_id].in_use) {
 			qdf_status = hdd_softap_deregister_sta(adapter, sta_id);
 			if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-				hdd_err("Failed to deregister sta Id %d",
-					sta_id);
+				hdd_debug("Failed to deregister sta Id %d",
+					  sta_id);
 			}
 		}
 	}
@@ -1291,13 +1291,13 @@ QDF_STATUS hdd_softap_change_sta_state(struct hdd_adapter *adapter,
 	if (false ==
 	    qdf_is_macaddr_equal(&adapter->sta_info[sta_id].sta_mac,
 				 sta_mac)) {
-		hdd_err("Station %u MAC address not matching", sta_id);
+		hdd_debug("Station %u MAC address not matching", sta_id);
 		return QDF_STATUS_E_FAILURE;
 	}
 
 	qdf_status =
 		hdd_change_peer_state(adapter, sta_id, state, false);
-	hdd_info("Station %u changed to state %d", sta_id, state);
+	hdd_debug("Station %u changed to state %d", sta_id, state);
 
 	if (QDF_STATUS_SUCCESS == qdf_status) {
 		adapter->sta_info[sta_id].peer_state =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -980,7 +980,7 @@ void hdd_enable_mc_addr_filtering(struct hdd_adapter *adapter,
 							  adapter->session_id,
 							  trigger);
 	if (QDF_IS_STATUS_ERROR(status))
-		hdd_err("failed to enable mc list; status:%d", status);
+		hdd_debug("failed to enable mc list; status:%d", status);
 
 out:
 	hdd_exit();
@@ -1037,7 +1037,7 @@ void hdd_disable_and_flush_mc_addr_list(struct hdd_adapter *adapter,
 							   adapter->session_id,
 							   trigger);
 	if (QDF_IS_STATUS_ERROR(status))
-		hdd_err("failed to disable mc list; status:%d", status);
+		hdd_debug("failed to disable mc list; status:%d", status);
 
 flush_mc_list:
 	status = pmo_ucfg_flush_mc_addr_list(hdd_ctx->psoc,
