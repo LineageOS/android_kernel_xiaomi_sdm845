@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -726,17 +726,17 @@ qdf_export_symbol(qdf_mc_timer_start);
 QDF_STATUS qdf_mc_timer_stop(qdf_mc_timer_t *timer)
 {
 	/* check for invalid pointer */
-	if (NULL == timer) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			  "%s Null timer pointer being passed", __func__);
+	if (!timer) {
+		QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_QDF,
+				   "%s Null timer pointer", __func__);
 		QDF_ASSERT(0);
 		return QDF_STATUS_E_INVAL;
 	}
 
 	/* check if timer refers to an uninitialized object */
 	if (LINUX_TIMER_COOKIE != timer->platform_info.cookie) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Cannot stop uninitialized timer", __func__);
+		QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_QDF,
+				   "%s: Cannot stop uninit timer", __func__);
 		QDF_ASSERT(0);
 
 		return QDF_STATUS_E_INVAL;
@@ -747,9 +747,6 @@ QDF_STATUS qdf_mc_timer_stop(qdf_mc_timer_t *timer)
 
 	if (QDF_TIMER_STATE_RUNNING != timer->state) {
 		qdf_spin_unlock_irqrestore(&timer->platform_info.spinlock);
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "%s: Cannot stop timer in state = %d",
-			  __func__, timer->state);
 		return QDF_STATUS_SUCCESS;
 	}
 
@@ -769,16 +766,16 @@ QDF_STATUS qdf_mc_timer_stop_sync(qdf_mc_timer_t *timer)
 {
 	/* check for invalid pointer */
 	if (!timer) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			  "%s Null timer pointer being passed", __func__);
+		QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_QDF,
+				   "%s Null timer pointer", __func__);
 		QDF_ASSERT(0);
 		return QDF_STATUS_E_INVAL;
 	}
 
 	/* check if timer refers to an uninitialized object */
 	if (LINUX_TIMER_COOKIE != timer->platform_info.cookie) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Cannot stop uninitialized timer", __func__);
+		QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_QDF,
+				   "%s: Cannot stop uninit timer", __func__);
 		QDF_ASSERT(0);
 
 		return QDF_STATUS_E_INVAL;
@@ -789,9 +786,6 @@ QDF_STATUS qdf_mc_timer_stop_sync(qdf_mc_timer_t *timer)
 
 	if (QDF_TIMER_STATE_RUNNING != timer->state) {
 		qdf_spin_unlock_irqrestore(&timer->platform_info.spinlock);
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "%s: Cannot stop timer in state = %d",
-			  __func__, timer->state);
 		return QDF_STATUS_SUCCESS;
 	}
 
