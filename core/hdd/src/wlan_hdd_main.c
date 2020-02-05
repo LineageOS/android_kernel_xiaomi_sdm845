@@ -10426,7 +10426,7 @@ static int hdd_open_interfaces(struct hdd_context *hdd_ctx, bool rtnl_held)
 		goto err_close_adapters;
 
 	if (hdd_ctx->nan_seperate_vdev_supported &&
-	    hdd_ctx->config->nan_separate_iface_support) {
+	    wlan_hdd_nan_separate_iface_supported(hdd_ctx)) {
 		adapter = hdd_open_adapter(hdd_ctx, QDF_NAN_DISC_MODE, "wifi-aware%d",
 				   wlan_hdd_get_intf_addr(hdd_ctx,
 							  QDF_NAN_DISC_MODE),
@@ -10641,9 +10641,6 @@ static int hdd_update_cds_config(struct hdd_context *hdd_ctx)
 		hdd_ctx->config->enable_three_way_coex_config_legacy;
 	hdd_txrx_populate_cds_config(cds_cfg, hdd_ctx);
 	hdd_nan_populate_cds_config(cds_cfg, hdd_ctx);
-
-	cds_cfg->nan_separate_iface_support =
-		hdd_ctx->config->nan_separate_iface_support;
 
 	hdd_lpass_populate_cds_config(cds_cfg, hdd_ctx);
 	cds_init_ini_config(cds_cfg);

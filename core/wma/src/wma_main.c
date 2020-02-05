@@ -1836,6 +1836,33 @@ int wma_process_fw_event_handler(void *ctx, void *htc_packet, uint8_t rx_ctx)
 
 #ifdef WLAN_FEATURE_NAN
 /**
+ * wma_nan_set_separate_iface_support() - set separate_iface_support flag in WMA handle
+ * @wma_handle: Pointer to wma handle
+ * @cds_cfg: Pointer to CDS Configuration
+ *
+ * Return: none
+ */
+static void wma_nan_set_separate_iface_support(tp_wma_handle wma_handle,
+					       struct cds_config_info *cds_cfg)
+{
+	wma_handle->nan_separate_iface_support =
+			cds_cfg->nan_separate_iface_support;
+}
+
+/**
+ * wma_get_separate_iface_support() - get separate_iface_support flag in
+ * WMA handle
+ * @wma_handle: Pointer to wma handle
+ * @cds_cfg: Pointer to CDS Configuration
+ *
+ * Return: flag value
+ */
+static bool wma_get_separate_iface_support(tp_wma_handle wma_handle)
+{
+	return wma_handle->nan_separate_iface_support;
+}
+
+/**
  * wma_set_nan_enable() - set nan enable flag in WMA handle
  * @wma_handle: Pointer to wma handle
  * @cds_cfg: Pointer to CDS Configuration
@@ -1848,10 +1875,19 @@ static void wma_set_nan_enable(tp_wma_handle wma_handle,
 	wma_handle->is_nan_enabled = cds_cfg->is_nan_enabled;
 }
 #else
+static void wma_nan_set_separate_iface_support(tp_wma_handle wma_handle,
+					       struct cds_config_info *cds_cfg)
+{
+}
+static bool wma_get_separate_iface_support(tp_wma_handle wma_handle)
+{
+	return false;
+}
 static void wma_set_nan_enable(tp_wma_handle wma_handle,
 				struct cds_config_info *cds_cfg)
 {
 }
+
 #endif
 
 /**
@@ -3365,8 +3401,7 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 	wma_handle->is_lpass_enabled = cds_cfg->is_lpass_enabled;
 #endif
 	wma_set_nan_enable(wma_handle, cds_cfg);
-	wma_handle->nan_separate_iface_support =
-			cds_cfg->nan_separate_iface_support;
+	wma_nan_set_separate_iface_support(wma_handle, cds_cfg);
 
 	wma_handle->interfaces = qdf_mem_malloc(sizeof(struct wma_txrx_node) *
 						wma_handle->max_bssid);
@@ -5756,7 +5791,7 @@ static int wma_update_hdd_cfg(tp_wma_handle wma_handle)
 
 	wlan_res_cfg->nan_separate_iface_support =
 			tgt_cfg.nan_seperate_vdev_support &&
-			wma_handle->nan_separate_iface_support;
+			wma_get_separate_iface_support(wma_handle);
 
 	ret = wma_handle->tgt_cfg_update_cb(hdd_ctx, &tgt_cfg);
 	if (ret)
