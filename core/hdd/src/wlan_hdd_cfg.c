@@ -4273,6 +4273,13 @@ struct reg_table_entry g_registry_table[] = {
 			struct hdd_config, dp_trace_config,
 			VAR_FLAGS_OPTIONAL,
 			(void *) CFG_ENABLE_DP_TRACE_CONFIG_DEFAULT),
+
+	REG_VARIABLE(CFG_DP_PROTO_EVENT_BITMAP, WLAN_PARAM_HexInteger,
+		     struct hdd_config, dp_proto_event_bitmap,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_DP_PROTO_EVENT_BITMAP_DEFAULT,
+		     CFG_DP_PROTO_EVENT_BITMAP_MIN,
+		     CFG_DP_PROTO_EVENT_BITMAP_MAX),
 #endif
 
 	REG_VARIABLE(CFG_ADAPTIVE_SCAN_DWELL_MODE_NAME, WLAN_PARAM_Integer,

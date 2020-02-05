@@ -10740,6 +10740,35 @@ enum dot11p_mode {
  */
 #define CFG_ENABLE_DP_TRACE_CONFIG		"gDptraceConfig"
 #define CFG_ENABLE_DP_TRACE_CONFIG_DEFAULT	"1, 6, 2, 126"
+
+/*
+ * <ini>
+ * dp_proto_event_bitmap - Control for which protocol packet diag event should
+ *  be sent to user space.
+ * @Min: 0
+ * @Max: 0x17
+ * @Default: 0x6
+ *
+ * This ini is used to control for which protocol packet diag event should be
+ * sent to user space.
+ *
+ * QDF_NBUF_PKT_TRAC_TYPE_DNS       0x01
+ * QDF_NBUF_PKT_TRAC_TYPE_EAPOL     0x02
+ * QDF_NBUF_PKT_TRAC_TYPE_DHCP      0x04
+ * QDF_NBUF_PKT_TRAC_TYPE_ARP       0x10
+ *
+ * Related: None
+ *
+ * Supported Feature: STA, SAP
+ *
+ * Usage: Internal
+ *
+ * <ini>
+ */
+#define CFG_DP_PROTO_EVENT_BITMAP		"dp_proto_event_bitmap"
+#define CFG_DP_PROTO_EVENT_BITMAP_MIN		(0x0)
+#define CFG_DP_PROTO_EVENT_BITMAP_MAX		(0x17)
+#define CFG_DP_PROTO_EVENT_BITMAP_DEFAULT	(0x6)
 #endif
 
 /*
@@ -18043,6 +18072,7 @@ struct hdd_config {
 	bool ShortGI80MhzEnable;
 	bool ShortGI160MhzEnable;
 	uint32_t vendor_roam_score_algorithm;
+	uint32_t dp_proto_event_bitmap;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
