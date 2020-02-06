@@ -3557,8 +3557,6 @@ static void lim_update_vhtcaps_assoc_resp(tpAniSirGlobal mac_ctx,
 	pAddBssParams->staContext.maxAmpduSize =
 		SIR_MAC_GET_VHT_MAX_AMPDU_EXPO(
 				pAddBssParams->staContext.vht_caps);
-
-	pe_debug("Updating VHT caps in assoc Response");
 }
 
 /**
@@ -3584,7 +3582,6 @@ static void lim_update_vht_oper_assoc_resp(tpAniSirGlobal mac_ctx,
 		pAddBssParams->ch_center_freq_seg1 =
 			vht_oper->chanCenterFreqSeg2;
 	}
-	pe_debug("Updating VHT Operation in assoc Response");
 }
 
 #ifdef WLAN_SUPPORT_TWT
@@ -3633,7 +3630,6 @@ static inline void lim_set_sta_ctx_twt(tAddStaParams *sta_ctx,
  *              bssDescription      bssDescription passed to PE from the SME
  * @return None
  */
-
 QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 				   tpSchBeaconStruct pBeaconStruct,
 				   tpSirBssDescription bssDescription,
@@ -3664,12 +3660,6 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 	/* Fill in tAddBssParams selfMacAddr */
 	qdf_mem_copy(pAddBssParams->selfMacAddr,
 		     psessionEntry->selfMacAddr, sizeof(tSirMacAddr));
-
-	pe_debug("sessionid: %d updateEntry: %d limsystemrole: %d",
-		psessionEntry->smeSessionId, updateEntry,
-		GET_LIM_SYSTEM_ROLE(psessionEntry));
-
-	pe_debug("BSSID: " MAC_ADDRESS_STR, MAC_ADDR_ARRAY(pAddBssParams->bssId));
 
 	pAddBssParams->bssType = eSIR_INFRASTRUCTURE_MODE;
 
@@ -3714,25 +3704,7 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 	pAddBssParams->ht20Coexist =
 		(uint8_t) psessionEntry->beaconParams.ht20Coexist;
 
-	pe_debug("BSS Type %d Beacon Interval: %d dtimPeriod: %d "
-		 "cfpCount: %d", pAddBssParams->bssType,
-		pAddBssParams->beaconInterval, pAddBssParams->dtimPeriod,
-		pAddBssParams->cfParamSet.cfpCount);
-
-	pe_debug("cfpPeriod: %d cfpMaxDuration: %d cfpDurRemaining: %d "
-		 "numRates: %d", pAddBssParams->cfParamSet.cfpPeriod,
-		pAddBssParams->cfParamSet.cfpMaxDuration,
-		pAddBssParams->cfParamSet.cfpDurRemaining,
-		pAddBssParams->rateSet.numRates);
-
-	pe_debug("nwType:%d shortSlotTimeSupported: %d llaCoexist: %d "
-		"llbCoexist: %d llgCoexist: %d ht20Coexist: %d",
-		pAddBssParams->nwType, pAddBssParams->shortSlotTimeSupported,
-		pAddBssParams->llaCoexist, pAddBssParams->llbCoexist,
-		pAddBssParams->llgCoexist, pAddBssParams->ht20Coexist);
-
 	pAddBssParams->dot11_mode = psessionEntry->dot11mode;
-	pe_debug("dot11_mode: %d", pAddBssParams->dot11_mode);
 
 	if (IS_DOT11_MODE_HT(psessionEntry->dot11mode))
 		chanWidthSupp = lim_get_ht_capability(pMac,
@@ -3772,18 +3744,6 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 				(uint8_t) pAssocRsp->HTInfo.
 				lsigTXOPProtectionFullSupport;
 			pAddBssParams->fRIFSMode = pAssocRsp->HTInfo.rifsMode;
-
-			pe_debug("htOperMode: %d dualCTSProtection: %d txChannelWidth: %d center_freq_0: %d",
-				pAddBssParams->htOperMode,
-				pAddBssParams->dualCTSProtection,
-				pAddBssParams->ch_width,
-				pAddBssParams->ch_center_freq_seg0);
-
-			pe_debug("llnNonGFCoexist: %d "
-					"fLsigTXOPProtectionFullSupport: %d fRIFSMode %d",
-				pAddBssParams->llnNonGFCoexist,
-				pAddBssParams->fLsigTXOPProtectionFullSupport,
-				pAddBssParams->fRIFSMode);
 		}
 	}
 
@@ -3858,11 +3818,6 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 		(uint8_t) pAssocRsp->capabilityInfo.shortPreamble;
 	pAddBssParams->staContext.updateSta = updateEntry;
 
-	pe_debug("StaContext: " MAC_ADDRESS_STR
-			" shortPreambleSupported: %d",
-			MAC_ADDR_ARRAY(pAddBssParams->staContext.staMac),
-			pAddBssParams->staContext.shortPreambleSupported);
-
 	if (IS_DOT11_MODE_HT(psessionEntry->dot11mode)
 			&& pBeaconStruct->HTCaps.present) {
 		pAddBssParams->staContext.us32MaxAmpduDuration = 0;
@@ -3871,10 +3826,6 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 			(uint8_t) pAssocRsp->HTCaps.greenField;
 		pAddBssParams->staContext.lsigTxopProtection =
 			(uint8_t) pAssocRsp->HTCaps.lsigTXOPProtection;
-		pe_debug("StaCtx: htCap %d GFcap %d lsigTxopProtn %d",
-				pAddBssParams->staContext.htCapable,
-				pAddBssParams->staContext.greenFieldCapable,
-				pAddBssParams->staContext.lsigTxopProtection);
 		if (psessionEntry->htConfig.ht_tx_stbc)
 			pAddBssParams->staContext.stbc_capable =
 				pAssocRsp->HTCaps.rxSTBC;
@@ -3940,13 +3891,6 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 					(false == enableTxBF20MHz))
 				sta_context->vhtTxBFCapable = 0;
 		}
-
-		pe_debug("StaCtx: vhtCap %d ChBW %d TxBF %d",
-			 pAddBssParams->staContext.vhtCapable,
-			 pAddBssParams->staContext.ch_width,
-			 sta_context->vhtTxBFCapable);
-		pe_debug("StaContext su_tx_bfer %d",
-			 sta_context->enable_su_tx_bformer);
 
 		pAddBssParams->staContext.mimoPS =
 			(tSirMacHTMIMOPowerSaveState)
@@ -4023,21 +3967,6 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 			pAddBssParams->staContext.rifsMode =
 				pAssocRsp->HTInfo.rifsMode;
 
-		pe_debug("StaCtx: ChBW %d mimoPS %d maxAmsduSize %d",
-				pAddBssParams->staContext.ch_width,
-				pAddBssParams->staContext.mimoPS,
-				pAddBssParams->staContext.maxAmsduSize);
-
-		pe_debug("maxAmpduDens %d CckMode40Mhz %d SGI20Mhz %d",
-				pAddBssParams->staContext.maxAmpduDensity,
-				pAddBssParams->staContext.fDsssCckMode40Mhz,
-				pAddBssParams->staContext.fShortGI20Mhz);
-
-		pe_debug("SGI40M %d maxAmpdu %d htLdpc %d vhtLdpc %d",
-				pAddBssParams->staContext.fShortGI40Mhz,
-				pAddBssParams->staContext.maxAmpduSize,
-				pAddBssParams->staContext.htLdpcCapable,
-				pAddBssParams->staContext.vhtLdpcCapable);
 	}
 	pAddBssParams->staContext.smesessionId =
 		psessionEntry->smeSessionId;
@@ -4079,7 +4008,6 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 	pAddBssParams->staContext.encryptType = psessionEntry->encryptType;
 
 	pAddBssParams->maxTxPower = psessionEntry->maxTxPower;
-	pe_debug("maxTxPower: %d", pAddBssParams->maxTxPower);
 	/* FIXME_GEN4 - Any other value that can be used for initialization? */
 	pAddBssParams->status = QDF_STATUS_SUCCESS;
 	pAddBssParams->respReqd = true;
@@ -4092,8 +4020,6 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 	pAddBssParams->bSpectrumMgtEnabled = psessionEntry->spectrumMgtEnabled;
 
 	pAddBssParams->extSetStaKeyParamValid = 0;
-	pe_debug("extSetStaKeyParamValid: %d",
-		pAddBssParams->extSetStaKeyParamValid);
 
 #ifdef WLAN_FEATURE_11W
 	if (psessionEntry->limRmfEnabled) {
@@ -4120,24 +4046,18 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 		pAddBssParams->staContext.vht_caps &=
 			~(1 << SIR_MAC_VHT_CAP_LDPC_CODING_CAP);
 
-	pe_debug("staContext wmmEnabled: %d encryptType: %d "
-		"p2pCapableSta: %d",
-		pAddBssParams->staContext.wmmEnabled,
-		pAddBssParams->staContext.encryptType,
-		pAddBssParams->staContext.p2pCapableSta);
-
-	pe_debug("bSpectrumMgtEnabled: %d halPersona: %d setting "
-		"LimMlm state to %d",
-		pAddBssParams->bSpectrumMgtEnabled, pAddBssParams->halPersona,
-		psessionEntry->limMlmState);
 	if (psessionEntry->isNonRoamReassoc)
 		pAddBssParams->nonRoamReassoc = 1;
 	pAddBssParams->nss = psessionEntry->nss;
-	pe_debug("nss value: %d", pAddBssParams->nss);
 
-	/* we need to defer the message until we get the response back from HAL. */
-	SET_LIM_PROCESS_DEFD_MESGS(pMac, false);
-
+	pe_debug("update %d MxAmpduDen %d mimoPS %d shortSlot %d BI %d DTIM %d enc type %d p2p cab STA %d",
+		 updateEntry,
+		 pAddBssParams->staContext.maxAmpduDensity,
+		 pAddBssParams->staContext.mimoPS,
+		 pAddBssParams->shortSlotTimeSupported,
+		 pAddBssParams->beaconInterval, pAddBssParams->dtimPeriod,
+		 pAddBssParams->staContext.encryptType,
+		 pAddBssParams->staContext.p2pCapableSta);
 	if (cds_is_5_mhz_enabled()) {
 		pAddBssParams->ch_width = CH_WIDTH_5MHZ;
 		pAddBssParams->staContext.ch_width = CH_WIDTH_5MHZ;
@@ -4150,14 +4070,14 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 	if (lim_is_fils_connection(psessionEntry))
 		pAddBssParams->no_ptk_4_way = true;
 
+	/* we need to defer the message until we get the response back */
+	SET_LIM_PROCESS_DEFD_MESGS(pMac, false);
+
 	msgQ.type = WMA_ADD_BSS_REQ;
 	/** @ToDo : Update the Global counter to keeptrack of the PE <--> HAL messages*/
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pAddBssParams;
 	msgQ.bodyval = 0;
-
-	pe_debug("SessionId: %d Sending WMA_ADD_BSS_REQ",
-		psessionEntry->peSessionId);
 	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
 
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
@@ -4219,12 +4139,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 	/* Fill in tAddBssParams selfMacAddr */
 	qdf_mem_copy(pAddBssParams->selfMacAddr,
 		     psessionEntry->selfMacAddr, sizeof(tSirMacAddr));
-	pe_debug("sessionid: %d updateEntry = %d limsystemrole = %d",
-		psessionEntry->smeSessionId, updateEntry,
-		GET_LIM_SYSTEM_ROLE(psessionEntry));
-
-	pe_debug("BSSID: " MAC_ADDRESS_STR,
-		MAC_ADDR_ARRAY(pAddBssParams->bssId));
 	/* Incorrect BSS Type which caused UMA Descriptor to be overwritten on
 	 * top of an already established Infra link. This lead to issues in
 	 * concurrent data transfer.
@@ -4265,22 +4179,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 	pAddBssParams->ht20Coexist =
 		(uint8_t) psessionEntry->beaconParams.ht20Coexist;
 
-	pe_debug("BSS Type %d Beacon Interval: %d dtimPeriod: %d "
-		"cfpCount: %d", pAddBssParams->bssType,
-		pAddBssParams->beaconInterval, pAddBssParams->dtimPeriod,
-		pAddBssParams->cfParamSet.cfpCount);
-
-	pe_debug("cfpPeriod: %d cfpMaxDuration: %d cfpDurRemaining: %d"
-		" numRates: %d", pAddBssParams->cfParamSet.cfpPeriod,
-		pAddBssParams->cfParamSet.cfpMaxDuration,
-		pAddBssParams->cfParamSet.cfpDurRemaining,
-		pAddBssParams->rateSet.numRates);
-
-	pe_debug("nwType:%d shortSlotTimeSupported: %d"
-		"llaCoexist: %d llbCoexist: %d llgCoexist: %d ht20Coexist: %d",
-		pAddBssParams->nwType, pAddBssParams->shortSlotTimeSupported,
-		pAddBssParams->llaCoexist, pAddBssParams->llbCoexist,
-		pAddBssParams->llgCoexist, pAddBssParams->ht20Coexist);
 	/* Use the advertised capabilities from the received beacon/PR */
 	if (IS_DOT11_MODE_HT(psessionEntry->dot11mode)
 	    && (pBeaconStruct->HTCaps.present)) {
@@ -4382,10 +4280,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 		lim_update_bss_he_capable(pMac, pAddBssParams);
 		lim_add_bss_he_cfg(pAddBssParams, psessionEntry);
 	}
-	pe_debug("vhtCapable %d vhtTxChannelWidthSet %d center_freq_seg0 - %d, center_freq_seg1 - %d",
-		pAddBssParams->vhtCapable, pAddBssParams->ch_width,
-		pAddBssParams->ch_center_freq_seg0,
-		pAddBssParams->ch_center_freq_seg1);
 	/*
 	 * Populate the STA-related parameters here
 	 * Note that the STA here refers to the AP
@@ -4406,12 +4300,7 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 		(uint8_t) pBeaconStruct->capabilityInfo.shortPreamble;
 	pAddBssParams->staContext.updateSta = updateEntry;
 
-	pe_debug("StaCtx: " MAC_ADDRESS_STR " shortPreamble: %d",
-			MAC_ADDR_ARRAY(pAddBssParams->staContext.staMac),
-			pAddBssParams->staContext.shortPreambleSupported);
-
 	pAddBssParams->dot11_mode = psessionEntry->dot11mode;
-	pe_debug("dot11_mode:%d", pAddBssParams->dot11_mode);
 
 	if (IS_DOT11_MODE_HT(psessionEntry->dot11mode)
 			&& (pBeaconStruct->HTCaps.present)) {
@@ -4421,10 +4310,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 			(uint8_t) pBeaconStruct->HTCaps.greenField;
 		pAddBssParams->staContext.lsigTxopProtection =
 			(uint8_t) pBeaconStruct->HTCaps.lsigTXOPProtection;
-		pe_debug("StaCtx: htCap %d GFCap %d lsigTxopProtn %d",
-				pAddBssParams->staContext.htCapable,
-				pAddBssParams->staContext.greenFieldCapable,
-				pAddBssParams->staContext.lsigTxopProtection);
 		if (psessionEntry->vhtCapability &&
 			(IS_BSS_VHT_CAPABLE(pBeaconStruct->VHTCaps) ||
 			 IS_BSS_VHT_CAPABLE(
@@ -4450,9 +4335,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 				psessionEntry->vht_config.su_beam_former)
 				pAddBssParams->staContext.enable_su_tx_bformer
 						= 1;
-
-			pe_debug("StaContext: su_tx_bfer %d",
-				pAddBssParams->staContext.enable_su_tx_bformer);
 		}
 		if (lim_is_session_he_capable(psessionEntry) &&
 			pBeaconStruct->he_cap.present)
@@ -4469,10 +4351,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 					vht_oper->chanWidth)
 				pAddBssParams->staContext.ch_width =
 					vht_oper->chanWidth + 1;
-			pe_debug("StaCtx: vhtCap %d ch_bw %d TxBF %d",
-				   pAddBssParams->staContext.vhtCapable,
-				   pAddBssParams->staContext.ch_width,
-				   pAddBssParams->staContext.vhtTxBFCapable);
 		} else {
 			pAddBssParams->staContext.ch_width =
 				CH_WIDTH_20MHZ;
@@ -4524,7 +4402,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 			else if (pBeaconStruct->vendor_vht_ie.VHTCaps.present) {
 				vht_caps =
 					&pBeaconStruct->vendor_vht_ie.VHTCaps;
-				pe_debug("VHT Caps are in vendor Specific IE");
 			}
 			if (vht_caps != NULL &&
 				(psessionEntry->txLdpcIniFeatureEnabled & 0x2))
@@ -4537,21 +4414,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 		if (pBeaconStruct->HTInfo.present)
 			pAddBssParams->staContext.rifsMode =
 				pBeaconStruct->HTInfo.rifsMode;
-		pe_debug("StaContext ChannelWidth: %d mimoPS: %d maxAmsduSize: %d",
-				pAddBssParams->staContext.ch_width,
-				pAddBssParams->staContext.mimoPS,
-				pAddBssParams->staContext.maxAmsduSize);
-
-		pe_debug("maxAmpduDensity %d Cck40Mhz %d SGI20Mhz %d",
-				pAddBssParams->staContext.maxAmpduDensity,
-				pAddBssParams->staContext.fDsssCckMode40Mhz,
-				pAddBssParams->staContext.fShortGI20Mhz);
-
-		pe_debug("SGI40M %d maxAmpdu %d htLdpc %d vhtLdpc %d",
-				pAddBssParams->staContext.fShortGI40Mhz,
-				pAddBssParams->staContext.maxAmpduSize,
-				pAddBssParams->staContext.htLdpcCapable,
-				pAddBssParams->staContext.vhtLdpcCapable);
 	}
 	/*
 	 * If WMM IE or 802.11E IE is not present
@@ -4578,7 +4440,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 	pAddBssParams->staContext.encryptType = psessionEntry->encryptType;
 
 	pAddBssParams->maxTxPower = psessionEntry->maxTxPower;
-	pe_debug("maxTxPower: %d", pAddBssParams->maxTxPower);
 
 	pAddBssParams->status = QDF_STATUS_SUCCESS;
 	pAddBssParams->respReqd = true;
@@ -4592,8 +4453,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 	pAddBssParams->bSpectrumMgtEnabled = psessionEntry->spectrumMgtEnabled;
 
 	pAddBssParams->extSetStaKeyParamValid = 0;
-	pe_debug("extSetStaKeyParamValid: %d",
-		pAddBssParams->extSetStaKeyParamValid);
 
 #ifdef WLAN_FEATURE_11W
 	if (psessionEntry->limRmfEnabled) {
@@ -4611,17 +4470,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 	MTRACE(mac_trace
 		       (pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId,
 		       psessionEntry->limMlmState));
-
-	pe_debug("staContext wmmEnabled: %d encryptType: %d "
-			       "p2pCapableSta: %d",
-		pAddBssParams->staContext.wmmEnabled,
-		pAddBssParams->staContext.encryptType,
-		pAddBssParams->staContext.p2pCapableSta);
-
-	pe_debug("bSpectrumMgtEnabled: %d halPersona: %d setting "
-			       "LimMlm state to %d",
-		pAddBssParams->bSpectrumMgtEnabled, pAddBssParams->halPersona,
-		psessionEntry->limMlmState);
 
 	/* we need to defer the message until we get the response back from HAL. */
 	SET_LIM_PROCESS_DEFD_MESGS(pMac, false);

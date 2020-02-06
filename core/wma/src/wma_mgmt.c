@@ -1501,10 +1501,8 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 	    || params->encryptType == eSIR_ED_WPI
 #endif /* FEATURE_WLAN_WAPI */
 	    ) {
-		if (!params->no_ptk_4_way) {
+		if (!params->no_ptk_4_way)
 			cmd->peer_flags |= WMI_PEER_NEED_PTK_4_WAY;
-			wma_nofl_debug("no ptk 4 way %d", params->no_ptk_4_way);
-		}
 		wma_nofl_debug("Acquire set key wake lock for %d ms",
 			       WMA_VDEV_SET_KEY_WAKELOCK_TIMEOUT);
 		wma_acquire_wakelock(&intr->vdev_set_key_wakelock,
@@ -1568,8 +1566,6 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 		wma_nofl_debug("Num tx_streams: %d, Disabled txSTBC",
 			       intr->tx_streams);
 	}
-	wma_nofl_debug("peer_nss %d peer_ht_rates.num_rates %d ", cmd->peer_nss,
-		       peer_ht_rates.num_rates);
 
 	cmd->vht_capable = params->vhtCapable;
 	if (params->vhtCapable) {
@@ -1587,9 +1583,9 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 		}
 	}
 
-	wma_debug("rx_max_rate: %d, rx_mcs: %x, tx_max_rate: %d, tx_mcs: %x",
+	wma_debug("rx_max_rate %d, rx_mcs %x, tx_max_rate %d, tx_mcs: %x num rates %d`",
 		  cmd->rx_max_rate, cmd->rx_mcs_set, cmd->tx_max_rate,
-		  cmd->tx_mcs_set);
+		  cmd->tx_mcs_set, peer_ht_rates.num_rates);
 
 	/*
 	 * Limit nss to max number of rf chain supported by target
@@ -1602,15 +1598,6 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 
 	intr->nss = cmd->peer_nss;
 	cmd->peer_phymode = phymode;
-	wma_debug("vdev_id %d associd %d peer_flags %x rate_caps %x peer_caps %x",
-		  cmd->vdev_id, cmd->peer_associd, cmd->peer_flags,
-		  cmd->peer_rate_caps, cmd->peer_caps);
-	wma_debug("listen_intval %d ht_caps %x max_mpdu %d nss %d phymode %d",
-		  cmd->peer_listen_intval, cmd->peer_ht_caps,
-		  cmd->peer_max_mpdu, cmd->peer_nss, cmd->peer_phymode);
-	wma_debug("peer_mpdu_density %d encr_type %d cmd->peer_vht_caps %x",
-		  cmd->peer_mpdu_density, params->encryptType,
-		  cmd->peer_vht_caps);
 
 	status = wmi_unified_peer_assoc_send(wma->wmi_handle,
 					 cmd);
