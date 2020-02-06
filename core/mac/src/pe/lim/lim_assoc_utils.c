@@ -1469,9 +1469,8 @@ QDF_STATUS lim_populate_vht_mcs_set(tpAniSirGlobal mac_ctx,
 		}
 	}
 
-	pe_debug("enable2x2 - %d nss %d vhtRxMCSMap - %x vhtTxMCSMap - %x",
-		mac_ctx->roam.configParam.enable2x2, nss,
-		rates->vhtRxMCSMap, rates->vhtTxMCSMap);
+	pe_debug("RxMCSMap %x TxMCSMap %x", rates->vhtRxMCSMap,
+		 rates->vhtTxMCSMap);
 
 	if (NULL != session_entry) {
 		session_entry->supported_nss_1x1 =
@@ -1487,34 +1486,50 @@ error:
 	return QDF_STATUS_E_FAILURE;
 }
 
-/**
- * lim_populate_own_rate_set() - comprises the basic and extended rates read
- *                                from CFG
- * @mac_ctx: pointer to global mac structure
- * @rates: pointer to supported rates
- * @supported_mcs_set: pointer to supported mcs rates
- * @basic_only: update only basic rates if set true
- * @session_entry: pe session entry
- * @vht_caps: pointer to vht capability
- *
- * This function is called by limProcessAssocRsp() or
- * lim_add_staInIBSS()
- * - It creates a combined rate set of 12 rates max which
- *   comprises the basic and extended rates read from CFG
- * - It sorts the combined rate Set and copy it in the
- *   rate array of the pSTA descriptor
- * - It sets the erpEnabled bit of the STA descriptor
- * ERP bit is set iff the dph PHY mode is 11G and there is at least
- * an A rate in the supported or extended rate sets
- *
- * Return: QDF_STATUS_SUCCESS or QDF_STATUS_E_FAILURE.
- */
-QDF_STATUS
-lim_populate_own_rate_set(tpAniSirGlobal mac_ctx,
-		tpSirSupportedRates rates, uint8_t *supported_mcs_set,
-		uint8_t basic_only, tpPESession session_entry,
-		struct sDot11fIEVHTCaps *vht_caps,
-		struct sDot11fIEhe_cap *he_caps)
+static void lim_dump_ht_mcs_mask(uint8_t *self_mcs, uint8_t *peer_mcs)
+{
+	uint32_t len = 0;
+	uint8_t idx;
+	uint8_t *buff;
+	uint32_t buff_len;
+
+	/*
+	 * Buffer of (SIR_MAC_MAX_SUPPORTED_MCS_SET * 5) + 1  to consider the 4
+	 * char MCS eg 0xff and 1 space after it and 1 to end the string with
+	 * NULL.
+	 */
+	buff_len = (SIR_MAC_MAX_SUPPORTED_MCS_SET * 5) + 1;
+	buff = qdf_mem_malloc(buff_len);
+	if (!buff)
+		return;
+
+	if (self_mcs) {
+		for (idx = 0; idx < SIR_MAC_MAX_SUPPORTED_MCS_SET; idx++)
+			len += qdf_scnprintf(buff + len, buff_len - len,
+					     "0x%x ", self_mcs[idx]);
+
+		pe_nofl_debug("SELF HT MCS: %s", buff);
+	}
+
+	if (peer_mcs) {
+		len = 0;
+		for (idx = 0; idx < SIR_MAC_MAX_SUPPORTED_MCS_SET; idx++)
+			len += qdf_scnprintf(buff + len, buff_len - len,
+					     "0x%x ", peer_mcs[idx]);
+
+		pe_nofl_debug("PEER HT MCS: %s", buff);
+	}
+
+	qdf_mem_free(buff);
+}
+
+QDF_STATUS lim_populate_own_rate_set(tpAniSirGlobal mac_ctx,
+				     tpSirSupportedRates rates,
+				     uint8_t *supported_mcs_set,
+				     uint8_t basic_only,
+				     tpPESession session_entry,
+				     struct sDot11fIEVHTCaps *vht_caps,
+				     struct sDot11fIEhe_cap *he_caps)
 {
 	tSirMacRateSet temp_rate_set;
 	tSirMacRateSet temp_rate_set2;
@@ -1623,9 +1638,7 @@ lim_populate_own_rate_set(tpAniSirGlobal mac_ctx,
 					 supported_mcs_set[i];
 		}
 
-		pe_debug("MCS Rate Set Bitmap: ");
-		for (i = 0; i < SIR_MAC_MAX_SUPPORTED_MCS_SET; i++)
-			pe_debug("%x ", rates->supportedMCSSet[i]);
+		lim_dump_ht_mcs_mask(rates->supportedMCSSet, NULL);
 	}
 	lim_populate_vht_mcs_set(mac_ctx, rates, vht_caps,
 			session_entry, session_entry->nss);
@@ -1774,9 +1787,8 @@ lim_populate_peer_rate_set(tpAniSirGlobal pMac,
 				pRates->supportedMCSSet[i] &=
 					pSupportedMCSSet[i];
 		}
-		pe_debug("MCS Rate Set Bitmap: ");
-		for (i = 0; i < SIR_MAC_MAX_SUPPORTED_MCS_SET; i++)
-			pe_debug("%x ", pRates->supportedMCSSet[i]);
+
+		lim_dump_ht_mcs_mask(NULL, pRates->supportedMCSSet);
 
 		if (pRates->supportedMCSSet[0] == 0) {
 			pe_debug("Incorrect MCS 0 - 7. They must be supported");
@@ -1785,8 +1797,6 @@ lim_populate_peer_rate_set(tpAniSirGlobal pMac,
 
 		psessionEntry->supported_nss_1x1 =
 			((pRates->supportedMCSSet[1] != 0) ? false : true);
-		pe_debug("HT supported nss 1x1: %d",
-			psessionEntry->supported_nss_1x1);
 	}
 	lim_populate_vht_mcs_set(pMac, pRates, pVHTCaps,
 			psessionEntry, psessionEntry->nss);
@@ -1802,7 +1812,8 @@ lim_populate_peer_rate_set(tpAniSirGlobal pMac,
 	} else if (pRates->supportedMCSSet[1] == 0) {
 		psessionEntry->nss = NSS_1x1_MODE;
 	}
-	pe_debug("nss: %d", psessionEntry->nss);
+	pe_debug("nss 1x1 %d nss %d", psessionEntry->supported_nss_1x1,
+		 psessionEntry->nss);
 
 	return QDF_STATUS_SUCCESS;
 } /*** lim_populate_peer_rate_set() ***/
@@ -2018,12 +2029,8 @@ QDF_STATUS lim_populate_matching_rate_set(tpAniSirGlobal mac_ctx,
 			sta_ds->supportedRates.supportedMCSSet[i] =
 				mcs_set[i] & supported_mcs_set[i];
 
-		pe_debug("lim_populate_matching_rate_set: MCS Rate Set Bitmap"
-				" from  CFG and DPH : ");
-		for (i = 0; i < SIR_MAC_MAX_SUPPORTED_MCS_SET; i++) {
-			pe_debug("%x %x ", mcs_set[i],
-			    sta_ds->supportedRates.supportedMCSSet[i]);
-		}
+		lim_dump_ht_mcs_mask(mcs_set,
+				     sta_ds->supportedRates.supportedMCSSet);
 	}
 	lim_populate_vht_mcs_set(mac_ctx, &sta_ds->supportedRates, vht_caps,
 				 session_entry, session_entry->nss);
@@ -3388,9 +3395,6 @@ QDF_STATUS lim_extract_ap_capabilities(tpAniSirGlobal pMac,
 {
 	qdf_mem_zero((uint8_t *) beaconStruct, sizeof(tSirProbeRespBeacon));
 
-	pe_debug("lim_extract_ap_capabilities: The IE's being received are:");
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-				pIE, ieLen);
 	/* Parse the Beacon IE's, Don't try to parse if we dont have anything in IE */
 	if (ieLen > 0) {
 		if (QDF_STATUS_SUCCESS !=
