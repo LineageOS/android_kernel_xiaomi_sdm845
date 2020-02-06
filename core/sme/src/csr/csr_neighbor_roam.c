@@ -992,8 +992,6 @@ static void csr_neighbor_roam_info_ctx_init(
 		ngbr_roam_info->cfgParams.nRoamBmissFinalBcnt;
 	ngbr_roam_info->currentRoamBeaconRssiWeight =
 		ngbr_roam_info->cfgParams.nRoamBeaconRssiWeight;
-	ngbr_roam_info->cfgParams.enable_scoring_for_roam =
-		pMac->roam.configParam.bss_score_params.enable_scoring_for_roam;
 	/*
 	 * Restore the inactivity params only if roam_control is not
 	 * enabled. If roam_control is enabled, the params will be restored
@@ -1001,6 +999,8 @@ static void csr_neighbor_roam_info_ctx_init(
 	 * the same.
 	 */
 	if (!ngbr_roam_info->roam_control_enable) {
+		ngbr_roam_info->cfgParams.enable_scoring_for_roam =
+		pMac->roam.configParam.bss_score_params.enable_scoring_for_roam;
 		ngbr_roam_info->cfgParams.roam_scan_inactivity_time =
 			pMac->roam.configParam.roam_scan_inactivity_time;
 		ngbr_roam_info->cfgParams.roam_inactive_data_packet_count =
