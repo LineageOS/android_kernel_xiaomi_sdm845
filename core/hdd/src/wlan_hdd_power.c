@@ -1664,13 +1664,8 @@ static int __wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy)
 		goto exit_with_code;
 	}
 
-	exit_code = wlan_hdd_validate_context(hdd_ctx);
-	if (exit_code) {
-		hdd_err("Invalid HDD context");
-		goto exit_with_code;
-	}
-
 	mutex_lock(&hdd_ctx->iface_change_lock);
+
 	if (hdd_ctx->driver_status != DRIVER_MODULES_ENABLED) {
 		mutex_unlock(&hdd_ctx->iface_change_lock);
 		hdd_debug("Driver is not enabled; Skipping resume");
