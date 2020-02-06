@@ -42,6 +42,13 @@ struct nan_callbacks;
  */
 QDF_STATUS ucfg_nan_set_ndi_state(struct wlan_objmgr_vdev *vdev,
 				  uint32_t state);
+/**
+ * wlan_nan_is_ndp_peer_active: check whether ndp peer is active or not
+ * @pdev: pdev object
+ *
+ * Return: ndp peer attached to ndi or not.
+ */
+bool wlan_nan_is_ndp_peer_active(struct wlan_objmgr_pdev *pdev);
 
 /**
  * ucfg_nan_get_ndi_state: get ndi state from vdev obj

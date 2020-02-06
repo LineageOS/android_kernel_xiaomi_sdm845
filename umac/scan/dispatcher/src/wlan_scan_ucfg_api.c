@@ -33,6 +33,7 @@
 #include "../../core/src/wlan_scan_main.h"
 #include "../../core/src/wlan_scan_manager.h"
 #include "../../core/src/wlan_scan_cache_db.h"
+#include"nan_ucfg_api.h"
 #ifdef WLAN_POWER_MANAGEMENT_OFFLOAD
 #include <wlan_pmo_obj_mgmt_api.h>
 #endif
@@ -463,7 +464,8 @@ ucfg_scan_update_pno_config(struct pno_def_config *pno,
  * Return: void
  */
 static void
-ucfg_scan_update_dbs_scan_ctrl_ext_flag(struct scan_start_request *req)
+ucfg_scan_update_dbs_scan_ctrl_ext_flag(struct scan_start_request *req,
+					bool is_ndp_active)
 {
 	struct wlan_objmgr_psoc *psoc;
 	uint32_t scan_dbs_policy = SCAN_DBS_POLICY_DEFAULT;
@@ -477,6 +479,11 @@ ucfg_scan_update_dbs_scan_ctrl_ext_flag(struct scan_start_request *req)
 
 	if (!ucfg_scan_cfg_honour_nl_scan_policy_flags(psoc)) {
 		scm_debug_rl("nl scan policy flags not honoured, goto end");
+		goto end;
+	}
+
+	if (is_ndp_active) {
+		scm_debug("NDP active, go for DBS scan ");
 		goto end;
 	}
 
@@ -824,7 +831,7 @@ ucfg_update_passive_dwell_time(struct wlan_objmgr_vdev *vdev,
 					    struct scan_start_request *req) {}
 static inline void
 ucfg_scan_update_dbs_scan_ctrl_ext_flag(
-	struct scan_start_request *req) {}
+	struct scan_start_request *req, bool is_ndp_active) {}
 static inline void scm_scan_chlist_concurrency_modify(
 	struct wlan_objmgr_vdev *vdev, struct scan_start_request *req)
 {
@@ -923,6 +930,8 @@ ucfg_update_channel_list(struct scan_start_request *req,
 	scm_scan_chlist_concurrency_modify(req->vdev, req);
 }
 
+#define SCM_ACTIVE_DWELL_TIME_NAN      40
+
 /**
  * ucfg_scan_req_update_params() - update scan req params depending on modes
  * and scan type.
@@ -939,6 +948,7 @@ ucfg_scan_req_update_params(struct wlan_objmgr_vdev *vdev,
 	struct chan_list *custom_chan_list;
 	struct wlan_objmgr_pdev *pdev;
 	uint8_t pdev_id;
+	bool is_ndp_active = false;
 
 	/* Ensure correct number of probes are sent on active channel */
 	if (!req->scan_req.repeat_probe_time)
@@ -1018,7 +1028,11 @@ ucfg_scan_req_update_params(struct wlan_objmgr_vdev *vdev,
 
 	if (!req->scan_req.scan_f_passive)
 		ucfg_update_passive_dwell_time(vdev, req);
-	ucfg_scan_update_dbs_scan_ctrl_ext_flag(req);
+
+	pdev = wlan_vdev_get_pdev(vdev);
+	if (wlan_nan_is_ndp_peer_active(pdev))
+		is_ndp_active = true;
+	ucfg_scan_update_dbs_scan_ctrl_ext_flag(req, is_ndp_active);
 
 	/*
 	 * No need to update conncurrency parmas if req is passive scan on
@@ -1031,13 +1045,22 @@ ucfg_scan_req_update_params(struct wlan_objmgr_vdev *vdev,
 	/* Set wide band flag if enabled. This will cause
 	 * phymode TLV being sent to FW.
 	 */
-	pdev = wlan_vdev_get_pdev(vdev);
 	pdev_id = wlan_objmgr_pdev_get_pdev_id(pdev);
 	if (ucfg_scan_get_wide_band_scan(pdev))
 		req->scan_req.scan_f_wide_band = true;
 	else
 		req->scan_req.scan_f_wide_band = false;
 
+	if (is_ndp_active) {
+		req->scan_req.dwell_time_active =
+			QDF_MIN(req->scan_req.dwell_time_active,
+				SCM_ACTIVE_DWELL_TIME_NAN);
+		req->scan_req.dwell_time_active_2g =
+			QDF_MIN(req->scan_req.dwell_time_active_2g,
+				SCM_ACTIVE_DWELL_TIME_NAN);
+		scm_debug("NDP active modify dwell time 2ghz %d",
+			  req->scan_req.dwell_time_active_2g);
+	}
 	/* Overwrite scan channles with custom scan channel
 	 * list if configured.
 	 */

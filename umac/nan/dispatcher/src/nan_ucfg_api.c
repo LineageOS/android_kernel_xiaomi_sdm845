@@ -27,6 +27,7 @@
 #include "wlan_objmgr_psoc_obj.h"
 #include "wlan_objmgr_pdev_obj.h"
 #include "wlan_objmgr_vdev_obj.h"
+#include "wlan_nan_api.h"
 
 struct wlan_objmgr_psoc;
 struct wlan_objmgr_vdev;
@@ -47,6 +48,11 @@ inline QDF_STATUS ucfg_nan_set_ndi_state(struct wlan_objmgr_vdev *vdev,
 	return QDF_STATUS_SUCCESS;
 }
 
+bool wlan_nan_is_ndp_peer_active(struct wlan_objmgr_pdev *pdev)
+{
+	return nan_is_ndp_active(pdev);
+
+}
 inline enum nan_datapath_state ucfg_nan_get_ndi_state(
 					struct wlan_objmgr_vdev *vdev)
 {

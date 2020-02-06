@@ -42,6 +42,15 @@ QDF_STATUS nan_init(void);
 QDF_STATUS nan_deinit(void);
 
 /**
+* nan_is_ndp_active: is NAN peer attached to NDI
+* @pdev: pointer to pdev object
+*
+* Return: ndp peer attached or not.
+*/
+
+bool nan_is_ndp_active(struct wlan_objmgr_pdev *pdev);
+
+/**
  * nan_psoc_enable: psoc enable API for NANitioning component
  * @psoc: pointer to PSOC
  *
