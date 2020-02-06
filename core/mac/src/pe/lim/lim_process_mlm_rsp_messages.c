@@ -290,8 +290,6 @@ void lim_process_mlm_join_cnf(tpAniSirGlobal mac_ctx,
 	result_code = ((tLimMlmJoinCnf *) msg)->resultCode;
 	/* Process Join confirm from MLM */
 	if (result_code == eSIR_SME_SUCCESS) {
-		pe_debug("***SessionId:%d Joined ESS ***",
-			join_cnf->sessionId);
 		/* Setup hardware upfront */
 		if (lim_sta_send_add_bss_pre_assoc(mac_ctx, false,
 			session_entry) == QDF_STATUS_SUCCESS)
@@ -336,11 +334,7 @@ static void lim_send_mlm_assoc_req(tpAniSirGlobal mac_ctx,
 	uint32_t tele_bcn = 0;
 	tpSirMacCapabilityInfo cap_info;
 
-	/* Successful MAC based authentication. Trigger Association with BSS */
-	pe_debug("SessionId: %d Authenticated with BSS",
-		session_entry->peSessionId);
-
-	if (NULL == session_entry->pLimJoinReq) {
+	if (!session_entry->pLimJoinReq) {
 		pe_err("Join Request is NULL");
 		/* No need to Assert. JOIN timeout will handle this error */
 		return;
@@ -395,10 +389,6 @@ static void lim_send_mlm_assoc_req(tpAniSirGlobal mac_ctx,
 
 	assoc_req->capabilityInfo = caps;
 	cap_info = ((tpSirMacCapabilityInfo) &assoc_req->capabilityInfo);
-	pe_debug("Capabilities to be used in AssocReq=0x%X,"
-		"privacy bit=%x shortSlotTime %x", caps,
-		cap_info->privacy,
-		cap_info->shortSlotTime);
 
 	/*
 	 * If telescopic beaconing is enabled, set listen interval to
@@ -2361,9 +2351,6 @@ lim_process_sta_add_bss_rsp_pre_assoc(tpAniSirGlobal mac_ctx,
 		MTRACE(mac_trace(mac_ctx, TRACE_CODE_SME_STATE,
 			session_entry->peSessionId,
 			session_entry->limSmeState));
-		pe_debug("SessionId:%d lim_post_mlm_message "
-			"LIM_MLM_AUTH_REQ with limSmeState: %d",
-			session_entry->peSessionId, session_entry->limSmeState);
 		lim_post_mlm_message(mac_ctx, LIM_MLM_AUTH_REQ,
 			(uint32_t *) pMlmAuthReq);
 		return;
@@ -2471,9 +2458,6 @@ lim_process_sta_mlm_add_bss_rsp(tpAniSirGlobal mac_ctx,
 			session_entry->limMlmState));
 		/* to know the session  started for self or for  peer  */
 		session_entry->statypeForBss = STA_ENTRY_PEER;
-		/* Now, send WMA_ADD_STA_REQ */
-		pe_debug("SessionId: %d On STA: ADD_BSS was successful",
-			session_entry->peSessionId);
 		sta_ds =
 			dph_get_hash_entry(mac_ctx, DPH_STA_HASH_INDEX_PEER,
 				&session_entry->dph.dphHashTable);
@@ -3000,10 +2984,6 @@ static void lim_process_switch_channel_join_req(
 
 	session_entry->limPrevMlmState = session_entry->limMlmState;
 	session_entry->limMlmState = eLIM_MLM_WT_JOIN_BEACON_STATE;
-	pe_debug("Sessionid %d prev lim state %d new lim state %d "
-		"systemrole = %d", session_entry->peSessionId,
-		session_entry->limPrevMlmState,
-		session_entry->limMlmState, GET_LIM_SYSTEM_ROLE(session_entry));
 
 	/* Apply previously set configuration at HW */
 	lim_apply_configuration(mac_ctx, session_entry);
@@ -3048,11 +3028,11 @@ static void lim_process_switch_channel_join_req(
 	/* assign appropriate sessionId to the timer object */
 	mac_ctx->lim.limTimers.gLimPeriodicJoinProbeReqTimer.sessionId =
 		session_entry->peSessionId;
-	pe_debug("Sessionid: %d Send Probe req on channel %d ssid:%.*s "
-		"BSSID: " MAC_ADDRESS_STR, session_entry->peSessionId,
-		session_entry->currentOperChannel, ssId.length, ssId.ssId,
-		MAC_ADDR_ARRAY(
-		session_entry->pLimMlmJoinReq->bssDescription.bssId));
+	pe_debug("vdev %d Send Probe req on freq %d %.*s " QDF_MAC_ADDR_STR,
+		 session_entry->smeSessionId,
+		 session_entry->currentOperChannel, ssId.length, ssId.ssId,
+		 QDF_MAC_ADDR_ARRAY(
+		 session_entry->pLimMlmJoinReq->bssDescription.bssId));
 
 	/*
 	 * We need to wait for probe response, so start join
@@ -3155,7 +3135,6 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 	psessionEntry->chainMask = pChnlParams->chainMask;
 	psessionEntry->smpsMode = pChnlParams->smpsMode;
 	psessionEntry->channelChangeReasonCode = 0xBAD;
-	pe_debug("channelChangeReasonCode %d", channelChangeReasonCode);
 	switch (channelChangeReasonCode) {
 	case LIM_SWITCH_CHANNEL_REASSOC:
 		lim_process_switch_channel_re_assoc_req(pMac, psessionEntry, status);
@@ -3171,13 +3150,11 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 		 * THat way all this response handler does is call the call back
 		 * We can get rid of the reason code here.
 		 */
-		if (pMac->lim.gpchangeChannelCallback) {
-			pe_debug("Channel changed hence invoke registered call back");
+		if (pMac->lim.gpchangeChannelCallback)
 			pMac->lim.gpchangeChannelCallback(pMac, status,
 							  pMac->lim.
 							  gpchangeChannelData,
 							  psessionEntry);
-		}
 		/* If MCC upgrade/DBS downgrade happended during channel switch,
 		 * the policy manager connection table needs to be updated.
 		 */

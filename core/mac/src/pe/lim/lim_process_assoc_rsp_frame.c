@@ -568,9 +568,8 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		return;
 	}
 
-	pe_nofl_info("received Re/Assoc: %d resp on sessionid: %d systemrole: %d"
-		     " and mlmstate: %d RSSI: %d from "MAC_ADDRESS_STR, subtype,
-		     session_entry->peSessionId,
+	pe_nofl_info("Assoc RX subtype %d vdev %d sys role %d lim state %d rssi %d from " QDF_MAC_ADDR_STR,
+		     subtype, session_entry->smeSessionId,
 		     GET_LIM_SYSTEM_ROLE(session_entry),
 		     session_entry->limMlmState,
 		     (uint) abs((int8_t)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -73,7 +73,7 @@
 #define GET_LIM_PROCESS_DEFD_MESGS(pMac) (pMac->lim.gLimProcessDefdMsgs)
 #define SET_LIM_PROCESS_DEFD_MESGS(pMac, val) \
 		pMac->lim.gLimProcessDefdMsgs = val; \
-		pe_debug("%s Defer LIM messages - value %d", __func__, val);
+		pe_debug("Defer LIM msg %d", val);
 
 /* LIM exported function templates */
 #define LIM_MIN_BCN_PR_LENGTH  12

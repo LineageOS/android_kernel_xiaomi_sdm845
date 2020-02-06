@@ -1195,8 +1195,6 @@ void wma_set_linkstate(tp_wma_handle wma, tpLinkStateParams params)
 		 params->state, params->selfMacAddr);
 	if ((params->state != eSIR_LINK_PREASSOC_STATE) &&
 	    (params->state != eSIR_LINK_DOWN_STATE)) {
-		WMA_LOGD("%s: unsupported link state %d",
-			 __func__, params->state);
 		params->status = false;
 		goto out;
 	}

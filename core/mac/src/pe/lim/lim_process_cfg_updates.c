@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -280,8 +280,6 @@ void lim_handle_cf_gparam_update(tpAniSirGlobal pMac, uint32_t cfgId)
 void lim_apply_configuration(tpAniSirGlobal pMac, tpPESession psessionEntry)
 {
 	uint32_t val = 0, phyMode;
-
-	pe_debug("Applying config");
 
 	psessionEntry->limSentCapsChangeNtf = false;
 

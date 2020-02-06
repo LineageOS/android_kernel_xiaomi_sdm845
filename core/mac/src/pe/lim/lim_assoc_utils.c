@@ -2783,13 +2783,7 @@ lim_add_sta_self(tpAniSirGlobal pMac, uint16_t staIdx, uint8_t updateSta,
 	wlan_cfg_get_int(pMac, WNI_CFG_DOT11_MODE, &selfStaDot11Mode);
 	wlan_cfg_get_int(pMac, WNI_CFG_HT_CAP_INFO_SUPPORTED_CHAN_WIDTH_SET,
 			 &selfTxWidth);
-	pe_debug("cfgDot11Mode: %d selfTxWidth: %d",
-		(int)selfStaDot11Mode, (int)selfTxWidth);
-	pe_debug("Roam Channel Bonding Mode %d",
-		(int)pMac->roam.configParam.uCfgDot11Mode);
-
 	sir_copy_mac_addr(staMac, psessionEntry->selfMacAddr);
-	pe_debug(MAC_ADDRESS_STR ": ", MAC_ADDR_ARRAY(staMac));
 	pAddStaParams = qdf_mem_malloc(sizeof(tAddStaParams));
 	if (NULL == pAddStaParams) {
 		pe_err("Unable to allocate memory during ADD_STA");
@@ -2875,38 +2869,16 @@ lim_add_sta_self(tpAniSirGlobal pMac, uint16_t staIdx, uint8_t updateSta,
 					psessionEntry->htConfig.ht_sgi20;
 			pAddStaParams->fShortGI40Mhz =
 					psessionEntry->htConfig.ht_sgi40;
-			pe_debug("greenFieldCapable: %d maxAmpduDensity: %d "
-				 "maxAmpduSize: %d",
-				pAddStaParams->greenFieldCapable,
-				pAddStaParams->maxAmpduDensity,
-				pAddStaParams->maxAmpduSize);
-
-			pe_debug("fDsssCckMode40Mhz: %d fShortGI20Mhz: %d "
-				 "fShortGI40Mhz: %d lsigTxopProtection: %d",
-				pAddStaParams->fDsssCckMode40Mhz,
-				pAddStaParams->fShortGI20Mhz,
-				pAddStaParams->fShortGI40Mhz,
-				pAddStaParams->lsigTxopProtection);
-
-			pe_debug("maxAmsduSize: %d txChannelWidth: %d mimoPS: %d rifsMode %d",
-				pAddStaParams->maxAmsduSize,
-				pAddStaParams->ch_width,
-				pAddStaParams->mimoPS, pAddStaParams->rifsMode);
 		}
 	}
 	pAddStaParams->vhtCapable = IS_DOT11_MODE_VHT(selfStaDot11Mode);
-	if (pAddStaParams->vhtCapable) {
+	if (pAddStaParams->vhtCapable)
 		pAddStaParams->ch_width =
 			psessionEntry->ch_width;
-		pe_debug("VHT WIDTH SET %d", pAddStaParams->ch_width);
-	}
 	pAddStaParams->vhtTxBFCapable =
 		psessionEntry->vht_config.su_beam_formee;
 	pAddStaParams->enable_su_tx_bformer =
 		psessionEntry->vht_config.su_beam_former;
-	pe_debug("vhtCapable: %d vhtTxBFCapable %d, su_bfer %d",
-		pAddStaParams->vhtCapable, pAddStaParams->vhtTxBFCapable,
-		pAddStaParams->enable_su_tx_bformer);
 
 	/* In 11ac mode, the hardware is capable of supporting 128K AMPDU size */
 	if (IS_DOT11_MODE_VHT(selfStaDot11Mode)) {
@@ -2943,24 +2915,10 @@ lim_add_sta_self(tpAniSirGlobal pMac, uint16_t staIdx, uint8_t updateSta,
 		pAddStaParams->p2pCapableSta = 1;
 	}
 
-	pe_debug(" StaIdx: %d updateSta = %d htcapable = %d ",
-		pAddStaParams->staIdx, pAddStaParams->updateSta,
-		pAddStaParams->htCapable);
-
-	pe_debug("htLdpcCapable: %d vhtLdpcCapable: %d "
-			       "p2pCapableSta: %d",
-		pAddStaParams->htLdpcCapable, pAddStaParams->vhtLdpcCapable,
-		pAddStaParams->p2pCapableSta);
-
 	if (psessionEntry->isNonRoamReassoc) {
 		pAddStaParams->nonRoamReassoc = 1;
 		psessionEntry->isNonRoamReassoc = 0;
 	}
-	pe_debug("sessionid: %d  Assoc ID: %d listenInterval = %d "
-			       "shortPreambleSupported: %d",
-		psessionEntry->smeSessionId, pAddStaParams->assocId,
-		pAddStaParams->listenInterval,
-		pAddStaParams->shortPreambleSupported);
 
 	if (IS_DOT11_MODE_HE(selfStaDot11Mode))
 		lim_add_self_he_cap(pAddStaParams, psessionEntry);
@@ -2973,10 +2931,9 @@ lim_add_sta_self(tpAniSirGlobal pMac, uint16_t staIdx, uint8_t updateSta,
 	msgQ.bodyptr = pAddStaParams;
 	msgQ.bodyval = 0;
 
-	pe_debug(MAC_ADDRESS_STR ":Sessionid %d : "
-			       "Sending WMA_ADD_STA_REQ. (aid %d)",
-		MAC_ADDR_ARRAY(pAddStaParams->staMac),
-		pAddStaParams->sessionId, pAddStaParams->assocId);
+	pe_debug(QDF_MAC_ADDR_STR ": vdev %d Sending WMA_ADD_STA_REQ.LI %d",
+		 QDF_MAC_ADDR_ARRAY(pAddStaParams->staMac),
+		 psessionEntry->smeSessionId, pAddStaParams->listenInterval);
 	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msgQ.type));
 
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
@@ -3237,8 +3194,9 @@ lim_check_and_announce_join_success(tpAniSirGlobal mac_ctx,
 	if (!LIM_IS_STA_ROLE(session_entry))
 		return;
 
-	pe_debug("Received Beacon/PR with matching BSSID:%pM PESessionID %d",
-			session_entry->bssId, session_entry->peSessionId);
+	pe_debug("Received Beacon/PR with BSSID:%pM pe session %d vdev %d",
+		 session_entry->bssId, session_entry->peSessionId,
+		 session_entry->smeSessionId);
 
 	/* Deactivate Join Failure timer */
 	lim_deactivate_and_change_timer(mac_ctx, eLIM_JOIN_FAIL_TIMER);
@@ -3715,7 +3673,6 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 	if (IS_DOT11_MODE_HT(psessionEntry->dot11mode)
 	    && (pAssocRsp->HTCaps.present)) {
 		pAddBssParams->htCapable = pAssocRsp->HTCaps.present;
-		pe_debug("htCapable: %d", pAddBssParams->htCapable);
 		if (pBeaconStruct->HTInfo.present) {
 			pAddBssParams->htOperMode =
 				(tSirMacHTOperatingMode) pAssocRsp->HTInfo.opMode;
@@ -3748,7 +3705,6 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 	}
 
 	pAddBssParams->currentOperChannel = bssDescription->channelId;
-	pe_debug("currentOperChannel %d", pAddBssParams->currentOperChannel);
 	if (psessionEntry->vhtCapability && (pAssocRsp->VHTCaps.present)) {
 		pAddBssParams->vhtCapable = pAssocRsp->VHTCaps.present;
 		vht_caps =  &pAssocRsp->VHTCaps;
@@ -3771,11 +3727,6 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 			lim_update_vhtcaps_assoc_resp(pMac, pAddBssParams,
 					vht_caps, psessionEntry);
 	}
-
-	pe_debug("vhtCapable %d TxChannelWidth %d center_freq_0 %d center_freq_1 %d",
-			pAddBssParams->vhtCapable, pAddBssParams->ch_width,
-			pAddBssParams->ch_center_freq_seg0,
-			pAddBssParams->ch_center_freq_seg1);
 
 	if (lim_is_session_he_capable(psessionEntry) &&
 			(pAssocRsp->he_cap.present)) {
@@ -4183,7 +4134,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 	if (IS_DOT11_MODE_HT(psessionEntry->dot11mode)
 	    && (pBeaconStruct->HTCaps.present)) {
 		pAddBssParams->htCapable = pBeaconStruct->HTCaps.present;
-		pe_debug("htCapable: %d", pAddBssParams->htCapable);
 		if (pBeaconStruct->HTInfo.present) {
 			pAddBssParams->htOperMode =
 				(tSirMacHTOperatingMode) pBeaconStruct->HTInfo.
@@ -4220,25 +4170,10 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 				lsigTXOPProtectionFullSupport;
 			pAddBssParams->fRIFSMode =
 				pBeaconStruct->HTInfo.rifsMode;
-
-			pe_debug("htOperMode: %d dualCTSProtection: %d txChannelWidthSet: %d center_freq_seg0: %d",
-				pAddBssParams->htOperMode,
-				pAddBssParams->dualCTSProtection,
-				pAddBssParams->txChannelWidthSet,
-				pAddBssParams->ch_center_freq_seg0);
-
-			pe_debug("llnNonGFCoexist: %d "
-				"fLsigTXOPProtectionFullSupport: %d fRIFSMode %d",
-				pAddBssParams->llnNonGFCoexist,
-				pAddBssParams->fLsigTXOPProtectionFullSupport,
-				pAddBssParams->fRIFSMode);
 		}
 	}
 
 	pAddBssParams->currentOperChannel = bssDescription->channelId;
-	pe_debug("currentOperChannel %d",
-		pAddBssParams->currentOperChannel);
-
 	if (psessionEntry->vhtCapability &&
 		(IS_BSS_VHT_CAPABLE(pBeaconStruct->VHTCaps) ||
 		 IS_BSS_VHT_CAPABLE(pBeaconStruct->vendor_vht_ie.VHTCaps))) {
@@ -4462,7 +4397,6 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 #endif
 
 	pAddBssParams->nss = psessionEntry->nss;
-	pe_debug("nss value: %d", pAddBssParams->nss);
 
 	/* Set a new state for MLME */
 	psessionEntry->limMlmState = eLIM_MLM_WT_ADD_BSS_RSP_PREASSOC_STATE;

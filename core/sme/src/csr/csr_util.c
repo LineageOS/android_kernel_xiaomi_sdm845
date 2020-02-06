@@ -6338,7 +6338,6 @@ bool csr_is_set_key_allowed(tpAniSirGlobal pMac, uint32_t sessionId)
 	 * The current work-around is to process setcontext_rsp no matter
 	 * what the state is.
 	 */
-	sme_debug("is not what it intends to. Must be revisit or removed");
 	if ((NULL == pSession)
 	    || (csr_is_conn_state_disconnected(pMac, sessionId)
 		&& (pSession->pCurRoamProfile != NULL)
