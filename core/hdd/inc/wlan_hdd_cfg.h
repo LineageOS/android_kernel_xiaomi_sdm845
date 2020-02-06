@@ -8411,6 +8411,49 @@ enum hdd_link_speed_rpt_type {
 #define CFG_NAN_SEPARATE_IFACE_SUPP_MIN            (0)
 #define CFG_NAN_SEPARATE_IFACE_SUPP_MAX            (1)
 
+/*
+ * <ini>
+ * gNdpKeepAlivePeriod - To configure duration of how many seconds
+ * to wait to kickout peer if peer is not reachable.
+ *
+ * @Min: 10
+ * @Max: 30
+ * @Default: 20
+ *
+ * Related: None
+ *
+ * Supported Feature: NAN
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NDP_KEEP_ALIVE_PERIOD                  "gNdpKeepAlivePeriod"
+#define CFG_NDP_KEEP_ALIVE_PERIOD_MIN              (10)
+#define CFG_NDP_KEEP_ALIVE_PERIOD_MAX              (30)
+#define CFG_NDP_KEEP_ALIVE_PERIOD_DEFAULT          (20)
+
+/*
+ * <ini>
+ * gSupportMp0Discovery - To support discovery of NAN cluster with
+ * Master Preference (MP) as 0 when a new device is enabling NAN.
+ *
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Related: None
+ *
+ * Supported Feature: NAN
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SUPPORT_MP0_DISCOVERY                  "gSupportMp0Discovery"
+#define CFG_SUPPORT_MP0_DISCOVERY_MIN              (0)
+#define CFG_SUPPORT_MP0_DISCOVERY_MAX              (1)
+#define CFG_SUPPORT_MP0_DISCOVERY_DEFAULT          (1)
 #endif
 
 #define CFG_ENABLE_SELF_RECOVERY                   "gEnableSelfRecovery"
@@ -17789,6 +17832,8 @@ struct hdd_config {
 #ifdef WLAN_FEATURE_NAN
 	bool enable_nan_support;
 	bool nan_separate_iface_support;
+	uint16_t ndp_keep_alive_period;
+	bool support_mp0_discovery;
 #endif
 	bool enableSelfRecovery;
 #ifdef FEATURE_WLAN_FORCE_SAP_SCC

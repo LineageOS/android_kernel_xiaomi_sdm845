@@ -4593,6 +4593,14 @@ int hdd_vdev_create(struct hdd_adapter *adapter,
 
 	hdd_nofl_debug("vdev %d created successfully", adapter->session_id);
 
+	if (QDF_NAN_DISC_MODE == adapter->device_mode) {
+		sme_cli_set_command(
+		adapter->session_id,
+		WMI_VDEV_PARAM_ALLOW_NAN_INITIAL_DISCOVERY_OF_MP0_CLUSTER,
+		hdd_ctx->config->support_mp0_discovery,
+		VDEV_CMD);
+	}
+
 	return 0;
 
 	/*
