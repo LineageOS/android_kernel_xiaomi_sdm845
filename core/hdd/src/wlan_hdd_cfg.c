@@ -6149,9 +6149,9 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ADAPTIVE_11R_MAX),
 #endif
 
-#ifdef WLAN_SAE_SINGLE_PMK
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
 	REG_VARIABLE(CFG_SAE_SINGLE_PMK, WLAN_PARAM_Integer,
-		     struct hdd_config, sae_same_pmk_feature_enabled,
+		     struct hdd_config, sae_single_pmk_feature_enabled,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
 		     CFG_SAE_SINGLE_PMK_DEFAULT,
 		     CFG_SAE_SINGLE_PMK_MIN,
@@ -9791,13 +9791,13 @@ sme_update_adaptive_11r_cap(tSmeConfigParams *sme_config,
 }
 #endif
 
-#ifdef WLAN_SAE_SINGLE_PMK
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
 static void
 sme_update_sae_single_pmk_cfg(tSmeConfigParams *sme_config,
 			      struct hdd_config *ini_config)
 {
-	sme_config->csrConfig.sae_same_pmk_feature_enabled =
-		ini_config->sae_same_pmk_feature_enabled;
+	sme_config->csrConfig.sae_single_pmk_feature_enabled =
+		ini_config->sae_single_pmk_feature_enabled;
 }
 #else
 static inline void

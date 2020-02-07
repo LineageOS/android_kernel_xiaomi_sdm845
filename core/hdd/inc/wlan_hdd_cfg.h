@@ -16902,10 +16902,10 @@ enum hdd_external_acs_policy {
 #define CFG_ADAPTIVE_11R_DEFAULT  (false)
 #endif
 
-#ifdef WLAN_SAE_SINGLE_PMK
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
 /*
  * <ini>
- * sae_single_pmk_cfg - Enable/disable sae single pmk feature.
+ * sae_single_pmk_feature_enabled - Enable/disable sae single pmk feature.
  * @Min: 0
  * @Max: 1
  * @Default: 0
@@ -16920,7 +16920,7 @@ enum hdd_external_acs_policy {
  *
  * </ini>
  */
-#define CFG_SAE_SINGLE_PMK          "sae_same_pmk_feature_enabled"
+#define CFG_SAE_SINGLE_PMK          "sae_single_pmk_feature_enabled"
 #define CFG_SAE_SINGLE_PMK_MIN      (false)
 #define CFG_SAE_SINGLE_PMK_MAX      (true)
 #define CFG_SAE_SINGLE_PMK_DEFAULT  (false)
@@ -18595,8 +18595,8 @@ struct hdd_config {
 #ifdef WLAN_ADAPTIVE_11R
 	bool enable_adaptive_11r;
 #endif
-#ifdef WLAN_SAE_SINGLE_PMK
-	bool sae_same_pmk_feature_enabled;
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+	bool sae_single_pmk_feature_enabled;
 #endif
 	uint32_t num_vdevs;
 	bool ShortGI80MhzEnable;

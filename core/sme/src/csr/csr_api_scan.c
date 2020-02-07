@@ -2636,6 +2636,30 @@ static void csr_update_bss_with_fils_data(tpAniSirGlobal mac_ctx,
 { }
 #endif
 
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+/**
+ * csr_fill_single_pmk_ap_cap_from_scan_entry() - WAP3_SPMK VSIE from scan
+ * entry
+ * @bss_desc: BSS Descriptor
+ * @scan_entry: scan entry
+ *
+ * Return: None
+ */
+static void
+csr_fill_single_pmk_ap_cap_from_scan_entry(struct bss_description *bss_desc,
+					   struct scan_cache_entry *scan_entry)
+{
+	bss_desc->sae_single_pmk_ap = util_scan_entry_single_pmk(scan_entry);
+}
+
+#else
+static inline void
+csr_fill_single_pmk_ap_cap_from_scan_entry(struct bss_description *bss_desc,
+					   struct scan_cache_entry *scan_entry)
+{
+}
+#endif
+
 static QDF_STATUS csr_fill_bss_from_scan_entry(tpAniSirGlobal mac_ctx,
 	struct scan_cache_entry *scan_entry,
 	struct tag_csrscan_result **p_result)
@@ -2738,6 +2762,7 @@ static QDF_STATUS csr_fill_bss_from_scan_entry(tpAniSirGlobal mac_ctx,
 	bss_desc->seq_ctrl = hdr->seqControl;
 	bss_desc->tsf_delta = scan_entry->tsf_delta;
 	bss_desc->adaptive_11r_ap = scan_entry->adaptive_11r_ap;
+	csr_fill_single_pmk_ap_cap_from_scan_entry(bss_desc, scan_entry);
 
 	qdf_mem_copy((uint8_t *) &bss_desc->ieFields,
 		ie_ptr, ie_len);

@@ -2897,12 +2897,12 @@ csr_update_adaptive_11r_config_param(tpAniSirGlobal mac, tCsrConfigParam *param)
 }
 #endif
 
-#ifdef WLAN_SAE_SINGLE_PMK
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
 static void
 csr_update_sae_single_pmk_cfg_param(tpAniSirGlobal mac, tCsrConfigParam *param)
 {
-	mac->roam.configParam.sae_same_pmk_feature_enabled =
-		param->sae_same_pmk_feature_enabled;
+	mac->roam.configParam.sae_single_pmk_feature_enabled =
+		param->sae_single_pmk_feature_enabled;
 }
 #else
 static void
@@ -3525,12 +3525,12 @@ csr_get_adaptive_11r_config(tpAniSirGlobal mac, tCsrConfigParam *param)
 }
 #endif
 
-#ifdef WLAN_SAE_SINGLE_PMK
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
 static void
 csr_get_sae_single_pmk_config(tpAniSirGlobal mac, tCsrConfigParam *param)
 {
-	param->sae_same_pmk_feature_enabled =
-			mac->roam.configParam.sae_same_pmk_feature_enabled;
+	param->sae_single_pmk_feature_enabled =
+			mac->roam.configParam.sae_single_pmk_feature_enabled;
 }
 #else
 static inline void
@@ -15726,6 +15726,7 @@ csr_update_session_psk_pmk(struct csr_roam_session *session,
 	 * copy the pmk into csr session so that correct pmk will be
 	 * sent in RSO command.
 	 */
+
 	qdf_mem_copy(session->psk_pmk, pmksa->pmk, pmksa->pmk_len);
 	session->pmk_len = pmksa->pmk_len;
 }
@@ -15736,6 +15737,37 @@ csr_update_session_psk_pmk(struct csr_roam_session *session,
 {}
 #endif
 
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+/**
+ * csr_update_sae_single_pmk_info - API to update Single PMK Info in csr session
+ * @pSession: pointer to session
+ * @pmksa: pointer to PMKSA struct
+ *
+ * Return : None
+ */
+static void
+csr_update_sae_single_pmk_info(struct csr_roam_session *session,
+			       tPmkidCacheInfo *pmksa)
+{
+	if (!session || !session->pCurRoamProfile || !pmksa) {
+		sme_debug("Invalid session, current profile or pmksa");
+		return;
+	}
+
+	if (session->pCurRoamProfile->AuthType.authType[0] ==
+	    eCSR_AUTH_TYPE_SAE && session->single_pmk_info.sae_single_pmk_ap) {
+		qdf_mem_copy(session->single_pmk_info.pmk_info.pmk,
+			     pmksa->pmk, pmksa->pmk_len);
+		session->single_pmk_info.pmk_info.pmk_len = pmksa->pmk_len;
+	}
+}
+#else
+static inline void
+csr_update_sae_single_pmk_info(struct csr_roam_session *session,
+			       tPmkidCacheInfo *pmksa)
+{
+}
+#endif
 /**
  * csr_update_pmk_cache - API to update PMK cache
  * @pSession: pointer to session
@@ -15772,6 +15804,7 @@ static void csr_update_pmk_cache(struct csr_roam_session *session,
 			     pmksa->pmk, pmksa->pmk_len);
 
 		csr_update_session_psk_pmk(session, pmksa);
+		csr_update_sae_single_pmk_info(session, pmksa);
 	}
 
 	session->PmkidCacheInfo[cache_idx].pmk_len = pmksa->pmk_len;
@@ -16510,6 +16543,37 @@ csr_get_adaptive_11r_enabled(tpAniSirGlobal mac)
 }
 #endif
 
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+/**
+ * csr_update_sae_single_pmk_ap_cap() - Function to update sae single pmk ap ie
+ * @session: scr session
+ * @akm: AKM type
+ * @config_param: csr config
+ * @bss_description: bss description
+ *
+ * Return: true if sae single pmk feature is enabled
+ */
+static void
+csr_update_sae_single_pmk_ap_cap(struct csr_roam_session *session,
+				 eCsrAuthType akm,
+				 struct csr_config *config_param,
+				 tSirBssDescription *bss_description)
+{
+	if (akm == eCSR_AUTH_TYPE_SAE &&
+	    config_param->sae_single_pmk_feature_enabled)
+		session->single_pmk_info.sae_single_pmk_ap =
+				bss_description->sae_single_pmk_ap;
+}
+#else
+static inline void
+csr_update_sae_single_pmk_ap_cap(struct csr_roam_session *session,
+				 eCsrAuthType akm,
+				 struct csr_config *config_param,
+				 tSirBssDescription *bss_description)
+{
+}
+#endif
+
 /**
  * The communication between HDD and LIM is thru mailbox (MB).
  * Both sides will access the data structure "tSirSmeJoinReq".
@@ -16651,6 +16715,10 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 							    uCfgDot11Mode);
 		akm = pProfile->negotiatedAuthType;
 		csr_join_req->akm = csr_convert_csr_to_ani_akm_type(akm);
+
+		csr_update_sae_single_pmk_ap_cap(pSession, akm,
+						 &pMac->roam.configParam,
+						 pBssDescription);
 
 		if (pBssDescription->channelId <= 14
 		    && false == pMac->roam.configParam.enableVhtFor24GHz
