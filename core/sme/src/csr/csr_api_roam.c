@@ -23763,7 +23763,7 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 	/* fetch 4 LSB to get roam reason */
 	roam_info->roam_reason = roam_synch_data->roamReason &
 				 ROAM_REASON_MASK;
-	sme_info("Update roam reason : %d", roam_info->roam_reason);
+	sme_debug("Update roam reason : %d", roam_info->roam_reason);
 	csr_copy_fils_join_rsp_roam_info(roam_info, roam_synch_data);
 
 	csr_roam_call_callback(mac_ctx, session_id, roam_info, 0,
