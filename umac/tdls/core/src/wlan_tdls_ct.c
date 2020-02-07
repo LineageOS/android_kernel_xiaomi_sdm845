@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1230,7 +1230,7 @@ void tdls_disable_offchan_and_teardown_links(
 	}
 
 	if (TDLS_SUPPORT_SUSPENDED >= tdls_soc->tdls_current_mode) {
-		tdls_notice("TDLS mode %d is disabled OR not suspended now",
+		tdls_debug("TDLS mode %d is disabled OR not suspended now",
 			   tdls_soc->tdls_current_mode);
 		return;
 	}
@@ -1240,7 +1240,7 @@ void tdls_disable_offchan_and_teardown_links(
 		tdls_in_progress = true;
 
 	if (!(connected_tdls_peers || tdls_in_progress)) {
-		tdls_notice("No TDLS connected/progress peers to delete");
+		tdls_debug("No TDLS connected/progress peers to delete");
 		vdev_id = vdev->vdev_objmgr.vdev_id;
 		if (tdls_soc->set_state_info.set_state_cnt > 0) {
 			tdls_debug("Disable the tdls in FW as second interface is coming up");

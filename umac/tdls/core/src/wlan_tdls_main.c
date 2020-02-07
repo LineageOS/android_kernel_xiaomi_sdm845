@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -792,7 +792,7 @@ tdls_process_decrement_active_session(struct wlan_objmgr_psoc *psoc)
 
 	if(!policy_mgr_is_hw_dbs_2x2_capable(psoc) &&
 	   policy_mgr_is_current_hwmode_dbs(psoc)) {
-		tdls_err("Current HW mode is 1*1 DBS. Wait for Opportunistic timer to expire to enable TDLS in FW");
+		tdls_debug("Current HW mode is 1*1 DBS. Wait for Opportunistic timer to expire to enable TDLS in FW");
 		return QDF_STATUS_SUCCESS;
 	}
 	tdls_obj_vdev = tdls_get_vdev(psoc, WLAN_TDLS_NB_ID);
