@@ -3176,9 +3176,9 @@ static void wma_get_converted_timestamp(uint32_t timestamp, char *time)
         secs = timestamp / 1000;
         mins = secs / 60;
         hr = mins / 60;
-        qdf_snprintf(time, TIME_STRING_LEN, "[%02d:%02d:%02d.%06u]",
-                     (hr % 24), (mins % 60), (secs % 60),
-                     (timestamp % 1000) * 1000);
+        scnprintf(time, TIME_STRING_LEN, "[%02d:%02d:%02d.%06u]",
+		  (hr % 24), (mins % 60), (secs % 60),
+		  (timestamp % 1000) * 1000);
 }
 
 static char *wma_get_roam_fail_reason_str(uint32_t result)
@@ -3231,6 +3231,14 @@ static char *wma_get_sub_reason_str(uint32_t sub_reason)
 	}
 }
 
+/**
+ * wma_get_trigger_detail_str  -  Return roam trigger string from the
+ * enum WMI_ROAM_TRIGGER_REASON
+ * @roam_info: Pointer to the roam trigger info
+ * @buf: Destination buffer to write the reason string
+ *
+ * Return: None
+ */
 static void
 wma_get_trigger_detail_str(struct wmi_roam_trigger_info *roam_info, char *buf)
 {
@@ -3303,6 +3311,16 @@ wma_get_trigger_detail_str(struct wmi_roam_trigger_info *roam_info, char *buf)
 }
 
 
+/**
+ * wma_rso_print_trigger_info  - Roam trigger related details
+ * @data: Pointer to the roam trigger data
+ * @vdev_id: Vdev ID
+ *
+ * Prints the vdev, roam trigger reason, time of the day at which roaming
+ * was triggered.
+ *
+ * Return: None
+ */
 static void
 wma_rso_print_trigger_info(struct wmi_roam_trigger_info *data, uint8_t vdev_id)
 {
@@ -3320,6 +3338,16 @@ wma_rso_print_trigger_info(struct wmi_roam_trigger_info *data, uint8_t vdev_id)
 	qdf_mem_free(buf);
 }
 
+/**
+ * wma_log_roam_scan_candidates  - Print roam scan candidate AP info
+ * @ap:          Pointer to the candidate AP list
+ * @num_entries: Number of candidate APs
+ *
+ * Print the RSSI, CU load, Cu score, RSSI score, total score, BSSID
+ * and time stamp at which the candidate was found details.
+ *
+ * Return: None
+ */
 static void
 wma_log_roam_scan_candidates(struct wmi_roam_candidate_info *ap,
 			     uint8_t num_entries)
@@ -3348,6 +3376,19 @@ wma_log_roam_scan_candidates(struct wmi_roam_candidate_info *ap,
 	}
 }
 
+/**
+ * wma_rso_print_scan_info  - Print the roam scan details and candidate AP
+ * details
+ * @scan:      Pointer to the received tlv after sanitization
+ * @vdev_id:   vdev id
+ * @trigger:   Roam scan trigger reason
+ * @timestamp: Host timestamp in millisecs
+ *
+ * Prints the roam scan details with time of the day when the scan was
+ * triggered and roam candidate AP with score details
+ *
+ * Return: None
+ */
 static void
 wma_rso_print_scan_info(struct wmi_roam_scan_data *scan, uint8_t vdev_id,
 			uint32_t trigger, uint32_t timestamp)
@@ -3402,6 +3443,15 @@ wma_rso_print_scan_info(struct wmi_roam_scan_data *scan, uint8_t vdev_id,
 	qdf_mem_free(buf1);
 }
 
+/**
+ * wma_rso_print_roam_result  - Print roam result related info
+ * @res:     Roam result strucure pointer
+ * @vdev_id: Vdev id
+ *
+ * Print roam result and failure reason if roaming failed.
+ *
+ * Return: None
+ */
 static void
 wma_rso_print_roam_result(struct wmi_roam_result *res,
 			  uint8_t vdev_id)
@@ -3424,9 +3474,16 @@ wma_rso_print_roam_result(struct wmi_roam_result *res,
 	qdf_mem_free(buf);
 }
 
+/**
+ * wma_rso_print_11kv_info  - Print neighbor report/BTM related data
+ * @neigh_rpt: Pointer to the extracted TLV structure
+ * @vdev_id:   Vdev id
+ *
+ * Return: none
+ */
 static void
 wma_rso_print_11kv_info(struct wmi_neighbor_report_data *neigh_rpt,
-			uint8_t vdev_id, bool is_roam_success)
+			uint8_t vdev_id)
 {
 	char time[TIME_STRING_LEN], time1[TIME_STRING_LEN];
 	char *buf, *tmp;
@@ -3434,13 +3491,8 @@ wma_rso_print_11kv_info(struct wmi_neighbor_report_data *neigh_rpt,
 	uint16_t buf_left = ROAM_CHANNEL_BUF_SIZE, buf_cons;
 	uint8_t num_ch = neigh_rpt->num_freq;
 
-	if (!is_roam_success)
+	if (!type)
 		return;
-
-	if (!type) {
-		WMA_LOGI("AP doesn't support neighbor rpt/BTM");
-		return;
-	}
 
 	buf = qdf_mem_malloc(ROAM_CHANNEL_BUF_SIZE);
 	if (!buf)
@@ -3502,15 +3554,9 @@ int wma_roam_stats_event_handler(WMA_HANDLE handle, uint8_t *event,
 	}
 
 	num_tlv = fixed_param->roam_scan_trigger_count;
-	if (num_tlv != param_buf->num_roam_scan_info ||
-	    num_tlv != param_buf->num_roam_trigger_reason ||
-	    num_tlv != param_buf->num_roam_result ||
-	    num_tlv != param_buf->num_roam_neighbor_report_info) {
-		wma_err_rl("Invalid roam stats num_tlv:%d num_scan:%d num_res:%d num_rept:%d",
-			   num_tlv, param_buf->num_roam_scan_info,
-			   param_buf->num_roam_result,
-			   param_buf->num_roam_neighbor_report_info);
-		goto err;
+	if (num_tlv > MAX_ROAM_SCAN_STATS_TLV) {
+		wma_err_rl("Limiting roam triggers to 5");
+		num_tlv = MAX_ROAM_SCAN_STATS_TLV;
 	}
 
 	rem_len = WMI_SVC_MSG_MAX_SIZE - sizeof(*fixed_param);
@@ -3561,6 +3607,28 @@ int wma_roam_stats_event_handler(WMA_HANDLE handle, uint8_t *event,
 		wma_err_rl("Invalid roam neigb rpt chan data num_tlv:%d",
 			   param_buf->num_roam_neighbor_report_chan_info);
 		goto err;
+	}
+
+	if (!num_tlv) {
+		roam_info = qdf_mem_malloc(sizeof(*roam_info));
+		if (!roam_info)
+			return -ENOMEM;
+
+		status = wmi_unified_extract_roam_11kv_stats(
+				wma->wmi_handle, event,
+				&roam_info->data_11kv, 0, 0);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			WMA_LOGE("%s: Roam 11kv stats extract failed vdev %d",
+					__func__, vdev_id);
+			qdf_mem_free(roam_info);
+			goto err;
+		}
+
+		 if (roam_info->data_11kv.present)
+			 wma_rso_print_11kv_info(&roam_info->data_11kv, vdev_id);
+
+		 qdf_mem_free(roam_info);
+		 return 0;
 	}
 
 	for (i = 0; i < num_tlv; i++) {
@@ -3618,13 +3686,20 @@ int wma_roam_stats_event_handler(WMA_HANDLE handle, uint8_t *event,
 		}
 		num_rpt += roam_info->data_11kv.num_freq;
 
-		wma_rso_print_trigger_info(&roam_info->trigger, vdev_id);
-		wma_rso_print_scan_info(&roam_info->scan, vdev_id,
-					roam_info->trigger.trigger_reason,
-					roam_info->trigger.timestamp);
-		wma_rso_print_roam_result(&roam_info->result, vdev_id);
-		wma_rso_print_11kv_info(&roam_info->data_11kv, vdev_id,
-					roam_info->result.status);
+		if (roam_info->trigger.present)
+			wma_rso_print_trigger_info(&roam_info->trigger,
+						   vdev_id);
+
+		if (roam_info->scan.present && roam_info->trigger.present)
+			wma_rso_print_scan_info(&roam_info->scan, vdev_id,
+						roam_info->trigger.trigger_reason,
+						roam_info->trigger.timestamp);
+
+		if (roam_info->result.present)
+			wma_rso_print_roam_result(&roam_info->result, vdev_id);
+
+		if (roam_info->data_11kv.present)
+			wma_rso_print_11kv_info(&roam_info->data_11kv, vdev_id);
 
 		qdf_mem_free(roam_info);
 	}
