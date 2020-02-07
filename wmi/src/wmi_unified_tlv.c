@@ -8686,6 +8686,52 @@ static QDF_STATUS send_fw_profiling_cmd_tlv(wmi_unified_t wmi_handle,
 	return 0;
 }
 
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+/**
+ * send_dscp_tid_map_cmd_tlv() - send dscp to tid map  cmd to fw
+ * @wmi_handle: wmi handle
+ * @dscp_to_tid_map: array of dscp to tid map values
+ *
+ * Send WMI_PDEV_SET_DSCP_TID_MAP_CMDID to fw.
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS
+send_dscp_tid_map_cmd_tlv(wmi_unified_t wmi_handle,
+			  uint32_t *dscp_to_tid_map)
+{
+	QDF_STATUS status;
+	wmi_pdev_set_dscp_tid_map_cmd_fixed_param *cmd;
+	wmi_buf_t buf;
+	uint16_t len = sizeof(*cmd);
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf) {
+		WMI_LOGE("%s: Failed to allocate wmi buffer", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	cmd = (wmi_pdev_set_dscp_tid_map_cmd_fixed_param *)wmi_buf_data(buf);
+	WMITLV_SET_HDR(
+		&cmd->tlv_header,
+		WMITLV_TAG_STRUC_wmi_pdev_set_dscp_tid_map_cmd_fixed_param,
+		WMITLV_GET_STRUCT_TLVLEN
+		(wmi_pdev_set_dscp_tid_map_cmd_fixed_param));
+	cmd->reserved0 = WMI_PDEV_ID_SOC;
+	qdf_mem_copy(&cmd->dscp_to_tid_map, dscp_to_tid_map,
+		     sizeof(uint32_t) * WMI_DSCP_MAP_MAX);
+
+	status = wmi_unified_cmd_send(wmi_handle, buf, len,
+				      WMI_PDEV_SET_DSCP_TID_MAP_CMDID);
+	if (status) {
+		WMI_LOGE("Failed to send dscp_up_map_to_fw %d", status);
+		wmi_buf_free(buf);
+	}
+
+	return status;
+}
+#endif /* WLAN_SEND_DSCP_UP_MAP_TO_FW */
+
 static QDF_STATUS send_wlm_latency_level_cmd_tlv(wmi_unified_t wmi_handle,
 				struct wlm_latency_level_param *params)
 {
@@ -24149,6 +24195,9 @@ struct wmi_ops tlv_ops =  {
 	.send_fw_profiling_cmd = send_fw_profiling_cmd_tlv,
 	.send_csa_offload_enable_cmd = send_csa_offload_enable_cmd_tlv,
 	.send_nat_keepalive_en_cmd = send_nat_keepalive_en_cmd_tlv,
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+	.send_dscp_tid_map_cmd = send_dscp_tid_map_cmd_tlv,
+#endif
 	.send_wlm_latency_level_cmd = send_wlm_latency_level_cmd_tlv,
 	.send_start_oem_data_cmd = send_start_oem_data_cmd_tlv,
 #ifdef FEATURE_OEM_DATA

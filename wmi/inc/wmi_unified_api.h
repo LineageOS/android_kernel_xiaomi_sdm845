@@ -993,6 +993,26 @@ QDF_STATUS wmi_unified_wow_timer_pattern_cmd(void *wmi_hdl, uint8_t vdev_id,
 
 QDF_STATUS wmi_unified_nat_keepalive_en_cmd(void *wmi_hdl, uint8_t vdev_id);
 
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+/**
+ * wmi_unified_send_dscp_tid_map_cmd() - Send dscp-to-tid map values cmd
+ * @wmi_hdl: wmi handle
+ * @dscp_to_tid_map: array of dscp_tid map values
+ *
+ * Send dscp-to-tid map values to FW.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_send_dscp_tid_map_cmd(void *wmi_hdl, uint32_t *dscp_to_tid_map);
+#else
+static inline QDF_STATUS
+wmi_unified_send_dscp_tid_map_cmd(void *wmi_hdl, uint32_t *dscp_to_tid_map)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif /* WLAN_SEND_DSCP_UP_MAP_TO_FW */
+
 /**
  * wmi_unified_set_latency_config_cmd()
  * @wmi_handle: wmi handle
