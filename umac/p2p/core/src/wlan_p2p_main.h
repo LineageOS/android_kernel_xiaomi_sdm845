@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -53,6 +53,8 @@
 	p2p_logl(QDF_TRACE_LEVEL_FATAL, format, ## args)
 #define p2p_debug_rl(params...) \
 	QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_P2P, params)
+#define p2p_info_rl(params...) \
+	QDF_TRACE_INFO_RL(QDF_MODULE_ID_P2P, params)
 
 struct scheduler_msg;
 struct p2p_tx_cnf;
