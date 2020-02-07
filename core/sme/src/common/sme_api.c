@@ -9405,6 +9405,25 @@ QDF_STATUS sme_send_cesium_enable_ind(tHalHandle hHal, uint32_t sessionId)
 	return status;
 }
 
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+QDF_STATUS sme_send_dscp_up_map_to_fw(uint32_t *dscp_to_up_map)
+{
+	QDF_STATUS status;
+	void *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!wma) {
+		sme_err("wma is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	status = wma_send_dscp_up_map_to_fw(wma, dscp_to_up_map);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		sme_err("%s: failed to send dscp_up_map to FW", __func__);
+
+	return status;
+}
+#endif
+
 QDF_STATUS sme_set_wlm_latency_level(tHalHandle hal, uint16_t session_id,
 				     uint16_t latency_level)
 {

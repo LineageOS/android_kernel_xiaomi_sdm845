@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1099,6 +1099,23 @@ QDF_STATUS sme_send_rmc_action_period(tHalHandle hHal, uint32_t sessionId);
 QDF_STATUS sme_request_ibss_peer_info(tHalHandle hHal, void *pUserData,
 	pIbssPeerInfoCb peerInfoCbk, bool allPeerInfoReqd, uint8_t staIdx);
 QDF_STATUS sme_send_cesium_enable_ind(tHalHandle hHal, uint32_t sessionId);
+
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+/**
+ * sme_send_dscp_up_map_to_fw() - send DSCP-to-UP map values to fw
+ * @dscp_to_up_map: array of DSCP-to-UP map values
+ *
+ * Used to send DSCP-to-UP map values to fw
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_send_dscp_up_map_to_fw(uint32_t *dscp_to_up_map);
+#else
+QDF_STATUS sme_send_dscp_up_map_to_fw(uint32_t *dscp_to_up_map)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 
 /**
  * sme_set_wlm_latency_level_ind() - Used to set the latency level to fw

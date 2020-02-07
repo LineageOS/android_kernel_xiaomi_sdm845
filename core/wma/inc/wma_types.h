@@ -694,6 +694,24 @@ QDF_STATUS u_mac_post_ctrl_msg(void *pSirGlobal, tSirMbMsg *pMb);
 QDF_STATUS wma_set_idle_ps_config(void *wma_ptr, uint32_t idle_ps);
 QDF_STATUS wma_get_snr(tAniGetSnrReq *psnr_req);
 
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+/**
+ * wma_send_dscp_up_map_to_fw() - send DSCP-to-UP map values to FW
+ * @wma_ptr: wma handle
+ * @dscp_to_up_map: array of DSCP-to-UP map values
+ *
+ * Use to send DSCP-to-UP map values to FW
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wma_send_dscp_up_map_to_fw(void *wma_ptr, uint32_t *dscp_to_up_map);
+#else
+QDF_STATUS wma_send_dscp_up_map_to_fw(void *wma_ptr, uint32_t *dscp_to_up_map)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 /**
  * wma_set_wlm_latency_level() - set latency level to FW
  * @wma_ptr: wma handle
