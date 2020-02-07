@@ -8013,8 +8013,7 @@ sme_restore_default_roaming_params(tpAniSirGlobal mac,
 		roam_config->neighborRoamConfig.nNeighborScanTimerPeriod;
 	roam_info->cfgParams.neighborLookupThreshold =
 		roam_config->neighborRoamConfig.nNeighborLookupRssiThreshold;
-	roam_info->cfgParams.roam_rssi_diff =
-		roam_config->neighborRoamConfig.roam_rssi_diff;
+	roam_info->cfgParams.roam_rssi_diff = roam_config->RoamRssiDiff;
 	roam_info->cfgParams.roam_scan_home_away_time =
 			roam_config->nRoamScanHomeAwayTime;
 	roam_info->cfgParams.roam_scan_n_probes =
