@@ -17064,6 +17064,202 @@ enum hdd_external_acs_policy {
 #define CFG_NUM_VDEV_ENABLE_MAX       (0x4)
 #define CFG_NUM_VDEV_ENABLE_DEFAULT   (CFG_TGT_NUM_VDEV)
 
+#ifdef SAR_SAFETY_FEATURE
+/*
+ * <ini>
+ * gSarSafetyTimeout - Specify SAR safety timeout value in milliseconds
+ *
+ * @Min: 120000
+ * @Max: 600000
+ * Default: 300000
+ *
+ * This ini is used to define SAR safety timeout value in milliseconds.
+ * This timer is started when the QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS
+ * is received first time.
+ * SAR safety timer will wait for the gSarSafetyTimeout for
+ * QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command and if
+ * SAR safety timer timeouts host will configure the gSarSafetyIndex
+ * to the FW.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_SAR_SAFETY_TIMEOUT          "gSarSafetyTimeout"
+#define CFG_SAR_SAFETY_TIMEOUT_MIN      (120000)
+#define CFG_SAR_SAFETY_TIMEOUT_MAX      (600000)
+#define CFG_SAR_SAFETY_TIMEOUT_DEFAULT  (300000)
+/*
+ * <ini>
+ * gSarSafetyUnsolicitedTimeout - Specify SAR safety unsolicited timeout value
+ * in milliseconds
+ *
+ * @Min: 5000
+ * @Max: 30000
+ * Default: 15000
+ *
+ * This ini is used to define SAR safety unsolicited timeout value in
+ * milliseconds. This timer is started on first data tx.
+ * SAR unsolicited timer will wait for the
+ * gSarSafetyUnsolicitedTimeout for QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS
+ * vendor command and if SAR unsolicited timer timeouts host will indicate
+ * user space with QCA_NL80211_VENDOR_SUBCMD_REQUEST_SAR_LIMITS_EVENT to send
+ * QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAR_SAFETY_UNSOLICITED_TIMEOUT        "gSarSafetyUnsolicitedTimeout"
+#define CFG_SAR_SAFETY_UNSOLICITED_TIMEOUT_MIN     (5000)
+#define CFG_SAR_SAFETY_UNSOLICITED_TIMEOUT_MAX     (30000)
+#define CFG_SAR_SAFETY_UNSOLICITED_TIMEOUT_DEFAULT (15000)
+
+/*
+ * <ini>
+ * gSarSafetyReqRespTimeout - Specify SAR safety request response timeout value
+ * in milliseconds
+ *
+ * @Min: 500
+ * @Max: 3000
+ * Default: 1000
+ *
+ * This ini is used to define SAR request-response timeout value
+ * in milliseconds. SAR request-response timer will wait for the
+ * gSarSafetyReqRespTimeout for QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS
+ * vendor command and if SAR request-response timer timeouts host will
+ * indicate user space with QCA_NL80211_VENDOR_SUBCMD_REQUEST_SAR_LIMITS_EVENT
+ * for gSarSafetyReqRespRetry number of times to send
+ * QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command and still if host
+ * does not get QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command, host
+ * will configure the gSarSafetyIndex to the FW.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAR_SAFETY_REQ_RESP_TIMEOUT          "gSarSafetyReqRespTimeout"
+#define CFG_SAR_SAFETY_REQ_RESP_TIMEOUT_MIN      (500)
+#define CFG_SAR_SAFETY_REQ_RESP_TIMEOUT_MAX      (3000)
+#define CFG_SAR_SAFETY_REQ_RESP_TIMEOUT_DEFAULT  (1000)
+
+/*
+ * <ini>
+ * gSarSafetyReqRespRetry - Specify SAR request response retries value
+ *
+ * @Min: 1
+ * @Max: 10
+ * Default: 5
+ *
+ * This ini is used to define SAR request-response retries value.
+ * SAR request-response timer will wait for the gSarReqRespTimeout for
+ * QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command and if
+ * SAR request-response timer timeouts host will indicate user space
+ * for gSarSafetyReqRespRetry number of times to send
+ * QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command and still if
+ * host does not get QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor
+ * command, host will configure the gSarSafetyIndex to the FW.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAR_SAFETY_REQ_RESP_RETRIES             "gSarSafetyReqRespRetry"
+#define CFG_SAR_SAFETY_REQ_RESP_RETRIES_MIN         (1)
+#define CFG_SAR_SAFETY_REQ_RESP_RETRIES_MAX         (10)
+#define CFG_SAR_SAFETY_REQ_RESP_RETRIES_DEFAULT     (5)
+
+/*
+ * <ini>
+ * gSarSafetyIndex - Specify SAR safety index
+ *
+ * @Min: 0
+ * @Max: 11
+ * Default: 11
+ *
+ * This ini is used to define SAR safety index, when sar safety timer
+ * timeouts or sar request response timer timeouts for gSarSafetyReqRespRetry
+ * number of times, host will configure gSarSafetyIndex value to the FW.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAR_SAFETY_INDEX            "gSarSafetyIndex"
+#define CFG_SAR_SAFETY_INDEX_MIN        (0)
+#define CFG_SAR_SAFETY_INDEX_MAX        (11)
+#define CFG_SAR_SAFETY_INDEX_DEFAULT    (11)
+
+/*
+ * <ini>
+ * gSarSafetySleepIndex - Specify SAR Safety sleep index
+ *
+ * @Min: 0
+ * @Max: 11
+ * Default: 11
+ *
+ * This ini is used to define SAR sleep index, when device goes into the
+ * sleep mode, before going into the sleep mode host configures
+ * gSarSafetySleepIndex value to the FW.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAR_SAFETY_SLEEP_INDEX             "gSarSafetySleepIndex"
+#define CFG_SAR_SAFETY_SLEEP_INDEX_MIN         (0)
+#define CFG_SAR_SAFETY_SLEEP_INDEX_MAX         (11)
+#define CFG_SAR_SAFETY_SLEEP_INDEX_DEFAULT     (11)
+
+/*
+ * <ini>
+ * gEnableSarSafety - Enable/Disable SAR safety feature
+ *
+ * @Min: 0
+ * @Max: 1
+ * Default: 0
+ *
+ * This ini is used to enable/disable SAR safety feature
+ * Value 1 of this ini enables SAR safety feature and
+ * value 0 of this ini disables SAR safety feature
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_SAR_SAFETY_FEATURE           "gEnableSarSafety"
+#define CFG_ENABLE_SAR_SAFETY_FEATURE_MIN       (0)
+#define CFG_ENABLE_SAR_SAFETY_FEATURE_MAX       (1)
+#define CFG_ENABLE_SAR_SAFETY_FEATURE_DEFAULT   (0)
+
+/*
+ * <ini>
+ * gConfigSarSafetySleepIndex - Enable/Disable SAR Safety sleep index
+ *
+ * @Min: 0
+ * @Max: 1
+ * Default: 0
+ *
+ * This Configuration is to decide that before going to
+ * sleep mode whether to maintain high RF power
+ * (SAR disable) or to configure SAR sleep mode index
+ *
+ * Value 0 for this ini indicates to maintain high
+ * RF power (SAR disable)
+ * Value 1 for this ini indicates to configure SAR
+ * sleep mode index.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_CONFIG_SAR_SAFETY_SLEEP_MODE_INDEX     "gConfigSarSafetySleepIndex"
+#define CFG_CONFIG_SAR_SAFETY_SLEEP_MODE_INDEX_MIN       (0)
+#define CFG_CONFIG_SAR_SAFETY_SLEEP_MODE_INDEX_MAX       (1)
+#define CFG_CONFIG_SAR_SAFETY_SLEEP_MODE_INDEX_DEFAULT   (0)
+#endif
+
 /*
  * Type declarations
  */
@@ -18073,6 +18269,18 @@ struct hdd_config {
 	bool ShortGI160MhzEnable;
 	uint32_t vendor_roam_score_algorithm;
 	uint32_t dp_proto_event_bitmap;
+
+#ifdef SAR_SAFETY_FEATURE
+	uint32_t sar_safety_timeout;
+	uint32_t sar_safety_unsolicited_timeout;
+	uint32_t sar_safety_req_resp_timeout;
+	uint32_t sar_safety_req_resp_retry;
+	uint32_t sar_safety_index;
+	uint32_t sar_safety_sleep_index;
+	bool enable_sar_safety;
+	bool config_sar_safety_sleep_index;
+#endif
+
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
