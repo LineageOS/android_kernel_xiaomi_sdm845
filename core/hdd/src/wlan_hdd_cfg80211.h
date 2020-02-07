@@ -674,4 +674,50 @@ void hdd_store_sar_config(struct hdd_context *hdd_ctx,
  * Return: None
  */
 void wlan_hdd_free_sar_config(struct hdd_context *hdd_ctx);
+
+#ifdef SAR_SAFETY_FEATURE
+/**
+ * wlan_hdd_sar_safety_timer_reset() - Reset SAR sefety timer
+ * @hdd_ctx: Pointer to HDD context
+ *
+ * This function checks the state of the sar safety timer, if the
+ * sar_safety_timer is not runnig, it starts the timer else it stops
+ * the timer and start the timer again.
+ *
+ * Return: None
+ */
+void wlan_hdd_sar_timers_reset(struct hdd_context *hdd_ctx);
+
+/**
+ * wlan_hdd_sar_timers_init() - Initialize SAR timers
+ * @hdd_ctx: Pointer to HDD context
+ *
+ * This function initializes sar timers.
+ * Return: None
+ */
+void wlan_hdd_sar_timers_init(struct hdd_context *hdd_ctx);
+
+/**
+ * wlan_hdd_sar_timers_deinit() - De-initialize SAR timers
+ * @hdd_ctx: Pointer to HDD context
+ *
+ * This function de-initializes sar timers.
+ * Return: None
+ */
+void wlan_hdd_sar_timers_deinit(struct hdd_context *hdd_ctx);
+
+#else
+static inline void wlan_hdd_sar_timers_reset(struct hdd_context *hdd_ctx)
+{
+}
+
+static inline void wlan_hdd_sar_timers_init(struct hdd_context *hdd_ctx)
+{
+}
+
+static inline void wlan_hdd_sar_timers_deinit(struct hdd_context *hdd_ctx)
+{
+}
+#endif
+
 #endif
