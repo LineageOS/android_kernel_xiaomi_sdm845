@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -924,8 +924,8 @@ static void __policy_mgr_check_sta_ap_concurrent_ch_intf(void *data)
 	mcc_to_scc_switch =
 		policy_mgr_mcc_to_scc_switch_mode_in_user_cfg(psoc);
 
-	policy_mgr_info("Concurrent open sessions running: %d",
-		policy_mgr_concurrent_open_sessions_running(psoc));
+	policy_mgr_debug("Concurrent open sessions running: %d",
+			 policy_mgr_concurrent_open_sessions_running(psoc));
 
 	if (!policy_mgr_is_restart_sap_allowed(psoc, mcc_to_scc_switch))
 		goto end;
@@ -968,8 +968,9 @@ static void __policy_mgr_check_sta_ap_concurrent_ch_intf(void *data)
 					(psoc,
 					vdev_id[i], &channel, &sec_ch);
 			if (status == QDF_STATUS_SUCCESS) {
-				policy_mgr_info("SAP restarts due to MCC->SCC switch, old chan :%d new chan: %d"
-					, operating_channel[i], channel);
+				policy_mgr_debug("SAP restarts due to MCC->SCC switch, old chan :%d new chan: %d",
+						 operating_channel[i],
+						 channel);
 				break;
 			}
 		}
@@ -1166,8 +1167,8 @@ void policy_mgr_check_concurrent_intf_and_restart_sap(
 
 	mcc_to_scc_switch =
 		policy_mgr_mcc_to_scc_switch_mode_in_user_cfg(psoc);
-	policy_mgr_info("MCC to SCC switch: %d chan: %d",
-			mcc_to_scc_switch, operating_channel[0]);
+	policy_mgr_debug("MCC to SCC switch: %d chan: %d",
+			 mcc_to_scc_switch, operating_channel[0]);
 
 	if (!policy_mgr_is_restart_sap_allowed(psoc, mcc_to_scc_switch)) {
 		policy_mgr_debug(
@@ -1199,8 +1200,7 @@ sap_restart:
 				policy_mgr_check_sta_ap_concurrent_ch_intf,
 				work_info);
 			qdf_sched_work(0, &pm_ctx->sta_ap_intf_check_work);
-			policy_mgr_info(
-				"Checking for Concurrent Change interference");
+			policy_mgr_debug("Checking for Concurrent Change interference");
 		}
 	}
 }
@@ -1598,21 +1598,21 @@ enum policy_mgr_hw_mode_change policy_mgr_get_hw_mode_change_from_hw_mode_index(
 	policy_mgr_info("HW param: %x", param);
 	param = pm_ctx->hw_mode.hw_mode_list[hw_mode_index];
 	if (POLICY_MGR_HW_MODE_DBS_MODE_GET(param)) {
-		policy_mgr_info("DBS is requested with HW (%d)",
+		policy_mgr_debug("DBS is requested with HW (%d)",
 		hw_mode_index);
 		value = POLICY_MGR_DBS_IN_PROGRESS;
 		goto ret_value;
 	}
 
 	if (POLICY_MGR_HW_MODE_SBS_MODE_GET(param)) {
-		policy_mgr_info("SBS is requested with HW (%d)",
+		policy_mgr_debug("SBS is requested with HW (%d)",
 		hw_mode_index);
 		value = POLICY_MGR_SBS_IN_PROGRESS;
 		goto ret_value;
 	}
 
 	value = POLICY_MGR_SMM_IN_PROGRESS;
-	policy_mgr_info("SMM is requested with HW (%d)", hw_mode_index);
+	policy_mgr_debug("SMM is requested with HW (%d)", hw_mode_index);
 
 ret_value:
 	return value;
