@@ -25,6 +25,8 @@
 #ifndef _WLAN_TIME_SYNC_FTM_PUBLIC_STRUCT_H_
 #define _WLAN_TIME_SYNC_FTM_PUBLIC_STRUCT_H_
 
+struct wlan_objmgr_psoc;
+
 /**
  * struct wlan_ftm_timesync_tx_ops - structure of tx operation function
  *				     pointers for ftm timesync component
