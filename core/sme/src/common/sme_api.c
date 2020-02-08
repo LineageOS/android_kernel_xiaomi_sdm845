@@ -8536,6 +8536,26 @@ void sme_dump_chan_list(tCsrChannelInfo *chan_info)
 	qdf_mem_free(channel_list);
 }
 
+static uint8_t
+csr_append_pref_chan_list(tCsrChannelInfo *chan_info, uint8_t *channel_list,
+			  uint8_t num_chan)
+{
+	uint8_t i = 0;
+
+	for (i = 0; i < chan_info->numOfChannels; i++) {
+		if (csr_is_channel_present_in_list(
+			channel_list, num_chan, chan_info->ChannelList[i]))
+			continue;
+
+		if (num_chan >= SIR_ROAM_MAX_CHANNELS)
+			break;
+
+		channel_list[num_chan++] = chan_info->ChannelList[i];
+	}
+
+	return num_chan;
+}
+
 /**
  * sme_update_roam_scan_channel_list() - to update scan channel list
  * @mac_handle: Opaque handle to the global MAC context
@@ -8556,7 +8576,7 @@ sme_update_roam_scan_channel_list(mac_handle_t mac_handle, uint8_t vdev_id,
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
-	uint8_t *channel_list;
+	uint8_t *channel_list, pref_chan_cnt = 0;
 
 	channel_list = qdf_mem_malloc(SIR_MAX_SUPPORTED_CHANNEL_LIST);
 	if (!channel_list)
@@ -8573,9 +8593,15 @@ sme_update_roam_scan_channel_list(mac_handle_t mac_handle, uint8_t vdev_id,
 		status = QDF_STATUS_E_INVAL;
 		goto out;
 	}
+
+	pref_chan_cnt = csr_append_pref_chan_list(chan_info, channel_list,
+						  num_chan);
+	num_chan = pref_chan_cnt;
+
 	csr_flush_cfg_bg_scan_roam_channel_list(chan_info);
 	csr_create_bg_scan_roam_channel_list(mac, chan_info, channel_list,
 					     num_chan);
+
 	sme_debug("New channels:");
 	sme_dump_chan_list(chan_info);
 	sme_debug("Updated roam scan channels - roam state is %d",
@@ -8729,10 +8755,12 @@ QDF_STATUS sme_get_roam_scan_channel_list(tHalHandle hHal,
 			uint8_t *pChannelList, uint8_t *pNumChannels,
 			uint8_t sessionId)
 {
-	int i = 0;
+	int i = 0, chan_cnt = 0;
 	uint8_t *pOutPtr = pChannelList;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo = NULL;
+	struct csr_channel *occupied_ch_lst =
+		&pMac->scan.occupiedChannels[sessionId];
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tCsrChannelInfo *chan_info;
 
@@ -8748,21 +8776,43 @@ QDF_STATUS sme_get_roam_scan_channel_list(tHalHandle hHal,
 		return status;
 
 	chan_info = &pNeighborRoamInfo->cfgParams.specific_chan_info;
-	if (!chan_info->numOfChannels) {
+	if (chan_info->numOfChannels) {
+		*pNumChannels = chan_info->numOfChannels;
+		for (chan_cnt = 0; chan_cnt < (*pNumChannels) &&
+		     chan_cnt < WNI_CFG_VALID_CHANNEL_LIST_LEN; chan_cnt++)
+			pOutPtr[chan_cnt] = chan_info->ChannelList[chan_cnt];
+
+		*pNumChannels = chan_cnt;
+	} else {
 		chan_info = &pNeighborRoamInfo->cfgParams.pref_chan_info;
-		if (!chan_info->numOfChannels) {
+		if (chan_info->numOfChannels) {
+			*pNumChannels = chan_info->numOfChannels;
+			for (chan_cnt = 0; chan_cnt < (*pNumChannels) &&
+			     chan_cnt < WNI_CFG_VALID_CHANNEL_LIST_LEN;
+			     chan_cnt++)
+				pOutPtr[chan_cnt] =
+					chan_info->ChannelList[chan_cnt];
+		}
+
+		if (occupied_ch_lst->numChannels) {
+			for (i = 0; i < occupied_ch_lst->numChannels &&
+			     chan_cnt < WNI_CFG_VALID_CHANNEL_LIST_LEN; i++) {
+				if (csr_is_channel_present_in_list(
+					pOutPtr, chan_cnt,
+					occupied_ch_lst->channelList[i]))
+					continue;
+				 pOutPtr[chan_cnt++] =
+					occupied_ch_lst->channelList[i];
+			}
+		}
+		*pNumChannels = chan_cnt;
+		if (!(chan_info->numOfChannels ||
+		      occupied_ch_lst->numChannels)) {
 			sme_err("Roam Scan channel list is NOT yet initialized");
-			*pNumChannels = 0;
-			sme_release_global_lock(&pMac->sme);
-			return status;
+			status = QDF_STATUS_E_INVAL;
 		}
 	}
 
-	*pNumChannels = chan_info->numOfChannels;
-	for (i = 0; i < (*pNumChannels); i++)
-		pOutPtr[i] = chan_info->ChannelList[i];
-
-	pOutPtr[i] = '\0';
 	sme_release_global_lock(&pMac->sme);
 	return status;
 }
