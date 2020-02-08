@@ -631,6 +631,7 @@ static netdev_tx_t __hdd_softap_hard_start_xmit(struct sk_buff *skb,
 		goto drop_pkt_and_release_skb;
 	}
 	netif_trans_update(dev);
+	wlan_hdd_sar_unsolicited_timer_start(adapter->hdd_ctx);
 
 	return NETDEV_TX_OK;
 

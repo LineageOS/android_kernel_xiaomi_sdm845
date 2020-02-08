@@ -1461,6 +1461,10 @@ static const struct nl80211_vendor_cmd_info wlan_hdd_cfg80211_vendor_events[] = 
 		.vendor_id = QCA_NL80211_VENDOR_ID,
 		.subcmd = QCA_NL80211_VENDOR_SUBCMD_OEM_DATA,
 	},
+	[QCA_NL80211_VENDOR_SUBCMD_REQUEST_SAR_LIMITS_INDEX] = {
+		.vendor_id = QCA_NL80211_VENDOR_ID,
+		.subcmd = QCA_NL80211_VENDOR_SUBCMD_GET_SAR_LIMITS_EVENT,
+	}
 };
 
 /**
@@ -12462,12 +12466,59 @@ config_sar_failed:
 	}
 }
 
+static void hdd_send_sar_unsolicited_event(struct hdd_context *hdd_ctx)
+{
+	struct sk_buff *vendor_event;
+	uint32_t len;
+
+	if (!hdd_ctx) {
+		hdd_err_rl("hdd context is null");
+		return;
+	}
+
+	len = NLMSG_HDRLEN;
+	vendor_event =
+		cfg80211_vendor_event_alloc(
+			hdd_ctx->wiphy, NULL, len,
+			QCA_NL80211_VENDOR_SUBCMD_REQUEST_SAR_LIMITS_INDEX,
+			GFP_KERNEL);
+
+	if (!vendor_event) {
+		hdd_err("cfg80211_vendor_event_alloc failed");
+		return;
+	}
+
+	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
+}
+
+static void hdd_sar_unsolicited_timer_cb(void *user_data)
+{
+	struct hdd_context *hdd_ctx = (struct hdd_context *)user_data;
+
+	hdd_nofl_debug("Sar unsolicited timer expired");
+
+	hdd_send_sar_unsolicited_event(hdd_ctx);
+}
+
 static void hdd_sar_safety_timer_cb(void *user_data)
 {
 	struct hdd_context *hdd_ctx = (struct hdd_context *)user_data;
 
 	hdd_nofl_debug("Sar safety timer expires");
 	hdd_configure_sar_index(hdd_ctx, hdd_ctx->config->sar_safety_index);
+}
+
+void wlan_hdd_sar_unsolicited_timer_start(struct hdd_context *hdd_ctx)
+{
+	if (!hdd_ctx->config->enable_sar_safety)
+		return;
+
+	if (QDF_TIMER_STATE_RUNNING !=
+		qdf_mc_timer_get_current_state(
+				&hdd_ctx->sar_safety_unsolicited_timer))
+		qdf_mc_timer_start(
+			&hdd_ctx->sar_safety_unsolicited_timer,
+			hdd_ctx->config->sar_safety_unsolicited_timeout);
 }
 
 void wlan_hdd_sar_timers_reset(struct hdd_context *hdd_ctx)
@@ -12484,6 +12535,11 @@ void wlan_hdd_sar_timers_reset(struct hdd_context *hdd_ctx)
 
 	qdf_mc_timer_start(&hdd_ctx->sar_safety_timer,
 			   hdd_ctx->config->sar_safety_timeout);
+
+	if (QDF_TIMER_STATE_RUNNING ==
+		qdf_mc_timer_get_current_state(
+				&hdd_ctx->sar_safety_unsolicited_timer))
+		qdf_mc_timer_stop(&hdd_ctx->sar_safety_unsolicited_timer);
 }
 
 void wlan_hdd_sar_timers_init(struct hdd_context *hdd_ctx)
@@ -12493,6 +12549,11 @@ void wlan_hdd_sar_timers_init(struct hdd_context *hdd_ctx)
 
 	qdf_mc_timer_init(&hdd_ctx->sar_safety_timer, QDF_TIMER_TYPE_SW,
 			  hdd_sar_safety_timer_cb, hdd_ctx);
+
+	qdf_mc_timer_init(&hdd_ctx->sar_safety_unsolicited_timer,
+			  QDF_TIMER_TYPE_SW,
+			  hdd_sar_unsolicited_timer_cb, hdd_ctx);
+
 }
 
 void wlan_hdd_sar_timers_deinit(struct hdd_context *hdd_ctx)
@@ -12505,6 +12566,13 @@ void wlan_hdd_sar_timers_deinit(struct hdd_context *hdd_ctx)
 		qdf_mc_timer_stop(&hdd_ctx->sar_safety_timer);
 
 	qdf_mc_timer_destroy(&hdd_ctx->sar_safety_timer);
+
+	if (QDF_TIMER_STATE_RUNNING ==
+		qdf_mc_timer_get_current_state(
+				&hdd_ctx->sar_safety_unsolicited_timer))
+		qdf_mc_timer_stop(&hdd_ctx->sar_safety_unsolicited_timer);
+
+	qdf_mc_timer_destroy(&hdd_ctx->sar_safety_unsolicited_timer);
 }
 #endif
 

@@ -2081,6 +2081,7 @@ struct hdd_context {
 
 #ifdef SAR_SAFETY_FEATURE
 	qdf_mc_timer_t sar_safety_timer;
+	qdf_mc_timer_t sar_safety_unsolicited_timer;
 #endif
 
 };

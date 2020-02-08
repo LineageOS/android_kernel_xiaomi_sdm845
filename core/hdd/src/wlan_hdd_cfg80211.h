@@ -677,6 +677,17 @@ void wlan_hdd_free_sar_config(struct hdd_context *hdd_ctx);
 
 #ifdef SAR_SAFETY_FEATURE
 /**
+ * wlan_hdd_sar_unsolicited_timer_start() - Start SAR unsolicited timer
+ * @hdd_ctx: Pointer to HDD context
+ *
+ * This function checks the state of the sar unsolicited timer, if the
+ * sar_unsolicited_timer is not runnig, it starts the timer.
+ *
+ * Return: None
+ */
+void wlan_hdd_sar_unsolicited_timer_start(struct hdd_context *hdd_ctx);
+
+/**
  * wlan_hdd_sar_safety_timer_reset() - Reset SAR sefety timer
  * @hdd_ctx: Pointer to HDD context
  *
@@ -707,6 +718,11 @@ void wlan_hdd_sar_timers_init(struct hdd_context *hdd_ctx);
 void wlan_hdd_sar_timers_deinit(struct hdd_context *hdd_ctx);
 
 #else
+static inline void wlan_hdd_sar_unsolicited_timer_start(
+						struct hdd_context *hdd_ctx)
+{
+}
+
 static inline void wlan_hdd_sar_timers_reset(struct hdd_context *hdd_ctx)
 {
 }
