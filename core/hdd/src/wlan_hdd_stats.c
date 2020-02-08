@@ -3893,7 +3893,7 @@ int wlan_hdd_get_station_remote(struct wiphy *wiphy,
 
 	cfg = hddctx->config;
 
-	hdd_debug("get peer %pM info", mac);
+	hdd_debug("Peer %pM", mac);
 
 	for (i = 0; i < WLAN_MAX_STA_COUNT; i++) {
 		if (!qdf_mem_cmp(adapter->sta_info[i].sta_mac.bytes,
@@ -4511,16 +4511,14 @@ static int wlan_hdd_get_sta_stats(struct wiphy *wiphy,
 			rx_mcs_index = 0;
 	}
 
-	hdd_debug("RSSI %d, RLMS %u, rssi high %d, rssi mid %d, rssi low %d",
+	hdd_debug("[RSSI %d, RLMS %u, rssi high %d, rssi mid %d, rssi low %d]-"
+		  "[Rate info: TX: %d, RX: %d]-[Rate flags: TX: 0x%x, RX: 0x%x]"
+		  "-[MCS Index: TX: %d, RX: %d]-[NSS: TX: %d, RX: %d]",
 		  sinfo->signal, pCfg->reportMaxLinkSpeed,
 		  (int)pCfg->linkSpeedRssiHigh, (int)pCfg->linkSpeedRssiMid,
-		  (int)pCfg->linkSpeedRssiLow);
-	hdd_debug("Rate info: TX: %d, RX: %d", my_tx_rate, my_rx_rate);
-	hdd_debug("Rate flags: TX: 0x%x, RX: 0x%x", (int)tx_rate_flags,
-		  (int)rx_rate_flags);
-	hdd_debug("MCS Index: TX: %d, RX: %d", (int)tx_mcs_index,
-		  (int)rx_mcs_index);
-	hdd_debug("NSS: TX: %d, RX: %d", (int)tx_nss, (int)rx_nss);
+		  (int)pCfg->linkSpeedRssiLow, my_tx_rate, my_rx_rate,
+		  (int)tx_rate_flags, (int)rx_rate_flags, (int)tx_mcs_index,
+		  (int)rx_mcs_index, (int)tx_nss, (int)rx_nss);
 
 	/* assume basic BW. anything else will override this later */
 	hdd_set_rate_bw(&sinfo->txrate, HDD_RATE_BW_20);

@@ -168,10 +168,6 @@ static inline uint16_t wma_mcs_rate_match(uint16_t match_rate, bool *is_sgi,
 					  uint16_t nss2_rate,
 					  uint16_t nss2_srate)
 {
-	WMA_LOGD("%s match_rate: %d, %d %d %d %d",
-		__func__, match_rate, nss1_rate, nss1_srate, nss2_rate,
-		nss2_srate);
-
 	if (match_rate == nss1_rate) {
 		*nss = 1;
 		return nss1_rate;
@@ -195,8 +191,8 @@ uint8_t wma_get_mcs_idx(uint16_t maxRate, uint8_t rate_flags,
 	uint16_t match_rate = 0;
 	bool is_sgi = false;
 
-	WMA_LOGD("%s rate:%d rate_flgs: 0x%x, nss: %d",
-		 __func__, maxRate, rate_flags, *nss);
+	wma_debug("Rates from FW: rate:%d rate_flgs: 0x%x, nss: %d",
+		  maxRate, rate_flags, *nss);
 
 	*mcsRateFlag = rate_flags;
 	*mcsRateFlag &= ~TX_RATE_SGI;
@@ -277,8 +273,8 @@ rate_found:
 	if (match_rate && is_sgi == true)
 		*mcsRateFlag |= TX_RATE_SGI;
 
-	WMA_LOGD("%s - match_rate: %d index: %d rate_flag: 0x%x is_sgi: %d",
-		 __func__, match_rate, index, *mcsRateFlag, is_sgi);
+	wma_debug("Matched rate: %d index: %d rate_flag: 0x%x is_sgi: %d",
+		  match_rate, index, *mcsRateFlag, is_sgi);
 
 	return match_rate ? index : INVALID_MCS_IDX;
 }
