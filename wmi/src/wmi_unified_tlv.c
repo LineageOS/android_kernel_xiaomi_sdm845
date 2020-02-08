@@ -19114,10 +19114,8 @@ static QDF_STATUS extract_swba_tim_info_tlv(wmi_unified_t wmi_handle,
 	wmi_tim_info *tim_info_ev;
 
 	param_buf = (WMI_HOST_SWBA_EVENTID_param_tlvs *) evt_buf;
-	if (!param_buf) {
-		WMI_LOGE("Invalid swba event buffer");
+	if (!param_buf)
 		return QDF_STATUS_E_INVAL;
-	}
 
 	tim_info_ev = &param_buf->tim_info[idx];
 

@@ -50,10 +50,8 @@ static void tgt_mc_cp_stats_extract_tx_power(struct wlan_objmgr_psoc *psoc,
 	struct pdev_mc_cp_stats *pdev_mc_stats;
 	struct pdev_cp_stats *pdev_cp_stats_priv;
 
-	if (!ev->pdev_stats) {
-		cp_stats_err("no pdev stats");
+	if (!ev->pdev_stats)
 		return;
-	}
 
 	if (is_station_stats)
 		status = ucfg_mc_cp_stats_get_pending_req(psoc,
@@ -304,9 +302,9 @@ tgt_mc_cp_stats_update_peer_stats(struct wlan_objmgr_psoc *psoc,
 	if (peer_stats->peer_rssi)
 		peer_mc_stats->peer_rssi = peer_stats->peer_rssi;
 
-	cp_stats_debug("peer_mac=%pM, tx_rate=%u, rx_rate=%u, peer_rssi=%u",
-		       peer_mc_stats->peer_macaddr, peer_mc_stats->tx_rate,
-		       peer_mc_stats->rx_rate, peer_mc_stats->peer_rssi);
+	cp_stats_nofl_debug("PEER STATS: peer_mac=%pM, tx_rate=%u, rx_rate=%u, peer_rssi=%d",
+			    peer_mc_stats->peer_macaddr, peer_mc_stats->tx_rate,
+			    peer_mc_stats->rx_rate, peer_mc_stats->peer_rssi);
 	wlan_cp_stats_peer_obj_unlock(peer_cp_stats_priv);
 
 end:
@@ -340,10 +338,8 @@ static void tgt_mc_cp_stats_extract_peer_stats(struct wlan_objmgr_psoc *psoc,
 		return;
 	}
 
-	if (!ev->peer_stats) {
-		cp_stats_debug("no peer stats");
+	if (!ev->peer_stats)
 		goto extd2_stats;
-	}
 
 	selected = ev->num_peer_stats;
 	for (i = 0; i < ev->num_peer_stats; i++) {
@@ -369,10 +365,9 @@ static void tgt_mc_cp_stats_extract_peer_stats(struct wlan_objmgr_psoc *psoc,
 
 extd2_stats:
 
-	if (!ev->peer_adv_stats) {
-		cp_stats_err("no peer_extd2 stats");
+	if (!ev->peer_adv_stats)
 		goto complete;
-	}
+
 	selected = ev->num_peer_adv_stats;
 	for (i = 0; i < ev->num_peer_adv_stats; i++) {
 		status = tgt_mc_cp_stats_update_peer_adv_stats(
@@ -452,10 +447,8 @@ static void tgt_mc_cp_stats_extract_vdev_summary_stats(
 	struct peer_cp_stats *peer_cp_stats_priv;
 	struct vdev_cp_stats *vdev_cp_stats_priv;
 
-	if (!ev->vdev_summary_stats) {
-		cp_stats_err("no summary stats");
+	if (!ev->vdev_summary_stats)
 		return;
-	}
 
 	status = ucfg_mc_cp_stats_get_pending_req(psoc,
 						 TYPE_STATION_STATS,
@@ -530,10 +523,8 @@ static void tgt_mc_cp_stats_extract_vdev_chain_rssi_stats(
 	struct vdev_mc_cp_stats *vdev_mc_stats;
 	struct vdev_cp_stats *vdev_cp_stats_priv;
 
-	if (!ev->vdev_chain_rssi) {
-		cp_stats_err("no vdev chain rssi stats");
+	if (!ev->vdev_chain_rssi)
 		return;
-	}
 
 	status = ucfg_mc_cp_stats_get_pending_req(psoc,
 						  TYPE_STATION_STATS,
