@@ -7307,6 +7307,16 @@ QDF_STATUS wmi_extract_ndp_initiator_rsp(wmi_unified_t wmi_handle,
 	return QDF_STATUS_E_FAILURE;
 }
 
+QDF_STATUS wmi_extract_nan_msg(wmi_unified_t wmi_handle,
+			       uint8_t *data,
+			       struct nan_dump_msg *msg)
+{
+	if (wmi_handle->ops->extract_nan_msg)
+		return wmi_handle->ops->extract_nan_msg(data, msg);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
 QDF_STATUS wmi_extract_ndp_ind(wmi_unified_t wmi_handle, uint8_t *data,
 			       struct nan_datapath_indication_event *ind)
 {

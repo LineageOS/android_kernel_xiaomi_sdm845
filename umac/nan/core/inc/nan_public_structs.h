@@ -545,6 +545,17 @@ struct nan_datapath_confirm_event {
 };
 
 /**
+ * struct nan_datapath_peer_ind - ndp peer indication
+ * @msg: msg received by FW
+ * @data_len: data length
+ *
+ */
+struct nan_dump_msg {
+	uint8_t *msg;
+	uint32_t data_len;
+};
+
+/**
  * struct nan_datapath_indication_event - create ndp indication on the responder
  * @vdev: pointer to vdev object
  * @service_instance_id: Service identifier

@@ -17450,6 +17450,29 @@ static QDF_STATUS extract_ndp_initiator_rsp_tlv(wmi_unified_t wmi_handle,
 	return QDF_STATUS_SUCCESS;
 }
 
+#define MAX_NAN_MSG_LEN                 200
+
+static QDF_STATUS extract_nan_msg_tlv(uint8_t *data,
+				      struct nan_dump_msg *msg)
+{
+	WMI_NAN_DMESG_EVENTID_param_tlvs *event;
+	wmi_nan_dmesg_event_fixed_param *fixed_params;
+
+	event = (WMI_NAN_DMESG_EVENTID_param_tlvs *)data;
+	fixed_params = (wmi_nan_dmesg_event_fixed_param *)event->fixed_param;
+	if (!fixed_params->msg_len ||
+	    fixed_params->msg_len > MAX_NAN_MSG_LEN ||
+	    fixed_params->msg_len > event->num_msg)
+		return QDF_STATUS_E_FAILURE;
+
+	msg->data_len = fixed_params->msg_len;
+	msg->msg = event->msg;
+
+	msg->msg[fixed_params->msg_len - 1] = (uint8_t)'\0';
+
+	return QDF_STATUS_SUCCESS;
+}
+
 static QDF_STATUS extract_ndp_ind_tlv(wmi_unified_t wmi_handle,
 		uint8_t *data, struct nan_datapath_indication_event *rsp)
 {
@@ -24495,6 +24518,7 @@ struct wmi_ops tlv_ops =  {
 	.send_ndp_end_req_cmd = nan_ndp_end_req_tlv,
 	.extract_ndp_initiator_rsp = extract_ndp_initiator_rsp_tlv,
 	.extract_ndp_ind = extract_ndp_ind_tlv,
+	.extract_nan_msg = extract_nan_msg_tlv,
 	.extract_ndp_confirm = extract_ndp_confirm_tlv,
 	.extract_ndp_responder_rsp = extract_ndp_responder_rsp_tlv,
 	.extract_ndp_end_rsp = extract_ndp_end_rsp_tlv,
@@ -24876,6 +24900,8 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 				WMI_ROAM_PREAUTH_START_EVENTID;
 	event_ids[wmi_mgmt_offload_data_event_id] =
 				WMI_VDEV_MGMT_OFFLOAD_EVENTID;
+	event_ids[wmi_nan_dmesg_event_id] =
+				WMI_NAN_DMESG_EVENTID;
 	event_ids[wmi_roam_pmkid_request_event_id] =
 				WMI_ROAM_PMKID_REQUEST_EVENTID;
 #ifdef FEATURE_WLAN_TIME_SYNC_FTM
