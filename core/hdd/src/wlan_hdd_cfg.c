@@ -5672,6 +5672,14 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_BTM_STICKY_TIME_MIN,
 		     CFG_BTM_STICKY_TIME_MAX),
 
+	REG_VARIABLE(CFG_BTM_QUERY_BITMASK_NAME,
+		     WLAN_PARAM_HexInteger, struct hdd_config,
+		     btm_query_bitmask,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_BTM_QUERY_BITMASK_DEFAULT,
+		     CFG_BTM_QUERY_BITMASK_MIN,
+		     CFG_BTM_QUERY_BITMASK_MAX),
+
 	REG_VARIABLE(CFG_ENABLE_GCMP_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, gcmp_enabled,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -8268,6 +8276,8 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 		  hdd_ctx->config->btm_max_attempt_cnt);
 	hdd_debug("Name = [btm_sticky_time] value = [0x%x]",
 		  hdd_ctx->config->btm_sticky_time);
+	hdd_debug("Name = [btm_query_bitmask] value = [0x%x]",
+		  hdd_ctx->config->btm_query_bitmask);
 	hdd_debug("Name = [%s] value = [%d]",
 		  CFG_ENABLE_GCMP_NAME,
 		  hdd_ctx->config->gcmp_enabled);
@@ -10199,6 +10209,8 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 			hdd_ctx->config->btm_max_attempt_cnt;
 	smeConfig->csrConfig.btm_sticky_time =
 			hdd_ctx->config->btm_sticky_time;
+	smeConfig->csrConfig.btm_query_bitmask =
+			hdd_ctx->config->btm_query_bitmask;
 	hdd_update_bss_score_params(hdd_ctx->config,
 			&smeConfig->csrConfig.bss_score_params);
 

@@ -1508,6 +1508,7 @@ static QDF_STATUS wma_roam_scan_btm_offload(tp_wma_handle wma_handle,
 		 __func__, params->vdev_id, params->btm_offload_config,
 		params->btm_candidate_min_score);
 
+	params->btm_query_bitmask = roam_req->btm_query_bitmask;
 	status = wmi_unified_send_btm_config(wma_handle->wmi_handle, params);
 	qdf_mem_free(params);
 
