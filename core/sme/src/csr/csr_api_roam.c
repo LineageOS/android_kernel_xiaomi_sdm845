@@ -79,6 +79,10 @@
 #define CSR_MIN_GLOBAL_STAT_QUERY_PERIOD   500  /* ms */
 #define CSR_MIN_GLOBAL_STAT_QUERY_PERIOD_IN_BMPS 2000   /* ms */
 #define CSR_MIN_TL_STAT_QUERY_PERIOD       500  /* ms */
+
+#define CSR_SINGLE_PMK_OUI               "\x00\x40\x96\x03"
+#define CSR_SINGLE_PMK_OUI_SIZE          4
+
 /* Flag to send/do not send disassoc frame over the air */
 #define CSR_DONT_SEND_DISASSOC_OVER_THE_AIR 1
 #define RSSI_HACK_BMPS (-40)
@@ -23476,6 +23480,60 @@ void csr_update_fils_erp_seq_num(struct csr_roam_profile *roam_info,
 {}
 #endif
 
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+/**
+ * csr_is_sae_single_pmk_vsie_ap() - check if the Roamed AP supports sae
+ * roaming using single pmk connection
+ * with same pmk or not
+ * @bss_des: bss descriptor
+ *
+ * Return: True if same pmk IE is present
+ */
+static bool csr_is_sae_single_pmk_vsie_ap(struct bss_description *bss_des)
+{
+	uint16_t ie_len;
+	const uint8_t *vendor_ie;
+
+	if (!bss_des) {
+		sme_debug("Invalid bss description");
+		return false;
+	}
+	ie_len = csr_get_ielen_from_bss_description(bss_des);
+
+	vendor_ie =
+		wlan_get_vendor_ie_ptr_from_oui(CSR_SINGLE_PMK_OUI,
+						CSR_SINGLE_PMK_OUI_SIZE,
+						(uint8_t *)bss_des->ieFields,
+						ie_len);
+
+	if (!vendor_ie)
+		return false;
+
+	sme_debug("AP supports sae single pmk feature");
+
+	return true;
+}
+
+/**
+ * csr_check_and_set_sae_single_pmk_cap() - check if the Roamed AP support
+ * roaming using single pmk with single pmk or not
+ * @session: Session
+ *
+ * Return: True if same pmk IE is present
+ */
+static void
+csr_check_and_set_sae_single_pmk_cap(struct csr_roam_session *session)
+{
+	session->single_pmk_info.sae_single_pmk_ap =
+		csr_is_sae_single_pmk_vsie_ap(session->pConnectBssDesc);
+}
+#else
+static inline void
+csr_check_and_set_sae_single_pmk_cap(struct csr_roam_session *session)
+{
+}
+#endif
+
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 		roam_offload_synch_ind *roam_synch_data,
@@ -23575,6 +23633,8 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 		mac_ctx->sme.set_connection_info_cb(false);
 		session->roam_synch_in_progress = false;
 		ucfg_pkt_capture_record_channel();
+
+		csr_check_and_set_sae_single_pmk_cap(session);
 
 		if (WLAN_REG_IS_5GHZ_CH(bss_desc->channelId)) {
 			session->disable_hi_rssi = true;
