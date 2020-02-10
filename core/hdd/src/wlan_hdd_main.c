@@ -4492,6 +4492,26 @@ hdd_store_nss_chains_cfg_in_vdev(struct hdd_adapter *adapter)
 	sme_store_nss_chains_cfg_in_vdev(adapter->vdev, &vdev_ini_cfg);
 }
 
+#ifdef WLAN_FEATURE_NAN
+static void hdd_configure_nan_support_mp0_discovery(struct hdd_adapter *adapter)
+{
+	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	if (QDF_NAN_DISC_MODE == adapter->device_mode) {
+		sme_cli_set_command(
+		adapter->session_id,
+		WMI_VDEV_PARAM_ALLOW_NAN_INITIAL_DISCOVERY_OF_MP0_CLUSTER,
+		hdd_ctx->config->support_mp0_discovery,
+		VDEV_CMD);
+	}
+}
+#else
+static inline void hdd_configure_nan_support_mp0_discovery(
+						struct hdd_adapter *adapter)
+{
+}
+#endif
+
 int hdd_vdev_create(struct hdd_adapter *adapter,
 		    csr_roam_complete_cb callback, void *ctx)
 {
@@ -4593,13 +4613,7 @@ int hdd_vdev_create(struct hdd_adapter *adapter,
 
 	hdd_nofl_debug("vdev %d created successfully", adapter->session_id);
 
-	if (QDF_NAN_DISC_MODE == adapter->device_mode) {
-		sme_cli_set_command(
-		adapter->session_id,
-		WMI_VDEV_PARAM_ALLOW_NAN_INITIAL_DISCOVERY_OF_MP0_CLUSTER,
-		hdd_ctx->config->support_mp0_discovery,
-		VDEV_CMD);
-	}
+	hdd_configure_nan_support_mp0_discovery(adapter);
 
 	return 0;
 
