@@ -758,7 +758,13 @@ void wma_hidden_ssid_vdev_restart(tp_wma_handle wma_handle,
  * wma_power.c functions declarations
  */
 
-void wma_enable_sta_ps_mode(tp_wma_handle wma, tpEnablePsParams ps_req);
+/**
+ * wma_enable_sta_ps_mode() - enable sta powersave params in fw
+ * @ps_req: power save request
+ *
+ * Return: none
+ */
+void wma_enable_sta_ps_mode(tpEnablePsParams ps_req);
 
 QDF_STATUS wma_unified_set_sta_ps_param(wmi_unified_t wmi_handle,
 					    uint32_t vdev_id, uint32_t param,
@@ -781,7 +787,7 @@ void wma_set_tx_power(WMA_HANDLE handle,
 void wma_set_max_tx_power(WMA_HANDLE handle,
 				 tMaxTxPowerParams *tx_pwr_params);
 
-void wma_disable_sta_ps_mode(tp_wma_handle wma, tpDisablePsParams ps_req);
+void wma_disable_sta_ps_mode(tpDisablePsParams ps_req);
 
 void wma_enable_uapsd_mode(tp_wma_handle wma, tpEnableUapsdParams ps_req);
 
