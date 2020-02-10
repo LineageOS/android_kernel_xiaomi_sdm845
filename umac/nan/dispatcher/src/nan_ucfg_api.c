@@ -316,7 +316,7 @@ QDF_STATUS ucfg_nan_req_processor(struct wlan_objmgr_vdev *vdev,
 	QDF_STATUS status;
 	struct scheduler_msg msg = {0};
 	int err;
-	struct nan_psoc_priv_obj *psoc_obj;
+	struct nan_psoc_priv_obj *psoc_obj = NULL;
 	struct osif_request *request;
 	static const struct osif_request_params params = {
 		.priv_size = 0,
@@ -367,7 +367,10 @@ QDF_STATUS ucfg_nan_req_processor(struct wlan_objmgr_vdev *vdev,
 
 	if (req_type == NDP_END_REQ) {
 		/* Wait for NDP_END indication */
-
+		if (!psoc_obj) {
+			nan_err("nan psoc priv object is NULL");
+			return QDF_STATUS_E_INVAL;
+		}
 		request = osif_request_alloc(&params);
 		if (!request) {
 			nan_err("Request allocation failure");

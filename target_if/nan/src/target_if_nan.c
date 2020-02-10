@@ -68,7 +68,7 @@ static QDF_STATUS target_if_nan_event_flush_cb(struct scheduler_msg *msg)
 
 static QDF_STATUS target_if_nan_event_dispatcher(struct scheduler_msg *msg)
 {
-	QDF_STATUS status;
+	QDF_STATUS status = QDF_STATUS_E_INVAL;
 	void *ptr = msg->bodyptr;
 	struct wlan_objmgr_psoc *psoc;
 	struct wlan_objmgr_vdev *vdev = NULL;
