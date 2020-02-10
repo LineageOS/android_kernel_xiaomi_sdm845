@@ -8360,6 +8360,7 @@ struct wmi_mawc_roam_params {
  * @btm_solicited_timeout: Timeout value for waiting BTM request
  * @btm_max_attempt_cnt: Maximum attempt for sending BTM query to ESS
  * @btm_sticky_time: Stick time after roaming to new AP by BTM
+ * @btm_query_bitmask: roam trigger reasons to trigger BTM Query
  * @disassoc_timer_threshold: threshold value till which the firmware can
  * wait before triggering the roam scan after receiving the disassoc iminent
  * @btm_candidate_min_score: Minimum score of the AP to consider it as a
@@ -8371,6 +8372,7 @@ struct wmi_btm_config {
 	uint32_t btm_solicited_timeout;
 	uint32_t btm_max_attempt_cnt;
 	uint32_t btm_sticky_time;
+	uint32_t btm_query_bitmask;
 	uint32_t disassoc_timer_threshold;
 	uint32_t btm_candidate_min_score;
 };

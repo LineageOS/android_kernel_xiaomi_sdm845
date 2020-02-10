@@ -22272,6 +22272,7 @@ static QDF_STATUS send_btm_config_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd->max_attempt_cnt = params->btm_max_attempt_cnt;
 	cmd->solicited_timeout_ms = params->btm_solicited_timeout;
 	cmd->stick_time_seconds = params->btm_sticky_time;
+	cmd->btm_bitmap = params->btm_query_bitmask;
 	cmd->disassoc_timer_threshold = params->disassoc_timer_threshold;
 	cmd->btm_candidate_min_score = params->btm_candidate_min_score;
 
