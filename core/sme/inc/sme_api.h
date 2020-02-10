@@ -1111,6 +1111,7 @@ QDF_STATUS sme_send_cesium_enable_ind(tHalHandle hHal, uint32_t sessionId);
  */
 QDF_STATUS sme_send_dscp_up_map_to_fw(uint32_t *dscp_to_up_map);
 #else
+static inline
 QDF_STATUS sme_send_dscp_up_map_to_fw(uint32_t *dscp_to_up_map)
 {
 	return QDF_STATUS_SUCCESS;

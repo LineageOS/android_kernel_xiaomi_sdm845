@@ -703,6 +703,7 @@ QDF_STATUS wma_get_snr(tAniGetSnrReq *psnr_req);
  */
 QDF_STATUS wma_send_dscp_up_map_to_fw(void *wma_ptr, uint32_t *dscp_to_up_map);
 #else
+static inline
 QDF_STATUS wma_send_dscp_up_map_to_fw(void *wma_ptr, uint32_t *dscp_to_up_map)
 {
 	return QDF_STATUS_SUCCESS;
