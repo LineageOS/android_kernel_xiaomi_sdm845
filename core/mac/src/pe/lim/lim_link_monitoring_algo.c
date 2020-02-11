@@ -387,6 +387,14 @@ lim_tear_down_link_with_ap(tpAniSirGlobal pMac, uint8_t sessionId,
 	if (pStaDs != NULL) {
 		tLimMlmDeauthInd mlmDeauthInd;
 
+		if ((pStaDs->mlmStaContext.disassocReason ==
+		    eSIR_MAC_DEAUTH_LEAVING_BSS_REASON) ||
+		    (pStaDs->mlmStaContext.cleanupTrigger ==
+		    eLIM_HOST_DEAUTH)) {
+			pe_err("Host already issued deauth, do nothing");
+			return;
+		}
+
 #ifdef FEATURE_WLAN_TDLS
 		/* Delete all TDLS peers connected before leaving BSS */
 		lim_delete_tdls_peers(pMac, psessionEntry);

@@ -2066,6 +2066,7 @@ struct hdd_context {
 	unsigned long derived_intf_addr_mask;
 	struct wlan_mlme_chain_cfg fw_chain_cfg;
 	struct sar_limit_cmd_params *sar_cmd_params;
+	bool nan_seperate_vdev_supported;
 };
 
 /**

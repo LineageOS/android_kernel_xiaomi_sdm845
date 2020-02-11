@@ -387,7 +387,7 @@ static ssize_t __wlan_hdd_read_ll_stats_debugfs(struct file *file,
 
 	/* All the events are received and buffer is populated */
 	ret = hdd_debugfs_stats_update(buf, count, pos);
-	hdd_info("%zu characters written into debugfs", ret);
+	hdd_debug("%zu characters written into debugfs", ret);
 
 	hdd_exit();
 	return ret;

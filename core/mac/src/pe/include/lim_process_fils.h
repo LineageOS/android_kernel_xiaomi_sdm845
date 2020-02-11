@@ -136,6 +136,22 @@ void populate_fils_connect_params(tpAniSirGlobal mac_ctx,
 				  tpSirSmeJoinRsp sme_join_rsp);
 
 /**
+ * lim_update_fils_hlp_data() - Update the hlp data from association
+ * response frame to PE session.
+ * @hlp_frm_src_mac: SRC mac address in HLP IE from assoc frame
+ * @hlp_frm_dst_mac: DST mac address in HLP IE from assoc frame
+ * @frm_hlp_len: HLP data length
+ * @frm_hlp_data: Pointer to hlp data
+ * @pe_session: Pointer to pe_session
+ *
+ * Return: None
+ */
+void lim_update_fils_hlp_data(struct qdf_mac_addr *hlp_frm_src_mac,
+			      struct qdf_mac_addr *hlp_frm_dest_mac,
+			      uint16_t frm_hlp_len, uint8_t *frm_hlp_data,
+			      tpPESession pe_session);
+
+/**
  * aead_encrypt_assoc_req() - Encrypt FILS IE's in assoc request
  * @mac_ctx: mac context
  * @pe_session: PE session
@@ -255,6 +271,13 @@ static inline void populate_fils_connect_params(tpAniSirGlobal mac_ctx,
 						tpPESession session,
 						tpSirSmeJoinRsp sme_join_rsp)
 { }
+
+static inline
+void lim_update_fils_hlp_data(struct qdf_mac_addr *hlp_frm_src_mac,
+			      struct qdf_mac_addr *hlp_frm_dest_mac,
+			      uint16_t frm_hlp_len, uint8_t *frm_hlp_data,
+			      tpPESession pe_session)
+{}
 
 static inline QDF_STATUS aead_encrypt_assoc_req(tpAniSirGlobal mac_ctx,
 						tpPESession pe_session,

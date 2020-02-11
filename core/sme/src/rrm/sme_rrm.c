@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -278,7 +278,7 @@ static QDF_STATUS sme_ese_send_beacon_req_scan_results(
 	uint8_t bss_counter = 0;
 	tCsrScanResultInfo *cur_result = NULL;
 	tpRrmSMEContext rrm_ctx = &mac_ctx->rrm.rrmSmeContext;
-	struct csr_roam_info roam_info;
+	struct csr_roam_info *roam_info;
 	tSirEseBcnReportRsp bcn_rpt_rsp;
 	tpSirEseBcnReportRsp bcn_report = &bcn_rpt_rsp;
 	tpCsrEseBeaconReqParams cur_meas_req = NULL;
@@ -294,6 +294,10 @@ static QDF_STATUS sme_ese_send_beacon_req_scan_results(
 		sme_err("Beacon report xmit Ind to HDD Failed");
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	roam_info = qdf_mem_malloc(sizeof(*roam_info));
+	if (!roam_info)
+		return QDF_STATUS_E_NOMEM;
 
 	if (result_arr)
 		cur_result = result_arr[bss_counter];
@@ -382,15 +386,17 @@ static QDF_STATUS sme_ese_send_beacon_req_scan_results(
 			bcn_report->numBss, j, bss_counter,
 			bcn_report->flag);
 
-		roam_info.pEseBcnReportRsp = bcn_report;
-		status = csr_roam_call_callback(mac_ctx, session_id, &roam_info,
-			0, eCSR_ROAM_ESE_BCN_REPORT_IND, 0);
+		roam_info->pEseBcnReportRsp = bcn_report;
+		status = csr_roam_call_callback(mac_ctx, session_id, roam_info,
+						0, eCSR_ROAM_ESE_BCN_REPORT_IND,
+						0);
 
 		/* Free the memory allocated to IE */
 		for (i = 0; i < j; i++)
 			if (bcn_report->bcnRepBssInfo[i].pBuf)
 				qdf_mem_free(bcn_report->bcnRepBssInfo[i].pBuf);
 	} while (cur_result);
+	qdf_mem_free(roam_info);
 	return status;
 }
 

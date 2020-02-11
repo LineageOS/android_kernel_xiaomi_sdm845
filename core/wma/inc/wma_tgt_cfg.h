@@ -228,5 +228,6 @@ struct wma_tgt_cfg {
 	struct board_info hw_bd_info;
 	enum sar_version sar_version;
 	bool dynamic_nss_chains_support;
+	bool nan_seperate_vdev_support;
 };
 #endif /* WMA_TGT_CFG_H */

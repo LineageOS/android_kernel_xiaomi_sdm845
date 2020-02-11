@@ -332,7 +332,8 @@ void pmo_register_wow_default_patterns(struct wlan_objmgr_vdev *vdev)
 	}
 
 	vdev_opmode = pmo_get_vdev_opmode(vdev);
-	if (vdev_opmode == QDF_MAX_NO_OF_MODE) {
+	if (vdev_opmode == QDF_MAX_NO_OF_MODE ||
+	    vdev_opmode == QDF_NAN_DISC_MODE) {
 		pmo_err("Invalid vdev opmode %d", vdev_id);
 		return;
 	}

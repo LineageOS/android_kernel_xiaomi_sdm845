@@ -205,9 +205,6 @@ QDF_STATUS lim_send_switch_chnl_params(tpAniSirGlobal pMac,
 		lim_update_chan_he_capable(pMac, pChnlParams);
 	pChnlParams->dot11_mode = pSessionEntry->dot11mode;
 	pChnlParams->nss = pSessionEntry->nss;
-	pe_debug("dot11mode: %d, vht_capable: %d nss value: %d",
-		pChnlParams->dot11_mode, pChnlParams->vhtCapable,
-		pChnlParams->nss);
 
 	/*Set DFS flag for DFS channel */
 	if (ch_width == CH_WIDTH_160MHZ) {

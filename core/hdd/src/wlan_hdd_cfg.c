@@ -1593,6 +1593,12 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_MGMT_RETRY_MAX_MIN,
 		     CFG_MGMT_RETRY_MAX_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_RING_BUFFER, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_ring_buffer,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_RING_BUFFER_DEFAULT,
+		     CFG_ENABLE_RING_BUFFER_MIN,
+		     CFG_ENABLE_RING_BUFFER_MAX),
 /* CFG_QDF_TRACE_ENABLE Parameters */
 	REG_VARIABLE(CFG_QDF_TRACE_ENABLE_WDI_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, qdf_trace_enable_wdi,
@@ -2994,6 +3000,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_PACKET_LOG_DEFAULT,
 		     CFG_ENABLE_PACKET_LOG_MIN,
 		     CFG_ENABLE_PACKET_LOG_MAX),
+
+	REG_VARIABLE(CFG_PACKET_LOG_BUFFER_SIZE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, pktlog_buf_size,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_PACKET_LOG_BUFFER_SIZE_DEFAULT,
+		     CFG_PACKET_LOG_BUFFER_SIZE_MIN,
+		     CFG_PACKET_LOG_BUFFER_SIZE_MAX),
 #endif
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
@@ -3244,6 +3257,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_NAN_SUPPORT_DEFAULT,
 		     CFG_ENABLE_NAN_SUPPORT_MIN,
 		     CFG_ENABLE_NAN_SUPPORT_MAX),
+
+	REG_VARIABLE(CFG_NAN_SEPARATE_IFACE_SUPP, WLAN_PARAM_Integer,
+		     struct hdd_config, nan_separate_iface_support,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_NAN_SEPARATE_IFACE_SUPP_DEFAULT,
+		     CFG_NAN_SEPARATE_IFACE_SUPP_MIN,
+		     CFG_NAN_SEPARATE_IFACE_SUPP_MAX),
 #endif
 
 	REG_VARIABLE(CFG_ENABLE_SELF_RECOVERY, WLAN_PARAM_Integer,
@@ -5288,6 +5308,13 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_OCE_WAN_WEIGHTAGE_MIN,
 		CFG_OCE_WAN_WEIGHTAGE_MAX),
 
+	REG_VARIABLE(CFG_VENDOR_ROAM_SCORE_ALGORITHM_NAME, WLAN_PARAM_Integer,
+		struct hdd_config, vendor_roam_score_algorithm,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_VENDOR_ROAM_SCORE_ALGORITHM_DEFAULT,
+		CFG_VENDOR_ROAM_SCORE_ALGORITHM_MIN,
+		CFG_VENDOR_ROAM_SCORE_ALGORITHM_MAX),
+
 	REG_VARIABLE(CFG_BEST_RSSI_THRESHOLD_NAME, WLAN_PARAM_Integer,
 		struct hdd_config, best_rssi_threshold,
 		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -5978,6 +6005,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ROAM_SCORE_DELTA_MIN,
 		     CFG_ROAM_SCORE_DELTA_MAX),
 
+	REG_VARIABLE(CFG_CAND_MIN_ROAM_SCORE_DELTA, WLAN_PARAM_Integer,
+		     struct hdd_config, min_roam_score_delta,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_CAND_MIN_ROAM_SCORE_DELTA_DEFAULT,
+		     CFG_CAND_MIN_ROAM_SCORE_DELTA_MIN,
+		     CFG_CAND_MIN_ROAM_SCORE_DELTA_MAX),
+
 	REG_VARIABLE(CFG_ROAM_TRIGGER_DELTA_BITMAP, WLAN_PARAM_Integer,
 		     struct hdd_config, roam_score_delta_bitmap,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -6147,6 +6181,12 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ENABLE_PENDING_CHAN_LIST_REQ_DEFAULT,
 		     CFG_ENABLE_PENDING_CHAN_LIST_REQ_MIN,
 		     CFG_ENABLE_PENDING_CHAN_LIST_REQ_MAX),
+	REG_VARIABLE(CFG_NUM_VDEV_ENABLE_NAME, WLAN_PARAM_Integer,
+		     struct hdd_config, num_vdevs,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_NUM_VDEV_ENABLE_DEFAULT,
+		     CFG_NUM_VDEV_ENABLE_MIN,
+		     CFG_NUM_VDEV_ENABLE_MAX),
 };
 
 /**
@@ -8201,6 +8241,12 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 	hdd_debug("Name = [%s] Value = [%u]",
 		  CFG_ENABLE_PENDING_CHAN_LIST_REQ,
 		  hdd_ctx->config->enable_pending_list_req);
+
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ENABLE_RING_BUFFER,
+		  hdd_ctx->config->enable_ring_buffer);
+	hdd_debug("Name = [num_vdevs] value = [0x%x]",
+		  hdd_ctx->config->num_vdevs);
 }
 
 /**
@@ -8818,16 +8864,15 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 	if ((config->dot11Mode == eHDD_DOT11_MODE_AUTO) ||
 	    (config->dot11Mode == eHDD_DOT11_MODE_11ac_ONLY) ||
 	    (config->dot11Mode == eHDD_DOT11_MODE_11ac)) {
-		/* Currently shortGI40Mhz is used for shortGI80Mhz and 160MHz*/
 		if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_SHORT_GI_80MHZ,
-			config->ShortGI40MhzEnable) == QDF_STATUS_E_FAILURE) {
+			config->ShortGI80MhzEnable) == QDF_STATUS_E_FAILURE) {
 			status = false;
 			hdd_err("Couldn't pass WNI_VHT_SHORT_GI_80MHZ to CFG");
 		}
 
 		if (sme_cfg_set_int(mac_handle,
 			WNI_CFG_VHT_SHORT_GI_160_AND_80_PLUS_80MHZ,
-			config->ShortGI40MhzEnable) == QDF_STATUS_E_FAILURE) {
+			config->ShortGI160MhzEnable) == QDF_STATUS_E_FAILURE) {
 			status = false;
 			hdd_err("Couldn't pass SHORT_GI_160MHZ to CFG");
 		}
@@ -9383,6 +9428,8 @@ static void hdd_update_bss_score_params(struct hdd_config *config,
 	score_params->weight_cfg.channel_congestion_weightage =
 			config->channel_congestion_weightage;
 	score_params->weight_cfg.oce_wan_weightage = config->oce_wan_weightage;
+	score_params->weight_cfg.vendor_roam_score_algorithm =
+			config->vendor_roam_score_algorithm;
 
 	total_weight = score_params->weight_cfg.rssi_weightage +
 		       score_params->weight_cfg.ht_caps_weightage +
@@ -9427,6 +9474,8 @@ static void hdd_update_bss_score_params(struct hdd_config *config,
 		hdd_limit_max_per_index_score(config->band_weight_per_index);
 
 	score_params->roam_score_delta = config->roam_score_delta;
+	score_params->cand_min_roam_score_delta =
+				config->min_roam_score_delta;
 	score_params->roam_score_delta_bitmap = config->roam_score_delta_bitmap;
 
 	score_params->rssi_score.best_rssi_threshold =
