@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2784,7 +2784,7 @@ static int msm_routing_put_port_mixer(struct snd_kcontrol *kcontrol,
 		(unsigned long *)&msm_bedais[mc->shift].port_sessions[idx]);
 	} else {
 		afe_loopback(0, msm_bedais[mc->shift].port_id,
-			    msm_bedais[mc->shift].port_id);
+			    msm_bedais[mc->rshift].port_id);
 		clear_bit(shift,
 		(unsigned long *)&msm_bedais[mc->shift].port_sessions[idx]);
 	}
