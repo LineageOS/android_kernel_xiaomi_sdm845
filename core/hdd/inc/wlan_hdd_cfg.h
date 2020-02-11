@@ -16678,7 +16678,7 @@ enum hdd_external_acs_policy {
  * rssi delta and if other criteria of ini "enable_idle_roam" is met
  * @Min: 0
  * @Max: 50
- * @Default: 5
+ * @Default: 3
  *
  * Related: enable_idle_roam
  *
@@ -16691,7 +16691,7 @@ enum hdd_external_acs_policy {
 #define CFG_LFR_IDLE_ROAM_RSSI_DELTA   "idle_roam_rssi_delta"
 #define CFG_LFR_IDLE_ROAM_RSSI_DELTA_MIN      (0)
 #define CFG_LFR_IDLE_ROAM_RSSI_DELTA_MAX      (50)
-#define CFG_LFR_IDLE_ROAM_RSSI_DELTA_DEFAULT  (5)
+#define CFG_LFR_IDLE_ROAM_RSSI_DELTA_DEFAULT  (3)
 
 /*
  * <ini>
