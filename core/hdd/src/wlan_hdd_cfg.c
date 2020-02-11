@@ -6275,6 +6275,14 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_CONFIG_SAR_SAFETY_SLEEP_MODE_INDEX_MAX),
 #endif
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+	REG_VARIABLE(CFG_PKT_CAPTURE_MODE, WLAN_PARAM_Integer,
+		     struct hdd_config, pkt_capture_mode,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_PKT_CAPTURE_MODE_DEFAULT,
+		     CFG_PKT_CAPTURE_MODE_MIN,
+		     CFG_PKT_CAPTURE_MODE_MAX),
+#endif
 };
 
 /**
@@ -8337,6 +8345,9 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 		  hdd_ctx->config->enable_ring_buffer);
 	hdd_debug("Name = [num_vdevs] value = [0x%x]",
 		  hdd_ctx->config->num_vdevs);
+	hdd_debug("Name = [%s] Value =[%x]",
+		  CFG_PKT_CAPTURE_MODE,
+		  hdd_ctx->config->pkt_capture_mode);
 }
 
 /**

@@ -14740,6 +14740,26 @@ static int hdd_update_pmo_config(struct hdd_context *hdd_ctx)
 	return qdf_status_to_os_return(status);
 }
 
+/**
+ * hdd_update_pkt_capture_config - Update packet capture config parameters
+ * @hdd_ctx: HDD context
+ *
+ * Return: 0 on success / error on failure
+ */
+static int hdd_update_pkt_capture_config(struct hdd_context *hdd_ctx)
+{
+	struct pkt_capture_cfg pkt_capture_cfg = {0};
+	QDF_STATUS status;
+
+	pkt_capture_cfg.pkt_capture_mode = hdd_ctx->config->pkt_capture_mode;
+
+	status = ucfg_pkt_capture_psoc_config(hdd_ctx->psoc, &pkt_capture_cfg);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("packet capture config failed");
+
+	return qdf_status_to_os_return(status);
+}
+
 #ifdef FEATURE_WLAN_SCAN_PNO
 static inline void hdd_update_pno_config(struct pno_user_cfg *pno_cfg,
 	struct hdd_config *cfg)
@@ -15071,6 +15091,10 @@ int hdd_update_components_config(struct hdd_context *hdd_ctx)
 		return ret;
 
 	ret = hdd_update_regulatory_config(hdd_ctx);
+	if (ret)
+		return ret;
+
+	ret = hdd_update_pkt_capture_config(hdd_ctx);
 
 	return ret;
 }

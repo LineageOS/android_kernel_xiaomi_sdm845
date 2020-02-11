@@ -27,6 +27,7 @@
 #include <qdf_status.h>
 #include <qdf_types.h>
 #include "wlan_pkt_capture_objmgr.h"
+#include "wlan_pkt_capture_public_structs.h"
 
 #ifdef WLAN_FEATURE_PKT_CAPTURE
 /**
@@ -34,7 +35,7 @@
  *
  * This function gets called when packet capture initializing.
  *
- * Return: QDF_STATUS_SUCCESS - in case of success.
+ * Return: QDF_STATUS
  */
 QDF_STATUS ucfg_pkt_capture_init(void);
 
@@ -46,6 +47,23 @@ QDF_STATUS ucfg_pkt_capture_init(void);
  * Return: None
  */
 void ucfg_pkt_capture_deinit(void);
+
+/**
+ * ucfg_pkt_capture_get_mode() - get packet capture mode
+ * @psoc: pointer to psoc object
+ *
+ * Return: enum pkt_capture_mode
+ */
+enum pkt_capture_mode ucfg_pkt_capture_get_mode(struct wlan_objmgr_psoc *psoc);
+/**
+ * ucfg_pkt_capture_psoc_config(): API to update the psoc user configurations
+ * @psoc: objmgr psoc handle
+ * @cfg: packet capture psoc configurations
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS ucfg_pkt_capture_psoc_config(struct wlan_objmgr_psoc *psoc,
+					struct pkt_capture_cfg *cfg);
 #else
 static inline
 QDF_STATUS ucfg_pkt_capture_init(void)
@@ -56,6 +74,19 @@ QDF_STATUS ucfg_pkt_capture_init(void)
 static inline
 void ucfg_pkt_capture_deinit(void)
 {
+}
+
+static inline
+enum pkt_capture_mode ucfg_pkt_capture_get_mode(struct wlan_objmgr_psoc *psoc)
+{
+	return PACKET_CAPTURE_MODE_DISABLE;
+}
+
+static inline QDF_STATUS
+ucfg_pkt_capture_psoc_config(struct wlan_objmgr_psoc *psoc,
+			     struct pkt_capture_cfg *cfg)
+{
+	return QDF_STATUS_SUCCESS;
 }
 #endif /* WLAN_FEATURE_PKT_CAPTURE */
 #endif /* _WLAN_PKT_CAPTURE_UCFG_API_H_ */
