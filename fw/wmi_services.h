@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -420,6 +420,13 @@ typedef  enum  {
     WMI_SERVICE_BW_RESTRICTED_80P80_SUPPORT = WMI_SERVICE_BW_165MHZ_SUPPORT,
     WMI_SERVICE_NAN_NDI_SAP_SAP_SCC_SUPPORT = 230, /* Support SAP + SAP + NAN discovery + NDI concurrency in SCC mode */
     WMI_SERVICE_NAN_VDEV_SUPPORT = 231, /* indicates firmware is dependent on host to create NAN vdev */
+    WMI_SERVICE_AUDIO_SYNC_SUPPORT = 232, /* Indicate FW supports Audio sync feature */
+    WMI_SERVICE_DUAL_STA_ROAM_SUPPORT = 233, /* Indidate FW support dual STA roaming */
+    WMI_SERVICE_PEER_CREATE_CONF = 234, /* Target will send WMI_PEER_CREATE_CONF_EVENTID after WMI_PEER_CREATE_CMDID is processed */
+    WMI_SERVICE_MULTIPLE_VDEV_RESTART_RESPONSE_SUPPORT = 235, /* indicates firmware supports Multiple vdev restart response */
+    WMI_SERVICE_ROAM_SCAN_CHANNEL_LIST_TO_HOST_SUPPORT = 236, /* Indicates firmware supports sending roam scan channel list to host */
+    WMI_SERVICE_PEER_DELETE_NO_PEER_FLUSH_TIDS_CMD = 237, /* Host should not send WMI_PEER_FLUSH_TIDS_CMD as part of peer delete */
+    WMI_SERVICE_NSS_RATIO_TO_HOST_SUPPORT = 238, /* Indicates firmware supports sending NSS ratio info to host */
 
 
     /******* ADD NEW SERVICES HERE *******/
