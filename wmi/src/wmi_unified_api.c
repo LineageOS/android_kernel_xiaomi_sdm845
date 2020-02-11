@@ -7635,3 +7635,27 @@ QDF_STATUS wmi_unified_extract_ani_level(wmi_unified_t wmi_handle,
 	return QDF_STATUS_E_FAILURE;
 }
 #endif /* FEATURE_ANI_LEVEL_REQUEST */
+
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+QDF_STATUS wmi_send_wlan_time_sync_ftm_trigger(wmi_unified_t wmi_handle,
+					       uint32_t vdev_id,
+					       bool burst_mode)
+{
+	if (wmi_handle->ops->send_wlan_time_sync_ftm_trigger_cmd)
+		return wmi_handle->ops->send_wlan_time_sync_ftm_trigger_cmd
+				(wmi_handle, vdev_id, burst_mode);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS wmi_send_wlan_time_sync_qtime(wmi_unified_t wmi_handle,
+					 uint32_t vdev_id,
+					 uint64_t lpass_ts)
+{
+	if (wmi_handle->ops->send_wlan_ts_qtime_cmd)
+		return wmi_handle->ops->send_wlan_ts_qtime_cmd(wmi_handle,
+					vdev_id, lpass_ts);
+
+	return QDF_STATUS_E_FAILURE;
+}
+#endif /* FEATURE_WLAN_TIME_SYNC_FTM */

@@ -45,8 +45,6 @@ wlan_serialization_add_cmd_to_given_queue(qdf_list_t *queue,
 		serialization_err("Input arguments are not valid");
 		return WLAN_SER_CMD_DENIED_UNSPECIFIED;
 	}
-	serialization_debug("add cmd  cmd_id-%d type-%d",
-			    cmd->cmd_id, cmd->cmd_type);
 
 	if ((cmd->cmd_type < WLAN_SER_CMD_NONSCAN) &&
 	    !wlan_serialization_is_scan_cmd_allowed(psoc, ser_pdev_obj)) {
@@ -148,6 +146,9 @@ void wlan_serialization_activate_cmd(
 	 */
 	wlan_serialization_find_and_start_timer(psoc,
 						&cmd_list->cmd);
+
+	serialization_debug("Activate type %d id %d", cmd_list->cmd.cmd_type,
+			    cmd_list->cmd.cmd_id);
 	/*
 	 * Remember that serialization module may send
 	 * this callback in same context through which it
@@ -257,8 +258,10 @@ wlan_serialization_enqueue_cmd(struct wlan_serialization_command *cmd,
 		return status;
 	}
 
-	serialization_debug("command high_priority[%d] cmd_type[%d] cmd_id[%d]",
-			cmd->is_high_priority, cmd->cmd_type, cmd->cmd_id);
+	serialization_debug("Type %d id %d high_priority %d timeout %d for active %d",
+			    cmd->cmd_type, cmd->cmd_id, cmd->is_high_priority,
+			    cmd->cmd_timeout_duration, is_cmd_for_active_queue);
+
 	if (cmd->cmd_type < WLAN_SER_CMD_NONSCAN) {
 		if (is_cmd_for_active_queue)
 			queue = &ser_pdev_obj->active_scan_list;
@@ -273,7 +276,8 @@ wlan_serialization_enqueue_cmd(struct wlan_serialization_command *cmd,
 
 	if (wlan_serialization_is_cmd_present_queue(cmd,
 				is_cmd_for_active_queue)) {
-		serialization_err("duplicate command, can't enqueue");
+		serialization_err("duplicate command Type %d id %d, can't enqueue",
+				  cmd->cmd_type, cmd->cmd_id);
 		return status;
 	}
 

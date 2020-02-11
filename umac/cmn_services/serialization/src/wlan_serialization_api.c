@@ -148,25 +148,18 @@ wlan_serialization_deregister_comp_info_cb(struct wlan_objmgr_psoc *psoc,
 }
 
 enum wlan_serialization_cmd_status
-wlan_serialization_non_scan_cmd_status(struct wlan_objmgr_pdev *pdev,
-		enum wlan_serialization_cmd_type cmd_id)
-{
-	serialization_enter();
-
-	return WLAN_SER_CMD_NOT_FOUND;
-}
-
-enum wlan_serialization_cmd_status
 wlan_serialization_cancel_request(
 		struct wlan_serialization_queued_cmd_info *req)
 {
 	QDF_STATUS status;
 
-	serialization_enter();
 	if (!req) {
 		serialization_err("given request is empty");
 		return WLAN_SER_CMD_NOT_FOUND;
 	}
+	serialization_debug("Type %d id %d requestor %d req type %d queue type %d",
+			    req->cmd_type, req->cmd_id, req->requestor,
+			    req->req_type, req->queue_type);
 	status = wlan_serialization_validate_cmd(req->requestor, req->cmd_type);
 	if (status != QDF_STATUS_SUCCESS) {
 		serialization_err("req is not valid");
@@ -181,7 +174,6 @@ void wlan_serialization_remove_cmd(
 {
 	QDF_STATUS status;
 
-	serialization_enter();
 	if (!cmd) {
 		serialization_err("given request is empty");
 		QDF_ASSERT(0);
@@ -211,16 +203,13 @@ wlan_serialization_request(struct wlan_serialization_command *cmd)
 	struct wlan_objmgr_pdev *pdev = NULL;
 	struct wlan_serialization_command_list *cmd_list = NULL;
 
-	serialization_enter();
 	if (!cmd) {
 		serialization_err("serialization cmd is null");
 		return WLAN_SER_CMD_DENIED_UNSPECIFIED;
 	}
 	status = wlan_serialization_validate_cmd(cmd->source, cmd->cmd_type);
-	if (status != QDF_STATUS_SUCCESS) {
-		serialization_err("cmd is not valid");
+	if (QDF_IS_STATUS_ERROR(status))
 		return WLAN_SER_CMD_DENIED_UNSPECIFIED;
-	}
 
 	ser_soc_obj = wlan_serialization_get_psoc_obj(cmd);
 	if (!ser_soc_obj) {
@@ -282,19 +271,6 @@ wlan_serialization_vdev_scan_status(struct wlan_objmgr_vdev *vdev)
 
 	return wlan_serialization_is_cmd_in_active_pending(
 			cmd_in_active, cmd_in_pending);
-}
-
-void wlan_serialization_flush_cmd(
-		struct wlan_serialization_queued_cmd_info *cmd)
-{
-	serialization_enter();
-	if (!cmd) {
-		serialization_err("cmd is null, can't flush");
-		return;
-	}
-	/* TODO: discuss and fill this API later */
-
-	return;
 }
 
 enum wlan_serialization_cmd_status
@@ -359,10 +335,8 @@ wlan_serialization_get_scan_cmd_using_scan_id(
 			break;
 		}
 		if (wlan_serialization_match_cmd_scan_id(nnode, &cmd, scan_id,
-							 vdev, ser_pdev_obj)) {
-			serialization_debug("Cmd matched with the scan_id");
+							 vdev, ser_pdev_obj))
 			break;
-		}
 	}
 release_vdev_ref:
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_SERIALIZATION_ID);
