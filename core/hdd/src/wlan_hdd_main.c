@@ -9545,7 +9545,7 @@ void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind)
 	struct hdd_context *hdd_ctx = NULL;
 	struct hdd_adapter *adapter = NULL;
 	int i, num_adapters;
-	uint8_t vdev_id[MAX_VDEV_SUPPORTED];
+	uint8_t vdev_id[WLAN_MAX_VDEVS];
 	struct ieee80211_mgmt *mgmt =
 		(struct ieee80211_mgmt *)frame_ind->frameBuf;
 	QDF_STATUS status;
