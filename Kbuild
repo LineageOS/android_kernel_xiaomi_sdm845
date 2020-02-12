@@ -193,6 +193,10 @@ ifeq ($(CONFIG_QCACLD_FEATURE_HW_CAPABILITY), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_hw_capability.o
 endif
 
+ifeq ($(CONFIG_FEATURE_WLAN_TIME_SYNC_FTM), y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_ftm_time_sync.o
+endif
+
 #Flag to enable SAR Safety Feature
 cppflags-$(CONFIG_SAR_SAFETY_FEATURE) += -DSAR_SAFETY_FEATURE
 

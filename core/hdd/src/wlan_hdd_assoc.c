@@ -65,7 +65,7 @@
 #include "wlan_mlme_main.h"
 #include "wlan_hdd_nud_tracking.h"
 #include "wlan_mlme_ucfg_api.h"
-#include "ftm_time_sync_ucfg_api.h"
+#include "wlan_hdd_ftm_time_sync.h"
 
 /* These are needed to recognize WPA and RSN suite types */
 #define HDD_WPA_OUI_SIZE 4
@@ -1680,32 +1680,6 @@ static void hdd_print_bss_info(struct hdd_station_ctx *hdd_sta_ctx)
 		       conn_info->conn_flag.vht_present ? *vht_cap_info : 0,
 		       conn_info->conn_flag.hs20_present ?
 		       conn_info->hs20vendor_ie.release_num : 0);
-}
-
-/**
- * hdd_ftm_time_sync_sta_state_notify() - notify FTM TIME SYNC sta state change
- * @adapter: pointer to adapter
- * @state: enum ftm_time_sync_sta_state
- *
- * This function is called by hdd connect and disconnect handler and notifies
- * the FTM TIME SYNC component about the sta state.
- *
- * Return: None
- */
-static void
-hdd_ftm_time_sync_sta_state_notify(struct hdd_adapter *adapter,
-				   enum ftm_time_sync_sta_state state)
-{
-	struct wlan_objmgr_psoc *psoc;
-
-	psoc = wlan_vdev_get_psoc(adapter->vdev);
-	if (!psoc)
-		return;
-
-	if (!ucfg_is_ftm_time_sync_enable(psoc))
-		return;
-
-	ucfg_ftm_time_sync_update_sta_connect_state(adapter->vdev, state);
 }
 
 /**
