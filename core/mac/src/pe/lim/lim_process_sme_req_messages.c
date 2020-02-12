@@ -725,11 +725,6 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		session->currentOperChannel =
 			sme_start_bss_req->channelId;
 
-		/* Store Persona */
-		session->pePersona = sme_start_bss_req->bssPersona;
-		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-			  FL("PE PERSONA=%d"), session->pePersona);
-
 		/* Update the phymode */
 		session->gLimPhyMode = sme_start_bss_req->nwType;
 
@@ -1391,8 +1386,6 @@ __lim_process_sme_join_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 		 * self and peer rates
 		 */
 		session->supported_nss_1x1 = true;
-		/*Store Persona */
-		session->pePersona = sme_join_req->staPersona;
 		session->currentOperChannel = bss_desc->channelId;
 
 		session->vhtCapability =

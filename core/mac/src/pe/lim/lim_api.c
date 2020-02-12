@@ -2106,9 +2106,6 @@ lim_roam_fill_bss_descr(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	pe_debug("LFR3:Beacon/Prb Rsp: %d", roam_offload_synch_ind_ptr->isBeacon);
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-	bcn_proberesp_ptr, roam_offload_synch_ind_ptr->beaconProbeRespLength);
 	if (roam_offload_synch_ind_ptr->isBeacon) {
 		if (sir_parse_beacon_ie(pMac, parsed_frm_ptr,
 			&bcn_proberesp_ptr[SIR_MAC_HDR_LEN_3A +
@@ -2148,6 +2145,7 @@ lim_roam_fill_bss_descr(tpAniSirGlobal pMac,
 		ie_len = roam_offload_synch_ind_ptr->beaconProbeRespLength -
 			(SIR_MAC_HDR_LEN_3A + SIR_MAC_B_PR_SSID_OFFSET);
 	}
+
 	/*
 	 * Length of BSS desription is without length of
 	 * length itself and length of pointer
@@ -2196,8 +2194,9 @@ lim_roam_fill_bss_descr(tpAniSirGlobal pMac,
 	 * overwrite the BSSID with the firmware provided BSSID as some buggy
 	 * AP's are not sending correct BSSID in probe resp
 	 */
-	pe_debug("bssid is %pM in beacon/probe update it with bssId %pM in sync ind",
-		 mac_hdr->bssId, roam_offload_synch_ind_ptr->bssid.bytes);
+	pe_debug("LFR3:Beacon/Prb Rsp: %d bssid %pM in bcn, bssId %pM in sync ind",
+		 roam_offload_synch_ind_ptr->isBeacon, mac_hdr->bssId,
+		 roam_offload_synch_ind_ptr->bssid.bytes);
 
 	qdf_mem_copy(mac_hdr->bssId,
 		     roam_offload_synch_ind_ptr->bssid.bytes,
@@ -2215,11 +2214,8 @@ lim_roam_fill_bss_descr(tpAniSirGlobal pMac,
 				(uint8_t *)parsed_frm_ptr->mdie,
 				SIR_MDIE_SIZE);
 	}
-	pe_debug("LFR3: BssDescr Info:");
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-			bss_desc_ptr->bssId, sizeof(tSirMacAddr));
 	pe_debug("chan: %d rssi: %d", bss_desc_ptr->channelId,
-			bss_desc_ptr->rssi);
+		 bss_desc_ptr->rssi);
 	if (ie_len) {
 		qdf_mem_copy(&bss_desc_ptr->ieFields,
 			bcn_proberesp_ptr +
@@ -2394,7 +2390,7 @@ pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	ft_session_ptr = pe_create_session(mac_ctx, bss_desc->bssId,
 			&session_id, mac_ctx->lim.maxStation,
 			session_ptr->bssType, session_ptr->smeSessionId,
-			session_ptr->opmode);
+			session_ptr->pePersona);
 	if (!ft_session_ptr) {
 		pe_err("LFR3:Cannot create PE Session");
 		lim_print_mac_addr(mac_ctx, bss_desc->bssId, LOGE);
@@ -2479,10 +2475,6 @@ pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 			roam_sync_ind_ptr->reassocRespOffset,
 			mac_ctx->roam.reassocRespLen);
 
-	pe_debug("LFR3:the reassoc resp frame data:");
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			mac_ctx->roam.pReassocResp,
-			mac_ctx->roam.reassocRespLen);
 	ft_session_ptr->bRoamSynchInProgress = true;
 
 	lim_process_assoc_rsp_frame(mac_ctx, mac_ctx->roam.pReassocResp,

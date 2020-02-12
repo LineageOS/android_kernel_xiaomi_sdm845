@@ -1916,26 +1916,15 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	    mac_ctx->lim.htCapabilityPresentInBeacon) {
 		pe_debug("Populate HT Caps in Assoc Request");
 		populate_dot11f_ht_caps(mac_ctx, pe_session, &frm->HTCaps);
-		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-				   &frm->HTCaps, sizeof(frm->HTCaps));
 	} else if (pe_session->he_with_wep_tkip) {
 		pe_debug("Populate HT Caps in Assoc Request with WEP/TKIP");
 		populate_dot11f_ht_caps(mac_ctx, NULL, &frm->HTCaps);
 	}
-	pe_debug("SupportedChnlWidth: %d, mimoPS: %d, GF: %d, short GI20:%d, shortGI40: %d, dsssCck: %d, AMPDU Param: %x",
-		frm->HTCaps.supportedChannelWidthSet,
-		frm->HTCaps.mimoPowerSave,
-		frm->HTCaps.greenField, frm->HTCaps.shortGI20MHz,
-		frm->HTCaps.shortGI40MHz,
-		frm->HTCaps.dsssCckMode40MHz,
-		frm->HTCaps.maxRxAMPDUFactor);
 
 	if (pe_session->vhtCapability &&
 	    pe_session->vhtCapabilityPresentInBeacon) {
 		pe_debug("Populate VHT IEs in Assoc Request");
 		populate_dot11f_vht_caps(mac_ctx, pe_session, &frm->VHTCaps);
-		QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-				   &frm->VHTCaps, sizeof(frm->VHTCaps));
 		vht_enabled = true;
 		if (pe_session->enableHtSmps &&
 				!pe_session->supported_nss_1x1) {
@@ -2260,6 +2249,8 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 	pe_nofl_info("Assoc TX vdev %d to %pM seq num %d",
 		     pe_session->smeSessionId, pe_session->bssId,
 		     mac_ctx->mgmtSeqNum);
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
+			  frame, (uint16_t)(sizeof(tSirMacMgmtHdr) + payload));
 
 	min_rid = lim_get_min_session_txrate(pe_session);
 	lim_diag_event_report(mac_ctx, WLAN_PE_DIAG_ASSOC_START_EVENT,

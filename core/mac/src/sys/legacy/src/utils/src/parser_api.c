@@ -6542,8 +6542,6 @@ QDF_STATUS populate_dot11f_he_caps(tpAniSirGlobal mac_ctx, tpPESession session,
 		he_cap->ppet.ppe_threshold.num_ppe_th = 0;
 	}
 
-	lim_log_he_cap(mac_ctx, he_cap);
-
 	return QDF_STATUS_SUCCESS;
 }
 

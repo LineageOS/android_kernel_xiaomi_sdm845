@@ -147,7 +147,6 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	tLimSmeStates limPrevSmeState;  /* Previous SME State */
 	tLimSystemRole limSystemRole;
 	tSirBssType bssType;
-	enum QDF_OPMODE opmode;
 	tSirNwType nwType;
 	tpSirSmeStartBssReq pLimStartBssReq;    /* handle to smestart bss req */
 	tpSirSmeJoinReq pLimJoinReq;    /* handle to sme join req */

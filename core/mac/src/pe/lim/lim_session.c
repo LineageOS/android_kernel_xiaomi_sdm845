@@ -564,7 +564,7 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 	*sessionId = i;
 	session_ptr->peSessionId = i;
 	session_ptr->bssType = bssType;
-	session_ptr->opmode = opmode;
+	session_ptr->pePersona = opmode;
 	session_ptr->smeSessionId = vdev_id;
 	session_ptr->gLimPhyMode = WNI_CFG_PHY_MODE_11G;
 	/* Initialize CB mode variables when session is created */
@@ -804,7 +804,8 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 	}
 
 	pe_debug("Delete PE session: %d opmode: %d vdev_id: %d BSSID: "QDF_MAC_ADDR_STR,
-		 session->peSessionId, session->opmode, session->smeSessionId,
+		 session->peSessionId, session->pePersona,
+		 session->smeSessionId,
 		 QDF_MAC_ADDR_ARRAY(session->bssId));
 
 	lim_reset_bcn_probe_filter(mac_ctx, session);

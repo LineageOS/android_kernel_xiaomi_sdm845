@@ -21596,11 +21596,6 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	else if (command == ROAM_SCAN_OFFLOAD_STOP)
 		csr_update_11k_offload_params(mac_ctx, session, req_buf, FALSE);
 
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			"Assoc IE buffer:");
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			req_buf->assoc_ie.addIEdata, req_buf->assoc_ie.length);
-
 	prev_roaming_state = roam_info->b_roam_scan_offload_started;
 	if (ROAM_SCAN_OFFLOAD_START == command)
 		roam_info->b_roam_scan_offload_started = true;

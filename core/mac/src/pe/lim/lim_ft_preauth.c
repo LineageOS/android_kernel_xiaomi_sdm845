@@ -443,7 +443,7 @@ void lim_handle_ft_pre_auth_rsp(tpAniSirGlobal pMac, QDF_STATUS status,
 					&sessionId, pMac->lim.maxStation,
 					psessionEntry->bssType,
 					psessionEntry->smeSessionId,
-					psessionEntry->opmode);
+					psessionEntry->pePersona);
 		if (!pftSessionEntry) {
 			pe_err("Session not created for pre-auth 11R AP");
 			status = QDF_STATUS_E_FAILURE;
