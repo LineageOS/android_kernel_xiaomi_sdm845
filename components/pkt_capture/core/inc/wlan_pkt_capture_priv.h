@@ -29,13 +29,16 @@
 
 #include "wlan_pkt_capture_objmgr.h"
 #include "wlan_pkt_capture_public_structs.h"
+#include "wlan_pkt_capture_mon_thread.h"
 
 /**
  * struct pkt_capture_vdev_priv - Private object to be stored in vdev
  * @vdev: pointer to vdev object
+ * @pkt_capture_mon_ctx: pointer to packet capture mon context
  */
 struct pkt_capture_vdev_priv {
 	struct wlan_objmgr_vdev *vdev;
+	struct pkt_capture_mon_context *mon_ctx;
 };
 
 /**

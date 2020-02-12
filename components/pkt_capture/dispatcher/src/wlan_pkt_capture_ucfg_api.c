@@ -23,6 +23,7 @@
 #include "wlan_pkt_capture_objmgr.h"
 #include "wlan_pkt_capture_main.h"
 #include "wlan_pkt_capture_ucfg_api.h"
+#include "wlan_pkt_capture_mon_thread.h"
 
 enum pkt_capture_mode ucfg_pkt_capture_get_mode(struct wlan_objmgr_psoc *psoc)
 {
@@ -119,4 +120,14 @@ QDF_STATUS ucfg_pkt_capture_psoc_config(struct wlan_objmgr_psoc *psoc,
 					struct pkt_capture_cfg *psoc_cfg)
 {
 	return pkt_capture_psoc_config(psoc, psoc_cfg);
+}
+
+int ucfg_pkt_capture_suspend_mon_thread(struct wlan_objmgr_vdev *vdev)
+{
+	return pkt_capture_suspend_mon_thread(vdev);
+}
+
+void ucfg_pkt_capture_resume_mon_thread(struct wlan_objmgr_vdev *vdev)
+{
+	pkt_capture_resume_mon_thread(vdev);
 }
