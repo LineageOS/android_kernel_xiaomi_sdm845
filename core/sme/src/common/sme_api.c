@@ -2054,6 +2054,113 @@ static QDF_STATUS sme_process_antenna_mode_resp(tpAniSirGlobal mac,
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+QDF_STATUS sme_set_roam_scan_ch_event_cb(mac_handle_t mac_handle,
+					 sme_get_raom_scan_ch_Callback cb)
+{
+	QDF_STATUS qdf_status;
+	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
+
+	qdf_status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(qdf_status))
+		return qdf_status;
+
+	mac->sme.roam_scan_ch_callback = cb;
+	sme_release_global_lock(&mac->sme);
+
+	return qdf_status;
+}
+
+static void
+sme_process_roam_scan_ch_list_resp(tpAniSirGlobal mac,
+				   struct roam_scan_ch_resp *roam_ch)
+{
+	sme_get_raom_scan_ch_Callback callback =
+				mac->sme.roam_scan_ch_callback;
+
+	if (!roam_ch)
+		return;
+
+	if (callback)
+		callback(mac->hdd_handle, roam_ch,
+			 mac->sme.roam_scan_ch_get_context);
+}
+
+/*
+ * sme_update_roam_offload_enabled() - enable/disable roam offload feaure
+ *  It is used at in the REG_DYNAMIC_VARIABLE macro definition of
+ *
+ * hHal - The handle returned by mac_open.
+ * nRoamOffloadEnabled - The bool to update with
+ * Return QDF_STATUS_SUCCESS - SME update config successfully.
+ *	   Other status means SME is failed to update.
+ */
+
+QDF_STATUS sme_update_roam_offload_enabled(tHalHandle hHal,
+					   bool nRoamOffloadEnabled)
+{
+	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	status = sme_acquire_global_lock(&pMac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			  "%s: LFR3:gRoamOffloadEnabled is changed from %d to %d",
+			  __func__, pMac->roam.configParam.isRoamOffloadEnabled,
+			  nRoamOffloadEnabled);
+		pMac->roam.configParam.isRoamOffloadEnabled =
+			nRoamOffloadEnabled;
+		sme_release_global_lock(&pMac->sme);
+	}
+
+	return status;
+}
+
+/**
+ * sme_update_roam_key_mgmt_offload_enabled() - enable/disable key mgmt offload
+ * This is a synchronous call
+ * @hal_ctx: The handle returned by mac_open.
+ * @session_id: Session Identifier
+ * @key_mgmt_offload_enabled: key mgmt enable/disable flag
+ * @pmkid_modes: PMKID modes of PMKSA caching and OKC
+ * Return: QDF_STATUS_SUCCESS - SME updated config successfully.
+ * Other status means SME is failed to update.
+ */
+
+QDF_STATUS
+sme_update_roam_key_mgmt_offload_enabled(tHalHandle hal_ctx,
+					 uint8_t session_id,
+					 bool key_mgmt_offload_enabled,
+					 struct pmkid_mode_bits *pmkid_modes)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		if (CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+				"%s: LFR3: key_mgmt_offload_enabled changed to %d",
+				  __func__, key_mgmt_offload_enabled);
+			status = csr_roam_set_key_mgmt_offload(mac_ctx,
+						session_id,
+						key_mgmt_offload_enabled,
+						pmkid_modes);
+		} else
+			status = QDF_STATUS_E_INVAL;
+		sme_release_global_lock(&mac_ctx->sme);
+	}
+
+	return status;
+}
+#else
+static inline void
+sme_process_roam_scan_ch_list_resp(tpAniSirGlobal mac,
+				   void *roam_ch)
+{
+}
+#endif
+
 QDF_STATUS sme_process_msg(tpAniSirGlobal pMac, struct scheduler_msg *pMsg)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -2427,6 +2534,10 @@ QDF_STATUS sme_process_msg(tpAniSirGlobal pMac, struct scheduler_msg *pMsg)
 		} else {
 			sme_err("Empty message for: %d", pMsg->type);
 		}
+		break;
+	case eWNI_SME_GET_ROAM_SCAN_CH_LIST_EVENT:
+		sme_process_roam_scan_ch_list_resp(pMac, pMsg->bodyptr);
+		qdf_mem_free(pMsg->bodyptr);
 		break;
 	default:
 
@@ -3649,6 +3760,36 @@ void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
 #endif
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+QDF_STATUS sme_get_roam_scan_ch(tHalHandle hal, uint8_t vdev_id,
+				void *pcontext)
+{
+	struct scheduler_msg msg = {0};
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status))
+		return QDF_STATUS_E_FAILURE;
+
+	msg.type = WMA_ROAM_SCAN_CH_REQ;
+	msg.bodyval = vdev_id;
+	mac->sme.roam_scan_ch_get_context = pcontext;
+
+	if (scheduler_post_message(QDF_MODULE_ID_SME,
+				   QDF_MODULE_ID_WMA,
+				   QDF_MODULE_ID_WMA,
+				   &msg)) {
+		sme_err("Posting message %d failed",
+			WMA_ROAM_SCAN_CH_REQ);
+		mac->sme.roam_scan_ch_get_context = NULL;
+		sme_release_global_lock(&mac->sme);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	sme_release_global_lock(&mac->sme);
+	return QDF_STATUS_SUCCESS;
+}
+
 /*
  * \fn sme_roam_set_psk_pmk
  * \brief a wrapper function to request CSR to save PSK/PMK
@@ -12375,75 +12516,6 @@ QDF_STATUS sme_beacon_debug_stats_req(
 		}
 		sme_release_global_lock(&mac_ctx->sme);
 	}
-	return status;
-}
-#endif
-
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-/*
- * sme_update_roam_offload_enabled() - enable/disable roam offload feaure
- *  It is used at in the REG_DYNAMIC_VARIABLE macro definition of
- *
- * hHal - The handle returned by mac_open.
- * nRoamOffloadEnabled - The bool to update with
- * Return QDF_STATUS_SUCCESS - SME update config successfully.
- *	   Other status means SME is failed to update.
- */
-
-QDF_STATUS sme_update_roam_offload_enabled(tHalHandle hHal,
-					   bool nRoamOffloadEnabled)
-{
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-
-	status = sme_acquire_global_lock(&pMac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "%s: LFR3:gRoamOffloadEnabled is changed from %d to %d",
-			  __func__, pMac->roam.configParam.isRoamOffloadEnabled,
-			  nRoamOffloadEnabled);
-		pMac->roam.configParam.isRoamOffloadEnabled =
-			nRoamOffloadEnabled;
-		sme_release_global_lock(&pMac->sme);
-	}
-
-	return status;
-}
-
-/**
- * sme_update_roam_key_mgmt_offload_enabled() - enable/disable key mgmt offload
- * This is a synchronous call
- * @hal_ctx: The handle returned by mac_open.
- * @session_id: Session Identifier
- * @key_mgmt_offload_enabled: key mgmt enable/disable flag
- * @pmkid_modes: PMKID modes of PMKSA caching and OKC
- * Return: QDF_STATUS_SUCCESS - SME updated config successfully.
- * Other status means SME is failed to update.
- */
-
-QDF_STATUS sme_update_roam_key_mgmt_offload_enabled(tHalHandle hal_ctx,
-					uint8_t session_id,
-					bool key_mgmt_offload_enabled,
-					struct pmkid_mode_bits *pmkid_modes)
-{
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-
-	status = sme_acquire_global_lock(&mac_ctx->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-				"%s: LFR3: key_mgmt_offload_enabled changed to %d",
-				  __func__, key_mgmt_offload_enabled);
-			status = csr_roam_set_key_mgmt_offload(mac_ctx,
-						session_id,
-						key_mgmt_offload_enabled,
-						pmkid_modes);
-		} else
-			status = QDF_STATUS_E_INVAL;
-		sme_release_global_lock(&mac_ctx->sme);
-	}
-
 	return status;
 }
 #endif

@@ -1266,7 +1266,7 @@ static void hdd_update_tgt_services(struct hdd_context *hdd_ctx,
 	config->MAWCEnabled &= cfg->is_fw_mawc_capable;
 	hdd_update_tdls_config(hdd_ctx);
 	sme_update_tgt_services(hdd_ctx->mac_handle, cfg);
-
+	hdd_ctx->roam_ch_from_fw_supported = cfg->is_roam_scan_ch_to_host;
 }
 
 /**
@@ -12761,6 +12761,8 @@ int hdd_register_cb(struct hdd_context *hdd_ctx)
 		hdd_err("Register tx queue callback failed");
 
 	sme_set_oem_data_event_handler_cb(mac_handle, hdd_oem_event_handler_cb);
+
+	sme_set_roam_scan_ch_event_cb(mac_handle, hdd_get_roam_scan_ch_cb);
 
 	hdd_exit();
 

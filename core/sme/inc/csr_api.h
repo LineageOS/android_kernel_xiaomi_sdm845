@@ -1353,6 +1353,11 @@ typedef struct tagCsrUpdateConfigParam {
 	tCsr11dinfo Csr11dinfo;
 } tCsrUpdateConfigParam;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+typedef void (*sme_get_raom_scan_ch_Callback)(
+				hdd_handle_t hdd_handle,
+				struct roam_scan_ch_resp *roam_ch,
+				void *context);
+
 #define csr_roamIsRoamOffloadEnabled(pMac) \
 	(pMac->roam.configParam.isRoamOffloadEnabled)
 #define DEFAULT_REASSOC_FAILURE_TIMEOUT 1000

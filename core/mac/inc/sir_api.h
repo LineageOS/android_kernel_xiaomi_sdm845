@@ -940,6 +940,7 @@ typedef struct sSirSmeTsmIEInd {
 	tSirTsmIE tsmIe;
 	uint8_t sessionId;
 } tSirSmeTsmIEInd, *tpSirSmeTsmIEInd;
+
 typedef struct sAniTrafStrmMetrics {
 	uint16_t UplinkPktQueueDly;
 	uint16_t UplinkPktQueueDlyHist[4];
@@ -2706,6 +2707,20 @@ typedef struct sAniIbssRouteTable {
 } tAniIbssRouteTable;
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+/**
+ * struct roam_scan_ch_resp - roam scan chan list response to userspace
+ * @vdev_id: vdev id
+ * @command_resp: command response or async event
+ * @ChannelList: list of roam scan channels
+ * @num_channels: number of roam scan channels
+ */
+struct roam_scan_ch_resp {
+	uint16_t vdev_id;
+	uint16_t num_channels;
+	uint32_t command_resp;
+	uint32_t *chan_list;
+};
+
 typedef struct {
 	uint8_t acvo_uapsd:1;
 	uint8_t acvi_uapsd:1;
