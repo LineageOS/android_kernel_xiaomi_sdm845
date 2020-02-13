@@ -5784,6 +5784,7 @@ typedef enum {
 	wmi_wlan_time_sync_q_master_slave_offset_eventid,
 #endif
 	wmi_roam_stats_event_id,
+	wmi_roam_scan_chan_list_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 
@@ -6231,6 +6232,7 @@ typedef enum {
 	wmi_service_nan_vdev,
 	wmi_service_packet_capture_support,
 	wmi_service_time_sync_ftm,
+	wmi_roam_scan_chan_list_to_host_support,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF

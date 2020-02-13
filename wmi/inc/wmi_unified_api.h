@@ -2637,6 +2637,18 @@ QDF_STATUS wmi_unified_set_roam_triggers(wmi_unified_t wmi_handle,
 					 struct roam_triggers *triggers);
 #endif
 
+/**
+ * wmi_unified_get_roam_scan_ch_list() - send roam scan channel list get cmd
+ * @wmi_handle: wmi handle
+ * @vdev_id: vdev id
+ *
+ * This function sends roam scan channel list get command to firmware.
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_get_roam_scan_ch_list(wmi_unified_t wmi_handle,
+					 uint8_t vdev_id);
+
 #ifdef FEATURE_ANI_LEVEL_REQUEST
 /**
  * wmi_unified_ani_level_cmd_send() - WMI function to send get ani level cmd
