@@ -107,12 +107,15 @@
 #define SAP_24GHZ_CH_COUNT (14)
 #define ACS_SCAN_EXPIRY_TIMEOUT_S 4
 
-/* Defines the BIT position of HT caps is support mode field of stainfo */
-#define HDD_HT_CAPS_PRESENT 0
-/* Defines the BIT position of VHT caps is support mode field of stainfo */
-#define HDD_VHT_CAPS_PRESENT 1
-/* Defines the BIT position of HE caps is support mode field of stainfo */
-#define HDD_HE_CAPS_PRESENT 2
+/*
+ * Defines the BIT position of 11bg/11abg/11abgn 802.11 support mode field
+ * of stainfo
+ */
+#define HDD_80211_MODE_ABGN 0
+/* Defines the BIT position of 11ac support mode field of stainfo */
+#define HDD_80211_MODE_AC 1
+/* Defines the BIT position of 11ax support mode field of stainfo */
+#define HDD_80211_MODE_AX 2
 
 /*
  * 11B, 11G Rate table include Basic rate and Extended rate
@@ -1450,6 +1453,7 @@ static void hdd_fill_station_info(struct hdd_adapter *adapter,
 	struct hdd_station_info *stainfo;
 	uint8_t i = 0, oldest_disassoc_sta_idx = WLAN_MAX_STA_COUNT + 1;
 	qdf_time_t oldest_disassoc_sta_ts = 0;
+	bool is_dot11_mode_abgn;
 
 	if (event->staId >= WLAN_MAX_STA_COUNT) {
 		hdd_err("invalid sta id");
@@ -1496,20 +1500,27 @@ static void hdd_fill_station_info(struct hdd_adapter *adapter,
 	/* expect max_phy_rate report in kbps */
 	stainfo->max_phy_rate *= 100;
 
+	/*
+	 * Connected Peer always supports atleast one of the
+	 * 802.11 mode out of 11bg/11abg/11abgn, hence this field
+	 * should always be true.
+	 */
+	is_dot11_mode_abgn = true;
+	stainfo->support_mode |= is_dot11_mode_abgn << HDD_80211_MODE_ABGN;
+
 	if (event->vht_caps.present) {
 		stainfo->vht_present = true;
 		hdd_copy_vht_caps(&stainfo->vht_caps, &event->vht_caps);
 		stainfo->support_mode |=
-				(stainfo->vht_present << HDD_VHT_CAPS_PRESENT);
+				(stainfo->vht_present << HDD_80211_MODE_AC);
 	}
 	if (event->ht_caps.present) {
 		stainfo->ht_present = true;
 		hdd_copy_ht_caps(&stainfo->ht_caps, &event->ht_caps);
-		stainfo->support_mode |=
-				(stainfo->ht_present << HDD_HT_CAPS_PRESENT);
 	}
+
 	stainfo->support_mode |=
-			(event->he_caps_present << HDD_HE_CAPS_PRESENT);
+			(event->he_caps_present << HDD_80211_MODE_AX);
 
 	/* Initialize DHCP info */
 	stainfo->dhcp_phase = DHCP_PHASE_ACK;
