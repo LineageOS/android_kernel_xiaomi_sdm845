@@ -1683,11 +1683,8 @@ int pld_get_audio_wlan_timestamp(struct device *dev,
 		ret = pld_snoc_get_audio_wlan_timestamp(dev, type, ts);
 		break;
 	case PLD_BUS_TYPE_PCIE:
-	case PLD_BUS_TYPE_SNOC_FW_SIM:
-	case PLD_BUS_TYPE_PCIE_FW_SIM:
 	case PLD_BUS_TYPE_SDIO:
 	case PLD_BUS_TYPE_USB:
-	case PLD_BUS_TYPE_IPCI:
 		break;
 	default:
 		ret = -EINVAL;
