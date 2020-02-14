@@ -2472,8 +2472,7 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 		 * Transition from SAP_STARTING to SAP_STARTED
 		 * (both without substates)
 		 */
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("from state channel = %d %s => %s ch_width %d"),
+		sap_debug("Chan %d %s => %s ch_width %d",
 			  sap_ctx->channel, "SAP_STARTING", "SAP_STARTED",
 			  sap_ctx->ch_params.ch_width);
 		sap_ctx->fsm_state = SAP_STARTED;
@@ -2482,13 +2481,6 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 		qdf_status = sap_signal_hdd_event(sap_ctx, roam_info,
 				eSAP_START_BSS_EVENT,
 				(void *) eSAP_STATUS_SUCCESS);
-
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("ap_ctx->ch_params.ch_width %d, channel %d"),
-			     sap_ctx->ch_params.ch_width,
-			     reg_get_channel_state(mac_ctx->pdev,
-						   sap_ctx->channel));
-
 		/*
 		 * The upper layers have been informed that AP is up and
 		 * running, however, the AP is still not beaconing, until
@@ -2718,10 +2710,6 @@ sap_fsm_state_stopping(struct sap_context *sap_ctx,
 					eSAP_STOP_BSS_EVENT,
 					(void *)eSAP_STATUS_SUCCESS);
 	} else if (msg == eWNI_SME_CHANNEL_CHANGE_REQ) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
-			  FL("sapdfs: Send channel change request on sapctx[%pK]"),
-			  sap_ctx);
-
 		sap_get_cac_dur_dfs_region(sap_ctx,
 				&sap_ctx->csr_roamProfile.cac_duration_ms,
 				&sap_ctx->csr_roamProfile.dfs_regdomain);
@@ -2731,9 +2719,6 @@ sap_fsm_state_stopping(struct sap_context *sap_ctx,
 		 */
 		qdf_status = wlansap_channel_change_request(sap_ctx,
 				mac_ctx->sap.SapDfsInfo.target_channel);
-
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
-			  FL("Sending DFS eWNI_SME_CHANNEL_CHANGE_REQ"));
 	} else if (msg == eWNI_SME_CHANNEL_CHANGE_RSP) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
 			  FL("in state %s, event msg %d result %d"),
@@ -2788,9 +2773,7 @@ QDF_STATUS sap_fsm(struct sap_context *sap_ctx, ptWLAN_SAPEvent sap_event)
 
 	mac_ctx = PMAC_STRUCT(hal);
 
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-		  FL("sap_ctx=%pK, state_var=%d, msg=0x%x"),
-		  sap_ctx, state_var, msg);
+	sap_debug("state=%d handle event=%d", state_var, msg);
 
 	switch (state_var) {
 	case SAP_INIT:

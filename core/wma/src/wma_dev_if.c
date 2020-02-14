@@ -1168,7 +1168,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			wma->psoc, false);
 		return -EINVAL;
 	}
-
 	if (resp_event->vdev_id >= wma->max_bssid) {
 		WMA_LOGE("Invalid vdev id received from firmware");
 		return -EINVAL;
@@ -1246,7 +1245,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	if (req_msg->msg_type == WMA_CHNL_SWITCH_REQ) {
 		tpSwitchChannelParams params =
 			(tpSwitchChannelParams) req_msg->user_data;
-
 		if (!params) {
 			WMA_LOGE("%s: channel switch params is NULL for vdev %d",
 				__func__, resp_event->vdev_id);
@@ -1290,10 +1288,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 						 WMI_PEER_PHYMODE,
 						 iface->chanmode,
 						 resp_event->vdev_id);
-			WMA_LOGD("%s:vdev_id %d chanmode %d status %d",
-				__func__, resp_event->vdev_id,
-				iface->chanmode, err);
-
 			chanwidth =
 				wmi_get_ch_width_from_phy_mode(
 						wma->wmi_handle,
@@ -1301,9 +1295,9 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			err = wma_set_peer_param(wma, iface->bssid,
 					WMI_PEER_CHWIDTH, chanwidth,
 					resp_event->vdev_id);
-			WMA_LOGD("%s:vdev_id %d chanwidth %d status %d",
-				__func__, resp_event->vdev_id,
-				chanwidth, err);
+			wma_debug("vdev_id %d chanwidth %d chanmode %d",
+				  resp_event->vdev_id, chanwidth,
+				  iface->chanmode);
 			param.vdev_id = resp_event->vdev_id;
 			param.assoc_id = iface->aid;
 			status = wma_send_vdev_up_to_fw(wma, &param,

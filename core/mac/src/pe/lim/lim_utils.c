@@ -2026,7 +2026,6 @@ void lim_process_channel_switch_timeout(tpAniSirGlobal pMac)
 	}
 	switch (psessionEntry->gLimChannelSwitch.state) {
 	case eLIM_CHANNEL_SWITCH_PRIMARY_ONLY:
-		pe_warn("CHANNEL_SWITCH_PRIMARY_ONLY");
 		lim_switch_primary_channel(pMac,
 					   psessionEntry->gLimChannelSwitch.
 					   primaryChannel, psessionEntry);
@@ -2034,7 +2033,6 @@ void lim_process_channel_switch_timeout(tpAniSirGlobal pMac)
 			eLIM_CHANNEL_SWITCH_IDLE;
 		break;
 	case eLIM_CHANNEL_SWITCH_PRIMARY_AND_SECONDARY:
-		pe_warn("CHANNEL_SWITCH_PRIMARY_AND_SECONDARY");
 		lim_switch_primary_secondary_channel(pMac, psessionEntry,
 			psessionEntry->gLimChannelSwitch.primaryChannel,
 			psessionEntry->gLimChannelSwitch.ch_center_freq_seg0,
@@ -2575,14 +2573,6 @@ void lim_switch_channel_cback(tpAniSirGlobal pMac, QDF_STATUS status,
 	pSirSmeSwitchChInd->chan_params.center_freq_seg1 =
 			psessionEntry->gLimChannelSwitch.ch_center_freq_seg1;
 
-	pe_debug("session: %d chan: %d width: %d sec offset: %d seg0: %d seg1: %d",
-		pSirSmeSwitchChInd->sessionId,
-		pSirSmeSwitchChInd->newChannelId,
-		pSirSmeSwitchChInd->chan_params.ch_width,
-		pSirSmeSwitchChInd->chan_params.sec_ch_offset,
-		pSirSmeSwitchChInd->chan_params.center_freq_seg0,
-		pSirSmeSwitchChInd->chan_params.center_freq_seg1);
-
 	qdf_mem_copy(pSirSmeSwitchChInd->bssid.bytes, psessionEntry->bssId,
 		     QDF_MAC_ADDR_SIZE);
 	mmhMsg.bodyptr = pSirSmeSwitchChInd;
@@ -2609,8 +2599,8 @@ void lim_switch_channel_cback(tpAniSirGlobal pMac, QDF_STATUS status,
 void lim_switch_primary_channel(tpAniSirGlobal pMac, uint8_t newChannel,
 				tpPESession psessionEntry)
 {
-	pe_debug("old chnl: %d --> new chnl: %d",
-		       psessionEntry->currentOperChannel, newChannel);
+	pe_debug("chan: %d --> chan: %d",
+		 psessionEntry->currentOperChannel, newChannel);
 
 	psessionEntry->currentReqChannel = newChannel;
 	psessionEntry->limRFBand = lim_get_rf_band(newChannel);
@@ -2668,13 +2658,13 @@ void lim_switch_primary_secondary_channel(tpAniSirGlobal pMac,
 
 	/* Store the new primary and secondary channel in session entries if different */
 	if (psessionEntry->currentOperChannel != newChannel) {
-		pe_warn("switch old chnl: %d --> new chnl: %d",
+		pe_warn("chan: %d --> chan: %d",
 			psessionEntry->currentOperChannel, newChannel);
 		psessionEntry->currentOperChannel = newChannel;
 	}
 	if (psessionEntry->htSecondaryChannelOffset !=
 			psessionEntry->gLimChannelSwitch.sec_ch_offset) {
-		pe_warn("switch old sec chnl: %d --> new sec chnl: %d",
+		pe_warn("HT sec chnl: %d --> HT sec chnl: %d",
 			psessionEntry->htSecondaryChannelOffset,
 			psessionEntry->gLimChannelSwitch.sec_ch_offset);
 		psessionEntry->htSecondaryChannelOffset =
@@ -5204,7 +5194,6 @@ lim_prepare_for11h_channel_switch(tpAniSirGlobal pMac, tpPESession psessionEntry
 		}
 		return;
 	} else {
-		pe_debug("Not in scan state, start channel switch timer");
 		/** We are safe to switch channel at this point */
 		lim_stop_tx_and_switch_channel(pMac, psessionEntry->peSessionId);
 	}
@@ -8351,12 +8340,9 @@ void lim_process_ap_ecsa_timeout(void *data)
 		return;
 	}
 
-	if (session->gLimChannelSwitch.switchCount) {
+	if (session->gLimChannelSwitch.switchCount)
 		/* Decrement the beacon switch count */
 		session->gLimChannelSwitch.switchCount--;
-		pe_debug("current beacon count %d",
-			 session->gLimChannelSwitch.switchCount);
-	}
 
 	/*
 	 * Send only g_sap_chanswitch_beacon_cnt beacons with CSA IE Set in

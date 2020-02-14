@@ -299,7 +299,6 @@ void lim_apply_configuration(tpAniSirGlobal pMac, tpPESession psessionEntry)
 		   as a part of join request for a BT-AMP station */
 
 		if (psessionEntry->statypeForBss == STA_ENTRY_SELF) {
-			pe_debug("Initializing BT-AMP beacon generation");
 			sch_set_beacon_interval(pMac, psessionEntry);
 			sch_set_fixed_beacon_fields(pMac, psessionEntry);
 		}

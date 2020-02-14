@@ -1819,11 +1819,6 @@ static QDF_STATUS lim_process_csa_wbw_ie(tpAniSirGlobal mac_ctx,
 
 	ap_new_ch_width = csa_params->new_ch_width + 1;
 
-	pe_debug("new channel: %d new_ch_width: %d seg0: %d seg1: %d",
-		 csa_params->channel, ap_new_ch_width,
-		 csa_params->new_ch_freq_seg1,
-		 csa_params->new_ch_freq_seg2);
-
 	if ((ap_new_ch_width != CH_WIDTH_80MHZ) &&
 			(ap_new_ch_width != CH_WIDTH_160MHZ) &&
 			(ap_new_ch_width != CH_WIDTH_80P80MHZ)) {
@@ -1922,11 +1917,6 @@ static QDF_STATUS lim_process_csa_wbw_ie(tpAniSirGlobal mac_ctx,
 		chnl_switch_info->newChanWidth = ap_new_ch_width;
 	}
 prnt_log:
-	pe_debug("new channel: %d new_ch_width: %d seg0: %d seg1: %d",
-			csa_params->channel,
-			chnl_switch_info->newChanWidth,
-			chnl_switch_info->newCenterChanFreq0,
-			chnl_switch_info->newCenterChanFreq1);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -1955,8 +1945,6 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 
 	tLimWiderBWChannelSwitchInfo *chnl_switch_info = NULL;
 	tLimChannelSwitchInfo *lim_ch_switch = NULL;
-
-	pe_debug("handle csa offload msg");
 
 	if (!csa_params) {
 		pe_err("limMsgQ body ptr is NULL");
@@ -2025,18 +2013,10 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 	chnl_switch_info =
 		&session_entry->gLimWiderBWChannelSwitch;
 
-	pe_debug("vht: %d ht: %d flag: %x chan: %d, sec_ch_offset %d",
+	pe_debug("Session %d vdev %d: vht: %d ht: %d cbmode %d",
+		 session_entry->peSessionId, session_entry->smeSessionId,
 		 session_entry->vhtCapability,
 		 session_entry->htSupportedChannelWidthSet,
-		 csa_params->ies_present_flag,
-		 csa_params->channel,
-		 csa_params->sec_chan_offset);
-	pe_debug("seg1: %d seg2: %d width: %d country: %s class: %d, cbmode %d",
-		 csa_params->new_ch_freq_seg1,
-		 csa_params->new_ch_freq_seg2,
-		 csa_params->new_ch_width,
-		 mac_ctx->scan.countryCodeCurrent,
-		 csa_params->new_op_class,
 		 channel_bonding_mode);
 
 	session_entry->htSupportedChannelWidthSet = false;
@@ -2047,7 +2027,6 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 			(QDF_STATUS_SUCCESS == lim_process_csa_wbw_ie(mac_ctx,
 					csa_params, chnl_switch_info,
 					session_entry))) {
-			pe_debug("CSA wide BW IE process successful");
 			lim_ch_switch->sec_ch_offset =
 				PHY_SINGLE_CHANNEL_CENTERED;
 			if (chnl_switch_info->newChanWidth) {
@@ -2180,12 +2159,16 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 		}
 
 	}
-	pe_debug("new ch width: %d space: %d new ht width %d",
-		 session_entry->gLimChannelSwitch.ch_width, chan_space,
-		 session_entry->htSupportedChannelWidthSet);
-	if ((session_entry->currentOperChannel == csa_params->channel) &&
-		(session_entry->ch_width ==
-		 session_entry->gLimChannelSwitch.ch_width)) {
+	pe_debug("new ch %d width: %d freq0 %d freq1 %d ht width %d",
+		 session_entry->gLimChannelSwitch.primaryChannel,
+		 session_entry->gLimChannelSwitch.ch_width,
+		 session_entry->gLimChannelSwitch.ch_center_freq_seg0,
+		 session_entry->gLimChannelSwitch.ch_center_freq_seg1,
+		 session_entry->gLimChannelSwitch.sec_ch_offset);
+
+	if (session_entry->currentOperChannel == csa_params->channel &&
+	    session_entry->ch_width ==
+			session_entry->gLimChannelSwitch.ch_width) {
 		pe_debug("Ignore CSA, no change in ch and bw");
 		qdf_mem_free(csa_offload_ind);
 		goto err;
@@ -2214,7 +2197,6 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx,
 	mmh_msg.type = eWNI_SME_CSA_OFFLOAD_EVENT;
 	mmh_msg.bodyptr = csa_offload_ind;
 	mmh_msg.bodyval = 0;
-	pe_debug("Sending eWNI_SME_CSA_OFFLOAD_EVENT to SME");
 	MTRACE(mac_trace_msg_tx
 			(mac_ctx, session_entry->peSessionId, mmh_msg.type));
 #ifdef FEATURE_WLAN_DIAG_SUPPORT

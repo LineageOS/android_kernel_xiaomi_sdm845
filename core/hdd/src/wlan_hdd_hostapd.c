@@ -838,18 +838,12 @@ QDF_STATUS hdd_chan_change_notify(struct hdd_adapter *adapter,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	hdd_debug("chan:%d width:%d sec_ch_offset:%d seg0:%d seg1:%d",
-		chan_change.chan, chan_change.chan_params.ch_width,
-		chan_change.chan_params.sec_ch_offset,
-		chan_change.chan_params.center_freq_seg0,
-		chan_change.chan_params.center_freq_seg1);
-
 	freq = cds_chan_to_freq(chan_change.chan);
-
 	chan = ieee80211_get_channel(adapter->wdev.wiphy, freq);
 
 	if (!chan) {
-		hdd_err("Invalid input frequency for channel conversion");
+		hdd_err("Invalid input frequency %d for channel conversion",
+			freq);
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -2475,7 +2469,6 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		return QDF_STATUS_SUCCESS;
 
 	case eSAP_CHANNEL_CHANGE_EVENT:
-		hdd_debug("Received eSAP_CHANNEL_CHANGE_EVENT event");
 		if (hostapd_state->bss_state != BSS_STOP) {
 			/* Prevent suspend for new channel */
 			hdd_hostapd_channel_prevent_suspend(adapter,

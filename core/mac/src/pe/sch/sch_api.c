@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -119,9 +119,6 @@ QDF_STATUS sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 				pMac->sch.schObject.csa_count_offset;
 			beaconParams->ecsa_count_offset =
 				pMac->sch.schObject.ecsa_count_offset;
-			pe_debug("csa_count_offset %d ecsa_count_offset %d",
-				 beaconParams->csa_count_offset,
-				 beaconParams->ecsa_count_offset);
 		}
 	}
 
@@ -177,8 +174,6 @@ QDF_STATUS sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 	if (QDF_STATUS_SUCCESS != retCode)
 		pe_err("Posting SEND_BEACON_REQ to HAL failed, reason=%X",
 			retCode);
-	else
-		pe_debug("Successfully posted WMA_SEND_BEACON_REQ to HAL");
 
 	return retCode;
 }

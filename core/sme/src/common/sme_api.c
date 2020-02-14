@@ -1389,9 +1389,6 @@ static QDF_STATUS dfs_msg_processor(tpAniSirGlobal mac,
 		session_id = csa_ie_tx_complete_rsp->sessionId;
 		roam_status = eCSR_ROAM_DFS_CHAN_SW_NOTIFY;
 		roam_result = eCSR_ROAM_RESULT_DFS_CHANSW_UPDATE_SUCCESS;
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "eWNI_SME_DFS_CSAIE_TX_COMPLETE_IND session=%d",
-			  session_id);
 		break;
 	}
 	case eWNI_SME_DFS_CAC_COMPLETE:

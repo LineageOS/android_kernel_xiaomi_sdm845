@@ -1045,8 +1045,6 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 	uint16_t sap_lfreq, sap_hfreq, intf_lfreq, intf_hfreq, sap_cch = 0;
 	QDF_STATUS status;
 
-	sme_debug("sap_ch: %d sap_phymode: %d", sap_ch, sap_phymode);
-
 	if (mac_ctx->roam.configParam.cc_switch_mode ==
 			QDF_MCC_TO_SCC_SWITCH_DISABLE)
 		return 0;
@@ -1100,9 +1098,6 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 					session, &sap_ch, &sap_hbw, &sap_cfreq,
 					&intf_ch, &intf_hbw, &intf_cfreq);
 
-			sme_debug("%d: sap_ch:%d sap_hbw:%d sap_cfreq:%d intf_ch:%d intf_hbw:%d, intf_cfreq:%d",
-					i, sap_ch, sap_hbw, sap_cfreq,
-					intf_ch, intf_hbw, intf_cfreq);
 		}
 		if (intf_ch && ((intf_ch > 14 && sap_ch > 14) ||
 				(intf_ch <= 14 && sap_ch <= 14)))
@@ -1110,8 +1105,8 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 	}
 
 	sme_debug("intf_ch:%d sap_ch:%d cc_switch_mode:%d, dbs:%d",
-			intf_ch, sap_ch, cc_switch_mode,
-			policy_mgr_is_dbs_enable(mac_ctx->psoc));
+		  intf_ch, sap_ch, cc_switch_mode,
+		  policy_mgr_is_dbs_enable(mac_ctx->psoc));
 
 	if (intf_ch && sap_ch != intf_ch &&
 	    !policy_mgr_is_force_scc(mac_ctx->psoc)) {

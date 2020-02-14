@@ -1474,9 +1474,8 @@ int wma_csa_offload_handler(void *handle, uint8_t *event, uint32_t len)
 
 	csa_offload_event->ies_present_flag = csa_event->ies_present_flag;
 
-	WMA_LOGD("CSA: New Channel = %d BSSID:%pM",
-		 csa_offload_event->channel, csa_offload_event->bssId);
-	WMA_LOGD("CSA: IEs Present Flag = 0x%x new ch width = %d ch center freq1 = %d ch center freq2 = %d new op class = %d",
+	WMA_LOGD("CSA: BSSID %pM chan %d flag 0x%x width = %d freq1 = %d freq2 = %d op class = %d",
+		 csa_offload_event->bssId, csa_offload_event->channel,
 		 csa_event->ies_present_flag,
 		 csa_offload_event->new_ch_width,
 		 csa_offload_event->new_ch_freq_seg1,
