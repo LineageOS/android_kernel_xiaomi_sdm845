@@ -4962,7 +4962,8 @@ static void wma_add_tdls_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 		goto send_rsp;
 	}
 
-	if (wma_is_roam_synch_in_progress(wma, add_sta->smesessionId)) {
+	if (wma_is_roam_synch_in_progress(wma, add_sta->smesessionId) ||
+	    wma->interfaces[add_sta->smesessionId].roaming_in_progress) {
 		WMA_LOGE("%s: roaming in progress, reject add sta!", __func__);
 		add_sta->status = QDF_STATUS_E_PERM;
 		goto send_rsp;
