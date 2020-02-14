@@ -43,6 +43,17 @@ struct wlan_ies {
 };
 
 /**
+ * struct wlan_disconnect_info - WLAN Disconnection Information
+ * @self_discon_ies: Disconnect IEs to be sent in deauth/disassoc frames
+ *                   originated from driver
+ * @peer_discon_ies: Disconnect IEs received in deauth/disassoc frames from peer
+ */
+struct wlan_disconnect_info {
+	struct wlan_ies self_discon_ies;
+	struct wlan_ies peer_discon_ies;
+};
+
+/**
  * struct peer_mlme_priv_obj - peer MLME component object
  * @ucast_key_cipher: unicast crypto type.
  * @is_pmf_enabled: True if PMF is enabled
@@ -62,18 +73,14 @@ struct peer_mlme_priv_obj {
  * @ini_cfg: Max configuration of nss, chains supported for vdev.
  * @sta_dynamic_oce_value: Dyanmic oce flags value for sta
  * @follow_ap_edca: if true, it is forced to follow the AP's edca
- * @self_disconnect_ies: Disconnect IEs to be sent in deauth/disassoc frames
- *			 originated from driver
- * @peer_disconnect_ies: Disconnect IEs received in deauth/disassoc frames
- *			 from peer
+ * @disconnect_info: Disconnection information
  */
 struct vdev_mlme_priv_obj {
 	struct mlme_nss_chains dynamic_cfg;
 	struct mlme_nss_chains ini_cfg;
 	uint8_t sta_dynamic_oce_value;
 	bool follow_ap_edca;
-	struct wlan_ies self_disconnect_ies;
-	struct wlan_ies peer_disconnect_ies;
+	struct wlan_disconnect_info disconnect_info;
 };
 
 
