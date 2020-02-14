@@ -2290,7 +2290,9 @@ lim_fill_fils_ft(tpPESession src_session,
 #endif
 
 QDF_STATUS
-pe_disconnect_callback(tpAniSirGlobal mac, uint8_t vdev_id)
+pe_disconnect_callback(tpAniSirGlobal mac, uint8_t vdev_id,
+		       uint8_t *deauth_disassoc_frame,
+		       uint16_t deauth_disassoc_frame_len)
 {
 	tpPESession session;
 
@@ -2300,6 +2302,9 @@ pe_disconnect_callback(tpAniSirGlobal mac, uint8_t vdev_id)
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	lim_extract_ies_from_deauth_disassoc(mac, session->peSessionId,
+					     deauth_disassoc_frame,
+					     deauth_disassoc_frame_len);
 	lim_tear_down_link_with_ap(mac, session->peSessionId,
 				   eSIR_MAC_UNSPEC_FAILURE_REASON);
 

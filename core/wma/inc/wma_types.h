@@ -786,7 +786,9 @@ QDF_STATUS wma_register_roaming_callbacks(
 			tpSirBssDescription  bss_desc_ptr,
 			enum sir_roam_op_code reason),
 		QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
-						uint8_t vdev_id),
+					uint8_t vdev_id,
+					uint8_t *deauth_disassoc_frame,
+					uint16_t deauth_disassoc_frame_len),
 		QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
 			struct roam_pmkid_req_event *bss_list));
 #else
@@ -802,7 +804,9 @@ static inline QDF_STATUS wma_register_roaming_callbacks(
 			tpSirBssDescription  bss_desc_ptr,
 			enum sir_roam_op_code reason),
 		QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
-						uint8_t vdev_id),
+					uint8_t vdev_id,
+					uint8_t *deauth_disassoc_frame,
+					uint16_t deauth_disassoc_frame_len),
 		QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
 			struct roam_pmkid_req_event *bss_list))
 {

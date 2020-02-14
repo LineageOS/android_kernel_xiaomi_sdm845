@@ -6331,6 +6331,7 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 	WMI_ROAM_EVENTID_param_tlvs *param_buf;
 	wmi_roam_event_fixed_param *wmi_event;
 	struct sSirSmeRoamOffloadSynchInd *roam_synch_data;
+	uint8_t *frame = NULL;
 
 	param_buf = (WMI_ROAM_EVENTID_param_tlvs *) event_buf;
 	if (!param_buf) {
@@ -6421,8 +6422,12 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 	case WMI_ROAM_REASON_DEAUTH:
 		WMA_LOGD("%s: Received disconnect roam event reason:%d",
 			 __func__, wmi_event->notif);
+
+		if (wmi_event->notif_params1)
+			frame = param_buf->deauth_disassoc_frame;
 		wma_handle->pe_disconnect_cb(wma_handle->mac_context,
-					     wmi_event->vdev_id);
+					     wmi_event->vdev_id,
+					     frame, wmi_event->notif_params1);
 		break;
 	default:
 		WMA_LOGD("%s:Unhandled Roam Event %x for vdevid %x", __func__,

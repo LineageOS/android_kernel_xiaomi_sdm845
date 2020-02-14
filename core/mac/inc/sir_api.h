@@ -486,7 +486,9 @@ typedef struct sSirSmeReadyReq {
 	QDF_STATUS (*sme_msg_cb)(tpAniSirGlobal mac,
 				 struct scheduler_msg *msg);
 	QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
-					uint8_t vdev_id);
+					uint8_t vdev_id,
+					uint8_t *deauth_disassoc_frame,
+					uint16_t deauth_disassoc_frame_len);
 	void *csr_roam_pmkid_req_cb;
 } tSirSmeReadyReq, *tpSirSmeReadyReq;
 
