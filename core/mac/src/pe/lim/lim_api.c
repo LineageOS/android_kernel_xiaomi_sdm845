@@ -2292,7 +2292,8 @@ lim_fill_fils_ft(tpPESession src_session,
 QDF_STATUS
 pe_disconnect_callback(tpAniSirGlobal mac, uint8_t vdev_id,
 		       uint8_t *deauth_disassoc_frame,
-		       uint16_t deauth_disassoc_frame_len)
+		       uint16_t deauth_disassoc_frame_len,
+		       uint16_t reason_code)
 {
 	tpPESession session;
 
@@ -2302,11 +2303,18 @@ pe_disconnect_callback(tpAniSirGlobal mac, uint8_t vdev_id,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	lim_extract_ies_from_deauth_disassoc(mac, session->peSessionId,
-					     deauth_disassoc_frame,
-					     deauth_disassoc_frame_len);
+	if (deauth_disassoc_frame &&
+	    deauth_disassoc_frame_len > SIR_MAC_MIN_IE_LEN) {
+		lim_extract_ies_from_deauth_disassoc(mac, session->peSessionId,
+						     deauth_disassoc_frame,
+						     deauth_disassoc_frame_len);
+
+		reason_code = sir_read_u16(deauth_disassoc_frame +
+					   sizeof(struct wlan_frame_hdr));
+	}
+
 	lim_tear_down_link_with_ap(mac, session->peSessionId,
-				   eSIR_MAC_UNSPEC_FAILURE_REASON);
+				   reason_code);
 
 	return QDF_STATUS_SUCCESS;
 }
