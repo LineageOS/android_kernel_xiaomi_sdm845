@@ -519,9 +519,6 @@ void csr_neighbor_roam_free_roamable_bss_list(tpAniSirGlobal mac_ctx,
 {
 	tpCsrNeighborRoamBSSInfo result = NULL;
 
-	sme_debug("Emptying the BSS list. Current count: %d",
-		csr_ll_count(llist));
-
 	/*
 	 * Pick up the head, remove and free the node till
 	 * the list becomes empty

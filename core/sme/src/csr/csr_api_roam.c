@@ -21321,10 +21321,8 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	}
 
 	if (!csr_is_conn_state_connected(mac_ctx, session_id) &&
-	    command == ROAM_SCAN_OFFLOAD_UPDATE_CFG) {
-		sme_debug("Session not in connected state, RSO not sent");
+	    command == ROAM_SCAN_OFFLOAD_UPDATE_CFG)
 		return QDF_STATUS_E_FAILURE;
-	}
 
 	temp_session_id = csr_get_roam_enabled_sta_sessionid(mac_ctx);
 	if ((temp_session_id != CSR_SESSION_ID_INVALID) &&

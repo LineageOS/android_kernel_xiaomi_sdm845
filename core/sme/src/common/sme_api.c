@@ -7993,14 +7993,6 @@ sme_restore_default_roaming_params(tpAniSirGlobal mac,
 {
 	struct csr_config *roam_config = &mac->roam.configParam;
 
-	sme_debug("%s default roam scoring",
-		  roam_config->neighborRoamConfig.enable_scoring_for_roam ?
-		  "Enable" : "Disable");
-
-	sme_debug("Restore scan period to: %u and full scan period to: %u",
-		  roam_config->neighborRoamConfig.nEmptyScanRefreshPeriod,
-		  roam_config->neighborRoamConfig.full_roam_scan_period);
-
 	roam_info->cfgParams.enable_scoring_for_roam =
 		roam_config->bss_score_params.enable_scoring_for_roam;
 	roam_info->cfgParams.emptyScanRefreshPeriod =
@@ -8058,20 +8050,15 @@ QDF_STATUS sme_roam_control_restore_default_config(mac_handle_t mac_handle,
 		goto out;
 	}
 
-	sme_debug("Cleanup roam scan control");
 	mac->roam.configParam.nRoamScanControl = false;
 
 	neighbor_roam_info = &mac->roam.neighborRoamInfo[vdev_id];
 
-	sme_debug("Cleanup Preferred frequency list");
 	chan_info = &neighbor_roam_info->cfgParams.pref_chan_info;
 	csr_flush_cfg_bg_scan_roam_channel_list(chan_info);
 
-	sme_debug("Cleanup specific frequency list");
 	chan_info = &neighbor_roam_info->cfgParams.specific_chan_info;
 	csr_flush_cfg_bg_scan_roam_channel_list(chan_info);
-
-	sme_debug("Cleanup roam control config related lfr params");
 
 	sme_restore_default_roaming_params(mac, neighbor_roam_info);
 
