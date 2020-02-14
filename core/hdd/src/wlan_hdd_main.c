@@ -11556,6 +11556,21 @@ static int hdd_init_mws_coex(struct hdd_context *hdd_ctx)
 		hdd_warn("Unable to send MWS-COEX 4G quick FTDM policy");
 		return ret;
 	}
+
+	ret = sme_cli_set_command(
+			0, WMI_PDEV_PARAM_MWSCOEX_PCC_CHAVD_DELAY,
+			hdd_ctx->config->mws_coex_pcc_channel_avoid_delay,
+			PDEV_CMD);
+	if (ret)
+		return ret;
+
+	ret = sme_cli_set_command(
+			0, WMI_PDEV_PARAM_MWSCOEX_SCC_CHAVD_DELAY,
+			hdd_ctx->config->mws_coex_scc_channel_avoid_delay,
+			PDEV_CMD);
+	if (ret)
+		return ret;
+
 	return ret;
 }
 #else

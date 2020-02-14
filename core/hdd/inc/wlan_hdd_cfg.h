@@ -90,6 +90,44 @@ struct hdd_context;
 #define CFG_ENABLE_CONNECTED_SCAN_MAX         (1)
 #define CFG_ENABLE_CONNECTED_SCAN_DEFAULT     (1)
 
+/*
+ * <ini>
+ * mws_coex_pcc_channel_avoid_delay - configures the duration, when WWAN PCC
+ * (Primary Component Carrier) conflicts with WLAN channel.
+ * @Min: 0x00
+ * @Max: 0xFF
+ * @Default: 0x3C
+ *
+ * It is used to set MWS-COEX WWAN PCC channel avoidance delay
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY		"mws_coex_pcc_channel_avoid_delay"
+#define CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY_DEFAULT	(0x3C)
+#define CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY_MAX	(0xFF)
+#define CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY_MIN	(0)
+
+/*
+ * <ini>
+ * mws_coex_scc_channel_avoid_delay - configures the duration, when WWAN SCC
+ * (Secondary Component Carrier) conflicts with WLAN channel.
+ * @Min: 0x00
+ * @Max: 0xFF
+ * @Default: 0x78
+ *
+ * It is used to set MWS-COEX WWAN SCC channel avoidance delay
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY "mws_coex_scc_channel_avoid_delay"
+#define CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY_DEFAULT 0x00
+#define CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY_MAX 0xFF
+#define CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY_MIN 0x00
+
 #ifdef WLAN_NUD_TRACKING
 /*
  * <ini>
@@ -18399,6 +18437,9 @@ struct hdd_config {
 	bool config_sar_safety_sleep_index;
 #endif
 	uint32_t pkt_capture_mode;
+
+	uint32_t mws_coex_scc_channel_avoid_delay;
+	uint32_t mws_coex_pcc_channel_avoid_delay;
 
 };
 

@@ -6283,6 +6283,20 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_PKT_CAPTURE_MODE_MIN,
 		     CFG_PKT_CAPTURE_MODE_MAX),
 #endif
+
+	REG_VARIABLE(CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY, WLAN_PARAM_Integer,
+		     struct hdd_config, mws_coex_pcc_channel_avoid_delay,
+		     VAR_FLAGS_OPTIONAL,
+		     CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY_DEFAULT,
+		     CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY_MIN,
+		     CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY_MAX),
+
+	REG_VARIABLE(CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY, WLAN_PARAM_Integer,
+		     struct hdd_config, mws_coex_scc_channel_avoid_delay,
+		     VAR_FLAGS_OPTIONAL,
+		     CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY_DEFAULT,
+		     CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY_MIN,
+		     CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY_MAX),
 };
 
 /**
