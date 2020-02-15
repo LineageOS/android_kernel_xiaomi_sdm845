@@ -726,8 +726,21 @@ static inline void lim_update_tdls_set_state_for_fw(tpPESession session_entry,
 /* / Function that handles heartbeat failure */
 void lim_handle_heart_beat_failure(tpAniSirGlobal, tpPESession);
 
-/* / Function that triggers link tear down with AP upon HB failure */
-void lim_tear_down_link_with_ap(tpAniSirGlobal, uint8_t, tSirMacReasonCodes);
+/**
+ * lim_tear_down_link_with_ap() - Tear down link with AP
+ * @mac: mac context
+ * @session_id: PE session id
+ * @reason_code: Disconnect reason code as per emun eSirMacReasonCodes
+ * @trigger: Disconnect trigger as per enum eLimDisassocTrigger
+ *
+ * Function that triggers link tear down with AP upon HB failure
+ *
+ * Return: None
+ */
+void lim_tear_down_link_with_ap(tpAniSirGlobal mac,
+				uint8_t session_id,
+				tSirMacReasonCodes reason_code,
+				enum eLimDisassocTrigger trigger);
 
 /* / Function that processes Max retries interrupt from TFP */
 void limHandleMaxRetriesInterrupt(uint32_t);

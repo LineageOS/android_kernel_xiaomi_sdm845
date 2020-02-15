@@ -241,7 +241,8 @@ void lim_delete_sta_context(tpAniSirGlobal mac_ctx,
 				msg->addr2, session_entry, false);
 			lim_tear_down_link_with_ap(mac_ctx,
 				session_entry->peSessionId,
-				eSIR_MAC_DISASSOC_DUE_TO_INACTIVITY_REASON);
+				eSIR_MAC_DISASSOC_DUE_TO_INACTIVITY_REASON,
+				eLIM_LINK_MONITORING_DEAUTH);
 			/* only break for STA role (non TDLS) */
 			break;
 		}
@@ -269,7 +270,8 @@ void lim_delete_sta_context(tpAniSirGlobal mac_ctx,
 				eSIR_MAC_DISASSOC_DUE_TO_INACTIVITY_REASON,
 				session_entry->bssId, session_entry, false);
 		lim_tear_down_link_with_ap(mac_ctx, session_entry->peSessionId,
-					   eSIR_MAC_UNSPEC_FAILURE_REASON);
+					   eSIR_MAC_BSS_TRANSITION_DISASSOC,
+					   eLIM_LINK_MONITORING_DEAUTH);
 		break;
 
 	default:
@@ -336,26 +338,10 @@ lim_trigger_sta_deletion(tpAniSirGlobal mac_ctx, tpDphHashNode sta_ds,
 	lim_send_sme_disassoc_ind(mac_ctx, sta_ds, session_entry);
 } /*** end lim_trigger_st_adeletion() ***/
 
-/**
- * lim_tear_down_link_with_ap()
- *
- ***FUNCTION:
- * This function is called when heartbeat (beacon reception)
- * fails on STA
- *
- ***LOGIC:
- *
- ***ASSUMPTIONS:
- *
- ***NOTE:
- *
- * @param  pMac - Pointer to Global MAC structure
- * @return None
- */
-
 void
 lim_tear_down_link_with_ap(tpAniSirGlobal pMac, uint8_t sessionId,
-			   tSirMacReasonCodes reasonCode)
+			   tSirMacReasonCodes reasonCode,
+			   enum eLimDisassocTrigger trigger)
 {
 	tpDphHashNode pStaDs = NULL;
 
@@ -374,8 +360,9 @@ lim_tear_down_link_with_ap(tpAniSirGlobal pMac, uint8_t sessionId,
 	 */
 	psessionEntry->pmmOffloadInfo.bcnmiss = false;
 
-	pe_info("No ProbeRsp from AP after HB failure for pe/sme id %d/%d",
-		psessionEntry->peSessionId, psessionEntry->smeSessionId);
+	pe_info("Session %d Vdev %d reason code %d trigger %d",
+		psessionEntry->peSessionId, psessionEntry->smeSessionId,
+		reasonCode, trigger);
 
 	/* Announce loss of link to Roaming algorithm */
 	/* and cleanup by sending SME_DISASSOC_REQ to SME */
@@ -401,8 +388,7 @@ lim_tear_down_link_with_ap(tpAniSirGlobal pMac, uint8_t sessionId,
 #endif
 
 		pStaDs->mlmStaContext.disassocReason = reasonCode;
-		pStaDs->mlmStaContext.cleanupTrigger =
-			eLIM_LINK_MONITORING_DEAUTH;
+		pStaDs->mlmStaContext.cleanupTrigger = trigger;
 		/* / Issue Deauth Indication to SME. */
 		qdf_mem_copy((uint8_t *) &mlmDeauthInd.peerMacAddr,
 			     pStaDs->staAddr, sizeof(tSirMacAddr));
@@ -414,7 +400,7 @@ lim_tear_down_link_with_ap(tpAniSirGlobal pMac, uint8_t sessionId,
 		 * connection, if we connect to same AP after HB failure.
 		 */
 		if (pMac->roam.configParam.send_deauth_before_con &&
-		    eSIR_BEACON_MISSED == reasonCode) {
+		    eSIR_MAC_BEACON_MISSED == reasonCode) {
 			int apCount = pMac->lim.gLimHeartBeatApMacIndex;
 
 			if (pMac->lim.gLimHeartBeatApMacIndex)
@@ -541,7 +527,8 @@ void lim_handle_heart_beat_failure(tpAniSirGlobal mac_ctx,
 			 */
 			lim_tear_down_link_with_ap(mac_ctx,
 				session->peSessionId,
-				eSIR_BEACON_MISSED);
+				eSIR_MAC_BEACON_MISSED,
+				eLIM_LINK_MONITORING_DEAUTH);
 		}
 	} else {
 		/**

@@ -7642,7 +7642,8 @@ mem_alloc_failed:
 	/* Disable the channels received in command SET_DISABLE_CHANNEL_LIST */
 	if (!is_command_repeated && hdd_ctx->original_channels) {
 		wlan_hdd_disable_channels(hdd_ctx);
-		hdd_check_and_disconnect_sta_on_invalid_channel(hdd_ctx);
+		hdd_check_and_disconnect_sta_on_invalid_channel(hdd_ctx,
+			eSIR_MAC_OPER_CHANNEL_USER_DISABLED);
 	}
 
 	hdd_exit();

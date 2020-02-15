@@ -961,6 +961,14 @@ error:
 						 (uint32_t *) pMsg);
 } /*** end lim_send_sme_disassoc_ntf() ***/
 
+static bool lim_is_disconnect_from_ap(enum eLimDisassocTrigger trigger)
+{
+	if (trigger == eLIM_PEER_ENTITY_DEAUTH ||
+	    trigger == eLIM_PEER_ENTITY_DISASSOC)
+		return true;
+
+	return false;
+}
 /** -----------------------------------------------------------------
    \brief lim_send_sme_disassoc_ind() - sends SME_DISASSOC_IND
 
@@ -1001,6 +1009,10 @@ lim_send_sme_disassoc_ind(tpAniSirGlobal pMac, tpDphHashNode pStaDs,
 		     QDF_MAC_ADDR_SIZE);
 
 	pSirSmeDisassocInd->staId = pStaDs->staIndex;
+
+	if (LIM_IS_STA_ROLE(psessionEntry))
+		pSirSmeDisassocInd->from_ap =
+		lim_is_disconnect_from_ap(pStaDs->mlmStaContext.cleanupTrigger);
 
 	mmhMsg.type = eWNI_SME_DISASSOC_IND;
 	mmhMsg.bodyptr = pSirSmeDisassocInd;
@@ -1067,6 +1079,10 @@ lim_send_sme_deauth_ind(tpAniSirGlobal pMac, tpDphHashNode pStaDs,
 	if (eSIR_MAC_PEER_STA_REQ_LEAVING_BSS_REASON ==
 		pStaDs->mlmStaContext.disassocReason)
 		pSirSmeDeauthInd->rssi = pStaDs->del_sta_ctx_rssi;
+
+	if (LIM_IS_STA_ROLE(psessionEntry))
+		pSirSmeDeauthInd->from_ap =
+		lim_is_disconnect_from_ap(pStaDs->mlmStaContext.cleanupTrigger);
 
 	mmhMsg.type = eWNI_SME_DEAUTH_IND;
 	mmhMsg.bodyptr = pSirSmeDeauthInd;

@@ -1566,6 +1566,7 @@ typedef struct sSirSmeDisassocInd {
 	tAniStaStatStruct perStaStats;  /* STA stats */
 	uint16_t staId;
 	uint32_t reasonCode;
+	bool from_ap;
 } tSirSmeDisassocInd, *tpSirSmeDisassocInd;
 
 /* / Definition for Disassociation confirm */
@@ -1631,6 +1632,7 @@ typedef struct sSirSmeDeauthInd {
 	uint16_t staId;
 	uint32_t reasonCode;
 	int8_t rssi;
+	bool from_ap;
 } tSirSmeDeauthInd, *tpSirSmeDeauthInd;
 
 /* / Definition for stop BSS request message */

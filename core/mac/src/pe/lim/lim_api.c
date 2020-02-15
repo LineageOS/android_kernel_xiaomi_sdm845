@@ -2314,7 +2314,8 @@ pe_disconnect_callback(tpAniSirGlobal mac, uint8_t vdev_id,
 	}
 
 	lim_tear_down_link_with_ap(mac, session->peSessionId,
-				   reason_code);
+				   reason_code,
+				   eLIM_PEER_ENTITY_DEAUTH);
 
 	return QDF_STATUS_SUCCESS;
 }
