@@ -19395,6 +19395,22 @@ QDF_STATUS csr_get_statistics(tpAniSirGlobal pMac,
 #endif /* QCA_SUPPORT_CP_STATS */
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+QDF_STATUS csr_roam_send_rso_cmd(tpAniSirGlobal mac_ctx, uint8_t session_id,
+				 tSirRoamOffloadScanReq *request_buf)
+{
+	QDF_STATUS status;
+
+	request_buf->message_type = eWNI_SME_ROAM_SCAN_OFFLOAD_REQ;
+	request_buf->length = sizeof(*request_buf);
+
+	status = umac_send_mb_message_to_mac(request_buf);
+	if (status != QDF_STATUS_SUCCESS) {
+		sme_err("Send RSO from CSR failed");
+		return status;
+	}
+	return QDF_STATUS_SUCCESS;
+}
+
 /**
  * csr_roam_set_key_mgmt_offload() - enable/disable key mgmt offload
  * @mac_ctx: mac context.
@@ -19678,8 +19694,8 @@ csr_roam_pmkid_req_callback(uint8_t vdev_id,
 #endif /* WLAN_FEATURE_FIPS */
 #else
 static inline void
-csr_update_roam_scan_offload_request(struct mac_context *mac_ctx,
-				     struct roam_offload_scan_req *req_buf,
+csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
+				     tSirRoamOffloadScanReq *req_buf,
 				     struct csr_roam_session *session)
 {}
 #endif /* WLAN_FEATURE_ROAM_OFFLOAD */
@@ -20734,22 +20750,6 @@ static bool csr_is_RSO_cmd_allowed(tpAniSirGlobal mac_ctx,
 	}
 	ret_val = desiredMask & (1 << neigh_roam_info->last_sent_cmd);
 	return ret_val;
-}
-
-QDF_STATUS csr_roam_send_rso_cmd(tpAniSirGlobal mac_ctx, uint8_t session_id,
-				 tSirRoamOffloadScanReq *request_buf)
-{
-	QDF_STATUS status;
-
-	request_buf->message_type = eWNI_SME_ROAM_SCAN_OFFLOAD_REQ;
-	request_buf->length = sizeof(*request_buf);
-
-	status = umac_send_mb_message_to_mac(request_buf);
-	if (QDF_STATUS_SUCCESS != status) {
-		sme_err("Send RSO from CSR failed");
-		return status;
-	}
-	return QDF_STATUS_SUCCESS;
 }
 
 /**
