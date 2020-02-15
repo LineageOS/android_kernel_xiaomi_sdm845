@@ -644,6 +644,9 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 	if (0 != ret)
 		return ERR_PTR(ret);
 
+	if (wlan_hdd_check_mon_concurrency())
+		return ERR_PTR(-EINVAL);
+
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_ADD_VIRTUAL_INTF, NO_SESSION, type);
 	/*
@@ -674,6 +677,16 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 
 		if (vdev)
 			hdd_objmgr_put_vdev(vdev);
+	}
+
+	adapter = NULL;
+	ret = wlan_hdd_add_monitor_check(hdd_ctx, &adapter, type, name,
+					 true, name_assign_type);
+	if (ret)
+		return ERR_PTR(-EINVAL);
+	if (adapter) {
+		hdd_exit();
+		return adapter->dev->ieee80211_ptr;
 	}
 
 	if (session_type == QDF_SAP_MODE) {
@@ -856,6 +869,9 @@ int __wlan_hdd_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	if (adapter->device_mode == QDF_SAP_MODE &&
 	    wlan_sap_is_pre_cac_active(hdd_ctx->mac_handle)) {
 		hdd_clean_up_pre_cac_interface(hdd_ctx);
+	} else if (wlan_hdd_is_session_type_monitor(
+					adapter->device_mode)) {
+		wlan_hdd_del_monitor(hdd_ctx, adapter, TRUE);
 	} else {
 		wlan_hdd_release_intf_addr(hdd_ctx,
 					   adapter->mac_addr.bytes);

@@ -17763,6 +17763,9 @@ static int __wlan_hdd_cfg80211_change_iface(struct wiphy *wiphy,
 	if (0 != status)
 		return status;
 
+	if (wlan_hdd_check_mon_concurrency())
+		return -EINVAL;
+
 	if (cds_is_fw_down()) {
 		hdd_err("Ignore if FW is already down");
 		return -EINVAL;
