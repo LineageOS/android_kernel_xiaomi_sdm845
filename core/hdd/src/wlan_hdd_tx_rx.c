@@ -1285,18 +1285,7 @@ QDF_STATUS hdd_deinit_tx_rx(struct hdd_adapter *adapter)
 }
 
 #ifdef FEATURE_MONITOR_MODE_SUPPORT
-/**
- * hdd_mon_rx_packet_cbk() - Receive callback registered with OL layer.
- * @context: [in] pointer to qdf context
- * @rxBuf:      [in] pointer to rx qdf_nbuf
- *
- * TL will call this to notify the HDD when one or more packets were
- * received for a registered STA.
- *
- * Return: QDF_STATUS_E_FAILURE if any errors encountered, QDF_STATUS_SUCCESS
- * otherwise
- */
-static QDF_STATUS hdd_mon_rx_packet_cbk(void *context, qdf_nbuf_t rxbuf)
+QDF_STATUS hdd_mon_rx_packet_cbk(void *context, qdf_nbuf_t rxbuf)
 {
 	struct hdd_adapter *adapter;
 	int rxstat;

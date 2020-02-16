@@ -2522,6 +2522,9 @@ static int __hdd_pktcapture_open(struct net_device *dev)
 
 	hdd_mon_mode_ether_setup(dev);
 
+	ret = ucfg_pkt_capture_register_callbacks(adapter->vdev,
+						  hdd_mon_rx_packet_cbk,
+						  adapter);
 	if (!ret)
 		set_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
 
@@ -3502,10 +3505,12 @@ static int __hdd_stop(struct net_device *dev)
 
 	mac_handle = hdd_ctx->mac_handle;
 
-	hdd_debug("Disabling Auto Power save timer");
-	sme_ps_disable_auto_ps_timer(
-		mac_handle,
-		adapter->session_id);
+	if (!wlan_hdd_is_session_type_monitor(adapter->device_mode)) {
+		hdd_debug("Disabling Auto Power save timer");
+		sme_ps_disable_auto_ps_timer(
+			mac_handle,
+			adapter->session_id);
+	}
 
 	/*
 	 * Disable TX on the interface, after this hard_start_xmit() will not
@@ -3521,6 +3526,9 @@ static int __hdd_stop(struct net_device *dev)
 
 	if (adapter->device_mode == QDF_STA_MODE)
 		hdd_lpass_notify_stop(hdd_ctx);
+
+	if (wlan_hdd_is_session_type_monitor(adapter->device_mode))
+		ucfg_pkt_capture_deregister_callbacks(adapter->vdev);
 
 	/*
 	 * NAN data interface is different in some sense. The traffic on NDI is
@@ -7161,6 +7169,15 @@ QDF_STATUS hdd_start_all_adapters(struct hdd_context *hdd_ctx)
 			hdd_delete_sta(adapter);
 			break;
 		case QDF_MONITOR_MODE:
+			if (wlan_hdd_is_session_type_monitor(
+			    QDF_MONITOR_MODE) &&
+			    ucfg_pkt_capture_get_mode(hdd_ctx->psoc)) {
+				ucfg_pkt_capture_register_callbacks(
+						adapter->vdev,
+						hdd_mon_rx_packet_cbk,
+						adapter);
+				break;
+			}
 			hdd_start_station_adapter(adapter);
 			hdd_set_mon_rx_cb(adapter->dev);
 			wlan_hdd_set_mon_chan(adapter, adapter->mon_chan,
@@ -7972,6 +7989,7 @@ static void wlan_hdd_cache_chann_mutex_destroy(struct hdd_context *hdd_ctx)
 static void hdd_wlan_exit(struct hdd_context *hdd_ctx)
 {
 	struct wiphy *wiphy = hdd_ctx->wiphy;
+	struct hdd_adapter *adapter;
 	int driver_status;
 
 	hdd_enter();
@@ -8031,6 +8049,14 @@ static void hdd_wlan_exit(struct hdd_context *hdd_ctx)
 		 */
 		hdd_abort_mac_scan_all_adapters(hdd_ctx);
 		hdd_abort_sched_scan_all_adapters(hdd_ctx);
+
+		if (wlan_hdd_is_session_type_monitor(QDF_MONITOR_MODE)) {
+			adapter = hdd_get_adapter(hdd_ctx, QDF_MONITOR_MODE);
+			if (adapter)
+				ucfg_pkt_capture_deregister_callbacks(
+						adapter->vdev);
+		}
+
 		hdd_stop_all_adapters(hdd_ctx);
 		hdd_deinit_all_adapters(hdd_ctx, false);
 	}
@@ -16140,6 +16166,7 @@ bool wlan_hdd_check_mon_concurrency(void)
 void wlan_hdd_del_monitor(struct hdd_context *hdd_ctx,
 			  struct hdd_adapter *adapter, bool rtnl_held)
 {
+	ucfg_pkt_capture_deregister_callbacks(adapter->vdev);
 	wlan_hdd_release_intf_addr(hdd_ctx, adapter->mac_addr.bytes);
 	hdd_stop_adapter(hdd_ctx, adapter);
 	hdd_close_adapter(hdd_ctx, adapter, true);
