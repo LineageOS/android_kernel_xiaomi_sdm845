@@ -620,8 +620,6 @@ static void hdd_link_layer_process_peer_stats(struct hdd_adapter *adapter,
 	struct nlattr *peers;
 	int numRate;
 
-	hdd_enter();
-
 	pWifiPeerStat = pData;
 
 	status = wlan_hdd_validate_context(hdd_ctx);
@@ -709,7 +707,6 @@ static void hdd_link_layer_process_peer_stats(struct hdd_adapter *adapter,
 	}
 
 	cfg80211_vendor_cmd_reply(vendor_event);
-	hdd_exit();
 }
 
 /**
@@ -732,8 +729,6 @@ static void hdd_link_layer_process_iface_stats(struct hdd_adapter *adapter,
 	struct sk_buff *vendor_event;
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	int status;
-
-	hdd_enter();
 
 	pWifiIfaceStat = pData;
 
@@ -772,7 +767,6 @@ static void hdd_link_layer_process_iface_stats(struct hdd_adapter *adapter,
 	}
 
 	cfg80211_vendor_cmd_reply(vendor_event);
-	hdd_exit();
 }
 
 /**
@@ -971,8 +965,6 @@ static void hdd_link_layer_process_radio_stats(struct hdd_adapter *adapter,
 	tSirWifiRadioStat *pWifiRadioStat = pData;
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
-	hdd_enter();
-
 	status = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != status)
 		return;
@@ -1010,7 +1002,6 @@ static void hdd_link_layer_process_radio_stats(struct hdd_adapter *adapter,
 		pWifiRadioStat++;
 	}
 
-	hdd_exit();
 }
 
 /**
