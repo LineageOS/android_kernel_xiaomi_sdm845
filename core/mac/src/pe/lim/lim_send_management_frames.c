@@ -4500,7 +4500,7 @@ lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
 	}
 
 	if (psessionEntry == NULL) {
-		pe_err("(psession == NULL) in Request to send Beacon Report action frame");
+		pe_err("(session not found");
 		qdf_mem_free(frm);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -4555,7 +4555,7 @@ lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
 		qdf_mem_free(frm);
 		return QDF_STATUS_E_FAILURE;
 	} else if (DOT11F_WARNED(nStatus)) {
-		pe_warn("There were warnings while calculating the packed size for a Radio Measure Report (0x%08x)",
+		pe_warn("Warnings while calculating the size for Radio Measure Report (0x%08x)",
 			nStatus);
 	}
 
@@ -4601,22 +4601,19 @@ lim_send_radio_measure_report_action_frame(tpAniSirGlobal pMac,
 		status_code = QDF_STATUS_E_FAILURE;
 		goto returnAfterError;
 	} else if (DOT11F_WARNED(nStatus)) {
-		pe_warn("There were warnings while packing Radio Measure Report (0x%08x)",
+		pe_warn("Warnings while packing Radio Measure Report (0x%08x)",
 			nStatus);
 	}
 
 	pe_debug("Sending Radio Measure Report to %pM", peer);
 	if (frm->MeasurementReport[0].type == SIR_MAC_RRM_BEACON_TYPE)
-		pe_nofl_info("TX: [802.11 BCN_RPT] seq_no:%d dialog_token:%d no. of APs:%d is_last_rpt:%d",
+		pe_nofl_info("TX: %s seq_no:%d dialog_token:%d no. of APs:%d is_last_rpt:%d num_report %d",
+			     frm->MeasurementReport[0].type == SIR_MAC_RRM_BEACON_TYPE ?
+			     "[802.11 BCN_RPT]" : "[802.11 RRM]",
 			     (pMacHdr->seqControl.seqNumHi << HIGH_SEQ_NUM_OFFSET |
 			      pMacHdr->seqControl.seqNumLo),
 			     dialog_token, frm->num_MeasurementReport,
-			     is_last_frame);
-	else
-		pe_nofl_info("TX: [802.11 RRM] seq_no:%d dialog_token %d num_report %d is_last_frm %d",
-			     (pMacHdr->seqControl.seqNumHi << HIGH_SEQ_NUM_OFFSET |
-			      pMacHdr->seqControl.seqNumLo),
-			     dialog_token, num_report, is_last_frame);
+			     is_last_frame, num_report);
 
 	if ((BAND_5G == lim_get_rf_band(psessionEntry->currentOperChannel))
 	    || (psessionEntry->pePersona == QDF_P2P_CLIENT_MODE) ||

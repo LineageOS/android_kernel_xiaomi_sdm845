@@ -1343,8 +1343,8 @@ __lim_process_radio_measure_request(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 				   pBody, frameLen);
 		    goto err;
 	} else if (DOT11F_WARNED(nStatus)) {
-		pe_debug("There were warnings while unpacking a Radio Measure request (0x%08x, %d bytes):",
-			nStatus, frameLen);
+		pe_debug("Warnings while unpacking a Radio Measure request (0x%08x, %d bytes):",
+			 nStatus, frameLen);
 	}
 	/* Call rrm function to handle the request. */
 
