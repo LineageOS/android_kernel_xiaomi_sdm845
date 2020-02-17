@@ -1010,8 +1010,6 @@ static void lim_process_mlm_deauth_ind(tpAniSirGlobal mac_ctx,
 		return;
 	}
 	role = GET_LIM_SYSTEM_ROLE(session);
-	pe_debug("*** Received Deauthentication from staId=%d role=%d***",
-		 deauth_ind->aid, role);
 	if (role == eLIM_STA_ROLE) {
 		session->limSmeState = eLIM_SME_WT_DEAUTH_STATE;
 		MTRACE(mac_trace(mac_ctx, TRACE_CODE_SME_STATE,
@@ -1078,7 +1076,6 @@ void lim_process_mlm_deauth_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 		}
 		if (pMlmDeauthCnf->resultCode == eSIR_SME_SUCCESS) {
 			psessionEntry->limSmeState = eLIM_SME_IDLE_STATE;
-			pe_debug("*** Deauthenticated with BSS ***");
 		} else
 			psessionEntry->limSmeState =
 				psessionEntry->limPrevSmeState;
@@ -1601,8 +1598,6 @@ void lim_process_sta_mlm_del_bss_rsp(tpAniSirGlobal pMac,
 		goto end;
 	}
 	if (QDF_STATUS_SUCCESS == pDelBssParams->status) {
-		pe_debug("STA received the DEL_BSS_RSP for BSSID: %X",
-			       pDelBssParams->bssIdx);
 		if (lim_set_link_state
 			    (pMac, eSIR_LINK_IDLE_STATE, psessionEntry->bssId,
 			    psessionEntry->selfMacAddr, NULL,
@@ -1623,8 +1618,8 @@ void lim_process_sta_mlm_del_bss_rsp(tpAniSirGlobal pMac,
 			statusCode = eSIR_SME_REFUSED;
 			goto end;
 		}
-		pe_debug("STA AssocID %d MAC",	pStaDs->assocId);
-		       lim_print_mac_addr(pMac, pStaDs->staAddr, LOGD);
+		pe_debug("STA AssocID %d MAC %pM", pStaDs->assocId,
+			 pStaDs->staAddr);
 	} else {
 		pe_err("DEL BSS failed!");
 		statusCode = eSIR_SME_STOP_BSS_FAILURE;

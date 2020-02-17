@@ -3026,11 +3026,10 @@ lim_send_disassoc_mgmt_frame(tpAniSirGlobal pMac,
 				&nPayload, discon_ie);
 	hdd_free_self_disconnect_ies(pMac, smeSessionId);
 
-	pe_debug("***Sessionid %d Sending Disassociation frame with "
-		   "reason %u and waitForAck %d to " MAC_ADDRESS_STR " ,From "
-		   MAC_ADDRESS_STR, psessionEntry->peSessionId, nReason,
-		waitForAck, MAC_ADDR_ARRAY(pMacHdr->da),
-		MAC_ADDR_ARRAY(psessionEntry->selfMacAddr));
+	pe_nofl_info("Disassoc TX: vdev %d seq %d reason %u and waitForAck %d to " QDF_MAC_ADDR_STR " From " QDF_MAC_ADDR_STR,
+		     psessionEntry->smeSessionId, pMac->mgmtSeqNum, nReason,
+		     waitForAck, QDF_MAC_ADDR_ARRAY(pMacHdr->da),
+		     QDF_MAC_ADDR_ARRAY(psessionEntry->selfMacAddr));
 
 	if ((BAND_5G == lim_get_rf_band(psessionEntry->currentOperChannel))
 	    || (psessionEntry->pePersona == QDF_P2P_CLIENT_MODE) ||
@@ -3213,9 +3212,11 @@ lim_send_deauth_mgmt_frame(tpAniSirGlobal pMac,
 				&nPayload, discon_ie);
 	hdd_free_self_disconnect_ies(pMac, smeSessionId);
 
-	pe_nofl_info("SessionId %d Deauth frame with reason %u and waitForAck %d to %pM from %pM",
-		     psessionEntry->peSessionId, nReason, waitForAck,
-		     pMacHdr->da, psessionEntry->selfMacAddr);
+	pe_nofl_info("Deauth TX: vdev %d seq_num %d reason %u waitForAck %d to " QDF_MAC_ADDR_STR " from " QDF_MAC_ADDR_STR,
+		     psessionEntry->smeSessionId, pMac->mgmtSeqNum, nReason,
+		     waitForAck,
+		     QDF_MAC_ADDR_ARRAY(pMacHdr->da),
+		     QDF_MAC_ADDR_ARRAY(psessionEntry->selfMacAddr));
 
 	if ((BAND_5G == lim_get_rf_band(psessionEntry->currentOperChannel))
 	    || (psessionEntry->pePersona == QDF_P2P_CLIENT_MODE) ||

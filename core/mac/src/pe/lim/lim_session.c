@@ -1007,8 +1007,8 @@ tpPESession pe_find_session_by_peer_sta(tpAniSirGlobal pMac, uint8_t *sa,
 		}
 	}
 
-	pe_debug("Session lookup fails for Peer StaId:");
-	lim_print_mac_addr(pMac, sa, LOGD);
+	pe_debug("Session lookup fails for Peer StaId: %pM", sa);
+
 	return NULL;
 }
 

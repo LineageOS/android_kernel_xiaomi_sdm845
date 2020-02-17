@@ -8716,7 +8716,7 @@ static int __wlan_hdd_cfg80211_wifi_logger_get_ring_data(struct wiphy *wiphy,
 		status = cds_flush_logs(WLAN_LOG_TYPE_NON_FATAL,
 				WLAN_LOG_INDICATOR_FRAMEWORK,
 				WLAN_LOG_REASON_CODE_UNUSED,
-				true, false);
+				false, false);
 		if (QDF_STATUS_SUCCESS != status) {
 			hdd_err("Failed to trigger bug report");
 			return -EINVAL;
@@ -21369,7 +21369,6 @@ int wlan_hdd_disconnect(struct hdd_adapter *adapter, u16 reason)
 	/* Sending disconnect event to userspace for kernel version < 3.11
 	 * is handled by __cfg80211_disconnect call to __cfg80211_disconnected
 	 */
-	hdd_debug("Send disconnected event to userspace");
 	wlan_hdd_cfg80211_indicate_disconnect(adapter->dev, true,
 					      WLAN_REASON_UNSPECIFIED, NULL, 0);
 #endif
@@ -21487,8 +21486,6 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	struct wlan_objmgr_vdev *vdev;
 
-	hdd_enter();
-
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
 		return -EINVAL;
@@ -21502,10 +21499,6 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 		   adapter->session_id, reason);
 
 	hdd_print_netdev_txq_status(dev);
-	hdd_debug("Device_mode %s(%d) reason code(%d)",
-		hdd_device_mode_to_string(adapter->device_mode),
-		adapter->device_mode, reason);
-
 	status = wlan_hdd_validate_context(hdd_ctx);
 
 	if (0 != status)
@@ -21562,12 +21555,11 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 
 		vdev = hdd_objmgr_get_vdev(adapter);
 		if (vdev &&
-		    ucfg_scan_get_vdev_status(vdev) != SCAN_NOT_IN_PROGRESS) {
-			hdd_debug("Disconnect is in progress, Aborting Scan");
+		    ucfg_scan_get_vdev_status(vdev) != SCAN_NOT_IN_PROGRESS)
 			wlan_abort_scan(hdd_ctx->pdev, INVAL_PDEV_ID,
 					adapter->session_id, INVALID_SCAN_ID,
 					false);
-		}
+
 		wlan_hdd_cleanup_remain_on_channel_ctx(adapter);
 		/* First clean up the tdls peers if any */
 		hdd_notify_sta_disconnect(adapter->session_id,
@@ -21944,8 +21936,6 @@ static int __wlan_hdd_cfg80211_leave_ibss(struct wiphy *wiphy,
 	mac_handle_t mac_handle;
 	unsigned long rc;
 	tSirUpdateIE updateIE;
-
-	hdd_enter();
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");

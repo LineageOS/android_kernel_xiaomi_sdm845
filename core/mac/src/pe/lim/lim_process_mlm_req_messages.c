@@ -1283,12 +1283,6 @@ lim_process_mlm_disassoc_req_ntf(tpAniSirGlobal mac_ctx,
 		goto end;
 	}
 
-	pe_debug("Process DisAssoc Req on sessionID %d Systemrole %d"
-		   "mlmstate %d from: " MAC_ADDRESS_STR,
-		mlm_disassocreq->sessionId, GET_LIM_SYSTEM_ROLE(session),
-		session->limMlmState,
-		MAC_ADDR_ARRAY(mlm_disassocreq->peer_macaddr.bytes));
-
 	qdf_mem_copy(curr_bssid.bytes, session->bssId, QDF_MAC_ADDR_SIZE);
 
 	switch (GET_LIM_SYSTEM_ROLE(session)) {
@@ -1575,10 +1569,6 @@ lim_process_mlm_disassoc_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	}
 
 	mlm_disassoc_req = (tLimMlmDisassocReq *) msg_buf;
-	pe_debug("Process disassoc req, sessionID %d from: "MAC_ADDRESS_STR,
-		mlm_disassoc_req->sessionId,
-		MAC_ADDR_ARRAY(mlm_disassoc_req->peer_macaddr.bytes));
-
 	lim_process_mlm_disassoc_req_ntf(mac_ctx, QDF_STATUS_SUCCESS,
 					 (uint32_t *) msg_buf);
 }
@@ -1621,12 +1611,6 @@ lim_process_mlm_deauth_req_ntf(tpAniSirGlobal mac_ctx,
 		qdf_mem_free(mlm_deauth_req);
 		return;
 	}
-	pe_debug("Process Deauth Req on sessionID %d Systemrole %d"
-		       "mlmstate %d from: " MAC_ADDRESS_STR,
-		mlm_deauth_req->sessionId,
-		GET_LIM_SYSTEM_ROLE(session),
-		session->limMlmState,
-		MAC_ADDR_ARRAY(mlm_deauth_req->peer_macaddr.bytes));
 	sir_copy_mac_addr(curr_bssId, session->bssId);
 
 	switch (GET_LIM_SYSTEM_ROLE(session)) {
@@ -1661,11 +1645,6 @@ lim_process_mlm_deauth_req_ntf(tpAniSirGlobal mac_ctx,
 					qdf_mem_free(mlm_deauth_req);
 					return;
 				}
-
-				pe_debug("send deauth rsp with ret code %d for" MAC_ADDRESS_STR,
-					eSIR_SME_DEAUTH_STATUS,
-					MAC_ADDR_ARRAY(
-					  mlm_deauth_req->peer_macaddr.bytes));
 
 				sme_deauth_rsp->messageType =
 						eWNI_SME_DEAUTH_RSP;
@@ -1869,11 +1848,6 @@ lim_process_mlm_deauth_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	}
 
 	mlm_deauth_req = (tLimMlmDeauthReq *) msg_buf;
-	pe_debug("Process Deauth Req on sessionID %d from: "
-		   MAC_ADDRESS_STR,
-		mlm_deauth_req->sessionId,
-		MAC_ADDR_ARRAY(mlm_deauth_req->peer_macaddr.bytes));
-
 	session = pe_find_session_by_session_id(mac_ctx,
 				mlm_deauth_req->sessionId);
 	if (NULL == session) {
