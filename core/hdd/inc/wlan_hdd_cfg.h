@@ -17414,6 +17414,29 @@ enum hdd_external_acs_policy {
 #define CFG_PKT_CAPTURE_MODE_DEFAULT	0
 
 /*
+ * <ini>
+ * disable_4way_hs_offload - Enable/Disable 4 way handshake offload to firmware
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * 0  4-way HS to be handled in firmware
+ * 1  4-way HS to be handled in supplicant
+ *
+ * Related: None
+ *
+ * Supported Feature: STA Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DISABLE_4WAY_HS_OFFLOAD           "disable_4way_hs_offload"
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_MIN       (0)
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_MAX       (1)
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT   (0)
+
+/*
  * Type declarations
  */
 
@@ -18441,6 +18464,7 @@ struct hdd_config {
 	uint32_t mws_coex_scc_channel_avoid_delay;
 	uint32_t mws_coex_pcc_channel_avoid_delay;
 
+	bool disable_4way_hs_offload;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

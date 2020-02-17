@@ -650,6 +650,7 @@ struct csr_config {
 	bool enable_adaptive_11r;
 #endif
 	bool enable_pending_list_req;
+	bool disable_4way_hs_offload;
 };
 
 struct csr_channel_powerinfo {

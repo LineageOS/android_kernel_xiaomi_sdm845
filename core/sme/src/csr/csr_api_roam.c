@@ -3450,6 +3450,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 				pParam->btm_roam_score_delta;
 		pMac->roam.configParam.idle_roam_score_delta =
 				pParam->idle_roam_score_delta;
+		pMac->roam.configParam.disable_4way_hs_offload =
+				pParam->disable_4way_hs_offload;
 
 		csr_get_adaptive_11r_config_param(pMac, pParam);
 		csr_update_he_config_param(pMac, pParam);
@@ -3836,6 +3838,8 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		pMac->roam.configParam.btm_roam_score_delta;
 	pParam->idle_roam_score_delta =
 		pMac->roam.configParam.idle_roam_score_delta;
+	pParam->disable_4way_hs_offload =
+		pMac->roam.configParam.disable_4way_hs_offload;
 
 	csr_get_adaptive_11r_config(pMac, pParam);
 	csr_get_he_config_param(pParam, pMac);
