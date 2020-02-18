@@ -2684,13 +2684,7 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	sap_config->acs_cfg.is_ht_enabled = ht_enabled;
 	sap_config->acs_cfg.is_vht_enabled = vht_enabled;
 
-	if (sap_config->acs_cfg.ch_list_count) {
-		hdd_nofl_debug("ACS channel list: len: %d",
-			       sap_config->acs_cfg.ch_list_count);
-		for (i = 0; i < sap_config->acs_cfg.ch_list_count; i++)
-			hdd_nofl_debug("%d ", sap_config->acs_cfg.ch_list[i]);
-	}
-
+	sap_dump_acs_channel(&sap_config->acs_cfg);
 	conc_channel = policy_mgr_mode_specific_get_channel(hdd_ctx->psoc,
 							    PM_STA_MODE);
 	if ((hdd_ctx->config->external_acs_policy ==
