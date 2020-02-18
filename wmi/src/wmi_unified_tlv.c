@@ -3110,8 +3110,6 @@ static QDF_STATUS send_scan_chan_list_cmd_tlv(wmi_unified_t wmi_handle,
 		       WMITLV_GET_STRUCT_TLVLEN
 			       (wmi_scan_chan_list_cmd_fixed_param));
 
-	WMI_LOGD("no of channels = %d, len = %d", chan_list->num_scan_chans, len);
-
 	cmd->num_scan_chans = chan_list->num_scan_chans;
 	if (chan_list->max_bw_support_present)
 		cmd->flags |= CHANNEL_MAX_BANDWIDTH_VALID;
@@ -3135,7 +3133,6 @@ static QDF_STATUS send_scan_chan_list_cmd_tlv(wmi_unified_t wmi_handle,
 		chan_info->info = tchan_info->info;
 		chan_info->reg_info_1 = tchan_info->reg_info_1;
 		chan_info->reg_info_2 = tchan_info->reg_info_2;
-		WMI_LOGD("chan[%d] = %u", i, chan_info->mhz);
 
 		/*TODO: Set WMI_SET_CHANNEL_MIN_POWER */
 		/*TODO: Set WMI_SET_CHANNEL_ANTENNA_MAX */
@@ -13736,17 +13733,13 @@ static QDF_STATUS send_pdev_set_pcl_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd->pdev_id = wmi_handle->ops->convert_pdev_id_host_to_target(
 							WMI_HOST_PDEV_ID_SOC);
 	cmd->num_chan = chan_len;
-	WMI_LOGD("%s: Total chan (PCL) len:%d", __func__, cmd->num_chan);
-
 	buf_ptr += sizeof(wmi_pdev_set_pcl_cmd_fixed_param);
 	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_UINT32,
 			(chan_len * sizeof(uint32_t)));
 	cmd_args = (uint32_t *) (buf_ptr + WMI_TLV_HDR_SIZE);
-	for (i = 0; i < chan_len ; i++) {
+	for (i = 0; i < chan_len ; i++)
 		cmd_args[i] = msg->weighed_valid_list[i];
-		WMI_LOGD("%s: chan:%d weight:%d", __func__,
-			msg->saved_chan_list[i], cmd_args[i]);
-	}
+
 	wmi_mtrace(WMI_PDEV_SET_PCL_CMDID, NO_SESSION, 0);
 	if (wmi_unified_cmd_send(wmi_handle, buf, len,
 				WMI_PDEV_SET_PCL_CMDID)) {
