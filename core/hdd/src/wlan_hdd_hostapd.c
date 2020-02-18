@@ -1559,11 +1559,25 @@ static void hdd_fill_station_info(struct hdd_adapter *adapter,
 		i = oldest_disassoc_sta_idx;
 	}
 	if (i < WLAN_MAX_STA_COUNT) {
+		if (adapter->cache_sta_info[i].assoc_req_ies.data) {
+			qdf_mem_free(
+				adapter->cache_sta_info[i].assoc_req_ies.data);
+			adapter->cache_sta_info[i].assoc_req_ies.data = NULL;
+			adapter->cache_sta_info[i].assoc_req_ies.len = 0;
+		}
 		qdf_mem_zero(&adapter->cache_sta_info[i],
 			     sizeof(*stainfo));
 		qdf_mem_copy(&adapter->cache_sta_info[i],
 				     stainfo, sizeof(struct hdd_station_info));
-
+		adapter->cache_sta_info[i].assoc_req_ies.data =
+				qdf_mem_malloc(event->ies_len);
+		if (adapter->cache_sta_info[i].assoc_req_ies.data) {
+			qdf_mem_copy(
+				adapter->cache_sta_info[i].assoc_req_ies.data,
+				event->ies, event->ies_len);
+			adapter->cache_sta_info[i].assoc_req_ies.len =
+				event->ies_len;
+		}
 	} else {
 		hdd_debug("reached max staid, stainfo can't be cached");
 	}

@@ -5224,6 +5224,8 @@ static int wlan_hdd_cfg80211_handle_wisa_cmd(struct wiphy *wiphy,
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_DRIVER_DISCONNECT_REASON
 #define BEACON_IES \
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_BEACON_IES
+#define ASSOC_REQ_IES \
+	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_ASSOC_REQ_IES
 
 static const struct nla_policy
 hdd_get_station_policy[STATION_MAX + 1] = {
@@ -6192,6 +6194,8 @@ static int hdd_get_cached_station_remote(struct hdd_context *hdd_ctx,
 			(sizeof(stainfo->tx_rate) + NLA_HDRLEN) +
 			(sizeof(stainfo->rx_rate) + NLA_HDRLEN) +
 			(sizeof(stainfo->support_mode) + NLA_HDRLEN);
+	if (stainfo->assoc_req_ies.len)
+		nl_buf_len += stainfo->assoc_req_ies.len + NLA_HDRLEN;
 
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(hdd_ctx->wiphy, nl_buf_len);
 	if (!skb) {
@@ -6232,6 +6236,16 @@ static int hdd_get_cached_station_remote(struct hdd_context *hdd_ctx,
 		hdd_err("dot11 mode put fail");
 		goto fail;
 	}
+	if (stainfo->assoc_req_ies.len) {
+		if (nla_put(skb, ASSOC_REQ_IES, stainfo->assoc_req_ies.len,
+			    stainfo->assoc_req_ies.data)) {
+			hdd_err("Failed to put assoc req IEs");
+			goto fail;
+		}
+		qdf_mem_free(stainfo->assoc_req_ies.data);
+		stainfo->assoc_req_ies.data = NULL;
+		stainfo->assoc_req_ies.len = 0;
+	}
 
 	qdf_mem_zero(stainfo, sizeof(*stainfo));
 
@@ -6239,6 +6253,9 @@ static int hdd_get_cached_station_remote(struct hdd_context *hdd_ctx,
 fail:
 	if (skb)
 		kfree_skb(skb);
+	qdf_mem_free(stainfo->assoc_req_ies.data);
+	stainfo->assoc_req_ies.data = NULL;
+	stainfo->assoc_req_ies.len = 0;
 
 	return -EINVAL;
 }

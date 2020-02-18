@@ -95,6 +95,7 @@
 #include "wlan_hdd_nud_tracking.h"
 #include "wlan_hdd_twt.h"
 #include "wma_sar_public_structs.h"
+#include "wlan_mlme_ucfg_api.h"
 
 /*
  * Preprocessor definitions and constants
@@ -1032,6 +1033,7 @@ enum dhcp_nego_status {
  * @capability: Capability information of current station
  * @support_mode: Max supported mode of a station currently
  * connected to sap
+ * @assoc_req_ies: Assoc request IEs of the peer station
  */
 struct hdd_station_info {
 	bool in_use;
@@ -1077,6 +1079,7 @@ struct hdd_station_info {
 	enum dhcp_nego_status dhcp_nego_status;
 	uint16_t capability;
 	uint8_t support_mode;
+	struct wlan_ies assoc_req_ies;
 };
 
 /**

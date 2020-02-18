@@ -4371,6 +4371,21 @@ int hdd_vdev_ready(struct hdd_adapter *adapter)
 	return qdf_status_to_os_return(status);
 }
 
+static void hdd_cleanup_cached_sta_info(struct hdd_adapter *adapter)
+{
+	uint16_t sta_id;
+	struct wlan_ies *ies;
+
+	for (sta_id = 0; sta_id < WLAN_MAX_STA_COUNT; sta_id++) {
+		ies = &adapter->cache_sta_info[sta_id].assoc_req_ies;
+		if (ies->data && ies->len) {
+			qdf_mem_free(ies->data);
+			ies->data = NULL;
+			ies->len = 0;
+		}
+	}
+}
+
 int hdd_vdev_destroy(struct hdd_adapter *adapter)
 {
 	QDF_STATUS status;
@@ -4395,6 +4410,8 @@ int hdd_vdev_destroy(struct hdd_adapter *adapter)
 	ucfg_pmo_del_wow_pattern(vdev);
 
 	status = ucfg_reg_11d_vdev_delete_update(vdev);
+
+	hdd_cleanup_cached_sta_info(adapter);
 
 	/* Disable Scan and abort any pending scans for this vdev */
 	ucfg_scan_set_vdev_del_in_progress(vdev);
