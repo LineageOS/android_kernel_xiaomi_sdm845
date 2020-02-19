@@ -276,7 +276,7 @@ int ucfg_pkt_capture_enable_ops(struct wlan_objmgr_vdev *vdev)
 		return -EINVAL;
 	}
 
-	mode = ucfg_pkt_capture_get_mode(psoc);
+	mode = pkt_capture_get_mode(psoc);
 	ret = tx_ops->pkt_capture_send_mode(psoc,
 					    vdev->vdev_objmgr.vdev_id,
 					    mode);
@@ -338,4 +338,9 @@ ucfg_pkt_capture_tx_completion_process(
 				mon_buf_list, TXRX_PROCESS_TYPE_DATA_TX_COMPL,
 				tid, status, pkt_format, bssid, pdev,
 				tx_retry_cnt);
+}
+
+void ucfg_pkt_capture_record_channel(void)
+{
+	pkt_capture_record_channel();
 }

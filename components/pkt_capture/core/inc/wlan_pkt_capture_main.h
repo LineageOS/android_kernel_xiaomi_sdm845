@@ -186,4 +186,12 @@ pkt_capture_get_pktcap_mode(void);
  * Return: number of buffers dropped
  */
 uint32_t pkt_capture_drop_nbuf_list(qdf_nbuf_t buf_list);
+
+/**
+ * pkt_capture_record_channel() - Update Channel Information
+ * for packet capture mode
+ *
+ * Return: None
+ */
+void pkt_capture_record_channel(void);
 #endif /* end of _WLAN_PKT_CAPTURE_MAIN_H_ */

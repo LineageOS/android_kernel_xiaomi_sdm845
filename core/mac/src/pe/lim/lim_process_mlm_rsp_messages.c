@@ -42,6 +42,7 @@
 #include "wlan_policy_mgr_api.h"
 #include "nan_datapath.h"
 #include "wlan_reg_services_api.h"
+#include "wlan_pkt_capture_ucfg_api.h"
 
 #define MAX_SUPPORTED_PEERS_WEP 16
 
@@ -3159,6 +3160,8 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 			pe_debug("Send p2p operating channel change conf action frame once first beacon is received on new channel");
 			psessionEntry->send_p2p_conf_frame = true;
 		}
+
+		ucfg_pkt_capture_record_channel();
 		break;
 	case LIM_SWITCH_CHANNEL_SAP_DFS:
 	{
