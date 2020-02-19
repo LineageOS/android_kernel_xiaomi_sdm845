@@ -3024,6 +3024,14 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ROAM_TRIGGER_BITMAP_MIN,
 		     CFG_ROAM_TRIGGER_BITMAP_MAX),
 #endif
+
+	REG_VARIABLE(CFG_BMISS_SKIP_FULL_SCAN, WLAN_PARAM_Integer,
+		     struct hdd_config, bmiss_skip_full_scan,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_BMISS_SKIP_FULL_SCAN_DEFAULT,
+		     CFG_BMISS_SKIP_FULL_SCAN_MIN,
+		     CFG_BMISS_SKIP_FULL_SCAN_MAX),
+
 #ifdef MSM_PLATFORM
 	REG_VARIABLE(CFG_BUS_BANDWIDTH_HIGH_THRESHOLD, WLAN_PARAM_Integer,
 		     struct hdd_config, busBandwidthHighThreshold,

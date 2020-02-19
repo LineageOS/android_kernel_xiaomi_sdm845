@@ -10787,6 +10787,7 @@ static int hdd_update_cds_config(struct hdd_context *hdd_ctx)
 	cds_cfg->num_vdevs = hdd_ctx->config->num_vdevs;
 	cds_cfg->enable_peer_unmap_conf_support =
 		hdd_ctx->config->enable_peer_unmap_conf_support;
+	cds_cfg->bmiss_skip_full_scan = hdd_ctx->config->bmiss_skip_full_scan;
 
 	hdd_ra_populate_cds_config(cds_cfg, hdd_ctx);
 	cds_cfg->enable_tx_compl_tsf64 =

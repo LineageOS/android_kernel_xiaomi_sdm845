@@ -17538,6 +17538,32 @@ enum hdd_external_acs_policy {
 #define CFG_TIME_SYNC_FTM_ROLE_DEFAULT		(0)
 
 /*
+ * <ini>
+ * bmiss_skip_full_scan - To decide whether firmware does channel map based
+ * partial scan or partial scan followed by full scan in case no candidate is
+ * found in partial scan.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * 0 : Based on the channel map , firmware does scan to find new AP. if AP is
+ *     not found then it does a full scan on all valid channels.
+ * 1 : Firmware does channel map based partial scan only.
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_BMISS_SKIP_FULL_SCAN               "bmiss_skip_full_scan"
+#define CFG_BMISS_SKIP_FULL_SCAN_MIN           0
+#define CFG_BMISS_SKIP_FULL_SCAN_MAX           1
+#define CFG_BMISS_SKIP_FULL_SCAN_DEFAULT       0
+
+/*
  * Type declarations
  */
 
@@ -18049,7 +18075,7 @@ struct hdd_config {
 	bool isRoamOffloadEnabled;
 	uint32_t roam_triggers;
 #endif
-
+	bool bmiss_skip_full_scan;
 	uint32_t IpaUcTxBufCount;
 	uint32_t IpaUcTxBufSize;
 	uint32_t IpaUcRxIndRingCount;

@@ -1310,6 +1310,7 @@ typedef struct {
 	qdf_atomic_t critical_events_in_flight;
 	bool enable_tx_compl_tsf64;
 	bool enable_three_way_coex_config_legacy;
+	bool bmiss_skip_full_scan;
 } t_wma_handle, *tp_wma_handle;
 
 extern void cds_wma_complete_cback(void);

@@ -3344,7 +3344,8 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 
 	wma_handle->enable_three_way_coex_config_legacy =
 			cds_cfg->enable_three_way_coex_config_legacy;
-
+	wma_handle->bmiss_skip_full_scan =
+			cds_cfg->bmiss_skip_full_scan;
 	/* Register Converged Event handlers */
 	init_deinit_register_tgt_psoc_ev_handlers(psoc);
 
