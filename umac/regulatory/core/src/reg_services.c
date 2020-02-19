@@ -1458,8 +1458,11 @@ QDF_STATUS reg_set_country(struct wlan_objmgr_pdev *pdev,
 
 	if (!qdf_mem_cmp(psoc_reg->cur_country,
 			country, REG_ALPHA2_LEN)) {
-		reg_err("country is not different");
-		return QDF_STATUS_SUCCESS;
+		if (psoc_reg->cc_src == SOURCE_USERSPACE ||
+		    psoc_reg->cc_src == SOURCE_CORE) {
+			reg_debug("country is not different");
+			return QDF_STATUS_SUCCESS;
+		}
 	}
 
 	reg_debug("programming new country:%s to firmware", country);
@@ -1547,8 +1550,10 @@ QDF_STATUS reg_set_11d_country(struct wlan_objmgr_pdev *pdev,
 
 	if (!qdf_mem_cmp(psoc_reg->cur_country,
 			 country, REG_ALPHA2_LEN)) {
-		reg_debug("country is not different");
-		return QDF_STATUS_SUCCESS;
+		if (psoc_reg->cc_src == SOURCE_11D) {
+			reg_debug("country is not different");
+			return QDF_STATUS_SUCCESS;
+		}
 	}
 
 	reg_info("programming new 11d country:%c%c to firmware",
