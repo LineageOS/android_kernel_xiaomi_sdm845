@@ -1790,10 +1790,10 @@ void policy_mgr_set_weight_of_dfs_passive_channels_to_zero(
 				(channel_state == CHANNEL_STATE_INVALID))
 			/* Set weight of inactive channels to 0 */
 			weight_list[i] = 0;
-
-		policy_mgr_debug("chan[%d] - %d, weight[%d] - %d",
-				i, pcl_channels[i], i, weight_list[i]);
 	}
+
+	policy_mgr_dump_channel_list(orig_channel_count,
+				     pcl_channels, weight_list);
 
 	return;
 }
@@ -1869,7 +1869,6 @@ QDF_STATUS policy_mgr_get_channel_list(struct wlan_objmgr_psoc *psoc,
 	 */
 	sta_sap_scc_on_dfs_chan =
 		policy_mgr_is_sta_sap_scc_allowed_on_dfs_chan(psoc);
-	policy_mgr_debug("sta_sap_scc_on_dfs_chan %u", sta_sap_scc_on_dfs_chan);
 	if ((mode == PM_SAP_MODE) || (mode == PM_P2P_GO_MODE)) {
 		if ((policy_mgr_mode_specific_connection_count(psoc,
 							       PM_STA_MODE,
@@ -2433,7 +2432,7 @@ bool policy_mgr_is_5g_channel_allowed(struct wlan_objmgr_psoc *psoc,
 		    WLAN_REG_IS_5GHZ_CH(channel) &&
 		    (channel != pm_conc_connection_list[list[index]].chan)) {
 			qdf_mutex_release(&pm_ctx->qdf_conc_list_lock);
-			policy_mgr_err("don't allow MCC if SAP/GO on DFS channel");
+			policy_mgr_rl_debug("don't allow MCC if SAP/GO on DFS channel");
 			return false;
 		}
 		index++;
