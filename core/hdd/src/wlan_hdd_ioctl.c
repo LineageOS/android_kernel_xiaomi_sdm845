@@ -3850,7 +3850,7 @@ hdd_get_roam_chan_from_fw(struct hdd_adapter *adapter,
 	priv->roam_ch.chan_list = (uint32_t *)(p_roam_ch + 1);
 	cookie = osif_request_cookie(request);
 	status = sme_get_roam_scan_ch(hdd_ctx->mac_handle,
-				      hdd_sta_ctx->conn_info.staId[0], cookie);
+				      adapter->session_id, cookie);
 
 	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("Unable to retrieve roam channels");
