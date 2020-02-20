@@ -54,6 +54,20 @@
 
 #define NORMALIZED_TO_NOISE_FLOOR (-96)
 /**
+ * enum pkt_capture_tx_status - packet capture tx status
+ * @pktcapture_tx_status_ok: successfully sent + acked
+ * @pktcapture_tx_status_discard: discard - not sent
+ * @pktcapture_tx_status_no_ack: no_ack - sent, but no ack
+ *
+ * This enum has tx status types for packet capture mode
+ */
+enum pkt_capture_tx_status {
+	pkt_capture_tx_status_ok,
+	pkt_capture_tx_status_discard,
+	pkt_capture_tx_status_no_ack,
+};
+
+/**
  * pkt_capture_get_vdev() - Get pkt capture objmgr vdev.
  *
  * Return: pkt capture objmgr vdev

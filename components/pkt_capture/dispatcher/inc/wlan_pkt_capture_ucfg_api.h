@@ -237,6 +237,7 @@ struct htt_tx_data_hdr_information *ucfg_pkt_capture_tx_get_txcomplete_data_hdr(
  * @pktformat: Frame format
  * @bssid: bssid
  * @pdev: pdev handle
+ * @tx_retry_cnt: tx retry count
  *
  * Return: none
  */
@@ -245,7 +246,8 @@ void ucfg_pkt_capture_tx_completion_process(
 			qdf_nbuf_t mon_buf_list,
 			enum pkt_capture_data_process_type type,
 			uint8_t tid, uint8_t status, bool pkt_format,
-			uint8_t *bssid, htt_pdev_handle pdev);
+			uint8_t *bssid, htt_pdev_handle pdev,
+			uint8_t tx_retry_cnt);
 
 #else
 static inline
@@ -366,8 +368,8 @@ ucfg_pkt_capture_tx_completion_process(
 			qdf_nbuf_t mon_buf_list,
 			enum pkt_capture_data_process_type type,
 			uint8_t tid, uint8_t status, bool pkt_format,
-			uint8_t *bssid, htt_pdev_handle pdev)
-
+			uint8_t *bssid, htt_pdev_handle pdev,
+			uint8_t tx_retry_cnt)
 {
 }
 #endif /* WLAN_FEATURE_PKT_CAPTURE */
