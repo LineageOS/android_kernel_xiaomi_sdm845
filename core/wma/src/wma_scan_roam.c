@@ -126,6 +126,40 @@ wma_map_phy_ch_bw_to_wmi_channel_width(enum phy_ch_width ch_width)
 	}
 }
 
+#define WMA_MAX_CHAN_INFO_LOG 192
+
+/**
+ * wma_scan_chanlist_dump() - Dump scan channel list info
+ * @chan_list: scan channel list
+ *
+ * Return: void
+ */
+static void wma_scan_chanlist_dump(tSirUpdateChanList *chan_list)
+{
+	uint32_t i;
+	uint8_t info[WMA_MAX_CHAN_INFO_LOG];
+	uint32_t len = 0;
+	tSirUpdateChanParam *chan;
+	int ret;
+
+	wma_debug("Total chan %d", chan_list->numChan);
+	for (i = 0; i < chan_list->numChan; i++) {
+		chan = &chan_list->chanParam[i];
+		ret = qdf_scnprintf(info + len, sizeof(info) - len,
+				    " %d[%d][%d]", chan->chanId, chan->pwr,
+				    chan->dfsSet);
+		if (ret <= 0)
+			break;
+		len += ret;
+		if (len >= (sizeof(info) - 20)) {
+			wma_nofl_debug("Chan[TXPwr][DFS]:%s", info);
+			len = 0;
+		}
+	}
+	if (len)
+		wma_nofl_debug("Chan[TXPwr][DFS]:%s", info);
+}
+
 /**
  * wma_update_channel_list() - update channel list
  * @handle: wma handle
@@ -160,6 +194,7 @@ QDF_STATUS wma_update_channel_list(WMA_HANDLE handle,
 	wma_handle->saved_chan.num_channels = chan_list->numChan;
 	WMA_LOGD("ht %d, vht %d, vht_24 %d", chan_list->ht_en,
 			chan_list->vht_en, chan_list->vht_24_en);
+	wma_scan_chanlist_dump(chan_list);
 
 	for (i = 0; i < chan_list->numChan; ++i) {
 		tchan_info->mhz =
@@ -169,12 +204,6 @@ QDF_STATUS wma_update_channel_list(WMA_HANDLE handle,
 		tchan_info->band_center_freq2 = 0;
 		wma_handle->saved_chan.channel_list[i] =
 				chan_list->chanParam[i].chanId;
-
-		WMA_LOGD("chan[%d] = freq:%u chan:%d DFS:%d tx power:%d",
-			 i, tchan_info->mhz,
-			 chan_list->chanParam[i].chanId,
-			 chan_list->chanParam[i].dfsSet,
-			 chan_list->chanParam[i].pwr);
 
 		if (chan_list->chanParam[i].dfsSet) {
 			WMI_SET_CHANNEL_FLAG(tchan_info,
