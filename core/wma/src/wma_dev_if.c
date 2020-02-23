@@ -1026,8 +1026,6 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 			 __func__, wma->interfaces[resp_event->vdev_id].type,
 			 wma->interfaces[resp_event->vdev_id].sub_type);
 
-		WMA_LOGD("%s: Allocated beacon struct %pK, template memory %pK",
-			 __func__, bcn, bcn->buf);
 	}
 	add_bss->status = QDF_STATUS_SUCCESS;
 	add_bss->bssIdx = resp_event->vdev_id;
