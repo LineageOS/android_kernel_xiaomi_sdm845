@@ -208,6 +208,7 @@
  * @he_data5: HE property of received frame
  * @prev_ppdu_id: ppdu_id in previously received message
  * @ppdu_id: Id of the PLCP protocol data unit
+ * @chan_noise_floor: Channel Noise Floor for the pdev
  */
 struct mon_rx_status {
 	uint64_t tsft;
@@ -274,6 +275,7 @@ struct mon_rx_status {
 	uint32_t ppdu_len;
 	uint32_t prev_ppdu_id;
 	uint32_t ppdu_id;
+	int16_t chan_noise_floor;
 };
 
 /* Masks for HE SIG known fields in mon_rx_status structure */
