@@ -1,12 +1,11 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
+/**
+ * @file   idtp9220.h
+ * @author  <roy@ROY-PC>
+ * @date   Sun Nov 22 11:49:55 2015
  *
- * This program is distributed in the hope that it will be useful
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.*
+ * @brief
+ *
+ *
  */
 #ifndef __IDTP9220_H__
 #define __IDTP9220_H__
@@ -37,11 +36,11 @@
 #define TOGGLE_LDO_ON_OFF    (1 << 1)
 
 /* interrupt register bits define */
-#define INT_IDAUTH_SUCCESS (1 << 13)
+#define INT_IDAUTH_SUCESS (1 << 13)
 #define INT_IDAUTH_FAIL   (1 << 12)
-#define INT_SEND_SUCCESS   (1 << 11)
+#define INT_SEND_SUCESS   (1 << 11)
 #define INT_SEND_TIMEOUT  (1 << 10)
-#define INT_AUTH_SUCCESS   (1 << 9)
+#define INT_AUTH_SUCESS   (1 << 9)
 #define INT_AUTH_FAIL     (1 << 8)
 #define INT_VOUT_OFF      (1 << 7)
 #define INT_VOUT_ON       (1 << 6)
@@ -56,8 +55,8 @@
 #define REG_CHIP_ID_H        0x0001
 #define REG_CHIP_REV         0x0002
 #define REG_CTM_ID           0x0003
-#define REG_OTPFWVER_ADDR    0x0004
-#define REG_EPRFWVER_ADDR    0x001c
+#define REG_OTPFWVER_ADDR    0x0004 // OTP firmware version
+#define REG_EPRFWVER_ADDR    0x001c // EEPROM firmware version
 #define REG_STATUS_L         0x0034
 #define REG_STATUS_H         0x0035
 #define REG_INTR_L           0x0036
@@ -72,26 +71,26 @@
 #define REG_ADC_VRECT        0x0040
 #define REG_RX_LOUT_L        0x0044
 #define REG_RX_LOUT_H        0x0045
-#define REG_FREQ_ADDR        0x0048
+#define REG_FREQ_ADDR        0x0048 // Operating Frequency, Fop(KHz) = 64 * 6000 /value * 256)
 #define REG_ILIM_SET         0x004A
 #define REG_SIGNAL_STRENGTH  0x004B
-#define REG_SSCMND           0x004e
-#define REG_PROPPKT          0x0050
-#define REG_PPPDATA          0x0051
-#define REG_SSINTCLR         0x0056
-#define REG_BCHEADER         0x0058
-#define REG_BCDATA           0x0059
-#define REG_FC_VOLTAGE_L     0x0078
+#define REG_SSCMND           0x004e // Command Register, COM (0x4E)
+#define REG_PROPPKT          0x0050 // Proprietary Packet Header Register, PPP_Header (0x50)
+#define REG_PPPDATA          0x0051 // PPP Data Value Register(0X51, 0x52, 0x53, 0x54, 0x55)
+#define REG_SSINTCLR         0x0056 // Interrupt Clear Registers, INT_Clear_L (0x56)
+#define REG_BCHEADER         0x0058 // Back Channel Packet Register (0x58)
+#define REG_BCDATA           0x0059 // Back Channel Packet Register (0x59, 0x5A, 0x5B, 0x5C)
+#define REG_FC_VOLTAGE_L     0x0078 // Fast Charging Voltage Register
 #define REG_FC_VOLTAGE_H     0x0079
 
-
+// RX -> TX
 #define PROPRIETARY18        0x18
 #define PROPRIETARY28        0x28
 #define PROPRIETARY38        0x38
 #define PROPRIETARY48        0x48
 #define PROPRIETARY58        0x58
 
-
+// bitmap for customer command
 #define BC_NONE               0x00
 #define BC_SET_FREQ           0x03
 #define BC_GET_FREQ           0x04
@@ -106,7 +105,7 @@
 #define BC_WRITE_I2C          0x0e
 #define BC_VI2C_INIT          0x10
 
-
+//Factory test command
 #define BC_READ_IOUT          0x12
 #define BC_READ_VOUT          0x13
 #define BC_START_CHARGE       0x30
@@ -120,7 +119,7 @@
 /*            0x05:'QC2.0',  */
 /*            0x06:'QC3.0',  */
 /*            0x07:'PD',} */
-
+//define adapter type
 #define ADAPTER_NONE 0x00
 #define ADAPTER_SDP  0x01
 #define ADAPTER_CDP  0x02
@@ -129,21 +128,25 @@
 #define ADAPTER_QC3  0x06
 #define ADAPTER_PD   0x07
 #define ADAPTER_AUTH_FAILED   0x08
+#define ADAPTER_XIAOMI_QC3    0x09
+#define ADAPTER_XIAOMI_PD     0X0a
+#define ADAPTER_ZIMI_CAR_POWER    0x0b
+#define ADAPTER_XIAOMI_PD_40W     0x0c
 
+// bitmap for status flags
+// 1: indicates a pending interrupt for LDO Vout state change – from OFF to ON
+#define VOUTCHANGED          BIT(7) // Stat_Vout_ON
+// 1: indicates a pending interrupt for TX Data Received. (Change from “No Received Data” state to “Data Received” state)
+#define TXDATARCVD           BIT(4) // TX Data Received
 
-
-#define VOUTCHANGED          BIT(7)
-
-#define TXDATARCVD           BIT(4)
-
-
+// bitmap for SSCmnd register 0x4e
 #define VSWITCH              BIT(7)
-
-#define CLRINT               BIT(5)
-
-#define LDOTGL               BIT(1)
-
-#define SENDPROPP            BIT(0)
+// If AP sets this bit to "1" then IDTP9220 M0 clears the interrupt corresponding to the bit(s) which has a value of “1”
+#define CLRINT               BIT(5) // Clear Interrupt
+// If AP sets this bit to "1" then IDTP9220 M0 toggles LDO output once (from on to off, or from off to on), and then sets this bit to “0”
+#define LDOTGL               BIT(1) // Toggle LDO On/OFF
+// If AP sets this bit to “1” then IDTP9220 M0 sends the Proprietary Packet
+#define SENDPROPP            BIT(0) //  SEND RX Data
 
 #define SEND_DEVICE_AUTH     BIT(2)
 
@@ -166,6 +169,14 @@ enum VOUT_SET_VAL {
   VOUT_VAL_5000_MV,
   VOUT_VAL_5100_MV,
   VOUT_VAL_5200_MV,
+  VOUT_VAL_5300_MV,
+  VOUT_VAL_5400_MV,
+  VOUT_VAL_5500_MV,
+  VOUT_VAL_5600_MV,
+  VOUT_VAL_5700_MV,
+  VOUT_VAL_5800_MV,
+  VOUT_VAL_5900_MV,
+  VOUT_VAL_6000_MV,
 };
 
 enum IMIL_SET_VAL {
@@ -195,19 +206,19 @@ struct idtp9220_platform_data {
   unsigned long gpio_en;
 };
 */
-typedef struct {
-  u16 status;
-  u16 startAddr;
-  u16 codeLength;
-  u16 dataChksum;
-  u8  dataBuf[128];
+typedef struct {        // write to structure at SRAM address 0x0400
+  u16 status;           // Read/Write by both 9220 and 9220 host
+  u16 startAddr;        // OTP image address of the current packet
+  u16 codeLength;       // The size of the OTP image data in the current packet
+  u16 dataChksum;       // Checksum of the current packet
+  u8  dataBuf[128];     // OTP image data of the current packet
 }idtp9220_packet_t;
 
-
+// proprietary packet type
 typedef struct {
-  u8 header;
-  u8 cmd;
-  u8 data[4];
+  u8 header;            // The header consists of a single byte that indicates the Packet type.
+  u8 cmd;               // Back channel command
+  u8 data[4];           // Send data buffer
 } ProPkt_Type;
 
 #if 0
@@ -246,7 +257,7 @@ static char bootloader_data[] = {
   0x04, 0x1D, 0x00, 0x00, 0x00, 0x64, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-unsigned char idt_firmware_otp[] = {
+unsigned char idt_firmware_otp[] = { /// ver 2.1.2.a
     0x00, 0x06, 0x00, 0x20, 0xe3, 0x02, 0x00, 0x00, 0x71, 0x00, 0x00, 0x00, 0x73, 0x00, 0x00, 0x00,
     0x5f, 0x37, 0x59, 0xdf, 0x44, 0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x75, 0x00, 0x00, 0x00,
