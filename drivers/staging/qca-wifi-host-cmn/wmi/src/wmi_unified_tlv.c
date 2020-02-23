@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2913,8 +2913,6 @@ static QDF_STATUS send_scan_start_cmd_tlv(wmi_unified_t wmi_handle,
 	cmd->ie_len = params->extraie.len;
 	cmd->n_probes = params->n_probes;
 	cmd->scan_ctrl_flags_ext = params->scan_ctrl_flags_ext;
-
-	WMI_LOGD("scan_ctrl_flags_ext = %x", cmd->scan_ctrl_flags_ext);
 
 	if (params->scan_random.randomize)
 		wmi_copy_scan_random_mac(params->scan_random.mac_addr,
@@ -13139,6 +13137,17 @@ void wmi_copy_resource_config(wmi_resource_config *resource_cfg,
 		WMI_RSRC_CFG_FLAG_THREE_WAY_COEX_CONFIG_LEGACY_SUPPORT_SET(
 						resource_cfg->flag1, 1);
 
+	if (tgt_res_cfg->pktcapture_support)
+		WMI_RSRC_CFG_FLAG_PACKET_CAPTURE_SUPPORT_SET(
+				resource_cfg->flag1, 1);
+
+	if (tgt_res_cfg->time_sync_ftm)
+		WMI_RSRC_CFG_FLAG_AUDIO_SYNC_SUPPORT_SET(resource_cfg->flag1,
+							 1);
+	WMI_RSRC_CFG_HOST_SERVICE_FLAG_NAN_IFACE_SUPPORT_SET(
+		resource_cfg->host_service_flags,
+		tgt_res_cfg->nan_separate_iface_support);
+
 	wmi_copy_twt_resource_config(resource_cfg, tgt_res_cfg);
 }
 
@@ -14865,8 +14874,8 @@ QDF_STATUS send_gtk_offload_cmd_tlv(wmi_unified_t wmi_handle, uint8_t vdev_id,
 		cmd->flags = gtk_offload_opcode;
 
 		/* Copy the keys and replay counter */
-		qdf_mem_copy(cmd->KCK, params->kck, PMO_KCK_LEN);
-		qdf_mem_copy(cmd->KEK, params->kek, PMO_KEK_LEN_LEGACY);
+		qdf_mem_copy(cmd->KCK, params->kck, sizeof(cmd->KCK));
+		qdf_mem_copy(cmd->KEK, params->kek, sizeof(cmd->KEK));
 		qdf_mem_copy(cmd->replay_counter, &params->replay_counter,
 			     GTK_REPLAY_COUNTER_BYTES);
 	} else {
@@ -15979,8 +15988,10 @@ send_roam_scan_offload_ap_profile_cmd_tlv(wmi_unified_t wmi_handle,
 	score_param->pcl_weightage_pcnt = ap_profile->param.pcl_weightage;
 	score_param->oce_wan_weightage_pcnt =
 			ap_profile->param.oce_wan_weightage;
+	score_param->vendor_roam_score_algorithm_id =
+		ap_profile->param.vendor_roam_score_algorithm;
 
-	WMI_LOGD("Score params weightage: disable_bitmap %x rssi %d ht %d vht %d he %d BW %d band %d NSS %d ESP %d BF %d PCL %d OCE WAN %d",
+	WMI_LOGD("Score params weightage: disable_bitmap %x rssi %d ht %d vht %d he %d BW %d band %d NSS %d ESP %d BF %d PCL %d OCE WAN %d roam score algo %d",
 		 score_param->disable_bitmap, score_param->rssi_weightage_pcnt,
 		 score_param->ht_weightage_pcnt,
 		 score_param->vht_weightage_pcnt,
@@ -15990,7 +16001,8 @@ send_roam_scan_offload_ap_profile_cmd_tlv(wmi_unified_t wmi_handle,
 		 score_param->esp_qbss_weightage_pcnt,
 		 score_param->beamforming_weightage_pcnt,
 		 score_param->pcl_weightage_pcnt,
-		 score_param->oce_wan_weightage_pcnt);
+		 score_param->oce_wan_weightage_pcnt,
+		 score_param->vendor_roam_score_algorithm_id);
 
 	score_param->bw_scoring.score_pcnt = ap_profile->param.bw_index_score;
 	score_param->band_scoring.score_pcnt =
@@ -16070,9 +16082,12 @@ send_roam_scan_offload_ap_profile_cmd_tlv(wmi_unified_t wmi_handle,
 	score_param->roam_score_delta_pcnt = ap_profile->param.roam_score_delta;
 	score_param->roam_score_delta_mask =
 				ap_profile->param.roam_trigger_bitmap;
-	WMI_LOGD("Roam score delta:%d Roam_trigger_bitmap:%x",
+	score_param->candidate_min_roam_score =
+				ap_profile->param.cand_min_roam_score_delta;
+	WMI_LOGD("Roam score delta:%d Roam_trigger_bitmap:%x cand min score delta = %d",
 		 score_param->roam_score_delta_pcnt,
-		 score_param->roam_score_delta_mask);
+		 score_param->roam_score_delta_mask,
+		 score_param->candidate_min_roam_score);
 
 	buf_ptr += sizeof(*score_param);
 	WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
@@ -22029,7 +22044,7 @@ static QDF_STATUS send_set_del_pmkid_cache_cmd_tlv(wmi_unified_t wmi_handle,
 	wmi_pmk_cache *pmksa;
 	uint32_t len = sizeof(*cmd);
 
-	if (pmk_info->pmk_len)
+	if (pmk_info && !pmk_info->is_flush_all)
 		len += WMI_TLV_HDR_SIZE + sizeof(*pmksa);
 
 	buf = wmi_buf_alloc(wmi_handle, len);
@@ -22049,8 +22064,8 @@ static QDF_STATUS send_set_del_pmkid_cache_cmd_tlv(wmi_unified_t wmi_handle,
 
 	cmd->vdev_id = pmk_info->session_id;
 
-	/* If pmk_info->pmk_len is 0, this is a flush request */
-	if (!pmk_info->pmk_len) {
+	/* If pmk_info->is_flush_all is true, this is a flush request */
+	if (pmk_info->is_flush_all) {
 		cmd->op_flag = WMI_PMK_CACHE_OP_FLAG_FLUSH_ALL;
 		cmd->num_cache = 0;
 		goto send_cmd;
@@ -23527,6 +23542,78 @@ static QDF_STATUS extract_ani_level_tlv(uint8_t *evt_buf,
 }
 #endif /* FEATURE_ANI_LEVEL_REQUEST */
 
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+/**
+ * send_wlan_ts_ftm_trigger_cmd_tlv(): send wlan time sync cmd to FW
+ *
+ * @wmi: wmi handle
+ * @vdev_id: vdev id
+ * @burst_mode: Indicates whether relation derived using FTM is needed for
+ *		each FTM frame or only aggregated result is required.
+ *
+ * Send WMI_AUDIO_SYNC_TRIGGER_CMDID to FW.
+ *
+ * Return: QDF_STATUS
+ */
+static QDF_STATUS send_wlan_ts_ftm_trigger_cmd_tlv(wmi_unified_t wmi,
+						   uint32_t vdev_id,
+						   bool burst_mode)
+{
+	wmi_audio_sync_trigger_cmd_fixed_param *cmd;
+	wmi_buf_t buf;
+	int32_t len = sizeof(*cmd);
+
+	buf = wmi_buf_alloc(wmi, len);
+	if (!buf) {
+		WMI_LOGP("%s: wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+	cmd = (wmi_audio_sync_trigger_cmd_fixed_param *)wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		       WMITLV_TAG_STRUC_wmi_audio_sync_trigger_cmd_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN(wmi_audio_sync_trigger_cmd_fixed_param));
+	cmd->vdev_id = vdev_id;
+	cmd->agg_relation = burst_mode ? false : true;
+	if (wmi_unified_cmd_send(wmi, buf, len, WMI_VDEV_AUDIO_SYNC_TRIGGER_CMDID)) {
+		WMI_LOGE("%s: failed to send audio sync trigger cmd", __func__);
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
+static QDF_STATUS send_wlan_ts_qtime_cmd_tlv(wmi_unified_t wmi,
+					     uint32_t vdev_id,
+					     uint64_t lpass_ts)
+{
+	wmi_audio_sync_qtimer_cmd_fixed_param *cmd;
+	wmi_buf_t buf;
+	int32_t len = sizeof(*cmd);
+
+	buf = wmi_buf_alloc(wmi, len);
+	if (!buf) {
+		WMI_LOGP("%s: wmi_buf_alloc failed", __func__);
+		return QDF_STATUS_E_NOMEM;
+	}
+	cmd = (wmi_audio_sync_qtimer_cmd_fixed_param *)wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		       WMITLV_TAG_STRUC_wmi_audio_sync_qtimer_cmd_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN(wmi_audio_sync_qtimer_cmd_fixed_param));
+	cmd->vdev_id = vdev_id;
+	cmd->qtimer_u32 = (uint32_t)((lpass_ts & 0xffffffff00000000LL) >> 32);
+	cmd->qtimer_l32 = (uint32_t)(lpass_ts & 0xffffffffLL);
+
+	if (wmi_unified_cmd_send(wmi, buf, len, WMI_VDEV_AUDIO_SYNC_QTIMER_CMDID)) {
+		WMI_LOGP("%s: Failed to send audio qtime command", __func__);
+		wmi_buf_free(buf);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+#endif /* FEATURE_WLAN_TIME_SYNC_FTM */
+
 struct wmi_ops tlv_ops =  {
 	.send_vdev_create_cmd = send_vdev_create_cmd_tlv,
 	.send_vdev_delete_cmd = send_vdev_delete_cmd_tlv,
@@ -24045,6 +24132,11 @@ struct wmi_ops tlv_ops =  {
 	.send_ani_level_cmd = send_ani_level_cmd_tlv,
 	.extract_ani_level = extract_ani_level_tlv,
 #endif /* FEATURE_ANI_LEVEL_REQUEST */
+
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+	.send_wlan_time_sync_ftm_trigger_cmd = send_wlan_ts_ftm_trigger_cmd_tlv,
+	.send_wlan_ts_qtime_cmd = send_wlan_ts_qtime_cmd_tlv,
+#endif /* FEATURE_WLAN_TIME_SYNC_FTM */
 };
 
 /**
@@ -24365,6 +24457,16 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_oem_data_event_id] = WMI_OEM_DATA_EVENTID;
 	event_ids[wmi_roam_auth_offload_event_id] =
 				WMI_ROAM_PREAUTH_START_EVENTID;
+	event_ids[wmi_mgmt_offload_data_event_id] =
+				WMI_VDEV_MGMT_OFFLOAD_EVENTID;
+	event_ids[wmi_roam_pmkid_request_event_id] =
+				WMI_ROAM_PMKID_REQUEST_EVENTID;
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+	event_ids[wmi_wlan_time_sync_ftm_start_stop_event_id] =
+				WMI_VDEV_AUDIO_SYNC_START_STOP_EVENTID;
+	event_ids[wmi_wlan_time_sync_q_master_slave_offset_eventid] =
+			WMI_VDEV_AUDIO_SYNC_Q_MASTER_SLAVE_OFFSET_EVENTID;
+#endif
 }
 
 /**
@@ -24613,6 +24715,11 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_WPA3_SAE_ROAM_SUPPORT;
 	wmi_service[wmi_service_owe_roam_support] =
 			WMI_SERVICE_WPA3_OWE_ROAM_SUPPORT;
+	wmi_service[wmi_service_nan_vdev] = WMI_SERVICE_NAN_VDEV_SUPPORT;
+	wmi_service[wmi_service_packet_capture_support] =
+			WMI_SERVICE_PACKET_CAPTURE_SUPPORT;
+	wmi_service[wmi_service_time_sync_ftm] =
+			WMI_SERVICE_AUDIO_SYNC_SUPPORT;
 }
 
 #ifndef CONFIG_MCL

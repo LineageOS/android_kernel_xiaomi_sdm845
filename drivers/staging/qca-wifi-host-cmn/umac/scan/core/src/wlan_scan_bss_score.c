@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -62,6 +62,9 @@
 
 #define SCM_MAX_WEIGHT_OF_PCL_CHANNELS 255
 #define SCM_PCL_GROUPS_WEIGHT_DIFFERENCE 20
+
+/* Congestion threshold (channel load %) to consider band and OCE WAN score */
+#define CONGESTION_THRSHOLD_FOR_BAND_OCE_SCORE 75
 
 bool scm_is_better_bss(struct scan_default_params *params,
 	struct scan_cache_entry *bss1,
@@ -393,20 +396,11 @@ static int32_t scm_calculate_bandwidth_score(
 		cbmode = score_config->cb_mode_5G;
 	}
 
-	if (entry->phy_mode == WLAN_PHYMODE_11AC_VHT80_80 ||
-	    entry->phy_mode == WLAN_PHYMODE_11AC_VHT160)
+	if (IS_WLAN_PHYMODE_160MHZ(entry->phy_mode))
 		ch_width_index = SCM_160MHZ_BW_INDEX;
-	else if (entry->phy_mode == WLAN_PHYMODE_11AC_VHT80)
-		 ch_width_index = SCM_80MHZ_BW_INDEX;
-	else if (entry->phy_mode == WLAN_PHYMODE_11NA_HT40PLUS ||
-		 entry->phy_mode == WLAN_PHYMODE_11NA_HT40MINUS ||
-		 entry->phy_mode == WLAN_PHYMODE_11NG_HT40PLUS ||
-		 entry->phy_mode == WLAN_PHYMODE_11NG_HT40MINUS ||
-		 entry->phy_mode == WLAN_PHYMODE_11NG_HT40 ||
-		 entry->phy_mode == WLAN_PHYMODE_11NA_HT40 ||
-		 entry->phy_mode == WLAN_PHYMODE_11AC_VHT40PLUS ||
-		 entry->phy_mode == WLAN_PHYMODE_11AC_VHT40MINUS ||
-		 entry->phy_mode == WLAN_PHYMODE_11AC_VHT40)
+	else if (IS_WLAN_PHYMODE_80MHZ(entry->phy_mode))
+		ch_width_index = SCM_80MHZ_BW_INDEX;
+	else if (IS_WLAN_PHYMODE_40MHZ(entry->phy_mode))
 		ch_width_index = SCM_40MHZ_BW_INDEX;
 	else
 		ch_width_index = SCM_20MHZ_BW_INDEX;
@@ -460,22 +454,59 @@ static int32_t scm_get_score_for_index(uint8_t index,
 }
 
 /**
+ * scm_get_congestion_pct () - Calculate congestion pct from esp/qbss load
+ * @entry: bss information
+ *
+ * Return : congestion pct
+ */
+static int32_t scm_get_congestion_pct(struct scan_cache_entry *entry)
+{
+	uint32_t ap_load = 0;
+	uint32_t est_air_time_percentage = 0;
+	uint32_t congestion = 0;
+
+	if (entry->air_time_fraction) {
+		/* Convert 0-255 range to percentage */
+		est_air_time_percentage = entry->air_time_fraction *
+							SCM_MAX_CHANNEL_WEIGHT;
+		est_air_time_percentage = qdf_do_div(est_air_time_percentage,
+					   SCM_MAX_ESTIMATED_AIR_TIME_FRACTION);
+		/*
+		 * Calculate channel congestion from estimated air time
+		 * fraction.
+		 */
+		congestion = SCM_MAX_CHANNEL_UTILIZATION -
+					est_air_time_percentage;
+	} else if (entry->qbss_chan_load) {
+		ap_load = (entry->qbss_chan_load * BEST_CANDIDATE_MAX_WEIGHT);
+		/*
+		 * Calculate ap_load in % from qbss channel load from
+		 * 0-255 range
+		 */
+		congestion = qdf_do_div(ap_load, MAX_AP_LOAD);
+	}
+
+	return congestion;
+}
+
+/**
  * scm_calculate_congestion_score () - Calculate congestion score
  * @entry: bss information
  * @score_params: bss score params
+ * @congestion_pct: congestion pct
  *
  * Return : congestion score
  */
 static int32_t scm_calculate_congestion_score(
 	struct scan_cache_entry *entry,
-	struct scoring_config *score_params)
+	struct scoring_config *score_params,
+	uint32_t *congestion_pct)
 {
-	uint32_t ap_load = 0;
-	uint32_t est_air_time_percentage = 0;
-	uint32_t congestion = 0;
 	uint32_t window_size;
 	uint8_t index;
 	int32_t good_rssi_threshold;
+
+	*congestion_pct = scm_get_congestion_pct(entry);
 
 	if (!score_params->esp_qbss_scoring.num_slot)
 		return 0;
@@ -496,40 +527,17 @@ static int32_t scm_calculate_congestion_score(
 				channel_congestion_weightage,
 				&score_params->esp_qbss_scoring);
 
-	if (entry->air_time_fraction) {
-			/* Convert 0-255 range to percentage */
-			est_air_time_percentage =
-				entry->air_time_fraction *
-					SCM_MAX_CHANNEL_WEIGHT;
-			est_air_time_percentage =
-				qdf_do_div(est_air_time_percentage,
-					   SCM_MAX_ESTIMATED_AIR_TIME_FRACTION);
-			/*
-			 * Calculate channel congestion from estimated air time
-			 * fraction.
-			 */
-			congestion = SCM_MAX_CHANNEL_UTILIZATION -
-					est_air_time_percentage;
-	} else if (entry->qbss_chan_load) {
-			ap_load = (entry->qbss_chan_load *
-					BEST_CANDIDATE_MAX_WEIGHT);
-			/*
-			 * Calculate ap_load in % from qbss channel load from
-			 * 0-255 range
-			 */
-			congestion = qdf_do_div(ap_load, MAX_AP_LOAD);
-	} else {
+	if (!*congestion_pct)
 		return score_params->weight_cfg.channel_congestion_weightage *
 			   WLAN_GET_SCORE_PERCENTAGE(
 			   score_params->esp_qbss_scoring.score_pcnt3_to_0,
 			   SCM_SCORE_INDEX_0);
-	}
 
 	window_size = BEST_CANDIDATE_MAX_WEIGHT /
 			score_params->esp_qbss_scoring.num_slot;
 
 	/* Desired values are from 1 to 15, as 0 is for not present. so do +1 */
-	index = qdf_do_div(congestion, window_size) + 1;
+	index = qdf_do_div(*congestion_pct, window_size) + 1;
 
 	if (index > score_params->esp_qbss_scoring.num_slot)
 		index = score_params->esp_qbss_scoring.num_slot;
@@ -678,6 +686,7 @@ int scm_calculate_bss_score(struct wlan_objmgr_psoc *psoc,
 	int32_t band_score = 0;
 	int32_t nss_score = 0;
 	int32_t congestion_score = 0;
+	int32_t congestion_pct = 0;
 	int32_t oce_wan_score = 0;
 	uint8_t prorated_pcnt;
 	bool is_vht = false;
@@ -759,27 +768,39 @@ int scm_calculate_bss_score(struct wlan_objmgr_psoc *psoc,
 				weight_config->beamforming_cap_weightage;
 	score += beamformee_score;
 
+	congestion_score = scm_calculate_congestion_score(entry, score_config,
+							  &congestion_pct);
+	score += congestion_score;
 	/*
-	 * If AP is on 5Ghz channel , extra weigtage is added to BSS score.
-	 * if RSSI is greater tha 5g rssi threshold or fall in same bucket.
-	 * else give weigtage to 2.4 GH.
+	 * Consider OCE WAN score and band preference score only if
+	 * congestion_pct is greater than CONGESTION_THRSHOLD_FOR_BAND_OCE_SCORE
 	 */
-	if ((entry->rssi_raw > rssi_pref_5g_rssi_thresh) && !same_bucket) {
-		if (WLAN_CHAN_IS_5GHZ(entry->channel.chan_idx))
+	if (congestion_pct < CONGESTION_THRSHOLD_FOR_BAND_OCE_SCORE) {
+		/*
+		 * If AP is on 5Ghz channel , extra weigtage is added to BSS
+		 * score. if RSSI is greater tha 5g rssi threshold or fall in
+		 * same bucket else give weigtage to 2.4 GH.
+		 */
+		if ((entry->rssi_raw > rssi_pref_5g_rssi_thresh) &&
+		    !same_bucket) {
+			if (WLAN_CHAN_IS_5GHZ(entry->channel.chan_idx))
+				band_score =
+					weight_config->chan_band_weightage *
+					    WLAN_GET_SCORE_PERCENTAGE(
+					    score_config->band_weight_per_index,
+					    SCM_BAND_5G_INDEX);
+		} else if (WLAN_CHAN_IS_2GHZ(entry->channel.chan_idx)) {
 			band_score = weight_config->chan_band_weightage *
 					WLAN_GET_SCORE_PERCENTAGE(
 					score_config->band_weight_per_index,
-					SCM_BAND_5G_INDEX);
-	} else if (WLAN_CHAN_IS_2GHZ(entry->channel.chan_idx)) {
-		band_score = weight_config->chan_band_weightage *
-					WLAN_GET_SCORE_PERCENTAGE(
-					score_config->band_weight_per_index,
 					SCM_BAND_2G_INDEX);
-	}
-	score += band_score;
+		}
+		score += band_score;
 
-	congestion_score = scm_calculate_congestion_score(entry, score_config);
-	score += congestion_score;
+		oce_wan_score = scm_calculate_oce_wan_score(entry,
+							    score_config);
+		score += oce_wan_score;
+	}
 
 	sta_nss = scm_get_sta_nss(psoc, entry->channel.chan_idx,
 				  score_config->vdev_nss_24g,
@@ -794,27 +815,25 @@ int scm_calculate_bss_score(struct wlan_objmgr_psoc *psoc,
 					    prorated_pcnt, sta_nss);
 	score += nss_score;
 
-	oce_wan_score = scm_calculate_oce_wan_score(entry, score_config);
-	score += oce_wan_score;
+	scm_nofl_debug("Self: HT %d VHT %d HE %d VHT_24Ghz %d BF cap %d cb_mode_24g %d cb_mode_5G %d NSS %d",
+		       score_config->ht_cap, score_config->vht_cap,
+		       score_config->he_cap,  score_config->vht_24G_cap,
+		       score_config->beamformee_cap, score_config->cb_mode_24G,
+		       score_config->cb_mode_5G, sta_nss);
 
-	scm_debug("Self Cap: HT %d VHT %d HE %d VHT_24Ghz %d BF cap %d cb_mode_24g %d cb_mode_5G %d NSS %d",
-		  score_config->ht_cap, score_config->vht_cap,
-		  score_config->he_cap,  score_config->vht_24G_cap,
-		  score_config->beamformee_cap, score_config->cb_mode_24G,
-		  score_config->cb_mode_5G, sta_nss);
+	scm_nofl_debug("Candidate(%pM chan %d): rssi %d HT %d VHT %d HE %d su bfer %d phy %d  air time frac %d qbss %d cong_pct %d NSS %d",
+		       entry->bssid.bytes, entry->channel.chan_idx,
+		       entry->rssi_raw, util_scan_entry_htcap(entry) ? 1 : 0,
+		       util_scan_entry_vhtcap(entry) ? 1 : 0,
+		       util_scan_entry_hecap(entry) ? 1 : 0, ap_su_beam_former,
+		       entry->phy_mode, entry->air_time_fraction,
+		       entry->qbss_chan_load, congestion_pct, entry->nss);
 
-	scm_debug("Candidate (BSSID: %pM Chan %d) Cap:: rssi=%d HT=%d VHT=%d HE %d su beamformer %d phymode=%d  air time fraction %d qbss load %d NSS %d",
-		  entry->bssid.bytes, entry->channel.chan_idx,
-		  entry->rssi_raw, util_scan_entry_htcap(entry) ? 1 : 0,
-		  util_scan_entry_vhtcap(entry) ? 1 : 0,
-		  util_scan_entry_hecap(entry) ? 1 : 0, ap_su_beam_former,
-		  entry->phy_mode, entry->air_time_fraction,
-		  entry->qbss_chan_load, entry->nss);
-
-	scm_debug("Candidate Scores : prorated_pcnt %d rssi %d pcl %d ht %d vht %d he %d beamformee %d bw %d band %d congestion %d nss %d oce wan %d TOTAL score %d",
-		  prorated_pcnt, rssi_score, pcl_score, ht_score, vht_score,
-		  he_score, beamformee_score, bandwidth_score, band_score,
-		  congestion_score, nss_score, oce_wan_score, score);
+	scm_nofl_debug("Scores: prorated_pcnt %d rssi %d pcl %d ht %d vht %d he %d bfee %d bw %d band %d congestion %d nss %d oce wan %d TOTAL %d",
+		       prorated_pcnt, rssi_score, pcl_score, ht_score,
+		       vht_score, he_score, beamformee_score, bandwidth_score,
+		       band_score, congestion_score, nss_score, oce_wan_score,
+		       score);
 
 	entry->bss_score = score;
 	return score;

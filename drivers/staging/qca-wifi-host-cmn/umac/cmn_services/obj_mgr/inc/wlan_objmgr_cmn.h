@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -223,6 +223,7 @@ typedef void (*wlan_objmgr_peer_status_handler)(
  * @WLAN_WIFI_POS_TGT_IF_ID:    wifi positioning (Target IF)
  * @WLAN_MLME_OBJ_DEL_ID:       Object delete req/resp tracking with FW
  * @WLAN_ACTION_OUI_ID:         action oui operations
+ * @FTM_TIME_SYNC_ID:           ftm time sync operations
  * @WLAN_REF_ID_MAX:            Max id used to generate ref count tracking array
  */
  /* New value added to the enum must also be reflected in function
@@ -273,6 +274,7 @@ typedef enum {
 	WLAN_WIFI_POS_TGT_IF_ID = 41,
 	WLAN_MLME_OBJ_DEL_ID    = 42,
 	WLAN_ACTION_OUI_ID      = 43,
+	FTM_TIME_SYNC_ID        = 44,
 	WLAN_REF_ID_MAX,
 } wlan_objmgr_ref_dbgid;
 
