@@ -93,6 +93,8 @@ enum active_apf_mode {
  * @tx_flow_start_queue_offset: Start queue offset in percentage
  * @is_lpass_enabled: Indicate whether LPASS is enabled or not
  * @is_nan_enabled: Indicate whether NAN is enabled or not
+ * @nan_separate_iface_support: Indicate whether separate iface for NAN is
+ * enabled or not
  * @bool apf_packet_filter_enable; Indicate apf filter enabled or not
  * @tx_chain_mask_cck: Tx chain mask enabled or not
  * @self_gen_frm_pwr: Self gen from power
@@ -151,6 +153,7 @@ struct cds_config_info {
 #endif
 #ifdef WLAN_FEATURE_NAN
 	bool is_nan_enabled;
+	bool nan_separate_iface_support;
 #endif
 	bool apf_packet_filter_enable;
 	bool tx_chain_mask_cck;
@@ -172,6 +175,7 @@ struct cds_config_info {
 	bool enable_peer_unmap_conf_support;
 	bool enable_tx_compl_tsf64;
 	bool enable_three_way_coex_config_legacy;
+	uint32_t num_vdevs;
 };
 
 #ifdef WLAN_FEATURE_FILS_SK

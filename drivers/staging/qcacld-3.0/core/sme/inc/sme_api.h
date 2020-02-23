@@ -2203,17 +2203,6 @@ QDF_STATUS sme_set_smps_cfg(uint32_t vdev_id, uint32_t param_id,
 				uint32_t param_val);
 
 /**
- * sme_get_peer_stats() - sme api to post peer info request
- * @mac: mac handle
- * @req: peer info request struct send to wma
- *
- * Return: QDF_STATUS_SUCCESS or non-zero on failure
- */
-
-QDF_STATUS sme_get_peer_stats(tpAniSirGlobal mac,
-			      struct sir_peer_info_req req);
-
-/**
  * sme_get_peer_info() - sme api to get peer info
  * @hal: hal handle for getting global mac struct
  * @req: peer info request struct send to wma
@@ -3052,6 +3041,15 @@ QDF_STATUS sme_set_roam_triggers(mac_handle_t mac_handle,
  */
 QDF_STATUS sme_roam_control_restore_default_config(mac_handle_t mac_handle,
 						   uint8_t vdev_id);
+
+/**
+ * sme_roam_reset_configs() - API to reset roam configurations
+ * @mac_handle: Opaque handle to the global MAC context
+ * @vdev_id: vdev Identifier
+ *
+ * Return: void
+ */
+void sme_roam_reset_configs(mac_handle_t mac_handle, uint8_t vdev_id);
 
 /**
  * sme_set_disconnect_ies() - set disconnect IEs

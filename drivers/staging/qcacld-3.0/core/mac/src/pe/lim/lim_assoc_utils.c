@@ -48,6 +48,7 @@
 #include "lim_ibss_peer_mgmt.h"
 #include "lim_ft_defs.h"
 #include "lim_session.h"
+#include "lim_process_fils.h"
 
 #include "qdf_types.h"
 #include "wma_types.h"
@@ -2957,6 +2958,9 @@ lim_add_sta_self(tpAniSirGlobal pMac, uint16_t staIdx, uint8_t updateSta,
 	if (IS_DOT11_MODE_HE(selfStaDot11Mode))
 		lim_add_self_he_cap(pAddStaParams, psessionEntry);
 
+	if (lim_is_fils_connection(psessionEntry))
+		pAddStaParams->no_ptk_4_way = true;
+
 	msgQ.type = WMA_ADD_STA_REQ;
 	msgQ.reserved = 0;
 	msgQ.bodyptr = pAddStaParams;
@@ -4139,6 +4143,9 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 	}
 	lim_set_sta_ctx_twt(&pAddBssParams->staContext, psessionEntry);
 
+	if (lim_is_fils_connection(psessionEntry))
+		pAddBssParams->no_ptk_4_way = true;
+
 	msgQ.type = WMA_ADD_BSS_REQ;
 	/** @ToDo : Update the Global counter to keeptrack of the PE <--> HAL messages*/
 	msgQ.reserved = 0;
@@ -4622,6 +4629,9 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 		pAddBssParams->ch_width = CH_WIDTH_10MHZ;
 		pAddBssParams->staContext.ch_width = CH_WIDTH_10MHZ;
 	}
+
+	if (lim_is_fils_connection(psessionEntry))
+		pAddBssParams->no_ptk_4_way = true;
 
 	msgQ.type = WMA_ADD_BSS_REQ;
 	/** @ToDo : Update the Global counter to keeptrack of the PE <--> HAL messages*/

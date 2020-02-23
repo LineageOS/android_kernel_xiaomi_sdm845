@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -481,8 +481,6 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 	struct scan_params params = {0};
 	struct wlan_objmgr_vdev *vdev;
 
-	hdd_enter();
-
 	if (cds_is_fw_down()) {
 		hdd_err("firmware is down, scan cmd cannot be processed");
 		return -EINVAL;
@@ -517,10 +515,6 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 		schedule_work(&adapter->scan_block_work);
 		return 0;
 	}
-
-	hdd_debug("Device_mode %s(%d)",
-		hdd_device_mode_to_string(adapter->device_mode),
-		adapter->device_mode);
 
 	/*
 	 * IBSS vdev does not need to scan to establish
@@ -692,7 +686,7 @@ static int __wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 error:
 	if (params.default_ie.ptr)
 		qdf_mem_free(params.default_ie.ptr);
-	hdd_exit();
+
 	return status;
 }
 

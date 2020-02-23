@@ -42,6 +42,7 @@
 #include "lim_ibss_peer_mgmt.h"
 #include "lim_ft_defs.h"
 #include "lim_session.h"
+#include "lim_process_fils.h"
 
 #include "qdf_types.h"
 #include "wma_types.h"
@@ -397,6 +398,9 @@ QDF_STATUS lim_add_ft_sta_self(tpAniSirGlobal mac_ctx, uint16_t assoc_id,
 	add_sta_params = session_entry->ftPEContext.pAddStaReq;
 	add_sta_params->assocId = assoc_id;
 	add_sta_params->smesessionId = session_entry->smeSessionId;
+
+	if (lim_is_fils_connection(session_entry))
+		add_sta_params->no_ptk_4_way = true;
 
 	msg_q.type = WMA_ADD_STA_REQ;
 	msg_q.reserved = 0;

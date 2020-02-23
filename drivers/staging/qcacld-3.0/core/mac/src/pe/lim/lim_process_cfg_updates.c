@@ -179,8 +179,6 @@ void lim_handle_cf_gparam_update(tpAniSirGlobal pMac, uint32_t cfgId)
 	uint16_t val16;
 	tSirMacHTParametersInfo *pAmpduParamInfo;
 
-	pe_debug("Handling CFG parameter id %X update", cfgId);
-
 	switch (cfgId) {
 	case WNI_CFG_ASSOCIATION_FAILURE_TIMEOUT:
 		if (pMac->lim.gLimMlmState != eLIM_MLM_WT_ASSOC_RSP_STATE) {

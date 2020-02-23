@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -465,6 +465,7 @@ typedef struct sSirSmeReadyReq {
 				 struct scheduler_msg *msg);
 	QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
 					uint8_t vdev_id);
+	void *csr_roam_pmkid_req_cb;
 } tSirSmeReadyReq, *tpSirSmeReadyReq;
 
 /**
@@ -2802,6 +2803,7 @@ struct roam_ext_params {
  * @pcl_weightage: PCL weightage
  * @channel_congestion_weightage: channel congestion weightage
  * @oce_wan_weightage: OCE WAN metrics weightage
+ * @vendor_roam_score_algorithm: Preferred vendor roam score algorithm
  */
 struct  sir_weight_config {
 	uint8_t rssi_weightage;
@@ -2815,6 +2817,7 @@ struct  sir_weight_config {
 	uint8_t pcl_weightage;
 	uint8_t channel_congestion_weightage;
 	uint8_t oce_wan_weightage;
+	uint32_t vendor_roam_score_algorithm;
 };
 
 struct sir_rssi_cfg_score  {
@@ -2875,6 +2878,7 @@ struct sir_score_config {
 	uint32_t band_weight_per_index;
 	uint32_t roam_score_delta;
 	uint32_t roam_score_delta_bitmap;
+	uint32_t cand_min_roam_score_delta;
 };
 
 /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1067,6 +1067,8 @@ struct wma_valid_channels {
  * @RArateLimitInterval: RA rate limit interval
  * @is_lpass_enabled: Flag to indicate if LPASS feature is enabled or not
  * @is_nan_enabled: Flag to indicate if NaN feature is enabled or not
+ * @nan_separate_iface_support: Flag to indicate whether separate iface for NAN
+ * is enabled or not
  * @staMaxLIModDtim: station max listen interval
  * @staModDtim: station mode DTIM
  * @staDynamicDtim: station dynamic DTIM
@@ -1224,6 +1226,7 @@ typedef struct {
 #endif
 #ifdef WLAN_FEATURE_NAN
 	bool is_nan_enabled;
+	bool nan_separate_iface_support;
 #endif
 	uint8_t staMaxLIModDtim;
 	uint8_t staModDtim;
@@ -1259,6 +1262,8 @@ typedef struct {
 		enum sir_roam_op_code reason);
 	QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
 					uint8_t vdev_id);
+	QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
+		struct roam_pmkid_req_event *bss_list);
 	qdf_wake_lock_t wmi_cmd_rsp_wake_lock;
 	qdf_runtime_lock_t wmi_cmd_rsp_runtime_lock;
 	bool apf_enabled;
@@ -2127,6 +2132,25 @@ void wma_vdev_update_pause_bitmap(uint8_t vdev_id, uint16_t value)
 
 	iface->pause_bitmap = value;
 }
+
+/**
+ * wma_host_to_fw_phymode() - convert host to fw phymode
+ * @host_phymode: phymode to convert
+ *
+ * Return: one of the values defined in enum WMI_HOST_WLAN_PHY_MODE;
+ *         or WMI_HOST_MODE_UNKNOWN if the conversion fails
+ */
+WMI_HOST_WLAN_PHY_MODE
+wma_host_to_fw_phymode(enum wlan_phymode host_phymode);
+
+/**
+ * wma_fw_to_host_phymode() - convert fw to host phymode
+ * @phymode: phymode to convert
+ *
+ * Return: one of the values defined in enum wlan_phymode;
+ *         or WLAN_PHYMODE_AUTO if the conversion fails
+ */
+enum wlan_phymode wma_fw_to_host_phymode(WMI_HOST_WLAN_PHY_MODE phymode);
 
 /**
  * wma_vdev_get_pause_bitmap() - Get vdev pause bitmap

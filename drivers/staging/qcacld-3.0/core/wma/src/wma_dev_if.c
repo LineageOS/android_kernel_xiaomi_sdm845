@@ -213,6 +213,9 @@ static enum wlan_op_mode wma_get_txrx_vdev_type(uint32_t type)
 	case WMI_VDEV_TYPE_NDI:
 		vdev_type = wlan_op_mode_ndi;
 		break;
+	case WMI_VDEV_TYPE_NAN:
+		vdev_type = wlan_op_mode_nan;
+		break;
 	default:
 		WMA_LOGE("Invalid vdev type %u", type);
 		vdev_type = wlan_op_mode_unknown;
@@ -897,6 +900,75 @@ send_rsp:
 	return status;
 }
 
+static void wma_sap_peer_send_phymode(struct wlan_objmgr_vdev *vdev,
+				      void *object, void *arg)
+{
+	struct wlan_objmgr_peer *peer = object;
+	enum wlan_phymode old_peer_phymode;
+	enum wlan_phymode new_phymode;
+	tSirNwType nw_type;
+	uint32_t fw_phymode;
+	uint32_t max_ch_width_supported;
+	tp_wma_handle wma;
+	uint8_t *peer_mac_addr;
+	uint8_t vdev_id;
+	struct wma_txrx_node *intr;
+
+	if (wlan_peer_get_peer_type(peer) == WLAN_PEER_SELF)
+		return;
+
+	wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if(!wma) {
+		wma_err("wma handle NULL");
+		return;
+	}
+
+	intr = wma->interfaces;
+	old_peer_phymode = wlan_peer_get_phymode(peer);
+	vdev_id = wlan_vdev_get_id(vdev);
+
+	peer_mac_addr = wlan_peer_get_macaddr(peer);
+
+	if (WLAN_REG_IS_24GHZ_CH_FREQ(intr[vdev_id].mhz)) {
+		if (intr[vdev_id].chanmode == WMI_HOST_MODE_11B)
+			nw_type = eSIR_11B_NW_TYPE;
+		else
+			nw_type = eSIR_11G_NW_TYPE;
+	} else {
+		nw_type = eSIR_11A_NW_TYPE;
+	}
+	fw_phymode = wma_peer_phymode(nw_type, STA_ENTRY_PEER,
+				      IS_WLAN_PHYMODE_HT(old_peer_phymode),
+				      intr[vdev_id].chan_width,
+				      IS_WLAN_PHYMODE_VHT(old_peer_phymode),
+				      IS_WLAN_PHYMODE_HE(old_peer_phymode));
+
+	new_phymode = wma_fw_to_host_phymode(fw_phymode);
+	wlan_peer_set_phymode(peer, new_phymode);
+
+	wma_set_peer_param(wma, peer_mac_addr, WMI_PEER_PHYMODE,
+			   fw_phymode, vdev_id);
+
+	max_ch_width_supported =
+		wmi_get_ch_width_from_phy_mode(wma->wmi_handle, fw_phymode);
+	wma_set_peer_param(wma, peer_mac_addr, WMI_PEER_CHWIDTH,
+			   max_ch_width_supported, vdev_id);
+
+	wma_debug("nw_type %d old phymode %d new phymode %d bw %d macaddr "QDF_MAC_ADDR_STR,
+		  nw_type, old_peer_phymode, new_phymode,
+		  max_ch_width_supported, QDF_MAC_ADDR_ARRAY(peer_mac_addr));
+}
+
+static void
+wma_update_peer_phymode_sap(struct wlan_objmgr_vdev *vdev)
+{
+	wlan_objmgr_iterate_peerobj_list(vdev,
+					 wma_sap_peer_send_phymode,
+					 NULL,
+					 WLAN_LEGACY_WMA_ID);
+}
+
 /**
  * wma_vdev_start_rsp() - send vdev start response to upper layer
  * @wma: wma handle
@@ -1056,6 +1128,7 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	int err;
 	wmi_host_channel_width chanwidth;
 	target_resource_config *wlan_res_cfg;
+	struct wlan_objmgr_vdev *vdev;
 	struct wlan_objmgr_psoc *psoc = wma->psoc;
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	tpAniSirGlobal mac_ctx = cds_get_context(QDF_MODULE_ID_PE);
@@ -1196,6 +1269,18 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 		if (wma->interfaces[resp_event->vdev_id].is_channel_switch) {
 			wma->interfaces[resp_event->vdev_id].is_channel_switch =
 				false;
+		}
+
+		if (QDF_IS_STATUS_SUCCESS(resp_event->status) &&
+		    resp_event->resp_type == WMI_VDEV_RESTART_RESP_EVENT &&
+		    iface->type == WMI_VDEV_TYPE_AP) {
+			vdev = wlan_objmgr_get_vdev_by_id_from_psoc(wma->psoc,
+				      resp_event->vdev_id, WLAN_LEGACY_WMA_ID);
+			if (vdev) {
+				wma_update_peer_phymode_sap(vdev);
+				wlan_objmgr_vdev_release_ref(vdev,
+							WLAN_LEGACY_WMA_ID);
+			}
 		}
 
 		if (QDF_IS_STATUS_SUCCESS(resp_event->status) &&
@@ -4517,6 +4602,9 @@ static void wma_add_bss_sta_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 		else
 			WMA_LOGD("Sent PKT_PWR_SAVE_5G_EBT cmd to target, val = %x, status = %d",
 				pps_val, status);
+
+		add_bss->staContext.no_ptk_4_way = add_bss->no_ptk_4_way;
+
 		status = wma_send_peer_assoc(wma, add_bss->nwType,
 					     &add_bss->staContext);
 		if (QDF_IS_STATUS_ERROR(status)) {
@@ -5195,6 +5283,8 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 			WMA_LOGD(FL("WMI_SERVICE_PEER_ASSOC_CONF not enabled"));
 		}
 
+		((tAddStaParams *)iface->addBssStaContext)->no_ptk_4_way =
+						params->no_ptk_4_way;
 		ret = wma_send_peer_assoc(wma,
 				iface->nwType,
 				(tAddStaParams *) iface->addBssStaContext);
