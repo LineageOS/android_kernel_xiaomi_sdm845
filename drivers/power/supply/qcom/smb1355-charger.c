@@ -1,5 +1,5 @@
 /* Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -597,6 +597,22 @@ static int smb1355_get_prop_health(struct smb1355 *chip, int type)
 {
 	u8 temp;
 	int rc, shift;
+	u8 stat = 0;
+	int usb_present = 0;
+	static int overheat;
+
+	rc = smb1355_read(chip, POWER_PATH_STATUS_REG, &stat);
+	if (rc < 0) {
+		pr_err("Couldn't read power path status rc=%d\n", rc);
+		return POWER_SUPPLY_HEALTH_COOL;
+	}
+	usb_present = (stat & USE_USBIN_BIT) &&
+		(stat & VALID_INPUT_POWER_SOURCE_STS_BIT);
+
+	if (type == CONNECTOR_TEMP && !usb_present) {
+		overheat = 0;
+		return POWER_SUPPLY_HEALTH_COOL;
+	}
 
 	/* Connector-temp uses skin-temp configuration */
 	shift = (type == CONNECTOR_TEMP) ? SKIN_TEMP_SHIFT : 0;
@@ -610,8 +626,22 @@ static int smb1355_get_prop_health(struct smb1355 *chip, int type)
 		return POWER_SUPPLY_HEALTH_UNKNOWN;
 	}
 
-	if (temp & (TEMP_RST_HOT_BIT << shift))
-		return POWER_SUPPLY_HEALTH_OVERHEAT;
+	if (temp & (TEMP_RST_HOT_BIT << shift)) {
+		if (type == CONNECTOR_TEMP) {
+			if (overheat > 5) {
+				pr_info("%s: ntc is overheat:%x!\n", __func__, temp);
+				return POWER_SUPPLY_HEALTH_OVERHEAT;
+			} else {
+				pr_info("%s overheat count:%d\n", __func__, overheat);
+				overheat++;
+				return POWER_SUPPLY_HEALTH_HOT;
+			}
+		} else {
+			return POWER_SUPPLY_HEALTH_OVERHEAT;
+		}
+	}
+	if (type == CONNECTOR_TEMP)
+		overheat = 0;
 
 	if (temp & (TEMP_UB_HOT_BIT << shift))
 		return POWER_SUPPLY_HEALTH_HOT;
@@ -1020,8 +1050,7 @@ static int smb1355_tskin_sensor_config(struct smb1355 *chip)
 		}
 
 		rc = smb1355_masked_write(chip, BATIF_C1_REG_CFG,
-					0xff,
-					0);
+					0xff, 0);
 		if (rc < 0) {
 			pr_err("Couldn't set  BATIF_CFG_SMISC_BATID rc=%d\n",
 				rc);
