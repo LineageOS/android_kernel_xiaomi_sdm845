@@ -879,16 +879,12 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 
 	if (mac_ctx->roam.configParam.allow_tpc_from_ap) {
 		get_local_power_constraint_beacon(bcn, &local_constraint);
-		pe_debug("ESE localPowerConstraint = %d,",
-				local_constraint);
 
 		if (mac_ctx->rrm.rrmPEContext.rrmEnable &&
 				bcn->powerConstraintPresent) {
 			local_constraint = regMax;
 			local_constraint -=
 				bcn->localPowerConstraint.localPowerConstraints;
-			pe_debug("localPowerConstraint = %d,",
-				local_constraint);
 			}
 	}
 
@@ -901,14 +897,11 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 
 	maxTxPower = lim_get_max_tx_power(mac_ctx, &tx_pwr_attr);
 
-	pe_debug("RegMax = %d, MaxTx pwr = %d",
-			regMax, maxTxPower);
-
 	/* If maxTxPower is increased or decreased */
 	if (maxTxPower != session->maxTxPower) {
-		pe_debug(
-			FL("Local power constraint change, Updating new maxTx power %d from old pwr %d"),
-			maxTxPower, session->maxTxPower);
+		pe_debug("Local power constraint change, Updating new maxTx power %d from old pwr %d (regMax %d local %d)",
+			 maxTxPower, session->maxTxPower, regMax,
+			 local_constraint);
 		if (lim_send_set_max_tx_power_req(mac_ctx, maxTxPower, session)
 		    == QDF_STATUS_SUCCESS)
 			session->maxTxPower = maxTxPower;
@@ -933,10 +926,8 @@ static void __sch_beacon_process_for_session(tpAniSirGlobal mac_ctx,
 
 	if ((false == mac_ctx->sap.SapDfsInfo.is_dfs_cac_timer_running)
 	    && beaconParams.paramChangeBitmap) {
-		pe_debug("Beacon for session[%d] got changed.",
-			 session->peSessionId);
-		pe_debug("sending beacon param change bitmap: 0x%x",
-			 beaconParams.paramChangeBitmap);
+		pe_debug("Beacon for session[%d] got changed param change bitmap: 0x%x",
+			 session->peSessionId, beaconParams.paramChangeBitmap);
 		lim_send_beacon_params(mac_ctx, &beaconParams, session);
 	}
 
