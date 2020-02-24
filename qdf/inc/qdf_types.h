@@ -1119,29 +1119,53 @@ enum qdf_suspend_type {
 
 /**
  * enum qdf_hang_reason - host hang/ssr reason
- * @CDS_REASON_UNSPECIFIED: Unspecified reason
- * @CDS_RX_HASH_NO_ENTRY_FOUND: No Map for the MAC entry for the received frame
- * @CDS_PEER_DELETION_TIMEDOUT: peer deletion timeout happened
- * @CDS_PEER_UNMAP_TIMEDOUT: peer unmap timeout
- * @CDS_SCAN_REQ_EXPIRED: Scan request timed out
- * @CDS_SCAN_ATTEMPT_FAILURES: Consecutive Scan attempt failures
- * @CDS_GET_MSG_BUFF_FAILURE: Unable to get the message buffer
- * @CDS_ACTIVE_LIST_TIMEOUT: Current command processing is timedout
- * @CDS_SUSPEND_TIMEOUT: Timeout for an ACK from FW for suspend request
- * @CDS_RESUME_TIMEOUT: Timeout for an ACK from FW for resume request
+ * @QDF_REASON_UNSPECIFIED: Unspecified reason
+ * @QDF_RX_HASH_NO_ENTRY_FOUND: No Map for the MAC entry for the received frame
+ * @QDF_PEER_DELETION_TIMEDOUT: peer deletion timeout happened
+ * @QDF_PEER_UNMAP_TIMEDOUT: peer unmap timeout
+ * @QDF_SCAN_REQ_EXPIRED: Scan request timed out
+ * @QDF_SCAN_ATTEMPT_FAILURES: Consecutive Scan attempt failures
+ * @QDF_GET_MSG_BUFF_FAILURE: Unable to get the message buffer
+ * @QDF_ACTIVE_LIST_TIMEOUT: Current command processing is timedout
+ * @QDF_SUSPEND_TIMEOUT: Timeout for an ACK from FW for suspend request
+ * @QDF_RESUME_TIMEOUT: Timeout for an ACK from FW for resume request
+ * @QDF_WMI_EXCEED_MAX_PENDING_CMDS: wmi exceed max pending cmd
+ * @QDF_AP_STA_CONNECT_REQ_TIMEOUT: SAP peer assoc timeout from FW
+ * @QDF_STA_AP_CONNECT_REQ_TIMEOUT: STA peer assoc timeout from FW
+ * @QDF_MAC_HW_MODE_CHANGE_TIMEOUT: HW mode change timeout from FW
+ * @QDF_MAC_HW_MODE_CONFIG_TIMEOUT: HW dual mac cfg timeout from FW
+ * @QDF_VDEV_START_RESPONSE_TIMED_OUT: Start response timeout from FW
+ * @QDF_VDEV_RESTART_RESPONSE_TIMED_OUT: Restart response timeout from FW
+ * @QDF_VDEV_STOP_RESPONSE_TIMED_OUT: Stop response timeout from FW
+ * @QDF_VDEV_DELETE_RESPONSE_TIMED_OUT: Delete response timeout from FW
+ * @QDF_VDEV_PEER_DELETE_ALL_RESPONSE_TIMED_OUT: Peer delete all resp timeout
  */
 enum qdf_hang_reason {
-	QDF_REASON_UNSPECIFIED = 0,
-	QDF_RX_HASH_NO_ENTRY_FOUND = 1,
-	QDF_PEER_DELETION_TIMEDOUT = 2,
-	QDF_PEER_UNMAP_TIMEDOUT = 3,
-	QDF_SCAN_REQ_EXPIRED = 4,
-	QDF_SCAN_ATTEMPT_FAILURES = 5,
-	QDF_GET_MSG_BUFF_FAILURE = 6,
-	QDF_ACTIVE_LIST_TIMEOUT = 7,
-	QDF_SUSPEND_TIMEOUT = 8,
-	QDF_RESUME_TIMEOUT = 9,
+	QDF_REASON_UNSPECIFIED,
+	QDF_RX_HASH_NO_ENTRY_FOUND,
+	QDF_PEER_DELETION_TIMEDOUT,
+	QDF_PEER_UNMAP_TIMEDOUT,
+	QDF_SCAN_REQ_EXPIRED,
+	QDF_SCAN_ATTEMPT_FAILURES,
+	QDF_GET_MSG_BUFF_FAILURE,
+	QDF_ACTIVE_LIST_TIMEOUT,
+	QDF_SUSPEND_TIMEOUT,
+	QDF_RESUME_TIMEOUT,
+	QDF_WMI_EXCEED_MAX_PENDING_CMDS,
+	QDF_AP_STA_CONNECT_REQ_TIMEOUT,
+	QDF_STA_AP_CONNECT_REQ_TIMEOUT,
+	QDF_MAC_HW_MODE_CHANGE_TIMEOUT,
+	QDF_MAC_HW_MODE_CONFIG_TIMEOUT,
+	QDF_VDEV_START_RESPONSE_TIMED_OUT,
+	QDF_VDEV_RESTART_RESPONSE_TIMED_OUT,
+	QDF_VDEV_STOP_RESPONSE_TIMED_OUT,
+	QDF_VDEV_DELETE_RESPONSE_TIMED_OUT,
+	QDF_VDEV_PEER_DELETE_ALL_RESPONSE_TIMED_OUT,
 };
+
+/* Extra reasons to be maintained in this branch only */
+#define QDF_REASON_CHANNEL_SWITCH_TIMEOUT 64
+#define QDF_REASON_SERIALIZER_TIMEOUT 65
 
 /**
  * enum qdf_stats_verbosity_level - Verbosity levels for stats
