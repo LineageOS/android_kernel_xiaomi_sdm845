@@ -65,6 +65,7 @@
 #include "wlan_mlme_main.h"
 #include "wlan_hdd_nud_tracking.h"
 #include "wlan_mlme_ucfg_api.h"
+#include "ftm_time_sync_ucfg_api.h"
 
 /* These are needed to recognize WPA and RSN suite types */
 #define HDD_WPA_OUI_SIZE 4
@@ -1682,6 +1683,32 @@ static void hdd_print_bss_info(struct hdd_station_ctx *hdd_sta_ctx)
 }
 
 /**
+ * hdd_ftm_time_sync_sta_state_notify() - notify FTM TIME SYNC sta state change
+ * @adapter: pointer to adapter
+ * @state: enum ftm_time_sync_sta_state
+ *
+ * This function is called by hdd connect and disconnect handler and notifies
+ * the FTM TIME SYNC component about the sta state.
+ *
+ * Return: None
+ */
+static void
+hdd_ftm_time_sync_sta_state_notify(struct hdd_adapter *adapter,
+				   enum ftm_time_sync_sta_state state)
+{
+	struct wlan_objmgr_psoc *psoc;
+
+	psoc = wlan_vdev_get_psoc(adapter->vdev);
+	if (!psoc)
+		return;
+
+	if (!ucfg_is_ftm_time_sync_enable(psoc))
+		return;
+
+	ucfg_ftm_time_sync_update_sta_connect_state(adapter->vdev, state);
+}
+
+/**
  * hdd_dis_connect_handler() - disconnect event handler
  * @adapter: pointer to adapter
  * @roam_info: pointer to roam info
@@ -1896,6 +1923,12 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 		adapter->send_mode_change = true;
 	}
 	wlan_hdd_clear_link_layer_stats(adapter);
+
+	if (adapter->device_mode == QDF_STA_MODE) {
+		/* Inform FTM TIME SYNC about the disconnection with the AP */
+		hdd_ftm_time_sync_sta_state_notify(
+				adapter, FTM_TIME_SYNC_STA_DISCONNECTED);
+	}
 
 	policy_mgr_check_concurrent_intf_and_restart_sap(hdd_ctx->psoc);
 	adapter->hdd_stats.tx_rx_stats.cont_txtimeout_cnt = 0;
@@ -3304,6 +3337,13 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 		qdf_mem_zero(&adapter->hdd_stats.hdd_pmf_stats,
 			     sizeof(adapter->hdd_stats.hdd_pmf_stats));
 #endif
+		if (adapter->device_mode == QDF_STA_MODE &&
+		    hdd_conn_get_connected_band(sta_ctx) == BAND_5G) {
+			/* Inform FTM TIME SYNC about the connection with AP */
+			hdd_ftm_time_sync_sta_state_notify(
+					adapter, FTM_TIME_SYNC_STA_CONNECTED);
+		}
+
 		hdd_debug("check for SAP restart");
 		policy_mgr_check_concurrent_intf_and_restart_sap(
 			hdd_ctx->psoc);
