@@ -2284,9 +2284,10 @@ void lim_update_fils_rik(tpPESession pe_session,
 	if ((!lim_is_fils_connection(pe_session) ||
 	     !pe_fils_info) && (req_buffer->is_fils_connection)) {
 		if (roam_fils_params->rrk_length > FILS_MAX_RRK_LENGTH) {
-			pe_debug("FILS rrk len(%d) max (%d)",
-				 roam_fils_params->rrk_length,
-				 FILS_MAX_RRK_LENGTH);
+			if (lim_is_fils_connection(pe_session))
+				pe_debug("FILS rrk len(%d) max (%d)",
+					 roam_fils_params->rrk_length,
+					 FILS_MAX_RRK_LENGTH);
 			return;
 		}
 
@@ -2305,8 +2306,10 @@ void lim_update_fils_rik(tpPESession pe_session,
 	}
 	if ((pe_fils_info->fils_rik_len > FILS_MAX_RIK_LENGTH) ||
 	    !pe_fils_info->fils_rik) {
-		pe_err("Fils rik len(%d) max %d", pe_fils_info->fils_rik_len,
-				FILS_MAX_RIK_LENGTH);
+		if (pe_fils_info->fils_rik)
+			pe_debug("Fils rik len(%d) max %d",
+				 pe_fils_info->fils_rik_len,
+				 FILS_MAX_RIK_LENGTH);
 		return;
 	}
 
