@@ -1768,9 +1768,14 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 	hdd_clear_roam_profile_ie(adapter);
 	hdd_wmm_init(adapter);
 	wlan_deregister_txrx_packetdump();
-
 	/* indicate 'disconnect' status to wpa_supplicant... */
 	hdd_send_association_event(dev, roam_info);
+
+	if (hdd_ctx->config->p2p_disable_roam &&
+	    (adapter->device_mode == QDF_P2P_CLIENT_MODE)) {
+		hdd_debug("enable roam");
+		wlan_hdd_enable_roaming(adapter);
+	}
 	/* indicate disconnected event to nl80211 */
 	if (roamStatus != eCSR_ROAM_IBSS_LEAVE) {
 		/*
@@ -2817,12 +2822,17 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 						   eConnectionState_Associated);
 		}
 
-		/*
-		 * Enable roaming on other STA iface except this one.
-		 * Firmware dosent support connection on one STA iface while
-		 * roaming on other STA iface
-		 */
-		wlan_hdd_enable_roaming(adapter);
+		if (adapter->device_mode == QDF_P2P_CLIENT_MODE &&
+		    hdd_ctx->config->p2p_disable_roam) {
+			hdd_debug("p2p cli active keep disable roam");
+		} else {
+			/*
+			 * Enable roaming on other STA iface except this one.
+			 * Firmware dosent support connection on one STA iface
+			 * while roaming on other STA iface
+			 */
+			wlan_hdd_enable_roaming(adapter);
+		}
 
 		/* Save the connection info from CSR... */
 		hdd_conn_save_connect_info(adapter, roam_info,

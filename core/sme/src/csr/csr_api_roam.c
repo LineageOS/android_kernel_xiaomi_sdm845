@@ -3480,6 +3480,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 						 pParam);
 		pMac->roam.configParam.enable_pending_list_req =
 					pParam->enable_pending_list_req;
+		pMac->roam.configParam.p2p_disable_roam =
+					pParam->p2p_disable_roam;
 	}
 	return status;
 }
@@ -3892,6 +3894,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 
 	pParam->enable_pending_list_req =
 				pMac->roam.configParam.enable_pending_list_req;
+	pParam->p2p_disable_roam = pMac->roam.configParam.p2p_disable_roam;
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -21642,6 +21645,16 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 		}
 	}
 
+	if (mac_ctx->roam.configParam.p2p_disable_roam &&
+	    (command == ROAM_SCAN_OFFLOAD_START ||
+	     command == ROAM_SCAN_OFFLOAD_UPDATE_CFG) &&
+	    (policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
+						PM_P2P_CLIENT_MODE, NULL) ||
+	     policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
+						PM_P2P_GO_MODE, NULL))) {
+		sme_info("roaming not supported for active p2p connection");
+		return QDF_STATUS_E_FAILURE;
+	}
 	/*
 	 * The Dynamic Config Items Update may happen even if the state is in
 	 * INIT. It is important to ensure that the command is passed down to

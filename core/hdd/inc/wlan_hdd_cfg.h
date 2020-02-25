@@ -17588,6 +17588,26 @@ enum hdd_external_acs_policy {
 #define CFG_BMISS_SKIP_FULL_SCAN_DEFAULT       0
 
 /*
+ * <ini>
+ * p2p_disable_roam- Disable Roam on sta interface during P2P connection
+ * @Min: 0 - Roam Enabled on sta interface during P2P connection
+ * @Max: 1 - Roam Disabled on sta interface during P2P connection
+ * @Default: 0
+ *
+ * Disable roaming on STA iface to avoid audio glitches on p2p if its connected
+ *
+ * Supported Feature: Disable Roam during P2P
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_P2P_DISABLE_ROAM            "p2p_disable_roam"
+#define CFG_P2P_DISABLE_ROAM_MIN         (0)
+#define CFG_P2P_DISABLE_ROAM_MAX         (1)
+#define CFG_P2P_DISABLE_ROAM_DEFAULT     (0)
+
+/*
  * Type declarations
  */
 
@@ -18625,6 +18645,7 @@ struct hdd_config {
 	bool time_sync_ftm_mode;
 	bool time_sync_ftm_role;
 #endif
+	bool p2p_disable_roam;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

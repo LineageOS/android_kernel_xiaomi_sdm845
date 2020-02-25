@@ -7862,7 +7862,7 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 	struct hdd_hostapd_state *hostapd_state;
 	mac_handle_t mac_handle;
 	int32_t i;
-	struct hdd_config *iniConfig;
+	struct hdd_config *iniConfig = NULL;
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	tSmeConfigParams *sme_config;
 	bool MFPCapable = false;
@@ -8554,8 +8554,13 @@ error:
 	wlansap_reset_sap_config_add_ie(pConfig, eUPDATE_IE_ALL);
 
 free:
-	/* Enable Roaming after start bss in case of failure/success */
-	wlan_hdd_enable_roaming(adapter);
+	if (iniConfig && iniConfig->p2p_disable_roam &&
+	    (adapter->device_mode == QDF_P2P_GO_MODE)) {
+		hdd_debug("p2p go mode, keep disable roam");
+	} else {
+		/* Enable Roaming after start bss in case of failure/success */
+		wlan_hdd_enable_roaming(adapter);
+	}
 	qdf_mem_free(sme_config);
 	return ret;
 }
@@ -8721,6 +8726,12 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 						adapter->session_id);
 		hdd_green_ap_start_state_mc(hdd_ctx, adapter->device_mode,
 					    false);
+
+		if (hdd_ctx->config->p2p_disable_roam &&
+		    (adapter->device_mode == QDF_P2P_GO_MODE)) {
+			hdd_debug("p2p go disconnected enable roam");
+			wlan_hdd_enable_roaming(adapter);
+		}
 
 		if (adapter->session.ap.beacon) {
 			qdf_mem_free(adapter->session.ap.beacon);
