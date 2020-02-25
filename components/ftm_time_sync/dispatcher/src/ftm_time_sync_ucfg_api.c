@@ -129,7 +129,8 @@ void ucfg_ftm_time_sync_set_enable(struct wlan_objmgr_psoc *psoc, bool enable)
 
 void ucfg_ftm_time_sync_update_sta_connect_state(
 					struct wlan_objmgr_vdev *vdev,
-					enum ftm_time_sync_sta_state sta_state)
+					enum ftm_time_sync_sta_state sta_state,
+					struct qdf_mac_addr bssid)
 {
 	struct wlan_objmgr_psoc *psoc;
 	enum ftm_time_sync_role role;
@@ -146,6 +147,8 @@ void ucfg_ftm_time_sync_update_sta_connect_state(
 			ftm_time_sync_send_trigger(vdev);
 		else
 			ftm_time_sync_stop(vdev);
+
+		ftm_time_sync_update_bssid(vdev, bssid);
 	}
 }
 
