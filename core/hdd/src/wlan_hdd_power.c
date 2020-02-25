@@ -883,13 +883,9 @@ void hdd_enable_arp_offload(struct hdd_adapter *adapter,
 	struct pmo_arp_req *arp_req;
 	struct in_ifaddr *ifa;
 
-	hdd_enter();
-
 	arp_req = qdf_mem_malloc(sizeof(*arp_req));
-	if (!arp_req) {
-		hdd_err("cannot allocate arp_req");
-		goto out;
-	}
+	if (!arp_req)
+		return;
 
 	arp_req->psoc = psoc;
 	arp_req->vdev_id = adapter->session_id;
@@ -926,9 +922,6 @@ void hdd_enable_arp_offload(struct hdd_adapter *adapter,
 
 free_req:
 	qdf_mem_free(arp_req);
-
-out:
-	hdd_exit();
 }
 
 void hdd_disable_arp_offload(struct hdd_adapter *adapter,
