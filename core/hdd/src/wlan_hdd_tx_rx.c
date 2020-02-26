@@ -1493,9 +1493,14 @@ static QDF_STATUS hdd_gro_rx(struct hdd_adapter *adapter, struct sk_buff *skb)
 	struct qca_napi_data *napid;
 	struct napi_struct *napi_to_use;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	struct hdd_context *hdd_ctx = adapter->hdd_ctx;
 
 	/* Only enabling it for STA mode like LRO today */
 	if (QDF_STA_MODE != adapter->device_mode)
+		return QDF_STATUS_E_NOSUPPORT;
+
+	if (qdf_atomic_read(&hdd_ctx->disable_lro_in_low_tput) ||
+	    qdf_atomic_read(&hdd_ctx->disable_lro_in_concurrency))
 		return QDF_STATUS_E_NOSUPPORT;
 
 	napid = hdd_napi_get_all();
