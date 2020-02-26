@@ -251,3 +251,8 @@ Description:
 		If checkpoint=disable, it displays the number of blocks that are unusable.
                 If checkpoint=enable it displays the enumber of blocks that would be unusable
                 if checkpoint=disable were to be set.
+
+What:		/sys/fs/f2fs/<disk>/mounted_time_sec
+Date:		February 2020
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	Show the mounted time in secs of this partition.
