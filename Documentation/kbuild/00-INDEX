@@ -1,5 +1,7 @@
 00-INDEX
 	- this file: info on the kernel build process
+llvm.txt
+	- how to compile Linux with llvm
 headers_install.txt
 	- how to export Linux headers for use by userspace
 kbuild.txt
