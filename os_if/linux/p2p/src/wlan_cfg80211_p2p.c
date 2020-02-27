@@ -55,10 +55,6 @@ static void wlan_p2p_rx_callback(void *user_data,
 	struct wireless_dev *wdev;
 	uint16_t freq;
 
-	cfg80211_debug("user data:%pK, vdev id:%d, rssi:%d, buf:%pK, len:%d",
-		user_data, rx_frame->vdev_id, rx_frame->rx_rssi,
-		rx_frame->buf, rx_frame->frame_len);
-
 	psoc = user_data;
 	if (!psoc) {
 		cfg80211_err("psoc is null");

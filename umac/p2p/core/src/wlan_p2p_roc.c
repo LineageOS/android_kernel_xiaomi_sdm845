@@ -289,11 +289,7 @@ static QDF_STATUS p2p_execute_cancel_roc_req(
 	QDF_STATUS status;
 	struct p2p_soc_priv_obj *p2p_soc_obj = roc_ctx->p2p_soc_obj;
 
-	p2p_debug("p2p soc obj:%pK, roc ctx:%pK, vdev_id:%d, scan_id:%d, tx ctx:%pK, chan:%d, phy_mode:%d, duration:%d, roc_type:%d, roc_state:%d",
-		p2p_soc_obj, roc_ctx, roc_ctx->vdev_id,
-		roc_ctx->scan_id, roc_ctx->tx_ctx, roc_ctx->chan,
-		roc_ctx->phy_mode, roc_ctx->duration,
-		roc_ctx->roc_type, roc_ctx->roc_state);
+	p2p_debug("p2p execute cancel roc req");
 
 	roc_ctx->roc_state = ROC_STATE_CANCEL_IN_PROG;
 	status = qdf_mc_timer_stop_sync(&roc_ctx->roc_timer);
@@ -516,11 +512,7 @@ static QDF_STATUS p2p_process_scan_complete_evt(
 	uint32_t size;
 	struct p2p_soc_priv_obj *p2p_soc_obj = roc_ctx->p2p_soc_obj;
 
-	p2p_debug("p2p soc obj:%pK, roc ctx:%pK, vdev_id:%d, scan_id:%d, tx ctx:%pK, chan:%d, phy_mode:%d, duration:%d, roc_type:%d, roc_state:%d",
-		p2p_soc_obj, roc_ctx, roc_ctx->vdev_id,
-		roc_ctx->scan_id, roc_ctx->tx_ctx, roc_ctx->chan,
-		roc_ctx->phy_mode, roc_ctx->duration,
-		roc_ctx->roc_type, roc_ctx->roc_state);
+	p2p_debug("vdev_id:%d, scan_id:%d", roc_ctx->vdev_id, roc_ctx->scan_id);
 
 	/* allow runtime suspend */
 	qdf_runtime_pm_allow_suspend(&p2p_soc_obj->roc_runtime_lock);
@@ -863,14 +855,15 @@ QDF_STATUS p2p_process_cancel_roc_req(
 	curr_roc_ctx = p2p_find_roc_ctx(p2p_soc_obj,
 				cancel_roc_ctx->cookie);
 
-	p2p_debug("p2p soc obj:%pK, cookie:%llx, roc ctx:%pK",
-		p2p_soc_obj, cancel_roc_ctx->cookie, curr_roc_ctx);
-
 	if (!curr_roc_ctx) {
 		p2p_debug("Failed to find roc req by cookie, cookie %llx",
 				cancel_roc_ctx->cookie);
 		return QDF_STATUS_E_INVAL;
 	}
+
+	p2p_debug("roc ctx:%pK vdev_id:%d, scan_id:%d, roc_type:%d, roc_state:%d",
+		   curr_roc_ctx, curr_roc_ctx->vdev_id, curr_roc_ctx->scan_id,
+		   curr_roc_ctx->roc_type, curr_roc_ctx->roc_state);
 
 	if (curr_roc_ctx->roc_state == ROC_STATE_IDLE) {
 		status = p2p_destroy_roc_ctx(curr_roc_ctx, true, true);
