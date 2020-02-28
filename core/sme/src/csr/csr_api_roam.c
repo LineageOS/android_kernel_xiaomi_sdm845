@@ -3188,6 +3188,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 		pMac->roam.configParam.isRoamOffloadEnabled =
 			pParam->isRoamOffloadEnabled;
+		pMac->roam.configParam.roam_triggers =
+			pParam->roam_triggers;
 		pMac->roam.configParam.enable_disconnect_roam_offload =
 			pParam->enable_disconnect_roam_offload;
 		pMac->roam.configParam.enable_idle_roam =
@@ -3624,6 +3626,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 	pParam->initial_scan_no_dfs_chnl = cfg_params->initial_scan_no_dfs_chnl;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	pParam->isRoamOffloadEnabled = cfg_params->isRoamOffloadEnabled;
+	pParam->roam_triggers = cfg_params->roam_triggers;
 	pParam->enable_disconnect_roam_offload =
 		cfg_params->enable_disconnect_roam_offload;
 	pParam->enable_idle_roam = cfg_params->enable_idle_roam;
@@ -19522,6 +19525,7 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 				     tSirRoamOffloadScanReq *req_buf,
 				     struct csr_roam_session *session)
 {
+	tCsrNeighborRoamControlInfo *neighbor_roam_info;
 	uint32_t pmkid_modes = mac_ctx->roam.configParam.pmkid_modes;
 
 	req_buf->RoamOffloadEnabled = csr_roamIsRoamOffloadEnabled(mac_ctx);
@@ -19530,6 +19534,12 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		sme_debug("LFR3: LFR3 INI is disabled");
 		return;
 	}
+
+	neighbor_roam_info =
+		&mac_ctx->roam.neighborRoamInfo[session->sessionId];
+	req_buf->roam_triggers.vdev_id = session->sessionId;
+	req_buf->roam_triggers.trigger_bitmap =
+		neighbor_roam_info->cfgParams.roam_trigger_bitmap;
 
 	req_buf->RoamKeyMgmtOffloadEnabled = session->RoamKeyMgmtOffloadEnabled;
 	req_buf->pmkid_modes.fw_okc =

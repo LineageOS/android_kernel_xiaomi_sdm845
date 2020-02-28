@@ -17075,13 +17075,18 @@ QDF_STATUS sme_set_roam_triggers(mac_handle_t mac_handle,
 	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
 	struct scheduler_msg message = {0};
 	struct roam_triggers *roam_trigger_data;
+	tCsrNeighborRoamControlInfo *neighbor_roam_info;
 
 	/* per contract must make a copy of the params when messaging */
 	roam_trigger_data = qdf_mem_malloc(sizeof(*roam_trigger_data));
 	if (!roam_trigger_data)
 		return QDF_STATUS_E_NOMEM;
+
 	*roam_trigger_data = *triggers;
 
+	neighbor_roam_info = &mac->roam.neighborRoamInfo[triggers->vdev_id];
+	neighbor_roam_info->cfgParams.roam_trigger_bitmap =
+				roam_trigger_data->trigger_bitmap;
 	status = sme_acquire_global_lock(&mac->sme);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		qdf_mem_free(roam_trigger_data);

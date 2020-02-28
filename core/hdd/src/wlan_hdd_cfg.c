@@ -3016,6 +3016,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_ROAMING_OFFLOAD_DEFAULT,
 		     CFG_ROAMING_OFFLOAD_MIN,
 		     CFG_ROAMING_OFFLOAD_MAX),
+
+	REG_VARIABLE(CFG_ROAM_TRIGGER_BITMAP, WLAN_PARAM_HexInteger,
+		     struct hdd_config, roam_triggers,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK,
+		     CFG_ROAM_TRIGGER_BITMAP_DEFAULT,
+		     CFG_ROAM_TRIGGER_BITMAP_MIN,
+		     CFG_ROAM_TRIGGER_BITMAP_MAX),
 #endif
 #ifdef MSM_PLATFORM
 	REG_VARIABLE(CFG_BUS_BANDWIDTH_HIGH_THRESHOLD, WLAN_PARAM_Integer,
@@ -7802,6 +7809,8 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	hdd_debug("Name = [isRoamOffloadEnabled] Value = [%u]",
 		  hdd_ctx->config->isRoamOffloadEnabled);
+	hdd_debug("Name = [roam_triggers] Value = [%u]",
+		  hdd_ctx->config->roam_triggers);
 #endif
 
 #ifdef WLAN_FEATURE_LPSS
@@ -10031,6 +10040,8 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	smeConfig->csrConfig.isRoamOffloadEnabled =
 		hdd_ctx->config->isRoamOffloadEnabled;
+	smeConfig->csrConfig.roam_triggers =
+		hdd_ctx->config->roam_triggers;
 	smeConfig->csrConfig.enable_disconnect_roam_offload =
 		hdd_ctx->config->enable_disconnect_roam_offload;
 	smeConfig->csrConfig.enable_idle_roam =

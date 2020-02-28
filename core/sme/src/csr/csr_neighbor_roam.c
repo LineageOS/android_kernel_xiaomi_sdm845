@@ -787,7 +787,7 @@ static void csr_roam_restore_default_config(tpAniSirGlobal mac_ctx,
 	sme_set_roam_config_enable(MAC_HANDLE(mac_ctx), vdev_id, 0);
 
 	triggers.vdev_id = vdev_id;
-	triggers.trigger_bitmap = 0xff;
+	triggers.trigger_bitmap =  mac_ctx->roam.configParam.roam_triggers;
 	sme_debug("Reset roam trigger bitmap to 0x%x", triggers.trigger_bitmap);
 	sme_set_roam_triggers(MAC_HANDLE(mac_ctx), &triggers);
 	sme_roam_control_restore_default_config(MAC_HANDLE(mac_ctx),
@@ -1289,6 +1289,8 @@ QDF_STATUS csr_neighbor_roam_init(tpAniSirGlobal pMac, uint8_t sessionId)
 	pNeighborRoamInfo->cfgParams.full_roam_scan_period =
 		pMac->roam.configParam.neighborRoamConfig.
 		full_roam_scan_period;
+	pNeighborRoamInfo->cfgParams.roam_trigger_bitmap =
+		pMac->roam.configParam.roam_triggers;
 
 	specific_chan_info = &pNeighborRoamInfo->cfgParams.specific_chan_info;
 	specific_chan_info->numOfChannels =
