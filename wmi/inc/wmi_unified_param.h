@@ -1997,6 +1997,8 @@ struct roam_fils_params {
  * @rct_validity_timer: duration value for which the entries in
  * roam candidate table are valid
  * @adaptve_11r: Adaptive 11r AP
+ * @is_sae_same_pmk: Flag to indicate fw whether WLAN_SAE_SINGLE_PMK feature is
+ * enable or not
  * @roam_scan_inactivity_time: inactivity monitoring time in ms for which the
  * device is considered to be inactive
  * @roam_inactive_data_packet_count: Maximum allowed data packets count during
@@ -2026,6 +2028,7 @@ struct roam_offload_scan_params {
 	bool fw_pmksa_cache;
 	uint32_t rct_validity_timer;
 	bool is_adaptive_11r;
+	bool is_sae_same_pmk;
 #endif
 	uint32_t min_delay_btw_roam_scans;
 	uint32_t roam_trigger_reason_bitmask;

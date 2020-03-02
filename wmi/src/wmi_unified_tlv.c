@@ -6445,6 +6445,32 @@ static inline uint8_t *wmi_add_fils_tlv(wmi_unified_t wmi_handle,
 	return buf_ptr;
 }
 #endif
+
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+ /**
+  * wmi_fill_sae_single_pmk_param() - Fill sae single pmk flag to indicate fw to
+  * use same PMKID for WPA3 SAE roaming.
+  * @params: roam request param
+  * @roam_offload_11i: pointer to 11i params
+  *
+  * Return: None
+  */
+static inline void
+wmi_fill_sae_single_pmk_param(struct roam_offload_scan_params *params,
+			      wmi_roam_11i_offload_tlv_param *roam_offload_11i)
+ {
+	if (params->is_sae_same_pmk)
+		roam_offload_11i->flags |=
+			1 << WMI_ROAM_OFFLOAD_FLAG_SAE_SAME_PMKID;
+}
+#else
+static inline void
+wmi_fill_sae_single_pmk_param(struct roam_offload_scan_params *params,
+			      wmi_roam_11i_offload_tlv_param *roam_offload_11i)
+{
+}
+#endif
+
 /**
  * send_roam_scan_offload_mode_cmd_tlv() - send roam scan mode request to fw
  * @wmi_handle: wmi handle
@@ -6734,6 +6760,9 @@ static QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 						(roam_offload_11i->flags);
 					WMI_LOGI("LFR3:PMKSA caching disabled");
 				}
+
+				wmi_fill_sae_single_pmk_param(roam_req,
+							      roam_offload_11i);
 
 				roam_offload_11i->pmk_len = roam_req->pmk_len >
 					ROAM_OFFLOAD_PMK_BYTES ?
