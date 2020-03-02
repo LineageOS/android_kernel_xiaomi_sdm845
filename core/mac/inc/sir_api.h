@@ -3037,6 +3037,7 @@ typedef struct sSirRoamOffloadScanReq {
 	struct pmkid_mode_bits pmkid_modes;
 	uint32_t roam_preauth_retry_count;
 	uint32_t roam_preauth_no_ack_timeout;
+	bool is_sae_single_pmk;
 
 	/* Idle/Disconnect roam parameters */
 	struct wmi_idle_roam_params idle_roam_params;

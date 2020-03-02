@@ -19622,6 +19622,52 @@ csr_update_roam_req_adaptive_11r(struct csr_roam_session *session,
 }
 #endif
 
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+/**
+ * csr_fill_sae_single_pmk_info() - updates req msg with sae single pmk info
+ * @mac_ctx: Mac context
+ * @req_buf: out param, roam offload scan request packet
+ * @session: csr session
+ *
+ * Return: true in case of success
+ */
+static bool
+csr_fill_sae_single_pmk_info(tpAniSirGlobal mac_ctx,
+			     tSirRoamOffloadScanReq *req_buf,
+			     struct csr_roam_session *session)
+{
+	if (!mac_ctx || !req_buf) {
+		sme_debug("Invalid session or req buff");
+		return false;
+	}
+
+	if (session->single_pmk_info.pmk_info.pmk_len &&
+	    session->single_pmk_info.sae_single_pmk_ap &&
+	    mac_ctx->roam.configParam.sae_single_pmk_feature_enabled) {
+		/* Update sae same pmk info in rso */
+		qdf_mem_copy(req_buf->PSK_PMK,
+			     session->single_pmk_info.pmk_info.pmk,
+			     sizeof(req_buf->PSK_PMK));
+		req_buf->pmk_len = session->single_pmk_info.pmk_info.pmk_len;
+
+		req_buf->is_sae_single_pmk =
+				session->single_pmk_info.sae_single_pmk_ap;
+
+		return true;
+	}
+
+	return false;
+}
+#else
+static bool
+csr_fill_sae_single_pmk_info(tpAniSirGlobal mac_ctx,
+			     tSirRoamOffloadScanReq *req_buf,
+			     struct csr_roam_session *session)
+{
+	return false;
+}
+#endif
+
 /**
  * csr_update_roam_scan_offload_request() - updates req msg with roam offload
  * parameters
@@ -19662,9 +19708,13 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 		     &mac_ctx->roam.configParam.roam_params,
 		     sizeof(req_buf->roam_params));
 
-	qdf_mem_copy(req_buf->PSK_PMK, session->psk_pmk,
-		     sizeof(req_buf->PSK_PMK));
-	req_buf->pmk_len = session->pmk_len;
+	/* Check whether to send psk_pmk or sae_single pmk info */
+	if (!csr_fill_sae_single_pmk_info(mac_ctx, req_buf, session)) {
+		qdf_mem_copy(req_buf->PSK_PMK, session->psk_pmk,
+			     sizeof(req_buf->PSK_PMK));
+		req_buf->pmk_len = session->pmk_len;
+	}
+
 	req_buf->R0KH_ID_Length = session->ftSmeContext.r0kh_id_len;
 	qdf_mem_copy(req_buf->R0KH_ID,
 		     session->ftSmeContext.r0kh_id,
