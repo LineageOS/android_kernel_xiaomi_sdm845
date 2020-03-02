@@ -15887,6 +15887,50 @@ static void csr_mem_zero_psk_pmk(struct csr_roam_session *session)
 }
 #endif
 
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+void csr_clear_sae_single_pmk(tpAniSirGlobal pMac, uint8_t vdev_id,
+			      tPmkidCacheInfo *pmk_cache)
+{
+	struct csr_roam_session *session = CSR_GET_SESSION(pMac, vdev_id);
+	tPmkidCacheInfo *pmk_to_del;
+	uint8_t i;
+
+	if (!session) {
+		sme_err("session %d not found", vdev_id);
+		return;
+	}
+
+	if (!pmk_cache) {
+		sme_debug("Flush sae_single_pmk info");
+		qdf_mem_zero(&session->single_pmk_info.pmk_info,
+			sizeof(session->single_pmk_info.pmk_info));
+		return;
+	}
+
+	for (i = 0; i < session->NumPmkidCache; i++) {
+		pmk_to_del = &session->PmkidCacheInfo[i];
+		if (qdf_is_macaddr_equal(&pmk_cache->BSSID,
+					 &pmk_to_del->BSSID)) {
+			sme_debug("Match found BSSID: " MAC_ADDRESS_STR " to cached BSSID:"
+				  MAC_ADDRESS_STR,
+				  MAC_ADDR_ARRAY(pmk_cache->BSSID.bytes),
+				  MAC_ADDR_ARRAY(pmk_to_del->BSSID.bytes));
+			if (pmk_to_del->pmk_len !=
+				   session->single_pmk_info.pmk_info.pmk_len) {
+				sme_debug("Invalid pmk len");
+				return;
+			} else if (!qdf_mem_cmp(
+					&session->single_pmk_info.pmk_info.pmk,
+					pmk_to_del->pmk, pmk_to_del->pmk_len)) {
+				sme_debug("Clear sae_single_pmk info");
+				qdf_mem_zero(&session->single_pmk_info.pmk_info,
+				    sizeof(session->single_pmk_info.pmk_info));
+			}
+		}
+	}
+}
+#endif
+
 QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 					 uint32_t sessionId,
 					 tPmkidCacheInfo *pmksa,
@@ -15914,11 +15958,14 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 		/* Flush the entire cache */
 		qdf_mem_zero(pSession->PmkidCacheInfo,
 			     sizeof(tPmkidCacheInfo) * CSR_MAX_PMKID_ALLOWED);
+		csr_clear_sae_single_pmk(pMac, sessionId, NULL);
 		pSession->NumPmkidCache = 0;
 		pSession->curr_cache_idx = 0;
 		csr_mem_zero_psk_pmk(pSession);
 		return QDF_STATUS_SUCCESS;
 	}
+
+	csr_clear_sae_single_pmk(pMac, sessionId, pmksa);
 
 	/* !flush_cache - so look up in the cache */
 	for (Index = 0; Index < CSR_MAX_PMKID_ALLOWED; Index++) {
