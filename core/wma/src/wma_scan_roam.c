@@ -3587,12 +3587,18 @@ wma_rso_print_11kv_info(struct wmi_neighbor_report_data *neigh_rpt,
 		tmp += buf_cons;
 	}
 	wma_get_converted_timestamp(neigh_rpt->req_time, time);
-	WMA_LOGI("%s [%s] RX: VDEV[%d] %s", time,
-		 (type == 1) ? "BTM" : "NEIGH_RPT", vdev_id, buf);
+	WMA_LOGI("%s [%s] VDEV[%d]", time,
+		 (type == 1) ? "BTM_QUERY" : "NEIGH_RPT_REQ", vdev_id);
 
-	wma_get_converted_timestamp(neigh_rpt->resp_time, time1);
-	WMA_LOGI("%s [%s] TX: VDEV[%d]", time1,
-		 (type == 1) ? "BTM" : "NEIGH_RPT", vdev_id);
+	if (neigh_rpt->resp_time) {
+		wma_get_converted_timestamp(neigh_rpt->resp_time, time1);
+		WMA_LOGI("%s [%s] VDEV[%d] %s", time1,
+			 (type == 1) ? "BTM_REQ" : "NEIGH_RPT_RSP", vdev_id,
+			 (num_ch > 0) ? buf : "NO Ch update");
+	} else {
+		WMA_LOGI("%s No response received from AP",
+			 (type == 1) ? "BTM" : "NEIGH_RPT");
+	}
 	qdf_mem_free(buf);
 }
 
