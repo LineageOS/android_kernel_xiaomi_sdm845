@@ -837,14 +837,7 @@ QDF_STATUS csr_neighbor_roam_indicate_disconnect(tpAniSirGlobal pMac,
 	 */
 	csr_roam_free_connect_profile(pPrevProfile);
 	csr_roam_copy_connect_profile(pMac, sessionId, pPrevProfile);
-	/*
-	 * clear the roaming parameters that are per connection.
-	 * For a new connection, they have to be programmed again.
-	 */
-	if (!csr_neighbor_middle_of_roaming(pMac, sessionId)) {
-		csr_roam_reset_roam_params(pMac);
-		csr_roam_restore_default_config(pMac, sessionId);
-	}
+
 	if (NULL != pSession) {
 		roam_session = &pMac->roam.roamSession[sessionId];
 		if (NULL != pSession->pCurRoamProfile && (QDF_STA_MODE !=
@@ -933,6 +926,16 @@ QDF_STATUS csr_neighbor_roam_indicate_disconnect(tpAniSirGlobal pMac,
 			pNeighborRoamInfo->uOsRequestedHandoff = 0;
 		break;
 	}
+
+	/*
+	 * clear the roaming parameters that are per connection.
+	 * For a new connection, they have to be programmed again.
+	 */
+	if (!csr_neighbor_middle_of_roaming(pMac, sessionId)) {
+		csr_roam_reset_roam_params(pMac);
+		csr_roam_restore_default_config(pMac, sessionId);
+	}
+
 	/*Inform the Firmware to STOP Scanning as the host has a disconnect. */
 	if (csr_roam_is_sta_mode(pMac, sessionId)) {
 		csr_roam_offload_scan(pMac, sessionId, ROAM_SCAN_OFFLOAD_STOP,
