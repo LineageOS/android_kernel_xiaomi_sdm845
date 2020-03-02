@@ -1250,7 +1250,7 @@ struct hdd_context;
  * @event_flags: a bitmap of hdd_adapter_flags
  * @acs_complete_event: acs complete event
  * @last_disconnect_reason: Last disconnected internal reason code
- *                          as per enum eSirMacReasonCodes
+ *                          as per enum qca_disconnect_reason_codes
  */
 struct hdd_adapter {
 	/* Magic cookie for adapter sanity verification.  Note that this
@@ -1504,7 +1504,7 @@ struct hdd_adapter {
 #ifdef WLAN_DEBUGFS
 	struct hdd_debugfs_file_info csr_file[HDD_DEBUGFS_FILE_ID_MAX];
 #endif /* WLAN_DEBUGFS */
-	enum eSirMacReasonCodes last_disconnect_reason;
+	enum qca_disconnect_reason_codes last_disconnect_reason;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(adapter) (&(adapter)->session.station)
