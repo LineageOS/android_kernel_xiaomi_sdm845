@@ -511,7 +511,6 @@ rrm_process_beacon_report_req(tpAniSirGlobal pMac,
 	int8_t maxDuration;
 	uint8_t sign;
 	uint8_t buf_left, buf_cons;
-	char req_ssid[WLAN_SSID_MAX_LEN] = {0};
 	char ch_buf[RRM_CH_BUF_LEN];
 	char *tmp_buf = NULL;
 	uint16_t ch_ctr = 0, idx_rpt = 0;
@@ -551,12 +550,11 @@ rrm_process_beacon_report_req(tpAniSirGlobal pMac,
 
 	measDuration = pBeaconReq->measurement_request.Beacon.meas_duration;
 
-	if (pBeaconReq->measurement_request.Beacon.SSID.present)
-		qdf_snprintf(req_ssid, WLAN_SSID_MAX_LEN, "%s",
-			     pBeaconReq->measurement_request.Beacon.SSID.ssid);
-
-	pe_nofl_info("RX: [802.11 BCN_RPT] SSID:%s BSSID:%pM Token:%d op_class:%d ch:%d meas_mode:%d meas_duration:%d max_dur: %d sign: %d max_meas_dur: %d",
-		     req_ssid, pBeaconReq->measurement_request.Beacon.BSSID,
+	pe_nofl_info("RX: [802.11 BCN_RPT] seq:%d SSID:%.*s BSSID:%pM Token:%d op_class:%d ch:%d meas_mode:%d meas_duration:%d max_dur: %d sign: %d max_meas_dur: %d",
+		     pMac->rrm.rrmPEContext.prev_rrm_report_seq_num,
+		     pBeaconReq->measurement_request.Beacon.SSID.num_ssid,
+		     pBeaconReq->measurement_request.Beacon.SSID.ssid,
+		     pBeaconReq->measurement_request.Beacon.BSSID,
 		     pBeaconReq->measurement_token,
 		     pBeaconReq->measurement_request.Beacon.regClass,
 		     pBeaconReq->measurement_request.Beacon.channel,
