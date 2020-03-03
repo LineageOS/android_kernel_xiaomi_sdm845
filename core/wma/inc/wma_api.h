@@ -172,6 +172,10 @@ struct wma_txrx_node *wma_get_interface_by_vdev_id(uint8_t vdev_id);
 QDF_STATUS wma_get_connection_info(uint8_t vdev_id,
 		struct policy_mgr_vdev_entry_info *conn_table_entry);
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+int wma_get_rmf_status(uint8_t vdev_id);
+#endif
+
 bool wma_is_vdev_up(uint8_t vdev_id);
 
 void *wma_get_beacon_buffer_by_vdev_id(uint8_t vdev_id, uint32_t *buffer_size);

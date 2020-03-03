@@ -344,3 +344,19 @@ void ucfg_pkt_capture_record_channel(void)
 {
 	pkt_capture_record_channel();
 }
+
+int
+ucfg_pkt_capture_register_wma_callbacks(struct wlan_objmgr_psoc *psoc,
+					struct pkt_capture_callbacks *cb_obj)
+{
+	struct pkt_psoc_priv *psoc_priv = pkt_capture_psoc_get_priv(psoc);
+
+	if (!psoc_priv) {
+		pkt_capture_err("psoc priv is NULL");
+		return -EINVAL;
+	}
+
+	psoc_priv->cb_obj.get_rmf_status = cb_obj->get_rmf_status;
+
+	return 0;
+}
