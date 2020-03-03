@@ -6665,6 +6665,35 @@ static struct cdp_raw_ops ol_ops_raw = {
 	/* EMPTY FOR MCL */
 };
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+/**
+ * ol_txrx_pktcapture_record_channel() - Update Channel Information
+ * for packet capture mode
+ * @soc: pointer to cdp_soc_t
+ * @pdev_id: pdev id
+ * @mon_ch: channel
+ *
+ * Return: None
+ */
+static void
+ol_txrx_pktcapture_record_channel(struct cdp_soc_t *soc,
+				  uint8_t pdev_id, int mon_ch)
+{
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (!pdev) {
+		qdf_print("%s: pdev is NULL\n", __func__);
+		return;
+	}
+
+	htt_rx_mon_note_capture_channel(pdev->htt_pdev, mon_ch);
+}
+
+static struct cdp_pktcapture_ops ol_ops_pkt_capture = {
+	.txrx_pktcapture_record_channel = ol_txrx_pktcapture_record_channel,
+};
+#endif /* #ifdef WLAN_FEATURE_PKT_CAPTURE */
+
 static struct cdp_ops ol_txrx_ops = {
 	.cmn_drv_ops = &ol_ops_cmn,
 	.ctrl_ops = &ol_ops_ctrl,
@@ -6689,7 +6718,10 @@ static struct cdp_ops ol_txrx_ops = {
 	.throttle_ops = &ol_ops_throttle,
 	.mob_stats_ops = &ol_ops_mob_stats,
 	.delay_ops = &ol_ops_delay,
-	.pmf_ops = &ol_ops_pmf
+	.pmf_ops = &ol_ops_pmf,
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+	.pktcapture_ops = &ol_ops_pkt_capture,
+#endif
 };
 
 /*
