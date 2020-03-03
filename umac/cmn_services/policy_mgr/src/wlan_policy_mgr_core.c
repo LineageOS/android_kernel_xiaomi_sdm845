@@ -2350,7 +2350,7 @@ bool policy_mgr_allow_new_home_channel(struct wlan_objmgr_psoc *psoc,
 		wlan_reg_is_dfs_ch(pm_ctx->pdev,
 			pm_conc_connection_list[1].chan))) {
 
-			policy_mgr_err("Existing DFS connection, new 3-port DFS connection is not allowed");
+			policy_mgr_rl_debug("Existing DFS connection, new 3-port DFS connection is not allowed");
 			status = false;
 
 		} else if (((pm_conc_connection_list[0].chan !=
@@ -2364,7 +2364,7 @@ bool policy_mgr_allow_new_home_channel(struct wlan_objmgr_psoc *psoc,
 				     pm_conc_connection_list[0].chan) &&
 				    (channel !=
 				     pm_conc_connection_list[1].chan)) {
-					policy_mgr_err("don't allow 3rd home channel on same MAC");
+					policy_mgr_rl_debug("don't allow 3rd home channel on same MAC");
 					status = false;
 				}
 			} else if (((WLAN_REG_IS_24GHZ_CH(channel)) &&
@@ -2377,7 +2377,7 @@ bool policy_mgr_allow_new_home_channel(struct wlan_objmgr_psoc *psoc,
 				(pm_conc_connection_list[0].chan)) &&
 				(WLAN_REG_IS_5GHZ_CH
 				(pm_conc_connection_list[1].chan)))) {
-					policy_mgr_err("don't allow 3rd home channel on same MAC");
+					policy_mgr_rl_debug("don't allow 3rd home channel on same MAC");
 					status = false;
 			}
 		}
@@ -2388,7 +2388,7 @@ bool policy_mgr_allow_new_home_channel(struct wlan_objmgr_psoc *psoc,
 		&& wlan_reg_is_dfs_ch(pm_ctx->pdev,
 			pm_conc_connection_list[0].chan)) {
 
-		policy_mgr_err("Existing DFS connection, new 2-port DFS connection is not allowed");
+		policy_mgr_rl_debug("Existing DFS connection, new 2-port DFS connection is not allowed");
 		status = false;
 	}
 	qdf_mutex_release(&pm_ctx->qdf_conc_list_lock);
@@ -2600,7 +2600,7 @@ QDF_STATUS policy_mgr_complete_action(struct wlan_objmgr_psoc *psoc,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 	if (policy_mgr_is_hw_dbs_capable(psoc) == false) {
-		policy_mgr_err("driver isn't dbs capable, no further action needed");
+		policy_mgr_rl_debug("driver isn't dbs capable, no further action needed");
 		return QDF_STATUS_E_NOSUPPORT;
 	}
 

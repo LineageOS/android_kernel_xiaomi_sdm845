@@ -513,7 +513,7 @@ QDF_STATUS policy_mgr_current_connections_update(struct wlan_objmgr_psoc *psoc,
 	enum QDF_OPMODE new_conn_mode = QDF_MAX_NO_OF_MODE;
 
 	if (policy_mgr_is_hw_dbs_capable(psoc) == false) {
-		policy_mgr_err("driver isn't dbs capable, no further action needed");
+		policy_mgr_rl_debug("driver isn't dbs capable, no further action needed");
 		return QDF_STATUS_E_NOSUPPORT;
 	}
 	if (WLAN_REG_IS_24GHZ_CH(channel))
@@ -615,7 +615,7 @@ QDF_STATUS policy_mgr_next_actions(struct wlan_objmgr_psoc *psoc,
 	struct dbs_nss nss_dbs = {0};
 
 	if (policy_mgr_is_hw_dbs_capable(psoc) == false) {
-		policy_mgr_err("driver isn't dbs capable, no further action needed");
+		policy_mgr_rl_debug("driver isn't dbs capable, no further action needed");
 		return QDF_STATUS_E_NOSUPPORT;
 	}
 
@@ -1428,7 +1428,7 @@ QDF_STATUS policy_mgr_set_hw_mode_on_channel_switch(
 	enum policy_mgr_conc_next_action action;
 
 	if (!policy_mgr_is_hw_dbs_capable(psoc)) {
-		policy_mgr_err("PM/DBS is disabled");
+		policy_mgr_rl_debug("PM/DBS is disabled");
 		return status;
 	}
 
