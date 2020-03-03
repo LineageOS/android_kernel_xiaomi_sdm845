@@ -10890,7 +10890,7 @@ enum dot11p_mode {
 #define CFG_DP_PROTO_EVENT_BITMAP		"dp_proto_event_bitmap"
 #define CFG_DP_PROTO_EVENT_BITMAP_MIN		(0x0)
 #define CFG_DP_PROTO_EVENT_BITMAP_MAX		(0x17)
-#define CFG_DP_PROTO_EVENT_BITMAP_DEFAULT	(0x6)
+#define CFG_DP_PROTO_EVENT_BITMAP_DEFAULT	(0x17)
 #endif
 
 /*
