@@ -17587,6 +17587,59 @@ enum hdd_external_acs_policy {
 #define CFG_BMISS_SKIP_FULL_SCAN_MAX           1
 #define CFG_BMISS_SKIP_FULL_SCAN_DEFAULT       0
 
+#ifdef WLAN_FEATURE_PERIODIC_STA_STATS
+/*
+ * <ini>
+ * periodic_stats_timer_interval - Print selective stats on this specified
+ *				   interval
+ *
+ * @Min: 0
+ * @Max: 10000
+ * Default: 3000
+ *
+ * This ini is used to specify interval in milliseconds for periodic stats
+ * timer. This timer will print selective stats after expiration of each
+ * interval. STA starts this periodic timer after initial connection or after
+ * roaming is successful. This will be restarted for every
+ * periodic_stats_timer_interval till the periodic_stats_timer_duration expires.
+ *
+ * Supported Feature: STA
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PERIODIC_STATS_TIMER_INTERVAL		"periodic_stats_timer_interval"
+#define CFG_PERIODIC_STATS_TIMER_INTERVAL_MIN		(0)
+#define CFG_PERIODIC_STATS_TIMER_INTERVAL_MAX		(10000)
+#define CFG_PERIODIC_STATS_TIMER_INTERVAL_DEFAULT	(3000)
+
+/*
+ * <ini>
+ * periodic_stats_timer_duration - Used as duration for which periodic timer
+ *				   should run
+ *
+ * @Min: 0
+ * @Max: 60000
+ * Default: 30000
+ *
+ * This ini is used as duration in milliseconds for which periodic stats timer
+ * should run. This periodic timer will print selective stats for every
+ * periodic_stats_timer_interval until this duration is reached.
+ *
+ * Supported Feature: STA
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_PERIODIC_STATS_TIMER_DURATION		"periodic_stats_timer_duration"
+#define CFG_PERIODIC_STATS_TIMER_DURATION_MIN		(0)
+#define CFG_PERIODIC_STATS_TIMER_DURATION_MAX		(60000)
+#define CFG_PERIODIC_STATS_TIMER_DURATION_DEFAULT	(30000)
+
+#endif /* WLAN_FEATURE_PERIODIC_STA_STATS */
+
 /*
  * <ini>
  * p2p_disable_roam- Disable Roam on sta interface during P2P connection
@@ -18646,6 +18699,13 @@ struct hdd_config {
 	bool time_sync_ftm_role;
 #endif
 	bool p2p_disable_roam;
+
+#ifdef WLAN_FEATURE_PERIODIC_STA_STATS
+	/* Periodicity of logging */
+	uint32_t periodic_stats_timer_interval;
+	/* Duration for which periodic logging should be done */
+	uint32_t periodic_stats_timer_duration;
+#endif /* WLAN_FEATURE_PERIODIC_STA_STATS */
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

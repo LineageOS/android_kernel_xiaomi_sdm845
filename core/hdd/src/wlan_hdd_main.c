@@ -45,6 +45,7 @@
 #include "wlan_hdd_ftm.h"
 #include "wlan_hdd_power.h"
 #include "wlan_hdd_stats.h"
+#include "wlan_hdd_periodic_sta_stats.h"
 #include "wlan_hdd_scan.h"
 #include <wlan_osif_request_manager.h>
 #ifdef CONFIG_LEAK_DETECTION
@@ -4916,6 +4917,7 @@ static void hdd_cleanup_adapter(struct hdd_context *hdd_ctx,
 
 	hdd_nud_deinit_tracking(adapter);
 	qdf_mutex_destroy(&adapter->disconnection_status_lock);
+	hdd_periodic_sta_stats_mutex_destroy(adapter);
 	hdd_apf_context_destroy(adapter);
 	qdf_spinlock_destroy(&adapter->vdev_lock);
 
@@ -5651,6 +5653,7 @@ struct hdd_adapter *hdd_open_adapter(struct hdd_context *hdd_ctx, uint8_t sessio
 		    adapter->device_mode == QDF_P2P_DEVICE_MODE)
 			hdd_sysfs_create_adapter_root_obj(adapter);
 		qdf_mutex_create(&adapter->disconnection_status_lock);
+		hdd_periodic_sta_stats_mutex_create(adapter);
 
 		break;
 
@@ -5771,6 +5774,9 @@ struct hdd_adapter *hdd_open_adapter(struct hdd_context *hdd_ctx, uint8_t sessio
 		wlan_hdd_debugfs_csr_init(adapter);
 
 	hdd_set_ethtool_ops(adapter->dev);
+
+	hdd_periodic_sta_stats_init(adapter);
+
 	return adapter;
 
 err_free_netdev:
@@ -8657,6 +8663,8 @@ static void hdd_pld_request_bus_bandwidth(struct hdd_context *hdd_ctx,
 	}
 
 	hdd_display_periodic_stats(hdd_ctx, (total_pkts > 0) ? true : false);
+
+	hdd_periodic_sta_stats_display(hdd_ctx);
 }
 
 #define HDD_BW_GET_DIFF(_x, _y) (unsigned long)((ULONG_MAX - (_y)) + (_x) + 1)

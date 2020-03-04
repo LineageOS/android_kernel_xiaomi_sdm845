@@ -67,6 +67,7 @@
 #include "wlan_mlme_ucfg_api.h"
 #include "wlan_hdd_ftm_time_sync.h"
 #include "wlan_pkt_capture_ucfg_api.h"
+#include "wlan_hdd_periodic_sta_stats.h"
 
 /* These are needed to recognize WPA and RSN suite types */
 #define HDD_WPA_OUI_SIZE 4
@@ -1736,6 +1737,8 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 				  adapter->session_id,
 				  WLAN_IPA_STA_DISCONNECT,
 				  sta_ctx->conn_info.bssId.bytes);
+
+	hdd_periodic_sta_stats_stop(adapter);
 
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 	wlan_hdd_auto_shutdown_enable(hdd_ctx, true);
@@ -3548,6 +3551,8 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 		    hddDisconInProgress)
 			complete(&adapter->disconnect_comp_var);
 	}
+
+	hdd_periodic_sta_stats_start(adapter);
 
 	return QDF_STATUS_SUCCESS;
 }

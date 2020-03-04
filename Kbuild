@@ -69,6 +69,10 @@ HDD_OBJS := 	$(HDD_SRC_DIR)/wlan_hdd_assoc.o \
 		$(HDD_SRC_DIR)/wlan_hdd_wmm.o \
 		$(HDD_SRC_DIR)/wlan_hdd_wowl.o
 
+ifeq ($(CONFIG_WLAN_FEATURE_PERIODIC_STA_STATS), y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_periodic_sta_stats.o
+endif
+
 ifeq ($(CONFIG_WLAN_DEBUGFS), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_debugfs.o
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_debugfs_llstat.o
@@ -1677,6 +1681,8 @@ cppflags-$(CONFIG_FEATURE_MEMDUMP_ENABLE) += -DWLAN_FEATURE_MEMDUMP_ENABLE
 cppflags-$(CONFIG_FEATURE_FW_LOG_PARSING) += -DFEATURE_FW_LOG_PARSING
 cppflags-$(CONFIG_WLAN_RECORD_RX_PADDR) += -DHIF_RECORD_RX_PADDR
 cppflags-$(CONFIG_FEATURE_OEM_DATA) += -DFEATURE_OEM_DATA
+
+cppflags-$(CONFIG_WLAN_FEATURE_PERIODIC_STA_STATS) += -DWLAN_FEATURE_PERIODIC_STA_STATS
 
 ifeq ($(CONFIG_CNSS), y)
 ifeq ($(CONFIG_CNSS_SDIO), y)
