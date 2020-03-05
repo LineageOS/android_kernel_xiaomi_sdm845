@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -33,7 +33,7 @@
 #include <qdf_mem.h>
 #include <wlan_utility.h>
 #include <wlan_reg_services_api.h>
-
+#include "wlan_hdd_main.h"
 #define MAX_CHANNEL (NUM_24GHZ_CHANNELS + NUM_5GHZ_CHANNELS)
 
 
@@ -656,10 +656,10 @@ void wlan_cfg80211_tdls_rx_callback(void *user_data,
 
 	if (rx_frame->rx_chan <= TDLS_MAX_NO_OF_2_4_CHANNELS)
 		freq = ieee80211_channel_to_frequency(
-			rx_frame->rx_chan, NL80211_BAND_2GHZ);
+			rx_frame->rx_chan, HDD_NL80211_BAND_2GHZ);
 	else
 		freq = ieee80211_channel_to_frequency(
-			rx_frame->rx_chan, NL80211_BAND_5GHZ);
+			rx_frame->rx_chan, HDD_NL80211_BAND_5GHZ);
 
 	cfg80211_notice("Indicate frame over nl80211, vdev id:%d, idx:%d",
 		   rx_frame->vdev_id, wdev->netdev->ifindex);
