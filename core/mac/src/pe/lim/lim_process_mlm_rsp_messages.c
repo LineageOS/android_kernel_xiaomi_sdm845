@@ -3161,7 +3161,8 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 			psessionEntry->send_p2p_conf_frame = true;
 		}
 
-		ucfg_pkt_capture_record_channel();
+		if (ucfg_pkt_capture_get_pktcap_mode())
+			ucfg_pkt_capture_record_channel();
 		break;
 	case LIM_SWITCH_CHANNEL_SAP_DFS:
 	{
