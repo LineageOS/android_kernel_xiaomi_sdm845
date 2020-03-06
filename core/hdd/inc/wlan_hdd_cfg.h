@@ -17661,6 +17661,30 @@ enum hdd_external_acs_policy {
 #define CFG_P2P_DISABLE_ROAM_DEFAULT     (0)
 
 /*
+ * <ini>
+ * dfs_chan_ageout_time - Set DFS Channel ageout time(in seconds)
+ * @Min: 0
+ * @Max: 8
+ * Default: 0
+ *
+ * Ageout time is the time upto which DFS channel information such as beacon
+ * found is remembered. So that Firmware performs Active scan instead of the
+ * Passive to reduce the Dwell time.
+ * This ini Parameter used to set ageout timer value from host to FW.
+ * If not set, Firmware will disable ageout time.
+ *
+ * Supported Feature: STA scan in DFS channels
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DFS_CHAN_AGEOUT_TIME		"dfs_chan_ageout_time"
+#define CFG_DFS_CHAN_AGEOUT_TIME_MIN		(0)
+#define CFG_DFS_CHAN_AGEOUT_TIME_MAX		(8)
+#define CFG_DFS_CHAN_AGEOUT_TIME_DEFAULT	(0)
+
+/*
  * Type declarations
  */
 
@@ -18706,6 +18730,7 @@ struct hdd_config {
 	/* Duration for which periodic logging should be done */
 	uint32_t periodic_stats_timer_duration;
 #endif /* WLAN_FEATURE_PERIODIC_STA_STATS */
+	uint8_t dfs_chan_ageout_time;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))
