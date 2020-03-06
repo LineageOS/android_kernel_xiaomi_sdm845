@@ -16750,12 +16750,15 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		}
 		qdf_mem_copy(&csr_join_req->selfMacAddr, &pSession->selfMacAddr,
 			     sizeof(tSirMacAddr));
-		sme_nofl_info("vdev-%d: Connecting to %.*s " MAC_ADDRESS_STR
-			      " rssi: %d channel: %d CC: %c%c",
+		sme_nofl_info("vdev-%d: Connecting to %.*s " QDF_MAC_ADDR_STR
+			      " rssi: %d channel: %d akm %d cipher: uc %d mc %d, CC: %c%c",
 			      sessionId, csr_join_req->ssId.length,
 			      csr_join_req->ssId.ssId,
 			      MAC_ADDR_ARRAY(pBssDescription->bssId),
 			      pBssDescription->rssi, pBssDescription->channelId,
+			      pProfile->negotiatedAuthType,
+			      pProfile->negotiatedUCEncryptionType,
+			      pProfile->negotiatedMCEncryptionType,
 			      pMac->scan.countryCodeCurrent[0],
 			      pMac->scan.countryCodeCurrent[1]);
 		/* bsstype */
