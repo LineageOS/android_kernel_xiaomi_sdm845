@@ -989,7 +989,11 @@ void Boot_Update_Firmware(struct work_struct *work)
 	int32_t ret = 0;
 
 	char firmware_name[256] = "";
-	sprintf(firmware_name, BOOT_UPDATE_FIRMWARE_NAME);
+
+	if (ts->fw_name)
+		sprintf(firmware_name, ts->fw_name);
+	else
+		sprintf(firmware_name, BOOT_UPDATE_FIRMWARE_NAME);
 
 	// request bin file in "/etc/firmware"
 	ret = update_firmware_request(firmware_name);
