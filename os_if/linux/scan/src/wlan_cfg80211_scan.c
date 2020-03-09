@@ -1372,7 +1372,8 @@ int wlan_cfg80211_scan(struct wlan_objmgr_vdev *vdev,
 				     pssid->length);
 		}
 	}
-	if (request->ssids || (opmode == QDF_P2P_GO_MODE))
+	if (request->ssids || (opmode == QDF_P2P_GO_MODE) ||
+	    (opmode == QDF_P2P_DEVICE_MODE))
 		req->scan_req.scan_f_passive = false;
 
 	if (params->half_rate)
