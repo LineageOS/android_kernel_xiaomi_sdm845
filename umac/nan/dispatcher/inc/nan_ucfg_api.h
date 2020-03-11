@@ -190,6 +190,26 @@ QDF_STATUS ucfg_nan_get_callbacks(struct wlan_objmgr_psoc *psoc,
 				  struct nan_callbacks *cb_obj);
 
 /**
+ * ucfg_nan_get_active_ndp_cnt: ucfg API to get active ndp sessions
+ * @psoc: pointer to psoc object
+ * @cnt: pointer to active session count
+ *
+ * Return: status of operation
+ */
+QDF_STATUS ucfg_nan_get_active_ndp_cnt(struct wlan_objmgr_psoc *psoc,
+				       uint8_t *cnt);
+
+/**
+ * ucfg_nan_set_active_ndp_cnt: ucfg API to set active ndp sessions count
+ * @psoc: pointer to psoc object
+ * @cnt: active session count
+ *
+ * Return: status of operation
+ */
+QDF_STATUS ucfg_nan_set_active_ndp_cnt(struct wlan_objmgr_psoc *psoc,
+				       uint8_t cnt);
+
+/**
  * ucfg_nan_req_processor: ucfg API to be called from HDD/OS_IF to
  * process nan datapath initiator request from userspace
  * @vdev: nan vdev pointer

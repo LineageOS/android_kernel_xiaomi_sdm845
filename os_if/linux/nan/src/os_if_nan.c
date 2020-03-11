@@ -1228,6 +1228,10 @@ os_if_ndp_confirm_ind_handler(struct wlan_objmgr_vdev *vdev,
 			ucfg_nan_get_active_ndp_sessions(vdev, idx);
 		ucfg_nan_set_active_ndp_sessions(vdev, active_sessions + 1,
 						 idx);
+		ucfg_nan_set_active_ndp_cnt(psoc, active_sessions + 1);
+		cb_obj.wlan_hdd_indicate_active_ndp_cnt(psoc,
+							wlan_vdev_get_id(vdev),
+							active_sessions + 1);
 	}
 
 	ifname = wlan_util_vdev_get_if_name(vdev);
@@ -1439,7 +1443,7 @@ static void os_if_ndp_end_ind_handler(struct wlan_objmgr_vdev *vdev,
 			struct nan_datapath_end_indication_event *end_ind)
 {
 	QDF_STATUS status;
-	uint32_t data_len, i;
+	uint32_t data_len, i, total_active_session = 0;
 	struct nan_callbacks cb_obj;
 	uint32_t *ndp_instance_array;
 	struct sk_buff *vendor_event;
@@ -1490,8 +1494,15 @@ static void os_if_ndp_end_ind_handler(struct wlan_objmgr_vdev *vdev,
 		ucfg_nan_set_active_ndp_sessions(vdev_itr,
 				end_ind->ndp_map[i].num_active_ndp_sessions,
 				idx);
+		total_active_session +=
+			end_ind->ndp_map[i].num_active_ndp_sessions;
 		wlan_objmgr_vdev_release_ref(vdev_itr, WLAN_NAN_ID);
 	}
+
+	ucfg_nan_set_active_ndp_cnt(psoc, total_active_session);
+	cb_obj.wlan_hdd_indicate_active_ndp_cnt(psoc,
+						wlan_vdev_get_id(vdev),
+						total_active_session);
 
 	data_len = osif_ndp_get_ndp_end_ind_len(end_ind);
 	vendor_event = cfg80211_vendor_event_alloc(os_priv->wiphy, NULL,
