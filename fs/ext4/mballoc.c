@@ -349,7 +349,6 @@ MODULE_PARM_DESC(mballoc_debug, "Debugging level for ext4's mballoc");
  *
  */
 static struct kmem_cache *ext4_pspace_cachep;
-static struct kmem_cache *ext4_ac_cachep;
 static struct kmem_cache *ext4_free_data_cachep;
 
 /* We create slab caches for groupinfo data structures based on the
@@ -2883,18 +2882,10 @@ int __init ext4_init_mballoc(void)
 	if (ext4_pspace_cachep == NULL)
 		return -ENOMEM;
 
-	ext4_ac_cachep = KMEM_CACHE(ext4_allocation_context,
-				    SLAB_RECLAIM_ACCOUNT);
-	if (ext4_ac_cachep == NULL) {
-		kmem_cache_destroy(ext4_pspace_cachep);
-		return -ENOMEM;
-	}
-
 	ext4_free_data_cachep = KMEM_CACHE(ext4_free_data,
 					   SLAB_RECLAIM_ACCOUNT);
 	if (ext4_free_data_cachep == NULL) {
 		kmem_cache_destroy(ext4_pspace_cachep);
-		kmem_cache_destroy(ext4_ac_cachep);
 		return -ENOMEM;
 	}
 	return 0;
@@ -2908,7 +2899,6 @@ void ext4_exit_mballoc(void)
 	 */
 	rcu_barrier();
 	kmem_cache_destroy(ext4_pspace_cachep);
-	kmem_cache_destroy(ext4_ac_cachep);
 	kmem_cache_destroy(ext4_free_data_cachep);
 	ext4_groupinfo_destroy_slabs();
 }
@@ -4466,7 +4456,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 				struct ext4_allocation_request *ar, int *errp)
 {
 	int freed;
-	struct ext4_allocation_context *ac = NULL;
+	struct ext4_allocation_context ac;
 	struct ext4_sb_info *sbi;
 	struct super_block *sb;
 	ext4_fsblk_t block = 0;
@@ -4519,52 +4509,46 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 		}
 	}
 
-	ac = kmem_cache_zalloc(ext4_ac_cachep, GFP_NOFS);
-	if (!ac) {
-		ar->len = 0;
-		*errp = -ENOMEM;
-		goto out;
-	}
-
-	*errp = ext4_mb_initialize_context(ac, ar);
+	memset(&ac, 0, sizeof(ac));
+	*errp = ext4_mb_initialize_context(&ac, ar);
 	if (*errp) {
 		ar->len = 0;
 		goto out;
 	}
 
-	ac->ac_op = EXT4_MB_HISTORY_PREALLOC;
-	if (!ext4_mb_use_preallocated(ac)) {
-		ac->ac_op = EXT4_MB_HISTORY_ALLOC;
-		ext4_mb_normalize_request(ac, ar);
+	ac.ac_op = EXT4_MB_HISTORY_PREALLOC;
+	if (!ext4_mb_use_preallocated(&ac)) {
+		ac.ac_op = EXT4_MB_HISTORY_ALLOC;
+		ext4_mb_normalize_request(&ac, ar);
 repeat:
 		/* allocate space in core */
-		*errp = ext4_mb_regular_allocator(ac);
+		*errp = ext4_mb_regular_allocator(&ac);
 		if (*errp)
 			goto discard_and_exit;
 
 		/* as we've just preallocated more space than
 		 * user requested originally, we store allocated
 		 * space in a special descriptor */
-		if (ac->ac_status == AC_STATUS_FOUND &&
-		    ac->ac_o_ex.fe_len < ac->ac_b_ex.fe_len)
-			*errp = ext4_mb_new_preallocation(ac);
+		if (ac.ac_status == AC_STATUS_FOUND &&
+		    ac.ac_o_ex.fe_len < ac.ac_b_ex.fe_len)
+			*errp = ext4_mb_new_preallocation(&ac);
 		if (*errp) {
 		discard_and_exit:
-			ext4_discard_allocated_blocks(ac);
+			ext4_discard_allocated_blocks(&ac);
 			goto errout;
 		}
 	}
-	if (likely(ac->ac_status == AC_STATUS_FOUND)) {
-		*errp = ext4_mb_mark_diskspace_used(ac, handle, reserv_clstrs);
+	if (likely(ac.ac_status == AC_STATUS_FOUND)) {
+		*errp = ext4_mb_mark_diskspace_used(&ac, handle, reserv_clstrs);
 		if (*errp) {
-			ext4_discard_allocated_blocks(ac);
+			ext4_discard_allocated_blocks(&ac);
 			goto errout;
 		} else {
-			block = ext4_grp_offs_to_block(sb, &ac->ac_b_ex);
-			ar->len = ac->ac_b_ex.fe_len;
+			block = ext4_grp_offs_to_block(sb, &ac.ac_b_ex);
+			ar->len = ac.ac_b_ex.fe_len;
 		}
 	} else {
-		freed  = ext4_mb_discard_preallocations(sb, ac->ac_o_ex.fe_len);
+		freed  = ext4_mb_discard_preallocations(sb, ac.ac_o_ex.fe_len);
 		if (freed)
 			goto repeat;
 		*errp = -ENOSPC;
@@ -4572,14 +4556,12 @@ repeat:
 
 errout:
 	if (*errp) {
-		ac->ac_b_ex.fe_len = 0;
+		ac.ac_b_ex.fe_len = 0;
 		ar->len = 0;
-		ext4_mb_show_ac(ac);
+		ext4_mb_show_ac(&ac);
 	}
-	ext4_mb_release_context(ac);
+	ext4_mb_release_context(&ac);
 out:
-	if (ac)
-		kmem_cache_free(ext4_ac_cachep, ac);
 	if (inquota && ar->len < inquota)
 		dquot_free_block(ar->inode, EXT4_C2B(sbi, inquota - ar->len));
 	if (!ar->len) {
