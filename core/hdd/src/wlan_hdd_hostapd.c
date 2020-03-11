@@ -8554,8 +8554,9 @@ error:
 	wlansap_reset_sap_config_add_ie(pConfig, eUPDATE_IE_ALL);
 
 free:
-	if (iniConfig && iniConfig->p2p_disable_roam &&
-	    (adapter->device_mode == QDF_P2P_GO_MODE)) {
+	if (iniConfig && (iniConfig->sta_disable_roam &
+	    LFR3_STA_ROAM_DISABLE_BY_P2P) && (adapter->device_mode ==
+	    QDF_P2P_GO_MODE)) {
 		hdd_debug("p2p go mode, keep disable roam");
 	} else {
 		/* Enable Roaming after start bss in case of failure/success */
@@ -8727,8 +8728,9 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 		hdd_green_ap_start_state_mc(hdd_ctx, adapter->device_mode,
 					    false);
 
-		if (hdd_ctx->config->p2p_disable_roam &&
-		    (adapter->device_mode == QDF_P2P_GO_MODE)) {
+		if ((hdd_ctx->config->sta_disable_roam &
+		    LFR3_STA_ROAM_DISABLE_BY_P2P) && (adapter->device_mode ==
+		    QDF_P2P_GO_MODE)) {
 			hdd_debug("p2p go disconnected enable roam");
 			wlan_hdd_enable_roaming(adapter);
 		}

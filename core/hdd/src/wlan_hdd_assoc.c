@@ -1776,8 +1776,9 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 	/* indicate 'disconnect' status to wpa_supplicant... */
 	hdd_send_association_event(dev, roam_info);
 
-	if (hdd_ctx->config->p2p_disable_roam &&
-	    (adapter->device_mode == QDF_P2P_CLIENT_MODE)) {
+	if ((hdd_ctx->config->sta_disable_roam &
+	    LFR3_STA_ROAM_DISABLE_BY_P2P) && (adapter->device_mode ==
+	    QDF_P2P_CLIENT_MODE)) {
 		hdd_debug("enable roam");
 		wlan_hdd_enable_roaming(adapter);
 	}
@@ -2828,7 +2829,8 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 		}
 
 		if (adapter->device_mode == QDF_P2P_CLIENT_MODE &&
-		    hdd_ctx->config->p2p_disable_roam) {
+		    (hdd_ctx->config->sta_disable_roam &
+		    LFR3_STA_ROAM_DISABLE_BY_P2P)) {
 			hdd_debug("p2p cli active keep disable roam");
 		} else {
 			/*

@@ -60,6 +60,7 @@
 #include "wlan_scan_utils_api.h"
 #include <wlan_cp_stats_mc_ucfg_api.h>
 #include "wlan_pkt_capture_ucfg_api.h"
+#include "nan_ucfg_api.h"
 
 #define MAX_PWR_FCC_CHAN_12 8
 #define MAX_PWR_FCC_CHAN_13 2
@@ -3480,8 +3481,8 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 						 pParam);
 		pMac->roam.configParam.enable_pending_list_req =
 					pParam->enable_pending_list_req;
-		pMac->roam.configParam.p2p_disable_roam =
-					pParam->p2p_disable_roam;
+		pMac->roam.configParam.sta_disable_roam =
+					pParam->sta_disable_roam;
 	}
 	return status;
 }
@@ -3894,7 +3895,7 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 
 	pParam->enable_pending_list_req =
 				pMac->roam.configParam.enable_pending_list_req;
-	pParam->p2p_disable_roam = pMac->roam.configParam.p2p_disable_roam;
+	pParam->sta_disable_roam = pMac->roam.configParam.sta_disable_roam;
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -21547,7 +21548,7 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	struct roam_ext_params *roam_params_dst;
 	struct roam_ext_params *roam_params_src;
 	uint8_t temp_session_id;
-	uint8_t op_channel;
+	uint8_t op_channel, active_ndp_cnt = 0;
 	bool prev_roaming_state;
 	eCsrAuthType roam_profile_akm = eCSR_AUTH_TYPE_UNKNOWN;
 	uint32_t fw_akm_bitmap;
@@ -21677,14 +21678,16 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 		}
 	}
 
-	if (mac_ctx->roam.configParam.p2p_disable_roam &&
+	ucfg_nan_get_active_ndp_cnt(mac_ctx->psoc, &active_ndp_cnt);
+	if (mac_ctx->roam.configParam.sta_disable_roam &&
 	    (command == ROAM_SCAN_OFFLOAD_START ||
 	     command == ROAM_SCAN_OFFLOAD_UPDATE_CFG) &&
 	    (policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
 						PM_P2P_CLIENT_MODE, NULL) ||
 	     policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
-						PM_P2P_GO_MODE, NULL))) {
-		sme_info("roaming not supported for active p2p connection");
+						PM_P2P_GO_MODE, NULL) ||
+	     active_ndp_cnt)) {
+		sme_debug("sta roaming blocked for active p2p/ndp connection");
 		return QDF_STATUS_E_FAILURE;
 	}
 	/*

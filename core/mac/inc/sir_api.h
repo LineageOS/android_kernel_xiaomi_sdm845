@@ -50,6 +50,9 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include <dot11f.h>
 #include "wlan_policy_mgr_api.h"
 
+#define LFR3_STA_ROAM_DISABLE_BY_P2P BIT(0)
+#define LFR3_STA_ROAM_DISABLE_BY_NAN BIT(1)
+
 #define SIR_MAX_SUPPORTED_BSS 5
 
 #define OFFSET_OF(structType, fldName)   (&((structType *)0)->fldName)

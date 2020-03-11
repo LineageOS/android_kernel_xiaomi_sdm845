@@ -6351,12 +6351,12 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_TIME_SYNC_FTM_ROLE_MIN,
 		     CFG_TIME_SYNC_FTM_ROLE_MAX),
 #endif
-	REG_VARIABLE(CFG_P2P_DISABLE_ROAM, WLAN_PARAM_Integer,
-		     struct hdd_config, p2p_disable_roam,
+	REG_VARIABLE(CFG_STA_DISABLE_ROAM, WLAN_PARAM_Integer,
+		     struct hdd_config, sta_disable_roam,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-		     CFG_P2P_DISABLE_ROAM_DEFAULT,
-		     CFG_P2P_DISABLE_ROAM_MIN,
-		     CFG_P2P_DISABLE_ROAM_MAX),
+		     CFG_STA_DISABLE_ROAM_DEFAULT,
+		     CFG_STA_DISABLE_ROAM_MIN,
+		     CFG_STA_DISABLE_ROAM_MAX),
 
 #ifdef WLAN_FEATURE_PERIODIC_STA_STATS
 	REG_VARIABLE(CFG_PERIODIC_STATS_TIMER_INTERVAL, WLAN_PARAM_Integer,
@@ -8461,8 +8461,8 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 		  hdd_ctx->config->time_sync_ftm_role);
 #endif
 	hdd_debug("Name = [%s] value = [%d]",
-		   CFG_P2P_DISABLE_ROAM,
-		   hdd_ctx->config->p2p_disable_roam);
+		   CFG_STA_DISABLE_ROAM,
+		   hdd_ctx->config->sta_disable_roam);
 	hdd_debug("Name = [%s] Value = [%u]",
 		  CFG_DFS_CHAN_AGEOUT_TIME,
 		  hdd_ctx->config->dfs_chan_ageout_time);
@@ -10408,8 +10408,7 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 			pConfig->btm_trig_min_candidate_score;
 	smeConfig->csrConfig.enable_pending_list_req =
 			pConfig->enable_pending_list_req;
-	smeConfig->csrConfig.p2p_disable_roam =
-			pConfig->p2p_disable_roam;
+	smeConfig->csrConfig.sta_disable_roam = pConfig->sta_disable_roam;
 	sme_update_adaptive_11r_cap(smeConfig, pConfig);
 	sme_update_sae_single_pmk_cfg(smeConfig, pConfig);
 

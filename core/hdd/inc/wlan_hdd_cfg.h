@@ -17642,23 +17642,31 @@ enum hdd_external_acs_policy {
 
 /*
  * <ini>
- * p2p_disable_roam- Disable Roam on sta interface during P2P connection
- * @Min: 0 - Roam Enabled on sta interface during P2P connection
- * @Max: 1 - Roam Disabled on sta interface during P2P connection
- * @Default: 0
+ * sta_disable_roam - Disable Roam on sta interface
+ * @Min: 0 - Roam Enabled on sta interface
+ * @Max: 0xffffffff - Roam Disabled on sta interface irrespective
+ * of other interface connections
+ * @Default: 0x00
  *
- * Disable roaming on STA iface to avoid audio glitches on p2p if its connected
+ * Disable roaming on STA iface to avoid audio glitches on p2p and ndp if
+ * those are in connected state. Each bit for "sta_disable_roam" INI represents
+ * an interface for which sta roaming can be disabled.
  *
- * Supported Feature: Disable Roam during P2P
+ * LFR3_STA_ROAM_DISABLE_BY_P2P BIT(0)
+ * LFR3_STA_ROAM_DISABLE_BY_NAN BIT(1)
+ *
+ * Related: None.
+ *
+ * Supported Feature: ROAM
  *
  * Usage: Internal
  *
  * </ini>
  */
-#define CFG_P2P_DISABLE_ROAM            "p2p_disable_roam"
-#define CFG_P2P_DISABLE_ROAM_MIN         (0)
-#define CFG_P2P_DISABLE_ROAM_MAX         (1)
-#define CFG_P2P_DISABLE_ROAM_DEFAULT     (0)
+#define CFG_STA_DISABLE_ROAM            "sta_disable_roam"
+#define CFG_STA_DISABLE_ROAM_MIN         (0)
+#define CFG_STA_DISABLE_ROAM_MAX         (0XFFFFFFFF)
+#define CFG_STA_DISABLE_ROAM_DEFAULT     (0X00)
 
 /*
  * <ini>
@@ -18722,7 +18730,7 @@ struct hdd_config {
 	bool time_sync_ftm_mode;
 	bool time_sync_ftm_role;
 #endif
-	bool p2p_disable_roam;
+	uint32_t sta_disable_roam;
 
 #ifdef WLAN_FEATURE_PERIODIC_STA_STATS
 	/* Periodicity of logging */
