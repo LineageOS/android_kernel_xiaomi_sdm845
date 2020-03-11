@@ -10218,7 +10218,7 @@ enum dot11p_mode {
  * g_sta_sap_scc_on_lte_coex_chan - Allow STA+SAP SCC on LTE coex channel
  * @Min: 0
  * @Max: 1
- * @Default: 0
+ * @Default: 1
  *
  * This ini is used to allow STA+SAP SCC on LTE coex channel
  * 0 - Disallow STA+SAP SCC on LTE coex channel
@@ -10235,7 +10235,7 @@ enum dot11p_mode {
 #define CFG_STA_SAP_SCC_ON_LTE_COEX_CHAN              "g_sta_sap_scc_on_lte_coex_chan"
 #define CFG_STA_SAP_SCC_ON_LTE_COEX_CHAN_MIN          (0)
 #define CFG_STA_SAP_SCC_ON_LTE_COEX_CHAN_MAX          (1)
-#define CFG_STA_SAP_SCC_ON_LTE_COEX_CHAN_DEFAULT      (0)
+#define CFG_STA_SAP_SCC_ON_LTE_COEX_CHAN_DEFAULT      (1)
 
 /*
  * gPNOChannelPrediction will allow user to enable/disable the
