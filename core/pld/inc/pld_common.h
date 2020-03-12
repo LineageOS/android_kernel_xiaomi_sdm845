@@ -138,6 +138,8 @@ struct pld_uevent_data {
 	union {
 		struct {
 			bool crashed;
+			void *hang_event_data;
+			u16 hang_event_data_len;
 		} fw_down;
 	};
 };
