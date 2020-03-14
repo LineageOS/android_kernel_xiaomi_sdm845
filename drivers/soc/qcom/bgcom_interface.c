@@ -69,6 +69,10 @@ struct bgdaemon_regulator {
 struct bgdaemon_priv {
 	struct bgdaemon_regulator rgltr;
 	enum ldo_task ldo_action;
+	void *pil_h;
+	bool pending_bg_twm_wear_load;
+	struct workqueue_struct *bgdaemon_wq;
+	struct work_struct bgdaemon_load_twm_bg_work;
 };
 
 struct bg_event {
@@ -120,6 +124,21 @@ static int send_uevent(struct bg_event *pce)
 	return kobject_uevent_env(&dev_ret->kobj, KOBJ_CHANGE, envp);
 }
 
+static void bgcom_load_twm_bg_work(struct work_struct *work)
+{
+	if (dev->pil_h) {
+		pr_err("bg-wear is already loaded\n");
+		subsystem_put(dev->pil_h);
+		dev->pil_h = NULL;
+		bg_soft_reset();
+	} else {
+		dev->pil_h = subsystem_get_with_fwname("bg-wear",
+							"bg-twm-wear");
+		if (!dev->pil_h)
+			pr_err("failed to load bg-twm-wear\n");
+	}
+}
+
 static int bgdaemon_configure_regulators(bool state)
 {
 	int retval;
@@ -146,6 +165,7 @@ static int bgdaemon_configure_regulators(bool state)
 	}
 	return retval;
 }
+
 static int bgdaemon_init_regulators(struct device *pdev)
 {
 	int rc;
@@ -277,7 +297,7 @@ static int bgchar_read_cmd(struct bg_ui_data *fui_obj_msg,
 static int bgchar_write_cmd(struct bg_ui_data *fui_obj_msg, int type)
 {
 	void              *write_buf;
-	int               ret;
+	int               ret = -EINVAL;
 	void __user       *write     = (void *)
 			(uintptr_t)fui_obj_msg->write;
 
@@ -398,8 +418,36 @@ static long bg_com_ioctl(struct file *filp,
 		bg_app_running = true;
 		ret = 0;
 		break;
+	case BG_WEAR_LOAD:
+		ret = 0;
+		if (dev->pil_h) {
+			pr_err("bg-wear is already loaded\n");
+			ret = -EFAULT;
+			break;
+		}
+
+		dev->pil_h = subsystem_get_with_fwname("bg-wear", "bg-wear");
+		if (!dev->pil_h) {
+			pr_err("failed to load bg-wear\n");
+			ret = -EFAULT;
+		}
+		break;
+	case BG_WEAR_TWM_LOAD:
+		dev->pending_bg_twm_wear_load = true;
+		queue_work(dev->bgdaemon_wq, &dev->bgdaemon_load_twm_bg_work);
+		ret = 0;
+		break;
+	case BG_WEAR_UNLOAD:
+		if (dev->pil_h) {
+			subsystem_put(dev->pil_h);
+			dev->pil_h = NULL;
+			bg_soft_reset();
+		}
+		ret = 0;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
+		break;
 	}
 	return ret;
 }
@@ -521,7 +569,19 @@ static int __init init_bg_com_dev(void)
 	if (platform_driver_register(&bg_daemon_driver))
 		pr_err("%s: failed to register bg-daemon register\n", __func__);
 
+	dev->bgdaemon_wq =
+		create_singlethread_workqueue("bgdaemon-work-queue");
+	if (!dev->bgdaemon_wq) {
+		pr_err("Failed to init BG-DAEMON work-queue\n");
+		goto free_wq;
+	}
+	INIT_WORK(&dev->bgdaemon_load_twm_bg_work, bgcom_load_twm_bg_work);
+
 	return 0;
+
+free_wq:
+	destroy_workqueue(dev->bgdaemon_wq);
+	return -EFAULT;
 }
 
 static void __exit exit_bg_com_dev(void)
@@ -556,6 +616,12 @@ static int ssr_bg_cb(struct notifier_block *this,
 	case SUBSYS_AFTER_SHUTDOWN:
 		/* Add sleep for  SPI Bus to release*/
 		msleep(SLEEP_FOR_SPI_BUS);
+		if (dev->pending_bg_twm_wear_load) {
+			/* Load bg-twm-wear */
+			dev->pending_bg_twm_wear_load = false;
+			queue_work(dev->bgdaemon_wq,
+				&dev->bgdaemon_load_twm_bg_work);
+		}
 		break;
 	case SUBSYS_AFTER_POWERUP:
 		bge.e_type = BG_AFTER_POWER_UP;
@@ -596,6 +662,7 @@ static int ssr_modem_cb(struct notifier_block *this,
 	}
 	return NOTIFY_DONE;
 }
+
 static int ssr_adsp_cb(struct notifier_block *this,
 		unsigned long opcode, void *data)
 {
