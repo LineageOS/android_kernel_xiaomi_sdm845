@@ -493,6 +493,8 @@ typedef enum {
     WMI_VDEV_AUDIO_SYNC_QTIMER_CMDID,
     /** Preferred channel list for each vdev */
     WMI_VDEV_SET_PCL_CMDID,
+    /** Get per vdev BIG DATA stats */
+    WMI_VDEV_GET_BIG_DATA_CMDID,
 
     /* peer specific commands */
 
@@ -1465,6 +1467,8 @@ typedef enum {
     WMI_VDEV_AUDIO_SYNC_START_STOP_EVENTID,
     /** Sends the final offset in the QTIMERs of both master and slave */
     WMI_VDEV_AUDIO_SYNC_Q_MASTER_SLAVE_OFFSET_EVENTID,
+    /* send BIG DATA stats to host */
+    WMI_VDEV_SEND_BIG_DATA_EVENTID,
 
 
     /* peer specific events */
@@ -1856,6 +1860,7 @@ typedef enum {
     WMI_NAN_DISC_IFACE_DELETED_EVENTID,
     WMI_NAN_STARTED_CLUSTER_EVENTID,
     WMI_NAN_JOINED_CLUSTER_EVENTID,
+    WMI_NAN_DMESG_EVENTID,
 
     /* Coex Event */
     WMI_COEX_REPORT_ANTENNA_ISOLATION_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_COEX),
@@ -6427,6 +6432,42 @@ typedef enum {
      */
     WMI_PDEV_PARAM_ENABLE_FW_DYNAMIC_HE_EDCA,
 
+    /*
+     * Parameter used to set default 6 GHz rate.
+     * Applies to all non data transmissions in 6 GHz unless
+     * overwritten by respective VDEV params.
+     */
+    WMI_PDEV_PARAM_DEFAULT_6GHZ_RATE,
+
+    /*
+     * Configures the duration (in seconds) to delay the channel avoidance
+     * indication at WLAN firmware before indicating it to WLAN host,
+     * when WWAN (LTE/5GNR) PCC is in conflict due to WWAN-WLAN coexistence.
+     * Default value is 60 seconds.
+     * If set to zero, FW sends channel avoidance indcation immediately to Host.
+     */
+    WMI_PDEV_PARAM_MWSCOEX_PCC_CHAVD_DELAY,
+
+    /*
+     * Configures the duration (in seconds) to delay the channel avoidance
+     * indication at WLAN firmware before indicating it to WLAN host,
+     * when WWAN (LTE/5GNR) SCC is in conflict due to WWAN-WLAN coexistence.
+     * Default value is 120 seconds.
+     * If set to zero, FW sends channel avoidance indcation immediately to Host.
+     */
+    WMI_PDEV_PARAM_MWSCOEX_SCC_CHAVD_DELAY,
+
+    /*
+     * Parameter used to set ageout timer value from host (units = seconds).
+     * If not set, FW use default value 2 seconds.
+     * ageout time: the time upto which DFS channel information such as
+     * beacon found is remembered
+     */
+    WMI_PDEV_PARAM_SET_DFS_CHAN_AGEOUT_TIME,
+
+    /* Parameter used for enabling/disabling xlna bypass for SAP mode*/
+    WMI_PDEV_PARAM_SET_SAP_XLNA_BYPASS,
+
 } WMI_PDEV_PARAM;
 
 #define WMI_PDEV_ONLY_BSR_TRIG_IS_ENABLED(trig_type) WMI_GET_BITS(trig_type, 0, 1)
@@ -10481,6 +10522,28 @@ typedef enum {
      */
     WMI_VDEV_PARAM_ENABLE_DISABLE_RTT_INITIATOR_ROLE, /* 0x9A */
 
+    /**
+     * To configure duration of how many seconds to wait to kickout peer
+     * if peer is not reachable
+     */
+    WMI_VDEV_PARAM_NDP_KEEPALIVE_TIMEOUT,      /* 0x9B*/
+
+    /**
+     * To support discovery of NAN cluster with Master Preference (MP) as 0
+     * when a new device is enabling NAN
+     */
+    WMI_VDEV_PARAM_ALLOW_NAN_INITIAL_DISCOVERY_OF_MP0_CLUSTER, /* 0x9C */
+
+    /**
+     * VDEV parameter to enable or disable roaming reason VSIE in
+     * re-association request
+     *
+     * Default : Disabled
+     * valid values: 0 - Disable 1 - Enable
+     */
+    WMI_VDEV_PARAM_ENABLE_DISABLE_ROAM_REASON_VSIE, /* 0x9D */
+
+
     /*=== ADD NEW VDEV PARAM TYPES ABOVE THIS LINE ===
      * The below vdev param types are used for prototyping, and are
      * prone to change.
@@ -13128,10 +13191,10 @@ typedef struct {
     A_UINT32 vendor_roam_score_algorithm_id;
     /*
      * During CU and low rssi based roam triggers, consider AP as
-     * roam candidate only if its roam score is better than
-     * candidate_min_roam_score.
+     * roam candidate only if its roam score is better than connected AP score
+     * by at least candidate_min_roam_score_delta.
      */
-    A_UINT32 candidate_min_roam_score;
+    A_UINT32 candidate_min_roam_score_delta;
 } wmi_roam_cnd_scoring_param;
 
 typedef struct {
@@ -13429,7 +13492,8 @@ typedef struct {
 /* flags for 11i offload */
 #define WMI_ROAM_OFFLOAD_FLAG_OKC_ENABLED       0   /* okc is enabled */
 #define WMI_ROAM_OFFLOAD_FLAG_PMK_CACHE_DISABLED 1  /* pmk caching is disabled */
-/* from bit 2 to bit 31 are reserved */
+#define WMI_ROAM_OFFLOAD_FLAG_SAE_SAME_PMKID 2      /* Use same PMKID for WPA3 SAE roaming */
+/* from bit 3 to bit 31 are reserved */
 
 #define WMI_SET_ROAM_OFFLOAD_OKC_ENABLED(flag) do { \
         (flag) |=  (1 << WMI_ROAM_OFFLOAD_FLAG_OKC_ENABLED);      \
@@ -16172,7 +16236,17 @@ typedef struct {
     A_UINT32  max_duration_ms; /* in milliseconds */
     A_UINT32  chan_freq;   /* in MHz */
     A_UINT32  chan_width;  /* in MHz */
-    A_UINT32  center_freq; /* in MHz */
+    /*
+     * Two center frequencies are required since agile channel switch
+     * has to support 160/165 MHz for products like Pine.
+     * For agile which supports only up to 80MHz (HK),
+     * freq2 will be 0 and ignored.
+     */
+    union {
+        A_UINT32  center_freq; /* in MHz */ /* old name */
+        A_UINT32  center_freq1; /* in MHz */ /* new name */
+    };
+    A_UINT32  center_freq2; /* in MHz */
 } wmi_vdev_adfs_ch_cfg_cmd_fixed_param;
 
 typedef struct {
@@ -16210,8 +16284,18 @@ typedef struct {
     A_UINT32 vdev_id;
     A_UINT32 chan_freq;   /* in MHz */
     A_UINT32 chan_width;  /* in MHz */
-    A_UINT32 center_freq; /* in MHz */
+    /*
+     * Two center frequencies are required since agile channel switch
+     * has to support 160/165 MHz for products like Pine.
+     * For agile which supports only up to 80MHz (HK),
+     * freq2 will be 0 and ignored.
+     */
+    union {
+        A_UINT32 center_freq; /* in MHz */ /* old name */
+        A_UINT32 center_freq1; /* in MHz */ /* new name */
+    };
     A_UINT32 status;   /* WMI_VDEV_OCAC_COMPLETE_STATUS */
+    A_UINT32 center_freq2; /* in MHz */
 } wmi_vdev_adfs_ocac_complete_event_fixed_param;
 
 typedef struct {
@@ -18308,6 +18392,17 @@ typedef struct {
 } wmi_nan_joined_cluster_event_fixed_param_PROTOTYPE;
 
 #define wmi_nan_joined_cluster_event_fixed_param wmi_nan_joined_cluster_event_fixed_param_PROTOTYPE
+
+typedef struct {
+    /** TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_nan_dmesg_event_fixed_param */
+    A_UINT32 tlv_header;
+    /** length in byte of msg[]. */
+    A_UINT32 msg_len;
+    /* Following this structure is the TLV:
+     *  A_UINT8 msg[]; <-- length in byte given by field data_len.
+     * This data contains the string message which will be given to Host to dump it to kernel logs.
+     */
+} wmi_nan_dmesg_event_fixed_param;
 
 /** NAN DATA CMD's */
 
@@ -25275,6 +25370,7 @@ static INLINE A_UINT8 *wmi_id_to_name(A_UINT32 wmi_command)
         WMI_RETURN_STRING(WMI_VDEV_AUDIO_SYNC_TRIGGER_CMDID);
         WMI_RETURN_STRING(WMI_VDEV_AUDIO_SYNC_QTIMER_CMDID);
         WMI_RETURN_STRING(WMI_ROAM_GET_SCAN_CHANNEL_LIST_CMDID);
+        WMI_RETURN_STRING(WMI_VDEV_GET_BIG_DATA_CMDID);
     }
 
     return "Invalid WMI cmd";
@@ -26488,8 +26584,28 @@ typedef enum {
     WMI_ROAM_TRIGGER_REASON_BSS_LOAD,
     WMI_ROAM_TRIGGER_REASON_DEAUTH,
     WMI_ROAM_TRIGGER_REASON_IDLE,
+    /*
+     * NOTE: don't add any more ROAM_TRIGGER_REASON values here.
+     * There are checks in the FW that require the value of
+     * WMI_ROAM_TRIGGER_REASON_MAX to be < 16.
+     * Add new ROAM_TRIGGER_REASON values below, inside the
+     * WMI_ROAM_TRIGGER_EXT_REASON_ID enum.
+     */
     WMI_ROAM_TRIGGER_REASON_MAX,
 } WMI_ROAM_TRIGGER_REASON_ID;
+
+/*
+ * The WMI_ROAM_TRIGGER_REASON_ID enum cannot be expanded with new values,
+ * due to checks in the FW that require WMI_ROAM_TRIGGER_REASON_MAX to be
+ * less than 16.
+ * The WMI_ROAM_TRIGGER_EXT_REASON_ID enum is used to hold further roam
+ * trigger reasons.
+ */
+typedef enum {
+    WMI_ROAM_TRIGGER_REASON_STA_KICKOUT = WMI_ROAM_TRIGGER_REASON_MAX,
+
+    WMI_ROAM_TRIGGER_EXT_REASON_MAX
+} WMI_ROAM_TRIGGER_EXT_REASON_ID;
 
 /* value for DENSE roam trigger */
 #define WMI_RX_TRAFFIC_ABOVE_THRESHOLD 0x1
@@ -26977,6 +27093,77 @@ typedef struct {
  * A_UINT32 channel_list[];
  */
 } wmi_roam_scan_channel_list_event_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_get_big_data_cmd_fixed_param */
+    A_UINT32 vdev_id;
+} wmi_vdev_get_big_data_cmd_fixed_param;
+
+typedef struct {
+    A_UINT32 tlv_header; /* TLV tag and len; tag equals WMITLV_TAG_STRUC_wmi_vdev_send_big_data_event_fixed_param */
+    A_UINT32 vdev_id;
+    /** param list **/
+    /* Target power (dBm units) - 2.4G/5G */
+    A_UINT32 target_power_2g_dsss;
+    A_UINT32 target_power_2g_ofdm;
+    A_UINT32 target_power_2g_mcs0;
+    A_UINT32 target_power_5g_ofdm;
+    A_UINT32 target_power_5g_mcs0;
+
+    /* ANI level from hal-phy */
+    A_UINT32 ani_level;
+
+    /* Number of probe requests sent while roaming after BMISS */
+    A_UINT32 tx_probe_req;
+
+    /* Number of probe responses received while roaming after BMISS */
+    A_UINT32 rx_probe_response;
+
+    /*
+     * Number of retries (both by HW and FW) for tx data MPDUs sent by this vdev
+     */
+    A_UINT32 num_data_retries;
+
+    /* Number of tx data MPDUs dropped from this vdev due to tx retry limit */
+    A_UINT32 num_tx_data_fail;
+
+    /* Number of aggregated unicast tx expecting response ppdu */
+    A_UINT32 data_tx_ppdu_count;
+
+    /* Number of aggregated unicast tx expecting response mpdu */
+    A_UINT32 data_tx_mpdu_count;
+
+    /* number of rx frames with good PCLP */
+    A_UINT32 rx_frame_good_pclp_count;
+
+    /* Number of occasions that no valid delimiter is detected by ampdu parser */
+    A_UINT32 invalid_delimiter_count;
+
+    /* Number of frames for which the CRC check failed in the MAC */
+    A_UINT32 rx_crc_check_fail_count;
+
+    /* tx fifo overflows count for transmissions by this vdev */
+    A_UINT32 txpcu_fifo_overflows_count;
+
+    /* Number of ucast ACKS received good FCS (doesn't include block acks) */
+    A_UINT32 successful_acks_count;
+
+    /*
+     * RX BlockACK Counts
+     * Note that this counts the number of block acks received by this vdev,
+     * not the number of MPDUs acked by block acks.
+     */
+    A_UINT32 rx_block_ack_count;
+
+    /* Beacons received from member of BSS */
+    A_UINT32 member_bss_beacon_count;
+
+    /* Beacons received from other BSS */
+    A_UINT32 non_bss_beacon_count;
+
+    /* Number of RX Data multicast frames dropped by the HW */
+    A_UINT32 rx_data_mc_frame_filtered_count;
+} wmi_vdev_send_big_data_event_fixed_param;
 
 typedef struct {
     A_UINT32 tlv_header;    /* TLV tag and len; tag equals wmi_txpower_query_cmd_fixed_param  */
