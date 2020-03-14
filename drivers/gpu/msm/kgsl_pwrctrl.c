@@ -390,7 +390,6 @@ unsigned int kgsl_pwrctrl_adjust_pwrlevel(struct kgsl_device *device,
 				unsigned int new_level)
 {
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
-	unsigned int old_level = pwr->active_pwrlevel;
 
 	/* If a pwr constraint is expired, remove it */
 	if ((pwr->constraint.type != KGSL_CONSTRAINT_NONE) &&
