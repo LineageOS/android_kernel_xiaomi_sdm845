@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -119,7 +119,7 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 
 	switch (pRecord->code) {
 	case TRACE_CODE_MLM_STATE:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"MLM State:",
 			lim_trace_get_mlm_state_string(
@@ -127,7 +127,7 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 			pRecord->data);
 		break;
 	case TRACE_CODE_SME_STATE:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"SME State:",
 			lim_trace_get_sme_state_string(
@@ -135,7 +135,7 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 			pRecord->data);
 		break;
 	case TRACE_CODE_TX_MGMT:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX Mgmt:", frameSubtypeStr[pRecord->data],
 			pRecord->data);
@@ -144,10 +144,10 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 	case TRACE_CODE_RX_MGMT:
 		if (LIM_TRACE_MAX_SUBTYPES <=
 		    LIM_TRACE_GET_SUBTYPE(pRecord->data))
-			pe_debug("Wrong Subtype - %d",
+			pe_nofl_debug("Wrong Subtype - %d",
 				LIM_TRACE_GET_SUBTYPE(pRecord->data));
 		else
-			pe_debug("%04d %012llu %s S%d %-14s %-30s(%d) SN: %d",
+			pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(%d) SN: %d",
 				recIndex, pRecord->qtime, pRecord->time,
 				pRecord->session, "RX Mgmt:",
 				frameSubtypeStr[LIM_TRACE_GET_SUBTYPE
@@ -156,7 +156,7 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 				LIM_TRACE_GET_SSN(pRecord->data));
 		break;
 	case TRACE_CODE_RX_MGMT_DROP:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(%d)",
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(%d)",
 			recIndex, pRecord->qtime, pRecord->time,
 			pRecord->session, "Drop RX Mgmt:",
 			__lim_trace_get_mgmt_drop_reason_string(
@@ -165,27 +165,27 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_RX_MGMT_TSF:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s0x%x(%d)",
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s0x%x(%d)",
 			recIndex, pRecord->qtime, pRecord->time,
 			pRecord->session, "RX Mgmt TSF:", " ",
 			pRecord->data, pRecord->data);
 		break;
 
 	case TRACE_CODE_TX_COMPLETE:
-		pe_debug("%04d %012llu %s S%d %-14s %d", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %d", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX Complete", pRecord->data);
 		break;
 
 	case TRACE_CODE_TX_SME_MSG:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX SME Msg:",
 			mac_trace_get_sme_msg_string((uint16_t) pRecord->data),
 			pRecord->data);
 		break;
 	case TRACE_CODE_RX_SME_MSG:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			LIM_TRACE_GET_DEFRD_OR_DROPPED(
 			pRecord->data) ? "Def/Drp LIM Msg:" : "RX Sme Msg:",
@@ -194,7 +194,7 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_TX_WMA_MSG:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX WMA Msg:",
 			mac_trace_get_wma_msg_string((uint16_t) pRecord->data),
@@ -202,7 +202,7 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_RX_WMA_MSG:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			LIM_TRACE_GET_DEFRD_OR_DROPPED(
 			pRecord->data) ? "Def/Drp LIM Msg:" : "RX WMA Msg:",
@@ -211,14 +211,14 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_TX_LIM_MSG:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX LIM Msg:",
 			mac_trace_get_lim_msg_string((uint16_t) pRecord->data),
 			pRecord->data);
 		break;
 	case TRACE_CODE_RX_LIM_MSG:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			LIM_TRACE_GET_DEFRD_OR_DROPPED(
 			pRecord->data) ? "Def/Drp LIM Msg:" : "RX LIM Msg",
@@ -226,14 +226,14 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 			pRecord->data);
 		break;
 	case TRACE_CODE_TX_CFG_MSG:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x) ", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x) ", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"TX CFG Msg:",
 			mac_trace_get_cfg_msg_string((uint16_t) pRecord->data),
 			pRecord->data);
 		break;
 	case TRACE_CODE_RX_CFG_MSG:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x) ", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x) ", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			LIM_TRACE_GET_DEFRD_OR_DROPPED(
 			pRecord->data) ? "Def/Drp LIM Msg:" : "RX CFG Msg:",
@@ -243,14 +243,14 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_TIMER_ACTIVATE:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"Timer Actvtd",
 			__lim_trace_get_timer_string((uint16_t) pRecord->data),
 			pRecord->data);
 		break;
 	case TRACE_CODE_TIMER_DEACTIVATE:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)", recIndex,
 			pRecord->qtime, pRecord->time, pRecord->session,
 			"Timer DeActvtd",
 			__lim_trace_get_timer_string((uint16_t) pRecord->data),
@@ -258,14 +258,14 @@ void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
 		break;
 
 	case TRACE_CODE_INFO_LOG:
-		pe_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)",
+		pe_nofl_debug("%04d %012llu %s S%d %-14s %-30s(0x%x)",
 			recIndex, pRecord->qtime, pRecord->time,
 			pRecord->session, "INFORMATION_LOG",
 			mac_trace_get_info_log_string((uint16_t) pRecord->data),
 			pRecord->data);
 		break;
 	default:
-		pe_debug("%04d %012llu %s S%d %-14s(%d) (0x%x)",
+		pe_nofl_debug("%04d %012llu %s S%d %-14s(%d) (0x%x)",
 			recIndex, pRecord->qtime, pRecord->time,
 			pRecord->session, "Unknown Code",
 			pRecord->code, pRecord->data);

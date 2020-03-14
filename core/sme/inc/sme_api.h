@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -59,6 +59,17 @@
 #define sme_warn(params...) QDF_TRACE_WARN(QDF_MODULE_ID_SME, params)
 #define sme_info(params...) QDF_TRACE_INFO(QDF_MODULE_ID_SME, params)
 #define sme_debug(params...) QDF_TRACE_DEBUG(QDF_MODULE_ID_SME, params)
+
+#define sme_nofl_alert(params...) \
+	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_SME, params)
+#define sme_nofl_err(params...) \
+	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_SME, params)
+#define sme_nofl_warn(params...) \
+	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_SME, params)
+#define sme_nofl_info(params...) \
+	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_SME, params)
+#define sme_nofl_debug(params...) \
+	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_SME, params)
 
 #define sme_alert_rl(params...) QDF_TRACE_FATAL_RL(QDF_MODULE_ID_SME, params)
 #define sme_err_rl(params...) QDF_TRACE_ERROR_RL(QDF_MODULE_ID_SME, params)
@@ -467,11 +478,13 @@ QDF_STATUS sme_roam_connect_to_last_profile(tHalHandle hHal, uint8_t sessionId);
  * @hal: HAL context
  * @session: SME session identifier
  * @reason: Reason to disconnect
+ * @mac_reason: Reason to disconnect as per enum eSirMacReasonCodes
  *
  * Return: QDF Status success or failure
  */
 QDF_STATUS sme_roam_disconnect(tHalHandle hal, uint8_t session,
-			       eCsrRoamDisconnectReason reason);
+			       eCsrRoamDisconnectReason reason,
+			       tSirMacReasonCodes mac_reason);
 
 void sme_dhcp_done_ind(tHalHandle hal, uint8_t session_id);
 QDF_STATUS sme_roam_stop_bss(tHalHandle hHal, uint8_t sessionId);
@@ -495,6 +508,30 @@ QDF_STATUS sme_roam_set_pmkid_cache(tHalHandle hHal, uint8_t sessionId,
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /**
+ * sme_set_roam_scan_ch_event_cb() - Register roam scan ch callback
+ * @mac_handle: Opaque handle to the MAC context
+ * @cb: callback to be registered
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+sme_set_roam_scan_ch_event_cb(mac_handle_t mac_handle,
+			      sme_get_raom_scan_ch_Callback cb);
+
+/**
+ * sme_get_roam_scan_ch() sme api to get roam scan channel list
+ * @hal: hal handle
+ * @vdev_id: vdev id
+ * @pcontext: pointer to cookie
+ *
+ * This API is used to get roam scan channels form firmware.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_get_roam_scan_ch(tHalHandle hal, uint8_t vdev_id,
+				void *pcontext);
+
+/**
  * sme_get_pmk_info(): A wrapper function to request CSR to save PMK
  * @hal: Global structure
  * @session_id: SME session_id
@@ -507,6 +544,20 @@ void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
 
 QDF_STATUS sme_roam_set_psk_pmk(tHalHandle hHal, uint8_t sessionId,
 		uint8_t *pPSK_PMK, size_t pmk_len);
+#else
+static inline QDF_STATUS
+sme_get_roam_scan_ch(tHalHandle hal, uint8_t vdev_id,
+		     void *pcontext)
+{
+	return QDF_STATUS_E_FAILURE;
+}
+
+static inline QDF_STATUS
+sme_set_roam_scan_ch_event_cb(mac_handle_t mac_handle,
+			      void *cb)
+{
+	return QDF_STATUS_E_FAILURE;
+}
 #endif
 
 /**
@@ -565,6 +616,7 @@ QDF_STATUS sme_get_rssi(tHalHandle hHal,
 QDF_STATUS sme_get_snr(tHalHandle hHal,
 		tCsrSnrCallback callback,
 		uint8_t staId, struct qdf_mac_addr bssId, void *pContext);
+
 #ifdef FEATURE_WLAN_ESE
 QDF_STATUS sme_get_tsm_stats(tHalHandle hHal,
 		tCsrTsmStatsCallback callback,
@@ -1080,6 +1132,7 @@ QDF_STATUS sme_send_rate_update_ind(tHalHandle hHal,
 		tSirRateUpdateInd *rateUpdateParams);
 QDF_STATUS sme_roam_del_pmkid_from_cache(tHalHandle hHal, uint8_t sessionId,
 		tPmkidCacheInfo *pmksa, bool flush_cache);
+
 void sme_get_command_q_status(tHalHandle hHal);
 
 QDF_STATUS sme_enable_rmc(tHalHandle hHal, uint32_t sessionId);
@@ -1088,6 +1141,24 @@ QDF_STATUS sme_send_rmc_action_period(tHalHandle hHal, uint32_t sessionId);
 QDF_STATUS sme_request_ibss_peer_info(tHalHandle hHal, void *pUserData,
 	pIbssPeerInfoCb peerInfoCbk, bool allPeerInfoReqd, uint8_t staIdx);
 QDF_STATUS sme_send_cesium_enable_ind(tHalHandle hHal, uint32_t sessionId);
+
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+/**
+ * sme_send_dscp_up_map_to_fw() - send DSCP-to-UP map values to fw
+ * @dscp_to_up_map: array of DSCP-to-UP map values
+ *
+ * Used to send DSCP-to-UP map values to fw
+ *
+ * Return QDF_STATUS
+ */
+QDF_STATUS sme_send_dscp_up_map_to_fw(uint32_t *dscp_to_up_map);
+#else
+static inline
+QDF_STATUS sme_send_dscp_up_map_to_fw(uint32_t *dscp_to_up_map)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 
 /**
  * sme_set_wlm_latency_level_ind() - Used to set the latency level to fw
@@ -1716,7 +1787,18 @@ sme_apf_read_work_memory(tHalHandle hal,
 #endif /* FEATURE_WLAN_APF */
 
 uint32_t sme_get_wni_dot11_mode(tHalHandle hal);
-QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
+
+/**
+ * sme_create_mon_session() - post message to create PE session for monitormode
+ * operation
+ * @hal_handle: Handle to the HAL
+ * @bssid: pointer to bssid
+ * @vdev_id: vdev id
+ *
+ * Return: QDF_STATUS_SUCCESS on success, non-zero error code on failure.
+ */
+QDF_STATUS sme_create_mon_session(tHalHandle hal_handle,
+				  uint8_t *bssid, uint8_t vdev_id);
 /**
  * sme_delete_mon_session() - post message to delete PE session for mon_mode
  * operation
@@ -3120,4 +3202,19 @@ static inline void sme_reset_oem_data_event_handler_cb(mac_handle_t  mac_handle)
 
 #endif
 
+/**
+ * sme_get_prev_connected_bss_ies() - Get the previous connected AP IEs
+ * @mac_handle: The handle returned by mac_open.
+ * @vdev_id: vdev id
+ * @ies: IEs of the disconnected AP. Currently to carry beacon IEs.
+ * @ie_len: Length of the @ies
+ *
+ * This API extracts the IEs from the previous connected AP info and update
+ * them to the ies and ie_len.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_get_prev_connected_bss_ies(mac_handle_t mac_handle,
+					  uint8_t vdev_id,
+					  uint8_t **ies, uint32_t *ie_len);
 #endif /* #if !defined( __SME_API_H ) */

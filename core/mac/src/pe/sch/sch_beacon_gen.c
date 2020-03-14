@@ -451,7 +451,6 @@ sch_set_fixed_beacon_fields(tpAniSirGlobal mac_ctx, tpPESession session)
 		populate_dot11f_ht_info(mac_ctx, &bcn_2->HTInfo, session);
 	}
 	if (session->vhtCapability) {
-		pe_debug("Populate VHT IEs in Beacon");
 		populate_dot11f_vht_caps(mac_ctx, session, &bcn_2->VHTCaps);
 		populate_dot11f_vht_operation(mac_ctx, session,
 					      &bcn_2->VHTOperation);

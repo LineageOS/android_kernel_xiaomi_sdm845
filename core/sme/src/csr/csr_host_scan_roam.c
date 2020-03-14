@@ -519,9 +519,6 @@ void csr_neighbor_roam_free_roamable_bss_list(tpAniSirGlobal mac_ctx,
 {
 	tpCsrNeighborRoamBSSInfo result = NULL;
 
-	sme_debug("Emptying the BSS list. Current count: %d",
-		csr_ll_count(llist));
-
 	/*
 	 * Pick up the head, remove and free the node till
 	 * the list becomes empty
@@ -673,10 +670,11 @@ void csr_neighbor_roam_request_handoff(tpAniSirGlobal mac_ctx,
 
 	sme_debug("csr_roamHandoffRequested: disassociating with current AP");
 
-	if (!QDF_IS_STATUS_SUCCESS
-		    (csr_roam_issue_disassociate_cmd
-			    (mac_ctx, session_id,
-			    eCSR_DISCONNECT_REASON_HANDOFF))) {
+	if (!QDF_IS_STATUS_SUCCESS(csr_roam_issue_disassociate_cmd(
+					mac_ctx,
+					session_id,
+					eCSR_DISCONNECT_REASON_HANDOFF,
+					eSIR_MAC_UNSPEC_FAILURE_REASON))) {
 		sme_warn("csr_roamHandoffRequested: fail to issue disassoc");
 		qdf_mem_free(roam_info);
 		return;

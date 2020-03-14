@@ -1045,8 +1045,6 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 	uint16_t sap_lfreq, sap_hfreq, intf_lfreq, intf_hfreq, sap_cch = 0;
 	QDF_STATUS status;
 
-	sme_debug("sap_ch: %d sap_phymode: %d", sap_ch, sap_phymode);
-
 	if (mac_ctx->roam.configParam.cc_switch_mode ==
 			QDF_MCC_TO_SCC_SWITCH_DISABLE)
 		return 0;
@@ -1100,9 +1098,6 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 					session, &sap_ch, &sap_hbw, &sap_cfreq,
 					&intf_ch, &intf_hbw, &intf_cfreq);
 
-			sme_debug("%d: sap_ch:%d sap_hbw:%d sap_cfreq:%d intf_ch:%d intf_hbw:%d, intf_cfreq:%d",
-					i, sap_ch, sap_hbw, sap_cfreq,
-					intf_ch, intf_hbw, intf_cfreq);
 		}
 		if (intf_ch && ((intf_ch > 14 && sap_ch > 14) ||
 				(intf_ch <= 14 && sap_ch <= 14)))
@@ -1110,8 +1105,8 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 	}
 
 	sme_debug("intf_ch:%d sap_ch:%d cc_switch_mode:%d, dbs:%d",
-			intf_ch, sap_ch, cc_switch_mode,
-			policy_mgr_is_dbs_enable(mac_ctx->psoc));
+		  intf_ch, sap_ch, cc_switch_mode,
+		  policy_mgr_is_dbs_enable(mac_ctx->psoc));
 
 	if (intf_ch && sap_ch != intf_ch &&
 	    !policy_mgr_is_force_scc(mac_ctx->psoc)) {
@@ -1120,12 +1115,13 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 		intf_lfreq = intf_cfreq - intf_hbw;
 		intf_hfreq = intf_cfreq + intf_hbw;
 
-		sme_err("SAP:  OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d INTF: OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d",
-			sap_ch, cds_chan_to_freq(sap_ch),
-			cds_freq_to_chan(sap_cfreq), sap_cfreq, sap_hbw * 2,
-			sap_lfreq, sap_hfreq, intf_ch,
-			cds_chan_to_freq(intf_ch), cds_freq_to_chan(intf_cfreq),
-			intf_cfreq, intf_hbw * 2, intf_lfreq, intf_hfreq);
+		sme_debug("SAP:  OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d INTF: OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d",
+			  sap_ch, cds_chan_to_freq(sap_ch),
+			  cds_freq_to_chan(sap_cfreq), sap_cfreq, sap_hbw * 2,
+			  sap_lfreq, sap_hfreq, intf_ch,
+			  cds_chan_to_freq(intf_ch),
+			  cds_freq_to_chan(intf_cfreq),
+			  intf_cfreq, intf_hbw * 2, intf_lfreq, intf_hfreq);
 
 		if (!(((sap_lfreq > intf_lfreq && sap_lfreq < intf_hfreq) ||
 			(sap_hfreq > intf_lfreq && sap_hfreq < intf_hfreq)) ||
@@ -1164,8 +1160,8 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 	if (intf_ch == sap_ch)
 		intf_ch = 0;
 
-	sme_err("##Concurrent Channels %s Interfering",
-		intf_ch == 0 ? "Not" : "Are");
+	sme_debug("##Concurrent Channels %s Interfering",
+		  intf_ch == 0 ? "Not" : "Are");
 	return intf_ch;
 }
 #endif
@@ -1765,7 +1761,6 @@ uint32_t csr_translate_to_wni_cfg_dot11_mode(tpAniSirGlobal pMac,
 
 	switch (csrDot11Mode) {
 	case eCSR_CFG_DOT11_MODE_AUTO:
-		sme_debug("eCSR_CFG_DOT11_MODE_AUTO");
 		if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AX))
 			ret = WNI_CFG_DOT11_MODE_11AX;
 		else if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
@@ -2600,7 +2595,7 @@ static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
 		 *  MCC should not be enabled so making it
 		 * false to enforce on same channel
 		 */
-		sme_err("*** MCC with SAP+STA sessions ****");
+		sme_debug("*** MCC with SAP+STA sessions ****");
 		*status = QDF_STATUS_SUCCESS;
 		return true;
 	}
@@ -6338,7 +6333,6 @@ bool csr_is_set_key_allowed(tpAniSirGlobal pMac, uint32_t sessionId)
 	 * The current work-around is to process setcontext_rsp no matter
 	 * what the state is.
 	 */
-	sme_debug("is not what it intends to. Must be revisit or removed");
 	if ((NULL == pSession)
 	    || (csr_is_conn_state_disconnected(pMac, sessionId)
 		&& (pSession->pCurRoamProfile != NULL)

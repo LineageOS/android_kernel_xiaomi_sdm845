@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -395,6 +395,18 @@ QDF_STATUS pmo_ucfg_add_wow_user_pattern(struct wlan_objmgr_vdev *vdev,
 		struct pmo_wow_add_pattern *ptrn)
 {
 	return pmo_core_add_wow_user_pattern(vdev, ptrn);
+}
+
+QDF_STATUS ucfg_pmo_suspend_all_components(struct wlan_objmgr_psoc *psoc,
+					   enum qdf_suspend_type type)
+{
+	return pmo_suspend_all_components(psoc, type);
+}
+
+QDF_STATUS ucfg_pmo_resume_all_components(struct wlan_objmgr_psoc *psoc,
+					  enum qdf_suspend_type type)
+{
+	return pmo_resume_all_components(psoc, type);
 }
 
 QDF_STATUS

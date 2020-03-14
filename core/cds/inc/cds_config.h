@@ -176,6 +176,7 @@ struct cds_config_info {
 	bool enable_tx_compl_tsf64;
 	bool enable_three_way_coex_config_legacy;
 	uint32_t num_vdevs;
+	bool bmiss_skip_full_scan;
 };
 
 #ifdef WLAN_FEATURE_FILS_SK

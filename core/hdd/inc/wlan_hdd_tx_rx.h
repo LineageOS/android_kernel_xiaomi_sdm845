@@ -184,11 +184,29 @@ void wlan_hdd_netif_queue_control(struct hdd_adapter *adapter,
 
 #ifdef FEATURE_MONITOR_MODE_SUPPORT
 int hdd_set_mon_rx_cb(struct net_device *dev);
+
+/**
+ * hdd_mon_rx_packet_cbk() - Receive callback registered with OL layer.
+ * @context: pointer to qdf context
+ * @rxBuf: pointer to rx qdf_nbuf
+ *
+ * TL will call this to notify the HDD when one or more packets were
+ * received for a registered STA.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS hdd_mon_rx_packet_cbk(void *context, qdf_nbuf_t rxbuf);
 #else
 static inline
 int hdd_set_mon_rx_cb(struct net_device *dev)
 {
 	return 0;
+}
+
+static inline
+QDF_STATUS hdd_mon_rx_packet_cbk(void *context, qdf_nbuf_t rxbuf)
+{
+	return QDF_STATUS_SUCCESS;
 }
 #endif
 

@@ -63,7 +63,8 @@ static tSelfRecoveryStats g_self_recovery_stats;
 
 static QDF_STATUS init_sme_cmd_list(tpAniSirGlobal pMac);
 
-static void sme_disconnect_connected_sessions(tpAniSirGlobal pMac);
+static void sme_disconnect_connected_sessions(tpAniSirGlobal pMac,
+					      enum eSirMacReasonCodes reason);
 
 static QDF_STATUS sme_handle_generic_change_country_code(tpAniSirGlobal pMac,
 						  void *pMsgBuf);
@@ -1389,9 +1390,6 @@ static QDF_STATUS dfs_msg_processor(tpAniSirGlobal mac,
 		session_id = csa_ie_tx_complete_rsp->sessionId;
 		roam_status = eCSR_ROAM_DFS_CHAN_SW_NOTIFY;
 		roam_result = eCSR_ROAM_RESULT_DFS_CHANSW_UPDATE_SUCCESS;
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "eWNI_SME_DFS_CSAIE_TX_COMPLETE_IND session=%d",
-			  session_id);
 		break;
 	}
 	case eWNI_SME_DFS_CAC_COMPLETE:
@@ -2054,6 +2052,113 @@ static QDF_STATUS sme_process_antenna_mode_resp(tpAniSirGlobal mac,
 	return QDF_STATUS_SUCCESS;
 }
 
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+QDF_STATUS sme_set_roam_scan_ch_event_cb(mac_handle_t mac_handle,
+					 sme_get_raom_scan_ch_Callback cb)
+{
+	QDF_STATUS qdf_status;
+	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
+
+	qdf_status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(qdf_status))
+		return qdf_status;
+
+	mac->sme.roam_scan_ch_callback = cb;
+	sme_release_global_lock(&mac->sme);
+
+	return qdf_status;
+}
+
+static void
+sme_process_roam_scan_ch_list_resp(tpAniSirGlobal mac,
+				   struct roam_scan_ch_resp *roam_ch)
+{
+	sme_get_raom_scan_ch_Callback callback =
+				mac->sme.roam_scan_ch_callback;
+
+	if (!roam_ch)
+		return;
+
+	if (callback)
+		callback(mac->hdd_handle, roam_ch,
+			 mac->sme.roam_scan_ch_get_context);
+}
+
+/*
+ * sme_update_roam_offload_enabled() - enable/disable roam offload feaure
+ *  It is used at in the REG_DYNAMIC_VARIABLE macro definition of
+ *
+ * hHal - The handle returned by mac_open.
+ * nRoamOffloadEnabled - The bool to update with
+ * Return QDF_STATUS_SUCCESS - SME update config successfully.
+ *	   Other status means SME is failed to update.
+ */
+
+QDF_STATUS sme_update_roam_offload_enabled(tHalHandle hHal,
+					   bool nRoamOffloadEnabled)
+{
+	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	status = sme_acquire_global_lock(&pMac->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+			  "%s: LFR3:gRoamOffloadEnabled is changed from %d to %d",
+			  __func__, pMac->roam.configParam.isRoamOffloadEnabled,
+			  nRoamOffloadEnabled);
+		pMac->roam.configParam.isRoamOffloadEnabled =
+			nRoamOffloadEnabled;
+		sme_release_global_lock(&pMac->sme);
+	}
+
+	return status;
+}
+
+/**
+ * sme_update_roam_key_mgmt_offload_enabled() - enable/disable key mgmt offload
+ * This is a synchronous call
+ * @hal_ctx: The handle returned by mac_open.
+ * @session_id: Session Identifier
+ * @key_mgmt_offload_enabled: key mgmt enable/disable flag
+ * @pmkid_modes: PMKID modes of PMKSA caching and OKC
+ * Return: QDF_STATUS_SUCCESS - SME updated config successfully.
+ * Other status means SME is failed to update.
+ */
+
+QDF_STATUS
+sme_update_roam_key_mgmt_offload_enabled(tHalHandle hal_ctx,
+					 uint8_t session_id,
+					 bool key_mgmt_offload_enabled,
+					 struct pmkid_mode_bits *pmkid_modes)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	status = sme_acquire_global_lock(&mac_ctx->sme);
+	if (QDF_IS_STATUS_SUCCESS(status)) {
+		if (CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
+			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+				"%s: LFR3: key_mgmt_offload_enabled changed to %d",
+				  __func__, key_mgmt_offload_enabled);
+			status = csr_roam_set_key_mgmt_offload(mac_ctx,
+						session_id,
+						key_mgmt_offload_enabled,
+						pmkid_modes);
+		} else
+			status = QDF_STATUS_E_INVAL;
+		sme_release_global_lock(&mac_ctx->sme);
+	}
+
+	return status;
+}
+#else
+static inline void
+sme_process_roam_scan_ch_list_resp(tpAniSirGlobal mac,
+				   void *roam_ch)
+{
+}
+#endif
+
 QDF_STATUS sme_process_msg(tpAniSirGlobal pMac, struct scheduler_msg *pMsg)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
@@ -2427,6 +2532,10 @@ QDF_STATUS sme_process_msg(tpAniSirGlobal pMac, struct scheduler_msg *pMsg)
 		} else {
 			sme_err("Empty message for: %d", pMsg->type);
 		}
+		break;
+	case eWNI_SME_GET_ROAM_SCAN_CH_LIST_EVENT:
+		sme_process_roam_scan_ch_list_resp(pMac, pMsg->bodyptr);
+		qdf_mem_free(pMsg->bodyptr);
 		break;
 	default:
 
@@ -3296,7 +3405,8 @@ QDF_STATUS sme_roam_connect_to_last_profile(tHalHandle hHal, uint8_t sessionId)
 }
 
 QDF_STATUS sme_roam_disconnect(tHalHandle hal, uint8_t session_id,
-			       eCsrRoamDisconnectReason reason)
+			       eCsrRoamDisconnectReason reason,
+			       tSirMacReasonCodes mac_reason)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
@@ -3308,7 +3418,8 @@ QDF_STATUS sme_roam_disconnect(tHalHandle hal, uint8_t session_id,
 	if (QDF_IS_STATUS_SUCCESS(status)) {
 		if (CSR_IS_SESSION_VALID(mac_ctx, session_id))
 			status = csr_roam_disconnect(mac_ctx, session_id,
-						     reason);
+						     reason,
+						     mac_reason);
 		else
 			status = QDF_STATUS_E_INVAL;
 		sme_release_global_lock(&mac_ctx->sme);
@@ -3649,6 +3760,36 @@ void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
 #endif
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+QDF_STATUS sme_get_roam_scan_ch(tHalHandle hal, uint8_t vdev_id,
+				void *pcontext)
+{
+	struct scheduler_msg msg = {0};
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status))
+		return QDF_STATUS_E_FAILURE;
+
+	msg.type = WMA_ROAM_SCAN_CH_REQ;
+	msg.bodyval = vdev_id;
+	mac->sme.roam_scan_ch_get_context = pcontext;
+
+	if (scheduler_post_message(QDF_MODULE_ID_SME,
+				   QDF_MODULE_ID_WMA,
+				   QDF_MODULE_ID_WMA,
+				   &msg)) {
+		sme_err("Posting message %d failed",
+			WMA_ROAM_SCAN_CH_REQ);
+		mac->sme.roam_scan_ch_get_context = NULL;
+		sme_release_global_lock(&mac->sme);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	sme_release_global_lock(&mac->sme);
+	return QDF_STATUS_SUCCESS;
+}
+
 /*
  * \fn sme_roam_set_psk_pmk
  * \brief a wrapper function to request CSR to save PSK/PMK
@@ -5968,7 +6109,8 @@ sme_handle_generic_change_country_code(tpAniSirGlobal mac_ctx,
 
 	mac_ctx->reg_hint_src = SOURCE_UNKNOWN;
 
-	sme_disconnect_connected_sessions(mac_ctx);
+	sme_disconnect_connected_sessions(mac_ctx,
+					  eSIR_MAC_UNSPEC_FAILURE_REASON);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -5990,7 +6132,8 @@ QDF_STATUS sme_update_channel_list(tHalHandle hal)
 
 		csr_apply_channel_power_info_wrapper(mac_ctx);
 		csr_scan_filter_results(mac_ctx);
-		sme_disconnect_connected_sessions(mac_ctx);
+		sme_disconnect_connected_sessions(mac_ctx,
+					eSIR_MAC_OPER_CHANNEL_USER_DISABLED);
 		sme_release_global_lock(&mac_ctx->sme);
 	}
 
@@ -6011,17 +6154,20 @@ sme_search_in_base_ch_lst(tpAniSirGlobal mac_ctx, uint8_t curr_ch)
 
 	return false;
 }
+
 /**
  * sme_disconnect_connected_sessions() - Disconnect STA and P2P client session
  * if channel is not supported
- * @mac_ctx:          mac global context
+ * @mac_ctx: mac global context
+ * @reason: Mac Disconnect reason code as per @enum eSirMacReasonCodes
  *
  * If new country code does not support the channel on which STA/P2P client
  * is connetced, it sends the disconnect to the AP/P2P GO
  *
  * Return: void
  */
-static void sme_disconnect_connected_sessions(tpAniSirGlobal mac_ctx)
+static void sme_disconnect_connected_sessions(tpAniSirGlobal mac_ctx,
+					      enum eSirMacReasonCodes reason)
 {
 	uint8_t session_id, found = false;
 	uint8_t curr_ch;
@@ -6039,7 +6185,8 @@ static void sme_disconnect_connected_sessions(tpAniSirGlobal mac_ctx)
 		if (!found) {
 			sme_debug("Disconnect Session: %d", session_id);
 			csr_roam_disconnect(mac_ctx, session_id,
-					    eCSR_DISCONNECT_REASON_UNSPECIFIED);
+					    eCSR_DISCONNECT_REASON_UNSPECIFIED,
+					    reason);
 		}
 	}
 }
@@ -6972,16 +7119,12 @@ void sme_free_join_rsp_fils_params(struct csr_roam_info *roam_info)
 {
 	struct fils_join_rsp_params *roam_fils_params;
 
-	if (!roam_info) {
-		sme_err("FILS Roam Info NULL");
+	if (!roam_info)
 		return;
-	}
 
 	roam_fils_params = roam_info->fils_join_rsp;
-	if (!roam_fils_params) {
-		sme_err("FILS Roam Param NULL");
+	if (!roam_fils_params)
 		return;
-	}
 
 	if (roam_fils_params->fils_pmk)
 		qdf_mem_free(roam_fils_params->fils_pmk);
@@ -7993,14 +8136,6 @@ sme_restore_default_roaming_params(tpAniSirGlobal mac,
 {
 	struct csr_config *roam_config = &mac->roam.configParam;
 
-	sme_debug("%s default roam scoring",
-		  roam_config->neighborRoamConfig.enable_scoring_for_roam ?
-		  "Enable" : "Disable");
-
-	sme_debug("Restore scan period to: %u and full scan period to: %u",
-		  roam_config->neighborRoamConfig.nEmptyScanRefreshPeriod,
-		  roam_config->neighborRoamConfig.full_roam_scan_period);
-
 	roam_info->cfgParams.enable_scoring_for_roam =
 		roam_config->bss_score_params.enable_scoring_for_roam;
 	roam_info->cfgParams.emptyScanRefreshPeriod =
@@ -8013,8 +8148,7 @@ sme_restore_default_roaming_params(tpAniSirGlobal mac,
 		roam_config->neighborRoamConfig.nNeighborScanTimerPeriod;
 	roam_info->cfgParams.neighborLookupThreshold =
 		roam_config->neighborRoamConfig.nNeighborLookupRssiThreshold;
-	roam_info->cfgParams.roam_rssi_diff =
-		roam_config->neighborRoamConfig.roam_rssi_diff;
+	roam_info->cfgParams.roam_rssi_diff = roam_config->RoamRssiDiff;
 	roam_info->cfgParams.roam_scan_home_away_time =
 			roam_config->nRoamScanHomeAwayTime;
 	roam_info->cfgParams.roam_scan_n_probes =
@@ -8059,20 +8193,15 @@ QDF_STATUS sme_roam_control_restore_default_config(mac_handle_t mac_handle,
 		goto out;
 	}
 
-	sme_debug("Cleanup roam scan control");
 	mac->roam.configParam.nRoamScanControl = false;
 
 	neighbor_roam_info = &mac->roam.neighborRoamInfo[vdev_id];
 
-	sme_debug("Cleanup Preferred frequency list");
 	chan_info = &neighbor_roam_info->cfgParams.pref_chan_info;
 	csr_flush_cfg_bg_scan_roam_channel_list(chan_info);
 
-	sme_debug("Cleanup specific frequency list");
 	chan_info = &neighbor_roam_info->cfgParams.specific_chan_info;
 	csr_flush_cfg_bg_scan_roam_channel_list(chan_info);
-
-	sme_debug("Cleanup roam control config related lfr params");
 
 	sme_restore_default_roaming_params(mac, neighbor_roam_info);
 
@@ -8533,8 +8662,28 @@ void sme_dump_chan_list(tCsrChannelInfo *chan_info)
 		}
 	}
 
-	sme_debug("No.of frequencies: %u, frequency list: %s", i, channel_list);
+	sme_debug("frequency list [%u]: %s", i, channel_list);
 	qdf_mem_free(channel_list);
+}
+
+static uint8_t
+csr_append_pref_chan_list(tCsrChannelInfo *chan_info, uint8_t *channel_list,
+			  uint8_t num_chan)
+{
+	uint8_t i = 0;
+
+	for (i = 0; i < chan_info->numOfChannels; i++) {
+		if (csr_is_channel_present_in_list(
+			channel_list, num_chan, chan_info->ChannelList[i]))
+			continue;
+
+		if (num_chan >= SIR_ROAM_MAX_CHANNELS)
+			break;
+
+		channel_list[num_chan++] = chan_info->ChannelList[i];
+	}
+
+	return num_chan;
 }
 
 /**
@@ -8557,7 +8706,7 @@ sme_update_roam_scan_channel_list(mac_handle_t mac_handle, uint8_t vdev_id,
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
-	uint8_t *channel_list;
+	uint8_t *channel_list, pref_chan_cnt = 0;
 
 	channel_list = qdf_mem_malloc(SIR_MAX_SUPPORTED_CHANNEL_LIST);
 	if (!channel_list)
@@ -8574,9 +8723,15 @@ sme_update_roam_scan_channel_list(mac_handle_t mac_handle, uint8_t vdev_id,
 		status = QDF_STATUS_E_INVAL;
 		goto out;
 	}
+
+	pref_chan_cnt = csr_append_pref_chan_list(chan_info, channel_list,
+						  num_chan);
+	num_chan = pref_chan_cnt;
+
 	csr_flush_cfg_bg_scan_roam_channel_list(chan_info);
 	csr_create_bg_scan_roam_channel_list(mac, chan_info, channel_list,
 					     num_chan);
+
 	sme_debug("New channels:");
 	sme_dump_chan_list(chan_info);
 	sme_debug("Updated roam scan channels - roam state is %d",
@@ -8730,10 +8885,12 @@ QDF_STATUS sme_get_roam_scan_channel_list(tHalHandle hHal,
 			uint8_t *pChannelList, uint8_t *pNumChannels,
 			uint8_t sessionId)
 {
-	int i = 0;
+	int i = 0, chan_cnt = 0;
 	uint8_t *pOutPtr = pChannelList;
 	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo = NULL;
+	struct csr_channel *occupied_ch_lst =
+		&pMac->scan.occupiedChannels[sessionId];
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tCsrChannelInfo *chan_info;
 
@@ -8749,21 +8906,43 @@ QDF_STATUS sme_get_roam_scan_channel_list(tHalHandle hHal,
 		return status;
 
 	chan_info = &pNeighborRoamInfo->cfgParams.specific_chan_info;
-	if (!chan_info->numOfChannels) {
+	if (chan_info->numOfChannels) {
+		*pNumChannels = chan_info->numOfChannels;
+		for (chan_cnt = 0; chan_cnt < (*pNumChannels) &&
+		     chan_cnt < WNI_CFG_VALID_CHANNEL_LIST_LEN; chan_cnt++)
+			pOutPtr[chan_cnt] = chan_info->ChannelList[chan_cnt];
+
+		*pNumChannels = chan_cnt;
+	} else {
 		chan_info = &pNeighborRoamInfo->cfgParams.pref_chan_info;
-		if (!chan_info->numOfChannels) {
+		if (chan_info->numOfChannels) {
+			*pNumChannels = chan_info->numOfChannels;
+			for (chan_cnt = 0; chan_cnt < (*pNumChannels) &&
+			     chan_cnt < WNI_CFG_VALID_CHANNEL_LIST_LEN;
+			     chan_cnt++)
+				pOutPtr[chan_cnt] =
+					chan_info->ChannelList[chan_cnt];
+		}
+
+		if (occupied_ch_lst->numChannels) {
+			for (i = 0; i < occupied_ch_lst->numChannels &&
+			     chan_cnt < WNI_CFG_VALID_CHANNEL_LIST_LEN; i++) {
+				if (csr_is_channel_present_in_list(
+					pOutPtr, chan_cnt,
+					occupied_ch_lst->channelList[i]))
+					continue;
+				 pOutPtr[chan_cnt++] =
+					occupied_ch_lst->channelList[i];
+			}
+		}
+		*pNumChannels = chan_cnt;
+		if (!(chan_info->numOfChannels ||
+		      occupied_ch_lst->numChannels)) {
 			sme_err("Roam Scan channel list is NOT yet initialized");
-			*pNumChannels = 0;
-			sme_release_global_lock(&pMac->sme);
-			return status;
+			status = QDF_STATUS_E_INVAL;
 		}
 	}
 
-	*pNumChannels = chan_info->numOfChannels;
-	for (i = 0; i < (*pNumChannels); i++)
-		pOutPtr[i] = chan_info->ChannelList[i];
-
-	pOutPtr[i] = '\0';
 	sme_release_global_lock(&pMac->sme);
 	return status;
 }
@@ -9405,6 +9584,25 @@ QDF_STATUS sme_send_cesium_enable_ind(tHalHandle hHal, uint32_t sessionId)
 
 	return status;
 }
+
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+QDF_STATUS sme_send_dscp_up_map_to_fw(uint32_t *dscp_to_up_map)
+{
+	QDF_STATUS status;
+	void *wma = cds_get_context(QDF_MODULE_ID_WMA);
+
+	if (!wma) {
+		sme_err("wma is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	status = wma_send_dscp_up_map_to_fw(wma, dscp_to_up_map);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		sme_err("%s: failed to send dscp_up_map to FW", __func__);
+
+	return status;
+}
+#endif
 
 QDF_STATUS sme_set_wlm_latency_level(tHalHandle hal, uint16_t session_id,
 				     uint16_t latency_level)
@@ -12324,75 +12522,6 @@ QDF_STATUS sme_beacon_debug_stats_req(
 }
 #endif
 
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-/*
- * sme_update_roam_offload_enabled() - enable/disable roam offload feaure
- *  It is used at in the REG_DYNAMIC_VARIABLE macro definition of
- *
- * hHal - The handle returned by mac_open.
- * nRoamOffloadEnabled - The bool to update with
- * Return QDF_STATUS_SUCCESS - SME update config successfully.
- *	   Other status means SME is failed to update.
- */
-
-QDF_STATUS sme_update_roam_offload_enabled(tHalHandle hHal,
-					   bool nRoamOffloadEnabled)
-{
-	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-
-	status = sme_acquire_global_lock(&pMac->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "%s: LFR3:gRoamOffloadEnabled is changed from %d to %d",
-			  __func__, pMac->roam.configParam.isRoamOffloadEnabled,
-			  nRoamOffloadEnabled);
-		pMac->roam.configParam.isRoamOffloadEnabled =
-			nRoamOffloadEnabled;
-		sme_release_global_lock(&pMac->sme);
-	}
-
-	return status;
-}
-
-/**
- * sme_update_roam_key_mgmt_offload_enabled() - enable/disable key mgmt offload
- * This is a synchronous call
- * @hal_ctx: The handle returned by mac_open.
- * @session_id: Session Identifier
- * @key_mgmt_offload_enabled: key mgmt enable/disable flag
- * @pmkid_modes: PMKID modes of PMKSA caching and OKC
- * Return: QDF_STATUS_SUCCESS - SME updated config successfully.
- * Other status means SME is failed to update.
- */
-
-QDF_STATUS sme_update_roam_key_mgmt_offload_enabled(tHalHandle hal_ctx,
-					uint8_t session_id,
-					bool key_mgmt_offload_enabled,
-					struct pmkid_mode_bits *pmkid_modes)
-{
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal_ctx);
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-
-	status = sme_acquire_global_lock(&mac_ctx->sme);
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		if (CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-				"%s: LFR3: key_mgmt_offload_enabled changed to %d",
-				  __func__, key_mgmt_offload_enabled);
-			status = csr_roam_set_key_mgmt_offload(mac_ctx,
-						session_id,
-						key_mgmt_offload_enabled,
-						pmkid_modes);
-		} else
-			status = QDF_STATUS_E_INVAL;
-		sme_release_global_lock(&mac_ctx->sme);
-	}
-
-	return status;
-}
-#endif
-
 /*
  * sme_get_temperature() -
  * SME API to get the pdev temperature
@@ -14562,15 +14691,8 @@ uint32_t sme_get_wni_dot11_mode(tHalHandle hal)
 		mac_ctx->roam.configParam.uCfgDot11Mode);
 }
 
-/**
- * sme_create_mon_session() - post message to create PE session for monitormode
- * operation
- * @hal_handle: Handle to the HAL
- * @bssid: pointer to bssid
- *
- * Return: QDF_STATUS_SUCCESS on success, non-zero error code on failure.
- */
-QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, tSirMacAddr bss_id)
+QDF_STATUS sme_create_mon_session(tHalHandle hal_handle,
+				  tSirMacAddr bss_id, uint8_t vdev_id)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	struct sir_create_session *msg;
@@ -14580,6 +14702,7 @@ QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, tSirMacAddr bss_id)
 		msg->type = eWNI_SME_MON_INIT_SESSION;
 		msg->msg_len = sizeof(*msg);
 		qdf_mem_copy(msg->bss_id.bytes, bss_id, QDF_MAC_ADDR_SIZE);
+		msg->vdev_id = vdev_id;
 		status = umac_send_mb_message_to_mac(msg);
 	}
 	return status;
@@ -16952,13 +17075,18 @@ QDF_STATUS sme_set_roam_triggers(mac_handle_t mac_handle,
 	tpAniSirGlobal mac = PMAC_STRUCT(mac_handle);
 	struct scheduler_msg message = {0};
 	struct roam_triggers *roam_trigger_data;
+	tCsrNeighborRoamControlInfo *neighbor_roam_info;
 
 	/* per contract must make a copy of the params when messaging */
 	roam_trigger_data = qdf_mem_malloc(sizeof(*roam_trigger_data));
 	if (!roam_trigger_data)
 		return QDF_STATUS_E_NOMEM;
+
 	*roam_trigger_data = *triggers;
 
+	neighbor_roam_info = &mac->roam.neighborRoamInfo[triggers->vdev_id];
+	neighbor_roam_info->cfgParams.roam_trigger_bitmap =
+				roam_trigger_data->trigger_bitmap;
 	status = sme_acquire_global_lock(&mac->sme);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		qdf_mem_free(roam_trigger_data);
@@ -17069,3 +17197,46 @@ void sme_reset_oem_data_event_handler_cb(mac_handle_t  mac_handle)
 	}
 }
 #endif
+
+QDF_STATUS sme_get_prev_connected_bss_ies(mac_handle_t mac_handle,
+					  uint8_t vdev_id,
+					  uint8_t **ies, uint32_t *ie_len)
+{
+	struct csr_roam_session *session;
+	struct sAniSirGlobal *mac = MAC_CONTEXT(mac_handle);
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	uint32_t len;
+	uint8_t *beacon_ie;
+
+	session = CSR_GET_SESSION(mac, vdev_id);
+	if (!session) {
+		sme_err("session not found");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		sme_err("Failed to acquire sme lock; status: %d", status);
+		return status;
+	}
+
+	len = session->prev_assoc_ap_info.nBeaconLength;
+	if (!len) {
+		sme_debug("No IEs to return");
+		status = QDF_STATUS_E_INVAL;
+		goto end;
+	}
+	beacon_ie = qdf_mem_malloc(len);
+	if (!beacon_ie) {
+		sme_err("Failed to alloc mem for beacon IEs");
+		status = QDF_STATUS_E_NOMEM;
+		goto end;
+	}
+	qdf_mem_copy(beacon_ie, session->prev_assoc_ap_info.pbFrames, len);
+
+	*ie_len = len;
+	*ies = beacon_ie;
+end:
+	sme_release_global_lock(&mac->sme);
+	return status;
+}

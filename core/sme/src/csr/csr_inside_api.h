@@ -335,10 +335,12 @@ eRoamCmdStatus csr_get_roam_complete_status(tpAniSirGlobal pMac,
 					    uint32_t sessionId);
 /* pBand can be NULL if caller doesn't need to get it */
 QDF_STATUS csr_roam_issue_disassociate_cmd(tpAniSirGlobal pMac,
-					uint32_t sessionId,
-					   eCsrRoamDisconnectReason reason);
+					   uint32_t sessionId,
+					   eCsrRoamDisconnectReason reason,
+					   tSirMacReasonCodes mac_reason);
 QDF_STATUS csr_roam_disconnect_internal(tpAniSirGlobal pMac, uint32_t sessionId,
-					eCsrRoamDisconnectReason reason);
+					eCsrRoamDisconnectReason reason,
+					tSirMacReasonCodes mac_reason);
 /* pCommand may be NULL */
 void csr_roam_remove_duplicate_command(tpAniSirGlobal pMac, uint32_t sessionId,
 				       tSmeCmd *pCommand,
@@ -721,14 +723,6 @@ QDF_STATUS csr_roam_reassoc(tpAniSirGlobal pMac, uint32_t sessionId,
 			    uint32_t *pRoamId);
 
 /*
- * csr_roam_reconnect() -
- * To disconnect and reconnect with the same profile
- *
- * Return QDF_STATUS. It returns fail if currently not connected
- */
-QDF_STATUS csr_roam_reconnect(tpAniSirGlobal pMac, uint32_t sessionId);
-
-/*
  * csr_roam_set_pmkid_cache() -
  * return the PMKID candidate list
  *
@@ -871,16 +865,18 @@ QDF_STATUS csr_apply_channel_and_power_list(tpAniSirGlobal pMac);
 QDF_STATUS csr_roam_connect_to_last_profile(tpAniSirGlobal pMac,
 					uint32_t sessionId);
 
-/*
- * csr_roam_disconnect() -
- *  To disconnect from a network
+/**
+ * csr_roam_disconnect() - To disconnect from a network
+ * @mac: pointer to mac context
+ * @session_id: Session ID
+ * @reason: CSR disconnect reason code as per @enum eCsrRoamDisconnectReason
+ * @mac_reason: Mac Disconnect reason code as per @enum eSirMacReasonCodes
  *
- * Reason -- To indicate the reason for disconnecting. Currently, only
- * eCSR_DISCONNECT_REASON_MIC_ERROR is meanful.
  * Return QDF_STATUS
  */
 QDF_STATUS csr_roam_disconnect(tpAniSirGlobal pMac, uint32_t sessionId,
-			       eCsrRoamDisconnectReason reason);
+			       eCsrRoamDisconnectReason reason,
+			       tSirMacReasonCodes mac_reason);
 
 /* This function is used to stop a BSS. It is similar of csr_roamIssueDisconnect
  * but this function doesn't have any logic other than blindly trying to stop
@@ -1002,6 +998,26 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 					 uint32_t sessionId,
 					 tPmkidCacheInfo *pmksa,
 					 bool flush_cache);
+
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+/**
+ * csr_clear_sae_single_pmk - API to clear single_pmk_info cache
+ * @pMac: Mac context
+ * @vdev_id: session id
+ * @pmksa: pmk info
+ *
+ * Return : None
+ */
+void csr_clear_sae_single_pmk(tpAniSirGlobal pMac, uint8_t vdev_id,
+			      tPmkidCacheInfo *pmksa);
+
+#else
+static inline void
+csr_clear_sae_single_pmk(tpAniSirGlobal pMac, uint8_t vdev_id,
+			 tPmkidCacheInfo *pmksa)
+{
+}
+#endif
 
 bool csr_elected_country_info(tpAniSirGlobal pMac);
 void csr_add_vote_for_country_info(tpAniSirGlobal pMac, uint8_t *pCountryCode);

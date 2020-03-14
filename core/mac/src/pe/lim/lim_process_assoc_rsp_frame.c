@@ -316,7 +316,6 @@ static void lim_update_ric_data(tpAniSirGlobal mac_ctx,
 			pe_err("RIC data not present");
 		}
 	} else {
-		pe_debug("Ric is not present");
 		session_entry->RICDataLen = 0;
 		session_entry->ricData = NULL;
 	}
@@ -364,7 +363,6 @@ static void lim_update_ese_tspec(tpAniSirGlobal mac_ctx,
 	} else {
 		session_entry->tspecLen = 0;
 		session_entry->tspecIes = NULL;
-		pe_debug("Tspec EID *NOT* present in assoc rsp");
 	}
 	return;
 }
@@ -551,35 +549,14 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 	struct csr_roam_session *roam_session;
 #endif
 	tSirMacEdcaParamRecord mu_edca_set[MAX_NUM_AC];
+	int8_t rssi;
 
-	/* Initialize status code to success. */
-	if (lim_is_roam_synch_in_progress(session_entry))
-		hdr = (tpSirMacMgmtHdr) mac_ctx->roam.pReassocResp;
-	else
-		hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	sme_sessionid = session_entry->smeSessionId;
 #endif
 	assoc_cnf.resultCode = eSIR_SME_SUCCESS;
 	/* Update PE session Id */
 	assoc_cnf.sessionId = session_entry->peSessionId;
-	if (hdr == NULL) {
-		pe_err("LFR3: Reassoc response packet header is NULL");
-		return;
-	}
-
-	pe_debug("received Re/Assoc: %d resp on sessionid: %d systemrole: %d"
-		" and mlmstate: %d RSSI: %d from "MAC_ADDRESS_STR, subtype,
-		session_entry->peSessionId, GET_LIM_SYSTEM_ROLE(session_entry),
-		session_entry->limMlmState,
-		(uint) abs((int8_t) WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info)),
-		MAC_ADDR_ARRAY(hdr->sa));
-
-	beacon = qdf_mem_malloc(sizeof(tSchBeaconStruct));
-	if (NULL == beacon) {
-		pe_err("Unable to allocate memory");
-		return;
-	}
 
 	if (LIM_IS_AP_ROLE(session_entry)) {
 		/*
@@ -588,16 +565,38 @@ lim_process_assoc_rsp_frame(tpAniSirGlobal mac_ctx,
 		 */
 		pe_err("Should not received Re/Assoc Response in role: %d",
 			GET_LIM_SYSTEM_ROLE(session_entry));
-		qdf_mem_free(beacon);
 		return;
 	}
+
 	if (lim_is_roam_synch_in_progress(session_entry)) {
 		hdr = (tpSirMacMgmtHdr) mac_ctx->roam.pReassocResp;
 		frame_len = mac_ctx->roam.reassocRespLen - SIR_MAC_HDR_LEN_3A;
+		rssi = 0;
 	} else {
 		hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
 		frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
+		rssi = (uint)abs((int8_t)WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info));
 	}
+
+	if (!hdr) {
+		pe_err("LFR3: Reassoc response packet header is NULL");
+		return;
+	}
+
+	pe_nofl_info("Assoc rsp RX: subtype %d vdev %d sys role %d lim state %d rssi %d from " QDF_MAC_ADDR_STR,
+		     subtype, session_entry->smeSessionId,
+		     GET_LIM_SYSTEM_ROLE(session_entry),
+		     session_entry->limMlmState, rssi,
+		     QDF_MAC_ADDR_ARRAY(hdr->sa));
+	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
+			   (uint8_t *)hdr, frame_len + SIR_MAC_HDR_LEN_3A);
+
+	beacon = qdf_mem_malloc(sizeof(tSchBeaconStruct));
+	if (!beacon) {
+		pe_err("Unable to allocate memory");
+		return;
+	}
+
 	if (((subtype == LIM_ASSOC) &&
 		(session_entry->limMlmState != eLIM_MLM_WT_ASSOC_RSP_STATE)) ||
 		((subtype == LIM_REASSOC) &&

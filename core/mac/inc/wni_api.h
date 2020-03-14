@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -234,6 +234,7 @@ enum eWniMsgTypes {
 	eWNI_SME_ANTENNA_ISOLATION_RSP,
 	WNI_SME_REGISTER_BCN_REPORT_SEND_CB,
 	eWNI_SME_MON_DEINIT_SESSION,
+	eWNI_SME_GET_ROAM_SCAN_CH_LIST_EVENT,
 	eWNI_SME_MSG_TYPES_END
 };
 

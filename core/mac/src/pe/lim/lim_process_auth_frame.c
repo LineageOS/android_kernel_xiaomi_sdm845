@@ -296,8 +296,8 @@ static void lim_process_sae_auth_frame(tpAniSirGlobal mac_ctx,
 	body_ptr = WMA_GET_RX_MPDU_DATA(rx_pkt_info);
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 
-	pe_debug("Received SAE Auth frame type %d subtype %d",
-		mac_hdr->fc.type, mac_hdr->fc.subType);
+	pe_nofl_info("Received SAE Auth frame type %d subtype %d",
+		     mac_hdr->fc.type, mac_hdr->fc.subType);
 
 	if (pe_session->limMlmState != eLIM_MLM_WT_SAE_AUTH_STATE)
 		pe_err("received SAE auth response in unexpected state %x",
@@ -698,8 +698,7 @@ static void lim_process_auth_frame_type2(tpAniSirGlobal mac_ctx,
 			return;
 		}
 
-		pe_debug("Alloc new data: %pK peer", auth_node);
-		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGD);
+		pe_debug("add new auth node: for %pM", mac_hdr->sa);
 		qdf_mem_copy((uint8_t *) auth_node->peerMacAddr,
 				mac_ctx->lim.gpLimMlmAuthReq->peerMacAddr,
 				sizeof(tSirMacAddr));
@@ -1150,11 +1149,6 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	curr_seq_num = (mac_hdr->seqControl.seqNumHi << 4) |
 		(mac_hdr->seqControl.seqNumLo);
 
-	pe_debug("Sessionid: %d System role: %d limMlmState: %d: Auth response Received BSSID: "MAC_ADDRESS_STR" RSSI: %d",
-		 pe_session->peSessionId, GET_LIM_SYSTEM_ROLE(pe_session),
-		 pe_session->limMlmState, MAC_ADDR_ARRAY(mac_hdr->bssId),
-		 (uint) abs((int8_t) WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info)));
-
 	if (pe_session->prev_auth_seq_num == curr_seq_num &&
 	    mac_hdr->fc.retry) {
 		pe_debug("auth frame, seq num: %d is already processed, drop it",
@@ -1172,7 +1166,13 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		return;
 	}
 	auth_alg = *(uint16_t *) body_ptr;
-	pe_debug("auth_alg %d ", auth_alg);
+
+	pe_nofl_info("Auth RX: vdev %d sys role %d lim_state %d from " QDF_MAC_ADDR_STR " rssi %d auth_alg %d seq %d",
+		     pe_session->smeSessionId, GET_LIM_SYSTEM_ROLE(pe_session),
+		     pe_session->limMlmState,
+		     QDF_MAC_ADDR_ARRAY(mac_hdr->bssId),
+		     WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info),
+		     auth_alg, curr_seq_num);
 
 	/* Restore default failure timeout */
 	if (QDF_P2P_CLIENT_MODE == pe_session->pePersona &&
@@ -1421,12 +1421,6 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	}
 
 	rx_auth_frm_body = rx_auth_frame;
-
-	pe_debug("Received Auth frame with type: %d seqnum: %d status: %d %d",
-		(uint32_t) rx_auth_frm_body->authAlgoNumber,
-		(uint32_t) rx_auth_frm_body->authTransactionSeqNumber,
-		(uint32_t) rx_auth_frm_body->authStatusCode,
-		(uint32_t) mac_ctx->lim.gLimNumPreAuthContexts);
 
 	if (!lim_is_valid_fils_auth_frame(mac_ctx, pe_session,
 			rx_auth_frm_body)) {

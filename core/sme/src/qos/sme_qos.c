@@ -901,9 +901,7 @@ QDF_STATUS sme_qos_csr_event_ind(tpAniSirGlobal pMac,
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		  "%s: %d: On Session %d Event %d received from CSR",
-		  __func__, __LINE__, sessionId, ind);
+	sme_debug("On Session %d Event %d received from CSR", sessionId, ind);
 	switch (ind) {
 	case SME_QOS_CSR_ASSOC_COMPLETE:
 		/* expecting assoc info in pEvent_info */
@@ -961,14 +959,11 @@ QDF_STATUS sme_qos_csr_event_ind(tpAniSirGlobal pMac,
 		break;
 	default:
 		/* Err msg */
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-			  "%s: %d: On Session %d Unknown Event %d received from CSR",
-			  __func__, __LINE__, sessionId, ind);
+		sme_err("On Session %d Unknown Event %d received from CSR",
+			sessionId, ind);
 		break;
 	}
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		  "%s: %d: On Session %d processed Event %d with status %d",
-		  __func__, __LINE__, sessionId, ind, status);
+
 	return status;
 }
 
@@ -4949,21 +4944,15 @@ static QDF_STATUS sme_qos_process_join_req_ev(tpAniSirGlobal pMac, uint8_t
 	struct sme_qos_sessioninfo *pSession;
 	sme_QosEdcaAcType ac;
 
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		  "%s: %d: invoked on session %d",
-		  __func__, __LINE__, sessionId);
 	pSession = &sme_qos_cb.sessionInfo[sessionId];
 	if (pSession->handoffRequested) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "%s: %d: no need for state transition, should already be in handoff state",
-			__func__, __LINE__);
+		sme_debug("No need for state transition, should already be in handoff state");
 		if ((pSession->ac_info[0].curr_state != SME_QOS_HANDOFF) ||
 		    (pSession->ac_info[1].curr_state != SME_QOS_HANDOFF) ||
 		    (pSession->ac_info[2].curr_state != SME_QOS_HANDOFF) ||
 		    (pSession->ac_info[3].curr_state != SME_QOS_HANDOFF))
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_ERROR,
-				FL("curr_state is not HANDOFF, session %d"),
-					 sessionId);
+			sme_err("curr_state is not HANDOFF, session %d",
+				sessionId);
 		/* buffer the existing flows to be renewed after handoff is
 		 * done
 		 */
@@ -5815,10 +5804,10 @@ static void sme_qos_state_transition(uint8_t sessionId,
 	pACInfo = &pSession->ac_info[ac];
 	pACInfo->prev_state = pACInfo->curr_state;
 	pACInfo->curr_state = new_state;
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-		  "%s: %d: On session %d new state=%d, old state=%d, for AC=%d",
-		  __func__, __LINE__,
-		  sessionId, pACInfo->curr_state, pACInfo->prev_state, ac);
+	if (pACInfo->curr_state != pACInfo->prev_state)
+		sme_debug("On session %d new %d old %d, for AC %d",
+			  sessionId, pACInfo->curr_state,
+			  pACInfo->prev_state, ac);
 }
 
 /**

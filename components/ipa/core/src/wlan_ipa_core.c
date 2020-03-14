@@ -1054,7 +1054,7 @@ QDF_STATUS wlan_ipa_uc_disable_pipes(struct wlan_ipa_priv *ipa_ctx)
 	ipa_debug("enter");
 
 	if (ipa_ctx->ipa_pipes_down) {
-		ipa_warn("IPA WDI Pipes are already deactivated");
+		ipa_info("IPA WDI Pipes are already deactivated");
 		goto end;
 	}
 
@@ -1126,7 +1126,7 @@ static bool wlan_ipa_uc_find_add_assoc_sta(struct wlan_ipa_priv *ipa_ctx,
 		}
 	}
 	if (!sta_add && !sta_found) {
-		ipa_err("STA ID %d does not exist, cannot delete", sta_id);
+		ipa_info("STA ID %d does not exist, cannot delete", sta_id);
 		return sta_found;
 	}
 	if (!sta_add) {
@@ -1578,12 +1578,12 @@ static QDF_STATUS __wlan_ipa_wlan_evt(qdf_netdev_t net_dev, uint8_t device_mode,
 			    type == QDF_IPA_AP_DISCONNECT) {
 				for (i = 0; i < WLAN_IPA_MAX_IFACE; i++) {
 					iface_ctx = &ipa_ctx->iface_context[i];
-
-					if (iface_ctx->dev == net_dev)
+					if (iface_ctx->dev == net_dev) {
+						wlan_ipa_cleanup_iface(
+								iface_ctx);
 						break;
+					}
 				}
-				if (iface_ctx)
-					wlan_ipa_cleanup_iface(iface_ctx);
 			}
 
 			return QDF_STATUS_SUCCESS;
@@ -1679,8 +1679,9 @@ static QDF_STATUS __wlan_ipa_wlan_evt(qdf_netdev_t net_dev, uint8_t device_mode,
 			struct wlan_ipa_iface_context *iface;
 
 			qdf_mutex_release(&ipa_ctx->event_lock);
-			ipa_err("%s: Evt: %d, STA already disconnected",
-				msg_ex->name, QDF_IPA_MSG_META_MSG_TYPE(&meta));
+			ipa_info("%s: Evt: %d, STA already disconnected",
+				 msg_ex->name,
+				 QDF_IPA_MSG_META_MSG_TYPE(&meta));
 
 			iface = wlan_ipa_get_iface(ipa_ctx, QDF_STA_MODE);
 			if (iface && (iface->dev == net_dev))
@@ -1775,12 +1776,11 @@ static QDF_STATUS __wlan_ipa_wlan_evt(qdf_netdev_t net_dev, uint8_t device_mode,
 
 		for (i = 0; i < WLAN_IPA_MAX_IFACE; i++) {
 			iface_ctx = &ipa_ctx->iface_context[i];
-
-			if (iface_ctx->dev == net_dev)
+			if (iface_ctx->dev == net_dev) {
+				wlan_ipa_cleanup_iface(iface_ctx);
 				break;
+			}
 		}
-		if (i < WLAN_IPA_MAX_IFACE)
-			wlan_ipa_cleanup_iface(iface_ctx);
 
 		qdf_mutex_release(&ipa_ctx->event_lock);
 		break;
@@ -1832,6 +1832,7 @@ static QDF_STATUS __wlan_ipa_wlan_evt(qdf_netdev_t net_dev, uint8_t device_mode,
 
 				return status;
 			}
+			ipa_info("first sap client connected");
 		}
 
 		ipa_ctx->sap_num_connected_sta++;
@@ -1870,7 +1871,7 @@ static QDF_STATUS __wlan_ipa_wlan_evt(qdf_netdev_t net_dev, uint8_t device_mode,
 		}
 		ipa_ctx->stats.num_send_msg++;
 
-		ipa_info("sap_num_connected_sta=%d",
+		ipa_debug("sap_num_connected_sta=%d",
 			  ipa_ctx->sap_num_connected_sta);
 
 		return QDF_STATUS_SUCCESS;
@@ -1885,17 +1886,17 @@ static QDF_STATUS __wlan_ipa_wlan_evt(qdf_netdev_t net_dev, uint8_t device_mode,
 		qdf_mutex_acquire(&ipa_ctx->event_lock);
 		if (!ipa_ctx->sap_num_connected_sta) {
 			qdf_mutex_release(&ipa_ctx->event_lock);
-			ipa_err("%s: Evt: %d, Client already disconnected",
-				 msg_ex->name,
-				 QDF_IPA_MSG_META_MSG_TYPE(&meta));
+			ipa_debug("%s: Evt: %d, Client already disconnected",
+				  msg_ex->name,
+				  QDF_IPA_MSG_META_MSG_TYPE(&meta));
 
 			return QDF_STATUS_SUCCESS;
 		}
 		if (!wlan_ipa_uc_find_add_assoc_sta(ipa_ctx, false,
 						    sta_id, mac_addr)) {
 			qdf_mutex_release(&ipa_ctx->event_lock);
-			ipa_err("%s: STA ID %d NOT found, not valid",
-				 msg_ex->name, sta_id);
+			ipa_debug("%s: STA ID %d NOT found, not valid",
+				  msg_ex->name, sta_id);
 
 			return QDF_STATUS_SUCCESS;
 		}
@@ -1918,6 +1919,7 @@ static QDF_STATUS __wlan_ipa_wlan_evt(qdf_netdev_t net_dev, uint8_t device_mode,
 				} else {
 					wlan_ipa_uc_handle_last_discon(ipa_ctx);
 				}
+				ipa_info("last sap client disconnected");
 			}
 
 			if (wlan_ipa_uc_sta_is_enabled(ipa_ctx->config) &&
@@ -1933,8 +1935,8 @@ static QDF_STATUS __wlan_ipa_wlan_evt(qdf_netdev_t net_dev, uint8_t device_mode,
 			qdf_mutex_release(&ipa_ctx->event_lock);
 		}
 
-		ipa_info("sap_num_connected_sta=%d",
-			 ipa_ctx->sap_num_connected_sta);
+		ipa_debug("sap_num_connected_sta=%d",
+			  ipa_ctx->sap_num_connected_sta);
 		break;
 
 	default:
@@ -3074,12 +3076,11 @@ void wlan_ipa_cleanup_dev_iface(struct wlan_ipa_priv *ipa_ctx,
 
 	for (i = 0; i < WLAN_IPA_MAX_IFACE; i++) {
 		iface_ctx = &ipa_ctx->iface_context[i];
-		if (iface_ctx->dev == net_dev)
+		if (iface_ctx->dev == net_dev) {
+			wlan_ipa_cleanup_iface(iface_ctx);
 			break;
+		}
 	}
-
-	if (iface_ctx)
-		wlan_ipa_cleanup_iface(iface_ctx);
 }
 
 void wlan_ipa_uc_ssr_cleanup(struct wlan_ipa_priv *ipa_ctx)

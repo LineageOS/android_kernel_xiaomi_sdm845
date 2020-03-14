@@ -647,6 +647,21 @@ int hdd_ndi_delete(uint8_t vdev_id, char *iface_name, uint16_t transaction_id)
 	return ret;
 }
 
+#ifdef WLAN_FEATURE_NAN
+static void hdd_nan_config_keep_alive_period(uint8_t vdev_id,
+					     struct hdd_context *hdd_ctx)
+{
+	sme_cli_set_command(vdev_id, WMI_VDEV_PARAM_NDP_KEEPALIVE_TIMEOUT,
+			    hdd_ctx->config->ndp_keep_alive_period, VDEV_CMD);
+}
+#else
+static inline void hdd_nan_config_keep_alive_period(
+						uint8_t vdev_id,
+						struct hdd_context *hdd_ctx)
+{
+}
+#endif
+
 void hdd_ndi_drv_ndi_create_rsp_handler(uint8_t vdev_id,
 				struct nan_datapath_inf_create_rsp *ndi_rsp)
 {
@@ -700,6 +715,7 @@ void hdd_ndi_drv_ndi_create_rsp_handler(uint8_t vdev_id,
 				    hdd_ctx->config->ndp_inactivity_timeout,
 				    VDEV_CMD);
 
+		hdd_nan_config_keep_alive_period(vdev_id, hdd_ctx);
 	} else {
 		hdd_alert("NDI interface creation failed with reason %d",
 			ndi_rsp->reason /* create_reason */);

@@ -93,6 +93,17 @@
 #define wma_debug(params...) QDF_TRACE_DEBUG(QDF_MODULE_ID_WMA, params)
 #define wma_err_rl(params...) QDF_TRACE_ERROR_RL(QDF_MODULE_ID_WMA, params)
 
+#define wma_nofl_alert(params...) \
+	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_WMA, params)
+#define wma_nofl_err(params...) \
+	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_WMA, params)
+#define wma_nofl_warn(params...) \
+	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_WMA, params)
+#define wma_nofl_info(params...) \
+	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_WMA, params)
+#define wma_nofl_debug(params...) \
+	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_WMA, params)
+
 #define WMA_DEBUG_ALWAYS
 
 #ifdef WMA_DEBUG_ALWAYS
@@ -1261,7 +1272,10 @@ typedef struct {
 		tpSirBssDescription  bss_desc_ptr,
 		enum sir_roam_op_code reason);
 	QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
-					uint8_t vdev_id);
+					uint8_t vdev_id,
+					uint8_t *deauth_disassoc_frame,
+					uint16_t deauth_disassoc_frame_len,
+					uint16_t reason_code);
 	QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
 		struct roam_pmkid_req_event *bss_list);
 	qdf_wake_lock_t wmi_cmd_rsp_wake_lock;
@@ -1296,6 +1310,7 @@ typedef struct {
 	qdf_atomic_t critical_events_in_flight;
 	bool enable_tx_compl_tsf64;
 	bool enable_three_way_coex_config_legacy;
+	bool bmiss_skip_full_scan;
 } t_wma_handle, *tp_wma_handle;
 
 extern void cds_wma_complete_cback(void);

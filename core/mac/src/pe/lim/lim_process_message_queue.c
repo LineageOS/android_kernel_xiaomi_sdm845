@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -748,7 +748,6 @@ static void lim_fill_sap_bcn_pkt_meta(struct scan_cache_entry *scan_entry,
 					cds_pkt_t *rx_pkt)
 {
 	rx_pkt->pkt_meta.channel = scan_entry->channel.chan_idx;
-
 	rx_pkt->pkt_meta.mpdu_hdr_len = sizeof(struct ieee80211_frame);
 	rx_pkt->pkt_meta.mpdu_len = scan_entry->raw_frame.len;
 	rx_pkt->pkt_meta.mpdu_data_len = rx_pkt->pkt_meta.mpdu_len -
@@ -1014,12 +1013,15 @@ lim_check_mgmt_registered_frames(tpAniSirGlobal mac_ctx, uint8_t *buff_desc,
 	uint16_t frm_len;
 	uint8_t type, sub_type;
 	bool match = false;
+	tpSirMacActionFrameHdr action_hdr;
+	uint8_t actionID, category;
 	QDF_STATUS qdf_status;
 
 	hdr = WMA_GET_RX_MAC_HEADER(buff_desc);
 	fc = hdr->fc;
 	frm_type = (fc.type << 2) | (fc.subType << 4);
 	body = WMA_GET_RX_MPDU_DATA(buff_desc);
+	action_hdr = (tpSirMacActionFrameHdr) body;
 	frm_len = WMA_GET_RX_PAYLOAD_LEN(buff_desc);
 
 	qdf_mutex_acquire(&mac_ctx->lim.lim_frame_register_lock);
@@ -1067,6 +1069,28 @@ lim_check_mgmt_registered_frames(tpAniSirGlobal mac_ctx, uint8_t *buff_desc,
 	if (match) {
 		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 			FL("rcvd frame match with registered frame params"));
+		if (mac_ctx->roam.configParam.p2p_disable_roam &&
+		    session_entry && LIM_IS_STA_ROLE(session_entry) &&
+		    (policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
+						PM_P2P_CLIENT_MODE, NULL) ||
+		     policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
+						PM_P2P_GO_MODE, NULL))) {
+			if ((frm_len >= sizeof(*action_hdr)) && action_hdr &&
+			     fc.type == SIR_MAC_MGMT_FRAME &&
+			     fc.subType == SIR_MAC_MGMT_ACTION) {
+				actionID = action_hdr->actionID;
+				category = action_hdr->category;
+				pe_debug("category: %d action: %d",
+					 category, actionID);
+				if (category == SIR_MAC_ACTION_WNM &&
+				    (actionID == SIR_MAC_WNM_BSS_TM_QUERY ||
+				     actionID == SIR_MAC_WNM_BSS_TM_REQUEST ||
+				     actionID == SIR_MAC_WNM_BSS_TM_RESPONSE)) {
+					pe_debug("p2p session active drop BTM frame");
+					return match;
+				}
+			}
+		}
 		/* Indicate this to SME */
 		lim_send_sme_mgmt_frame_ind(mac_ctx, hdr->fc.subType,
 			(uint8_t *) hdr,
