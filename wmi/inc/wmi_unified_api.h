@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -66,6 +66,10 @@
 
 #ifdef IPA_OFFLOAD
 #include "wlan_ipa_public_struct.h"
+#endif
+
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+#include "wlan_pkt_capture_public_structs.h"
 #endif
 
 typedef qdf_nbuf_t wmi_buf_t;
@@ -411,6 +415,65 @@ void *wmi_unified_get_pdev_handle(struct wmi_soc *soc, uint32_t pdev_idx);
 void wmi_process_fw_event(struct wmi_unified *wmi_handle, wmi_buf_t evt_buf);
 uint16_t wmi_get_max_msg_len(wmi_unified_t wmi_handle);
 
+/**
+ * wmi_unified_extract_roam_trigger_stats() - Extract roam trigger related
+ * stats
+ * @wmi:        wmi handle
+ * @evt_buf:    Pointer to the event buffer
+ * @trig:       Pointer to destination structure to fill data
+ * @idx:        TLV id
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_extract_roam_trigger_stats(wmi_unified_t wmi, void *evt_buf,
+				       struct wmi_roam_trigger_info *trig,
+				       uint8_t idx);
+
+/**
+ * wmi_unified_extract_roam_scan_stats() - Extract roam scan stats from
+ * firmware
+ * @wmi:        wmi handle
+ * @evt_buf:    Pointer to the event buffer
+ * @dst:        Pointer to destination structure to fill data
+ * @idx:        TLV id
+ * @chan_idx:   Index of the channel frequency for this roam trigger
+ * @ap_idx:     Index of the candidate AP for this roam trigger
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_extract_roam_scan_stats(wmi_unified_t wmi, void *evt_buf,
+				    struct wmi_roam_scan_data *dst, uint8_t idx,
+				    uint8_t chan_idx, uint8_t ap_idx);
+/**
+ * wmi_unified_extract_roam_result_stats() - Extract roam result related stats
+ * @wmi:        wmi handle
+ * @evt_buf:    Pointer to the event buffer
+ * @dst:        Pointer to destination structure to fill data
+ * @idx:        TLV id
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_extract_roam_result_stats(wmi_unified_t wmi, void *evt_buf,
+				      struct wmi_roam_result *dst,
+				      uint8_t idx);
+
+/**
+ * wmi_unified_extract_roam_11kv_stats() - Extract BTM/Neigh report stats
+ * @wmi:       wmi handle
+ * @evt_buf:   Pointer to the event buffer
+ * @dst:       Pointer to destination structure to fill data
+ * @idx:       TLV id
+ * @rpt_idx:   index of the current channel
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_extract_roam_11kv_stats(wmi_unified_t wmi, void *evt_buf,
+				    struct wmi_neighbor_report_data *dst,
+				    uint8_t idx, uint8_t rpt_idx);
 
 QDF_STATUS wmi_unified_vdev_create_send(void *wmi_hdl,
 				 uint8_t macaddr[IEEE80211_ADDR_LEN],
@@ -933,6 +996,26 @@ QDF_STATUS wmi_unified_wow_timer_pattern_cmd(void *wmi_hdl, uint8_t vdev_id,
 					     uint32_t cookie, uint32_t time);
 
 QDF_STATUS wmi_unified_nat_keepalive_en_cmd(void *wmi_hdl, uint8_t vdev_id);
+
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+/**
+ * wmi_unified_send_dscp_tid_map_cmd() - Send dscp-to-tid map values cmd
+ * @wmi_hdl: wmi handle
+ * @dscp_to_tid_map: array of dscp_tid map values
+ *
+ * Send dscp-to-tid map values to FW.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_send_dscp_tid_map_cmd(void *wmi_hdl, uint32_t *dscp_to_tid_map);
+#else
+static inline QDF_STATUS
+wmi_unified_send_dscp_tid_map_cmd(void *wmi_hdl, uint32_t *dscp_to_tid_map)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif /* WLAN_SEND_DSCP_UP_MAP_TO_FW */
 
 /**
  * wmi_unified_set_latency_config_cmd()
@@ -2166,6 +2249,16 @@ QDF_STATUS wmi_extract_ndp_initiator_rsp(wmi_unified_t wmi_handle,
 			uint8_t *data, struct nan_datapath_initiator_rsp *rsp);
 
 /**
+ * wmi_extract_nan_msg - api to extract ndp dmesg buffer to print logs
+ * @data: event buffer
+ * @msg: buffer to populate
+ *
+ * Return: status of operation
+ */
+QDF_STATUS wmi_extract_nan_msg(wmi_unified_t wmi_handle, uint8_t *data,
+			       struct nan_dump_msg *msg);
+
+/**
  * wmi_extract_ndp_ind - api to extract ndp indication struct from even buffer
  * @wmi_hdl: wmi handle
  * @data: event buffer
@@ -2548,6 +2641,18 @@ QDF_STATUS wmi_unified_set_roam_triggers(wmi_unified_t wmi_handle,
 					 struct roam_triggers *triggers);
 #endif
 
+/**
+ * wmi_unified_get_roam_scan_ch_list() - send roam scan channel list get cmd
+ * @wmi_handle: wmi handle
+ * @vdev_id: vdev id
+ *
+ * This function sends roam scan channel list get command to firmware.
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS wmi_unified_get_roam_scan_ch_list(wmi_unified_t wmi_handle,
+					 uint8_t vdev_id);
+
 #ifdef FEATURE_ANI_LEVEL_REQUEST
 /**
  * wmi_unified_ani_level_cmd_send() - WMI function to send get ani level cmd
@@ -2575,9 +2680,25 @@ QDF_STATUS wmi_unified_extract_ani_level(wmi_unified_t wmi_handle,
 					 uint32_t *num_freqs);
 #endif /* FEATURE_ANI_LEVEL_REQUEST */
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+/**
+ * wmi_unified_extract_vdev_mgmt_offload_event() - Extract mgmt offload params
+ * @wmi: WMI handle
+ * @evt_buf: Event buffer
+ * @params: Management offload event params
+ *
+ * WMI function to extract management offload event params
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+wmi_unified_extract_vdev_mgmt_offload_event(wmi_unified_t wmi, void *evt_buf,
+				struct mgmt_offload_event_params *params);
+#endif
+
 #ifdef FEATURE_WLAN_TIME_SYNC_FTM
 /**
- * wmi_send_wlan_time_sync_ftm_trigger() - send wlan time sync ftm trigger cmd.
+ * wmi_unified_send_wlan_time_sync_ftm_trigger() - send ftm timesync trigger cmd
  * @wmi_handle: wmi handle
  * @vdev_id: vdev id
  * @burst_mode: mode reg getting time sync relation from FW
@@ -2586,12 +2707,13 @@ QDF_STATUS wmi_unified_extract_ani_level(wmi_unified_t wmi_handle,
  *
  * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
  */
-QDF_STATUS wmi_send_wlan_time_sync_ftm_trigger(void *wmi_handle,
-					       uint32_t vdev_id,
-					       bool burst_mode);
+QDF_STATUS
+wmi_unified_send_wlan_time_sync_ftm_trigger(wmi_unified_t wmi_handle,
+					    uint32_t vdev_id,
+					    bool burst_mode);
 
 /**
- * wmi_send_wlan_time_sync_qtime() - send wlan time sync qtime cmd.
+ * wmi_unified_send_wlan_time_sync_qtime() - send ftm time sync qtime cmd.
  * @wmi_handle: wmi handle
  * @vdev_id: vdev id
  * @lpass_ts: audio qtime
@@ -2600,8 +2722,40 @@ QDF_STATUS wmi_send_wlan_time_sync_ftm_trigger(void *wmi_handle,
  *
  * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
  */
-QDF_STATUS wmi_send_wlan_time_sync_qtime(void *wmi_handle, uint32_t vdev_id,
-					 uint64_t lpass_ts);
+QDF_STATUS
+wmi_unified_send_wlan_time_sync_qtime(wmi_unified_t wmi_handle,
+				      uint32_t vdev_id, uint64_t lpass_ts);
+
+/**
+ * wmi_unified_extract_time_sync_ftm_start_stop_params() - extract FTM time sync
+ *							   params
+ * @wmi_handle: wmi handle
+ * @evt_buf: event buffer
+ * @param: params received in start stop ftm timesync event
+ *
+ * This function extracts the params from ftm timesync start stop event
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS
+wmi_unified_extract_time_sync_ftm_start_stop_params(
+				wmi_unified_t wmi_handle, void *evt_buf,
+				struct ftm_time_sync_start_stop_params *param);
+
+/**
+ * wmi_unified_extract_time_sync_ftm_offset() - extract timesync FTM offset
+ * @wmi_handle: wmi handle
+ * @evt_buf: event buffer
+ * @param: params received in ftm timesync offset event
+ *
+ * This function extracts the params from ftm timesync offset event
+ *
+ * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
+ */
+QDF_STATUS
+wmi_unified_extract_time_sync_ftm_offset(wmi_unified_t wmi_handle,
+					 void *evt_buf,
+					 struct ftm_time_sync_offset *param);
 #endif /* FEATURE_WLAN_TIME_SYNC_FTM */
 
 #endif /* _WMI_UNIFIED_API_H_ */

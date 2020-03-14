@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -595,37 +595,6 @@ QDF_STATUS tdls_get_vdev_objects(struct wlan_objmgr_vdev *vdev,
 	return QDF_STATUS_SUCCESS;
 }
 
-/**
- * tdls_state_param_setting_dump() - print tdls state & parameters to send to fw
- * @info: tdls setting to be sent to fw
- *
- * Return: void
- */
-static void tdls_state_param_setting_dump(struct tdls_info *info)
-{
-	if (!info)
-		return;
-
-	tdls_debug("Setting tdls state and param in fw: vdev_id: %d, tdls_state: %d, notification_interval_ms: %d, tx_discovery_threshold: %d, tx_teardown_threshold: %d, rssi_teardown_threshold: %d, rssi_delta: %d, tdls_options: 0x%x, peer_traffic_ind_window: %d, peer_traffic_response_timeout: %d, puapsd_mask: 0x%x, puapsd_inactivity_time: %d, puapsd_rx_frame_threshold: %d, teardown_notification_ms: %d, tdls_peer_kickout_threshold: %d, tdls_discovery_wake_timeout: %d",
-		   info->vdev_id,
-		   info->tdls_state,
-		   info->notification_interval_ms,
-		   info->tx_discovery_threshold,
-		   info->tx_teardown_threshold,
-		   info->rssi_teardown_threshold,
-		   info->rssi_delta,
-		   info->tdls_options,
-		   info->peer_traffic_ind_window,
-		   info->peer_traffic_response_timeout,
-		   info->puapsd_mask,
-		   info->puapsd_inactivity_time,
-		   info->puapsd_rx_frame_threshold,
-		   info->teardown_notification_ms,
-		   info->tdls_peer_kickout_threshold,
-		   info->tdls_discovery_wake_timeout);
-
-}
-
 QDF_STATUS tdls_set_offchan_mode(struct wlan_objmgr_psoc *psoc,
 				     struct tdls_channel_switch_params *param)
 {
@@ -792,7 +761,7 @@ tdls_process_decrement_active_session(struct wlan_objmgr_psoc *psoc)
 
 	if(!policy_mgr_is_hw_dbs_2x2_capable(psoc) &&
 	   policy_mgr_is_current_hwmode_dbs(psoc)) {
-		tdls_err("Current HW mode is 1*1 DBS. Wait for Opportunistic timer to expire to enable TDLS in FW");
+		tdls_debug("Current HW mode is 1*1 DBS. Wait for Opportunistic timer to expire to enable TDLS in FW");
 		return QDF_STATUS_SUCCESS;
 	}
 	tdls_obj_vdev = tdls_get_vdev(psoc, WLAN_TDLS_NB_ID);
@@ -915,7 +884,6 @@ void tdls_send_update_to_fw(struct tdls_vdev_priv_obj *tdls_vdev_obj,
 	QDF_STATUS status;
 	uint8_t set_state_cnt;
 
-	tdls_debug("Enter");
 	tdls_feature_flags = tdls_soc_obj->tdls_configs.tdls_feature_flags;
 	if (!TDLS_IS_ENABLED(tdls_feature_flags)) {
 		tdls_debug("TDLS mode is not enabled");
@@ -935,8 +903,6 @@ void tdls_send_update_to_fw(struct tdls_vdev_priv_obj *tdls_vdev_obj,
 			tdls_soc_obj->tdls_current_mode =
 					TDLS_SUPPORT_DISABLED;
 		} else {
-			tdls_debug("TDLS feature flags from ini %d ",
-				tdls_feature_flags);
 			if (!TDLS_IS_IMPLICIT_TRIG_ENABLED(tdls_feature_flags))
 				tdls_soc_obj->tdls_current_mode =
 					TDLS_SUPPORT_EXP_TRIG_ONLY;
@@ -1009,8 +975,6 @@ void tdls_send_update_to_fw(struct tdls_vdev_priv_obj *tdls_vdev_obj,
 	tdls_info_to_fw->tdls_discovery_wake_timeout =
 			tdls_soc_obj->tdls_configs.tdls_discovery_wake_timeout;
 
-	tdls_state_param_setting_dump(tdls_info_to_fw);
-
 	status = tdls_update_fw_tdls_state(tdls_soc_obj, tdls_info_to_fw);
 	if (QDF_STATUS_SUCCESS != status)
 		goto done;
@@ -1040,8 +1004,6 @@ tdls_process_sta_connect(struct tdls_sta_notify_params *notify)
 							&tdls_soc_obj))
 		return QDF_STATUS_E_INVAL;
 
-
-	tdls_debug("Check and update TDLS state");
 
 	if (policy_mgr_get_connection_count(tdls_soc_obj->soc) > 1) {
 		tdls_debug("Concurrent sessions exist, TDLS can't be enabled");

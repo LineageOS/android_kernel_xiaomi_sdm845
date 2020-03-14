@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -50,6 +50,10 @@
 
 #ifdef WLAN_SUPPORT_TWT
 #include "wmi_unified_twt_param.h"
+#endif
+
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+#include "wlan_pkt_capture_public_structs.h"
 #endif
 
 #define WMI_UNIFIED_MAX_EVENT 0x100
@@ -538,6 +542,11 @@ QDF_STATUS (*send_start_extscan_cmd)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*send_plm_stop_cmd)(wmi_unified_t wmi_handle,
 		 const struct plm_req_params *plm);
+
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+QDF_STATUS (*send_dscp_tid_map_cmd)(wmi_unified_t wmi_handle,
+				    uint32_t *dscp_to_tid_map);
+#endif
 
 QDF_STATUS (*send_wlm_latency_level_cmd)(wmi_unified_t wmi_handle,
 				struct wlm_latency_level_param *param);
@@ -1618,6 +1627,8 @@ QDF_STATUS (*extract_ndp_initiator_rsp)(wmi_unified_t wmi_handle,
 		uint8_t *data, struct nan_datapath_initiator_rsp *rsp);
 QDF_STATUS (*extract_ndp_ind)(wmi_unified_t wmi_handle,
 		uint8_t *data, struct nan_datapath_indication_event *ind);
+QDF_STATUS (*extract_nan_msg)(uint8_t *data,
+			      struct nan_dump_msg *msg);
 QDF_STATUS (*extract_ndp_confirm)(wmi_unified_t wmi_handle,
 		uint8_t *data, struct nan_datapath_confirm_event *ev);
 QDF_STATUS (*extract_ndp_responder_rsp)(wmi_unified_t wmi_handle,
@@ -1674,6 +1685,30 @@ QDF_STATUS (*send_offload_11k_cmd)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*send_invoke_neighbor_report_cmd)(wmi_unified_t wmi_handle,
 		struct wmi_invoke_neighbor_report_params *params);
+
+QDF_STATUS
+(*extract_roam_trigger_stats)(wmi_unified_t wmi_handle,
+			      void *evt_buf,
+			      struct wmi_roam_trigger_info *trig,
+			      uint8_t idx);
+
+QDF_STATUS
+(*extract_roam_scan_stats)(wmi_unified_t wmi_handle,
+			   void *evt_buf,
+			   struct wmi_roam_scan_data *dst, uint8_t idx,
+			   uint8_t chan_idx, uint8_t ap_idx);
+
+QDF_STATUS
+(*extract_roam_result_stats)(wmi_unified_t wmi_handle,
+			     void *evt_buf,
+			     struct wmi_roam_result *dst,
+			     uint8_t idx);
+
+QDF_STATUS
+(*extract_roam_11kv_stats)(wmi_unified_t wmi_handle,
+			   void *evt_buf,
+			   struct wmi_neighbor_report_data *dst,
+			   uint8_t idx, uint8_t rpt_idx);
 
 void (*wmi_pdev_id_conversion_enable)(wmi_unified_t wmi_handle);
 void (*send_time_stamp_sync_cmd)(wmi_unified_t wmi_handle);
@@ -1766,14 +1801,32 @@ QDF_STATUS (*extract_ani_level)(uint8_t *evt_buf,
 				uint32_t *num_freqs);
 #endif /* FEATURE_ANI_LEVEL_REQUEST */
 
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+QDF_STATUS (*extract_vdev_mgmt_offload_event)(
+				void *handle,
+				void *event_buf,
+				struct mgmt_offload_event_params *params);
+#endif /* WLAN_FEATURE_PKT_CAPTURE */
+
 #ifdef FEATURE_WLAN_TIME_SYNC_FTM
 QDF_STATUS (*send_wlan_time_sync_ftm_trigger_cmd)(wmi_unified_t wmi_handle,
 						  uint32_t vdev_id,
 						  bool burst_mode);
+
 QDF_STATUS (*send_wlan_ts_qtime_cmd)(wmi_unified_t wmi_handle,
 				     uint32_t vdev_id,
 				     uint64_t lpass_ts);
+
+QDF_STATUS (*extract_time_sync_ftm_start_stop_event)(
+				wmi_unified_t wmi_hdl, void *evt_buf,
+				struct ftm_time_sync_start_stop_params *param);
+
+QDF_STATUS (*extract_time_sync_ftm_offset_event)(
+					wmi_unified_t wmi_hdl, void *evt_buf,
+					struct ftm_time_sync_offset *param);
 #endif /* FEATURE_WLAN_TIME_SYNC_FTM */
+QDF_STATUS (*send_roam_scan_get_ch_req)(wmi_unified_t wmi_hdl,
+					uint32_t vdev_id);
 };
 
 /* Forward declartion for psoc*/

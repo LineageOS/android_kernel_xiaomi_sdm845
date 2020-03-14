@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -27,6 +27,8 @@
 #include "wlan_objmgr_psoc_obj.h"
 #include "wlan_objmgr_pdev_obj.h"
 #include "wlan_objmgr_vdev_obj.h"
+#include "wlan_nan_api.h"
+#include "wlan_osif_request_manager.h"
 
 struct wlan_objmgr_psoc;
 struct wlan_objmgr_vdev;
@@ -47,6 +49,11 @@ inline QDF_STATUS ucfg_nan_set_ndi_state(struct wlan_objmgr_vdev *vdev,
 	return QDF_STATUS_SUCCESS;
 }
 
+bool wlan_nan_is_ndp_peer_active(struct wlan_objmgr_pdev *pdev)
+{
+	return nan_is_ndp_active(pdev);
+
+}
 inline enum nan_datapath_state ucfg_nan_get_ndi_state(
 					struct wlan_objmgr_vdev *vdev)
 {
@@ -308,6 +315,13 @@ QDF_STATUS ucfg_nan_req_processor(struct wlan_objmgr_vdev *vdev,
 	uint32_t len;
 	QDF_STATUS status;
 	struct scheduler_msg msg = {0};
+	int err;
+	struct nan_psoc_priv_obj *psoc_obj = NULL;
+	struct osif_request *request;
+	static const struct osif_request_params params = {
+		.priv_size = 0,
+		.timeout_ms = WLAN_WAIT_TIME_NDP_END,
+	};
 
 	if (!in_req) {
 		nan_alert("req is null");
@@ -323,6 +337,11 @@ QDF_STATUS ucfg_nan_req_processor(struct wlan_objmgr_vdev *vdev,
 		break;
 	case NDP_END_REQ:
 		len = sizeof(struct nan_datapath_end_req);
+		psoc_obj = nan_get_psoc_priv_obj(wlan_vdev_get_psoc(vdev));
+		if (!psoc_obj) {
+			nan_err("nan psoc priv object is NULL");
+			return QDF_STATUS_E_INVAL;
+		}
 		break;
 	default:
 		nan_err("in correct message req type: %d", req_type);
@@ -343,9 +362,31 @@ QDF_STATUS ucfg_nan_req_processor(struct wlan_objmgr_vdev *vdev,
 	if (QDF_IS_STATUS_ERROR(status)) {
 		nan_err("failed to post msg to NAN component, status: %d",
 			status);
+		return status;
 	}
 
-	return status;
+	if (req_type == NDP_END_REQ) {
+		/* Wait for NDP_END indication */
+		if (!psoc_obj) {
+			nan_err("nan psoc priv object is NULL");
+			return QDF_STATUS_E_INVAL;
+		}
+		request = osif_request_alloc(&params);
+		if (!request) {
+			nan_err("Request allocation failure");
+			return QDF_STATUS_E_NOMEM;
+		}
+		psoc_obj->request_context = osif_request_cookie(request);
+
+		nan_debug("Wait for NDP END indication");
+		err = osif_request_wait_for_response(request);
+		if (err)
+			nan_err("NAN request timed out: %d", err);
+		osif_request_put(request);
+		psoc_obj->request_context = NULL;
+	}
+
+	return QDF_STATUS_SUCCESS;
 }
 
 void ucfg_nan_event_handler(struct wlan_objmgr_psoc *psoc,

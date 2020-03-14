@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2166,6 +2166,20 @@ QDF_STATUS wmi_unified_nat_keepalive_en_cmd(void *wmi_hdl, uint8_t vdev_id)
 
 	return QDF_STATUS_E_FAILURE;
 }
+
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+QDF_STATUS
+wmi_unified_send_dscp_tid_map_cmd(void *wmi_hdl, uint32_t *dscp_to_tid_map)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_dscp_tid_map_cmd)
+		return wmi_handle->ops->send_dscp_tid_map_cmd(wmi_handle,
+							      dscp_to_tid_map);
+
+	return QDF_STATUS_E_FAILURE;
+}
+#endif /* WLAN_SEND_DSCP_UP_MAP_TO_FW */
 
 QDF_STATUS wmi_unified_wlm_latency_level_cmd(void *wmi_hdl,
 					struct wlm_latency_level_param *param)
@@ -7293,6 +7307,16 @@ QDF_STATUS wmi_extract_ndp_initiator_rsp(wmi_unified_t wmi_handle,
 	return QDF_STATUS_E_FAILURE;
 }
 
+QDF_STATUS wmi_extract_nan_msg(wmi_unified_t wmi_handle,
+			       uint8_t *data,
+			       struct nan_dump_msg *msg)
+{
+	if (wmi_handle->ops->extract_nan_msg)
+		return wmi_handle->ops->extract_nan_msg(data, msg);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
 QDF_STATUS wmi_extract_ndp_ind(wmi_unified_t wmi_handle, uint8_t *data,
 			       struct nan_datapath_indication_event *ind)
 {
@@ -7468,6 +7492,16 @@ QDF_STATUS wmi_unified_set_roam_triggers(wmi_unified_t wmi_handle,
 }
 #endif
 
+QDF_STATUS wmi_unified_get_roam_scan_ch_list(wmi_unified_t wmi_handle,
+					     uint8_t vdev_id)
+{
+	if (wmi_handle->ops->send_roam_scan_get_ch_req)
+		return wmi_handle->ops->send_roam_scan_get_ch_req(wmi_handle,
+								  vdev_id);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
 #ifdef WLAN_SUPPORT_GREEN_AP
 QDF_STATUS wmi_extract_green_ap_egap_status_info(
 		void *wmi_hdl, uint8_t *evt_buf,
@@ -7637,9 +7671,9 @@ QDF_STATUS wmi_unified_extract_ani_level(wmi_unified_t wmi_handle,
 #endif /* FEATURE_ANI_LEVEL_REQUEST */
 
 #ifdef FEATURE_WLAN_TIME_SYNC_FTM
-QDF_STATUS wmi_send_wlan_time_sync_ftm_trigger(wmi_unified_t wmi_handle,
-					       uint32_t vdev_id,
-					       bool burst_mode)
+QDF_STATUS wmi_unified_send_wlan_time_sync_ftm_trigger(wmi_unified_t wmi_handle,
+						       uint32_t vdev_id,
+						       bool burst_mode)
 {
 	if (wmi_handle->ops->send_wlan_time_sync_ftm_trigger_cmd)
 		return wmi_handle->ops->send_wlan_time_sync_ftm_trigger_cmd
@@ -7648,9 +7682,9 @@ QDF_STATUS wmi_send_wlan_time_sync_ftm_trigger(wmi_unified_t wmi_handle,
 	return QDF_STATUS_E_FAILURE;
 }
 
-QDF_STATUS wmi_send_wlan_time_sync_qtime(wmi_unified_t wmi_handle,
-					 uint32_t vdev_id,
-					 uint64_t lpass_ts)
+QDF_STATUS wmi_unified_send_wlan_time_sync_qtime(wmi_unified_t wmi_handle,
+						 uint32_t vdev_id,
+						 uint64_t lpass_ts)
 {
 	if (wmi_handle->ops->send_wlan_ts_qtime_cmd)
 		return wmi_handle->ops->send_wlan_ts_qtime_cmd(wmi_handle,
@@ -7658,4 +7692,90 @@ QDF_STATUS wmi_send_wlan_time_sync_qtime(wmi_unified_t wmi_handle,
 
 	return QDF_STATUS_E_FAILURE;
 }
+
+QDF_STATUS wmi_unified_extract_time_sync_ftm_start_stop_params(
+				wmi_unified_t wmi_handle, void *evt_buf,
+				struct ftm_time_sync_start_stop_params *param)
+{
+	if (wmi_handle->ops->extract_time_sync_ftm_start_stop_event)
+		return
+		wmi_handle->ops->extract_time_sync_ftm_start_stop_event(
+						wmi_handle, evt_buf, param);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS wmi_unified_extract_time_sync_ftm_offset(
+			wmi_unified_t wmi_handle, void *evt_buf,
+			struct ftm_time_sync_offset *param)
+{
+	if (wmi_handle->ops->extract_time_sync_ftm_offset_event)
+		return
+		wmi_handle->ops->extract_time_sync_ftm_offset_event(
+						wmi_handle, evt_buf, param);
+
+	return QDF_STATUS_E_FAILURE;
+}
 #endif /* FEATURE_WLAN_TIME_SYNC_FTM */
+
+QDF_STATUS
+wmi_unified_extract_roam_trigger_stats(wmi_unified_t wmi,
+				       void *evt_buf,
+				       struct wmi_roam_trigger_info *trig,
+				       uint8_t idx)
+{
+	if (wmi->ops->extract_roam_trigger_stats)
+		return wmi->ops->extract_roam_trigger_stats(wmi, evt_buf, trig,
+							    idx);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS
+wmi_unified_extract_roam_scan_stats(wmi_unified_t wmi, void *evt_buf,
+				    struct wmi_roam_scan_data *dst, uint8_t idx,
+				    uint8_t chan_idx, uint8_t ap_idx)
+{
+	if (wmi->ops->extract_roam_scan_stats)
+		return wmi->ops->extract_roam_scan_stats(wmi, evt_buf, dst,
+							 idx, chan_idx, ap_idx);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+QDF_STATUS
+wmi_unified_extract_vdev_mgmt_offload_event(
+				wmi_unified_t wmi, void *evt_buf,
+				struct mgmt_offload_event_params *params)
+{
+	if (wmi->ops->extract_vdev_mgmt_offload_event)
+		return wmi->ops->extract_vdev_mgmt_offload_event(wmi, evt_buf,
+								 params);
+
+	return QDF_STATUS_E_FAILURE;
+}
+#endif /* WLAN_FEATURE_PKT_CAPTURE */
+
+QDF_STATUS
+wmi_unified_extract_roam_result_stats(wmi_unified_t wmi, void *buf,
+				      struct wmi_roam_result *dst,
+				      uint8_t idx)
+{
+	if (wmi->ops->extract_roam_result_stats)
+		return wmi->ops->extract_roam_result_stats(wmi, buf, dst, idx);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS
+wmi_unified_extract_roam_11kv_stats(wmi_unified_t wmi, void *evt_buf,
+				    struct wmi_neighbor_report_data *dst,
+				    uint8_t idx, uint8_t rpt_idx)
+{
+	if (wmi->ops->extract_roam_11kv_stats)
+		return wmi->ops->extract_roam_11kv_stats(wmi, evt_buf, dst, idx,
+							rpt_idx);
+
+	return QDF_STATUS_E_FAILURE;
+}

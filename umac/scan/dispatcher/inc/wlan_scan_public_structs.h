@@ -158,6 +158,7 @@ struct element_info {
  * @esp: pointer to ESP indication ie
  * @mbo_oce: pointer to mbo/oce indication ie
  * @adaptive_11r: pointer to adaptive 11r IE
+ * @single_pmk: Pionter to sae single pmk IE
  */
 struct ie_list {
 	uint8_t *tim;
@@ -205,6 +206,7 @@ struct ie_list {
 	uint8_t *mbo_oce;
 	uint8_t *muedca;
 	uint8_t *adaptive_11r;
+	uint8_t *single_pmk;
 };
 
 enum scan_entry_connection_state {

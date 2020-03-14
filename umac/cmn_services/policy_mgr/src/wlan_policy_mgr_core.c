@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -658,11 +658,12 @@ void policy_mgr_store_and_del_conn_info(struct wlan_objmgr_psoc *psoc,
 
 	if (!found_index) {
 		*num_cxn_del = 0;
-		policy_mgr_err("Mode:%d not available in the conn info", mode);
+		policy_mgr_debug("Mode:%d not available in the conn info",
+				 mode);
 	} else {
 		*num_cxn_del = found_index;
-		policy_mgr_err("Mode:%d number of conn %d temp del",
-				mode, *num_cxn_del);
+		policy_mgr_debug("Mode:%d number of conn %d temp del",
+				 mode, *num_cxn_del);
 	}
 
 	/*
@@ -835,7 +836,7 @@ void policy_mgr_pdev_set_hw_mode_cb(uint32_t status,
 		POLICY_MGR_HW_MODE_NOT_IN_PROGRESS);
 
 	if (status != SET_HW_MODE_STATUS_OK) {
-		policy_mgr_err("Set HW mode failed with status %d", status);
+		policy_mgr_debug("Set HW mode failed with status %d", status);
 		goto send_done_event;
 	}
 
@@ -1144,7 +1145,7 @@ void policy_mgr_dump_current_concurrency(struct wlan_objmgr_psoc *psoc)
 	case 1:
 		policy_mgr_dump_current_concurrency_one_connection(cc_mode,
 					sizeof(cc_mode));
-		policy_mgr_err("%s Standalone", cc_mode);
+		policy_mgr_debug("%s Standalone", cc_mode);
 		break;
 	case 2:
 		count = policy_mgr_dump_current_concurrency_two_connection(
@@ -1159,7 +1160,7 @@ void policy_mgr_dump_current_concurrency(struct wlan_objmgr_psoc *psoc)
 		} else
 			strlcat(cc_mode, " DBS", sizeof(cc_mode));
 		qdf_mutex_release(&pm_ctx->qdf_conc_list_lock);
-		policy_mgr_err("%s", cc_mode);
+		policy_mgr_debug("%s", cc_mode);
 		break;
 	case 3:
 		count = policy_mgr_dump_current_concurrency_three_connection(
@@ -1184,10 +1185,10 @@ void policy_mgr_dump_current_concurrency(struct wlan_objmgr_psoc *psoc)
 			policy_mgr_dump_dbs_concurrency(psoc, cc_mode,
 					sizeof(cc_mode));
 		}
-		policy_mgr_err("%s", cc_mode);
+		policy_mgr_debug("%s", cc_mode);
 		break;
 	default:
-		policy_mgr_err("unexpected num_connections value %d",
+		policy_mgr_debug("unexpected num_connections value %d",
 			num_connections);
 		break;
 	}
@@ -1789,10 +1790,10 @@ void policy_mgr_set_weight_of_dfs_passive_channels_to_zero(
 				(channel_state == CHANNEL_STATE_INVALID))
 			/* Set weight of inactive channels to 0 */
 			weight_list[i] = 0;
-
-		policy_mgr_debug("chan[%d] - %d, weight[%d] - %d",
-				i, pcl_channels[i], i, weight_list[i]);
 	}
+
+	policy_mgr_dump_channel_list(orig_channel_count,
+				     pcl_channels, weight_list);
 
 	return;
 }
@@ -1868,7 +1869,6 @@ QDF_STATUS policy_mgr_get_channel_list(struct wlan_objmgr_psoc *psoc,
 	 */
 	sta_sap_scc_on_dfs_chan =
 		policy_mgr_is_sta_sap_scc_allowed_on_dfs_chan(psoc);
-	policy_mgr_debug("sta_sap_scc_on_dfs_chan %u", sta_sap_scc_on_dfs_chan);
 	if ((mode == PM_SAP_MODE) || (mode == PM_P2P_GO_MODE)) {
 		if ((policy_mgr_mode_specific_connection_count(psoc,
 							       PM_STA_MODE,
@@ -2350,7 +2350,7 @@ bool policy_mgr_allow_new_home_channel(struct wlan_objmgr_psoc *psoc,
 		wlan_reg_is_dfs_ch(pm_ctx->pdev,
 			pm_conc_connection_list[1].chan))) {
 
-			policy_mgr_err("Existing DFS connection, new 3-port DFS connection is not allowed");
+			policy_mgr_rl_debug("Existing DFS connection, new 3-port DFS connection is not allowed");
 			status = false;
 
 		} else if (((pm_conc_connection_list[0].chan !=
@@ -2364,7 +2364,7 @@ bool policy_mgr_allow_new_home_channel(struct wlan_objmgr_psoc *psoc,
 				     pm_conc_connection_list[0].chan) &&
 				    (channel !=
 				     pm_conc_connection_list[1].chan)) {
-					policy_mgr_err("don't allow 3rd home channel on same MAC");
+					policy_mgr_rl_debug("don't allow 3rd home channel on same MAC");
 					status = false;
 				}
 			} else if (((WLAN_REG_IS_24GHZ_CH(channel)) &&
@@ -2377,7 +2377,7 @@ bool policy_mgr_allow_new_home_channel(struct wlan_objmgr_psoc *psoc,
 				(pm_conc_connection_list[0].chan)) &&
 				(WLAN_REG_IS_5GHZ_CH
 				(pm_conc_connection_list[1].chan)))) {
-					policy_mgr_err("don't allow 3rd home channel on same MAC");
+					policy_mgr_rl_debug("don't allow 3rd home channel on same MAC");
 					status = false;
 			}
 		}
@@ -2388,7 +2388,7 @@ bool policy_mgr_allow_new_home_channel(struct wlan_objmgr_psoc *psoc,
 		&& wlan_reg_is_dfs_ch(pm_ctx->pdev,
 			pm_conc_connection_list[0].chan)) {
 
-		policy_mgr_err("Existing DFS connection, new 2-port DFS connection is not allowed");
+		policy_mgr_rl_debug("Existing DFS connection, new 2-port DFS connection is not allowed");
 		status = false;
 	}
 	qdf_mutex_release(&pm_ctx->qdf_conc_list_lock);
@@ -2432,7 +2432,7 @@ bool policy_mgr_is_5g_channel_allowed(struct wlan_objmgr_psoc *psoc,
 		    WLAN_REG_IS_5GHZ_CH(channel) &&
 		    (channel != pm_conc_connection_list[list[index]].chan)) {
 			qdf_mutex_release(&pm_ctx->qdf_conc_list_lock);
-			policy_mgr_err("don't allow MCC if SAP/GO on DFS channel");
+			policy_mgr_rl_debug("don't allow MCC if SAP/GO on DFS channel");
 			return false;
 		}
 		index++;
@@ -2600,7 +2600,7 @@ QDF_STATUS policy_mgr_complete_action(struct wlan_objmgr_psoc *psoc,
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
 	if (policy_mgr_is_hw_dbs_capable(psoc) == false) {
-		policy_mgr_err("driver isn't dbs capable, no further action needed");
+		policy_mgr_rl_debug("driver isn't dbs capable, no further action needed");
 		return QDF_STATUS_E_NOSUPPORT;
 	}
 

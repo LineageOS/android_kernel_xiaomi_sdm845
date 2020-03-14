@@ -224,6 +224,7 @@ typedef void (*wlan_objmgr_peer_status_handler)(
  * @WLAN_MLME_OBJ_DEL_ID:       Object delete req/resp tracking with FW
  * @WLAN_ACTION_OUI_ID:         action oui operations
  * @FTM_TIME_SYNC_ID:           ftm time sync operations
+ * @WLAN_PKT_CAPTURE_ID         Packet capture operations
  * @WLAN_REF_ID_MAX:            Max id used to generate ref count tracking array
  */
  /* New value added to the enum must also be reflected in function
@@ -275,6 +276,7 @@ typedef enum {
 	WLAN_MLME_OBJ_DEL_ID    = 42,
 	WLAN_ACTION_OUI_ID      = 43,
 	FTM_TIME_SYNC_ID        = 44,
+	WLAN_PKT_CAPTURE_ID   = 45,
 	WLAN_REF_ID_MAX,
 } wlan_objmgr_ref_dbgid;
 

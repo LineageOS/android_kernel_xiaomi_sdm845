@@ -356,6 +356,7 @@ typedef bool (*qdf_irqlocked_func_t)(void *);
  * @QDF_MODULE_ID_ACTION_OUI: ACTION OUI module ID
  * @QDF_MODULE_ID_TARGET: Target module ID
  * @QDF_MODULE_ID_FTM_TIME_SYNC: FTM Time sync module ID
+ * @QDF_MODULE_ID_PKT_CAPTURE: PACKET CAPTURE module ID
  * @QDF_MODULE_ID_ANY: anything
  * @QDF_MODULE_ID_MAX: Max place holder module ID
  */
@@ -462,6 +463,7 @@ typedef enum {
 	QDF_MODULE_ID_ACTION_OUI,
 	QDF_MODULE_ID_TARGET,
 	QDF_MODULE_ID_FTM_TIME_SYNC,
+	QDF_MODULE_ID_PKT_CAPTURE,
 	QDF_MODULE_ID_ANY,
 	QDF_MODULE_ID_MAX,
 } QDF_MODULE_ID;
@@ -1195,6 +1197,22 @@ enum qdf_hrtimer_restart_status {
 enum qdf_context_mode {
 	QDF_CONTEXT_HARDWARE = 0,
 	QDF_CONTEXT_TASKLET = 1,
+};
+
+/**
+ * enum qdf_dp_tx_rx_status - TX/RX packet status
+ * @QDF_TX_RX_STATUS_INVALID: default invalid status
+ * @QDF_TX_RX_STATUS_OK: successfully sent + acked
+ * @QDF_TX_RX_STATUS_FW_DISCARD: packet not sent
+ * @QDF_TX_RX_STATUS_NO_ACK: packet sent but no ack
+ * @QDF_TX_RX_STATUS_DROP: packet dropped in host
+ */
+enum qdf_dp_tx_rx_status {
+	QDF_TX_RX_STATUS_INVALID,
+	QDF_TX_RX_STATUS_OK,
+	QDF_TX_RX_STATUS_FW_DISCARD,
+	QDF_TX_RX_STATUS_NO_ACK,
+	QDF_TX_RX_STATUS_DROP,
 };
 
 #endif /* __QDF_TYPES_H */

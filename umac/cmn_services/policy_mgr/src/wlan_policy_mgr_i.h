@@ -153,6 +153,20 @@
 #define policy_mgr_debug(format, args...) \
 		policy_mgr_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
 
+#define policymgr_nofl_alert(params...) \
+	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_POLICY_MGR, params)
+#define policymgr_nofl_err(params...) \
+	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_POLICY_MGR, params)
+#define policymgr_nofl_warn(params...) \
+	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_POLICY_MGR, params)
+#define policymgr_nofl_info(params...) \
+	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_POLICY_MGR, params)
+#define policymgr_nofl_debug(params...) \
+	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_POLICY_MGR, params)
+
+#define policy_mgr_rl_debug(params...) \
+	QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_POLICY_MGR, params)
+
 #define PM_CONC_CONNECTION_LIST_VALID_INDEX(index) \
 		((MAX_NUMBER_OF_CONC_CONNECTIONS > index) && \
 			(pm_conc_connection_list[index].in_use))
