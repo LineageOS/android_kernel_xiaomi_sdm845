@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2134,6 +2134,18 @@ void lim_process_assoc_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 			eSIR_MAC_UNSPEC_FAILURE_STATUS,
 			session);
 		goto error;
+	}
+
+	if (LIM_IS_AP_ROLE(session)) {
+		if ((assoc_req->wpaPresent || assoc_req->rsnPresent) &&
+		    !session->privacy) {
+			lim_reject_association(mac_ctx, hdr->sa, sub_type,
+					       true, auth_type, peer_idx,
+					       true,
+					       eSIR_MAC_UNSPEC_FAILURE_STATUS,
+					       session);
+			goto error;
+		}
 	}
 
 sendIndToSme:
