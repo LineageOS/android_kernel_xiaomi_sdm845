@@ -623,6 +623,29 @@ QDF_STATUS ol_txrx_ipa_setup(struct cdp_pdev *ppdev, void *ipa_i2w_cb,
 QDF_STATUS ol_txrx_ipa_cleanup(uint32_t tx_pipe_handle, uint32_t rx_pipe_handle)
 {
 	int ret;
+	struct ol_txrx_ipa_resources *ipa_res;
+	qdf_device_t osdev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (!pdev) {
+		ol_txrx_err("%s invalid instance", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	ipa_res = &pdev->ipa_resource;
+	if (osdev->smmu_s1_enabled) {
+		ret = pld_smmu_unmap(osdev->dev,
+				     ipa_res->rx_ready_doorbell_dmaaddr,
+				     sizeof(uint32_t));
+		if (ret)
+			ol_txrx_err("%s rx_ready, smmu unmap failed", __func__);
+
+		ret = pld_smmu_unmap(osdev->dev,
+				     ipa_res->tx_comp_doorbell_dmaaddr,
+				     sizeof(uint32_t));
+		if (ret)
+			ol_txrx_err("%s tx_comp, smmu unmap failed", __func__);
+	}
 
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_DEBUG,
 		  "%s: Disconnect IPA pipe", __func__);
