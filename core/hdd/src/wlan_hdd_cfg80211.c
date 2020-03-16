@@ -17210,7 +17210,12 @@ static void wlan_hdd_update_band_cap(struct hdd_context *hdd_ctx)
 	tSirMacHTCapabilityInfo *ht_cap_info;
 	QDF_STATUS status;
 	mac_handle_t mac_handle = hdd_ctx->mac_handle;
+	struct ieee80211_supported_band *band_2g;
+	struct ieee80211_supported_band *band_5g;
+	uint8_t i;
 
+	band_2g = hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ];
+	band_5g = hdd_ctx->wiphy->bands[HDD_NL80211_BAND_5GHZ];
 	status = sme_cfg_get_int(mac_handle, WNI_CFG_HT_CAP_INFO, &val32);
 	if (QDF_STATUS_SUCCESS != status) {
 		hdd_err("could not get HT capability info");
@@ -17248,6 +17253,26 @@ static void wlan_hdd_update_band_cap(struct hdd_context *hdd_ctx)
 				hdd_ctx->wiphy->bands[HDD_NL80211_BAND_2GHZ]->
 						vht_cap.vht_supported = 1;
 		}
+	}
+	if (band_2g) {
+		for (i = 0; i < hdd_ctx->num_rf_chains; i++)
+			band_2g->ht_cap.mcs.rx_mask[i] = 0xff;
+			/*
+			 * According to mcs_nss HT MCS parameters highest data
+			 * rate for Nss = 1 is 150 Mbps
+			 */
+		 band_2g->ht_cap.mcs.rx_highest =
+				cpu_to_le16(150 * hdd_ctx->num_rf_chains);
+	}
+	if (band_5g) {
+		for (i = 0; i < hdd_ctx->num_rf_chains; i++)
+			band_5g->ht_cap.mcs.rx_mask[i] = 0xff;
+			/*
+			 * According to mcs_nss HT MCS parameters highest data
+			 * rate for Nss = 1 is 150 Mbps
+			 */
+			band_5g->ht_cap.mcs.rx_highest =
+				cpu_to_le16(150 * hdd_ctx->num_rf_chains);
 	}
 }
 
