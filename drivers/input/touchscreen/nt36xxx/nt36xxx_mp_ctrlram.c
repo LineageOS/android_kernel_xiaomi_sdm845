@@ -90,79 +90,79 @@ static int nvt_mp_buffer_init(void)
 	size_t RecordResult_BufSize = IC_X_CFG_SIZE * IC_Y_CFG_SIZE + IC_KEY_CFG_SIZE;
 	size_t RawData_BufSize = (IC_X_CFG_SIZE * IC_Y_CFG_SIZE + IC_KEY_CFG_SIZE) * sizeof(int32_t);
 
-	RecordResult_Short = (uint8_t *)kzalloc(RecordResult_BufSize, GFP_KERNEL);
+	RecordResult_Short = kzalloc(RecordResult_BufSize, GFP_KERNEL);
 	if (!RecordResult_Short) {
 		NVT_ERR("kzalloc for RecordResult_Short failed!\n");
 		return -ENOMEM;
 	}
 
-	RecordResult_Open = (uint8_t *)kzalloc(RecordResult_BufSize, GFP_KERNEL);
+	RecordResult_Open = kzalloc(RecordResult_BufSize, GFP_KERNEL);
 	if (!RecordResult_Open) {
 		NVT_ERR("kzalloc for RecordResult_Open failed!\n");
 		return -ENOMEM;
 	}
 
-	RecordResult_FWMutual = (uint8_t *)kzalloc(RecordResult_BufSize, GFP_KERNEL);
+	RecordResult_FWMutual = kzalloc(RecordResult_BufSize, GFP_KERNEL);
 	if (!RecordResult_FWMutual) {
 		NVT_ERR("kzalloc for RecordResult_FWMutual failed!\n");
 		return -ENOMEM;
 	}
 
-	RecordResult_FW_CC = (uint8_t *)kzalloc(RecordResult_BufSize, GFP_KERNEL);
+	RecordResult_FW_CC = kzalloc(RecordResult_BufSize, GFP_KERNEL);
 	if (!RecordResult_FW_CC) {
 		NVT_ERR("kzalloc for RecordResult_FW_CC failed!\n");
 		return -ENOMEM;
 	}
 
-	RecordResult_FW_DiffMax = (uint8_t *)kzalloc(RecordResult_BufSize, GFP_KERNEL);
+	RecordResult_FW_DiffMax = kzalloc(RecordResult_BufSize, GFP_KERNEL);
 	if (!RecordResult_FW_DiffMax) {
 		NVT_ERR("kzalloc for RecordResult_FW_DiffMax failed!\n");
 		return -ENOMEM;
 	}
 
-	RecordResult_FW_DiffMin = (uint8_t *)kzalloc(RecordResult_BufSize, GFP_KERNEL);
+	RecordResult_FW_DiffMin = kzalloc(RecordResult_BufSize, GFP_KERNEL);
 	if (!RecordResult_FW_DiffMin) {
 		NVT_ERR("kzalloc for RecordResult_FW_DiffMin failed!\n");
 		return -ENOMEM;
 	}
 
-	RawData_Short = (int32_t *)kzalloc(RawData_BufSize, GFP_KERNEL);
+	RawData_Short = kzalloc(RawData_BufSize, GFP_KERNEL);
 	if (!RawData_Short) {
 		NVT_ERR("kzalloc for RawData_Short failed!\n");
 		return -ENOMEM;
 	}
 
-	RawData_Open = (int32_t *)kzalloc(RawData_BufSize, GFP_KERNEL);
+	RawData_Open = kzalloc(RawData_BufSize, GFP_KERNEL);
 	if (!RawData_Open) {
 		NVT_ERR("kzalloc for RawData_Open failed!\n");
 		return -ENOMEM;
 	}
 
-	RawData_Diff = (int32_t *)kzalloc(RawData_BufSize, GFP_KERNEL);
+	RawData_Diff = kzalloc(RawData_BufSize, GFP_KERNEL);
 	if (!RawData_Diff) {
 		NVT_ERR("kzalloc for RawData_Diff failed!\n");
 		return -ENOMEM;
 	}
 
-	RawData_Diff_Min = (int32_t *)kzalloc(RawData_BufSize, GFP_KERNEL);
+	RawData_Diff_Min = kzalloc(RawData_BufSize, GFP_KERNEL);
 	if (!RawData_Diff_Min) {
 		NVT_ERR("kzalloc for RawData_Diff_Min failed!\n");
 		return -ENOMEM;
 	}
 
-	RawData_Diff_Max = (int32_t *)kzalloc(RawData_BufSize, GFP_KERNEL);
+	RawData_Diff_Max = kzalloc(RawData_BufSize, GFP_KERNEL);
 	if (!RawData_Diff_Max) {
 		NVT_ERR("kzalloc for RawData_Diff_Max failed!\n");
 		return -ENOMEM;
 	}
 
-	RawData_FWMutual = (int32_t *)kzalloc(RawData_BufSize, GFP_KERNEL);
+	RawData_FWMutual = kzalloc(RawData_BufSize, GFP_KERNEL);
 	if (!RawData_FWMutual) {
 		NVT_ERR("kzalloc for RawData_FWMutual failed!\n");
 		return -ENOMEM;
 	}
 
-	RawData_FW_CC = (int32_t *)kzalloc(RawData_BufSize, GFP_KERNEL);
+	RawData_FW_CC = kzalloc(RawData_BufSize, GFP_KERNEL);
 	if (!RawData_FW_CC) {
 		NVT_ERR("kzalloc for RawData_FW_CC failed!\n");
 		return -ENOMEM;
@@ -251,7 +251,7 @@ static void nvt_print_data_log_in_one_line(int32_t *data, int32_t data_num)
 	char *tmp_log = NULL;
 	int32_t i = 0;
 
-	tmp_log = (char *)kzalloc(data_num * 7 + 1, GFP_KERNEL);
+	tmp_log = kzalloc(data_num * 7 + 1, GFP_KERNEL);
 	if (!tmp_log) {
 		NVT_ERR("kzalloc for tmp_log failed!\n ");
 		return;
@@ -275,7 +275,7 @@ static void nvt_print_result_log_in_one_line(uint8_t *result, int32_t result_num
 	char *tmp_log = NULL;
 	int32_t i = 0;
 
-	tmp_log = (char *)kzalloc(result_num * 6 + 1, GFP_KERNEL);
+	tmp_log = kzalloc(result_num * 6 + 1, GFP_KERNEL);
 	if (!tmp_log) {
 		NVT_ERR("kzalloc for tmp_log failed!\n ");
 		return;
@@ -369,7 +369,7 @@ static int32_t nvt_save_rawdata_to_csv(int32_t *rawdata, uint8_t x_ch, uint8_t y
 #endif /* #if TOUCH_KEY_NUM > 0 */
 
 	printk("%s:++\n", __func__);
-	fbufp = (char *)kzalloc(8192, GFP_KERNEL);
+	fbufp = kzalloc(8192, GFP_KERNEL);
 	if (!fbufp) {
 		NVT_ERR("kzalloc for fbufp failed!\n");
 		return -ENOMEM;
@@ -769,9 +769,9 @@ static int32_t nvt_read_fw_open(int32_t *xdata)
 	}
 
 #if TOUCH_KEY_NUM > 0
-	rawdata_buf = (uint8_t *)kzalloc((IC_X_CFG_SIZE * IC_Y_CFG_SIZE + IC_KEY_CFG_SIZE) * 2, GFP_KERNEL);
+	rawdata_buf = kzalloc((IC_X_CFG_SIZE * IC_Y_CFG_SIZE + IC_KEY_CFG_SIZE) * 2, GFP_KERNEL);
 #else
-	rawdata_buf = (uint8_t *)kzalloc(IC_X_CFG_SIZE * IC_Y_CFG_SIZE * 2, GFP_KERNEL);
+	rawdata_buf = kzalloc(IC_X_CFG_SIZE * IC_Y_CFG_SIZE * 2, GFP_KERNEL);
 #endif /* #if TOUCH_KEY_NUM > 0 */
 	if (!rawdata_buf) {
 		NVT_ERR("kzalloc for rawdata_buf failed!\n");
@@ -865,9 +865,9 @@ static int32_t nvt_read_fw_short(int32_t *xdata)
 	}
 
 #if TOUCH_KEY_NUM > 0
-    rawdata_buf = (uint8_t *)kzalloc((X_Channel * Y_Channel + Key_Channel) * 2, GFP_KERNEL);
+    rawdata_buf = kzalloc((X_Channel * Y_Channel + Key_Channel) * 2, GFP_KERNEL);
 #else
-    rawdata_buf = (uint8_t *)kzalloc(X_Channel * Y_Channel * 2, GFP_KERNEL);
+    rawdata_buf = kzalloc(X_Channel * Y_Channel * 2, GFP_KERNEL);
 #endif /* #if TOUCH_KEY_NUM > 0 */
 	if (!rawdata_buf) {
 		NVT_ERR("kzalloc for rawdata_buf failed!\n");
@@ -995,11 +995,10 @@ static int32_t RawDataTest_SinglePoint_Sub(int32_t rawdata[], uint8_t RecordResu
 	}
 #endif /* #if TOUCH_KEY_NUM > 0 */
 
-	if (isPass == false) {
-		return -1; // FAIL
-	} else {
+	if (isPass)
 		return 0; // PASS
-	}
+	else
+		return -1; // FAIL
 }
 
 /*******************************************************
