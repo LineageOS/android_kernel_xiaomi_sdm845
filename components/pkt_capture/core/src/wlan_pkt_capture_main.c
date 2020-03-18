@@ -60,10 +60,20 @@ pkt_capture_register_callbacks(struct wlan_objmgr_vdev *vdev,
 			       void *context)
 {
 	struct pkt_capture_vdev_priv *vdev_priv;
+	struct wlan_pkt_capture_rx_ops *rx_ops;
+	struct wlan_pkt_capture_tx_ops *tx_ops;
+	struct wlan_objmgr_psoc *psoc;
+	enum pkt_capture_mode mode;
 	QDF_STATUS status;
 
 	if (!vdev) {
 		pkt_capture_err("vdev is NULL");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	psoc = wlan_vdev_get_psoc(vdev);
+	if (!psoc) {
+		pkt_capture_err("psoc is NULL");
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -79,22 +89,61 @@ pkt_capture_register_callbacks(struct wlan_objmgr_vdev *vdev,
 	status = pkt_capture_mgmt_rx_ops(wlan_vdev_get_psoc(vdev), true);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		pkt_capture_err("Failed to register pkt capture mgmt rx ops");
-		return status;
+		goto mgmt_rx_ops_fail;
 	}
 
 	target_if_pkt_capture_register_tx_ops(&vdev_priv->tx_ops);
 	target_if_pkt_capture_register_rx_ops(&vdev_priv->rx_ops);
 
+	rx_ops = &vdev_priv->rx_ops;
+	tx_ops = &vdev_priv->tx_ops;
+
+	status = rx_ops->pkt_capture_register_ev_handlers(psoc);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		pkt_capture_err("Unable to register event handlers");
+		goto register_ev_handlers_fail;
+	}
+
+	mode = pkt_capture_get_mode(psoc);
+	status = tx_ops->pkt_capture_send_mode(psoc,
+					       wlan_vdev_get_id(vdev),
+					       mode);
+	if (status) {
+		pkt_capture_err("Unable to send packet capture mode to fw");
+		goto send_mode_fail;
+	}
+
+	pkt_capture_debug("packet capture callbacks registered successfully");
+
 	return QDF_STATUS_SUCCESS;
+
+send_mode_fail:
+	rx_ops->pkt_capture_unregister_ev_handlers(psoc);
+register_ev_handlers_fail:
+	pkt_capture_mgmt_rx_ops(wlan_vdev_get_psoc(vdev), false);
+mgmt_rx_ops_fail:
+	vdev_priv->cb_ctx->mon_cb = NULL;
+	vdev_priv->cb_ctx->mon_ctx = NULL;
+
+	return QDF_STATUS_E_INVAL;
 }
 
 QDF_STATUS pkt_capture_deregister_callbacks(struct wlan_objmgr_vdev *vdev)
 {
 	struct pkt_capture_vdev_priv *vdev_priv;
+	struct wlan_pkt_capture_rx_ops *rx_ops;
+	struct wlan_pkt_capture_tx_ops *tx_ops;
+	struct wlan_objmgr_psoc *psoc;
 	QDF_STATUS status;
 
 	if (!vdev) {
 		pkt_capture_err("vdev is NULL");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	psoc = wlan_vdev_get_psoc(vdev);
+	if (!psoc) {
+		pkt_capture_err("psoc is NULL");
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -104,12 +153,34 @@ QDF_STATUS pkt_capture_deregister_callbacks(struct wlan_objmgr_vdev *vdev)
 		return QDF_STATUS_E_INVAL;
 	}
 
-	status = pkt_capture_mgmt_rx_ops(wlan_vdev_get_psoc(vdev), false);
+	status = pkt_capture_mgmt_rx_ops(psoc, false);
 	if (QDF_IS_STATUS_ERROR(status))
 		pkt_capture_err("Failed to unregister pkt capture mgmt rx ops");
 
 	vdev_priv->cb_ctx->mon_cb = NULL;
 	vdev_priv->cb_ctx->mon_ctx = NULL;
+
+	rx_ops = &vdev_priv->rx_ops;
+	tx_ops = &vdev_priv->tx_ops;
+
+	if (!rx_ops->pkt_capture_unregister_ev_handlers ||
+	    !tx_ops->pkt_capture_send_mode)
+		return QDF_STATUS_E_INVAL;
+
+	status = rx_ops->pkt_capture_unregister_ev_handlers(psoc);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		pkt_capture_err("Unable to unregister event handlers");
+		return status;
+	}
+
+	status = tx_ops->pkt_capture_send_mode(psoc, wlan_vdev_get_id(vdev),
+					       PACKET_CAPTURE_MODE_DISABLE);
+	if (status) {
+		pkt_capture_err("Unable to send packet capture mode to fw");
+		return status;
+	}
+
+	pkt_capture_debug("packet capture callbacks deregistered successfully");
 
 	return QDF_STATUS_SUCCESS;
 }
