@@ -5117,6 +5117,10 @@ static inline void wma_update_target_services(struct wmi_unified *wmi_handle,
 	if (wmi_service_enabled(wmi_handle, wmi_service_adaptive_11r_support))
 		cfg->is_adaptive_11r_roam_supported = true;
 
+	if (wmi_service_enabled(wmi_handle,
+				wmi_service_host_scan_stop_vdev_all))
+		cfg->stop_all_host_scan_support = true;
+
 	if (wmi_service_enabled(wmi_handle, wmi_service_twt_requestor))
 		cfg->twt_requestor = true;
 	if (wmi_service_enabled(wmi_handle, wmi_service_twt_responder))

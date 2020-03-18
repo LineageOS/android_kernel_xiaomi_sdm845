@@ -14101,6 +14101,8 @@ void sme_update_tgt_services(tHalHandle hal, struct wma_tgt_services *cfg)
 		FL("mac_ctx->pmf_offload: %d"), mac_ctx->pmf_offload);
 	mac_ctx->is_fils_roaming_supported =
 				cfg->is_fils_roaming_supported;
+	mac_ctx->stop_all_host_scan_support =
+				cfg->stop_all_host_scan_support;
 	mac_ctx->is_11k_offload_supported =
 				cfg->is_11k_offload_supported;
 	mac_ctx->akm_service_bitmap = cfg->akm_service_bitmap;

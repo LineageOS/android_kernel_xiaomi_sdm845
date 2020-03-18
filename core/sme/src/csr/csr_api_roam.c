@@ -23779,6 +23779,8 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 	tpCsrNeighborRoamControlInfo neigh_roam_info =
 				&mac_ctx->roam.neighborRoamInfo[session_id];
 	uint32_t chan_id;
+	bool abort_host_scan_cap = false;
+	wlan_scan_id scan_id;
 
 	if (!session) {
 		sme_err("LFR3: Session not found");
@@ -23811,8 +23813,29 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 				ROAMING_OFFLOAD_TIMER_START);
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				eCSR_ROAM_START, eCSR_ROAM_RESULT_SUCCESS);
+		/*
+		 * For emergency deauth roaming, firmware sends ROAM start
+		 * instead of ROAM scan start notification as data path queues
+		 * will be stopped only during roam start notification.
+		 * This is because, for deauth/disassoc triggered roam, the
+		 * AP has sent deauth, and packets shouldn't be sent to AP
+		 * after that. Since firmware is sending roam start directly
+		 * host sends scan abort during roam scan, but in other
+		 * triggers, the host receives roam start after candidate
+		 * selection and roam scan is complete. So when host sends
+		 * roam abort for emergency deauth roam trigger, the firmware
+		 * roam scan is also aborted. This results in roaming failure.
+		 * So send scan_id as CANCEL_HOST_SCAN_ID to scan module to
+		 * abort only host triggered scans.
+		 */
+		abort_host_scan_cap = mac_ctx->stop_all_host_scan_support;
+		if (abort_host_scan_cap)
+			scan_id = CANCEL_HOST_SCAN_ID;
+		else
+			scan_id = INVAL_SCAN_ID;
+
 		wlan_abort_scan(mac_ctx->pdev, INVAL_PDEV_ID,
-				session_id, INVAL_SCAN_ID, false);
+				session_id, scan_id, false);
 		return status;
 	case SIR_ROAMING_ABORT:
 		csr_roam_roaming_offload_timer_action(mac_ctx,
