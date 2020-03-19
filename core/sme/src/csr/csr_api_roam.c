@@ -240,6 +240,8 @@ enum mgmt_auth_type diag_auth_type_from_csr_type(eCsrAuthType authtype)
 		n = AUTH_WPA_PSK;
 		break;
 	case eCSR_AUTH_TYPE_RSN:
+	case eCSR_AUTH_TYPE_SUITEB_EAP_SHA256:
+	case eCSR_AUTH_TYPE_SUITEB_EAP_SHA384:
 #ifdef WLAN_FEATURE_11W
 	case eCSR_AUTH_TYPE_RSN_8021X_SHA256:
 #endif
@@ -7330,6 +7332,8 @@ static QDF_STATUS csr_roam_save_params(tpAniSirGlobal mac_ctx,
 	    (eCSR_AUTH_TYPE_FT_RSN_PSK == auth_type) ||
 	    (eCSR_AUTH_TYPE_FT_SAE == auth_type) ||
 	    (eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384 == auth_type) ||
+	    (eCSR_AUTH_TYPE_SUITEB_EAP_SHA256 == auth_type) ||
+	    (eCSR_AUTH_TYPE_SUITEB_EAP_SHA384 == auth_type) ||
 #if defined WLAN_FEATURE_11W
 	    (eCSR_AUTH_TYPE_RSN_PSK_SHA256 == auth_type) ||
 	    (eCSR_AUTH_TYPE_RSN_8021X_SHA256 == auth_type) ||
@@ -7513,6 +7517,8 @@ static QDF_STATUS csr_roam_save_security_rsp_ie(tpAniSirGlobal pMac,
 		(eCSR_AUTH_TYPE_FT_RSN_PSK == authType)
 		|| (eCSR_AUTH_TYPE_FT_SAE == authType)
 		|| (eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384 == authType)
+		|| (eCSR_AUTH_TYPE_SUITEB_EAP_SHA256 == authType)
+		|| (eCSR_AUTH_TYPE_SUITEB_EAP_SHA384 == authType)
 #ifdef FEATURE_WLAN_WAPI
 		|| (eCSR_AUTH_TYPE_WAPI_WAI_PSK == authType) ||
 		(eCSR_AUTH_TYPE_WAPI_WAI_CERTIFICATE == authType)
@@ -21753,6 +21759,13 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	if (CSR_IS_AUTH_TYPE_SAE(roam_profile_akm) &&
 	    !CSR_IS_FW_SAE_ROAM_SUPPORTED(fw_akm_bitmap)) {
 		sme_info("Roaming not suppprted for SAE connection");
+		return QDF_STATUS_SUCCESS;
+	}
+
+	if ((roam_profile_akm == eCSR_AUTH_TYPE_SUITEB_EAP_SHA256 ||
+	    roam_profile_akm == eCSR_AUTH_TYPE_SUITEB_EAP_SHA384) &&
+	    !CSR_IS_FW_SUITEB_ROAM_SUPPORTED(fw_akm_bitmap)) {
+		sme_info("Roaming not supported for SUITEB connection");
 		return QDF_STATUS_SUCCESS;
 	}
 
