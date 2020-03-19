@@ -712,9 +712,9 @@ static void tgt_mc_cp_stats_extract_station_stats(
 	 * reset type_map bit for station stats .
 	 */
 	if (tgt_mc_cp_stats_is_last_event(ev)) {
+		ucfg_mc_cp_stats_reset_pending_req(psoc, TYPE_STATION_STATS);
 		tgt_mc_cp_stats_prepare_n_send_raw_station_stats(psoc,
 								 &last_req);
-		ucfg_mc_cp_stats_reset_pending_req(psoc, TYPE_STATION_STATS);
 	}
 }
 
