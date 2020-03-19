@@ -8732,7 +8732,7 @@ QDF_STATUS hdd_parse_config_ini(struct hdd_context *hdd_ctx)
 
 	hdd_debug("qcom_cfg.ini Size %zu", fw->size);
 
-	buffer = (char *)qdf_mem_malloc(fw->size);
+	buffer = (char *)qdf_mem_malloc(fw->size + 1);
 
 	if (NULL == buffer) {
 		hdd_err("qdf_mem_malloc failure");
