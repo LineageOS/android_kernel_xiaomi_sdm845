@@ -1,6 +1,6 @@
 /*************************************************************************
  * Copyright (C) 2015 Broadcom Corporation
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  *
  * This program is free software; you can redistribute it and/or
@@ -1169,7 +1169,6 @@ static int bcm_spi_probe(struct spi_device *spi)
 	bool legacy_patch = false;
 	int ret;
 	int error = 0;
-	pr_err("[SSPBBD]: Check platform_data for bcm device\n");
 
 	/* Check GPIO# */
 #ifndef CONFIG_OF

@@ -1,6 +1,6 @@
 /*
  * Copyright 2014 Broadcom Corporation
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2, as
@@ -100,6 +100,7 @@ static const char *bbd_dev_name[BBD_DEVICE_INDEX] = {
 
 };
 
+static dev_t devno;
 
 
 
@@ -825,7 +826,6 @@ int bbd_init(struct device *dev, bool legacy_patch)
 
 	/* Create BBD char devices */
 	for (minor = 0; minor < BBD_DEVICE_INDEX; minor++) {
-		dev_t devno = MKDEV(BBD_DEVICE_MAJOR, minor);
 		struct cdev *cdev = &bbd.priv[minor].dev;
 		const char *name = bbd_dev_name[minor];
 		struct device *dev;
@@ -842,9 +842,9 @@ int bbd_init(struct device *dev, bool legacy_patch)
 			continue;
 		/* Reserve char device number (a.k.a, major, minor)
 		 * for this BBD device */
-		ret = register_chrdev_region(devno, 1, name);
+		ret = alloc_chrdev_region(&devno, 0, 1, name);
 		if (ret) {
-			pr_err("BBD:%s() failed to register_chrdev_region() "
+			pr_err("BBD:%s() failed to alloc_chrdev_region() "
 					"\"%s\", ret=%d", __func__, name, ret);
 			goto free_class;
 		}
@@ -871,10 +871,6 @@ int bbd_init(struct device *dev, bool legacy_patch)
 			cdev_del(&bbd.priv[minor].dev);
 			goto free_class;
 		}
-
-		/* Done. Put success log and init BBD specific fields */
-		pr_info("BBD:%s(%d,%d) registered /dev/%s\n",
-			      __func__, BBD_DEVICE_MAJOR, minor, name);
 
 	}
 
@@ -918,7 +914,6 @@ free_kobj:
 	kobject_put(bbd.kobj);
 free_class:
 	while (--minor > BBD_MINOR_SHMD) {
-		dev_t devno = MKDEV(BBD_DEVICE_MAJOR, minor);
 		struct cdev *cdev = &bbd.priv[minor].dev;
 
 		device_destroy(bbd.class, devno);
@@ -946,16 +941,12 @@ static void __exit bbd_exit(void)
 
 	/* Remove BBD char devices */
 	for (minor = BBD_MINOR_SENSOR; minor < BBD_DEVICE_INDEX; minor++) {
-		dev_t devno = MKDEV(BBD_DEVICE_MAJOR, minor);
 		struct cdev *cdev = &bbd.priv[minor].dev;
-		const char *name = bbd_dev_name[minor];
 
 		device_destroy(bbd.class, devno);
 		cdev_del(cdev);
 		unregister_chrdev_region(devno, 1);
 
-		pr_info("%s(%d,%d) unregistered /dev/%s\n",
-			__func__, BBD_DEVICE_MAJOR, minor, name);
 	}
 
 	/* Remove class */

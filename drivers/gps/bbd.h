@@ -1,6 +1,6 @@
 /*
  * Copyright 2015 Broadcom Corporation
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2, as
@@ -40,7 +40,6 @@ union short_union_t {
 #pragma pack()
 
 
-#define BBD_DEVICE_MAJOR	240
 enum {
 	BBD_MINOR_SHMD	    = 0,
 	BBD_MINOR_SENSOR    = 1,
