@@ -413,7 +413,7 @@ QDF_STATUS ucfg_nan_req_processor(struct wlan_objmgr_vdev *vdev,
 		nan_debug("Wait for NDP END indication");
 		err = osif_request_wait_for_response(request);
 		if (err)
-			nan_err("NAN request timed out: %d", err);
+			nan_debug("NAN request timed out: %d", err);
 		osif_request_put(request);
 		psoc_obj->request_context = NULL;
 	}
