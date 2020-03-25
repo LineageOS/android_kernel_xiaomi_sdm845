@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -979,4 +979,23 @@ hif_get_ce_service_max_yield_time(struct hif_opaque_softc *hif);
  */
 void hif_set_ce_service_max_rx_ind_flush(struct hif_opaque_softc *hif,
 				       uint8_t ce_service_max_rx_ind_flush);
+
+#ifdef HIF_CE_LOG_INFO
+/**
+ * hif_log_ce_info() - API to log ce info
+ * @hif_ctx: hif opaque handle
+ * @data: hang event data buffer
+ * @offset: offset at which data needs to be written
+ *
+ * Return:  None
+ */
+void hif_log_ce_info(struct hif_opaque_softc *hif_ctx, uint8_t *data,
+		     unsigned int *offset);
+#else
+static inline
+void hif_log_ce_info(struct hif_opaque_softc *hif_ctx, uint8_t *data,
+		     unsigned int *offset)
+{
+}
+#endif
 #endif /* _HIF_H_ */
