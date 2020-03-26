@@ -40,7 +40,6 @@ union short_union_t {
 #pragma pack()
 
 
-#define BBD_DEVICE_MAJOR	240
 enum {
 	BBD_MINOR_SHMD	    = 0,
 	BBD_MINOR_SENSOR    = 1,

@@ -87,6 +87,7 @@ struct bbd_device {
 	bbd_callbacks *ssp_cb;			/* callbacks for SSP */
 
 	bool legacy_patch;	/* check for using legacy_bbd_patch */
+	dev_t dev;
 };
 
 /*
@@ -823,9 +824,18 @@ int bbd_init(struct device *dev, bool legacy_patch)
 		goto exit;
 	}
 
+	/* Reserve char device number (a.k.a, major, minor)
+	 * for this BBD device */
+	ret = alloc_chrdev_region(&bbd.dev, 0, BBD_DEVICE_INDEX, "bbd");
+	if (ret) {
+		pr_err("BBD:%s() failed to alloc_chrdev_region() "
+				"\"bbd\", ret=%d", __func__, ret);
+		goto free_class;
+	}
+
 	/* Create BBD char devices */
 	for (minor = 0; minor < BBD_DEVICE_INDEX; minor++) {
-		dev_t devno = MKDEV(BBD_DEVICE_MAJOR, minor);
+		dev_t devno = MKDEV(MAJOR(bbd.dev), minor);
 		struct cdev *cdev = &bbd.priv[minor].dev;
 		const char *name = bbd_dev_name[minor];
 		struct device *dev;
@@ -840,14 +850,6 @@ int bbd_init(struct device *dev, bool legacy_patch)
 		/* Don't register /dev/bbd_shmd */
 		if (minor == BBD_MINOR_SHMD)
 			continue;
-		/* Reserve char device number (a.k.a, major, minor)
-		 * for this BBD device */
-		ret = register_chrdev_region(devno, 1, name);
-		if (ret) {
-			pr_err("BBD:%s() failed to register_chrdev_region() "
-					"\"%s\", ret=%d", __func__, name, ret);
-			goto free_class;
-		}
 
 		/* Register cdev which relates above device
 		 * number with this BBD device */
@@ -874,7 +876,7 @@ int bbd_init(struct device *dev, bool legacy_patch)
 
 		/* Done. Put success log and init BBD specific fields */
 		pr_info("BBD:%s(%d,%d) registered /dev/%s\n",
-			      __func__, BBD_DEVICE_MAJOR, minor, name);
+			      __func__, MAJOR(bbd.dev), minor, name);
 
 	}
 
@@ -918,7 +920,7 @@ free_kobj:
 	kobject_put(bbd.kobj);
 free_class:
 	while (--minor > BBD_MINOR_SHMD) {
-		dev_t devno = MKDEV(BBD_DEVICE_MAJOR, minor);
+		dev_t devno = MKDEV(MAJOR(bbd.dev), minor);
 		struct cdev *cdev = &bbd.priv[minor].dev;
 
 		device_destroy(bbd.class, devno);
@@ -946,7 +948,7 @@ static void __exit bbd_exit(void)
 
 	/* Remove BBD char devices */
 	for (minor = BBD_MINOR_SENSOR; minor < BBD_DEVICE_INDEX; minor++) {
-		dev_t devno = MKDEV(BBD_DEVICE_MAJOR, minor);
+		dev_t devno = MKDEV(MAJOR(bbd.dev), minor);
 		struct cdev *cdev = &bbd.priv[minor].dev;
 		const char *name = bbd_dev_name[minor];
 
@@ -955,7 +957,7 @@ static void __exit bbd_exit(void)
 		unregister_chrdev_region(devno, 1);
 
 		pr_info("%s(%d,%d) unregistered /dev/%s\n",
-			__func__, BBD_DEVICE_MAJOR, minor, name);
+			__func__, MAJOR(bbd.dev), minor, name);
 	}
 
 	/* Remove class */
