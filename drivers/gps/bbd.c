@@ -860,7 +860,6 @@ int bbd_init(struct device *dev, bool legacy_patch)
 		if (ret) {
 			pr_err("BBD:%s()) failed to cdev_add() \"%s\", ret=%d",
 						__func__, name, ret);
-			unregister_chrdev_region(devno, 1);
 			goto free_class;
 		}
 
@@ -869,7 +868,6 @@ int bbd_init(struct device *dev, bool legacy_patch)
 		if (IS_ERR_OR_NULL(dev)) {
 			pr_err("BBD:%s() failed to device_create() "
 				"\"%s\", ret=%d", __func__, name, ret);
-			unregister_chrdev_region(devno, 1);
 			cdev_del(&bbd.priv[minor].dev);
 			goto free_class;
 		}
@@ -925,8 +923,8 @@ free_class:
 
 		device_destroy(bbd.class, devno);
 		cdev_del(cdev);
-		unregister_chrdev_region(devno, 1);
 	}
+	unregister_chrdev_region(bbd.dev, BBD_DEVICE_INDEX);
 	class_destroy(bbd.class);
 exit:
 	return ret;
@@ -954,11 +952,11 @@ static void __exit bbd_exit(void)
 
 		device_destroy(bbd.class, devno);
 		cdev_del(cdev);
-		unregister_chrdev_region(devno, 1);
 
 		pr_info("%s(%d,%d) unregistered /dev/%s\n",
 			__func__, MAJOR(bbd.dev), minor, name);
 	}
+	unregister_chrdev_region(bbd.dev, BBD_DEVICE_INDEX);
 
 	/* Remove class */
 	class_destroy(bbd.class);
