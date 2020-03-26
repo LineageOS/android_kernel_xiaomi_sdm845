@@ -2547,6 +2547,7 @@ static QDF_STATUS csr_prepare_scan_filter(tpAniSirGlobal mac_ctx,
 		filter->ignore_auth_enc_type = true;
 
 	filter->rrm_measurement_filter = pFilter->fMeasurement;
+	filter->age_threshold = pFilter->age_threshold;
 
 	filter->mobility_domain = pFilter->MDID.mobilityDomain;
 
