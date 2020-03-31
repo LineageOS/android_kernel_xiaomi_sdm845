@@ -398,6 +398,7 @@ static void wma_roam_scan_offload_set_params(
 				roam_req->RoamKeyMgmtOffloadEnabled;
 	wma_roam_scan_fill_self_caps(wma_handle,
 				     &params->roam_offload_params, roam_req);
+	params->rct_validity_timer = roam_req->rct_validity_timer;
 	params->is_adaptive_11r = roam_req->is_adaptive_11r_connection;
 	params->fw_okc = roam_req->pmkid_modes.fw_okc;
 	params->fw_pmksa_cache = roam_req->pmkid_modes.fw_pmksa_cache;
