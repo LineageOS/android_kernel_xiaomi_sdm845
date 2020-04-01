@@ -238,8 +238,12 @@ pkt_capture_update_tx_status(
 		IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
 
 	tx_status->chan_flags = channel_flags;
-	tx_status->ant_signal_db = pktcapture_hdr->rssi_comb;
-	tx_status->rssi_comb = pktcapture_hdr->rssi_comb;
+	/* RSSI is filled with TPC which will be normalized
+	 * during radiotap updation, so add 96 here
+	 */
+	tx_status->ant_signal_db =
+			pktcapture_hdr->rssi_comb - NORMALIZED_TO_NOISE_FLOOR;
+	tx_status->rssi_comb = tx_status->ant_signal_db;
 	tx_status->tx_status = pktcapture_hdr->status;
 	tx_status->tx_retry_cnt = pktcapture_hdr->tx_retry_cnt;
 	tx_status->add_rtap_ext = true;

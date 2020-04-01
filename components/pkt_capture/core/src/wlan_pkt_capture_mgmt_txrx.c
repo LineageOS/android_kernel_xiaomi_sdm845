@@ -260,14 +260,11 @@ pkt_capture_process_mgmt_tx_data(struct wlan_objmgr_pdev *pdev,
 	txrx_status.chan_freq = params->chan_freq;
 	/* params->rate is in Kbps, convert into Mbps */
 	txrx_status.rate = (params->rate_kbps / 1000);
-	if (params->rssi == INVALID_RSSI_FOR_TX)
-		/* RSSI -128 is invalid rssi for TX, make it 0 here,
-		 * will be normalized during radiotap updation
-		 */
-		txrx_status.ant_signal_db = 0;
-	else
-		txrx_status.ant_signal_db = params->rssi;
 
+	/* RSSI is filled with TPC which will be normalized
+	 * during radiotap updation, so add 96 here
+	 */
+	txrx_status.ant_signal_db = params->rssi - NORMALIZED_TO_NOISE_FLOOR;
 	txrx_status.rssi_comb = txrx_status.ant_signal_db;
 	txrx_status.nr_ant = 1;
 	txrx_status.rtap_flags |=
