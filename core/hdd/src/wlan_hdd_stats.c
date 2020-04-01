@@ -1036,6 +1036,7 @@ static void hdd_process_ll_stats(tSirLLStatsResults *results,
 {
 	struct hdd_ll_stats_priv *priv = osif_request_priv(request);
 	struct hdd_ll_stats *stats = NULL;
+	size_t stat_size = 0;
 
 	if (!(priv->request_bitmap & results->paramId))
 		return;
@@ -1045,15 +1046,15 @@ static void hdd_process_ll_stats(tSirLLStatsResults *results,
 		if (!stats)
 			goto exit;
 
+		stat_size = sizeof(tSirWifiRadioStat) * results->num_radio;
 		stats->result_param_id = WMI_LINK_STATS_RADIO;
-		stats->result = qdf_mem_malloc(sizeof(tSirWifiRadioStat));
+		stats->result = qdf_mem_malloc(stat_size);
 		if (!stats->result) {
 			qdf_mem_free(stats);
 			goto exit;
 		}
 
-		qdf_mem_copy(stats->result, results->results,
-			     sizeof(tSirWifiRadioStat));
+		qdf_mem_copy(stats->result, results->results, stat_size);
 		stats->stats_nradio_npeer.no_of_radios = results->num_radio;
 		stats->more_data = results->moreResultToFollow;
 		if (!results->moreResultToFollow)
@@ -1076,12 +1077,30 @@ static void hdd_process_ll_stats(tSirLLStatsResults *results,
 			priv->request_bitmap &= ~(WMI_LINK_STATS_ALL_PEER);
 		priv->request_bitmap &= ~stats->result_param_id;
 	} else if (results->paramId & WMI_LINK_STATS_ALL_PEER) {
+		tpSirWifiPeerStat peer_stat = (tpSirWifiPeerStat)
+						   results->results;
+		tpSirWifiPeerInfo peer_info = NULL;
+		u32 num_rate = 0, peers, rates;
+		int i;
 		stats = qdf_mem_malloc(sizeof(*stats));
 		if (!stats)
 			goto exit;
 
+		peer_info = (tpSirWifiPeerInfo)peer_stat->peerInfo;
+		for (i = 1; i <= peer_stat->numPeers; i++) {
+			num_rate += peer_info->numRate;
+			peer_info = (tpSirWifiPeerInfo)((uint8_t *)
+				    peer_info + sizeof(tSirWifiPeerInfo) +
+				    (peer_info->numRate *
+				    sizeof(tSirWifiRateStat)));
+		}
+
+		peers = sizeof(tSirWifiPeerInfo) * peer_stat->numPeers;
+		rates = sizeof(tSirWifiRateStat) * num_rate;
+		stat_size = sizeof(tSirWifiPeerStat) + peers + rates;
 		stats->result_param_id = WMI_LINK_STATS_ALL_PEER;
-		stats->result = qdf_mem_malloc(sizeof(tSirWifiPeerStat));
+
+		stats->result = qdf_mem_malloc(stat_size);
 		if (!stats->result) {
 			qdf_mem_free(stats);
 			goto exit;
