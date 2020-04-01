@@ -142,7 +142,7 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 /* Roam debugging related macro defines */
 #define MAX_ROAM_DEBUG_BUF_SIZE    250
 #define MAX_ROAM_EVENTS_SUPPORTED  5
-#define ROAM_FAILURE_BUF_SIZE      50
+#define ROAM_FAILURE_BUF_SIZE      60
 #define TIME_STRING_LEN            24
 
 #define ROAM_CHANNEL_BUF_SIZE      300
