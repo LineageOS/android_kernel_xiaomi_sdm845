@@ -1484,7 +1484,9 @@ QDF_STATUS wmi_unified_cmd_send(wmi_unified_t wmi_handle, wmi_buf_t buf,
 		QDF_TRACE(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_ERROR,
 			"%s: MAX %d WMI Pending cmds reached.", __func__,
 			wmi_handle->wmi_max_cmds);
-		qdf_trigger_self_recovery();
+		/* Will rectify the UNSPECIFIED to correct reason next gerrit */
+		qdf_trigger_self_recovery(wmi_handle->soc->wmi_psoc,
+					  QDF_REASON_UNSPECIFIED);
 		return QDF_STATUS_E_BUSY;
 	}
 
