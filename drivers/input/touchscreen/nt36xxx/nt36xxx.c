@@ -764,7 +764,6 @@ static int nvt_parse_dt(struct device *dev)
 	struct nvt_config_info *config_info;
 	int retval;
 	u32 temp_val;
-	const char *name;
 
 #if NVT_TOUCH_SUPPORT_HW_RST
 	ts->reset_gpio = of_get_named_gpio_flags(np, "novatek,reset-gpio", 0, &ts->reset_flags);
@@ -773,30 +772,23 @@ static int nvt_parse_dt(struct device *dev)
 	ts->irq_gpio = of_get_named_gpio_flags(np, "novatek,irq-gpio", 0, &ts->irq_flags);
 	NVT_LOG("novatek,irq-gpio=%d\n", ts->irq_gpio);
 
-	retval = of_property_read_string(np, "novatek,vddio-reg-name", &name);
-	if (retval < 0)
-		ts->vddio_reg_name = NULL;
-	else {
-		ts->vddio_reg_name = name;
-		NVT_LOG("vddio_reg_name = %s\n", name);
+	retval = of_property_read_string(np, "novatek,vddio-reg-name", &ts->vddio_reg_name);
+	if (retval < 0) {
+		NVT_LOG("Unable to read VDDIO Regulator, rc:%d\n");
+		return retval;
 	}
 
-	retval = of_property_read_string(np, "novatek,lab-reg-name", &name);
-	if (retval < 0)
-		ts->lab_reg_name = NULL;
-	else {
-		ts->lab_reg_name = name;
-		NVT_LOG("lab_reg_name = %s\n", name);
+	retval = of_property_read_string(np, "novatek,lab-reg-name", &ts->lab_reg_name);
+	if (retval < 0) {
+		NVT_LOG("Unable to read LAB Regulator, rc:%d\n");
+		return retval;
 	}
 
-	retval = of_property_read_string(np, "novatek,ibb-reg-name", &name);
-	if (retval < 0)
-		ts->ibb_reg_name = NULL;
-	else {
-		ts->ibb_reg_name = name;
-		NVT_LOG("ibb_reg_name = %s\n", name);
+	retval = of_property_read_string(np, "novatek,ibb-reg-name", &ts->ibb_reg_name);
+	if (retval < 0) {
+		NVT_LOG("Unable to read IBB Regulator, rc:%d\n");
+		return retval;
 	}
-
 
 	retval = of_property_read_u32(np, "novatek,config-array-size",
 				 (u32 *) &ts->config_array_size);
@@ -1964,7 +1956,6 @@ return:
 static int32_t nvt_ts_suspend(struct device *dev)
 {
 	uint8_t buf[4] = {0};
-	int ret = 0;
 #if MT_PROTOCOL_B
 	uint32_t i = 0;
 #endif
@@ -2052,8 +2043,6 @@ return:
 *******************************************************/
 static int32_t nvt_ts_resume(struct device *dev)
 {
-	int ret = 0;
-
 	if (bTouchIsAwake) {
 		NVT_LOG("Touch is already resume\n");
 		return 0;
