@@ -532,6 +532,10 @@ ifeq ($(CONFIG_WLAN_WBUFF), y)
 WBUFF_OBJS += 	$(WBUFF_OBJ_DIR)/wbuff.o
 endif
 
+ifeq ($(CONFIG_WLAN_HANG_EVENT), y)
+	QDF_OBJS += $(QDF_OBJ_DIR)/qdf_hang_event_notifier.o
+endif
+
 ##########OS_IF #######
 OS_IF_DIR := $(WLAN_COMMON_ROOT)/os_if
 
