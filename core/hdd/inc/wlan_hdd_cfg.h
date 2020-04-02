@@ -16343,7 +16343,7 @@ enum hdd_external_acs_policy {
  * AP and roam candidate AP.
  * @Min: 0
  * @Max: 10000
- * @Default: 1850
+ * @Default: 0
  *
  * This ini is used during CU and low rssi based roam triggers, consider
  * AP as roam candidate only if its roam score is better than connected
@@ -16364,7 +16364,7 @@ enum hdd_external_acs_policy {
  * </ini>
  */
 #define CFG_CAND_MIN_ROAM_SCORE_DELTA "min_roam_score_delta"
-#define CFG_CAND_MIN_ROAM_SCORE_DELTA_DEFAULT 1850
+#define CFG_CAND_MIN_ROAM_SCORE_DELTA_DEFAULT 0
 #define CFG_CAND_MIN_ROAM_SCORE_DELTA_MAX 10000
 #define CFG_CAND_MIN_ROAM_SCORE_DELTA_MIN 0
 
