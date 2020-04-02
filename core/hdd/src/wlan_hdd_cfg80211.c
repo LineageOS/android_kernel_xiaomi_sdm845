@@ -348,6 +348,54 @@ static struct ieee80211_supported_band wlan_hdd_band_5_ghz = {
 	.vht_cap.vht_supported = 1,
 };
 
+#if defined(CFG80211_IFTYPE_AKM_SUITES_SUPPORT)
+/*akm suits supported by sta*/
+static const u32 hdd_sta_akm_suites[] = {
+	WLAN_AKM_SUITE_8021X,
+	WLAN_AKM_SUITE_PSK,
+	WLAN_AKM_SUITE_FT_8021X,
+	WLAN_AKM_SUITE_FT_PSK,
+	WLAN_AKM_SUITE_8021X_SHA256,
+	WLAN_AKM_SUITE_PSK_SHA256,
+	WLAN_AKM_SUITE_TDLS,
+	WLAN_AKM_SUITE_SAE,
+	WLAN_AKM_SUITE_FT_OVER_SAE,
+	WLAN_AKM_SUITE_8021X_SUITE_B,
+	WLAN_AKM_SUITE_8021X_SUITE_B_192,
+	WLAN_AKM_SUITE_FILS_SHA256,
+	WLAN_AKM_SUITE_FILS_SHA384,
+	WLAN_AKM_SUITE_FT_FILS_SHA256,
+	WLAN_AKM_SUITE_FT_FILS_SHA384,
+	WLAN_AKM_SUITE_OWE,
+};
+
+/*akm suits supported by AP*/
+static const u32 hdd_ap_akm_suites[] = {
+	WLAN_AKM_SUITE_PSK,
+	WLAN_AKM_SUITE_SAE,
+	WLAN_AKM_SUITE_OWE,
+};
+
+/* This structure contain information what akm suits are
+ * supported for each mode
+ */
+static const struct wiphy_iftype_akm_suites
+	wlan_hdd_akm_suites[] = {
+	{
+		.iftypes_mask = BIT(NL80211_IFTYPE_STATION) |
+				BIT(NL80211_IFTYPE_P2P_CLIENT),
+		.akm_suites = hdd_sta_akm_suites,
+		.n_akm_suites = (sizeof(hdd_sta_akm_suites) / sizeof(u32)),
+	},
+	{
+		.iftypes_mask = BIT(NL80211_IFTYPE_AP) |
+				BIT(NL80211_IFTYPE_P2P_GO),
+		.akm_suites = hdd_ap_akm_suites,
+		.n_akm_suites = (sizeof(hdd_ap_akm_suites) / sizeof(u32)),
+	},
+};
+#endif
+
 /* This structure contain information what kind of frame are expected in
  * TX/RX direction for each kind of interface
  */
@@ -14305,6 +14353,27 @@ static int wlan_hdd_cfg80211_set_nud_stats(struct wiphy *wiphy,
 #undef STATS_GW_IPV4
 #undef STATS_SET_MAX
 
+/**
+ * wlan_hdd_update_akm_suit_info() - Populate akm suits supported by driver
+ * @wiphy: wiphy
+ *
+ * Return: void
+ */
+#if defined(CFG80211_IFTYPE_AKM_SUITES_SUPPORT)
+static void
+wlan_hdd_update_akm_suit_info(struct wiphy *wiphy)
+{
+	wiphy->iftype_akm_suites = wlan_hdd_akm_suites;
+	wiphy->num_iftype_akm_suites = QDF_ARRAY_SIZE(wlan_hdd_akm_suites) /
+				       sizeof(struct wiphy_iftype_akm_suites);
+}
+#else
+static void
+wlan_hdd_update_akm_suit_info(struct wiphy *wiphy)
+{
+}
+#endif
+
 /*
  * define short names for the global vendor params
  * used by wlan_hdd_cfg80211_setarp_stats_cmd()
@@ -16925,7 +16994,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 	set_wiphy_dev(wiphy, dev);
 
 	wiphy->mgmt_stypes = wlan_hdd_txrx_stypes;
-
+	wlan_hdd_update_akm_suit_info(wiphy);
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME
 			| WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD
 			| WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL
