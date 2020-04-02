@@ -201,6 +201,10 @@ ifeq ($(CONFIG_FEATURE_WLAN_TIME_SYNC_FTM), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_ftm_time_sync.o
 endif
 
+ifeq ($(CONFIG_WLAN_HANG_EVENT), y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_hang_event.o
+endif
+
 #Flag to enable SAR Safety Feature
 cppflags-$(CONFIG_SAR_SAFETY_FEATURE) += -DSAR_SAFETY_FEATURE
 
