@@ -40,6 +40,8 @@
 #include "wlan_hdd_driver_ops.h"
 #include "wlan_ipa_ucfg_api.h"
 #include "wlan_hdd_debugfs.h"
+#include <qdf_notifier.h>
+#include <qdf_hang_event_notifier.h>
 
 #ifdef MODULE
 #define WLAN_MODULE_NAME  module_name(THIS_MODULE)
@@ -560,11 +562,12 @@ static inline void hdd_wlan_ssr_shutdown_event(void)
 #endif
 
 /**
- * hdd_send_hang_reason() - Send hang reason to the userspace
+ * hdd_send_hang_data() - Send hang data to userspace
+ * @data: Hang data
  *
  * Return: None
  */
-static void hdd_send_hang_reason(void)
+static void hdd_send_hang_data(void *data, size_t data_len)
 {
 	enum qdf_hang_reason reason = QDF_REASON_UNSPECIFIED;
 	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
@@ -574,7 +577,7 @@ static void hdd_send_hang_reason(void)
 
 	cds_get_recovery_reason(&reason);
 	cds_reset_recovery_reason();
-	wlan_hdd_send_hang_reason_event(hdd_ctx, reason);
+	wlan_hdd_send_hang_reason_event(hdd_ctx, reason, data, data_len);
 }
 
 /**
@@ -624,7 +627,7 @@ static void wlan_hdd_shutdown(void)
 	if (pld_is_pdr(hdd_ctx->parent_dev) && ucfg_ipa_is_enabled())
 		ucfg_ipa_fw_rejuvenate_send_msg(hdd_ctx->pdev);
 	hdd_wlan_ssr_shutdown_event();
-	hdd_send_hang_reason();
+	hdd_send_hang_data(NULL, 0);;
 
 	if (!cds_wait_for_external_threads_completion(__func__))
 		hdd_err("Host is not ready for SSR, attempting anyway");
@@ -1540,6 +1543,8 @@ static void wlan_hdd_handle_the_pld_uevent(struct pld_uevent_data *uevent)
 {
 	enum cds_driver_state driver_state;
 	struct hdd_context *hdd_ctx;
+	struct qdf_notifer_data hang_evt_data;
+	enum qdf_hang_reason reason = QDF_REASON_UNSPECIFIED;
 
 	driver_state = cds_get_driver_state();
 
@@ -1572,6 +1577,28 @@ static void wlan_hdd_handle_the_pld_uevent(struct pld_uevent_data *uevent)
 		if (pld_is_fw_rejuvenate(hdd_ctx->parent_dev) &&
 		    ucfg_ipa_is_enabled())
 			ucfg_ipa_fw_rejuvenate_send_msg(hdd_ctx->pdev);
+		cds_get_recovery_reason(&reason);
+		hang_evt_data.hang_data =
+				qdf_mem_malloc(QDF_HANG_EVENT_DATA_SIZE);
+		if (!hang_evt_data.hang_data)
+			return;
+		hang_evt_data.offset = 0;
+		qdf_hang_event_notifier_call(reason, &hang_evt_data);
+		if (uevent->fw_down.hang_event_data_len >=
+		    QDF_HANG_EVENT_DATA_SIZE / 2)
+		uevent->fw_down.hang_event_data_len =
+				QDF_HANG_EVENT_DATA_SIZE / 2;
+
+		hang_evt_data.offset = QDF_WLAN_HANG_FW_OFFSET;
+		if (uevent->fw_down.hang_event_data_len)
+			qdf_mem_copy((hang_evt_data.hang_data +
+				     hang_evt_data.offset),
+				     uevent->fw_down.hang_event_data,
+				     uevent->fw_down.hang_event_data_len);
+
+		hdd_send_hang_data(hang_evt_data.hang_data,
+				   QDF_HANG_EVENT_DATA_SIZE);
+		qdf_mem_free(hang_evt_data.hang_data);
 		qdf_complete_wait_events();
 		break;
 	default:
