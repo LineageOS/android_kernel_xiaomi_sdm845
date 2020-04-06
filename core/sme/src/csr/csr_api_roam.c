@@ -15987,6 +15987,66 @@ void csr_clear_sae_single_pmk(tpAniSirGlobal pMac, uint8_t vdev_id,
 }
 #endif
 
+void csr_roam_del_pmk_cache_entry(struct csr_roam_session *session,
+				  tPmkidCacheInfo *cached_pmksa)
+{
+	u32 curr_idx;
+	u8 del_pmk[CSR_RSN_MAX_PMK_LEN] = {0};
+	u32 i, del_idx;
+
+	/* copy the PMK of matched BSSID */
+	qdf_mem_copy(del_pmk, cached_pmksa->pmk, cached_pmksa->pmk_len);
+
+	/* Search for matching PMK in session PMK cache */
+	for (del_idx = 0; del_idx != session->NumPmkidCache; del_idx++) {
+		cached_pmksa = &session->PmkidCacheInfo[del_idx];
+		if (cached_pmksa->pmk_len && (!qdf_mem_cmp
+		    (cached_pmksa->pmk, del_pmk, cached_pmksa->pmk_len))) {
+			/* Clear this - matched entry */
+			qdf_mem_zero(cached_pmksa, sizeof(tPmkidCacheInfo));
+
+			/* Match Found, Readjust the other entries */
+			curr_idx = session->curr_cache_idx;
+			if (del_idx < curr_idx) {
+				for (i = del_idx; i < (curr_idx - 1); i++) {
+					qdf_mem_copy(&session->
+						     PmkidCacheInfo[i],
+						     &session->
+						     PmkidCacheInfo[i + 1],
+						     sizeof(tPmkidCacheInfo));
+				}
+
+				session->curr_cache_idx--;
+				qdf_mem_zero(&session->PmkidCacheInfo
+					     [session->curr_cache_idx],
+					     sizeof(tPmkidCacheInfo));
+			} else if (del_idx > curr_idx) {
+				for (i = del_idx; i > (curr_idx); i--) {
+					qdf_mem_copy(&session->
+						     PmkidCacheInfo[i],
+						     &session->
+						     PmkidCacheInfo[i - 1],
+						     sizeof(tPmkidCacheInfo));
+				}
+
+				qdf_mem_zero(&session->PmkidCacheInfo
+					     [session->curr_cache_idx],
+					     sizeof(tPmkidCacheInfo));
+			}
+
+			/* Decrement the count since an entry is been deleted */
+			session->NumPmkidCache--;
+			sme_debug("PMKID at index=%d deleted, current index=%d cache count=%d",
+				  del_idx, session->curr_cache_idx,
+				  session->NumPmkidCache);
+			/* As we re-adjusted entries by one position search
+			 * again from current index
+			 */
+			del_idx--;
+		}
+	}
+}
+
 QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 					 uint32_t sessionId,
 					 tPmkidCacheInfo *pmksa,
@@ -15995,9 +16055,7 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 	struct csr_roam_session *pSession = CSR_GET_SESSION(pMac, sessionId);
 	bool fMatchFound = false;
 	uint32_t Index;
-	uint32_t curr_idx;
 	tPmkidCacheInfo *cached_pmksa;
-	uint32_t i;
 
 	if (!pSession) {
 		sme_err("session %d not found", sessionId);
@@ -16039,47 +16097,14 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 			fMatchFound = 1;
 
 		if (fMatchFound) {
-			/* Clear this - matched entry */
-			qdf_mem_zero(cached_pmksa,
-				     sizeof(tPmkidCacheInfo));
+			/* Delete the matched PMK cache entry */
+			csr_roam_del_pmk_cache_entry(pSession, cached_pmksa);
 			break;
 		}
 	}
 
-	if (Index == CSR_MAX_PMKID_ALLOWED && !fMatchFound) {
+	if (Index == CSR_MAX_PMKID_ALLOWED && !fMatchFound)
 		sme_debug("No such PMKSA entry exists");
-		return QDF_STATUS_SUCCESS;
-	}
-
-	/* Match Found, Readjust the other entries */
-	curr_idx = pSession->curr_cache_idx;
-	if (Index < curr_idx) {
-		for (i = Index; i < (curr_idx - 1); i++) {
-			qdf_mem_copy(&pSession->PmkidCacheInfo[i],
-				     &pSession->PmkidCacheInfo[i + 1],
-				     sizeof(tPmkidCacheInfo));
-		}
-
-		pSession->curr_cache_idx--;
-		qdf_mem_zero(&pSession->PmkidCacheInfo
-			     [pSession->curr_cache_idx],
-			     sizeof(tPmkidCacheInfo));
-	} else if (Index > curr_idx) {
-		for (i = Index; i > (curr_idx); i--) {
-			qdf_mem_copy(&pSession->PmkidCacheInfo[i],
-				     &pSession->PmkidCacheInfo[i - 1],
-				     sizeof(tPmkidCacheInfo));
-		}
-
-		qdf_mem_zero(&pSession->PmkidCacheInfo
-			     [pSession->curr_cache_idx],
-			     sizeof(tPmkidCacheInfo));
-	}
-
-	/* Decrement the count since an entry has been deleted */
-	pSession->NumPmkidCache--;
-	sme_debug("PMKID at index=%d deleted, current index=%d cache count=%d",
-		Index, pSession->curr_cache_idx, pSession->NumPmkidCache);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -23945,6 +23970,17 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 		} else {
 			sme_debug("PMKID Not found in cache for " QDF_MAC_ADDR_STR,
 				  QDF_MAC_ADDR_ARRAY(pmkid_cache.BSSID.bytes));
+			if (roam_synch_data->pmk_len) {
+				qdf_mem_copy(&pmkid_cache.PMKID,
+					     roam_synch_data->pmkid,
+					     CSR_RSN_PMKID_SIZE);
+				qdf_mem_copy(&pmkid_cache.pmk,
+					     roam_synch_data->pmk,
+					     roam_synch_data->pmk_len);
+				pmkid_cache.pmk_len = roam_synch_data->pmk_len;
+
+				csr_update_pmk_cache(session, &pmkid_cache);
+			}
 		}
 	} else {
 		roam_info->fAuthRequired = true;
