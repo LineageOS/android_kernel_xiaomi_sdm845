@@ -627,7 +627,7 @@ QDF_STATUS ol_txrx_ipa_cleanup(uint32_t tx_pipe_handle, uint32_t rx_pipe_handle)
 	qdf_device_t osdev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (!pdev) {
+	if (!pdev || !osdev) {
 		ol_txrx_err("%s invalid instance", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
