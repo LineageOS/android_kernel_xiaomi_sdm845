@@ -62,6 +62,8 @@
 
 		/* qcom,bl-update-flag = "delay_until_first_frame"; */
 
+		qcom,disp-doze-lpm-backlight = <20>;
+		qcom,disp-doze-hbm-backlight = <266>;
 		qcom,mdss-dsi-display-timings {
 			timing@0{
 				qcom,mdss-dsi-panel-width = <1080>;
