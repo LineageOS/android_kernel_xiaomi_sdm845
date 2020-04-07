@@ -29,6 +29,7 @@
 #include "wlan_objmgr_psoc_obj.h"
 #include "wlan_objmgr_pdev_obj.h"
 #include "wlan_objmgr_vdev_obj.h"
+#include "nan_ucfg_api.h"
 
 static QDF_STATUS nan_psoc_obj_created_notification(
 		struct wlan_objmgr_psoc *psoc, void *arg_list)
@@ -83,6 +84,40 @@ static QDF_STATUS nan_psoc_obj_destroyed_notification(
 	qdf_mem_free(nan_obj);
 
 	return status;
+}
+
+static void nan_is_ndp_peer_active(struct wlan_objmgr_pdev *pdev,
+				   void *object,
+				   void *arg)
+{
+	struct wlan_objmgr_vdev *vdev = (struct wlan_objmgr_vdev *)object;
+	uint8_t *flag = (uint8_t *)arg;
+
+	wlan_vdev_obj_lock(vdev);
+
+	if (wlan_vdev_mlme_get_opmode(vdev) != QDF_NDI_MODE) {
+		wlan_vdev_obj_unlock(vdev);
+		return;
+	}
+
+	if (ucfg_nan_get_active_peers(vdev))
+		*flag = true;
+
+	wlan_vdev_obj_unlock(vdev);
+}
+
+bool nan_is_ndp_active(struct wlan_objmgr_pdev *pdev)
+{
+	bool flag = false;
+
+	if (!pdev)
+		return QDF_STATUS_E_INVAL;
+
+	wlan_objmgr_pdev_iterate_obj_list(pdev, WLAN_VDEV_OP,
+					  nan_is_ndp_peer_active,
+					  &flag, 0, WLAN_NAN_ID);
+
+	return flag;
 }
 
 static QDF_STATUS nan_vdev_obj_created_notification(

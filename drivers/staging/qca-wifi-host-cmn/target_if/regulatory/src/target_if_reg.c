@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -181,7 +181,7 @@ clean:
 	qdf_mem_free(reg_info->reg_rules_5g_ptr);
 	qdf_mem_free(reg_info);
 
-	target_if_debug("processed reg channel list ret_val %d", ret_val);
+	TARGET_IF_EXIT();
 
 	return ret_val;
 }
@@ -277,7 +277,7 @@ static int tgt_reg_ch_avoid_event_handler(ol_scn_t handle,
 		return -EFAULT;
 	}
 
-	target_if_debug("processed CH avoid event");
+	TARGET_IF_EXIT();
 
 	return 0;
 }

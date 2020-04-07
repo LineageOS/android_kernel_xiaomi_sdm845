@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1274,8 +1274,8 @@ int wmi_get_host_credits(wmi_unified_t wmi_handle);
 
 #ifdef NBUF_MEMORY_DEBUG
 wmi_buf_t
-wmi_buf_alloc_debug(wmi_unified_t wmi_handle, uint16_t len, uint8_t *file_name,
-			uint32_t line_num)
+wmi_buf_alloc_debug(wmi_unified_t wmi_handle, uint32_t len, uint8_t *file_name,
+		    uint32_t line_num)
 {
 	wmi_buf_t wmi_buf;
 
@@ -1384,7 +1384,7 @@ static uint8_t *wmi_id_to_name(uint32_t wmi_command)
 #ifdef CONFIG_MCL
 static inline void wmi_log_cmd_id(uint32_t cmd_id, uint32_t tag)
 {
-	WMI_LOGD("Send WMI command:%s command_id:%d htc_tag:%d\n",
+	WMI_LOGD("Send WMI command:%s command_id:%d htc_tag:%d",
 		 wmi_id_to_name(cmd_id), cmd_id, tag);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -244,8 +244,8 @@ static inline QDF_STATUS reg_get_reginfo_form_country_code_and_regdmn_pair(
 				ant_gain_2g, ant_gain_5g, reg_info);
 
 		if (err == QDF_STATUS_E_FAILURE) {
-			reg_err("%s : No rule found for country index = %d regdmn_pair = %d\n",
-					__func__, country_index, regdmn_pair);
+			reg_err("No rule found for country index = %d regdmn_pair = %d\n",
+				country_index, regdmn_pair);
 			return QDF_STATUS_E_FAILURE;
 		}
 
@@ -354,8 +354,8 @@ static inline QDF_STATUS reg_get_reginfo_form_regdmn_pair(
 		err = reg_regrules_assign(dmn_id_2g, dmn_id_5g,
 			ant_gain_2g, ant_gain_5g, reg_info);
 		if (err == QDF_STATUS_E_FAILURE) {
-			reg_err("%s : No rule found for regdmn_pair = %d\n",
-					__func__, regdmn_pair);
+			reg_err("No rule found for regdmn_pair = %d\n",
+				regdmn_pair);
 			return QDF_STATUS_E_FAILURE;
 		}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -514,10 +514,8 @@ static QDF_STATUS process_peer_for_noa(struct wlan_objmgr_vdev *vdev,
 	}
 	p2p_vdev_obj = wlan_objmgr_vdev_get_comp_private_obj(vdev,
 						WLAN_UMAC_COMP_P2P);
-	if (!p2p_vdev_obj) {
-		p2p_err("p2p_vdev_obj:%pK", p2p_vdev_obj);
+	if (!p2p_vdev_obj)
 		return QDF_STATUS_E_INVAL;
-	}
 	mode = wlan_vdev_mlme_get_opmode(vdev);
 
 	peer_type = wlan_peer_get_peer_type(peer);
@@ -720,12 +718,6 @@ QDF_STATUS p2p_psoc_object_open(struct wlan_objmgr_psoc *soc)
 	qdf_list_create(&p2p_soc_obj->tx_q_roc, MAX_QUEUE_LENGTH);
 	qdf_list_create(&p2p_soc_obj->tx_q_ack, MAX_QUEUE_LENGTH);
 
-	status = qdf_event_create(&p2p_soc_obj->cancel_roc_done);
-	if (status != QDF_STATUS_SUCCESS) {
-		p2p_err("failed to create cancel roc done event");
-		goto fail_cancel_roc;
-	}
-
 	status = qdf_event_create(&p2p_soc_obj->cleanup_roc_done);
 	if (status != QDF_STATUS_SUCCESS) {
 		p2p_err("failed to create cleanup roc done event");
@@ -750,9 +742,6 @@ fail_cleanup_tx:
 	qdf_event_destroy(&p2p_soc_obj->cleanup_roc_done);
 
 fail_cleanup_roc:
-	qdf_event_destroy(&p2p_soc_obj->cancel_roc_done);
-
-fail_cancel_roc:
 	qdf_list_destroy(&p2p_soc_obj->tx_q_ack);
 	qdf_list_destroy(&p2p_soc_obj->tx_q_roc);
 	qdf_list_destroy(&p2p_soc_obj->roc_q);
@@ -780,7 +769,6 @@ QDF_STATUS p2p_psoc_object_close(struct wlan_objmgr_psoc *soc)
 	qdf_runtime_lock_deinit(&p2p_soc_obj->roc_runtime_lock);
 	qdf_event_destroy(&p2p_soc_obj->cleanup_tx_done);
 	qdf_event_destroy(&p2p_soc_obj->cleanup_roc_done);
-	qdf_event_destroy(&p2p_soc_obj->cancel_roc_done);
 	qdf_list_destroy(&p2p_soc_obj->tx_q_ack);
 	qdf_list_destroy(&p2p_soc_obj->tx_q_roc);
 	qdf_list_destroy(&p2p_soc_obj->roc_q);
@@ -1201,10 +1189,8 @@ void p2p_peer_authorized(struct wlan_objmgr_vdev *vdev, uint8_t *mac_addr)
 	status = process_peer_for_noa(vdev, psoc, peer);
 	wlan_objmgr_peer_release_ref(peer, WLAN_P2P_ID);
 
-	if (status != QDF_STATUS_SUCCESS) {
-		p2p_err("status:%u", status);
+	if (status != QDF_STATUS_SUCCESS)
 		return;
-	}
 	p2p_debug("peer is authorized");
 }
 
@@ -1281,16 +1267,12 @@ QDF_STATUS p2p_status_connect(struct wlan_objmgr_vdev *vdev)
 	enum QDF_OPMODE mode;
 
 	p2p_soc_obj = get_p2p_soc_obj_by_vdev(vdev);
-	if (!p2p_soc_obj) {
-		p2p_err("P2P soc context is NULL");
+	if (!p2p_soc_obj)
 		return QDF_STATUS_E_FAILURE;
-	}
 
 	mode = wlan_vdev_mlme_get_opmode(vdev);
-	if (mode != QDF_P2P_CLIENT_MODE) {
-		p2p_debug("this is not P2P CLIENT, mode:%d", mode);
+	if (mode != QDF_P2P_CLIENT_MODE)
 		return QDF_STATUS_SUCCESS;
-	}
 
 	p2p_debug("connection status:%d", p2p_soc_obj->connection_status);
 	switch (p2p_soc_obj->connection_status) {
@@ -1329,10 +1311,8 @@ QDF_STATUS p2p_status_disconnect(struct wlan_objmgr_vdev *vdev)
 	}
 
 	mode = wlan_vdev_mlme_get_opmode(vdev);
-	if (mode != QDF_P2P_CLIENT_MODE) {
-		p2p_debug("this is not P2P CLIENT, mode:%d", mode);
+	if (mode != QDF_P2P_CLIENT_MODE)
 		return QDF_STATUS_SUCCESS;
-	}
 
 	p2p_debug("connection status:%d", p2p_soc_obj->connection_status);
 	switch (p2p_soc_obj->connection_status) {

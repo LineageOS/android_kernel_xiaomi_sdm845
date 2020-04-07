@@ -2637,6 +2637,19 @@ bool policy_mgr_is_sap_restart_required_after_sta_disconnect(
 			struct wlan_objmgr_psoc *psoc, uint8_t *intf_ch);
 
 /**
+ * policy_mgr_dump_channel_list() - Print channel list
+ * @len: Length of pcl list
+ * @pcl_channels: pcl channels list
+ * @pcl_weight: pcl weight list
+ *
+ *
+ * Return: True or false
+ */
+bool policy_mgr_dump_channel_list(uint32_t len,
+				  uint8_t *pcl_channels,
+				  uint8_t *pcl_weight);
+
+/**
  * policy_mgr_is_sta_sap_scc() - check whether SAP is doing SCC with
  * STA
  * @psoc: poniter to psoc
