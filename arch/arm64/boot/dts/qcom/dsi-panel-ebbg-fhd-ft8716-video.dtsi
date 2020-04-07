@@ -54,6 +54,8 @@
 		qcom,dispccbb-enabled;
 		qcom,dispblnotify-enabled;
 		qcom,dispparam-enabled;
+		qcom,disp-doze-lpm-backlight = <20>;
+		qcom,disp-doze-hbm-backlight = <266>;
 		/*qcom,disp-paneloff-disablecabc-enabled;*/
 		qcom,mdss-night-brightness = <7 25 43 61>;
 		qcom,disp-panel-offon-mode-enabled;

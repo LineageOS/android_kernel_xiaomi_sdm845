@@ -61,6 +61,8 @@
 		qcom,dispparam-enabled;
 		qcom,mdss-panel-on-dimming-delay = <120>;
 		qcom,disp-doze-backlight-threshold = <8>;/*2047(8), 4096(16) */
+		qcom,disp-doze-lpm-backlight = <20>;
+		qcom,disp-doze-hbm-backlight = <266>;
 		/* IRQF_ONESHOT | IRQF_TRIGGER_HIGH */
 		/* qcom,esd-err-irq-gpio = <&tlmm 52 0x2004>; */
 
