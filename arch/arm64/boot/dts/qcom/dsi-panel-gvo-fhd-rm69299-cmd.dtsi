@@ -57,6 +57,8 @@
 		qcom,mdss-dsi-panel-blackness-level = <3230>;
 		qcom,mdss-dsi-on-command-tuning;
 		qcom,dispparam-enabled;
+		qcom,disp-doze-lpm-backlight = <20>;
+		qcom,disp-doze-hbm-backlight = <266>;
 		/* qcom,esd-err-irq-gpio = <&tlmm 52 0>; */
 		qcom,mdss-dsi-display-timings {
 			timing@0{
