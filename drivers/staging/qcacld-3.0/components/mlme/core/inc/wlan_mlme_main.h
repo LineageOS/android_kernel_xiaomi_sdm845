@@ -43,6 +43,21 @@ struct wlan_ies {
 };
 
 /**
+ * struct wlan_disconnect_info - WLAN Disconnection Information
+ * @self_discon_ies: Disconnect IEs to be sent in deauth/disassoc frames
+ *                   originated from driver
+ * @peer_discon_ies: Disconnect IEs received in deauth/disassoc frames from peer
+ * @discon_reason: Disconnect reason as per enum eSirMacReasonCodes
+ * @from_ap: True if the disconnection is initiated from AP
+ */
+struct wlan_disconnect_info {
+	struct wlan_ies self_discon_ies;
+	struct wlan_ies peer_discon_ies;
+	uint32_t discon_reason;
+	bool from_ap;
+};
+
+/**
  * struct peer_mlme_priv_obj - peer MLME component object
  * @ucast_key_cipher: unicast crypto type.
  * @is_pmf_enabled: True if PMF is enabled
@@ -62,18 +77,14 @@ struct peer_mlme_priv_obj {
  * @ini_cfg: Max configuration of nss, chains supported for vdev.
  * @sta_dynamic_oce_value: Dyanmic oce flags value for sta
  * @follow_ap_edca: if true, it is forced to follow the AP's edca
- * @self_disconnect_ies: Disconnect IEs to be sent in deauth/disassoc frames
- *			 originated from driver
- * @peer_disconnect_ies: Disconnect IEs received in deauth/disassoc frames
- *			 from peer
+ * @disconnect_info: Disconnection information
  */
 struct vdev_mlme_priv_obj {
 	struct mlme_nss_chains dynamic_cfg;
 	struct mlme_nss_chains ini_cfg;
 	uint8_t sta_dynamic_oce_value;
 	bool follow_ap_edca;
-	struct wlan_ies self_disconnect_ies;
-	struct wlan_ies peer_disconnect_ies;
+	struct wlan_disconnect_info disconnect_info;
 };
 
 
@@ -294,4 +305,38 @@ void mlme_free_peer_disconnect_ies(struct wlan_objmgr_vdev *vdev);
  * Return: Returns a pointer to the peer disconnect IEs present in vdev object
  */
 struct wlan_ies *mlme_get_peer_disconnect_ies(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * mlme_set_discon_reason_n_from_ap() - set disconnect reason and from ap flag
+ * @psoc: PSOC pointer
+ * @vdev_id: vdev id
+ * @from_ap: True if the disconnect is initiated from peer.
+ *           False otherwise.
+ * @reason_code: The disconnect code received from peer or internally generated.
+ *
+ * Set the reason code and from_ap.
+ *
+ * Return: void
+ */
+void mlme_set_discon_reason_n_from_ap(struct wlan_objmgr_psoc *psoc,
+				      uint8_t vdev_id, bool from_ap,
+				      uint32_t reason_code);
+
+/**
+ * mlme_get_discon_reason_n_from_ap() - Get disconnect reason and from ap flag
+ * @psoc: PSOC pointer
+ * @vdev_id: vdev id
+ * @from_ap: Get the from_ap cached through mlme_set_discon_reason_n_from_ap
+ *           and copy to this buffer.
+ * @reason_code: Get the reason_code cached through
+ *               mlme_set_discon_reason_n_from_ap and copy to this buffer.
+ *
+ * Copy the contents of from_ap and reason_code to given buffers.
+ *
+ * Return: void
+ */
+void mlme_get_discon_reason_n_from_ap(struct wlan_objmgr_psoc *psoc,
+				      uint8_t vdev_id, bool *from_ap,
+				      uint32_t *reason_code);
+
 #endif

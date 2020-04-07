@@ -1025,11 +1025,11 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 	else
 		country[2] = OP_CLASS_GLOBAL;
 
-	sme_debug("Channel = %d", pBeaconReq->channelInfo.channelNum);
 
-	sme_debug("Request Reg class %d, AP's country code %c%c 0x%x",
+	sme_debug("Request Reg class %d, AP's country code %c%c 0x%x Channel %d",
 		  pBeaconReq->channelInfo.regulatoryClass,
-		  country[0], country[1], country[2]);
+		  country[0], country[1], country[2],
+		  pBeaconReq->channelInfo.channelNum);
 
 	if (pBeaconReq->channelList.numChannels >
 	    SIR_ESE_MAX_MEAS_IE_REQS) {
@@ -1141,15 +1141,23 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 		     (uint8_t *) &pBeaconReq->measurementDuration,
 		     SIR_ESE_MAX_MEAS_IE_REQS);
 
-	sme_debug("token: %d regClass: %d randnIntvl: %d msgSource: %d",
-		pSmeRrmContext->token, pSmeRrmContext->regClass,
-		pSmeRrmContext->randnIntvl, pSmeRrmContext->msgSource);
+	sme_debug("token: %d randnIntvl: %d msgSource: %d",
+		pSmeRrmContext->token, pSmeRrmContext->randnIntvl,
+		pSmeRrmContext->msgSource);
 
 	return sme_rrm_issue_scan_req(pMac);
 
 cleanup:
-	if (pBeaconReq->msgSource == eRRM_MSG_SOURCE_11K)
+	if (pBeaconReq->msgSource == eRRM_MSG_SOURCE_11K) {
+		/* Copy session bssid */
+		qdf_mem_copy(pSmeRrmContext->sessionBssId.bytes,
+			     pBeaconReq->bssId, sizeof(tSirMacAddr));
+
+		/* copy measurement bssid */
+		qdf_mem_copy(pSmeRrmContext->bssId, pBeaconReq->macaddrBssid,
+			     sizeof(tSirMacAddr));
 		sme_rrm_send_beacon_report_xmit_ind(pMac, NULL, true, 0);
+	}
 
 	return status;
 }
@@ -1516,7 +1524,7 @@ static void rrm_iter_meas_timer_handle(void *userData)
 {
 	tpAniSirGlobal pMac = (tpAniSirGlobal) userData;
 
-	sme_warn("Randomization timer expired...send on next channel");
+	sme_debug("Randomization timer expired...send on next channel");
 	/* Issue a scan req for next channel. */
 	sme_rrm_issue_scan_req(pMac);
 }

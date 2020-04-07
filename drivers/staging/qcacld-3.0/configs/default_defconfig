@@ -18,6 +18,7 @@ endif
 
 ifdef CONFIG_ICNSS
 	CONFIG_ROME_IF = snoc
+	CONFIG_QCA_WIFI_SDIO := n
 endif
 
 ifeq (y,$(findstring y,$(CONFIG_CNSS) $(CONFIG_CNSS2)))
@@ -115,14 +116,6 @@ ifeq ($(CONFIG_ARCH_MSM8998), y)
 CONFIG_QCACLD_FEATURE_METERING := y
 endif
 
-ifeq ($(CONFIG_ARCH_SDM660), y)
-CONFIG_QCACLD_FEATURE_METERING := y
-endif
-
-ifeq ($(CONFIG_ARCH_SDM630), y)
-CONFIG_QCACLD_FEATURE_METERING := y
-endif
-
 ifeq ($(CONFIG_ARCH_SDM845), y)
 CONFIG_QCACLD_FEATURE_METERING := y
 endif
@@ -131,19 +124,7 @@ ifeq ($(CONFIG_ARCH_SM8150), y)
 CONFIG_QCACLD_FEATURE_METERING := y
 endif
 
-ifeq ($(CONFIG_ARCH_SDM670), y)
-CONFIG_QCACLD_FEATURE_METERING := y
-endif
-
-ifeq ($(CONFIG_ARCH_SM6150), y)
-CONFIG_QCACLD_FEATURE_METERING := y
-endif
-
-ifeq ($(CONFIG_ARCH_LITO), y)
-CONFIG_QCACLD_FEATURE_METERING := y
-endif
-
-ifeq ($(CONFIG_ARCH_BENGAL), y)
+ifeq ($(CONFIG_HELIUMPLUS), y)
 CONFIG_QCACLD_FEATURE_METERING := y
 endif
 
@@ -155,6 +136,9 @@ CONFIG_WLAN_FEATURE_ACTION_OUI := y
 
 #Flag to enable Adaptive 11r feature
 CONFIG_ADAPTIVE_11R := y
+
+#Flag to enable sae single pmk feature
+CONFIG_SAE_SINGLE_PMK := y
 
 #Flag to enable FILS Feature (11ai)
 CONFIG_WLAN_FEATURE_FILS := y
@@ -453,6 +437,12 @@ CONFIG_ATH_SUPPORT_FLOWMAC_MODULE := n
 #Enable spectral support
 CONFIG_ATH_SUPPORT_SPECTRAL := n
 
+#Customize DSCP_to-UP map based on RFC8325
+ifeq ($(CONFIG_HELIUMPLUS), y)
+CONFIG_WLAN_CUSTOM_DSCP_UP_MAP := y
+CONFIG_WLAN_SEND_DSCP_UP_MAP_TO_FW := y
+endif
+
 #Enable WDI Event support
 ifeq ($(CONFIG_REMOVE_PKT_LOG), y)
 CONFIG_WDI_EVENT_ENABLE := n
@@ -504,39 +494,15 @@ CONFIG_ENABLE_SMMU_S1_TRANSLATION := y
 endif
 endif
 
-ifeq ($(CONFIG_ARCH_SDMMAGPIE), y)
+ifeq ($(CONFIG_HELIUMPLUS), y)
+ifneq ($(CONFIG_ARCH_SDM630), y)
+ifneq ($(CONFIG_ARCH_SDM660), y)
+ifneq ($(CONFIG_ARCH_MSM8998), y)
 ifeq ($(CONFIG_IPA_OFFLOAD), y)
 CONFIG_ENABLE_SMMU_S1_TRANSLATION := y
 endif
 endif
-
-ifeq ($(CONFIG_ARCH_LITO), y)
-ifeq ($(CONFIG_IPA_OFFLOAD), y)
-CONFIG_ENABLE_SMMU_S1_TRANSLATION := y
 endif
-endif
-
-ifeq ($(CONFIG_ARCH_ATOLL), y)
-ifeq ($(CONFIG_IPA_OFFLOAD), y)
-CONFIG_ENABLE_SMMU_S1_TRANSLATION := y
-endif
-endif
-
-ifeq ($(CONFIG_ARCH_TRINKET), y)
-ifeq ($(CONFIG_IPA_OFFLOAD), y)
-CONFIG_ENABLE_SMMU_S1_TRANSLATION := y
-endif
-endif
-
-ifeq ($(CONFIG_ARCH_SM6150), y)
-ifeq ($(CONFIG_IPA_OFFLOAD), y)
-CONFIG_ENABLE_SMMU_S1_TRANSLATION := y
-endif
-endif
-
-ifeq ($(CONFIG_ARCH_BENGAL), y)
-ifeq ($(CONFIG_IPA_OFFLOAD), y)
-CONFIG_ENABLE_SMMU_S1_TRANSLATION := y
 endif
 endif
 
@@ -589,6 +555,10 @@ CONFIG_DISABLE_CHANNEL_LIST :=y
 
 #Flag to enable beacon receive feature
 CONFIG_WLAN_BCN_RECV_FEATURE := y
+
+#Flag to enable SAR Safety Feature
+CONFIG_SAR_SAFETY_FEATURE := y
+
 
 CONFIG_WIFI_POS_CONVERGED := y
 ifneq ($(CONFIG_WIFI_POS_CONVERGED), y)
@@ -697,3 +667,13 @@ CONFIG_ANI_LEVEL_REQUEST := y
 
 #Enable OEM DATA feature
 CONFIG_FEATURE_OEM_DATA := y
+
+ifeq ($(CONFIG_ARCH_QCS405), y)
+ifeq ($(CONFIG_CNSS_TIMESYNC), y)
+CONFIG_FEATURE_WLAN_TIME_SYNC_FTM := y
+endif
+endif
+
+ifeq ($(CONFIG_ARCH_SDM660), y)
+CONFIG_WLAN_FEATURE_PKT_CAPTURE := y
+endif

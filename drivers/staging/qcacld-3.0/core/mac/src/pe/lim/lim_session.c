@@ -495,23 +495,10 @@ void lim_update_bcn_probe_filter(tpAniSirGlobal mac_ctx,
 		filter->num_sap_sessions);
 }
 
-/**
- * pe_create_session() creates a new PE session given the BSSID
- * @param pMac:        pointer to global adapter context
- * @param bssid:       BSSID of the new session
- * @param sessionId:   session ID is returned here, if session is created.
- * @param bssType:     station or a
- *
- * This function returns the session context and the session ID if the session
- * corresponding to the passed BSSID is found in the PE session table.
- *
- * Return: tpPESession:   pointer to the session context or NULL if session
- *                        can not be created.
- */
-
 tpPESession
 pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
-		  uint16_t numSta, tSirBssType bssType)
+		  uint16_t numSta, tSirBssType bssType, uint8_t vdev_id,
+		  enum QDF_OPMODE opmode)
 {
 	QDF_STATUS status;
 	uint8_t i;
@@ -577,6 +564,8 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 	*sessionId = i;
 	session_ptr->peSessionId = i;
 	session_ptr->bssType = bssType;
+	session_ptr->pePersona = opmode;
+	session_ptr->smeSessionId = vdev_id;
 	session_ptr->gLimPhyMode = WNI_CFG_PHY_MODE_11G;
 	/* Initialize CB mode variables when session is created */
 	session_ptr->htSupportedChannelWidthSet = 0;
@@ -595,8 +584,9 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 	session_ptr->is_session_obss_color_collision_det_enabled =
 		pMac->lim.global_obss_color_collision_det_offload;
 
-	pe_debug("Create a new PE session: %d BSSID: "MAC_ADDRESS_STR" Max No of STA: %d",
-		*sessionId, MAC_ADDR_ARRAY(bssid), numSta);
+	pe_debug("Create PE session: %d opmode %d vdev_id %d  BSSID: "QDF_MAC_ADDR_STR" Max No of STA: %d",
+		 *sessionId, opmode, vdev_id, QDF_MAC_ADDR_ARRAY(bssid),
+		 numSta);
 
 	if (eSIR_INFRA_AP_MODE == bssType || eSIR_IBSS_MODE == bssType) {
 		session_ptr->pSchProbeRspTemplate =
@@ -809,14 +799,14 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 	TX_TIMER *timer_ptr;
 
 	if (!session || (session && !session->valid)) {
-		pe_err("session is not valid");
+		pe_debug("session already deleted or not valid");
 		return;
 	}
 
-	pe_debug("Trying to delete PE session: %d Opmode: %d BssIdx: %d BSSID: "MAC_ADDRESS_STR,
-		session->peSessionId, session->operMode,
-		session->bssIdx,
-		MAC_ADDR_ARRAY(session->bssId));
+	pe_debug("Delete PE session: %d opmode: %d vdev_id: %d BSSID: "QDF_MAC_ADDR_STR,
+		 session->peSessionId, session->pePersona,
+		 session->smeSessionId,
+		 QDF_MAC_ADDR_ARRAY(session->bssId));
 
 	lim_reset_bcn_probe_filter(mac_ctx, session);
 
@@ -1017,8 +1007,8 @@ tpPESession pe_find_session_by_peer_sta(tpAniSirGlobal pMac, uint8_t *sa,
 		}
 	}
 
-	pe_debug("Session lookup fails for Peer StaId:");
-	lim_print_mac_addr(pMac, sa, LOGD);
+	pe_debug("Session lookup fails for Peer StaId: %pM", sa);
+
 	return NULL;
 }
 

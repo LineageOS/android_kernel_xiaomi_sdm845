@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -2658,20 +2658,11 @@ static QDF_STATUS lim_tdls_del_sta(tpAniSirGlobal pMac,
 	pStaDs = dph_lookup_hash_entry(pMac, peerMac.bytes, &peerIdx,
 				       &psessionEntry->dph.dphHashTable);
 
-	if (pStaDs && pStaDs->staType == STA_ENTRY_TDLS_PEER) {
-		pe_debug("DEL STA peer MAC: "MAC_ADDRESS_STR,
-			 MAC_ADDR_ARRAY(pStaDs->staAddr));
-
-		pe_debug("STA type: %x, sta idx: %x resp_reqd: %d",
-			 pStaDs->staType,
-			 pStaDs->staIndex,
-			 resp_reqd);
-
+	if (pStaDs && pStaDs->staType == STA_ENTRY_TDLS_PEER)
 		status = lim_del_sta(pMac, pStaDs, resp_reqd, psessionEntry);
-	} else {
+	else
 		pe_debug("TDLS peer "MAC_ADDRESS_STR" not found",
 			 MAC_ADDR_ARRAY(peerMac.bytes));
-	}
 
 	return status;
 }
@@ -3135,7 +3126,6 @@ static void lim_check_aid_and_delete_peer(tpAniSirGlobal p_mac,
 	 * (with that aid) entry from the hash table and add the aid
 	 * in free pool
 	 */
-	pe_debug("Delete all the TDLS peer connected");
 	for (i = 0; i < aid_bitmap_size / sizeof(uint32_t); i++) {
 		for (aid = 0; aid < (sizeof(uint32_t) << 3); aid++) {
 			if (!CHECK_BIT(session_entry->peerAIDBitmap[i], aid))
@@ -3161,9 +3151,6 @@ static void lim_check_aid_and_delete_peer(tpAniSirGlobal p_mac,
 
 			status = lim_tdls_del_sta(p_mac, mac_addr,
 						  session_entry, false);
-			if (status != QDF_STATUS_SUCCESS)
-				pe_debug("peer " QDF_MAC_ADDR_STR " not found",
-					 QDF_MAC_ADDR_ARRAY(stads->staAddr));
 
 			dph_delete_hash_entry(p_mac,
 				stads->staAddr, stads->assocId,
@@ -3195,7 +3182,6 @@ void lim_update_tdls_set_state_for_fw(tpPESession session_entry, bool value)
 QDF_STATUS lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 				    tpPESession session_entry)
 {
-	pe_debug("Enter");
 
 	if (NULL == session_entry) {
 		pe_err("NULL session_entry");
@@ -3222,7 +3208,6 @@ QDF_STATUS lim_delete_tdls_peers(tpAniSirGlobal mac_ctx,
 
 	/* reset the set_state_disable flag */
 	session_entry->tdls_send_set_state_disable = true;
-	pe_debug("Exit");
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -3251,7 +3236,7 @@ QDF_STATUS lim_process_sme_del_all_tdls_peers(tpAniSirGlobal p_mac,
 	session_entry = pe_find_session_by_bssid(p_mac,
 						 msg->bssid.bytes, &session_id);
 	if (NULL == session_entry) {
-		pe_err("NULL psessionEntry");
+		pe_debug("NULL psessionEntry");
 		return QDF_STATUS_E_FAILURE;
 	}
 

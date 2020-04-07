@@ -42,6 +42,7 @@
 #include "wlan_policy_mgr_api.h"
 #include "nan_datapath.h"
 #include "wlan_reg_services_api.h"
+#include "wlan_pkt_capture_ucfg_api.h"
 
 #define MAX_SUPPORTED_PEERS_WEP 16
 
@@ -290,8 +291,6 @@ void lim_process_mlm_join_cnf(tpAniSirGlobal mac_ctx,
 	result_code = ((tLimMlmJoinCnf *) msg)->resultCode;
 	/* Process Join confirm from MLM */
 	if (result_code == eSIR_SME_SUCCESS) {
-		pe_debug("***SessionId:%d Joined ESS ***",
-			join_cnf->sessionId);
 		/* Setup hardware upfront */
 		if (lim_sta_send_add_bss_pre_assoc(mac_ctx, false,
 			session_entry) == QDF_STATUS_SUCCESS)
@@ -336,11 +335,7 @@ static void lim_send_mlm_assoc_req(tpAniSirGlobal mac_ctx,
 	uint32_t tele_bcn = 0;
 	tpSirMacCapabilityInfo cap_info;
 
-	/* Successful MAC based authentication. Trigger Association with BSS */
-	pe_debug("SessionId: %d Authenticated with BSS",
-		session_entry->peSessionId);
-
-	if (NULL == session_entry->pLimJoinReq) {
+	if (!session_entry->pLimJoinReq) {
 		pe_err("Join Request is NULL");
 		/* No need to Assert. JOIN timeout will handle this error */
 		return;
@@ -395,10 +390,6 @@ static void lim_send_mlm_assoc_req(tpAniSirGlobal mac_ctx,
 
 	assoc_req->capabilityInfo = caps;
 	cap_info = ((tpSirMacCapabilityInfo) &assoc_req->capabilityInfo);
-	pe_debug("Capabilities to be used in AssocReq=0x%X,"
-		"privacy bit=%x shortSlotTime %x", caps,
-		cap_info->privacy,
-		cap_info->shortSlotTime);
 
 	/*
 	 * If telescopic beaconing is enabled, set listen interval to
@@ -1020,8 +1011,6 @@ static void lim_process_mlm_deauth_ind(tpAniSirGlobal mac_ctx,
 		return;
 	}
 	role = GET_LIM_SYSTEM_ROLE(session);
-	pe_debug("*** Received Deauthentication from staId=%d role=%d***",
-		 deauth_ind->aid, role);
 	if (role == eLIM_STA_ROLE) {
 		session->limSmeState = eLIM_SME_WT_DEAUTH_STATE;
 		MTRACE(mac_trace(mac_ctx, TRACE_CODE_SME_STATE,
@@ -1088,7 +1077,6 @@ void lim_process_mlm_deauth_cnf(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 		}
 		if (pMlmDeauthCnf->resultCode == eSIR_SME_SUCCESS) {
 			psessionEntry->limSmeState = eLIM_SME_IDLE_STATE;
-			pe_debug("*** Deauthenticated with BSS ***");
 		} else
 			psessionEntry->limSmeState =
 				psessionEntry->limPrevSmeState;
@@ -1611,8 +1599,6 @@ void lim_process_sta_mlm_del_bss_rsp(tpAniSirGlobal pMac,
 		goto end;
 	}
 	if (QDF_STATUS_SUCCESS == pDelBssParams->status) {
-		pe_debug("STA received the DEL_BSS_RSP for BSSID: %X",
-			       pDelBssParams->bssIdx);
 		if (lim_set_link_state
 			    (pMac, eSIR_LINK_IDLE_STATE, psessionEntry->bssId,
 			    psessionEntry->selfMacAddr, NULL,
@@ -1633,8 +1619,8 @@ void lim_process_sta_mlm_del_bss_rsp(tpAniSirGlobal pMac,
 			statusCode = eSIR_SME_REFUSED;
 			goto end;
 		}
-		pe_debug("STA AssocID %d MAC",	pStaDs->assocId);
-		       lim_print_mac_addr(pMac, pStaDs->staAddr, LOGD);
+		pe_debug("STA AssocID %d MAC %pM", pStaDs->assocId,
+			 pStaDs->staAddr);
 	} else {
 		pe_err("DEL BSS failed!");
 		statusCode = eSIR_SME_STOP_BSS_FAILURE;
@@ -1828,8 +1814,8 @@ void lim_process_ap_mlm_del_sta_rsp(tpAniSirGlobal mac_ctx,
 		goto end;
 	}
 
-	pe_warn("AP received the DEL_STA_RSP for assocID: %X",
-		del_sta_params->assocId);
+	pe_debug("AP received the DEL_STA_RSP for assocID: %X",
+		 del_sta_params->assocId);
 	if ((eLIM_MLM_WT_DEL_STA_RSP_STATE != sta_ds->mlmStaContext.mlmState) &&
 	    (eLIM_MLM_WT_ASSOC_DEL_STA_RSP_STATE !=
 	     sta_ds->mlmStaContext.mlmState)) {
@@ -2361,9 +2347,6 @@ lim_process_sta_add_bss_rsp_pre_assoc(tpAniSirGlobal mac_ctx,
 		MTRACE(mac_trace(mac_ctx, TRACE_CODE_SME_STATE,
 			session_entry->peSessionId,
 			session_entry->limSmeState));
-		pe_debug("SessionId:%d lim_post_mlm_message "
-			"LIM_MLM_AUTH_REQ with limSmeState: %d",
-			session_entry->peSessionId, session_entry->limSmeState);
 		lim_post_mlm_message(mac_ctx, LIM_MLM_AUTH_REQ,
 			(uint32_t *) pMlmAuthReq);
 		return;
@@ -2471,9 +2454,6 @@ lim_process_sta_mlm_add_bss_rsp(tpAniSirGlobal mac_ctx,
 			session_entry->limMlmState));
 		/* to know the session  started for self or for  peer  */
 		session_entry->statypeForBss = STA_ENTRY_PEER;
-		/* Now, send WMA_ADD_STA_REQ */
-		pe_debug("SessionId: %d On STA: ADD_BSS was successful",
-			session_entry->peSessionId);
 		sta_ds =
 			dph_get_hash_entry(mac_ctx, DPH_STA_HASH_INDEX_PEER,
 				&session_entry->dph.dphHashTable);
@@ -3000,10 +2980,6 @@ static void lim_process_switch_channel_join_req(
 
 	session_entry->limPrevMlmState = session_entry->limMlmState;
 	session_entry->limMlmState = eLIM_MLM_WT_JOIN_BEACON_STATE;
-	pe_debug("Sessionid %d prev lim state %d new lim state %d "
-		"systemrole = %d", session_entry->peSessionId,
-		session_entry->limPrevMlmState,
-		session_entry->limMlmState, GET_LIM_SYSTEM_ROLE(session_entry));
 
 	/* Apply previously set configuration at HW */
 	lim_apply_configuration(mac_ctx, session_entry);
@@ -3048,11 +3024,11 @@ static void lim_process_switch_channel_join_req(
 	/* assign appropriate sessionId to the timer object */
 	mac_ctx->lim.limTimers.gLimPeriodicJoinProbeReqTimer.sessionId =
 		session_entry->peSessionId;
-	pe_debug("Sessionid: %d Send Probe req on channel %d ssid:%.*s "
-		"BSSID: " MAC_ADDRESS_STR, session_entry->peSessionId,
-		session_entry->currentOperChannel, ssId.length, ssId.ssId,
-		MAC_ADDR_ARRAY(
-		session_entry->pLimMlmJoinReq->bssDescription.bssId));
+	pe_debug("vdev %d Send Probe req on freq %d %.*s " QDF_MAC_ADDR_STR,
+		 session_entry->smeSessionId,
+		 session_entry->currentOperChannel, ssId.length, ssId.ssId,
+		 QDF_MAC_ADDR_ARRAY(
+		 session_entry->pLimMlmJoinReq->bssDescription.bssId));
 
 	/*
 	 * We need to wait for probe response, so start join
@@ -3155,7 +3131,6 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 	psessionEntry->chainMask = pChnlParams->chainMask;
 	psessionEntry->smpsMode = pChnlParams->smpsMode;
 	psessionEntry->channelChangeReasonCode = 0xBAD;
-	pe_debug("channelChangeReasonCode %d", channelChangeReasonCode);
 	switch (channelChangeReasonCode) {
 	case LIM_SWITCH_CHANNEL_REASSOC:
 		lim_process_switch_channel_re_assoc_req(pMac, psessionEntry, status);
@@ -3171,13 +3146,11 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 		 * THat way all this response handler does is call the call back
 		 * We can get rid of the reason code here.
 		 */
-		if (pMac->lim.gpchangeChannelCallback) {
-			pe_debug("Channel changed hence invoke registered call back");
+		if (pMac->lim.gpchangeChannelCallback)
 			pMac->lim.gpchangeChannelCallback(pMac, status,
 							  pMac->lim.
 							  gpchangeChannelData,
 							  psessionEntry);
-		}
 		/* If MCC upgrade/DBS downgrade happended during channel switch,
 		 * the policy manager connection table needs to be updated.
 		 */
@@ -3187,6 +3160,8 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 			pe_debug("Send p2p operating channel change conf action frame once first beacon is received on new channel");
 			psessionEntry->send_p2p_conf_frame = true;
 		}
+
+		ucfg_pkt_capture_record_channel();
 		break;
 	case LIM_SWITCH_CHANNEL_SAP_DFS:
 	{

@@ -468,9 +468,6 @@ static bool sap_chan_sel_init(tHalHandle halHandle,
 	bool sta_sap_scc_on_dfs_chan =
 		policy_mgr_is_sta_sap_scc_allowed_on_dfs_chan(pMac->psoc);
 
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH, "In %s",
-		  __func__);
-
 	pSpectInfoParams->numSpectChans =
 		pMac->scan.base_channels.numChannels;
 
@@ -632,8 +629,8 @@ uint32_t sapweight_rssi_count(struct sap_context *sap_ctx, int8_t rssi,
 	rssicountWeight = rssiWeight + countWeight;
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  "In %s, rssiWeight=%d, countWeight=%d, rssicountWeight=%d",
-		  __func__, rssiWeight, countWeight, rssicountWeight);
+		  "rssiWeight=%d, countWeight=%d, rssicountWeight=%d",
+		  rssiWeight, countWeight, rssicountWeight);
 
 	return rssicountWeight;
 }
@@ -685,12 +682,8 @@ static uint32_t sap_weight_channel_noise_floor(struct sap_context *sap_ctx,
 	    ACS_WEIGHT_CFG_TO_LOCAL(sap_ctx->auto_channel_select_weight,
 				    softap_nf_weight_cfg);
 
-	if (channel_stat == NULL || channel_stat->channelfreq == 0) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-			  "In %s, sanity check failed return max weight",
-			  __func__);
+	if (channel_stat == NULL || channel_stat->channelfreq == 0)
 		return softap_nf_weight_local;
-	}
 
 	noise_floor_weight = (channel_stat->noise_floor == 0) ? 0 :
 			    (ACS_WEIGHT_COMPUTE(
@@ -706,8 +699,8 @@ static uint32_t sap_weight_channel_noise_floor(struct sap_context *sap_ctx,
 		noise_floor_weight = 0;
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  "In %s, nf=%d, nfwc=%d, nfwl=%d, nfw=%d",
-		  __func__, channel_stat->noise_floor,
+		  "nf=%d, nfwc=%d, nfwl=%d, nfw=%d",
+		  channel_stat->noise_floor,
 		  softap_nf_weight_cfg, softap_nf_weight_local,
 		  noise_floor_weight);
 
@@ -739,12 +732,8 @@ static uint32_t sap_weight_channel_free(struct sap_context *sap_ctx,
 	    ACS_WEIGHT_CFG_TO_LOCAL(sap_ctx->auto_channel_select_weight,
 				    softap_channel_free_weight_cfg);
 
-	if (channel_stat == NULL || channel_stat->channelfreq == 0) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-			  "In %s, sanity check failed return max weight",
-			  __func__);
+	if (channel_stat == NULL || channel_stat->channelfreq == 0)
 		return softap_channel_free_weight_local;
-	}
 
 	rx_clear_count = channel_stat->rx_clear_count -
 			channel_stat->tx_frame_count -
@@ -766,8 +755,8 @@ static uint32_t sap_weight_channel_free(struct sap_context *sap_ctx,
 		channel_free_weight = softap_channel_free_weight_local;
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  "In %s, rcc=%d, cc=%d, tc=%d, rc=%d, cfwc=%d, cfwl=%d, cfw=%d",
-		  __func__, rx_clear_count, cycle_count,
+		  "rcc=%d, cc=%d, tc=%d, rc=%d, cfwc=%d, cfwl=%d, cfw=%d",
+		  rx_clear_count, cycle_count,
 		 channel_stat->tx_frame_count,
 		 channel_stat->rx_frame_count,
 		  softap_channel_free_weight_cfg,
@@ -800,12 +789,8 @@ static uint32_t sap_weight_channel_txpwr_range(struct sap_context *sap_ctx,
 	    ACS_WEIGHT_CFG_TO_LOCAL(sap_ctx->auto_channel_select_weight,
 				    softap_txpwr_range_weight_cfg);
 
-	if (channel_stat == NULL || channel_stat->channelfreq == 0) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-			  "In %s, sanity check failed return max weight",
-			  __func__);
+	if (channel_stat == NULL || channel_stat->channelfreq == 0)
 		return softap_txpwr_range_weight_local;
-	}
 
 	txpwr_weight_low_speed = (channel_stat->chan_tx_pwr_range == 0) ? 0 :
 				(ACS_WEIGHT_COMPUTE(
@@ -819,8 +804,8 @@ static uint32_t sap_weight_channel_txpwr_range(struct sap_context *sap_ctx,
 		txpwr_weight_low_speed = softap_txpwr_range_weight_local;
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  "In %s, tpr=%d, tprwc=%d, tprwl=%d, tprw=%d",
-		  __func__, channel_stat->chan_tx_pwr_range,
+		  "tpr=%d, tprwc=%d, tprwl=%d, tprw=%d",
+		  channel_stat->chan_tx_pwr_range,
 		  softap_txpwr_range_weight_cfg,
 		  softap_txpwr_range_weight_local,
 		  txpwr_weight_low_speed);
@@ -852,12 +837,8 @@ static uint32_t sap_weight_channel_txpwr_tput(struct sap_context *sap_ctx,
 	    ACS_WEIGHT_CFG_TO_LOCAL(sap_ctx->auto_channel_select_weight,
 				    softap_txpwr_tput_weight_cfg);
 
-	if (channel_stat == NULL || channel_stat->channelfreq == 0) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-			  "In %s, sanity check failed return max weight",
-			  __func__);
+	if (channel_stat == NULL || channel_stat->channelfreq == 0)
 		return softap_txpwr_tput_weight_local;
-	}
 
 	txpwr_weight_high_speed = (channel_stat->chan_tx_pwr_throughput == 0)
 				  ? 0 : (ACS_WEIGHT_COMPUTE(
@@ -871,8 +852,8 @@ static uint32_t sap_weight_channel_txpwr_tput(struct sap_context *sap_ctx,
 		txpwr_weight_high_speed = softap_txpwr_tput_weight_local;
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  "In %s, tpt=%d, tptwc=%d, tptwl=%d, tptw=%d",
-		  __func__, channel_stat->chan_tx_pwr_throughput,
+		  "tpt=%d, tptwc=%d, tptwl=%d, tptw=%d",
+		  channel_stat->chan_tx_pwr_throughput,
 		  softap_txpwr_tput_weight_cfg,
 		  softap_txpwr_tput_weight_local,
 		  txpwr_weight_high_speed);
@@ -2438,8 +2419,6 @@ uint8_t sap_select_channel(tHalHandle hal, struct sap_context *sap_ctx,
 	tpAniSirGlobal mac_ctx;
 
 	mac_ctx = PMAC_STRUCT(hal);
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  "In %s, Running SAP Ch Select", __func__);
 
 	/*
 	 * If ACS weight is not enabled on noise_floor/channel_free/tx_power,

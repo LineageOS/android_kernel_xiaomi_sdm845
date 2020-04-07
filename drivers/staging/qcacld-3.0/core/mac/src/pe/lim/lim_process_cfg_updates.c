@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -281,8 +281,6 @@ void lim_apply_configuration(tpAniSirGlobal pMac, tpPESession psessionEntry)
 {
 	uint32_t val = 0, phyMode;
 
-	pe_debug("Applying config");
-
 	psessionEntry->limSentCapsChangeNtf = false;
 
 	lim_get_phy_mode(pMac, &phyMode, psessionEntry);
@@ -301,7 +299,6 @@ void lim_apply_configuration(tpAniSirGlobal pMac, tpPESession psessionEntry)
 		   as a part of join request for a BT-AMP station */
 
 		if (psessionEntry->statypeForBss == STA_ENTRY_SELF) {
-			pe_debug("Initializing BT-AMP beacon generation");
 			sch_set_beacon_interval(pMac, psessionEntry);
 			sch_set_fixed_beacon_fields(pMac, psessionEntry);
 		}

@@ -90,6 +90,44 @@ struct hdd_context;
 #define CFG_ENABLE_CONNECTED_SCAN_MAX         (1)
 #define CFG_ENABLE_CONNECTED_SCAN_DEFAULT     (1)
 
+/*
+ * <ini>
+ * mws_coex_pcc_channel_avoid_delay - configures the duration, when WWAN PCC
+ * (Primary Component Carrier) conflicts with WLAN channel.
+ * @Min: 0x00
+ * @Max: 0xFF
+ * @Default: 0x3C
+ *
+ * It is used to set MWS-COEX WWAN PCC channel avoidance delay
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY		"mws_coex_pcc_channel_avoid_delay"
+#define CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY_DEFAULT	(0x3C)
+#define CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY_MAX	(0xFF)
+#define CFG_MWS_COEX_PCC_CHANNEL_AVOID_DELAY_MIN	(0)
+
+/*
+ * <ini>
+ * mws_coex_scc_channel_avoid_delay - configures the duration, when WWAN SCC
+ * (Secondary Component Carrier) conflicts with WLAN channel.
+ * @Min: 0x00
+ * @Max: 0xFF
+ * @Default: 0x78
+ *
+ * It is used to set MWS-COEX WWAN SCC channel avoidance delay
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY "mws_coex_scc_channel_avoid_delay"
+#define CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY_DEFAULT 0x00
+#define CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY_MAX 0xFF
+#define CFG_MWS_COEX_SCC_CHANNEL_AVOID_DELAY_MIN 0x00
+
 #ifdef WLAN_NUD_TRACKING
 /*
  * <ini>
@@ -2020,6 +2058,47 @@ enum hdd_dot11_mode {
 #define CFG_ROAMING_OFFLOAD_MIN                 (0)
 #define CFG_ROAMING_OFFLOAD_MAX                 (1)
 #define CFG_ROAMING_OFFLOAD_DEFAULT             (1)
+
+/*
+ * <ini>
+ * roam_triggers - Bitmap of roaming triggers. Setting this to
+ * zero will disable roaming altogether for the STA interface.
+ * @Min: 0
+ * @Max: 0xFFFFFFFF
+ * @Default: 0xFFFF
+ *
+ * ROAM_TRIGGER_REASON_NONE        BIT 0
+ * ROAM_TRIGGER_REASON_PER         BIT 1
+ * ROAM_TRIGGER_REASON_BMISS       BIT 2
+ * ROAM_TRIGGER_REASON_LOW_RSSI    BIT 3
+ * ROAM_TRIGGER_REASON_HIGH_RSSI   BIT 4
+ * ROAM_TRIGGER_REASON_PERIODIC    BIT 5
+ * ROAM_TRIGGER_REASON_MAWC        BIT 6
+ * ROAM_TRIGGER_REASON_DENSE       BIT 7
+ * ROAM_TRIGGER_REASON_BACKGROUND  BIT 8
+ * ROAM_TRIGGER_REASON_FORCED      BIT 9
+ * ROAM_TRIGGER_REASON_BTM         BIT 10
+ * ROAM_TRIGGER_REASON_UNIT_TEST   BIT 11
+ * ROAM_TRIGGER_REASON_BSS_LOAD    BIT 12
+ * ROAM_TRIGGER_REASON_DEAUTH      BIT 13
+ * ROAM_TRIGGER_REASON_IDLE        BIT 14
+ * ROAM_TRIGGER_REASON_STA_KICKOUT BIT 15
+ * ROAM_TRIGGER_EXT_REASON_MAX     BIT 16
+ * Bitmap corresponds to the enum roam_trigger_reason
+ *
+ * Related: none
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_ROAM_TRIGGER_BITMAP        "roam_triggers"
+#define CFG_ROAM_TRIGGER_BITMAP_MIN       0
+#define CFG_ROAM_TRIGGER_BITMAP_MAX       0xFFFFFFFF
+#define CFG_ROAM_TRIGGER_BITMAP_DEFAULT   0xFFFF
+
 #endif
 
 /*
@@ -3650,7 +3729,7 @@ enum hdd_dot11_mode {
 #define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_NAME          "gStaKeepAlivePeriod"
 #define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_MIN           (0)
 #define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_MAX           (65535)
-#define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_DEFAULT       (60)
+#define CFG_INFRA_STA_KEEP_ALIVE_PERIOD_DEFAULT       (30)
 
 /**
  * enum station_keepalive_method - available keepalive methods for stations
@@ -8411,6 +8490,49 @@ enum hdd_link_speed_rpt_type {
 #define CFG_NAN_SEPARATE_IFACE_SUPP_MIN            (0)
 #define CFG_NAN_SEPARATE_IFACE_SUPP_MAX            (1)
 
+/*
+ * <ini>
+ * gNdpKeepAlivePeriod - To configure duration of how many seconds
+ * to wait to kickout peer if peer is not reachable.
+ *
+ * @Min: 10
+ * @Max: 30
+ * @Default: 20
+ *
+ * Related: None
+ *
+ * Supported Feature: NAN
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NDP_KEEP_ALIVE_PERIOD                  "gNdpKeepAlivePeriod"
+#define CFG_NDP_KEEP_ALIVE_PERIOD_MIN              (10)
+#define CFG_NDP_KEEP_ALIVE_PERIOD_MAX              (30)
+#define CFG_NDP_KEEP_ALIVE_PERIOD_DEFAULT          (20)
+
+/*
+ * <ini>
+ * gSupportMp0Discovery - To support discovery of NAN cluster with
+ * Master Preference (MP) as 0 when a new device is enabling NAN.
+ *
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * Related: None
+ *
+ * Supported Feature: NAN
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SUPPORT_MP0_DISCOVERY                  "gSupportMp0Discovery"
+#define CFG_SUPPORT_MP0_DISCOVERY_MIN              (0)
+#define CFG_SUPPORT_MP0_DISCOVERY_MAX              (1)
+#define CFG_SUPPORT_MP0_DISCOVERY_DEFAULT          (1)
 #endif
 
 #define CFG_ENABLE_SELF_RECOVERY                   "gEnableSelfRecovery"
@@ -10740,6 +10862,35 @@ enum dot11p_mode {
  */
 #define CFG_ENABLE_DP_TRACE_CONFIG		"gDptraceConfig"
 #define CFG_ENABLE_DP_TRACE_CONFIG_DEFAULT	"1, 6, 2, 126"
+
+/*
+ * <ini>
+ * dp_proto_event_bitmap - Control for which protocol packet diag event should
+ *  be sent to user space.
+ * @Min: 0
+ * @Max: 0x17
+ * @Default: 0x6
+ *
+ * This ini is used to control for which protocol packet diag event should be
+ * sent to user space.
+ *
+ * QDF_NBUF_PKT_TRAC_TYPE_DNS       0x01
+ * QDF_NBUF_PKT_TRAC_TYPE_EAPOL     0x02
+ * QDF_NBUF_PKT_TRAC_TYPE_DHCP      0x04
+ * QDF_NBUF_PKT_TRAC_TYPE_ARP       0x10
+ *
+ * Related: None
+ *
+ * Supported Feature: STA, SAP
+ *
+ * Usage: Internal
+ *
+ * <ini>
+ */
+#define CFG_DP_PROTO_EVENT_BITMAP		"dp_proto_event_bitmap"
+#define CFG_DP_PROTO_EVENT_BITMAP_MIN		(0x0)
+#define CFG_DP_PROTO_EVENT_BITMAP_MAX		(0x17)
+#define CFG_DP_PROTO_EVENT_BITMAP_DEFAULT	(0x17)
 #endif
 
 /*
@@ -14883,9 +15034,22 @@ enum hdd_external_acs_policy {
  *
  * BIT 6: Set this to 1 will send BTM query frame and 0 not sent.
  *
- * BIT 7-31: Reserved
+ * BIT 7: Roam to BTM candidates based on the roam score instead of BTM
+ * preferred value
  *
- * Supported Feature: STA
+ * BIT 8: If AP does not support Neighbor report response, STA should
+ * request BTM query to get BTM request and check neighbor report exists
+ * or not. If Neighbor report exists, STA can use this information to update
+ * cached channel information
+ *
+ * BIT 9: When ever roaming is triggered after a successful roam scan a BTM
+ * query is sends to current connected AP which is 11v capable including the
+ * preferred candidate list obtained as part of roam scan with preference filled
+ * based on our internal scoring logic.
+ *
+ * BIT 10-31: Reserved
+ *
+ * Supported Feature: Roaming
  *
  * Usage: External
  *
@@ -14906,7 +15070,7 @@ enum hdd_external_acs_policy {
  * This ini is used to configure timeout value for waiting BTM request.
  * Unit: millionsecond
  *
- * Supported Feature: STA
+ * Supported Feature: Roaming
  *
  * Usage: External
  *
@@ -14926,7 +15090,7 @@ enum hdd_external_acs_policy {
  *
  * This ini is used to configure maximum attempt for sending BTM query to ESS.
  *
- * Supported Feature: STA
+ * Supported Feature: Roaming
  *
  * Usage: External
  *
@@ -14947,7 +15111,7 @@ enum hdd_external_acs_policy {
  * This ini is used to configure Stick time after roaming to new AP by BTM.
  * Unit: seconds
  *
- * Supported Feature: STA
+ * Supported Feature: Roaming
  *
  * Usage: External
  *
@@ -14957,6 +15121,36 @@ enum hdd_external_acs_policy {
 #define CFG_BTM_STICKY_TIME_MIN       (0x00000000)
 #define CFG_BTM_STICKY_TIME_MAX       (0x0000FFFF)
 #define CFG_BTM_STICKY_TIME_DEFAULT   (300)
+
+/*
+ * <ini>
+ * btm_query_bitmask - To send BTM query with candidate list on various roam
+ * scans reasons
+ * @Min: 0
+ * @Max: 0xFFFFFFFF
+ * @Default: 0x8
+ *
+ * This new ini is introduced to configure the bitmask for various roam scan
+ * reasons. Fw sends "BTM query with preferred candidate list" only for those
+ * roam scans which are enable through this bitmask.
+
+ * For Example:
+ * Bitmask : 0x8 (LOW_RSSI) refer enum WMI_ROAM_TRIGGER_REASON_ID
+ * Bitmask : 0xDA (PER, LOW_RSSI, HIGH_RSSI, MAWC, DENSE)
+ * refer enum WMI_ROAM_TRIGGER_REASON_ID
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_BTM_QUERY_BITMASK_NAME    "btm_query_bitmask"
+#define CFG_BTM_QUERY_BITMASK_MIN     (0)
+#define CFG_BTM_QUERY_BITMASK_MAX     (0xFFFFFFFF)
+#define CFG_BTM_QUERY_BITMASK_DEFAULT (0x8)
 
 /*
  * <ini>
@@ -16563,7 +16757,7 @@ enum hdd_external_acs_policy {
  * rssi delta and if other criteria of ini "enable_idle_roam" is met
  * @Min: 0
  * @Max: 50
- * @Default: 5
+ * @Default: 3
  *
  * Related: enable_idle_roam
  *
@@ -16576,7 +16770,7 @@ enum hdd_external_acs_policy {
 #define CFG_LFR_IDLE_ROAM_RSSI_DELTA   "idle_roam_rssi_delta"
 #define CFG_LFR_IDLE_ROAM_RSSI_DELTA_MIN      (0)
 #define CFG_LFR_IDLE_ROAM_RSSI_DELTA_MAX      (50)
-#define CFG_LFR_IDLE_ROAM_RSSI_DELTA_DEFAULT  (5)
+#define CFG_LFR_IDLE_ROAM_RSSI_DELTA_DEFAULT  (3)
 
 /*
  * <ini>
@@ -16706,6 +16900,30 @@ enum hdd_external_acs_policy {
 #define CFG_ADAPTIVE_11R_MIN      (false)
 #define CFG_ADAPTIVE_11R_MAX      (true)
 #define CFG_ADAPTIVE_11R_DEFAULT  (false)
+#endif
+
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+/*
+ * <ini>
+ * sae_single_pmk_feature_enabled - Enable/disable sae single pmk feature.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This INI is to enable/disable SAE Roaming with same PMK/PMKID feature support
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_SAE_SINGLE_PMK          "sae_single_pmk_feature_enabled"
+#define CFG_SAE_SINGLE_PMK_MIN      (false)
+#define CFG_SAE_SINGLE_PMK_MAX      (true)
+#define CFG_SAE_SINGLE_PMK_DEFAULT  (false)
 #endif
 
 /*
@@ -17034,6 +17252,360 @@ enum hdd_external_acs_policy {
 #define CFG_NUM_VDEV_ENABLE_MIN       (0x1)
 #define CFG_NUM_VDEV_ENABLE_MAX       (0x4)
 #define CFG_NUM_VDEV_ENABLE_DEFAULT   (CFG_TGT_NUM_VDEV)
+
+#ifdef SAR_SAFETY_FEATURE
+/*
+ * <ini>
+ * gSarSafetyTimeout - Specify SAR safety timeout value in milliseconds
+ *
+ * @Min: 120000
+ * @Max: 600000
+ * Default: 300000
+ *
+ * This ini is used to define SAR safety timeout value in milliseconds.
+ * This timer is started when the QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS
+ * is received first time.
+ * SAR safety timer will wait for the gSarSafetyTimeout for
+ * QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command and if
+ * SAR safety timer timeouts host will configure the gSarSafetyIndex
+ * to the FW.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_SAR_SAFETY_TIMEOUT          "gSarSafetyTimeout"
+#define CFG_SAR_SAFETY_TIMEOUT_MIN      (120000)
+#define CFG_SAR_SAFETY_TIMEOUT_MAX      (600000)
+#define CFG_SAR_SAFETY_TIMEOUT_DEFAULT  (300000)
+/*
+ * <ini>
+ * gSarSafetyUnsolicitedTimeout - Specify SAR safety unsolicited timeout value
+ * in milliseconds
+ *
+ * @Min: 5000
+ * @Max: 30000
+ * Default: 15000
+ *
+ * This ini is used to define SAR safety unsolicited timeout value in
+ * milliseconds. This timer is started on first data tx.
+ * SAR unsolicited timer will wait for the
+ * gSarSafetyUnsolicitedTimeout for QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS
+ * vendor command and if SAR unsolicited timer timeouts host will indicate
+ * user space with QCA_NL80211_VENDOR_SUBCMD_REQUEST_SAR_LIMITS_EVENT to send
+ * QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAR_SAFETY_UNSOLICITED_TIMEOUT        "gSarSafetyUnsolicitedTimeout"
+#define CFG_SAR_SAFETY_UNSOLICITED_TIMEOUT_MIN     (5000)
+#define CFG_SAR_SAFETY_UNSOLICITED_TIMEOUT_MAX     (30000)
+#define CFG_SAR_SAFETY_UNSOLICITED_TIMEOUT_DEFAULT (15000)
+
+/*
+ * <ini>
+ * gSarSafetyReqRespTimeout - Specify SAR safety request response timeout value
+ * in milliseconds
+ *
+ * @Min: 500
+ * @Max: 3000
+ * Default: 1000
+ *
+ * This ini is used to define SAR request-response timeout value
+ * in milliseconds. SAR request-response timer will wait for the
+ * gSarSafetyReqRespTimeout for QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS
+ * vendor command and if SAR request-response timer timeouts host will
+ * indicate user space with QCA_NL80211_VENDOR_SUBCMD_REQUEST_SAR_LIMITS_EVENT
+ * for gSarSafetyReqRespRetry number of times to send
+ * QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command and still if host
+ * does not get QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command, host
+ * will configure the gSarSafetyIndex to the FW.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAR_SAFETY_REQ_RESP_TIMEOUT          "gSarSafetyReqRespTimeout"
+#define CFG_SAR_SAFETY_REQ_RESP_TIMEOUT_MIN      (500)
+#define CFG_SAR_SAFETY_REQ_RESP_TIMEOUT_MAX      (3000)
+#define CFG_SAR_SAFETY_REQ_RESP_TIMEOUT_DEFAULT  (1000)
+
+/*
+ * <ini>
+ * gSarSafetyReqRespRetry - Specify SAR request response retries value
+ *
+ * @Min: 1
+ * @Max: 10
+ * Default: 5
+ *
+ * This ini is used to define SAR request-response retries value.
+ * SAR request-response timer will wait for the gSarReqRespTimeout for
+ * QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command and if
+ * SAR request-response timer timeouts host will indicate user space
+ * for gSarSafetyReqRespRetry number of times to send
+ * QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command and still if
+ * host does not get QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor
+ * command, host will configure the gSarSafetyIndex to the FW.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAR_SAFETY_REQ_RESP_RETRIES             "gSarSafetyReqRespRetry"
+#define CFG_SAR_SAFETY_REQ_RESP_RETRIES_MIN         (1)
+#define CFG_SAR_SAFETY_REQ_RESP_RETRIES_MAX         (10)
+#define CFG_SAR_SAFETY_REQ_RESP_RETRIES_DEFAULT     (5)
+
+/*
+ * <ini>
+ * gSarSafetyIndex - Specify SAR safety index
+ *
+ * @Min: 0
+ * @Max: 11
+ * Default: 11
+ *
+ * This ini is used to define SAR safety index, when sar safety timer
+ * timeouts or sar request response timer timeouts for gSarSafetyReqRespRetry
+ * number of times, host will configure gSarSafetyIndex value to the FW.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAR_SAFETY_INDEX            "gSarSafetyIndex"
+#define CFG_SAR_SAFETY_INDEX_MIN        (0)
+#define CFG_SAR_SAFETY_INDEX_MAX        (11)
+#define CFG_SAR_SAFETY_INDEX_DEFAULT    (11)
+
+/*
+ * <ini>
+ * gSarSafetySleepIndex - Specify SAR Safety sleep index
+ *
+ * @Min: 0
+ * @Max: 11
+ * Default: 11
+ *
+ * This ini is used to define SAR sleep index, when device goes into the
+ * sleep mode, before going into the sleep mode host configures
+ * gSarSafetySleepIndex value to the FW.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_SAR_SAFETY_SLEEP_INDEX             "gSarSafetySleepIndex"
+#define CFG_SAR_SAFETY_SLEEP_INDEX_MIN         (0)
+#define CFG_SAR_SAFETY_SLEEP_INDEX_MAX         (11)
+#define CFG_SAR_SAFETY_SLEEP_INDEX_DEFAULT     (11)
+
+/*
+ * <ini>
+ * gEnableSarSafety - Enable/Disable SAR safety feature
+ *
+ * @Min: 0
+ * @Max: 1
+ * Default: 0
+ *
+ * This ini is used to enable/disable SAR safety feature
+ * Value 1 of this ini enables SAR safety feature and
+ * value 0 of this ini disables SAR safety feature
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_SAR_SAFETY_FEATURE           "gEnableSarSafety"
+#define CFG_ENABLE_SAR_SAFETY_FEATURE_MIN       (0)
+#define CFG_ENABLE_SAR_SAFETY_FEATURE_MAX       (1)
+#define CFG_ENABLE_SAR_SAFETY_FEATURE_DEFAULT   (0)
+
+/*
+ * <ini>
+ * gConfigSarSafetySleepIndex - Enable/Disable SAR Safety sleep index
+ *
+ * @Min: 0
+ * @Max: 1
+ * Default: 0
+ *
+ * This Configuration is to decide that before going to
+ * sleep mode whether to maintain high RF power
+ * (SAR disable) or to configure SAR sleep mode index
+ *
+ * Value 0 for this ini indicates to maintain high
+ * RF power (SAR disable)
+ * Value 1 for this ini indicates to configure SAR
+ * sleep mode index.
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_CONFIG_SAR_SAFETY_SLEEP_MODE_INDEX     "gConfigSarSafetySleepIndex"
+#define CFG_CONFIG_SAR_SAFETY_SLEEP_MODE_INDEX_MIN       (0)
+#define CFG_CONFIG_SAR_SAFETY_SLEEP_MODE_INDEX_MAX       (1)
+#define CFG_CONFIG_SAR_SAFETY_SLEEP_MODE_INDEX_DEFAULT   (0)
+#endif
+
+#define CFG_PKT_CAPTURE_MODE_MGMT_PKT	BIT(0)
+#define CFG_PKT_CAPTURE_MODE_DATA_PKT	BIT(1)
+
+/*
+ * <ini>
+ * packet_capture_mode - Packet capture mode
+ * @Min: 0
+ * @Max: 3
+ * Default: 0 - Capture no packets
+ *
+ * This ini is used to decide packet capture mode
+ *
+ * packet_capture_mode = 0 - Capture no packets
+ * packet_capture_mode = 1 - Capture management packets only
+ * packet_capture_mode = 2 - Capture data packets only
+ * packet_capture_mode = 3 - Capture both data and management packets
+ *
+ * Supported Feature: packet capture
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_PKT_CAPTURE_MODE		"packet_capture_mode"
+#define CFG_PKT_CAPTURE_MODE_MIN	0
+#define CFG_PKT_CAPTURE_MODE_MAX	(CFG_PKT_CAPTURE_MODE_MGMT_PKT | \
+					 CFG_PKT_CAPTURE_MODE_DATA_PKT)
+#define CFG_PKT_CAPTURE_MODE_DEFAULT	0
+
+/*
+ * <ini>
+ * disable_4way_hs_offload - Enable/Disable 4 way handshake offload to firmware
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * 0  4-way HS to be handled in firmware
+ * 1  4-way HS to be handled in supplicant
+ *
+ * Related: None
+ *
+ * Supported Feature: STA Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_DISABLE_4WAY_HS_OFFLOAD           "disable_4way_hs_offload"
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_MIN       (0)
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_MAX       (1)
+#define CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT   (0)
+
+/*
+ * <ini>
+ * enable_time_sync_ftm - Time Sync FTM feature support
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0 - Disable feature
+ *
+ * When set to 1 Time Sync FTM feature will be enabled.
+ *
+ * Supported Feature: Time Sync FTM
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_TIME_SYNC_FTM		"enable_time_sync_ftm"
+#define CFG_ENABLE_TIME_SYNC_FTM_MIN		(0)
+#define CFG_ENABLE_TIME_SYNC_FTM_MAX		(1)
+#define CFG_ENABLE_TIME_SYNC_FTM_DEFAULT	(0)
+
+/*
+ * <ini>
+ * time_sync_ftm_mode- Time Sync FTM feature Mode configuration
+ * @Min: 0 - Aggregated Mode
+ * @Max: 1 - Burst Mode
+ * @Default: 0
+ *
+ * This ini is applicable only if enable_time_sync_ftm  is set to 1.
+ *
+ * Supported Feature: Time Sync FTM
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_TIME_SYNC_FTM_MODE			"time_sync_ftm_mode"
+#define CFG_TIME_SYNC_FTM_MODE_MIN		(0)
+#define CFG_TIME_SYNC_FTM_MODE_MAX		(1)
+#define CFG_TIME_SYNC_FTM_MODE_DEFAULT		(0)
+
+/*
+ * <ini>
+ * time_sync_ftm_role- Time Sync FTM feature Role configuration
+ * @Min: 0 - Slave Role
+ * @Max: 1 - Master Role
+ * @Default: 0
+ *
+ * This ini is applicable only if enable_time_sync_ftm is set to 1.
+ *
+ * Supported Feature: Time Sync FTM
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_TIME_SYNC_FTM_ROLE			"time_sync_ftm_role"
+#define CFG_TIME_SYNC_FTM_ROLE_MIN		(0)
+#define CFG_TIME_SYNC_FTM_ROLE_MAX		(1)
+#define CFG_TIME_SYNC_FTM_ROLE_DEFAULT		(0)
+
+/*
+ * <ini>
+ * bmiss_skip_full_scan - To decide whether firmware does channel map based
+ * partial scan or partial scan followed by full scan in case no candidate is
+ * found in partial scan.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * 0 : Based on the channel map , firmware does scan to find new AP. if AP is
+ *     not found then it does a full scan on all valid channels.
+ * 1 : Firmware does channel map based partial scan only.
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_BMISS_SKIP_FULL_SCAN               "bmiss_skip_full_scan"
+#define CFG_BMISS_SKIP_FULL_SCAN_MIN           0
+#define CFG_BMISS_SKIP_FULL_SCAN_MAX           1
+#define CFG_BMISS_SKIP_FULL_SCAN_DEFAULT       0
+
+/*
+ * <ini>
+ * p2p_disable_roam- Disable Roam on sta interface during P2P connection
+ * @Min: 0 - Roam Enabled on sta interface during P2P connection
+ * @Max: 1 - Roam Disabled on sta interface during P2P connection
+ * @Default: 0
+ *
+ * Disable roaming on STA iface to avoid audio glitches on p2p if its connected
+ *
+ * Supported Feature: Disable Roam during P2P
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_P2P_DISABLE_ROAM            "p2p_disable_roam"
+#define CFG_P2P_DISABLE_ROAM_MIN         (0)
+#define CFG_P2P_DISABLE_ROAM_MAX         (1)
+#define CFG_P2P_DISABLE_ROAM_DEFAULT     (0)
 
 /*
  * Type declarations
@@ -17545,8 +18117,9 @@ struct hdd_config {
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	bool isRoamOffloadEnabled;
+	uint32_t roam_triggers;
 #endif
-
+	bool bmiss_skip_full_scan;
 	uint32_t IpaUcTxBufCount;
 	uint32_t IpaUcTxBufSize;
 	uint32_t IpaUcRxIndRingCount;
@@ -17564,6 +18137,8 @@ struct hdd_config {
 #ifdef WLAN_FEATURE_NAN
 	bool enable_nan_support;
 	bool nan_separate_iface_support;
+	uint16_t ndp_keep_alive_period;
+	bool support_mp0_discovery;
 #endif
 	bool enableSelfRecovery;
 #ifdef FEATURE_WLAN_FORCE_SAP_SCC
@@ -17938,6 +18513,7 @@ struct hdd_config {
 	uint32_t btm_solicited_timeout;
 	uint32_t btm_max_attempt_cnt;
 	uint32_t btm_sticky_time;
+	uint32_t btm_query_bitmask;
 	uint32_t btm_trig_min_candidate_score;
 	bool gcmp_enabled;
 	bool is_11k_offload_supported;
@@ -18039,10 +18615,37 @@ struct hdd_config {
 #ifdef WLAN_ADAPTIVE_11R
 	bool enable_adaptive_11r;
 #endif
+#if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
+	bool sae_single_pmk_feature_enabled;
+#endif
 	uint32_t num_vdevs;
 	bool ShortGI80MhzEnable;
 	bool ShortGI160MhzEnable;
 	uint32_t vendor_roam_score_algorithm;
+	uint32_t dp_proto_event_bitmap;
+
+#ifdef SAR_SAFETY_FEATURE
+	uint32_t sar_safety_timeout;
+	uint32_t sar_safety_unsolicited_timeout;
+	uint32_t sar_safety_req_resp_timeout;
+	uint32_t sar_safety_req_resp_retry;
+	uint32_t sar_safety_index;
+	uint32_t sar_safety_sleep_index;
+	bool enable_sar_safety;
+	bool config_sar_safety_sleep_index;
+#endif
+	uint32_t pkt_capture_mode;
+
+	uint32_t mws_coex_scc_channel_avoid_delay;
+	uint32_t mws_coex_pcc_channel_avoid_delay;
+
+	bool disable_4way_hs_offload;
+#ifdef FEATURE_WLAN_TIME_SYNC_FTM
+	bool time_sync_ftm_enable;
+	bool time_sync_ftm_mode;
+	bool time_sync_ftm_role;
+#endif
+	bool p2p_disable_roam;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -784,7 +784,6 @@ static void wma_remove_objmgr_peer(tp_wma_handle wma, uint8_t vdev_id,
 		wlan_objmgr_peer_obj_delete(obj_peer);
 		/* Unref to decrement ref happened in find_peer */
 		wlan_objmgr_peer_release_ref(obj_peer, WLAN_LEGACY_WMA_ID);
-		WMA_LOGD("Peer %pM deleted", peer_addr);
 	} else {
 		WMA_LOGE("Peer %pM not found", peer_addr);
 	}
@@ -1148,8 +1147,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	}
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
 
-	WMA_LOGD("%s: Enter", __func__);
-
 	wlan_res_cfg = lmac_get_tgt_res_cfg(psoc);
 	if (!wlan_res_cfg) {
 		WMA_LOGE("%s: Wlan resource config is NULL", __func__);
@@ -1171,7 +1168,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			wma->psoc, false);
 		return -EINVAL;
 	}
-
 	if (resp_event->vdev_id >= wma->max_bssid) {
 		WMA_LOGE("Invalid vdev id received from firmware");
 		return -EINVAL;
@@ -1249,7 +1245,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 	if (req_msg->msg_type == WMA_CHNL_SWITCH_REQ) {
 		tpSwitchChannelParams params =
 			(tpSwitchChannelParams) req_msg->user_data;
-
 		if (!params) {
 			WMA_LOGE("%s: channel switch params is NULL for vdev %d",
 				__func__, resp_event->vdev_id);
@@ -1293,10 +1288,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 						 WMI_PEER_PHYMODE,
 						 iface->chanmode,
 						 resp_event->vdev_id);
-			WMA_LOGD("%s:vdev_id %d chanmode %d status %d",
-				__func__, resp_event->vdev_id,
-				iface->chanmode, err);
-
 			chanwidth =
 				wmi_get_ch_width_from_phy_mode(
 						wma->wmi_handle,
@@ -1304,9 +1295,9 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 			err = wma_set_peer_param(wma, iface->bssid,
 					WMI_PEER_CHWIDTH, chanwidth,
 					resp_event->vdev_id);
-			WMA_LOGD("%s:vdev_id %d chanwidth %d status %d",
-				__func__, resp_event->vdev_id,
-				chanwidth, err);
+			wma_debug("vdev_id %d chanwidth %d chanmode %d",
+				  resp_event->vdev_id, chanwidth,
+				  iface->chanmode);
 			param.vdev_id = resp_event->vdev_id;
 			param.assoc_id = iface->aid;
 			status = wma_send_vdev_up_to_fw(wma, &param,
@@ -1376,9 +1367,6 @@ bool wma_is_vdev_valid(uint32_t vdev_id)
 				__func__, vdev_id, wma_handle->max_bssid);
 		return false;
 	}
-
-	WMA_LOGD("%s: vdev_id: %d, vdev_active: %d", __func__, vdev_id,
-		 wma_handle->interfaces[vdev_id].vdev_active);
 
 	return wma_handle->interfaces[vdev_id].vdev_active;
 }
@@ -1734,11 +1722,6 @@ static int wma_get_obj_mgr_peer_type(tp_wma_handle wma, uint8_t vdev_id,
 {
 	uint32_t obj_peer_type = 0;
 
-	WMA_LOGD("vdev id %d vdev type %d vdev subtype %d peer addr %pM vdev addr %pM",
-		 vdev_id, wma->interfaces[vdev_id].type,
-		 wma->interfaces[vdev_id].sub_type, peer_addr,
-		 wma->interfaces[vdev_id].addr);
-
 	if (wma_peer_type == WMI_PEER_TYPE_TDLS)
 		return WLAN_PEER_TDLS;
 
@@ -1812,9 +1795,6 @@ static struct wlan_objmgr_peer *wma_create_objmgr_peer(tp_wma_handle wma,
 	obj_peer = wlan_objmgr_peer_obj_create(obj_vdev, obj_peer_type,
 						peer_addr);
 	wlan_objmgr_vdev_release_ref(obj_vdev, WLAN_LEGACY_WMA_ID);
-	if (obj_peer)
-		WMA_LOGD("Peer %pM added successfully! Type: %d", peer_addr,
-			 obj_peer_type);
 
 	return obj_peer;
 
@@ -1897,9 +1877,6 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, struct cdp_pdev *pdev,
 		wlan_objmgr_peer_obj_delete(obj_peer);
 		goto err;
 	}
-	WMA_LOGD("%s: vdev %pK is attaching peer:%pK peer_addr %pM to vdev_id %d, peer_count - %d",
-		 __func__, vdev, peer, peer_addr, vdev_id,
-		 wma->interfaces[vdev_id].peer_count);
 
 	if (roam_synch_in_progress) {
 		WMA_LOGD("%s: LFR3: Created peer %pK with peer_addr %pM vdev_id %d, peer_count - %d",
@@ -1934,11 +1911,8 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, struct cdp_pdev *pdev,
 			    DEBUG_INVALID_PEER_ID, peer_addr, peer, 0, 0);
 	cdp_peer_setup(dp_soc, vdev, peer);
 
-	WMA_LOGD("%s: Initialized peer with peer_addr %pM vdev_id %d",
-		__func__, peer_addr, vdev_id);
-
 	mac_addr_raw = cdp_get_vdev_mac_addr(dp_soc, vdev);
-	if (mac_addr_raw == NULL) {
+	if (!mac_addr_raw) {
 		WMA_LOGE("%s: peer mac addr is NULL", __func__);
 		return QDF_STATUS_E_FAULT;
 	}
@@ -3179,7 +3153,6 @@ int wma_peer_assoc_conf_handler(void *handle, uint8_t *cmd_param_info,
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 	int status = 0;
 
-	WMA_LOGD(FL("Enter"));
 	param_buf = (WMI_PEER_ASSOC_CONF_EVENTID_param_tlvs *) cmd_param_info;
 	if (!param_buf) {
 		WMA_LOGE("Invalid peer assoc conf event buffer");
@@ -3237,10 +3210,6 @@ int wma_peer_assoc_conf_handler(void *handle, uint8_t *cmd_param_info,
 
 		/* peer assoc conf event means the cmd succeeds */
 		params->status = QDF_STATUS_SUCCESS;
-		WMA_LOGD(FL("Send ADD BSS RSP: opermode: %d update_bss: %d nw_type: %d bssid: %pM staIdx %d status %d"),
-			params->operMode,
-			params->updateBss, params->nwType, params->bssId,
-			params->staContext.staIdx, params->status);
 		wma_send_msg_high_priority(wma, WMA_ADD_BSS_RSP,
 					   (void *)params, 0);
 	} else {
@@ -3997,8 +3966,7 @@ wma_vdev_set_bss_params(tp_wma_handle wma, int vdev_id,
 
 	if (!maxTxPower)
 		WMA_LOGW("Setting Tx power limit to 0");
-	WMA_LOGD("Set maxTx pwr [WMI_VDEV_PARAM_TX_PWRLIMIT] to %d",
-						maxTxPower);
+	wma_debug("Set maxTx pwr to %d", maxTxPower);
 	ret = wma_vdev_set_param(wma->wmi_handle, vdev_id,
 					      WMI_VDEV_PARAM_TX_PWRLIMIT,
 					      maxTxPower);
@@ -4994,7 +4962,8 @@ static void wma_add_tdls_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 		goto send_rsp;
 	}
 
-	if (wma_is_roam_synch_in_progress(wma, add_sta->smesessionId)) {
+	if (wma_is_roam_synch_in_progress(wma, add_sta->smesessionId) ||
+	    wma->interfaces[add_sta->smesessionId].roaming_in_progress) {
 		WMA_LOGE("%s: roaming in progress, reject add sta!", __func__);
 		add_sta->status = QDF_STATUS_E_PERM;
 		goto send_rsp;
@@ -5263,7 +5232,6 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 
 		if (wmi_service_enabled(wma->wmi_handle,
 					    wmi_service_peer_assoc_conf)) {
-			WMA_LOGD(FL("WMI_SERVICE_PEER_ASSOC_CONF is enabled"));
 			peer_assoc_cnf = true;
 			msg = wma_fill_hold_req(wma, params->smesessionId,
 				WMA_ADD_STA_REQ, WMA_PEER_ASSOC_CNF_START,
@@ -5348,8 +5316,6 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 	}
 
 	qdf_atomic_set(&iface->bss_status, WMA_BSS_STATUS_STARTED);
-	WMA_LOGD("%s: STA mode (type %d subtype %d) BSS is started",
-		 __func__, iface->type, iface->sub_type);
 	/* Sta is now associated, configure various params */
 
 	/* Send SMPS force command to FW to send the required
@@ -5383,8 +5349,7 @@ static void wma_add_sta_req_sta_mode(tp_wma_handle wma, tpAddStaParams params)
 				  WMA_VHT_PPS_DELIM_CRC_FAIL, 1);
 	if (wmi_service_enabled(wma->wmi_handle,
 				wmi_service_listen_interval_offload_support)) {
-		WMA_LOGD("%s: listen interval offload enabled, setting params",
-			 __func__);
+		wma_debug("listen interval offload enabled, setting params");
 		status = wma_vdev_set_param(wma->wmi_handle,
 					    params->smesessionId,
 					    WMI_VDEV_PARAM_MAX_LI_OF_MODDTIM,
@@ -5423,10 +5388,9 @@ out:
 		return;
 
 	params->status = status;
-	WMA_LOGD(FL("statype %d vdev_id %d aid %d bssid %pM staIdx %d status %d"),
-		 params->staType, params->smesessionId,
-		 params->assocId, params->bssId, params->staIdx,
-		 params->status);
+	wma_debug("vdev_id %d aid %d staid %d sta mac " QDF_MAC_ADDR_STR " status %d",
+		  params->smesessionId, params->assocId, params->staIdx,
+		  QDF_MAC_ADDR_ARRAY(params->bssId), params->status);
 	/* Don't send a response during roam sync operation */
 	if (!wma_is_roam_synch_in_progress(wma, params->smesessionId))
 		wma_send_msg_high_priority(wma, WMA_ADD_STA_RSP,
@@ -5640,11 +5604,7 @@ void wma_add_sta(tp_wma_handle wma, tpAddStaParams add_sta)
 		return;
 	}
 
-	WMA_LOGD("%s: add_sta->sessionId = %d.", __func__,
-		 add_sta->smesessionId);
-	WMA_LOGD("%s: add_sta->bssId = %x:%x:%x:%x:%x:%x", __func__,
-		 add_sta->bssId[0], add_sta->bssId[1], add_sta->bssId[2],
-		 add_sta->bssId[3], add_sta->bssId[4], add_sta->bssId[5]);
+	wma_debug("Vdev %d BSSID %pM", add_sta->smesessionId, add_sta->bssId);
 
 	if (wma_is_vdev_in_ap_mode(wma, add_sta->smesessionId))
 		oper_mode = BSS_OPERATIONAL_MODE_AP;
@@ -6053,7 +6013,7 @@ void wma_delete_bss(tp_wma_handle wma, tpDeleteBssParams params)
 	wma_wait_tx_complete(wma, params->smesessionId);
 
 	if (cdp_get_tx_pending(soc, pdev)) {
-		WMA_LOGW(FL("Outstanding msdu packets before VDEV_STOP : %d"),
+		WMA_LOGD(FL("Outstanding msdu packets before VDEV_STOP : %d"),
 			 cdp_get_tx_pending(soc, pdev));
 	}
 
@@ -6197,6 +6157,21 @@ int wma_fill_beacon_interval_reset_req(tp_wma_handle wma, uint8_t vdev_id,
 
 	return 0;
 }
+
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+QDF_STATUS wma_send_dscp_up_map_to_fw(void *wma_ptr, uint32_t *dscp_to_up_map)
+{
+	QDF_STATUS ret;
+	tp_wma_handle wma = (tp_wma_handle)wma_ptr;
+
+	ret = wmi_unified_send_dscp_tid_map_cmd(wma->wmi_handle,
+						dscp_to_up_map);
+	if (QDF_IS_STATUS_ERROR(ret))
+		WMA_LOGE("Failed to send dscp_up_map to FW");
+
+	return ret;
+}
+#endif
 
 QDF_STATUS wma_set_wlm_latency_level(void *wma_ptr,
 			struct wlm_latency_level_param *latency_params)

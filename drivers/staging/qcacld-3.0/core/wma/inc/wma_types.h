@@ -161,9 +161,6 @@
 
 #define WMA_MISSED_BEACON_IND          SIR_HAL_MISSED_BEACON_IND
 
-#define WMA_ENTER_PS_REQ               SIR_HAL_ENTER_PS_REQ
-#define WMA_EXIT_PS_REQ                SIR_HAL_EXIT_PS_REQ
-
 #define WMA_HIDDEN_SSID_RESTART_RSP    SIR_HAL_HIDDEN_SSID_RESTART_RSP
 #define WMA_SWITCH_CHANNEL_RSP         SIR_HAL_SWITCH_CHANNEL_RSP
 #define WMA_P2P_NOA_ATTR_IND           SIR_HAL_P2P_NOA_ATTR_IND
@@ -191,6 +188,8 @@
 #define WMA_TSM_STATS_REQ              SIR_HAL_TSM_STATS_REQ
 #define WMA_TSM_STATS_RSP              SIR_HAL_TSM_STATS_RSP
 #endif
+
+#define WMA_ROAM_SCAN_CH_REQ              SIR_HAL_ROAM_SCAN_CH_REQ
 
 #define WMA_HT40_OBSS_SCAN_IND                  SIR_HAL_HT40_OBSS_SCAN_IND
 
@@ -694,6 +693,25 @@ QDF_STATUS u_mac_post_ctrl_msg(void *pSirGlobal, tSirMbMsg *pMb);
 QDF_STATUS wma_set_idle_ps_config(void *wma_ptr, uint32_t idle_ps);
 QDF_STATUS wma_get_snr(tAniGetSnrReq *psnr_req);
 
+#ifdef WLAN_SEND_DSCP_UP_MAP_TO_FW
+/**
+ * wma_send_dscp_up_map_to_fw() - send DSCP-to-UP map values to FW
+ * @wma_ptr: wma handle
+ * @dscp_to_up_map: array of DSCP-to-UP map values
+ *
+ * Use to send DSCP-to-UP map values to FW
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wma_send_dscp_up_map_to_fw(void *wma_ptr, uint32_t *dscp_to_up_map);
+#else
+static inline
+QDF_STATUS wma_send_dscp_up_map_to_fw(void *wma_ptr, uint32_t *dscp_to_up_map)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 /**
  * wma_set_wlm_latency_level() - set latency level to FW
  * @wma_ptr: wma handle
@@ -768,7 +786,10 @@ QDF_STATUS wma_register_roaming_callbacks(
 			tpSirBssDescription  bss_desc_ptr,
 			enum sir_roam_op_code reason),
 		QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
-						uint8_t vdev_id),
+					uint8_t vdev_id,
+					uint8_t *deauth_disassoc_frame,
+					uint16_t deauth_disassoc_frame_len,
+					uint16_t reason_code),
 		QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
 			struct roam_pmkid_req_event *bss_list));
 #else
@@ -784,7 +805,10 @@ static inline QDF_STATUS wma_register_roaming_callbacks(
 			tpSirBssDescription  bss_desc_ptr,
 			enum sir_roam_op_code reason),
 		QDF_STATUS (*pe_disconnect_cb) (tpAniSirGlobal mac,
-						uint8_t vdev_id),
+					uint8_t vdev_id,
+					uint8_t *deauth_disassoc_frame,
+					uint16_t deauth_disassoc_frame_len,
+					uint16_t reason_code),
 		QDF_STATUS (*csr_roam_pmkid_req_cb)(uint8_t vdev_id,
 			struct roam_pmkid_req_event *bss_list))
 {

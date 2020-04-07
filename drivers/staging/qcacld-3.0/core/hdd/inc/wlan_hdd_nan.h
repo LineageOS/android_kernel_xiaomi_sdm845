@@ -52,6 +52,22 @@ static inline bool wlan_hdd_nan_is_supported(struct hdd_context *hdd_ctx)
 }
 
 /**
+ * wlan_hdd_nan_separate_iface_supported() - HDD separate iface for NAN support
+ * query function
+ * @hdd_ctx: Pointer to hdd context
+ *
+ * This function is called to determine to whether separate iface for NAN is
+ * enabled or not through INI
+ *
+ * Return: true if supported by the driver and firmware
+ */
+static inline bool
+wlan_hdd_nan_separate_iface_supported(struct hdd_context *hdd_ctx)
+{
+	return hdd_ctx->config->nan_separate_iface_support;
+}
+
+/**
  * hdd_nan_populate_cds_config() - Populate NAN cds configuration
  * @cds_cfg: CDS Configuration
  * @hdd_ctx: Pointer to hdd context
@@ -62,6 +78,8 @@ static inline void hdd_nan_populate_cds_config(struct cds_config_info *cds_cfg,
 			struct hdd_context *hdd_ctx)
 {
 	cds_cfg->is_nan_enabled = hdd_ctx->config->enable_nan_support;
+	cds_cfg->nan_separate_iface_support =
+		hdd_ctx->config->nan_separate_iface_support;
 }
 
 /**
@@ -95,6 +113,12 @@ static inline bool wlan_hdd_nan_is_supported(struct hdd_context *hdd_ctx)
 {
 	return false;
 }
+static inline bool
+wlan_hdd_nan_separate_iface_supported(struct hdd_context *hdd_ctx)
+{
+	return false;
+}
+
 static inline void hdd_nan_populate_cds_config(struct cds_config_info *cds_cfg,
 			struct hdd_context *hdd_ctx)
 {
