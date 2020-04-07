@@ -2334,10 +2334,10 @@ out:
 	return ret;
 }
 
-static noinline_for_stack int
-ethtool_get_per_queue_coalesce(struct net_device *dev,
-			       void __user *useraddr,
-			       struct ethtool_per_queue_op *per_queue_opt)
+static noinline_for_stack
+int ethtool_get_per_queue_coalesce(struct net_device *dev,
+				   void __user *useraddr,
+				   struct ethtool_per_queue_op *per_queue_opt)
 {
 	u32 bit;
 	int ret;
@@ -2367,10 +2367,10 @@ ethtool_get_per_queue_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static noinline_for_stack int
-ethtool_set_per_queue_coalesce(struct net_device *dev,
-			       void __user *useraddr,
-			       struct ethtool_per_queue_op *per_queue_opt)
+static noinline_for_stack
+int ethtool_set_per_queue_coalesce(struct net_device *dev,
+				   void __user *useraddr,
+				   struct ethtool_per_queue_op *per_queue_opt)
 {
 	u32 bit;
 	int i, ret = 0;
