@@ -61,6 +61,8 @@
 		qcom,mdss-dsi-panel-blackness-level = <3230>;
 		qcom,mdss-dsi-on-command-tuning;
 		qcom,dispparam-enabled;
+		qcom,disp-doze-lbm-backlight = <10>;
+		qcom,disp-doze-hbm-backlight = <133>;
 		qcom,mdss-dsi-display-timings {
 			timing@0{
 				qcom,mdss-dsi-panel-width = <1080>;
