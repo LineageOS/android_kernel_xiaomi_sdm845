@@ -487,6 +487,10 @@
 &dsi_jdi_fhd_r63452_cmd {
 	qcom,mdss-dsi-t-clk-post = <0x0d>;
 	qcom,mdss-dsi-t-clk-pre = <0x2d>;
+
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
+
 	qcom,mdss-dsi-display-timings {
 		timing@0{
 			qcom,mdss-dsi-panel-phy-timings = [00 1a 04 06 0a 0a 05
@@ -500,6 +504,10 @@
 &dsi_ss_fhd_ea8074_cmd {
 	qcom,mdss-dsi-t-clk-post = <0x0e>;
 	qcom,mdss-dsi-t-clk-pre = <0x31>;
+
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
+
 	qcom,mdss-dsi-display-timings {
 		timing@0{
 			qcom,mdss-dsi-panel-phy-timings = [00 20 08 08 24 23 08
@@ -513,6 +521,10 @@
 &dsi_ss_notch_fhd_ea8074_cmd {
 	qcom,mdss-dsi-t-clk-post = <0x0e>;
 	qcom,mdss-dsi-t-clk-pre = <0x34>;
+
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
+
 	qcom,mdss-dsi-display-timings {
 		timing@0{
 			qcom,mdss-dsi-panel-phy-timings = [00 22 08 09 25 23 09
@@ -527,6 +539,8 @@
 	qcom,mdss-dsi-t-clk-post = <0x0f>;
 	qcom,mdss-dsi-t-clk-pre = <0x37>;
 
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
 	qcom,esd-check-enabled;
 	qcom,mdss-dsi-panel-status-check-mode = "reg_read";
 	qcom,mdss-dsi-panel-status-command = [06 01 00 01 00 00 01 0A];
@@ -548,6 +562,8 @@
 	qcom,mdss-dsi-t-clk-post = <0x0E>;
 	qcom,mdss-dsi-t-clk-pre = <0x36>;
 
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
 	qcom,esd-check-enabled;
 	qcom,mdss-dsi-panel-status-check-mode = "reg_read";
 	qcom,mdss-dsi-panel-status-command = [
@@ -571,6 +587,9 @@
 	qcom,mdss-dsi-t-clk-post = <0x0E>;
 	qcom,mdss-dsi-t-clk-pre = <0x36>;
 
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
+
 	qcom,mdss-dsi-display-timings {
 		timing@0{
 			qcom,mdss-dsi-panel-phy-timings = [00 23 09 09 26 24 09
@@ -584,6 +603,10 @@
 &dsi_gvo_fhd_rm69299_cmd {
 	qcom,mdss-dsi-t-clk-post = <0x0e>;
 	qcom,mdss-dsi-t-clk-pre = <0x34>;
+
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
+
 	qcom,mdss-dsi-display-timings {
 		timing@0{
 			qcom,mdss-dsi-panel-phy-timings = [00 22 08 09 25 23 09
@@ -597,6 +620,10 @@
 &dsi_tianma_fhd_rm69299_cmd {
 	qcom,mdss-dsi-t-clk-post = <0x0e>;
 	qcom,mdss-dsi-t-clk-pre = <0x34>;
+
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
+
 	qcom,mdss-dsi-display-timings {
 		timing@0{
 			qcom,mdss-dsi-panel-phy-timings = [00 22 08 09 25 23 09
@@ -610,6 +637,10 @@
 &dsi_jdi_fhd_nt35596s_video {
 	qcom,mdss-dsi-t-clk-post = <0x0E>;
 	qcom,mdss-dsi-t-clk-pre = <0x34>;
+
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
+
 	qcom,mdss-dsi-display-timings {
 		timing@0{
 			qcom,mdss-dsi-panel-phy-timings = [00 22 08 08 24 24 08 08 05 03 04 00];
@@ -622,6 +653,10 @@
 &dsi_tianma_fhd_nt36672a_video {
 	qcom,mdss-dsi-t-clk-post = <0x0E>;
 	qcom,mdss-dsi-t-clk-pre = <0x33>;
+
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
+
 	qcom,mdss-dsi-display-timings {
 		timing@0{
 			qcom,mdss-dsi-panel-phy-timings = [00 21 08 08 25 22 09 08 06 03 04 00];
@@ -634,6 +669,10 @@
 &dsi_ebbg_fhd_ft8716_video {
 	qcom,mdss-dsi-t-clk-post = <0x0D>;
 	qcom,mdss-dsi-t-clk-pre = <0x2F>;
+
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
+
 	qcom,mdss-dsi-display-timings {
 		timing@0{
 			qcom,mdss-dsi-panel-phy-timings = [00 1e 08 08 24 22 08 08 05 03 04 00];
@@ -647,6 +686,8 @@
 	qcom,mdss-dsi-t-clk-post = <0x0E>;
 	qcom,mdss-dsi-t-clk-pre = <0x41>;
 
+	qcom,disp-doze-lpm-backlight = <20>;
+	qcom,disp-doze-hbm-backlight = <266>;
 	qcom,esd-check-enabled;
 	qcom,mdss-dsi-panel-status-check-mode = "reg_read";
 	qcom,mdss-dsi-panel-status-command = [
