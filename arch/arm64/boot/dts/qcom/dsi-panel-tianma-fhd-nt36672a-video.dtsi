@@ -56,6 +56,8 @@
 		qcom,esd-err-irq-gpio = <&tlmm 10 0x2001>; /* trig-flags: falling-0x0002 rasing-0x0001*/
 
 		qcom,dispparam-enabled;
+		qcom,disp-doze-lpm-backlight = <20>;
+		qcom,disp-doze-hbm-backlight = <266>;
 		qcom,mdss-panel-on-dimming-delay = <120>;
 
 		qcom,mdss-dsi-display-timings {

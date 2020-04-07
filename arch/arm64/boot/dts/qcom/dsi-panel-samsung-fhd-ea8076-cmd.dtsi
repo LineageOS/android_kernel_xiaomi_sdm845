@@ -58,6 +58,8 @@
 		qcom,mdss-dsi-panel-blackness-level = <3230>;
 
 		qcom,dispparam-enabled;
+		qcom,disp-doze-lpm-backlight = <20>;
+		qcom,disp-doze-hbm-backlight = <266>;
 		qcom,mdss-panel-on-dimming-delay = <200>;
 		qcom,disp-doze-backlight-threshold = <8>;
 		/* IRQF_ONESHOT | IRQF_TRIGGER_HIGH */
