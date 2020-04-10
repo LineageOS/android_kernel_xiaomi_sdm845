@@ -3082,8 +3082,7 @@ ol_txrx_peer_attach(struct cdp_vdev *pvdev, uint8_t *peer_mac_addr)
 #ifdef QCA_SUPPORT_PEER_DATA_RX_RSSI
 	peer->rssi_dbm = HTT_RSSI_INVALID;
 #endif
-	if ((QDF_GLOBAL_MONITOR_MODE == cds_get_conparam()) &&
-	    !pdev->self_peer) {
+	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam()) {
 		pdev->self_peer = peer;
 		/*
 		 * No Tx in monitor mode, otherwise results in target assert.
