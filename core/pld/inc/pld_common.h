@@ -126,6 +126,7 @@ struct pld_platform_cap {
 enum pld_uevent {
 	PLD_RECOVERY,
 	PLD_FW_DOWN,
+	PLD_FW_HANG_EVENT,
 };
 
 /**
@@ -138,9 +139,11 @@ struct pld_uevent_data {
 	union {
 		struct {
 			bool crashed;
+		} fw_down;
+		struct {
 			void *hang_event_data;
 			u16 hang_event_data_len;
-		} fw_down;
+		} hang_data;
 	};
 };
 
