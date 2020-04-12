@@ -60,11 +60,13 @@ struct scheduler_msg;
  * @lock: lock to be acquired before reading or writing to object
  * @cb_obj: struct contaning callback pointers
  * @request_context: NAN context to carry cookie for wait_for_complete
+ * @ndp_active_sessions: active ndp sessions
  */
 struct nan_psoc_priv_obj {
 	qdf_spinlock_t lock;
 	struct nan_callbacks cb_obj;
 	void *request_context;
+	uint8_t ndp_active_sessions;
 };
 
 /**

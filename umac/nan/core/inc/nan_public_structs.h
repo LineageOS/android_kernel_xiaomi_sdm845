@@ -647,6 +647,8 @@ struct nan_callbacks {
 				  bool);
 	void (*ndp_delete_peers)(struct peer_nan_datapath_map*, uint8_t);
 	void (*delete_peers_by_addr)(uint8_t, struct qdf_mac_addr);
+	void (*wlan_hdd_indicate_active_ndp_cnt)(struct wlan_objmgr_psoc *psoc,
+						 uint8_t vdev_id, uint8_t cnt);
 };
 
 #endif
