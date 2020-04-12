@@ -336,6 +336,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			dynamic table installation which will install SSDT
 			tables to /sys/firmware/acpi/tables/dynamic.
 
+	acpi_no_watchdog	[HW,ACPI,WDT]
+			Ignore the ACPI-based watchdog interface (WDAT) and let
+			a native driver control the watchdog device instead.
+
 	acpi_rsdp=	[ACPI,EFI,KEXEC]
 			Pass the RSDP address to the kernel, mostly used
 			on machines running EFI runtime service to boot the
@@ -1986,6 +1990,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			kmemcheck=1 (enabled)
 			kmemcheck=2 (one-shot mode)
 			Default: 2 (one-shot mode)
+
+	kpti=		[ARM64] Control page table isolation of user
+			and kernel address spaces.
+			Default: enabled on cores which need mitigation.
+			0: force disabled
+			1: force enabled
 
 	kstack=N	[X86] Print N words from the kernel stack
 			in oops dumps.
