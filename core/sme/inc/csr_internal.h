@@ -655,7 +655,7 @@ struct csr_config {
 #endif
 	bool enable_pending_list_req;
 	bool disable_4way_hs_offload;
-	bool p2p_disable_roam;
+	uint32_t sta_disable_roam;
 };
 
 struct csr_channel_powerinfo {

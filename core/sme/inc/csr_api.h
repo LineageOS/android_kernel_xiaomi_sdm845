@@ -1351,7 +1351,7 @@ typedef struct tagCsrConfigParam {
 #endif
 	bool enable_pending_list_req;
 	bool disable_4way_hs_offload;
-	bool p2p_disable_roam;
+	uint32_t sta_disable_roam;
 } tCsrConfigParam;
 
 /* Tush */

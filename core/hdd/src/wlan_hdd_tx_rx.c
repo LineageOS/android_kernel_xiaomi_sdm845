@@ -1183,8 +1183,8 @@ static void __hdd_tx_timeout(struct net_device *dev)
 
 	hdd_info("carrier state: %d", netif_carrier_ok(dev));
 
-	wlan_hdd_display_netif_queue_history(hdd_ctx,
-					     QDF_STATS_VERBOSITY_LEVEL_HIGH);
+	wlan_hdd_display_adapter_netif_queue_history(adapter);
+
 	cdp_dump_flow_pool_info(cds_get_context(QDF_MODULE_ID_SOC));
 
 	++adapter->hdd_stats.tx_rx_stats.tx_timeout_cnt;
@@ -1493,9 +1493,14 @@ static QDF_STATUS hdd_gro_rx(struct hdd_adapter *adapter, struct sk_buff *skb)
 	struct qca_napi_data *napid;
 	struct napi_struct *napi_to_use;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+	struct hdd_context *hdd_ctx = adapter->hdd_ctx;
 
 	/* Only enabling it for STA mode like LRO today */
 	if (QDF_STA_MODE != adapter->device_mode)
+		return QDF_STATUS_E_NOSUPPORT;
+
+	if (qdf_atomic_read(&hdd_ctx->disable_lro_in_low_tput) ||
+	    qdf_atomic_read(&hdd_ctx->disable_lro_in_concurrency))
 		return QDF_STATUS_E_NOSUPPORT;
 
 	napid = hdd_napi_get_all();

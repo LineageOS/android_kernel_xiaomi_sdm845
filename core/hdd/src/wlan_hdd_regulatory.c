@@ -1356,12 +1356,15 @@ static void hdd_regulatory_dyn_cbk(struct wlan_objmgr_psoc *psoc,
 		hdd_send_wiphy_regd_sync_event(hdd_ctx);
 #endif
 
-	if (avoid_freq_ind)
+	if (avoid_freq_ind) {
 		hdd_ch_avoid_ind(hdd_ctx, &avoid_freq_ind->chan_list,
 				&avoid_freq_ind->freq_list);
-	else
+	} else {
 		sme_generic_change_country_code(hdd_ctx->mac_handle,
 				hdd_ctx->reg.alpha2);
+		/*Check whether need restart SAP/P2p Go*/
+		policy_mgr_check_concurrent_intf_and_restart_sap(hdd_ctx->psoc);
+	}
 }
 
 int hdd_update_regulatory_config(struct hdd_context *hdd_ctx)

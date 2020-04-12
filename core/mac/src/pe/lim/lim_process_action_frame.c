@@ -1968,7 +1968,8 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 		case SIR_MAC_WNM_BSS_TM_QUERY:
 		case SIR_MAC_WNM_BSS_TM_REQUEST:
 		case SIR_MAC_WNM_BSS_TM_RESPONSE:
-			if (mac_ctx->roam.configParam.p2p_disable_roam &&
+			if ((mac_ctx->roam.configParam.sta_disable_roam &
+			    LFR3_STA_ROAM_DISABLE_BY_P2P) &&
 			    session && LIM_IS_STA_ROLE(session) &&
 			    (policy_mgr_mode_specific_connection_count(
 				mac_ctx->psoc, PM_P2P_CLIENT_MODE, NULL) ||

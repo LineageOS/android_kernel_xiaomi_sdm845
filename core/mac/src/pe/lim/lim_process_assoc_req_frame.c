@@ -2595,8 +2595,14 @@ void lim_send_mlm_assoc_ind(tpAniSirGlobal mac_ctx,
 			ext_chan_switch;
 
 		/* updates VHT information in assoc indication */
-		 qdf_mem_copy(&assoc_ind->vht_caps, &assoc_req->VHTCaps,
-			      sizeof(tDot11fIEVHTCaps));
+		if (assoc_req->VHTCaps.present)
+			 qdf_mem_copy(&assoc_ind->vht_caps, &assoc_req->VHTCaps,
+				      sizeof(tDot11fIEVHTCaps));
+		else if (assoc_req->vendor_vht_ie.VHTCaps.present)
+			qdf_mem_copy(&assoc_ind->vht_caps,
+				     &assoc_req->vendor_vht_ie.VHTCaps,
+				     sizeof(tDot11fIEVHTCaps));
+
 		lim_fill_assoc_ind_vht_info(mac_ctx, session_entry, assoc_req,
 					    assoc_ind, sta_ds);
 		assoc_ind->he_caps_present = assoc_req->he_cap.present;

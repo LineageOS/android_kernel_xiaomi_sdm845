@@ -1069,7 +1069,8 @@ lim_check_mgmt_registered_frames(tpAniSirGlobal mac_ctx, uint8_t *buff_desc,
 	if (match) {
 		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 			FL("rcvd frame match with registered frame params"));
-		if (mac_ctx->roam.configParam.p2p_disable_roam &&
+		if ((mac_ctx->roam.configParam.sta_disable_roam &
+		    LFR3_STA_ROAM_DISABLE_BY_P2P) &&
 		    session_entry && LIM_IS_STA_ROLE(session_entry) &&
 		    (policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
 						PM_P2P_CLIENT_MODE, NULL) ||
