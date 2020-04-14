@@ -78,6 +78,7 @@ struct peer_mlme_priv_obj {
  * @sta_dynamic_oce_value: Dyanmic oce flags value for sta
  * @follow_ap_edca: if true, it is forced to follow the AP's edca
  * @disconnect_info: Disconnection information
+ * @reconn_after_assoc_timeout: reconnect to the same AP if association timeout
  */
 struct vdev_mlme_priv_obj {
 	struct mlme_nss_chains dynamic_cfg;
@@ -85,6 +86,7 @@ struct vdev_mlme_priv_obj {
 	uint8_t sta_dynamic_oce_value;
 	bool follow_ap_edca;
 	struct wlan_disconnect_info disconnect_info;
+	bool reconn_after_assoc_timeout;
 };
 
 
@@ -297,6 +299,29 @@ void mlme_set_peer_disconnect_ies(struct wlan_objmgr_vdev *vdev,
  * Return: None
  */
 void mlme_free_peer_disconnect_ies(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * mlme_set_reconn_after_assoc_timeout_flag() - Set reconn after assoc timeout
+ * flag
+ * @psoc: soc object
+ * @vdev_id: vdev id
+ * @flag: enable or disable reconnect
+ *
+ * Return: void
+ */
+void mlme_set_reconn_after_assoc_timeout_flag(struct wlan_objmgr_psoc *psoc,
+					      uint8_t vdev_id, bool flag);
+
+/**
+ * mlme_get_reconn_after_assoc_timeout_flag() - Get reconn after assoc timeout
+ * flag
+ * @psoc: soc object
+ * @vdev_id: vdev id
+ *
+ * Return: true for enabling reconnect, otherwise false
+ */
+bool mlme_get_reconn_after_assoc_timeout_flag(struct wlan_objmgr_psoc *psoc,
+					      uint8_t vdev_id);
 
 /**
  * mlme_get_peer_disconnect_ies() - Get diconnect IEs from vdev object

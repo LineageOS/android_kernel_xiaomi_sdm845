@@ -39,6 +39,7 @@
 #include "wma_if.h"
 #include "wlan_reg_services_api.h"
 #include "lim_process_fils.h"
+#include "wlan_mlme_main.h"
 
 static void lim_process_mlm_start_req(tpAniSirGlobal, uint32_t *);
 static void lim_process_mlm_join_req(tpAniSirGlobal, uint32_t *);
@@ -2390,13 +2391,22 @@ void lim_process_assoc_failure_timeout(tpAniSirGlobal mac_ctx,
 	 * when device has missed the assoc resp sent by peer.
 	 * By sending deauth try to clear the session created on peer device.
 	 */
-	pe_debug("Sessionid: %d try sending deauth on channel %d to BSSID: "
-		MAC_ADDRESS_STR, session->peSessionId,
-		session->currentOperChannel,
-		MAC_ADDR_ARRAY(session->bssId));
-	lim_send_deauth_mgmt_frame(mac_ctx, eSIR_MAC_UNSPEC_FAILURE_REASON,
-		session->bssId, session, false);
-
+	if (msg_type == LIM_ASSOC &&
+	    mlme_get_reconn_after_assoc_timeout_flag(mac_ctx->psoc,
+						     session->smeSessionId)) {
+		pe_debug("vdev: %d skip sending deauth on channel freq %d to BSSID: "
+			QDF_MAC_ADDR_STR, session->smeSessionId,
+			session->currentOperChannel,
+			QDF_MAC_ADDR_ARRAY(session->bssId));
+	} else {
+		pe_debug("vdev: %d try sending deauth on channel freq %d to BSSID: "
+			QDF_MAC_ADDR_STR, session->smeSessionId,
+			session->currentOperChannel,
+			QDF_MAC_ADDR_ARRAY(session->bssId));
+		lim_send_deauth_mgmt_frame(mac_ctx,
+					   eSIR_MAC_UNSPEC_FAILURE_REASON,
+					   session->bssId, session, false);
+	}
 	if ((LIM_IS_AP_ROLE(session)) ||
 	    ((session->limMlmState != eLIM_MLM_WT_ASSOC_RSP_STATE) &&
 	    (session->limMlmState != eLIM_MLM_WT_REASSOC_RSP_STATE) &&
