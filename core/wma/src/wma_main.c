@@ -7809,6 +7809,11 @@ static void wma_set_arp_req_stats(WMA_HANDLE handle,
 		return;
 	}
 
+	if (!wma_is_vdev_up(req_buf->vdev_id)) {
+		WMA_LOGD("vdev id:%d is not started", req_buf->vdev_id);
+		return;
+	}
+
 	arp_stats = (struct set_arp_stats *)req_buf;
 	status = wmi_unified_set_arp_stats_req(wma_handle->wmi_handle,
 					       arp_stats);
