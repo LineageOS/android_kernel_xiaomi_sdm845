@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -63,8 +63,16 @@ static inline void wma_update_hdd_cfg_ndp(tp_wma_handle wma_handle,
 
 void wma_add_bss_ndi_mode(tp_wma_handle wma, tpAddBssParams add_bss);
 
-void wma_delete_sta_req_ndi_mode(tp_wma_handle wma,
-					tpDeleteStaParams del_sta);
+/**
+ * wma_delete_sta_req_ndi_mode() - Process DEL_STA request for NDI data peer
+ * @wma: WMA context
+ * @del_sta: DEL_STA parameters from LIM
+ *
+ * Removes wma/txrx peer entry for the NDI STA
+ *
+ * Return: None
+ */
+void wma_delete_sta_req_ndi_mode(tp_wma_handle wma, tpDeleteStaParams del_sta);
 
 /**
  * wma_is_ndi_active() - Determines of the nan data iface is active

@@ -1618,4 +1618,15 @@ QDF_STATUS wma_set_roam_triggers(tp_wma_handle wma_handle,
  */
 int wma_get_ani_level_evt_handler(void *handle, uint8_t *event_buf,
 				  uint32_t len);
+
+/**
+ * wma_delete_sta_req() - process delete sta request from UMAC
+ * @wma: wma handle
+ * @del_sta: delete sta params
+ * @wait_for_response: Wait for response from firmware
+ *
+ * Return: none
+ */
+void wma_delete_sta_req(tp_wma_handle wma, tpDeleteStaParams del_sta,
+			bool wait_for_response);
 #endif

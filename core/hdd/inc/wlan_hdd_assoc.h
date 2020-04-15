@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -463,5 +463,16 @@ void hdd_copy_vht_caps(struct ieee80211_vht_cap *hdd_vht_cap,
  * Return: void
  */
 void hdd_roam_profile_init(struct hdd_adapter *adapter);
+
+/**
+ * hdd_any_valid_peer_present() - Check if any valid peer is present
+ * @adapter: The HDD adapter being initialized
+ *
+ * Return true if there are any valid sta_id present in the given adapter.
+ * Return false if no valid sta_id is present.
+ *
+ * Return: True if there is any valid sta present
+ */
+bool hdd_any_valid_peer_present(struct hdd_adapter *adapter);
 
 #endif

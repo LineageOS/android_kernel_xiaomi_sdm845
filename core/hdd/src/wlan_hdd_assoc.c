@@ -3756,6 +3756,18 @@ void hdd_delete_peer(struct hdd_station_ctx *sta_ctx, uint8_t sta_id)
 	}
 }
 
+bool hdd_any_valid_peer_present(struct hdd_adapter *adapter)
+{
+	struct hdd_station_ctx *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	int idx;
+
+	for (idx = 0; idx < SIR_MAX_NUM_STA_IN_IBSS; idx++)
+		if (HDD_WLAN_INVALID_STA_ID != sta_ctx->conn_info.staId[idx])
+			return true;
+
+	return false;
+}
+
 /**
  * roam_remove_ibss_station() - Remove the IBSS peer MAC address in the adapter
  * @adapter: pointer to adapter

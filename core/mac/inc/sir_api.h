@@ -7319,4 +7319,12 @@ struct sir_get_mws_coex_info {
 	uint32_t cmd_id;
 };
 #endif /* WLAN_MWS_INFO_DEBUGFS */
+
+/**
+ * struct sir_gen_req - Generic request to carry vdev id
+ * @vdev_id: vdev id
+ */
+struct sir_gen_req {
+	uint32_t vdev_id;
+};
 #endif /* __SIR_API_H */
