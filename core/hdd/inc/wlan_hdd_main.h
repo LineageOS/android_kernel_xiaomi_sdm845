@@ -2994,7 +2994,6 @@ void wlan_hdd_txrx_pause_cb(uint8_t vdev_id,
 	enum netif_action_type action, enum netif_reason_type reason);
 
 int hdd_wlan_dump_stats(struct hdd_adapter *adapter, int value);
-void wlan_hdd_deinit_tx_rx_histogram(struct hdd_context *hdd_ctx);
 void wlan_hdd_display_tx_rx_histogram(struct hdd_context *hdd_ctx);
 void wlan_hdd_clear_tx_rx_histogram(struct hdd_context *hdd_ctx);
 void

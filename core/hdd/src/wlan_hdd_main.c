@@ -3114,6 +3114,38 @@ static int hdd_update_country_code(struct hdd_context *hdd_ctx)
 }
 
 /**
+ * wlan_hdd_init_tx_rx_histogram() - init tx/rx histogram stats
+ * @hdd_ctx: hdd context
+ *
+ * Return: 0 for success or error code
+ */
+static int wlan_hdd_init_tx_rx_histogram(struct hdd_context *hdd_ctx)
+{
+	hdd_ctx->hdd_txrx_hist = qdf_mem_malloc(
+		(sizeof(struct hdd_tx_rx_histogram) * NUM_TX_RX_HISTOGRAM));
+	if (hdd_ctx->hdd_txrx_hist == NULL) {
+		hdd_err("Failed malloc for hdd_txrx_hist");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+/**
+ * wlan_hdd_deinit_tx_rx_histogram() - deinit tx/rx histogram stats
+ * @hdd_ctx: hdd context
+ *
+ * Return: none
+ */
+static void wlan_hdd_deinit_tx_rx_histogram(struct hdd_context *hdd_ctx)
+{
+	if (!hdd_ctx || hdd_ctx->hdd_txrx_hist == NULL)
+		return;
+
+	qdf_mem_free(hdd_ctx->hdd_txrx_hist);
+	hdd_ctx->hdd_txrx_hist = NULL;
+}
+
+/**
  * hdd_wlan_start_modules() - Single driver state machine for starting modules
  * @hdd_ctx: HDD context
  * @reinit: flag to indicate from SSR or normal path
@@ -3288,6 +3320,8 @@ int hdd_wlan_start_modules(struct hdd_context *hdd_ctx, bool reinit)
 		}
 
 		hdd_enable_power_management();
+
+		wlan_hdd_init_tx_rx_histogram(hdd_ctx);
 
 		break;
 
@@ -8081,8 +8115,6 @@ static void hdd_context_destroy(struct hdd_context *hdd_ctx)
 
 	cds_set_context(QDF_MODULE_ID_HDD, NULL);
 
-	wlan_hdd_deinit_tx_rx_histogram(hdd_ctx);
-
 	hdd_context_deinit(hdd_ctx);
 
 	qdf_mem_free(hdd_ctx->config);
@@ -8961,38 +8993,6 @@ void hdd_bus_bw_compute_reset_prev_txrx_stats(struct hdd_adapter *adapter)
 }
 
 #endif /* MSM_PLATFORM */
-
-/**
- * wlan_hdd_init_tx_rx_histogram() - init tx/rx histogram stats
- * @hdd_ctx: hdd context
- *
- * Return: 0 for success or error code
- */
-static int wlan_hdd_init_tx_rx_histogram(struct hdd_context *hdd_ctx)
-{
-	hdd_ctx->hdd_txrx_hist = qdf_mem_malloc(
-		(sizeof(struct hdd_tx_rx_histogram) * NUM_TX_RX_HISTOGRAM));
-	if (hdd_ctx->hdd_txrx_hist == NULL) {
-		hdd_err("Failed malloc for hdd_txrx_hist");
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-/**
- * wlan_hdd_deinit_tx_rx_histogram() - deinit tx/rx histogram stats
- * @hdd_ctx: hdd context
- *
- * Return: none
- */
-void wlan_hdd_deinit_tx_rx_histogram(struct hdd_context *hdd_ctx)
-{
-	if (!hdd_ctx || hdd_ctx->hdd_txrx_hist == NULL)
-		return;
-
-	qdf_mem_free(hdd_ctx->hdd_txrx_hist);
-	hdd_ctx->hdd_txrx_hist = NULL;
-}
 
 #ifdef WLAN_DEBUG
 static uint8_t *convert_level_to_string(uint32_t level)
@@ -10380,13 +10380,9 @@ static struct hdd_context *hdd_context_create(struct device *dev)
 
 	cds_set_multicast_logging(hdd_ctx->config->multicast_host_fw_msgs);
 
-	ret = wlan_hdd_init_tx_rx_histogram(hdd_ctx);
-	if (ret)
-		goto err_deinit_hdd_context;
-
 	ret = hdd_init_netlink_services(hdd_ctx);
 	if (ret)
-		goto err_deinit_txrx_histogram;
+		goto err_deinit_hdd_context;
 
 	hdd_set_wlan_logging(hdd_ctx);
 
@@ -10400,9 +10396,6 @@ skip_multicast_logging:
 	hdd_exit();
 
 	return hdd_ctx;
-
-err_deinit_txrx_histogram:
-	wlan_hdd_deinit_tx_rx_histogram(hdd_ctx);
 
 err_deinit_hdd_context:
 	hdd_context_deinit(hdd_ctx);
@@ -12401,6 +12394,8 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 
 		if (hdd_get_conparam() == QDF_GLOBAL_FTM_MODE)
 			break;
+
+		wlan_hdd_deinit_tx_rx_histogram(hdd_ctx);
 
 		hdd_disable_power_management();
 		if (hdd_deconfigure_cds(hdd_ctx)) {
