@@ -627,7 +627,6 @@ static void wlan_hdd_shutdown(void)
 	if (pld_is_pdr(hdd_ctx->parent_dev) && ucfg_ipa_is_enabled())
 		ucfg_ipa_fw_rejuvenate_send_msg(hdd_ctx->pdev);
 	hdd_wlan_ssr_shutdown_event();
-	hdd_send_hang_data(NULL, 0);;
 
 	if (!cds_wait_for_external_threads_completion(__func__))
 		hdd_err("Host is not ready for SSR, attempting anyway");
@@ -1530,6 +1529,8 @@ static void wlan_hdd_set_the_pld_uevent(struct pld_uevent_data *uevent)
 		cds_set_target_ready(false);
 		cds_set_recovery_in_progress(true);
 		break;
+	case PLD_FW_HANG_EVENT:
+		break;
 	}
 }
 
@@ -1577,6 +1578,10 @@ static void wlan_hdd_handle_the_pld_uevent(struct pld_uevent_data *uevent)
 		if (pld_is_fw_rejuvenate(hdd_ctx->parent_dev) &&
 		    ucfg_ipa_is_enabled())
 			ucfg_ipa_fw_rejuvenate_send_msg(hdd_ctx->pdev);
+		qdf_complete_wait_events();
+		break;
+	case PLD_FW_HANG_EVENT:
+		hdd_info("Received fimrware hang event");
 		cds_get_recovery_reason(&reason);
 		hang_evt_data.hang_data =
 				qdf_mem_malloc(QDF_HANG_EVENT_DATA_SIZE);
@@ -1584,22 +1589,21 @@ static void wlan_hdd_handle_the_pld_uevent(struct pld_uevent_data *uevent)
 			return;
 		hang_evt_data.offset = 0;
 		qdf_hang_event_notifier_call(reason, &hang_evt_data);
-		if (uevent->fw_down.hang_event_data_len >=
+		if (uevent->hang_data.hang_event_data_len >=
 		    QDF_HANG_EVENT_DATA_SIZE / 2)
-		uevent->fw_down.hang_event_data_len =
+		uevent->hang_data.hang_event_data_len =
 				QDF_HANG_EVENT_DATA_SIZE / 2;
 
 		hang_evt_data.offset = QDF_WLAN_HANG_FW_OFFSET;
-		if (uevent->fw_down.hang_event_data_len)
+		if (uevent->hang_data.hang_event_data_len)
 			qdf_mem_copy((hang_evt_data.hang_data +
 				     hang_evt_data.offset),
-				     uevent->fw_down.hang_event_data,
-				     uevent->fw_down.hang_event_data_len);
+				     uevent->hang_data.hang_event_data,
+				     uevent->hang_data.hang_event_data_len);
 
 		hdd_send_hang_data(hang_evt_data.hang_data,
 				   QDF_HANG_EVENT_DATA_SIZE);
 		qdf_mem_free(hang_evt_data.hang_data);
-		qdf_complete_wait_events();
 		break;
 	default:
 		break;
