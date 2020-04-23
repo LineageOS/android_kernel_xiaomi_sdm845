@@ -2531,10 +2531,9 @@ static void fts_enter_pointer_event_handler(struct fts_ts_info *info,
 
 	input_mt_report_slot_state(info->input_dev, tool, 1);
 	input_report_key(info->input_dev, BTN_TOUCH, touch_condition);
-	if (touch_condition)
-		input_report_key(info->input_dev, BTN_TOOL_FINGER, 1);
-
-	/*input_report_abs(info->input_dev, ABS_MT_TRACKING_ID, touchId); */
+		if (touch_condition)
+			input_report_key(info->input_dev, BTN_TOOL_FINGER, 1);
+		/*input_report_abs(info->input_dev, ABS_MT_TRACKING_ID, touchId); */
 		input_report_abs(info->input_dev, ABS_MT_POSITION_X, x);
 		input_report_abs(info->input_dev, ABS_MT_POSITION_Y, y);
 		input_report_abs(info->input_dev, ABS_MT_TOUCH_MAJOR, z);
