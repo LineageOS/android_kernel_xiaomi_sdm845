@@ -1653,7 +1653,18 @@ static void wlan_hdd_pld_uevent(struct device *dev,
 static int wlan_hdd_pld_runtime_suspend(struct device *dev,
 					enum pld_bus_type bus_type)
 {
-	return wlan_hdd_runtime_suspend(dev);
+	int errno;
+
+	errno = wlan_hdd_runtime_suspend(dev);
+
+	/* If it returns other errno to kernel, it will treat
+	 * it as critical issue, so all the future runtime
+	 * PM api will return error, pm runtime can't be work
+	 * anymore. Such case found in SSR.
+	 */
+	if (errno && errno != -EAGAIN && errno != -EBUSY)
+		errno = -EAGAIN;
+	return errno;
 }
 
 /**
