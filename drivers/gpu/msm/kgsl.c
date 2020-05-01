@@ -4726,7 +4726,6 @@ int kgsl_device_platform_probe(struct kgsl_device *device)
 {
 	int status = -EINVAL;
 	struct resource *res;
-	int cpu;
 
 	status = _register_device(device);
 	if (status)
@@ -4855,12 +4854,8 @@ int kgsl_device_platform_probe(struct kgsl_device *device)
 
 		device->pwrctrl.l2pc_cpus_qos.type =
 				PM_QOS_REQ_AFFINE_CORES;
-		cpumask_empty(&device->pwrctrl.l2pc_cpus_qos.cpus_affine);
-		for_each_possible_cpu(cpu) {
-			if ((1 << cpu) & device->pwrctrl.l2pc_cpus_mask)
-				cpumask_set_cpu(cpu, &device->pwrctrl.
-						l2pc_cpus_qos.cpus_affine);
-		}
+		atomic_set(&device->pwrctrl.l2pc_cpus_qos.cpus_affine,
+			   device->pwrctrl.l2pc_cpus_mask);
 
 		pm_qos_add_request(&device->pwrctrl.l2pc_cpus_qos,
 				PM_QOS_CPU_DMA_LATENCY,
