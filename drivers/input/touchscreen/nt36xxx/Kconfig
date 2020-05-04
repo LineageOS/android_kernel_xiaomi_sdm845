@@ -9,3 +9,14 @@ config TOUCHSCREEN_NT36xxx
 	  to your system.
 
 	  If unsure, say N.
+
+config TOUCHSCREEN_NT36XXX_MPCTRL
+	bool "Novatek NT36xxx MPCTRL"
+	depends on TOUCHSCREEN_NT36XXX
+	default n
+	help
+	  Say Y here to enable NT36xxx MPCTRL, this option intended for
+	  Manufacturer Testing and grabbing RawTouch and checking the
+	  calibration CSV in Pre-Production devices.
+
+	  If unsure, say N. 
