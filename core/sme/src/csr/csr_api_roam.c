@@ -21572,6 +21572,7 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	bool prev_roaming_state;
 	eCsrAuthType roam_profile_akm = eCSR_AUTH_TYPE_UNKNOWN;
 	uint32_t fw_akm_bitmap;
+	bool p2p_disable_sta_roaming = 0, nan_disable_sta_roaming = 0;
 
 	sme_debug("RSO Command %d, vdev %d, Reason %d", command,
 		   session_id, reason);
@@ -21699,15 +21700,23 @@ csr_roam_offload_scan(tpAniSirGlobal mac_ctx, uint8_t session_id,
 	}
 
 	ucfg_nan_get_active_ndp_cnt(mac_ctx->psoc, &active_ndp_cnt);
-	if (mac_ctx->roam.configParam.sta_disable_roam &&
-	    (command == ROAM_SCAN_OFFLOAD_START ||
-	     command == ROAM_SCAN_OFFLOAD_UPDATE_CFG) &&
-	    (policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
+	nan_disable_sta_roaming = (active_ndp_cnt &&
+			(mac_ctx->roam.configParam.sta_disable_roam &
+			 LFR3_STA_ROAM_DISABLE_BY_NAN));
+
+	p2p_disable_sta_roaming =
+		((mac_ctx->roam.configParam.sta_disable_roam &
+		 LFR3_STA_ROAM_DISABLE_BY_P2P) &&
+		 (policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
 						PM_P2P_CLIENT_MODE, NULL) ||
-	     policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
-						PM_P2P_GO_MODE, NULL) ||
-	     active_ndp_cnt)) {
-		sme_debug("sta roaming blocked for active p2p/ndp connection");
+		 policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
+						PM_P2P_GO_MODE, NULL)));
+
+	if ((command == ROAM_SCAN_OFFLOAD_START ||
+	     command == ROAM_SCAN_OFFLOAD_UPDATE_CFG) &&
+	     (p2p_disable_sta_roaming || nan_disable_sta_roaming)) {
+		sme_debug("sta roaming blocked for active %s connection",
+			  p2p_disable_sta_roaming ? "p2p" : "ndp");
 		return QDF_STATUS_E_FAILURE;
 	}
 	/*
