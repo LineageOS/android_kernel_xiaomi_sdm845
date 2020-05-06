@@ -814,6 +814,7 @@ struct bss_description {
 	uint8_t reservedPadding4;
 	uint32_t tsf_delta;
 	uint32_t adaptive_11r_ap;
+	uint32_t mbo_oce_enabled_ap;
 #if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
 	bool sae_single_pmk_ap;
 #endif
