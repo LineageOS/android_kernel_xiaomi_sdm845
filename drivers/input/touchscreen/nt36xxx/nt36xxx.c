@@ -1379,7 +1379,7 @@ void nvt_stop_crc_reboot(void)
 			buf[0]=0x00;
 			buf[1]=0xA5;
 			CTP_I2C_WRITE(ts->client, I2C_HW_Address, buf, 2);
-			msleep(1);
+			udelay(1);
 
 			//---clear CRC_ERR_FLAG---
 			nvt_set_page(I2C_BLDR_Address, 0x3F135);
