@@ -801,7 +801,7 @@ static int nvt_parse_dt(struct device *dev)
 		return retval;
 	}
 
-	ts->config_array = devm_kzalloc(dev, ts->config_array_size *
+	ts->config_array = devm_kcalloc(dev, ts->config_array_size,
 					   sizeof(struct nvt_config_info),
 					   GFP_KERNEL);
 
