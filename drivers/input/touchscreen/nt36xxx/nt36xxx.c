@@ -29,7 +29,7 @@
 #include <linux/hwinfo.h>
 
 #ifdef CONFIG_DRM
-#include <drm/drm_notifier.h>
+#include <linux/msm_drm_notify.h>
 #include <drm/drm_panel.h>
 #include <linux/fb.h>
 #endif
@@ -1813,7 +1813,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 
 #if defined(CONFIG_DRM)
 	ts->notifier.notifier_call = nvt_drm_notifier_callback;
-	ret = drm_register_client(&ts->notifier);
+	ret = msm_drm_register_client(&ts->notifier);
 	if (ret) {
 		NVT_ERR("register drm_notifier failed. ret=%d\n", ret);
 		goto err_register_drm_notif_failed;
@@ -1829,7 +1829,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 
 #if defined(CONFIG_DRM)
 err_register_drm_notif_failed:
-	if (drm_unregister_client(&ts->notifier))
+	if (msm_drm_unregister_client(&ts->notifier))
 		NVT_ERR("Error occurred while unregistering drm_notifier.\n");
 #endif
 #if NVT_TOUCH_MP
@@ -1899,7 +1899,7 @@ static int32_t nvt_ts_remove(struct i2c_client *client)
 	NVT_LOG("Removing driver...\n");
 
 #if defined(CONFIG_DRM)
-	if (drm_unregister_client(&ts->notifier))
+	if (msm_drm_unregister_client(&ts->notifier))
 		NVT_ERR("Error occurred while unregistering drm_notifier.\n");
 #endif
 
@@ -1965,7 +1965,7 @@ static void nvt_ts_shutdown(struct i2c_client *client)
 	nvt_irq_enable(false);
 
 #if defined(CONFIG_DRM)
-	if (drm_unregister_client(&ts->notifier))
+	if (msm_drm_unregister_client(&ts->notifier))
 		NVT_ERR("Error occurred while unregistering drm_notifier.\n");
 #endif
 
@@ -2154,7 +2154,7 @@ static int32_t nvt_ts_resume(struct device *dev)
 #if defined(CONFIG_DRM)
 static int nvt_drm_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
-	struct fb_event *evdata = data;
+	struct msm_drm_notifier *evdata = data;
 	int *blank;
 	struct nvt_ts_data *ts =
 		container_of(self, struct nvt_ts_data, notifier);
@@ -2164,8 +2164,8 @@ static int nvt_drm_notifier_callback(struct notifier_block *self, unsigned long 
 
 	if (evdata->data && ts) {
 		blank = evdata->data;
-		if (event == DRM_EARLY_EVENT_BLANK) {
-			if (*blank == DRM_BLANK_POWERDOWN) {
+		if (event == MSM_DRM_EARLY_EVENT_BLANK) {
+			if (*blank == MSM_DRM_BLANK_POWERDOWN) {
 				NVT_LOG("event=%lu, *blank=%d\n", event, *blank);
 #if WAKEUP_GESTURE
 				if (ts->gesture_enabled) {
@@ -2175,8 +2175,8 @@ static int nvt_drm_notifier_callback(struct notifier_block *self, unsigned long 
 #endif
 				nvt_ts_suspend(&ts->client->dev);
 			}
-		} else if (event == DRM_EVENT_BLANK) {
-			if (*blank == DRM_BLANK_UNBLANK) {
+		} else if (event == MSM_DRM_EVENT_BLANK) {
+			if (*blank == MSM_DRM_BLANK_UNBLANK) {
 				NVT_LOG("event=%lu, *blank=%d\n", event, *blank);
 #if WAKEUP_GESTURE
 				if (ts->gesture_enabled) {
