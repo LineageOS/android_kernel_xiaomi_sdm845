@@ -996,7 +996,6 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rx_buf)
 QDF_STATUS hdd_softap_deregister_sta(struct hdd_adapter *adapter,
 				     uint8_t sta_id)
 {
-	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	struct hdd_context *hdd_ctx;
 	tSmeConfigParams *sme_config;
 
@@ -1015,18 +1014,6 @@ QDF_STATUS hdd_softap_deregister_sta(struct hdd_adapter *adapter,
 	if (sta_id >= WLAN_MAX_STA_COUNT) {
 		hdd_err("Error: Invalid sta_id: %u", sta_id);
 		return QDF_STATUS_E_INVAL;
-	}
-
-	/* Clear station in TL and then update HDD data
-	 * structures. This helps to block RX frames from other
-	 * station to this station.
-	 */
-	qdf_status = cdp_clear_peer(cds_get_context(QDF_MODULE_ID_SOC),
-			(struct cdp_pdev *)cds_get_context(QDF_MODULE_ID_TXRX),
-			sta_id);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		hdd_debug("cdp_clear_peer failed for staID %d, Status=%d [0x%08X]",
-			  sta_id, qdf_status, qdf_status);
 	}
 
 	if (adapter->sta_info[sta_id].in_use) {
@@ -1060,7 +1047,7 @@ QDF_STATUS hdd_softap_deregister_sta(struct hdd_adapter *adapter,
 				   sme_config->csrConfig.oce_feature_bitmap);
 	qdf_mem_free(sme_config);
 
-	return qdf_status;
+	return QDF_STATUS_SUCCESS;
 }
 
 QDF_STATUS hdd_softap_register_sta(struct hdd_adapter *adapter,
