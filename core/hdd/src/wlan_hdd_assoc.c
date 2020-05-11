@@ -3666,7 +3666,7 @@ bool hdd_save_peer(struct hdd_station_ctx *sta_ctx, uint8_t sta_id,
 {
 	int idx;
 
-	for (idx = 0; idx < SIR_MAX_NUM_STA_IN_IBSS; idx++) {
+	for (idx = 0; idx < MAX_PEERS; idx++) {
 		if (HDD_WLAN_INVALID_STA_ID == sta_ctx->conn_info.staId[idx]) {
 			hdd_debug("adding peer: %pM, sta_id: %d, at idx: %d",
 				 peer_mac_addr, sta_id, idx);
@@ -3691,7 +3691,7 @@ void hdd_delete_peer(struct hdd_station_ctx *sta_ctx, uint8_t sta_id)
 {
 	int i;
 
-	for (i = 0; i < SIR_MAX_NUM_STA_IN_IBSS; i++) {
+	for (i = 0; i < MAX_PEERS; i++) {
 		if (sta_id == sta_ctx->conn_info.staId[i]) {
 			sta_ctx->conn_info.staId[i] = HDD_WLAN_INVALID_STA_ID;
 			return;
@@ -3704,7 +3704,7 @@ bool hdd_any_valid_peer_present(struct hdd_adapter *adapter)
 	struct hdd_station_ctx *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 	int idx;
 
-	for (idx = 0; idx < SIR_MAX_NUM_STA_IN_IBSS; idx++)
+	for (idx = 0; idx < MAX_PEERS; idx++)
 		if (HDD_WLAN_INVALID_STA_ID != sta_ctx->conn_info.staId[idx])
 			return true;
 
