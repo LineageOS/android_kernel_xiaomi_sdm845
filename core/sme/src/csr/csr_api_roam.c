@@ -19875,8 +19875,10 @@ csr_update_roam_scan_offload_request(tpAniSirGlobal mac_ctx,
 			mac_ctx->roam.configParam.roam_trigger_reason_bitmask;
 	req_buf->roaming_scan_policy =
 			mac_ctx->roam.configParam.roaming_scan_policy;
+	/* Do not force RSSI triggers in case controlled roaming enable */
 	req_buf->roam_force_rssi_trigger =
-			mac_ctx->roam.configParam.roam_force_rssi_trigger;
+			(!neighbor_roam_info->roam_control_enable &&
+			 mac_ctx->roam.configParam.roam_force_rssi_trigger);
 
 	csr_update_roam_req_adaptive_11r(session, req_buf);
 
