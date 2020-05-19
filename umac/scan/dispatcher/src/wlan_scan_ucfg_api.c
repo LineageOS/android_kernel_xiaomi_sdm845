@@ -2530,3 +2530,14 @@ uint32_t ucfg_scan_get_max_cmd_allowed(void)
 {
 	return MAX_SCAN_COMMANDS;
 }
+
+qdf_time_t ucfg_scan_get_aging_time(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj)
+		return SCAN_CACHE_AGING_TIME;
+
+	return scan_obj->scan_def.scan_cache_aging_time;
+}
