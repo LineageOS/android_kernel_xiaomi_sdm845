@@ -18,7 +18,7 @@
  *
  *
  * Copyright (c) 2015 Fingerprint Cards AB <tech@fingerprints.com>
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License Version 2
@@ -554,8 +554,17 @@ static ssize_t screen_status_get(struct device *dev, struct device_attribute *at
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", retval);
 }
-
 static DEVICE_ATTR(screen_status, S_IRUSR | S_IRGRP, screen_status_get, NULL);
+
+static ssize_t vreg_op_cnt_set(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	char value[64] = {0};
+
+	snprintf(value, sizeof(value), "%s", buf);
+	return count;
+}
+static DEVICE_ATTR(vreg_op_cnt, S_IWUSR, NULL, vreg_op_cnt_set);
 
 static struct attribute *attributes[] = {
 	&dev_attr_pinctl_set.attr,
@@ -568,6 +577,7 @@ static struct attribute *attributes[] = {
 	&dev_attr_irq.attr,
 	&dev_attr_screen_status.attr,
 	&dev_attr_fingerdown_wait.attr,
+	&dev_attr_vreg_op_cnt.attr,
 	NULL
 };
 
