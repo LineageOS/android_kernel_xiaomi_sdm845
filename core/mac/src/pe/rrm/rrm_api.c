@@ -1113,7 +1113,8 @@ QDF_STATUS rrm_process_beacon_req(tpAniSirGlobal mac_ctx, tSirMacAddr peer,
 	tpSirMacRadioMeasureReport report;
 	tpRRMReq curr_req;
 
-	if (index  >= MAX_MEASUREMENT_REQUEST) {
+	if (index  >= MAX_MEASUREMENT_REQUEST ||
+	    mac_ctx->rrm.rrmPEContext.pCurrentReq[index]) {
 		if (*radiomes_report == NULL) {
 			/*
 			 * Allocate memory to send reports for
