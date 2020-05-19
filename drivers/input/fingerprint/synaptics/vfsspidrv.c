@@ -9,6 +9,7 @@
  *****************************************************************************
  **
  **  Copyright (C) 2011-2016 Synaptics Incorporated. All rights reserved.
+ **  Copyright (C) 2019 XiaoMi, Inc.
  **
  **
  ** This file contains information that is proprietary to Synaptics
@@ -272,7 +273,7 @@ static ssize_t hbm_pin_set_enable(struct device *dev,
 
 	struct vfsspi_devData *vfsSpiDev = dev_get_drvdata(dev);
 	if (vfsSpiDev != NULL) {
-	if (*buf == '1') {
+	if ( *buf == '1') {
 		gpio_direction_output(vfsSpiDev->hbmReadyPin, 1);
 		msleep(10);
 		printk("%s: HBN READY  GPIO 01   up VALUE=%d\n", __func__, gpio_get_value(vfsSpiDev->hbmReadyPin));
@@ -328,7 +329,7 @@ inline void shortToLittleEndian(char *buf, size_t len)
  * parse device tree -
  */
 static int vfsspi_parse_dt(struct device *dev,
-				            struct vfsspi_devData *spiDev)
+						    struct vfsspi_devData *spiDev)
 {
 
 	PR_INFO("%s: Entering vfsspi_parse_dt...\n",__FUNCTION__);
@@ -344,12 +345,12 @@ static int vfsspi_parse_dt(struct device *dev,
 	printk("drdypin %d \n", spiDev->drdyPin);
 
 #if REMOVE_GPIO_00_01
-	spiDev->hbmReqPin = of_get_named_gpio_flags(dev->of_node,"synaptics,gp0-ctrl", 0, NULL);
+	spiDev->hbmReqPin= of_get_named_gpio_flags(dev->of_node,"synaptics,gp0-ctrl", 0, NULL);
 
-	spiDev->hbmReadyPin = of_get_named_gpio_flags(dev->of_node,"synaptics,gp1-ctrl", 0, NULL);
+	spiDev->hbmReadyPin= of_get_named_gpio_flags(dev->of_node,"synaptics,gp1-ctrl", 0, NULL);
 #endif
 #if REMOVE_TS_IN_PIN
-	spiDev->tsInPin = of_get_named_gpio_flags(dev->of_node,"synaptics,ts-in", 0, NULL);
+	spiDev->tsInPin= of_get_named_gpio_flags(dev->of_node,"synaptics,ts-in", 0, NULL);
 #endif
 	return 0;
 } /* vfsspi_parse_dt */
@@ -1741,21 +1742,11 @@ int vfsspi_open(struct inode *inode, struct file *filp)
 		we don't have called vfsspi_devUnInit() in this place. that is to say,
 		if vfsspi_gpioInit() is failed and vfsspi_open() failed , we don't need
 		to call vfsspi_devUnInit() to release resources.*/
-
 		return status;
 	}
-
 	vfsspi_hardReset(vfsSpiDev);
 
 	printk("%s: Set voltage on vcc_spi for sync fingerprint\n", __func__);
-#if 0
-#ifdef VFSSPI_TEST_SPI_COMMUNICATION
-	vfsspi_hardReset(vfsSpiDev);
-	mdelay(40);
-	vfsspi_test(spi);
-	vfsspi_hardReset(vfsSpiDev);
-#endif /* VFSSPI_TEST_SPI_COMMUNICATION */
-#endif
 #endif
 
 	return status;
@@ -1824,28 +1815,7 @@ static int vfsspi_probe(struct platform_device *spi)
 		vfsspi_devUnInit(vfsSpiDev);
 		goto cleanup;
 	}
-
-
 	vfsspi_hardReset(vfsSpiDev);
-	/*vfsSpiDev->vreg = regulator_get(&spi->dev,"vcc_spi");
-	if (!vfsSpiDev->vreg) {
-		printk("%s: Unable to get vcc_spi\n", __func__);
-		return -1;
-	}
-
-	if (regulator_count_voltages(vfsSpiDev->vreg) > 0) {
-		status = regulator_set_voltage(vfsSpiDev->vreg, 3300000,3300000);
-			if (status){
-				printk("%s: Unable to set voltage on vcc_spi", __func__);
-				return -1;
-			}
-	}
-	status = regulator_enable(vfsSpiDev->vreg);
-	if (status) {
-		printk("%s: error enabling vdd_ana %d\n", __func__,status);
-		regulator_put(vfsSpiDev->vreg);
-		vfsSpiDev->vreg = NULL;
-	}*/
 	printk("%s: Set voltage on vcc_spi for sync fingerprint\n", __func__);
 
 #ifdef VFSSPI_TEST_SPI_COMMUNICATION

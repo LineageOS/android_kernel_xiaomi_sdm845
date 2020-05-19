@@ -9,6 +9,7 @@
  *****************************************************************************
  **
  **  Copyright (C) 2011-2017 Synaptics Incorporated. All rights reserved.
+ **  Copyright (C) 2019 XiaoMi, Inc.
  **
  **
  ** This file contains information that is proprietary to Synaptics
@@ -47,6 +48,16 @@
 #define PR_DEBUG(fmt, args...) pr_debug("synafpspi:"fmt, ## args)
 #define PR_INFO(fmt, args...)  pr_info("synafpspi:"fmt, ## args)
 
+#if 0
+#if DEBUG
+#define PR_DEBUG(fmt, args...) pr_debug("synafpspi:"fmt, ## args)
+#define PR_INFO(fmt, args...)  pr_info("synafpspi:"fmt, ## args)
+#else /* DEBUG */
+#define PR_DEBUG(fmt, args...)
+#define PR_INFO(fmt, args...)
+#endif /* DEBUG */
+#endif
+
 #define MAX_BAUD_RATE       19200000 /* llei_2015-11-20, set to 15000000, was 12000000 */
 #define BAUD_RATE_COEF      1000
 
@@ -84,9 +95,9 @@
  * @len:transmitted/retrieved data size
  */
 typedef struct vfsspi_iocTransfer {
-	unsigned char *rxBuffer;
-	unsigned char *txBuffer;
-	unsigned int len;
+    unsigned char *rxBuffer;
+    unsigned char *txBuffer;
+    unsigned int len;
 } vfsspi_iocTransfer_t;
 
 /* Pass to VFSSPI_IOCTL_REGISTER_DRDY_SIGNAL command */
@@ -98,8 +109,8 @@ typedef struct vfsspi_iocTransfer {
  * @signalID:signalID
 */
 typedef struct vfsspi_iocRegSignal {
-	int userPID;
-	int signalID;
+    int userPID;
+    int signalID;
 } vfsspi_iocRegSignal_t;
 
 /* VFSSPI_IOCTL_SELECT_DRDY_NTF_TYPE command:
@@ -110,8 +121,8 @@ typedef struct vfsspi_iocRegSignal {
 #define VFSSPI_DRDY_NOTIFY_TYPE_EVENTFD     0x00000002
 
 typedef struct vfsspi_iocSelectDrdyNtfType {
-	unsigned int supportedTypes;
-	unsigned int selectedType;
+    unsigned int supportedTypes;
+    unsigned int selectedType;
 } vfsspi_iocSelectDrdyNtfType_t;
 
 /* Pass to VFSSPI_IOCTL_SET_HBM_REQ_INT command */
@@ -127,8 +138,8 @@ typedef struct vfsspi_iocSelectDrdyNtfType {
  * @type:Indicates interrupt type. One of VFSSPI_HBMREQ_TYPE_* definition
 */
 typedef struct vfsspi_ioctlSetHbmReqInt {
-	unsigned int enable;
-	unsigned int type;
+    unsigned int enable;
+    unsigned int type;
 } vfsspi_ioctlSetHbmReqInt_t;
 
 /**
@@ -137,7 +148,7 @@ typedef struct vfsspi_ioctlSetHbmReqInt {
 
 /* Transmit data to the device and retrieve data from it simultaneously */
 #define VFSSPI_IOCTL_RW_SPI_MESSAGE          _IOWR(VFSSPI_IOCTL_MAGIC,  \
-	                         1, unsigned int)
+                             1, unsigned int)
 
 /* Hard reset the device */
 #define VFSSPI_IOCTL_DEVICE_RESET            _IO(VFSSPI_IOCTL_MAGIC,   2)
