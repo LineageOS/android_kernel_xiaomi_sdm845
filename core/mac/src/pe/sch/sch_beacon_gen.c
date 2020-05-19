@@ -433,7 +433,7 @@ sch_set_fixed_beacon_fields(tpAniSirGlobal mac_ctx, tpPESession session)
 			}
 		}
 	}
-	if (mac_ctx->rrm.rrmSmeContext.rrmConfig.rrm_enabled)
+	if (mac_ctx->rrm.rrmConfig.rrm_enabled)
 		populate_dot11f_rrm_ie(mac_ctx, &bcn_2->RRMEnabledCap,
 			session);
 
