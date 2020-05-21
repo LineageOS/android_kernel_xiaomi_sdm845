@@ -1,7 +1,7 @@
 /*
  * QTI CE device driver.
  *
- * Copyright (c) 2010-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1808,9 +1808,10 @@ static inline long qcedev_ioctl(struct file *file,
 				handle->sha_ctxt.diglen);
 		mutex_unlock(&hash_access_lock);
 		if (copy_to_user((void __user *)arg, &qcedev_areq->sha_op_req,
-					sizeof(struct qcedev_sha_op_req)))
+					sizeof(struct qcedev_sha_op_req))) {
 			err = -EFAULT;
 			goto exit_free_qcedev_areq;
+		}
 		}
 		break;
 
@@ -1900,9 +1901,10 @@ static inline long qcedev_ioctl(struct file *file,
 				handle->sha_ctxt.diglen);
 		mutex_unlock(&hash_access_lock);
 		if (copy_to_user((void __user *)arg, &qcedev_areq->sha_op_req,
-					sizeof(struct qcedev_sha_op_req)))
+					sizeof(struct qcedev_sha_op_req))) {
 			err = -EFAULT;
 			goto exit_free_qcedev_areq;
+		}
 		}
 		break;
 
@@ -1915,6 +1917,11 @@ static inline long qcedev_ioctl(struct file *file,
 			if (copy_from_user(&map_buf,
 					(void __user *)arg, sizeof(map_buf))) {
 				err = -EFAULT;
+				goto exit_free_qcedev_areq;
+			}
+
+			if (map_buf.num_fds > QCEDEV_MAX_BUFFERS) {
+				err = -EINVAL;
 				goto exit_free_qcedev_areq;
 			}
 
