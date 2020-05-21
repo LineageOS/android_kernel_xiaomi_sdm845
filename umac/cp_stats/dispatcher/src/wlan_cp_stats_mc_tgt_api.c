@@ -411,8 +411,8 @@ complete:
 		return;
 
 	if (tgt_mc_cp_stats_is_last_event(ev)) {
-		tgt_mc_cp_stats_prepare_raw_peer_rssi(psoc, &last_req);
 		ucfg_mc_cp_stats_reset_pending_req(psoc, TYPE_PEER_STATS);
+		tgt_mc_cp_stats_prepare_raw_peer_rssi(psoc, &last_req);
 	}
 }
 

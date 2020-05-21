@@ -1972,7 +1972,8 @@ int os_if_nan_register_lim_callbacks(struct wlan_objmgr_psoc *psoc,
 }
 
 void os_if_nan_post_ndi_create_rsp(struct wlan_objmgr_psoc *psoc,
-				   uint8_t vdev_id, bool success)
+				   uint8_t vdev_id, bool success,
+				   uint8_t sta_id)
 {
 	struct nan_datapath_inf_create_rsp rsp = {0};
 	struct wlan_objmgr_vdev *vdev = wlan_objmgr_get_vdev_by_id_from_psoc(
@@ -1986,6 +1987,7 @@ void os_if_nan_post_ndi_create_rsp(struct wlan_objmgr_psoc *psoc,
 	if (success) {
 		rsp.status = NAN_DATAPATH_RSP_STATUS_SUCCESS;
 		rsp.reason = 0;
+		rsp.sta_id = sta_id;
 		os_if_nan_event_handler(psoc, vdev,
 					NAN_DATAPATH_INF_CREATE_RSP, &rsp);
 	} else {

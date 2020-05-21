@@ -33,7 +33,7 @@
 #include <wlan_osif_priv.h>
 #include "wlan_cfg80211.h"
 #include "wlan_cfg80211_p2p.h"
-
+#include "wlan_hdd_main.h"
 #define MAX_NO_OF_2_4_CHANNELS 14
 #define MAX_OFFCHAN_TIME_FOR_DNBS 150
 
@@ -82,10 +82,10 @@ static void wlan_p2p_rx_callback(void *user_data,
 
 	if (rx_frame->rx_chan <= MAX_NO_OF_2_4_CHANNELS)
 		freq = ieee80211_channel_to_frequency(
-			rx_frame->rx_chan, NL80211_BAND_2GHZ);
+			rx_frame->rx_chan, HDD_NL80211_BAND_2GHZ);
 	else
 		freq = ieee80211_channel_to_frequency(
-			rx_frame->rx_chan, NL80211_BAND_5GHZ);
+			rx_frame->rx_chan, HDD_NL80211_BAND_5GHZ);
 
 	cfg80211_debug("Indicate frame over nl80211, idx:%d",
 			wdev->netdev->ifindex);
