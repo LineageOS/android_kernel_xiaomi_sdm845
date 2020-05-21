@@ -15843,8 +15843,36 @@ enum hdd_external_acs_policy {
 #define CFG_ACTION_OUI_DISABLE_AGGRESSIVE_EDCA "gActionOUIDisableAggressiveEDCA"
 #define CFG_ACTION_OUI_DISABLE_AGGRESSIVE_EDCA_DEFAULT ""
 
+/*
+ * <ini>
+ * gActionOUIReconnAssocTimeout - Used to specify action OUIs to
+ * reconnect to same BSSID when wait for association response timeout
+ *
+ * This ini is used to specify AP OUIs. Some of AP doesn't response our
+ * first association request, but it would response our second association
+ * request. Add such OUI configuration INI to apply reconnect logic when
+ * association timeout happends with such AP.
+ * For default:
+ *     gActionOUIReconnAssocTimeout=00E04C 00 01
+ *          Explain: 00E04C: OUI
+ *                   00: data length is 0
+ *                   01: infio mask, only OUI present in Info mask
+ * Note: User should strictly add new action OUIs at the end of this
+ * default value.
+ * Refer to gEnableActionOUI for more detail about the format.
+ *
+ * Related: gEnableActionOUI
+ *
+ * Supported Feature: Action OUIs
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ACTION_OUI_RECONN_ASSOCTIMEOUT \
+	"gActionOUIReconnAssocTimeout"
+#define CFG_ACTION_OUI_RECONN_ASSOCTIMEOUT_DEFAULT "00E04C 00 01"
 /* End of action oui inis */
-
 
 /*
  * <ini>
@@ -16343,7 +16371,7 @@ enum hdd_external_acs_policy {
  * AP and roam candidate AP.
  * @Min: 0
  * @Max: 10000
- * @Default: 1850
+ * @Default: 0
  *
  * This ini is used during CU and low rssi based roam triggers, consider
  * AP as roam candidate only if its roam score is better than connected
@@ -16364,7 +16392,7 @@ enum hdd_external_acs_policy {
  * </ini>
  */
 #define CFG_CAND_MIN_ROAM_SCORE_DELTA "min_roam_score_delta"
-#define CFG_CAND_MIN_ROAM_SCORE_DELTA_DEFAULT 1850
+#define CFG_CAND_MIN_ROAM_SCORE_DELTA_DEFAULT 0
 #define CFG_CAND_MIN_ROAM_SCORE_DELTA_MAX 10000
 #define CFG_CAND_MIN_ROAM_SCORE_DELTA_MIN 0
 

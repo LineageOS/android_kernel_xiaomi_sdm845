@@ -2356,6 +2356,17 @@ int hdd_set_mon_rx_cb(struct net_device *dev)
 	struct ol_txrx_ops txrx_ops;
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
 	void *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	struct cdp_peer *peer;
+	uint8_t peer_id;
+
+	peer = cdp_peer_find_by_addr(soc, pdev, adapter->mac_addr.bytes,
+				     &peer_id);
+	if (!peer) {
+		hdd_err("Peer %pM not found", adapter->mac_addr.bytes);
+		return -EINVAL;
+	}
+
+	sta_desc.sta_id = peer_id;
 
 	qdf_mem_zero(&txrx_ops, sizeof(txrx_ops));
 	txrx_ops.rx.rx = hdd_mon_rx_packet_cbk;

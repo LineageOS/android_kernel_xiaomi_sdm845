@@ -512,3 +512,54 @@ void mlme_get_discon_reason_n_from_ap(struct wlan_objmgr_psoc *psoc,
 	vdev_mlme->disconnect_info.discon_reason = 0;
 	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
 }
+
+void mlme_set_reconn_after_assoc_timeout_flag(struct wlan_objmgr_psoc *psoc,
+					      uint8_t vdev_id, bool flag)
+{
+	struct wlan_objmgr_vdev *vdev;
+	struct vdev_mlme_priv_obj *mlme_priv;
+
+	if (!psoc)
+		return;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
+						    WLAN_LEGACY_MAC_ID);
+	if (!vdev)
+		return;
+	mlme_priv = wlan_vdev_mlme_get_priv_obj(vdev);
+	if (!mlme_priv) {
+		mlme_err("vdev legacy private object is NULL");
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+		return;
+	}
+
+	mlme_priv->reconn_after_assoc_timeout = flag;
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+}
+
+bool mlme_get_reconn_after_assoc_timeout_flag(struct wlan_objmgr_psoc *psoc,
+					      uint8_t vdev_id)
+{
+	struct wlan_objmgr_vdev *vdev;
+	struct vdev_mlme_priv_obj *mlme_priv;
+	bool reconn_after_assoc_timeout;
+
+	if (!psoc)
+		return false;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, vdev_id,
+						    WLAN_LEGACY_MAC_ID);
+	if (!vdev)
+		return false;
+	mlme_priv = wlan_vdev_mlme_get_priv_obj(vdev);
+	if (!mlme_priv) {
+		mlme_err("vdev legacy private object is NULL");
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+		return false;
+	}
+
+	reconn_after_assoc_timeout = mlme_priv->reconn_after_assoc_timeout;
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+
+	return reconn_after_assoc_timeout;
+}

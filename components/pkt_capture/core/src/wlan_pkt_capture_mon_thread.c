@@ -20,8 +20,46 @@
  * DOC: Define internal APIs related to the packet capture component
  */
 
-#include "wlan_pkt_capture_priv.h"
+#include "wlan_pkt_capture_mon_thread.h"
 #include <linux/kthread.h>
+#include "cds_ieee80211_common.h"
+#include "cds_utils.h"
+#include "cdp_txrx_mon.h"
+
+void pkt_capture_mon(struct pkt_capture_cb_context *cb_ctx,
+		     qdf_nbuf_t msdu, struct wlan_objmgr_vdev *vdev,
+		     uint8_t chan_num)
+{
+	struct radiotap_header *rthdr;
+	uint8_t rtlen, type, sub_type;
+	struct ieee80211_frame *wh;
+	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+	struct wlan_objmgr_pdev *pdev = wlan_vdev_get_pdev(vdev);
+
+	rthdr = (struct radiotap_header *)qdf_nbuf_data(msdu);
+	rtlen = rthdr->it_len;
+	wh = (struct ieee80211_frame *)(qdf_nbuf_data(msdu) + rtlen);
+	type = (wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	sub_type = (wh)->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+
+	if ((type == IEEE80211_FC0_TYPE_DATA) &&
+	    (sub_type == IEEE80211_FC0_SUBTYPE_QOS_NULL)) {
+		qdf_nbuf_free(msdu);
+		return;
+	}
+
+	if ((type == IEEE80211_FC0_TYPE_MGT) &&
+	    (sub_type == IEEE80211_FC0_SUBTYPE_AUTH)) {
+		cdp_pktcapture_record_channel(
+				soc,
+				wlan_objmgr_pdev_get_pdev_id(pdev), chan_num);
+	}
+
+	if (cb_ctx->mon_cb(cb_ctx->mon_ctx, msdu) != QDF_STATUS_SUCCESS) {
+		pkt_capture_err("Frame Rx to HDD failed");
+		qdf_nbuf_free(msdu);
+	}
+}
 
 void pkt_capture_free_mon_pkt_freeq(struct pkt_capture_mon_context *mon_ctx)
 {

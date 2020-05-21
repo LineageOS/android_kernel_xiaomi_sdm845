@@ -68,6 +68,7 @@
 #include "wlan_hdd_ftm_time_sync.h"
 #include "wlan_pkt_capture_ucfg_api.h"
 #include "wlan_hdd_periodic_sta_stats.h"
+#include "wlan_hdd_main.h"
 
 /* These are needed to recognize WPA and RSN suite types */
 #define HDD_WPA_OUI_SIZE 4
@@ -2386,10 +2387,10 @@ static void hdd_send_re_assoc_event(struct net_device *dev,
 	chan_no = pCsrRoamInfo->pBssDesc->channelId;
 	if (chan_no <= 14)
 		freq = ieee80211_channel_to_frequency(chan_no,
-							NL80211_BAND_2GHZ);
+							 HDD_NL80211_BAND_2GHZ);
 	else
 		freq = ieee80211_channel_to_frequency(chan_no,
-							NL80211_BAND_5GHZ);
+							 HDD_NL80211_BAND_5GHZ);
 	chan = ieee80211_get_channel(adapter->wdev.wiphy, freq);
 
 	sme_roam_get_connect_profile(hdd_ctx->mac_handle, adapter->session_id,
@@ -3753,6 +3754,18 @@ void hdd_delete_peer(struct hdd_station_ctx *sta_ctx, uint8_t sta_id)
 			return;
 		}
 	}
+}
+
+bool hdd_any_valid_peer_present(struct hdd_adapter *adapter)
+{
+	struct hdd_station_ctx *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	int idx;
+
+	for (idx = 0; idx < SIR_MAX_NUM_STA_IN_IBSS; idx++)
+		if (HDD_WLAN_INVALID_STA_ID != sta_ctx->conn_info.staId[idx])
+			return true;
+
+	return false;
 }
 
 /**

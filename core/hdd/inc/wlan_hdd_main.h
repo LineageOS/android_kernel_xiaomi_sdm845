@@ -260,6 +260,8 @@ enum hdd_driver_flags {
 /* rcpi request timeout in milli seconds */
 #define WLAN_WAIT_TIME_RCPI 500
 
+#define WLAN_WAIT_PEER_CLEANUP 5000
+
 #define MAX_CFG_STRING_LEN  255
 
 /* Maximum time(ms) to wait for external acs response */
@@ -1513,6 +1515,7 @@ struct hdd_adapter {
 	uint32_t periodic_stats_timer_counter;
 	qdf_mutex_t sta_periodic_stats_lock;
 #endif /* WLAN_FEATURE_PERIODIC_STA_STATS */
+	qdf_event_t peer_cleanup_done;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(adapter) (&(adapter)->session.station)
@@ -2994,7 +2997,6 @@ void wlan_hdd_txrx_pause_cb(uint8_t vdev_id,
 	enum netif_action_type action, enum netif_reason_type reason);
 
 int hdd_wlan_dump_stats(struct hdd_adapter *adapter, int value);
-void wlan_hdd_deinit_tx_rx_histogram(struct hdd_context *hdd_ctx);
 void wlan_hdd_display_tx_rx_histogram(struct hdd_context *hdd_ctx);
 void wlan_hdd_clear_tx_rx_histogram(struct hdd_context *hdd_ctx);
 void

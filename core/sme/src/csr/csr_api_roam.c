@@ -8255,6 +8255,17 @@ static void csr_process_fils_join_rsp(tpAniSirGlobal mac_ctx,
 	}
 
 	status = csr_roam_issue_set_context_req(mac_ctx, session_id,
+					profile->negotiatedUCEncryptionType,
+					bss_desc, &(bss_desc->bssId), true,
+					true, eSIR_TX_RX, 0,
+					roam_info->fils_join_rsp->tk_len,
+					roam_info->fils_join_rsp->tk, 0);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sme_debug("Set context for unicast fail");
+		goto process_fils_join_rsp_fail;
+	}
+
+	status = csr_roam_issue_set_context_req(mac_ctx, session_id,
 					profile->negotiatedMCEncryptionType,
 					bss_desc, &bcast_mac, true, false,
 					eSIR_RX_ONLY, 2,
@@ -8265,16 +8276,6 @@ static void csr_process_fils_join_rsp(tpAniSirGlobal mac_ctx,
 		goto process_fils_join_rsp_fail;
 	}
 
-	status = csr_roam_issue_set_context_req(mac_ctx, session_id,
-					profile->negotiatedUCEncryptionType,
-					bss_desc, &(bss_desc->bssId), true,
-					true, eSIR_TX_RX, 0,
-					roam_info->fils_join_rsp->tk_len,
-					roam_info->fils_join_rsp->tk, 0);
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
-		sme_debug("Set context for unicast fail");
-		goto process_fils_join_rsp_fail;
-	}
 	return;
 
 process_fils_join_rsp_fail:
@@ -10327,6 +10328,7 @@ static void csr_roam_join_rsp_processor(tpAniSirGlobal pMac,
 	uint32_t len = 0, roamId = 0, reason_code = 0;
 	bool is_dis_pending;
 	bool use_same_bss = false;
+	bool retry_same_bss = false;
 
 	if (!pSmeJoinRsp) {
 		sme_err("Sme Join Response is NULL");
@@ -10409,8 +10411,6 @@ static void csr_roam_join_rsp_processor(tpAniSirGlobal pMac,
 	 * AP.
 	 */
 	if (reason_code == eSIR_MAC_INVALID_PMKID) {
-		struct tag_csrscan_result *scan_result;
-
 		sme_warn("Assoc reject from BSSID:%pM due to invalid PMKID",
 			 session_ptr->joinFailStatusCode.bssId);
 		qdf_mem_copy(&pmksa_entry.BSSID.bytes,
@@ -10418,16 +10418,25 @@ static void csr_roam_join_rsp_processor(tpAniSirGlobal pMac,
 			     sizeof(tSirMacAddr));
 		sme_roam_del_pmkid_from_cache(mac_handle, session_ptr->sessionId,
 					      &pmksa_entry, false);
-		if (pCommand && pCommand->u.roamCmd.pRoamBssEntry) {
-			scan_result =
-				GET_BASE_ADDR(pCommand->u.roamCmd.pRoamBssEntry,
-					      struct tag_csrscan_result, Link);
-			/* Retry with same BSSID without PMKID */
-			if (!scan_result->retry_count) {
-				sme_info("Retry once again with same BSSID without PMKID");
-				scan_result->retry_count = 1;
-				use_same_bss = true;
-			}
+		retry_same_bss = true;
+	}
+	if (pSmeJoinRsp->messageType == eWNI_SME_JOIN_RSP &&
+	    pSmeJoinRsp->statusCode == eSIR_SME_ASSOC_TIMEOUT_RESULT_CODE &&
+	    mlme_get_reconn_after_assoc_timeout_flag(pMac->psoc,
+						     pSmeJoinRsp->sessionId))
+		retry_same_bss = true;
+	if (retry_same_bss && pCommand && pCommand->u.roamCmd.pRoamBssEntry) {
+		struct tag_csrscan_result *scan_result;
+
+		scan_result =
+			GET_BASE_ADDR(pCommand->u.roamCmd.pRoamBssEntry,
+				      struct tag_csrscan_result, Link);
+		/* Retry with same BSSID without PMKID */
+		if (!scan_result->retry_count) {
+			sme_info("Retry once with same BSSID, status %d reason %d",
+				 pSmeJoinRsp->statusCode, reason_code);
+			scan_result->retry_count = 1;
+			use_same_bss = true;
 		}
 	}
 	/* If Join fails while Handoff is in progress, indicate
@@ -16700,6 +16709,7 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 	struct wlan_objmgr_vdev *vdev;
 	struct vdev_mlme_priv_obj *vdev_mlme;
 	eCsrAuthType akm;
+	bool reconn_after_assoc_timeout = false;
 
 	if (!pSession) {
 		sme_err("session %d not found", sessionId);
@@ -16864,6 +16874,13 @@ QDF_STATUS csr_send_join_req_msg(tpAniSirGlobal pMac, uint32_t sessionId,
 		vdev = wlan_objmgr_get_vdev_by_id_from_psoc(pMac->psoc,
 							    sessionId,
 							    WLAN_LEGACY_MAC_ID);
+		if (messageType == eWNI_SME_JOIN_REQ &&
+		    ucfg_action_oui_search(pMac->psoc, &vendor_ap_search_attr,
+					   ACTION_OUI_HOST_RECONN))
+			reconn_after_assoc_timeout = true;
+		mlme_set_reconn_after_assoc_timeout_flag(
+				pMac->psoc, sessionId,
+				reconn_after_assoc_timeout);
 		if (vdev) {
 			vdev_mlme = wlan_vdev_mlme_get_priv_obj(vdev);
 			if (vdev_mlme) {

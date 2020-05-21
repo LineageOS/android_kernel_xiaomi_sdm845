@@ -1498,6 +1498,39 @@ static void lim_process_sme_obss_scan_ind(tpAniSirGlobal mac_ctx,
 }
 
 /**
+ * lim_process_peer_cleanup() - Delete peers on the given vdev
+ * @mac: Pointer to the Global Mac Context.
+ * @msg: Content of the received message of type struct sir_gen_req
+ *
+ * Return:  None.
+ */
+static void
+lim_process_peer_cleanup(tpAniSirGlobal mac, struct sir_gen_req *msg)
+{
+	uint8_t i = 0;
+	tpPESession session;
+	tpDphHashNode sta_ds = NULL;
+
+	if (!msg) {
+		pe_err("msg is NULL");
+		return;
+	}
+
+	session = pe_find_session_by_sme_session_id(mac, msg->vdev_id);
+	if (session == NULL) {
+		pe_err("Unable to find session");
+		return;
+	}
+
+	for (i = 1; i < session->dph.dphHashTable.size; i++) {
+		sta_ds = dph_get_hash_entry(mac, i, &session->dph.dphHashTable);
+		if (NULL == sta_ds)
+			continue;
+		lim_del_sta(mac, sta_ds, true, session);
+	}
+}
+
+/**
  * lim_process_messages() - Process messages from upper layers.
  *
  * @mac_ctx: Pointer to the Global Mac Context.
@@ -2118,6 +2151,11 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx,
 		lim_add_roam_blacklist_ap(mac_ctx,
 					  (struct roam_blacklist_event *)
 					  msg->bodyptr);
+		qdf_mem_free((void *)msg->bodyptr);
+		msg->bodyptr = NULL;
+		break;
+	case eWNI_SME_PEER_CLEANUP:
+		lim_process_peer_cleanup(mac_ctx, msg->bodyptr);
 		qdf_mem_free((void *)msg->bodyptr);
 		msg->bodyptr = NULL;
 		break;

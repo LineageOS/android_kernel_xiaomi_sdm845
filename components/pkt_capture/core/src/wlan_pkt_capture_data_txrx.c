@@ -238,8 +238,12 @@ pkt_capture_update_tx_status(
 		IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
 
 	tx_status->chan_flags = channel_flags;
-	tx_status->ant_signal_db = pktcapture_hdr->rssi_comb;
-	tx_status->rssi_comb = pktcapture_hdr->rssi_comb;
+	/* RSSI is filled with TPC which will be normalized
+	 * during radiotap updation, so add 96 here
+	 */
+	tx_status->ant_signal_db =
+			pktcapture_hdr->rssi_comb - NORMALIZED_TO_NOISE_FLOOR;
+	tx_status->rssi_comb = tx_status->ant_signal_db;
 	tx_status->tx_status = pktcapture_hdr->status;
 	tx_status->tx_retry_cnt = pktcapture_hdr->tx_retry_cnt;
 	tx_status->add_rtap_ext = true;
@@ -529,12 +533,7 @@ pkt_capture_rx_data_cb(
 		 */
 		headroom = qdf_nbuf_headroom(msdu);
 		qdf_nbuf_update_radiotap(&rx_status, msdu, headroom);
-
-		if (QDF_STATUS_SUCCESS !=
-		    cb_ctx->mon_cb(cb_ctx->mon_ctx, msdu)) {
-			pkt_capture_err("Frame Rx to HDD failed");
-			qdf_nbuf_free(msdu);
-		}
+		pkt_capture_mon(cb_ctx, msdu, vdev, 0);
 		msdu = next_buf;
 	}
 
@@ -707,13 +706,7 @@ pkt_capture_tx_data_cb(
 		 */
 		headroom = qdf_nbuf_headroom(msdu);
 		qdf_nbuf_update_radiotap(&tx_status, msdu, headroom);
-
-		if (QDF_STATUS_SUCCESS !=
-		    cb_ctx->mon_cb(cb_ctx->mon_ctx, msdu)) {
-			pkt_capture_err("Frame Tx to HDD failed");
-			qdf_nbuf_free(msdu);
-		}
-
+		pkt_capture_mon(cb_ctx, msdu, vdev, 0);
 		msdu = next_buf;
 	}
 	return;

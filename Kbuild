@@ -201,6 +201,10 @@ ifeq ($(CONFIG_FEATURE_WLAN_TIME_SYNC_FTM), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_ftm_time_sync.o
 endif
 
+ifeq ($(CONFIG_WLAN_HANG_EVENT), y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_hang_event.o
+endif
+
 #Flag to enable SAR Safety Feature
 cppflags-$(CONFIG_SAR_SAFETY_FEATURE) += -DSAR_SAFETY_FEATURE
 
@@ -516,6 +520,10 @@ ifeq ($(CONFIG_LEAK_DETECTION), y)
 	QDF_OBJS += $(QDF_OBJ_DIR)/qdf_debug_domain.o
 endif
 
+ifeq ($(CONFIG_WLAN_HANG_EVENT), y)
+	QDF_OBJS += $(QDF_OBJ_DIR)/qdf_notifier.o
+endif
+
 ############ WBUFF ############
 WBUFF_OS_DIR :=	wbuff
 WBUFF_OS_INC_DIR := $(WBUFF_OS_DIR)/inc
@@ -526,6 +534,10 @@ WBUFF_INC :=	-I$(WLAN_COMMON_INC)/$(WBUFF_OS_INC_DIR) \
 
 ifeq ($(CONFIG_WLAN_WBUFF), y)
 WBUFF_OBJS += 	$(WBUFF_OBJ_DIR)/wbuff.o
+endif
+
+ifeq ($(CONFIG_WLAN_HANG_EVENT), y)
+	QDF_OBJS += $(QDF_OBJ_DIR)/qdf_hang_event_notifier.o
 endif
 
 ##########OS_IF #######
@@ -987,6 +999,10 @@ WMI_OBJS += $(WMI_OBJ_DIR)/wmi_unified_extscan_api.o
 WMI_OBJS += $(WMI_OBJ_DIR)/wmi_unified_extscan_tlv.o
 endif
 
+ifeq ($(CONFIG_WLAN_HANG_EVENT), y)
+WMI_OBJS += $(WMI_OBJ_DIR)/wmi_hang_event.o
+endif
+
 ########### FWLOG ###########
 FWLOG_DIR := $(WLAN_COMMON_ROOT)/utils/fwlog
 
@@ -1223,6 +1239,10 @@ HTC_OBJS := $(WLAN_COMMON_ROOT)/$(HTC_DIR)/htc.o \
 
 ifeq ($(CONFIG_FEATURE_HTC_CREDIT_HISTORY), y)
 HTC_OBJS += $(WLAN_COMMON_ROOT)/$(HTC_DIR)/htc_credit_history.o
+endif
+
+ifeq ($(CONFIG_WLAN_HANG_EVENT), y)
+HTC_OBJS += $(WLAN_COMMON_ROOT)/$(HTC_DIR)/htc_hang_event.o
 endif
 
 ########### HIF ###########
@@ -1681,6 +1701,7 @@ cppflags-$(CONFIG_FEATURE_MEMDUMP_ENABLE) += -DWLAN_FEATURE_MEMDUMP_ENABLE
 cppflags-$(CONFIG_FEATURE_FW_LOG_PARSING) += -DFEATURE_FW_LOG_PARSING
 cppflags-$(CONFIG_WLAN_RECORD_RX_PADDR) += -DHIF_RECORD_RX_PADDR
 cppflags-$(CONFIG_FEATURE_OEM_DATA) += -DFEATURE_OEM_DATA
+cppflags-$(CONFIG_WLAN_HANG_EVENT) += -DWLAN_HANG_EVENT
 
 cppflags-$(CONFIG_WLAN_FEATURE_PERIODIC_STA_STATS) += -DWLAN_FEATURE_PERIODIC_STA_STATS
 
@@ -2120,6 +2141,9 @@ cppflags-y += -DATH_SUPPORT_WRAP=0
 cppflags-y += -DQCA_HOST2FW_RXBUF_RING
 cppflags-y += -DHIF_CE_HISTORY_MAX=8192
 #endof dummy flags
+
+cppflags-$(CONFIG_WLAN_HANG_EVENT) += -DHIF_CE_LOG_INFO
+cppflags-$(CONFIG_WLAN_HANG_EVENT) += -DDP_SUPPORT_RECOVERY_NOTIFY
 
 # Enable lock of serialization component to avoid race condition issues
 cppflags-y += -DWLAN_CMD_SERIALIZATION_LOCKING

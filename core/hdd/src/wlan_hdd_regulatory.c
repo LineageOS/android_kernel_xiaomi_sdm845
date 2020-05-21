@@ -712,7 +712,6 @@ int hdd_reg_set_band(struct net_device *dev, u8 ui_band)
 	struct hdd_context *hdd_ctx;
 	enum band_info currBand;
 	enum band_info connectedBand;
-	long lrc;
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
@@ -789,28 +788,14 @@ int hdd_reg_set_band(struct net_device *dev, u8 ui_band)
 			hdd_debug("STA (Device mode %s(%d)) connected in band %u, Changing band to %u, Issuing Disconnect",
 					hdd_device_mode_to_string(adapter->device_mode),
 					adapter->device_mode, currBand, band);
-			INIT_COMPLETION(adapter->disconnect_comp_var);
 
-			status = sme_roam_disconnect(
-					mac_handle,
-					adapter->session_id,
+			status = wlan_hdd_disconnect(adapter,
 					eCSR_DISCONNECT_REASON_UNSPECIFIED,
 					eSIR_MAC_OPER_CHANNEL_BAND_CHANGE);
-
-			if (QDF_STATUS_SUCCESS != status) {
-				hdd_err("sme_roam_disconnect failure, status: %d",
-						(int)status);
+			if (status) {
+				hdd_err("Hdd disconnect failed, status: %d",
+					status);
 				return -EINVAL;
-			}
-
-			lrc = wait_for_completion_timeout(
-					&adapter->disconnect_comp_var,
-					msecs_to_jiffies(
-						WLAN_WAIT_TIME_DISCONNECT));
-
-			if (lrc == 0) {
-				hdd_err("Timeout while waiting for csr_roam_disconnect");
-				return -ETIMEDOUT;
 			}
 		}
 

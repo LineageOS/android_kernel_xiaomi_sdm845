@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1007,10 +1007,10 @@ void __hdd_indicate_mgmt_frame(struct hdd_adapter *adapter,
 	/* Indicate an action frame. */
 	if (rxChan <= MAX_NO_OF_2_4_CHANNELS)
 		freq = ieee80211_channel_to_frequency(rxChan,
-						      NL80211_BAND_2GHZ);
+						      HDD_NL80211_BAND_2GHZ);
 	else
 		freq = ieee80211_channel_to_frequency(rxChan,
-						      NL80211_BAND_5GHZ);
+						      HDD_NL80211_BAND_5GHZ);
 
 	if (hdd_is_qos_action_frame(pb_frames, frm_len))
 		sme_update_dsc_pto_up_mapping(hdd_ctx->mac_handle,

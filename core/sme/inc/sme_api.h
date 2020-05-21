@@ -3217,4 +3217,15 @@ static inline void sme_reset_oem_data_event_handler_cb(mac_handle_t  mac_handle)
 QDF_STATUS sme_get_prev_connected_bss_ies(mac_handle_t mac_handle,
 					  uint8_t vdev_id,
 					  uint8_t **ies, uint32_t *ie_len);
+
+/**
+ * sme_handle_peer_cleanup() - Cleanup all peers on the given vdev
+ * @hal: handle returned by mac_open
+ * @vdev_id: vdev id
+ *
+ * Remove all peers present on the given vdev id.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_handle_peer_cleanup(tHalHandle hal, uint8_t vdev_id);
 #endif /* #if !defined( __SME_API_H ) */

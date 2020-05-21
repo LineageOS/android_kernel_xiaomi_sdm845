@@ -3170,11 +3170,11 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 
 sap_restart:
 	if (!intf_ch) {
-		intf_ch = wlansap_get_chan_band_restrict(hdd_ap_ctx->sap_context);
-		if (intf_ch == hdd_ap_ctx->sap_context->channel)
+		intf_ch = wlansap_get_chan_band_restrict(sap_context);
+		if (intf_ch == sap_context->channel)
 			intf_ch = 0;
-	} else if (hdd_ap_ctx->sap_context)
-		hdd_ap_ctx->sap_context->csa_reason =
+	} else if (sap_context)
+		sap_context->csa_reason =
 				CSA_REASON_CONCURRENT_STA_CHANGED_CHANNEL;
 	if (!intf_ch) {
 		wlansap_context_put(sap_context);
@@ -8903,7 +8903,7 @@ static void hdd_update_beacon_rate(struct hdd_adapter *adapter,
 	struct cfg80211_bitrate_mask *beacon_rate_mask;
 	enum nl80211_band band;
 
-	band = params->chandef.chan->band;
+	band = (enum nl80211_band)params->chandef.chan->band;
 	beacon_rate_mask = &params->beacon_rate;
 	if (beacon_rate_mask->control[band].legacy) {
 		adapter->session.ap.sap_config.beacon_tx_rate =

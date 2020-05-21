@@ -142,7 +142,7 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 /* Roam debugging related macro defines */
 #define MAX_ROAM_DEBUG_BUF_SIZE    250
 #define MAX_ROAM_EVENTS_SUPPORTED  5
-#define ROAM_FAILURE_BUF_SIZE      50
+#define ROAM_FAILURE_BUF_SIZE      60
 #define TIME_STRING_LEN            24
 
 #define ROAM_CHANNEL_BUF_SIZE      300
@@ -7319,4 +7319,12 @@ struct sir_get_mws_coex_info {
 	uint32_t cmd_id;
 };
 #endif /* WLAN_MWS_INFO_DEBUGFS */
+
+/**
+ * struct sir_gen_req - Generic request to carry vdev id
+ * @vdev_id: vdev id
+ */
+struct sir_gen_req {
+	uint32_t vdev_id;
+};
 #endif /* __SIR_API_H */
