@@ -524,6 +524,30 @@
 
 	qcom,disp-doze-lpm-backlight = <20>;
 	qcom,disp-doze-hbm-backlight = <266>;
+	qcom,disp-fod-dim-lut = <
+		/* brightness, alpha */
+		0 0xFF
+		4 0xEB
+		8 0xEA
+		12  0xE9
+		13  0xE8
+		20  0xE5
+		24  0xE3
+		30  0xE0
+		68  0xD0
+		133 0xC0
+		218 0xB0
+		328 0xA0
+		486 0x90
+		642 0x80
+		832 0x70
+		1043  0x60
+		1267  0x50
+		1500  0x40
+		1770  0x30
+		2000  0x24
+		2047  0x21
+	>;
 
 	qcom,mdss-dsi-display-timings {
 		timing@0{
