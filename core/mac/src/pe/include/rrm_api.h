@@ -41,7 +41,15 @@ uint8_t rrm_get_min_of_max_tx_power(tpAniSirGlobal pMac, int8_t regMax,
 
 QDF_STATUS rrm_initialize(tpAniSirGlobal pMac);
 
-QDF_STATUS rrm_cleanup(tpAniSirGlobal pMac);
+/**
+ * rrm_cleanup  - cleanup RRM measurement related data for the measurement
+ * index
+ * @mac: Pointer to mac context
+ * @idx: Measurement index
+ *
+ * Return: None
+ */
+void rrm_cleanup(tpAniSirGlobal mac, uint8_t idx);
 
 QDF_STATUS rrm_process_link_measurement_request(tpAniSirGlobal pMac,
 						uint8_t *pRxPacketInfo,

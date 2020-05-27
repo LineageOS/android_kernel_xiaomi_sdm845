@@ -634,7 +634,8 @@ void lim_cleanup(tpAniSirGlobal pMac)
 	/* Now, finally reset the deferred message queue pointers */
 	lim_reset_deferred_msg_q(pMac);
 
-	rrm_cleanup(pMac);
+	for (i = 0; i < MAX_MEASUREMENT_REQUEST; i++)
+		rrm_cleanup(pMac, i);
 
 	lim_ft_cleanup_all_ft_sessions(pMac);
 
