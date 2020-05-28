@@ -51,11 +51,28 @@ QDF_STATUS ucfg_nan_set_ndi_state(struct wlan_objmgr_vdev *vdev,
  * Return: ndp peer attached to ndi or not.
  */
 bool wlan_nan_is_ndp_peer_active(struct wlan_objmgr_pdev *pdev);
+
+/**
+ * ucfg_nan_get_active_ndp_cnt: ucfg API to get active ndp sessions
+ * @psoc: pointer to psoc object
+ * @cnt: pointer to active session count
+ *
+ * Return: status of operation
+ */
+QDF_STATUS ucfg_nan_get_active_ndp_cnt(struct wlan_objmgr_psoc *psoc,
+				       uint8_t *cnt);
 #else
 static inline
 bool wlan_nan_is_ndp_peer_active(struct wlan_objmgr_pdev *pdev)
 {
 	return false;
+}
+
+static inline
+QDF_STATUS ucfg_nan_get_active_ndp_cnt(struct wlan_objmgr_psoc *psoc,
+				       uint8_t *cnt)
+{
+	return QDF_STATUS_SUCCESS;
 }
 #endif /* WLAN_FEATURE_NAN_CONVERGENCE */
 
@@ -188,6 +205,16 @@ uint32_t ucfg_nan_get_ndi_delete_rsp_status(struct wlan_objmgr_vdev *vdev);
  */
 QDF_STATUS ucfg_nan_get_callbacks(struct wlan_objmgr_psoc *psoc,
 				  struct nan_callbacks *cb_obj);
+
+/**
+ * ucfg_nan_set_active_ndp_cnt: ucfg API to set active ndp sessions count
+ * @psoc: pointer to psoc object
+ * @cnt: active session count
+ *
+ * Return: status of operation
+ */
+QDF_STATUS ucfg_nan_set_active_ndp_cnt(struct wlan_objmgr_psoc *psoc,
+				       uint8_t cnt);
 
 /**
  * ucfg_nan_req_processor: ucfg API to be called from HDD/OS_IF to

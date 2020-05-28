@@ -31,6 +31,7 @@
 #endif
 
 #include <linux/debugfs.h>
+#include <wmi_hang_event.h>
 
 /* This check for CONFIG_WIN temporary added due to redeclaration compilation
 error in MCL. Error is caused due to inclusion of wmi.h in wmi_unified_api.h
@@ -1484,7 +1485,9 @@ QDF_STATUS wmi_unified_cmd_send(wmi_unified_t wmi_handle, wmi_buf_t buf,
 		QDF_TRACE(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_ERROR,
 			"%s: MAX %d WMI Pending cmds reached.", __func__,
 			wmi_handle->wmi_max_cmds);
-		qdf_trigger_self_recovery();
+		/* Will rectify the UNSPECIFIED to correct reason next gerrit */
+		qdf_trigger_self_recovery(wmi_handle->soc->wmi_psoc,
+					  QDF_WMI_EXCEED_MAX_PENDING_CMDS);
 		return QDF_STATUS_E_BUSY;
 	}
 
@@ -2374,6 +2377,8 @@ void *wmi_unified_attach(void *scn_handle,
 
 	wmi_wbuff_register(wmi_handle);
 
+	wmi_hang_event_notifier_register(wmi_handle);
+
 	return wmi_handle;
 
 error:
@@ -2395,6 +2400,8 @@ void wmi_unified_detach(struct wmi_unified *wmi_handle)
 	wmi_buf_t buf;
 	struct wmi_soc *soc;
 	uint8_t i;
+
+	wmi_hang_event_notifier_unregister();
 
 	wmi_wbuff_deregister(wmi_handle);
 

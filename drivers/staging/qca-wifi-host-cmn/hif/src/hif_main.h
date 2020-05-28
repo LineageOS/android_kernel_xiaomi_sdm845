@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018,2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -39,6 +39,9 @@
 #include "hif.h"
 #include "multibus.h"
 #include "hif_unit_test_suspend_i.h"
+#ifdef HIF_CE_LOG_INFO
+#include "qdf_notifier.h"
+#endif
 
 #define HIF_MIN_SLEEP_INACTIVITY_TIME_MS     50
 #define HIF_SLEEP_INACTIVITY_TIMER_PERIOD_MS 60
@@ -195,6 +198,9 @@ struct hif_softc {
 #endif /* #if defined(HIF_CONFIG_SLUB_DEBUG_ON) || HIF_CE_DEBUG_DATA_BUF */
 #ifdef IPA_OFFLOAD
 	qdf_shared_mem_t *ipa_ce_ring;
+#endif
+#ifdef HIF_CE_LOG_INFO
+	qdf_notif_block hif_recovery_notifier;
 #endif
 };
 
