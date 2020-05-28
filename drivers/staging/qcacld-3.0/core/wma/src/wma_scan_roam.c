@@ -398,6 +398,7 @@ static void wma_roam_scan_offload_set_params(
 				roam_req->RoamKeyMgmtOffloadEnabled;
 	wma_roam_scan_fill_self_caps(wma_handle,
 				     &params->roam_offload_params, roam_req);
+	params->rct_validity_timer = roam_req->rct_validity_timer;
 	params->is_adaptive_11r = roam_req->is_adaptive_11r_connection;
 	params->fw_okc = roam_req->pmkid_modes.fw_okc;
 	params->fw_pmksa_cache = roam_req->pmkid_modes.fw_pmksa_cache;
@@ -3209,6 +3210,8 @@ static char *wma_get_roam_trigger_str(uint32_t roam_scan_trigger)
                 return "DEAUTH RECEIVED";
         case WMI_ROAM_TRIGGER_REASON_IDLE:
                 return "IDLE STATE SCAN";
+	case WMI_ROAM_TRIGGER_REASON_STA_KICKOUT:
+		return "STA KICKOUT";
         case WMI_ROAM_TRIGGER_REASON_NONE:
                 return "NONE";
         default:
@@ -3281,6 +3284,20 @@ static char *wma_get_roam_fail_reason_str(uint32_t result)
 		return "M4 frame dropped internally";
 	case WMI_ROAM_FAIL_REASON_EAPOL_M4_NO_ACK:
 		return "No ACK for M4 frame";
+	case WMI_ROAM_FAIL_REASON_NO_SCAN_FOR_FINAL_BMISS:
+		return "No scan on final BMISS";
+	case WMI_ROAM_FAIL_REASON_DISCONNECT:
+		return "Disconnect received during handoff";
+	case WMI_ROAM_FAIL_REASON_SYNC:
+		return "Previous roam sync pending";
+	case WMI_ROAM_FAIL_REASON_SAE_INVALID_PMKID:
+		return "Reason assoc reject - invalid PMKID";
+	case WMI_ROAM_FAIL_REASON_SAE_PREAUTH_TIMEOUT:
+		return "SAE preauth timed out";
+	case WMI_ROAM_FAIL_REASON_SAE_PREAUTH_FAIL:
+		return "SAE preauth failed";
+	case WMI_ROAM_FAIL_REASON_UNABLE_TO_START_ROAM_HO:
+		return "Start handoff failed- internal error";
 	default:
 		return "Unknown";
 	}
@@ -6483,6 +6500,15 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 					     wmi_event->vdev_id,
 					     frame, wmi_event->notif_params1,
 					     wmi_event->notif_params);
+		roam_synch_data = qdf_mem_malloc(sizeof(*roam_synch_data));
+		if (!roam_synch_data)
+			return -ENOMEM;
+
+		roam_synch_data->roamedVdevId = wmi_event->vdev_id;
+		wma_handle->csr_roam_synch_cb(
+				wma_handle->mac_context,
+				roam_synch_data, NULL, SIR_ROAMING_DEAUTH);
+		qdf_mem_free(roam_synch_data);
 		break;
 	default:
 		WMA_LOGD("%s:Unhandled Roam Event %x for vdevid %x", __func__,

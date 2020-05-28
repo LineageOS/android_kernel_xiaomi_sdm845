@@ -50,6 +50,7 @@
 #include "wlan_reg_services_api.h"
 #include <wlan_dfs_utils_api.h>
 #include <wlan_reg_ucfg_api.h>
+#include "sap_ch_select.h"
 
 /*----------------------------------------------------------------------------
  * Preprocessor Definitions and Constants
@@ -1263,6 +1264,8 @@ static char *sap_get_csa_reason_str(enum sap_csa_reason_code reason)
 		return "LTE_COEX";
 	case CSA_REASON_CONCURRENT_NAN_EVENT:
 		return "CONCURRENT_NAN_EVENT";
+	case CSA_REASON_BAND_RESTRICTED:
+		return "BAND_RESTRICTED";
 	default:
 		return "UNKNOWN";
 	}
@@ -2783,4 +2786,160 @@ wlansap_get_safe_channel_from_pcl_and_acs_range(struct sap_context *sap_ctx)
 	 * try to choose a safe channel from acs range.
 	 */
 	return wlansap_get_safe_channel(sap_ctx);
+}
+
+static uint8_t wlansap_get_2g_first_safe_chan(struct sap_context *sap_ctx)
+{
+	uint32_t i;
+	uint8_t chan;
+	enum channel_state state;
+	struct regulatory_channel *cur_chan_list;
+	struct wlan_objmgr_pdev *pdev;
+	struct wlan_objmgr_psoc *psoc;
+	uint8_t *acs_chan_list;
+	uint8_t acs_list_count;
+	tHalHandle hal;
+	tpAniSirGlobal mac;
+
+	hal = CDS_GET_HAL_CB();
+	if (!hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid HAL pointer"));
+		return CHANNEL_6;
+	}
+
+	mac = PMAC_STRUCT(hal);
+
+	pdev = mac->pdev;
+	psoc = mac->psoc;
+
+	cur_chan_list = qdf_mem_malloc(NUM_CHANNELS *
+			sizeof(struct regulatory_channel));
+	if (!cur_chan_list)
+		return CHANNEL_6;
+
+	if (wlan_reg_get_current_chan_list(pdev, cur_chan_list) !=
+					   QDF_STATUS_SUCCESS) {
+		chan = CHANNEL_6;
+		goto err;
+	}
+
+	acs_chan_list = sap_ctx->acs_cfg->master_ch_list;
+	acs_list_count = sap_ctx->acs_cfg->master_ch_list_count;
+	for (i = 0; i < NUM_CHANNELS; i++) {
+		chan = cur_chan_list[i].center_freq;
+		state = wlan_reg_get_channel_state(pdev, chan);
+		if (state != CHANNEL_STATE_DISABLE &&
+		    state != CHANNEL_STATE_INVALID &&
+		    WLAN_REG_IS_24GHZ_CH(chan) &&
+		    policy_mgr_is_safe_channel(psoc, chan) &&
+		    wlansap_is_channel_present_in_acs_list(chan,
+							   acs_chan_list,
+							   acs_list_count)) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+				  FL("find a 2g channel: %d"),
+				  chan);
+			goto err;
+		}
+	}
+
+	chan = CHANNEL_6;
+err:
+	qdf_mem_free(cur_chan_list);
+	return chan;
+}
+
+uint8_t wlansap_get_chan_band_restrict(struct sap_context *sap_ctx)
+{
+	uint8_t restart_chan;
+	enum phy_ch_width restart_ch_width;
+	uint8_t intf_ch;
+	uint32_t phy_mode;
+	uint8_t cc_mode;
+	enum band_info sap_band;
+	tHalHandle hal;
+	tpAniSirGlobal mac;
+	enum band_info band;
+
+	if (!sap_ctx) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("sap_ctx NULL parameter"));
+		return 0;
+	}
+	if (cds_is_driver_recovering())
+		return 0;
+
+	hal = CDS_GET_HAL_CB();
+	if (!hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid HAL pointer"));
+		return 0;
+	}
+	mac = PMAC_STRUCT(hal);
+	if (!mac || !mac->pdev)
+		return 0;
+	if (!sap_ctx->channel)
+		return 0;
+
+	if (ucfg_reg_get_curr_band(mac->pdev, &band) != QDF_STATUS_SUCCESS) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Failed to get current band config"));
+		return 0;
+	}
+
+	sap_band = sap_ctx->channel <= 14 ? BAND_2G : BAND_5G;
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+		  FL("SAP/Go current band: %d, pdev band capability: %d"),
+		  sap_band, band);
+
+	if (sap_band == BAND_5G && band == BAND_2G) {
+		sap_ctx->chan_id_before_switch_band = sap_ctx->channel;
+		sap_ctx->chan_width_before_switch_band =
+			sap_ctx->ch_params.ch_width;
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+			  FL("Save chan info before switch: %d, width: %d"),
+			  sap_ctx->channel, sap_ctx->ch_params.ch_width);
+		restart_chan = wlansap_get_2g_first_safe_chan(sap_ctx);
+		if (restart_chan == 0) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+				  FL("use default chan 6"));
+			restart_chan = CHANNEL_6;
+		}
+		restart_ch_width = sap_ctx->ch_params.ch_width;
+		if (restart_ch_width > CH_WIDTH_40MHZ) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+				  FL("set 40M when switch SAP to 2G"));
+			restart_ch_width = CH_WIDTH_40MHZ;
+		}
+	} else if (sap_band == BAND_2G &&
+		   (band == BAND_ALL || band == BAND_5G)) {
+		if (sap_ctx->chan_id_before_switch_band == 0)
+			return 0;
+		restart_chan = sap_ctx->chan_id_before_switch_band;
+		restart_ch_width = sap_ctx->chan_width_before_switch_band;
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+			  FL("Restore chan: %d, width: %d"),
+			  restart_chan, restart_ch_width);
+		sap_ctx->chan_id_before_switch_band = 0;
+		sap_ctx->chan_width_before_switch_band = CH_WIDTH_INVALID;
+
+	} else {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+			  FL("No need switch SAP/Go channel"));
+		return 0;
+	}
+
+	cc_mode = sap_ctx->cc_switch_mode;
+	phy_mode = sap_ctx->csr_roamProfile.phyMode;
+	intf_ch = sme_check_concurrent_channel_overlap(hal,
+						       restart_chan,
+						       phy_mode,
+						       cc_mode);
+	if (intf_ch)
+		restart_chan = intf_ch;
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+		  FL("CSA target ch: %d"), restart_chan);
+	sap_ctx->csa_reason = CSA_REASON_BAND_RESTRICTED;
+
+	return restart_chan;
 }

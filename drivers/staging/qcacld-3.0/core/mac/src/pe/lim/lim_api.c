@@ -72,6 +72,18 @@
 #include <wlan_p2p_ucfg_api.h>
 #include "wlan_utility.h"
 #include "wlan_mlme_main.h"
+#include <qdf_hang_event_notifier.h>
+#include <qdf_notifier.h>
+#include "wlan_pkt_capture_ucfg_api.h"
+
+struct pe_hang_event_fixed_param {
+	uint32_t tlv_header;
+	uint8_t vdev_id;
+	uint8_t limmlmstate;
+	uint8_t limprevmlmstate;
+	uint8_t limsmestate;
+	uint8_t limprevsmestate;
+} qdf_packed;
 
 static void __lim_init_bss_vars(tpAniSirGlobal pMac)
 {
@@ -848,6 +860,51 @@ static QDF_STATUS lim_unregister_sap_bcn_callback(tpAniSirGlobal mac_ctx)
 	return status;
 }
 
+static int pe_hang_event_notifier_call(struct notifier_block *block,
+				       unsigned long state,
+				       void *data)
+{
+	qdf_notif_block *notif_block = qdf_container_of(block, qdf_notif_block,
+							notif_block);
+	tpAniSirGlobal mac;
+	tpPESession session;
+	struct qdf_notifer_data *pe_hang_data = data;
+	uint8_t *pe_data;
+	uint8_t i;
+	struct pe_hang_event_fixed_param *cmd;
+
+	if (!data)
+		return NOTIFY_STOP_MASK;
+
+	mac = notif_block->priv_data;
+	if (!mac)
+		return NOTIFY_STOP_MASK;
+
+	if (pe_hang_data->offset >= QDF_WLAN_MAX_HOST_OFFSET)
+		return NOTIFY_STOP_MASK;
+
+	for (i = 0; i < mac->lim.maxBssId; i++) {
+		session = &mac->lim.gpSession[i];
+		if (!session->valid)
+			continue;
+
+		pe_data = (pe_hang_data->hang_data + pe_hang_data->offset);
+		cmd = (struct pe_hang_event_fixed_param *)pe_data;
+		cmd->vdev_id = session->peSessionId;
+		cmd->limmlmstate = session->limMlmState;
+		cmd->limprevmlmstate = session->limPrevMlmState;
+		cmd->limsmestate = session->limSmeState;
+		cmd->limprevsmestate = session->limPrevSmeState;
+		pe_hang_data->offset += sizeof(*cmd);
+	}
+
+	return NOTIFY_OK;
+}
+
+static qdf_notif_block pe_hang_event_notifier = {
+	.notif_block.notifier_call = pe_hang_event_notifier_call,
+};
+
 /** -------------------------------------------------------------
    \fn pe_open
    \brief will be called in Open sequence from mac_open
@@ -914,6 +971,9 @@ QDF_STATUS pe_open(tpAniSirGlobal pMac, struct cds_config_info *cds_cfg)
 		pe_err("%s: Shutdown notifier register failed", __func__);
 	}
 
+	pe_hang_event_notifier.priv_data = pMac;
+	qdf_hang_event_register_notifier(&pe_hang_event_notifier);
+
 	return status; /* status here will be QDF_STATUS_SUCCESS */
 
 pe_open_lock_fail:
@@ -939,6 +999,8 @@ QDF_STATUS pe_close(tpAniSirGlobal pMac)
 
 	if (ANI_DRIVER_TYPE(pMac) == QDF_DRIVER_TYPE_MFG)
 		return QDF_STATUS_SUCCESS;
+
+	qdf_hang_event_unregister_notifier(&pe_hang_event_notifier);
 
 	lim_cleanup(pMac);
 	lim_unregister_sap_bcn_callback(pMac);
@@ -1311,6 +1373,13 @@ static QDF_STATUS pe_handle_mgmt_frame(struct wlan_objmgr_psoc *psoc,
 	QDF_STATUS qdf_status;
 	uint8_t *pRxPacketInfo;
 	int ret;
+
+	/* skip offload packets */
+	if (ucfg_pkt_capture_get_mode(psoc) &&
+	    mgmt_rx_params->status & WMI_RX_OFFLOAD_MON_MODE) {
+		qdf_nbuf_free(buf);
+		return QDF_STATUS_SUCCESS;
+	}
 
 	pMac = cds_get_context(QDF_MODULE_ID_PE);
 	if (NULL == pMac) {

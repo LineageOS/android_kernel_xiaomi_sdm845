@@ -3084,6 +3084,8 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	struct ch_params ch_params;
 	struct hdd_adapter *ap_adapter = wlan_hdd_get_adapter_from_vdev(
 					psoc, vdev_id);
+	struct sap_context *sap_context;
+
 	if (!ap_adapter) {
 		hdd_err("ap_adapter is NULL");
 		return QDF_STATUS_E_FAILURE;
@@ -3102,7 +3104,7 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	if (NULL == channel || NULL == sec_ch) {
+	if (!channel || !sec_ch) {
 		hdd_err("Null parameters");
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -3118,6 +3120,15 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	mac_handle = hdd_ctx->mac_handle;
 	if (!mac_handle) {
 		hdd_err("mac_handle is NULL");
+		return QDF_STATUS_E_FAILURE;
+	}
+	sap_context = hdd_ap_ctx->sap_context;
+	if (!sap_context) {
+		hdd_err("sap_context is null");
+		return QDF_STATUS_E_FAILURE;
+	}
+	if (QDF_IS_STATUS_ERROR(wlansap_context_get(sap_context))) {
+		hdd_err("sap_context is invalid");
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -3140,8 +3151,8 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 	 * supported, return from here if DBS is not supported.
 	 * Need to take care of 3 port cases with 2 STA iface in future.
 	 */
-	intf_ch = wlansap_check_cc_intf(hdd_ap_ctx->sap_context);
-	hdd_debug("intf_ch: %d", intf_ch);
+	intf_ch = wlansap_check_cc_intf(sap_context);
+	hdd_info("intf_ch: %d", intf_ch);
 	if (QDF_MCC_TO_SCC_SWITCH_FORCE_PREFERRED_WITHOUT_DISCONNECTION !=
 		hdd_ctx->config->WlanMccToSccSwitchMode) {
 		if (QDF_IS_STATUS_ERROR(
@@ -3152,12 +3163,21 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 					hdd_ctx->psoc, PM_SAP_MODE)))) {
 			hdd_debug("can't move sap to %d",
 				hdd_sta_ctx->conn_info.operationChannel);
+			wlansap_context_put(sap_context);
 			return QDF_STATUS_E_FAILURE;
 		}
 	}
 
 sap_restart:
-	if (intf_ch == 0) {
+	if (!intf_ch) {
+		intf_ch = wlansap_get_chan_band_restrict(sap_context);
+		if (intf_ch == sap_context->channel)
+			intf_ch = 0;
+	} else if (sap_context)
+		sap_context->csa_reason =
+				CSA_REASON_CONCURRENT_STA_CHANGED_CHANNEL;
+	if (!intf_ch) {
+		wlansap_context_put(sap_context);
 		hdd_debug("interface channel is 0");
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -3166,9 +3186,6 @@ sap_restart:
 		  hdd_ap_ctx->sap_config.channel, intf_ch);
 	ch_params.ch_width = CH_WIDTH_MAX;
 	hdd_ap_ctx->bss_stop_reason = BSS_STOP_DUE_TO_MCC_SCC_SWITCH;
-	if (hdd_ap_ctx->sap_context)
-		hdd_ap_ctx->sap_context->csa_reason =
-			CSA_REASON_CONCURRENT_STA_CHANGED_CHANNEL;
 
 	wlan_reg_set_channel_params(hdd_ctx->pdev,
 				    intf_ch,
@@ -3183,6 +3200,7 @@ sap_restart:
 	hdd_sap_restart_chan_switch_cb(psoc, vdev_id,
 		intf_ch,
 		ch_params.ch_width, false);
+	wlansap_context_put(sap_context);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -7904,17 +7922,7 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 	 */
 	hdd_abort_ongoing_sta_connection(hdd_ctx);
 
-	/*
-	 * Reject start bss if reassoc in progress on any adapter.
-	 * sme_is_any_session_in_middle_of_roaming is for LFR2 and
-	 * hdd_is_roaming_in_progress is for LFR3
-	 */
 	mac_handle = hdd_ctx->mac_handle;
-	if (sme_is_any_session_in_middle_of_roaming(mac_handle) ||
-	    hdd_is_roaming_in_progress(hdd_ctx)) {
-		hdd_info("Reassociation in progress");
-		return -EINVAL;
-	}
 
 	/* Disable Roaming on all adapters before starting bss */
 	wlan_hdd_disable_roaming(adapter);
@@ -8554,8 +8562,9 @@ error:
 	wlansap_reset_sap_config_add_ie(pConfig, eUPDATE_IE_ALL);
 
 free:
-	if (iniConfig && iniConfig->p2p_disable_roam &&
-	    (adapter->device_mode == QDF_P2P_GO_MODE)) {
+	if (iniConfig && (iniConfig->sta_disable_roam &
+	    LFR3_STA_ROAM_DISABLE_BY_P2P) && (adapter->device_mode ==
+	    QDF_P2P_GO_MODE)) {
 		hdd_debug("p2p go mode, keep disable roam");
 	} else {
 		/* Enable Roaming after start bss in case of failure/success */
@@ -8727,8 +8736,9 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 		hdd_green_ap_start_state_mc(hdd_ctx, adapter->device_mode,
 					    false);
 
-		if (hdd_ctx->config->p2p_disable_roam &&
-		    (adapter->device_mode == QDF_P2P_GO_MODE)) {
+		if ((hdd_ctx->config->sta_disable_roam &
+		    LFR3_STA_ROAM_DISABLE_BY_P2P) && (adapter->device_mode ==
+		    QDF_P2P_GO_MODE)) {
 			hdd_debug("p2p go disconnected enable roam");
 			wlan_hdd_enable_roaming(adapter);
 		}
@@ -8893,7 +8903,7 @@ static void hdd_update_beacon_rate(struct hdd_adapter *adapter,
 	struct cfg80211_bitrate_mask *beacon_rate_mask;
 	enum nl80211_band band;
 
-	band = params->chandef.chan->band;
+	band = (enum nl80211_band)params->chandef.chan->band;
 	beacon_rate_mask = &params->beacon_rate;
 	if (beacon_rate_mask->control[band].legacy) {
 		adapter->session.ap.sap_config.beacon_tx_rate =

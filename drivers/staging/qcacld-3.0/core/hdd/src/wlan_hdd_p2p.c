@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -48,6 +48,7 @@
 #include "wlan_p2p_ucfg_api.h"
 #include "wlan_cfg80211_p2p.h"
 #include "wlan_hdd_object_manager.h"
+#include "wlan_pkt_capture_ucfg_api.h"
 
 /* Ms to Time Unit Micro Sec */
 #define MS_TO_TU_MUS(x)   ((x) * 1024)
@@ -680,13 +681,17 @@ struct wireless_dev *__wlan_hdd_add_virtual_intf(struct wiphy *wiphy,
 	}
 
 	adapter = NULL;
-	ret = wlan_hdd_add_monitor_check(hdd_ctx, &adapter, type, name,
-					 true, name_assign_type);
-	if (ret)
-		return ERR_PTR(-EINVAL);
-	if (adapter) {
-		hdd_exit();
-		return adapter->dev->ieee80211_ptr;
+	if ((ucfg_pkt_capture_get_mode(hdd_ctx->psoc)) &&
+	    (type == NL80211_IFTYPE_MONITOR)) {
+		ret = wlan_hdd_add_monitor_check(hdd_ctx, &adapter, name,
+						 true, name_assign_type);
+		if (ret)
+			return ERR_PTR(-EINVAL);
+
+		if (adapter) {
+			hdd_exit();
+			return adapter->dev->ieee80211_ptr;
+		}
 	}
 
 	if (session_type == QDF_SAP_MODE) {
@@ -1002,10 +1007,10 @@ void __hdd_indicate_mgmt_frame(struct hdd_adapter *adapter,
 	/* Indicate an action frame. */
 	if (rxChan <= MAX_NO_OF_2_4_CHANNELS)
 		freq = ieee80211_channel_to_frequency(rxChan,
-						      NL80211_BAND_2GHZ);
+						      HDD_NL80211_BAND_2GHZ);
 	else
 		freq = ieee80211_channel_to_frequency(rxChan,
-						      NL80211_BAND_5GHZ);
+						      HDD_NL80211_BAND_5GHZ);
 
 	if (hdd_is_qos_action_frame(pb_frames, frm_len))
 		sme_update_dsc_pto_up_mapping(hdd_ctx->mac_handle,

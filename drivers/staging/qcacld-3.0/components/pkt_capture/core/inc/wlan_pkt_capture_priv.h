@@ -46,10 +46,13 @@ struct wlan_pkt_capture_tx_ops {
 /**
  * struct wlan_pkt_capture_rx_ops - structure of rx operation function
  * pointers for packet capture component
- * @pkt_capture_register_mgmt_data_offload_event: register mgmt offload event
+ * @pkt_capture_register_ev_handlers: register mgmt offload event
+ * @pkt_capture_unregister_ev_handlers: unregister mgmt offload event
  */
 struct wlan_pkt_capture_rx_ops {
-	QDF_STATUS (*pkt_capture_register_mgmt_data_offload_event)
+	QDF_STATUS (*pkt_capture_register_ev_handlers)
+					(struct wlan_objmgr_psoc *psoc);
+	QDF_STATUS (*pkt_capture_unregister_ev_handlers)
 					(struct wlan_objmgr_psoc *psoc);
 };
 
@@ -72,7 +75,6 @@ struct pkt_capture_cb_context {
  * @cb_ctx: pointer to packet capture mon callback context
  * @rx_ops: rx ops
  * @tx_ops: tx ops
- * @is_ops_registered: is tx and rx ops registered
  */
 struct pkt_capture_vdev_priv {
 	struct wlan_objmgr_vdev *vdev;
@@ -80,7 +82,6 @@ struct pkt_capture_vdev_priv {
 	struct pkt_capture_cb_context *cb_ctx;
 	struct wlan_pkt_capture_rx_ops rx_ops;
 	struct wlan_pkt_capture_tx_ops tx_ops;
-	bool is_ops_registered;
 };
 
 /**

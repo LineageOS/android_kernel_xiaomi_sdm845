@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1453,8 +1453,6 @@ static bool lim_update_sta_ds(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
 					== eHT_CHANNEL_WIDTH_20MHZ) ?
 					WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ :
 					session->ch_width - 1);
-			sta_ds->htMaxRxAMpduFactor =
-				vht_caps->maxAMPDULenExp;
 		}
 		/* Lesser among the AP and STA bandwidth of operation. */
 		sta_ds->htSupportedChannelWidthSet =
@@ -1491,6 +1489,8 @@ static bool lim_update_sta_ds(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
 	}
 
 	if (sta_ds->mlmStaContext.vhtCapability && vht_caps) {
+		sta_ds->htMaxRxAMpduFactor =
+				vht_caps->maxAMPDULenExp;
 		if (session->vht_config.su_beam_formee &&
 				vht_caps->suBeamFormerCap)
 			sta_ds->vhtBeamFormerCapable = 1;
@@ -2136,6 +2136,18 @@ void lim_process_assoc_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		goto error;
 	}
 
+	if (LIM_IS_AP_ROLE(session)) {
+		if ((assoc_req->wpaPresent || assoc_req->rsnPresent) &&
+		    !session->privacy) {
+			lim_reject_association(mac_ctx, hdr->sa, sub_type,
+					       true, auth_type, peer_idx,
+					       true,
+					       eSIR_MAC_UNSPEC_FAILURE_STATUS,
+					       session);
+			goto error;
+		}
+	}
+
 sendIndToSme:
 	if (false == lim_update_sta_ds(mac_ctx, hdr, session, assoc_req,
 				sub_type, sta_ds, auth_type,
@@ -2595,8 +2607,14 @@ void lim_send_mlm_assoc_ind(tpAniSirGlobal mac_ctx,
 			ext_chan_switch;
 
 		/* updates VHT information in assoc indication */
-		 qdf_mem_copy(&assoc_ind->vht_caps, &assoc_req->VHTCaps,
-			      sizeof(tDot11fIEVHTCaps));
+		if (assoc_req->VHTCaps.present)
+			 qdf_mem_copy(&assoc_ind->vht_caps, &assoc_req->VHTCaps,
+				      sizeof(tDot11fIEVHTCaps));
+		else if (assoc_req->vendor_vht_ie.VHTCaps.present)
+			qdf_mem_copy(&assoc_ind->vht_caps,
+				     &assoc_req->vendor_vht_ie.VHTCaps,
+				     sizeof(tDot11fIEVHTCaps));
+
 		lim_fill_assoc_ind_vht_info(mac_ctx, session_entry, assoc_req,
 					    assoc_ind, sta_ds);
 		assoc_ind->he_caps_present = assoc_req->he_cap.present;

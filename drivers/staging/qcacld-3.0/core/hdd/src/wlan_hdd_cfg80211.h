@@ -353,11 +353,14 @@ int wlan_hdd_send_avoid_freq_event(struct hdd_context *hdd_ctx,
  * wlan_hdd_send_hang_reason_event() - Send hang reason to the userspace
  * @hdd_ctx: Pointer to hdd context
  * @reason: cds recovery reason
+ * @data: Hang Data
+ * @data_len: Hang Data len
  *
  * Return: 0 on success or failure reason
  */
 int wlan_hdd_send_hang_reason_event(struct hdd_context *hdd_ctx,
-				    uint32_t reason);
+				    uint32_t reason, void *data,
+				    size_t data_len);
 
 int wlan_hdd_send_avoid_freq_for_dnbs(struct hdd_context *hdd_ctx,
 				      uint8_t op_chan);
@@ -407,22 +410,25 @@ void wlan_hdd_cfg80211_acs_ch_select_evt(struct hdd_adapter *adapter);
 /**
  * hdd_send_roam_scan_ch_list_event() - roam scan ch list event to user space
  * @hdd_ctx: HDD context
+ * @vdev_id: vdev id
  * @buf_len: length of frequency list
  * @buf: pointer to buffer of frequency list
  *
  * Return: None
  */
 void hdd_send_roam_scan_ch_list_event(struct hdd_context *hdd_ctx,
-				      uint16_t buf_len, uint8_t *buf);
+				      uint8_t vdev_id, uint16_t buf_len,
+				      uint8_t *buf);
 
 int wlan_hdd_send_roam_auth_event(struct hdd_adapter *adapter, uint8_t *bssid,
 		uint8_t *req_rsn_ie, uint32_t req_rsn_length, uint8_t
 		*rsp_rsn_ie, uint32_t rsp_rsn_length, struct csr_roam_info
 		*roam_info_ptr);
 #else
-static inline void
-hdd_send_roam_scan_ch_list_event(struct hdd_context *hdd_ctx,
-				 uint16_t buf_len, uint8_t *buf)
+static inline
+void hdd_send_roam_scan_ch_list_event(struct hdd_context *hdd_ctx,
+				      uint8_t vdev_id, uint16_t buf_len,
+				      uint8_t *buf)
 {
 	return;
 }

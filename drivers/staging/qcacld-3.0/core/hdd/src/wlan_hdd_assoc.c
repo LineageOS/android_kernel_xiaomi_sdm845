@@ -67,6 +67,8 @@
 #include "wlan_mlme_ucfg_api.h"
 #include "wlan_hdd_ftm_time_sync.h"
 #include "wlan_pkt_capture_ucfg_api.h"
+#include "wlan_hdd_periodic_sta_stats.h"
+#include "wlan_hdd_main.h"
 
 /* These are needed to recognize WPA and RSN suite types */
 #define HDD_WPA_OUI_SIZE 4
@@ -1459,7 +1461,9 @@ static void hdd_send_association_event(struct net_device *dev,
 		/* start timer in sta/p2p_cli */
 		hdd_bus_bw_compute_prev_txrx_stats(adapter);
 		hdd_bus_bw_compute_timer_start(hdd_ctx);
-		ucfg_pkt_capture_record_channel();
+
+		if (ucfg_pkt_capture_get_pktcap_mode())
+			ucfg_pkt_capture_record_channel();
 	} else if (eConnectionState_IbssConnected ==    /* IBss Associated */
 			sta_ctx->conn_info.connState) {
 		policy_mgr_update_connection_info(hdd_ctx->psoc,
@@ -1737,6 +1741,8 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 				  WLAN_IPA_STA_DISCONNECT,
 				  sta_ctx->conn_info.bssId.bytes);
 
+	hdd_periodic_sta_stats_stop(adapter);
+
 #ifdef FEATURE_WLAN_AUTO_SHUTDOWN
 	wlan_hdd_auto_shutdown_enable(hdd_ctx, true);
 #endif
@@ -1771,8 +1777,9 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 	/* indicate 'disconnect' status to wpa_supplicant... */
 	hdd_send_association_event(dev, roam_info);
 
-	if (hdd_ctx->config->p2p_disable_roam &&
-	    (adapter->device_mode == QDF_P2P_CLIENT_MODE)) {
+	if ((hdd_ctx->config->sta_disable_roam &
+	    LFR3_STA_ROAM_DISABLE_BY_P2P) && (adapter->device_mode ==
+	    QDF_P2P_CLIENT_MODE)) {
 		hdd_debug("enable roam");
 		wlan_hdd_enable_roaming(adapter);
 	}
@@ -2380,10 +2387,10 @@ static void hdd_send_re_assoc_event(struct net_device *dev,
 	chan_no = pCsrRoamInfo->pBssDesc->channelId;
 	if (chan_no <= 14)
 		freq = ieee80211_channel_to_frequency(chan_no,
-							NL80211_BAND_2GHZ);
+							 HDD_NL80211_BAND_2GHZ);
 	else
 		freq = ieee80211_channel_to_frequency(chan_no,
-							NL80211_BAND_5GHZ);
+							 HDD_NL80211_BAND_5GHZ);
 	chan = ieee80211_get_channel(adapter->wdev.wiphy, freq);
 
 	sme_roam_get_connect_profile(hdd_ctx->mac_handle, adapter->session_id,
@@ -2823,7 +2830,8 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 		}
 
 		if (adapter->device_mode == QDF_P2P_CLIENT_MODE &&
-		    hdd_ctx->config->p2p_disable_roam) {
+		    (hdd_ctx->config->sta_disable_roam &
+		    LFR3_STA_ROAM_DISABLE_BY_P2P)) {
 			hdd_debug("p2p cli active keep disable roam");
 		} else {
 			/*
@@ -3547,7 +3555,11 @@ hdd_association_completion_handler(struct hdd_adapter *adapter,
 		     roamStatus == eCSR_ROAM_CANCELLED) &&
 		    hddDisconInProgress)
 			complete(&adapter->disconnect_comp_var);
+
+		policy_mgr_check_concurrent_intf_and_restart_sap(hdd_ctx->psoc);
 	}
+
+	hdd_periodic_sta_stats_start(adapter);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -3742,6 +3754,18 @@ void hdd_delete_peer(struct hdd_station_ctx *sta_ctx, uint8_t sta_id)
 			return;
 		}
 	}
+}
+
+bool hdd_any_valid_peer_present(struct hdd_adapter *adapter)
+{
+	struct hdd_station_ctx *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+	int idx;
+
+	for (idx = 0; idx < SIR_MAX_NUM_STA_IN_IBSS; idx++)
+		if (HDD_WLAN_INVALID_STA_ID != sta_ctx->conn_info.staId[idx])
+			return true;
+
+	return false;
 }
 
 /**

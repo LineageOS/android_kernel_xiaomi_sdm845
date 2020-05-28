@@ -1924,9 +1924,8 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		pe_debug("Populate VHT IEs in Assoc Request");
 		populate_dot11f_vht_caps(mac_ctx, pe_session, &frm->VHTCaps);
 		vht_enabled = true;
-		if (pe_session->enableHtSmps &&
-				!pe_session->supported_nss_1x1) {
-			pe_err("VHT OP mode IE in Assoc Req");
+		if (pe_session->gLimOperatingMode.present) {
+			pe_debug("VHT OP mode IE in Assoc Req");
 			populate_dot11f_operating_mode(mac_ctx,
 					&frm->OperatingMode, pe_session);
 		}
@@ -4980,6 +4979,12 @@ QDF_STATUS lim_send_addba_response_frame(tpAniSirGlobal mac_ctx,
 	frm.addba_param_set.buff_size = SIR_MAC_BA_DEFAULT_BUFF_SIZE;
 	if (mac_ctx->usr_cfg_ba_buff_size)
 		frm.addba_param_set.buff_size = mac_ctx->usr_cfg_ba_buff_size;
+	if (frm.addba_param_set.buff_size > buff_size) {
+		pe_debug("buff size: %d larger than peer's capability: %d",
+			 frm.addba_param_set.buff_size, buff_size);
+		frm.addba_param_set.buff_size = buff_size;
+	}
+
 	if (mac_ctx->is_usr_cfg_amsdu_enabled)
 		frm.addba_param_set.amsdu_supp = amsdu_support;
 	else

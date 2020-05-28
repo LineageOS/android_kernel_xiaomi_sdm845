@@ -5758,8 +5758,6 @@ static int wma_update_hdd_cfg(tp_wma_handle wma_handle)
 	tgt_cfg.reg_domain = wma_handle->reg_cap.eeprom_rd;
 	tgt_cfg.eeprom_rd_ext = wma_handle->reg_cap.eeprom_rd_ext;
 
-	tgt_cfg.max_intf_count = wlan_res_cfg->num_vdevs;
-
 	qdf_mem_copy(tgt_cfg.hw_macaddr.bytes, wma_handle->hwaddr,
 		     ATH_MAC_LEN);
 
@@ -5815,13 +5813,23 @@ static int wma_update_hdd_cfg(tp_wma_handle wma_handle)
 	for (i = 0; i < tgt_hdl->info.total_mac_phy_cnt; i++)
 		wma_fill_chain_cfg(&tgt_cfg, tgt_hdl, i);
 
+	/*
+	 * Firmware can accommodate maximum 4 vdevs and the ini gNumVdevs
+	 * indicates the same.
+	 * If host driver is going to create vdev for NAN, it indicates
+	 * the total no.of vdevs supported to firmware which includes the
+	 * NAN vdev.
+	 * If firmware is going to create NAN discovery vdev, host should
+	 * indicate 3 vdevs and firmware shall add 1 vdev for NAN. So decrement
+	 * the num_vdevs by 1.
+	 */
 	if (wmi_service_enabled(wma_handle->wmi_handle, wmi_service_nan_vdev))
 		tgt_cfg.nan_seperate_vdev_support = true;
+	else
+		wlan_res_cfg->num_vdevs--;
+	tgt_cfg.max_intf_count = wlan_res_cfg->num_vdevs;
 
-	wlan_res_cfg->nan_separate_iface_support =
-			tgt_cfg.nan_seperate_vdev_support &&
-			wma_get_separate_iface_support(wma_handle);
-
+	WMA_LOGD("%s: num_vdevs: %u", __func__, wlan_res_cfg->num_vdevs);
 	ret = wma_handle->tgt_cfg_update_cb(hdd_ctx, &tgt_cfg);
 	if (ret)
 		return -EINVAL;
@@ -6955,6 +6963,10 @@ int wma_rx_service_ready_ext_event(void *handle, uint8_t *event,
 		ucfg_ftm_time_sync_set_enable(wma_handle->psoc, false);
 	}
 
+	if (wmi_service_enabled(wma_handle->wmi_handle, wmi_service_nan_vdev) &&
+	    wma_get_separate_iface_support(wma_handle))
+		wlan_res_cfg->nan_separate_iface_support = true;
+
 	return 0;
 }
 
@@ -7806,6 +7818,11 @@ static void wma_set_arp_req_stats(WMA_HANDLE handle,
 	}
 	if (!wma_is_vdev_valid(req_buf->vdev_id)) {
 		WMA_LOGE("vdev id not active or not valid");
+		return;
+	}
+
+	if (!wma_is_vdev_up(req_buf->vdev_id)) {
+		WMA_LOGD("vdev id:%d is not started", req_buf->vdev_id);
 		return;
 	}
 

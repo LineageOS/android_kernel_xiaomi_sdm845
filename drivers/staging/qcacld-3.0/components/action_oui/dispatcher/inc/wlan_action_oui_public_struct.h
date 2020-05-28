@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -89,7 +89,11 @@
  * @ACTION_OUI_CONNECT_1X1_WITH_1_CHAIN: connect in 1x1 & disable diversity gain
  * @ACTION_OUI_DISABLE_AGGRESSIVE_TX: disable aggressive TX in firmware
  * @ACTION_OUI_DISABLE_AGGRESSIVE_EDCA: disable aggressive EDCA with the ap
- * @ACTION_OUI_MAXIMUM_ID: maximun number of action oui types
+ * @ACTION_OUI_HOST_ONLY: host only action id start - placeholder.
+ * New Firmware related "ACTION" needs to be added before this placeholder.
+ * @ACTION_OUI_HOST_RECONN: reconnect to the same BSSID when wait for
+ * association response timeout from AP
+ * @ACTION_OUI_MAXIMUM_ID: maximum number of action oui types
  */
 enum action_oui_id {
 	ACTION_OUI_CONNECT_1X1 = 0,
@@ -100,6 +104,8 @@ enum action_oui_id {
 	ACTION_OUI_CONNECT_1X1_WITH_1_CHAIN = 5,
 	ACTION_OUI_DISABLE_AGGRESSIVE_TX = 6,
 	ACTION_OUI_DISABLE_AGGRESSIVE_EDCA = 7,
+	ACTION_OUI_HOST_ONLY,
+	ACTION_OUI_HOST_RECONN = ACTION_OUI_HOST_ONLY,
 	ACTION_OUI_MAXIMUM_ID
 };
 

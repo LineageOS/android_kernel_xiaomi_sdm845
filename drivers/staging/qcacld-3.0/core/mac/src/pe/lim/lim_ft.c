@@ -313,6 +313,12 @@ void lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 	pe_debug("SIR_HAL_ADD_BSS_REQ with channel: %d",
 		pAddBssParams->currentOperChannel);
 
+	if (lim_is_session_he_capable(pftSessionEntry) &&
+	    pBeaconStruct->he_cap.present) {
+		lim_update_bss_he_capable(pMac, pAddBssParams);
+		lim_add_bss_he_cfg(pAddBssParams, pftSessionEntry);
+	}
+
 	/* Populate the STA-related parameters here */
 	/* Note that the STA here refers to the AP */
 	{
@@ -615,6 +621,10 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	lim_fill_dot11mode(pMac, pftSessionEntry, psessionEntry, pBeaconStruct);
 
 	pe_debug("dot11mode: %d", pftSessionEntry->dot11mode);
+
+	if (IS_DOT11_MODE_HE(pftSessionEntry->dot11mode))
+		lim_update_session_he_capable(pMac, pftSessionEntry);
+
 	pftSessionEntry->vhtCapability =
 		(IS_DOT11_MODE_VHT(pftSessionEntry->dot11mode)
 		 && IS_BSS_VHT_CAPABLE(pBeaconStruct->VHTCaps));

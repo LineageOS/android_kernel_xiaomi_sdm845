@@ -260,6 +260,8 @@ enum hdd_driver_flags {
 /* rcpi request timeout in milli seconds */
 #define WLAN_WAIT_TIME_RCPI 500
 
+#define WLAN_WAIT_PEER_CLEANUP 5000
+
 #define MAX_CFG_STRING_LEN  255
 
 /* Maximum time(ms) to wait for external acs response */
@@ -1505,6 +1507,15 @@ struct hdd_adapter {
 	struct hdd_debugfs_file_info csr_file[HDD_DEBUGFS_FILE_ID_MAX];
 #endif /* WLAN_DEBUGFS */
 	enum qca_disconnect_reason_codes last_disconnect_reason;
+
+#ifdef WLAN_FEATURE_PERIODIC_STA_STATS
+	/* Indicate whether to display sta periodic stats */
+	bool is_sta_periodic_stats_enabled;
+	uint16_t periodic_stats_timer_count;
+	uint32_t periodic_stats_timer_counter;
+	qdf_mutex_t sta_periodic_stats_lock;
+#endif /* WLAN_FEATURE_PERIODIC_STA_STATS */
+	qdf_event_t peer_cleanup_done;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(adapter) (&(adapter)->session.station)
@@ -2089,6 +2100,7 @@ struct hdd_context {
 	qdf_mc_timer_t sar_safety_timer;
 	qdf_mc_timer_t sar_safety_unsolicited_timer;
 	qdf_event_t sar_safety_req_resp_event;
+	qdf_atomic_t sar_safety_req_resp_event_in_progress;
 #endif
 	bool roam_ch_from_fw_supported;
 };
@@ -2985,12 +2997,22 @@ void wlan_hdd_txrx_pause_cb(uint8_t vdev_id,
 	enum netif_action_type action, enum netif_reason_type reason);
 
 int hdd_wlan_dump_stats(struct hdd_adapter *adapter, int value);
-void wlan_hdd_deinit_tx_rx_histogram(struct hdd_context *hdd_ctx);
 void wlan_hdd_display_tx_rx_histogram(struct hdd_context *hdd_ctx);
 void wlan_hdd_clear_tx_rx_histogram(struct hdd_context *hdd_ctx);
 void
 wlan_hdd_display_netif_queue_history(struct hdd_context *hdd_ctx,
 				     enum qdf_stats_verbosity_level verb_lvl);
+
+/**
+ * wlan_hdd_display_adapter_netif_queue_history() - display adapter based netif
+ * queue history
+ * @adapter: hdd adapter
+ *
+ * Return: none
+ */
+void
+wlan_hdd_display_adapter_netif_queue_history(struct hdd_adapter *adapter);
+
 void wlan_hdd_clear_netif_queue_history(struct hdd_context *hdd_ctx);
 const char *hdd_get_fwpath(void);
 void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind);
@@ -4024,7 +4046,6 @@ bool wlan_hdd_check_mon_concurrency(void);
  * wlan_hdd_add_monitor_check() - check for monitor intf and add if needed
  * @hdd_ctx: pointer to hdd context
  * @adapter: output pointer to hold created monitor adapter
- * @type: type of the interface
  * @name: name of the interface
  * @rtnl_held: True if RTNL lock is held
  * @name_assign_type: the name of assign type of the netdev
@@ -4034,8 +4055,8 @@ bool wlan_hdd_check_mon_concurrency(void);
  */
 int wlan_hdd_add_monitor_check(struct hdd_context *hdd_ctx,
 			       struct hdd_adapter **adapter,
-			       enum nl80211_iftype type, const char *name,
-			       bool rtnl_held, unsigned char name_assign_type);
+			       const char *name, bool rtnl_held,
+			       unsigned char name_assign_type);
 
 /**
  * wlan_hdd_del_monitor() - delete monitor interface
@@ -4065,8 +4086,8 @@ bool wlan_hdd_check_mon_concurrency(void)
 static inline
 int wlan_hdd_add_monitor_check(struct hdd_context *hdd_ctx,
 			       struct hdd_adapter **adapter,
-			       enum nl80211_iftype type, const char *name,
-			       bool rtnl_held, unsigned char name_assign_type)
+			       const char *name, bool rtnl_held,
+			       unsigned char name_assign_type)
 {
 	return 0;
 }

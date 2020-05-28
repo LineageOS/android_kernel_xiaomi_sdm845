@@ -241,54 +241,6 @@ ucfg_pkt_capture_mgmt_tx_completion(struct wlan_objmgr_pdev *pdev,
 	pkt_capture_mgmt_tx_completion(pdev, desc_id, status, params);
 }
 
-int ucfg_pkt_capture_enable_ops(struct wlan_objmgr_vdev *vdev)
-{
-	struct pkt_capture_vdev_priv *vdev_priv;
-	struct wlan_pkt_capture_rx_ops *rx_ops;
-	struct wlan_pkt_capture_tx_ops *tx_ops;
-	struct wlan_objmgr_psoc *psoc;
-	enum pkt_capture_mode mode;
-	QDF_STATUS status;
-	int ret;
-
-	if (!vdev)
-		return -EINVAL;
-
-	psoc = wlan_vdev_get_psoc(vdev);
-	if (!psoc)
-		return -EINVAL;
-
-	vdev_priv = pkt_capture_vdev_get_priv(vdev);
-	if (!vdev_priv) {
-		pkt_capture_err("vdev_priv got NULL");
-		return -EINVAL;
-	}
-
-	if (vdev_priv->is_ops_registered)
-		return 0;
-
-	rx_ops = &vdev_priv->rx_ops;
-	tx_ops = &vdev_priv->tx_ops;
-
-	status = rx_ops->pkt_capture_register_mgmt_data_offload_event(psoc);
-	if (QDF_IS_STATUS_ERROR(status)) {
-		pkt_capture_err("Unable to register mgmt offload handler");
-		return -EINVAL;
-	}
-
-	mode = pkt_capture_get_mode(psoc);
-	ret = tx_ops->pkt_capture_send_mode(psoc,
-					    vdev->vdev_objmgr.vdev_id,
-					    mode);
-	if (ret) {
-		pkt_capture_err("Unable to send packet capture mode to fw");
-		return ret;
-	}
-	vdev_priv->is_ops_registered = true;
-
-	return 0;
-}
-
 void ucfg_pkt_capture_rx_msdu_process(
 				uint8_t *bssid,
 				qdf_nbuf_t head_msdu,

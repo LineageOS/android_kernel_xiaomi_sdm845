@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -225,50 +225,7 @@ send_rsp:
 	wma_send_msg_high_priority(wma, WMA_ADD_STA_RSP, (void *)add_sta, 0);
 }
 
-/**
- * wma_delete_sta_req_ndi_mode() - Process DEL_STA request for NDI data peer
- * @wma: WMA context
- * @del_sta: DEL_STA parameters from LIM
- *
- * Removes wma/txrx peer entry for the NDI STA
- *
- * Return: None
- */
-void wma_delete_sta_req_ndi_mode(tp_wma_handle wma,
-					tpDeleteStaParams del_sta)
+void wma_delete_sta_req_ndi_mode(tp_wma_handle wma, tpDeleteStaParams del_sta)
 {
-	struct cdp_pdev *pdev;
-	void *peer;
-	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
-
-	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-	if (!pdev) {
-		WMA_LOGE(FL("Failed to get pdev"));
-		del_sta->status = QDF_STATUS_E_FAILURE;
-		goto send_del_rsp;
-	}
-
-	peer = cdp_peer_find_by_local_id(cds_get_context(QDF_MODULE_ID_SOC),
-			pdev, del_sta->staIdx);
-	if (!peer) {
-		WMA_LOGE(FL("Failed to get peer handle using peer id %d"),
-			 del_sta->staIdx);
-		del_sta->status = QDF_STATUS_E_FAILURE;
-		goto send_del_rsp;
-	}
-
-	wma_remove_peer(wma, cdp_peer_get_peer_mac_addr(soc, peer),
-			del_sta->smesessionId, peer, false);
-	del_sta->status = QDF_STATUS_SUCCESS;
-
-send_del_rsp:
-	if (del_sta->respReqd) {
-		WMA_LOGD(FL("Sending del rsp to umac (status: %d)"),
-				del_sta->status);
-		wma_send_msg_high_priority(wma, WMA_DELETE_STA_RSP, del_sta, 0);
-	} else {
-		WMA_LOGD(FL("NDI Del Sta resp not needed"));
-		qdf_mem_free(del_sta);
-	}
-
+	wma_delete_sta_req(wma, del_sta, del_sta->respReqd);
 }

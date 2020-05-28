@@ -4444,6 +4444,13 @@ static int wlan_hdd_get_sta_stats(struct wiphy *wiphy,
 				&adapter->rssi, &snr);
 	}
 
+	/* If RSSi is reported as positive then it is invalid */
+	if (adapter->rssi > 0) {
+		hdd_debug_rl("RSSI invalid %d", adapter->rssi);
+		adapter->rssi = 0;
+		adapter->hdd_stats.summary_stat.rssi = 0;
+	}
+
 	sinfo->signal = adapter->rssi;
 	hdd_debug("snr: %d, rssi: %d",
 		adapter->hdd_stats.summary_stat.snr,
@@ -6207,7 +6214,7 @@ void wlan_hdd_display_txrx_stats(struct hdd_context *ctx)
 	uint32_t total_rx_pkt, total_rx_dropped,
 		 total_rx_delv, total_rx_refused;
 
-	hdd_for_each_adapter(ctx, adapter) {
+	hdd_for_each_adapter_dev_held(ctx, adapter) {
 		total_rx_pkt = 0;
 		total_rx_dropped = 0;
 		total_rx_delv = 0;
@@ -6220,6 +6227,9 @@ void wlan_hdd_display_txrx_stats(struct hdd_context *ctx)
 			total_rx_delv += stats->rx_delivered[i];
 			total_rx_refused += stats->rx_refused[i];
 		}
+
+		/* dev_put has to be done here */
+		dev_put(adapter->dev);
 
 		hdd_debug("TX - called %u, dropped %u orphan %u",
 			  stats->tx_called, stats->tx_dropped,
