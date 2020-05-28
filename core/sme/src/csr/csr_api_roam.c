@@ -16009,63 +16009,40 @@ void csr_clear_sae_single_pmk(tpAniSirGlobal pMac, uint8_t vdev_id,
 #endif
 
 void csr_roam_del_pmk_cache_entry(struct csr_roam_session *session,
-				  tPmkidCacheInfo *cached_pmksa)
+				  tPmkidCacheInfo *cached_pmksa, u32 del_idx)
 {
 	u32 curr_idx;
-	u8 del_pmk[CSR_RSN_MAX_PMK_LEN] = {0};
-	u32 i, del_idx;
+	u32 i;
 
-	/* copy the PMK of matched BSSID */
-	qdf_mem_copy(del_pmk, cached_pmksa->pmk, cached_pmksa->pmk_len);
-
-	/* Search for matching PMK in session PMK cache */
-	for (del_idx = 0; del_idx != session->NumPmkidCache; del_idx++) {
-		cached_pmksa = &session->PmkidCacheInfo[del_idx];
-		if (cached_pmksa->pmk_len && (!qdf_mem_cmp
-		    (cached_pmksa->pmk, del_pmk, cached_pmksa->pmk_len))) {
-			/* Clear this - matched entry */
-			qdf_mem_zero(cached_pmksa, sizeof(tPmkidCacheInfo));
-
-			/* Match Found, Readjust the other entries */
-			curr_idx = session->curr_cache_idx;
-			if (del_idx < curr_idx) {
-				for (i = del_idx; i < (curr_idx - 1); i++) {
-					qdf_mem_copy(&session->
-						     PmkidCacheInfo[i],
-						     &session->
-						     PmkidCacheInfo[i + 1],
-						     sizeof(tPmkidCacheInfo));
-				}
-
-				session->curr_cache_idx--;
-				qdf_mem_zero(&session->PmkidCacheInfo
-					     [session->curr_cache_idx],
-					     sizeof(tPmkidCacheInfo));
-			} else if (del_idx > curr_idx) {
-				for (i = del_idx; i > (curr_idx); i--) {
-					qdf_mem_copy(&session->
-						     PmkidCacheInfo[i],
-						     &session->
-						     PmkidCacheInfo[i - 1],
-						     sizeof(tPmkidCacheInfo));
-				}
-
-				qdf_mem_zero(&session->PmkidCacheInfo
-					     [session->curr_cache_idx],
-					     sizeof(tPmkidCacheInfo));
-			}
-
-			/* Decrement the count since an entry is been deleted */
-			session->NumPmkidCache--;
-			sme_debug("PMKID at index=%d deleted, current index=%d cache count=%d",
-				  del_idx, session->curr_cache_idx,
-				  session->NumPmkidCache);
-			/* As we re-adjusted entries by one position search
-			 * again from current index
-			 */
-			del_idx--;
+	/* Clear this - matched entry */
+	qdf_mem_zero(cached_pmksa, sizeof(tPmkidCacheInfo));
+	/* Match Found, Readjust the other entries */
+	curr_idx = session->curr_cache_idx;
+	if (del_idx < curr_idx) {
+		for (i = del_idx; i < (curr_idx - 1); i++) {
+			qdf_mem_copy(&session->PmkidCacheInfo[i],
+				     &session->PmkidCacheInfo[i + 1],
+				     sizeof(tPmkidCacheInfo));
 		}
+
+		session->curr_cache_idx--;
+		qdf_mem_zero(&session->PmkidCacheInfo[session->curr_cache_idx],
+			     sizeof(tPmkidCacheInfo));
+	} else if (del_idx > curr_idx) {
+		for (i = del_idx; i > (curr_idx); i--) {
+			qdf_mem_copy(&session->PmkidCacheInfo[i],
+				     &session->PmkidCacheInfo[i - 1],
+				     sizeof(tPmkidCacheInfo));
+		}
+
+		qdf_mem_zero(&session->PmkidCacheInfo[session->curr_cache_idx],
+			     sizeof(tPmkidCacheInfo));
 	}
+
+	/* Decrement the count since an entry is been deleted */
+	session->NumPmkidCache--;
+	sme_debug("PMKID at index=%d deleted, current index=%d cache count=%d",
+		  del_idx, session->curr_cache_idx, session->NumPmkidCache);
 }
 
 QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
@@ -16077,6 +16054,9 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 	bool fMatchFound = false;
 	uint32_t Index;
 	tPmkidCacheInfo *cached_pmksa;
+	u32 del_idx;
+	u8 del_pmk[CSR_RSN_MAX_PMK_LEN] = {0};
+
 
 	if (!pSession) {
 		sme_err("session %d not found", sessionId);
@@ -16118,8 +16098,35 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 			fMatchFound = 1;
 
 		if (fMatchFound) {
-			/* Delete the matched PMK cache entry */
-			csr_roam_del_pmk_cache_entry(pSession, cached_pmksa);
+			/* copy the PMK of matched BSSID */
+			qdf_mem_copy(del_pmk, cached_pmksa->pmk,
+				     cached_pmksa->pmk_len);
+
+			/* Free the matched entry to address null pmk_len case*/
+			csr_roam_del_pmk_cache_entry(pSession, cached_pmksa,
+						     Index);
+
+			/* Search for matching PMK in session PMK cache */
+			for (del_idx = 0; del_idx != pSession->NumPmkidCache;
+			     del_idx++) {
+				cached_pmksa =
+					&pSession->PmkidCacheInfo[del_idx];
+				if (cached_pmksa->pmk_len && (!qdf_mem_cmp
+				    (cached_pmksa->pmk, del_pmk,
+				    cached_pmksa->pmk_len))) {
+					/* Delete the matched PMK cache entry */
+					csr_roam_del_pmk_cache_entry(
+						pSession, cached_pmksa,
+						del_idx);
+					/* Search again from current index as we
+					 * re-adjusted entries by one position
+					 */
+					del_idx--;
+				}
+			}
+			/* reset stored pmk */
+			qdf_mem_zero(del_pmk, CSR_RSN_MAX_PMK_LEN);
+
 			break;
 		}
 	}

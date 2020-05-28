@@ -1001,7 +1001,7 @@ QDF_STATUS csr_roam_del_pmkid_from_cache(tpAniSirGlobal pMac,
 					 bool flush_cache);
 
 void csr_roam_del_pmk_cache_entry(struct csr_roam_session *session,
-				  tPmkidCacheInfo *cached_pmksa);
+				  tPmkidCacheInfo *cached_pmksa, u32 del_idx);
 
 #if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
 /**
