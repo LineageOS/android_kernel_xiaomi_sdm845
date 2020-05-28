@@ -1025,6 +1025,13 @@ static inline unsigned int num_other_online_cpus(void)
 	return num_online_cpus() - this_cpu_online;
 }
 
+static inline unsigned int num_other_active_cpus(void)
+{
+	unsigned int this_cpu_active = cpu_active(smp_processor_id());
+
+	return num_active_cpus() - this_cpu_active;
+}
+
 void smp_send_stop(void)
 {
 	unsigned long timeout;
@@ -1043,10 +1050,11 @@ void smp_send_stop(void)
 
 	/* Wait up to one second for other CPUs to stop */
 	timeout = USEC_PER_SEC;
-	while (num_other_online_cpus() && timeout--)
+
+	while (num_other_active_cpus() && timeout--)
 		udelay(1);
 
-	if (num_other_online_cpus())
+	if (num_other_active_cpus())
 		pr_warning("SMP: failed to stop secondary CPUs %*pbl\n",
 			   cpumask_pr_args(cpu_online_mask));
 }

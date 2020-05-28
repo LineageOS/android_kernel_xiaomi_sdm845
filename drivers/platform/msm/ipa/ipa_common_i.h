@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,6 +21,8 @@
 #include <linux/ipa_uc_offload.h>
 #include <linux/ipa_wdi3.h>
 #include <linux/ratelimit.h>
+#include <linux/swab.h>
+#include <linux/compiler.h>
 
 #define WARNON_RATELIMIT_BURST 1
 #define IPA_RATELIMIT_BURST 1
@@ -444,5 +446,10 @@ int ipa_smmu_free_sgt(struct sg_table **out_sgt_ptr);
 
 int ipa_ut_module_init(void);
 void ipa_ut_module_exit(void);
+
+void ipa_register_client_callback(int (*client_cb)(bool is_lock),
+			bool (*teth_port_state)(void), u32 ipa_ep_idx);
+
+void ipa_deregister_client_callback(u32 ipa_ep_idx);
 
 #endif /* _IPA_COMMON_I_H_ */

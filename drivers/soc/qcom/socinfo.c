@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2020, The Linux Foundation. All rights reserved.
  * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -68,6 +68,7 @@ enum {
 	HW_PLATFORM_STP = 23,
 	HW_PLATFORM_SBC = 24,
 	HW_PLATFORM_ADP = 25,
+	HW_PLATFORM_TTP = 30,
 	HW_PLATFORM_HDK = 31,
 	HW_PLATFORM_D5X = 40,
 	HW_PLATFORM_E1N = 50,
@@ -96,6 +97,7 @@ const char *hw_platform[] = {
 	[HW_PLATFORM_STP] = "STP",
 	[HW_PLATFORM_SBC] = "SBC",
 	[HW_PLATFORM_ADP] = "ADP",
+	[HW_PLATFORM_TTP] = "TTP",
 	[HW_PLATFORM_HDK] = "HDK",
 	[HW_PLATFORM_D5X] = "POLARIS",
 	[HW_PLATFORM_E1N] = "DIPPER",

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -25,6 +25,9 @@
 #include "msm_drv.h"
 
 #define MAX_PLANE	4
+
+#define RGB_24BPP_TMDS_CHAR_RATE_RATIO		1
+#define YUV420_24BPP_TMDS_CHAR_RATE_RATIO	2
 
 /**
  * Device Private DRM Mode Flags
@@ -53,12 +56,16 @@
  */
 /* Enable RGB444 30 bit deep color */
 #define MSM_MODE_FLAG_RGB444_DC_ENABLE		(1<<5)
+/* Enable YUV422 30 bit deep color */
+#define MSM_MODE_FLAG_YUV422_DC_ENABLE		(1<<6)
 /* Enable YUV420 30 bit deep color */
-#define MSM_MODE_FLAG_YUV420_DC_ENABLE		(1<<6)
+#define MSM_MODE_FLAG_YUV420_DC_ENABLE		(1<<7)
 /* Choose RGB444 format to display */
-#define MSM_MODE_FLAG_COLOR_FORMAT_RGB444	(1<<7)
+#define MSM_MODE_FLAG_COLOR_FORMAT_RGB444	(1<<8)
+/* Choose YUV422 format to display */
+#define MSM_MODE_FLAG_COLOR_FORMAT_YCBCR422	(1<<9)
 /* Choose YUV420 format to display */
-#define MSM_MODE_FLAG_COLOR_FORMAT_YCBCR420	(1<<8)
+#define MSM_MODE_FLAG_COLOR_FORMAT_YCBCR420	(1<<10)
 
 /* As there are different display controller blocks depending on the
  * snapdragon version, the kms support is split out and the appropriate

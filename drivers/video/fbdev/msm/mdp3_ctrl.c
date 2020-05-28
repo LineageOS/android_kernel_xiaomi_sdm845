@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2019, 2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -948,6 +948,7 @@ static int mdp3_ctrl_on(struct msm_fb_data_type *mfd)
 	mutex_lock(&mdp3_session->lock);
 
 	MDSS_XLOG(XLOG_FUNC_ENTRY, __LINE__, mfd->panel_power_state);
+	mdp3_res->secure_update_bl = false;
 	panel = mdp3_session->panel;
 	/* make sure DSI host is initialized properly */
 	if (panel) {
@@ -1324,19 +1325,37 @@ int mdp3_ctrl_reset(struct msm_fb_data_type *mfd)
 	/*Map the splash addr for VIDEO mode panel before smmu attach*/
 	if ((mfd->panel.type == MIPI_VIDEO_PANEL) &&
 				(mdp3_session->in_splash_screen)) {
+		rc = mdss_smmu_set_attribute(MDSS_IOMMU_DOMAIN_UNSECURE,
+							EARLY_MAP, 1);
+		if (rc) {
+			pr_err("mdp3 set attribute failed for early map\n");
+			goto reset_error;
+		}
+		rc = mdp3_iommu_enable(MDP3_CLIENT_DMA_P);
+		if (IS_ERR_VALUE((unsigned long)rc)) {
+			pr_err("mdp3 iommu attach failed\n");
+			goto reset_error;
+		}
 		rc = mdss_smmu_map(MDSS_IOMMU_DOMAIN_UNSECURE,
 				mdp3_res->splash_mem_addr,
 				mdp3_res->splash_mem_addr,
 				mdp3_res->splash_mem_size,
 				IOMMU_READ | IOMMU_NOEXEC);
-	}
+		if (rc)
+			pr_err("iommu memory mapping failed ret=%d\n", rc);
+		else
+			pr_info("iommu map passed for PA=VA\n");
 
-	rc = mdp3_iommu_enable(MDP3_CLIENT_DMA_P);
-	if (rc) {
-		pr_err("fail to attach dma iommu\n");
-		if (mdp3_res->idle_pc)
-			mdp3_clk_enable(0, 0);
-		goto reset_error;
+		rc = mdss_smmu_set_attribute(MDSS_IOMMU_DOMAIN_UNSECURE,
+							EARLY_MAP, 0);
+	} else {
+		rc = mdp3_iommu_enable(MDP3_CLIENT_DMA_P);
+		if (rc) {
+			pr_err("fail to attach dma iommu\n");
+			if (mdp3_res->idle_pc)
+				mdp3_clk_enable(0, 0);
+			goto reset_error;
+		}
 	}
 
 	vsync_client = mdp3_dma->vsync_client;
@@ -1736,7 +1755,7 @@ static void mdp3_ctrl_pan_display(struct msm_fb_data_type *mfd)
 	static bool splash_done;
 	struct mdss_panel_data *panel;
 
-	int rc;
+	int stride, rc;
 
 	pr_debug("mdp3_ctrl_pan_display\n");
 	if (!mfd || !mfd->mdp.private1)
@@ -1789,9 +1808,21 @@ static void mdp3_ctrl_pan_display(struct msm_fb_data_type *mfd)
 			if (IS_ERR_VALUE(rc))
 				goto pan_error;
 		}
-		rc = mdp3_session->dma->update(mdp3_session->dma,
-				(void *)(int)(mfd->iova + offset),
-				mdp3_session->intf, NULL);
+		if (mdp3_ctrl_get_intf_type(mfd) ==
+				MDP3_DMA_OUTPUT_SEL_SPI_CMD) {
+			stride = fbi->fix.line_length;
+			pr_debug("addr = %x, smemlen = %d, stride = %d, offset = %x\n",
+				(int)mfd->iova, (int)fbi->fix.smem_len,
+					stride, (int)offset);
+			rc = mdss_spi_panel_kickoff(mdp3_session->panel,
+				(mfd->fbi->screen_base + offset),
+				(int)fbi->fix.smem_len,
+				stride);
+		} else {
+			rc = mdp3_session->dma->update(mdp3_session->dma,
+					(void *)(int)(mfd->iova + offset),
+					mdp3_session->intf, NULL);
+		}
 		/* This is for the previous frame */
 		if (rc < 0) {
 			mdp3_ctrl_notify(mdp3_session,
@@ -1830,8 +1861,13 @@ static void mdp3_ctrl_pan_display(struct msm_fb_data_type *mfd)
 
 	mdp3_session->vsync_before_commit = 0;
 	if (!splash_done || mdp3_session->esd_recovery == true) {
-		if (panel && panel->set_backlight)
-			panel->set_backlight(panel, panel->panel_info.bl_max);
+		if (panel && panel->set_backlight) {
+			if (mfd->bl_level > 0)
+				panel->set_backlight(panel, mfd->bl_level);
+			else
+				panel->set_backlight(panel,
+						panel->panel_info.bl_max);
+		}
 		splash_done = true;
 		mdp3_session->esd_recovery = false;
 	}
@@ -1865,6 +1901,24 @@ static int mdp3_set_metadata(struct msm_fb_data_type *mfd,
 			return ret;
 		}
 		break;
+	case metadata_op_secure_bl_set:
+		if (mdss_panel_is_power_off(mfd->panel_power_state) &&
+				mfd->panel.type == SPI_PANEL) {
+			mfd->allow_secure_bl_update =
+				metadata_ptr->data.sec_bl_update_en;
+			mdp3_res->secure_update_bl =
+				mfd->allow_secure_bl_update;
+		}
+		pr_debug("Secure backlight = %d,panel power state = %d\n",
+		mfd->allow_secure_bl_update, mfd->panel_power_state);
+		break;
+	case metadata_op_secure_reg:
+		if (mfd->panel.type == SPI_PANEL) {
+			mdp3_res->secure_reg_on = metadata_ptr->data.sec_reg_on;
+			pr_debug("Secure regulator_on flag is %d\n",
+					mdp3_res->secure_reg_on);
+		}
+	break;
 	default:
 		pr_warn("Unsupported request to MDP SET META IOCTL.\n");
 		ret = -EINVAL;
@@ -2813,7 +2867,8 @@ static int mdp3_ctrl_ioctl_handler(struct msm_fb_data_type *mfd,
 	req = &mdp3_session->req_overlay;
 
 	if (!mdp3_session->status && cmd != MSMFB_METADATA_GET &&
-		cmd != MSMFB_HISTOGRAM_STOP && cmd != MSMFB_HISTOGRAM) {
+		cmd != MSMFB_METADATA_SET && cmd != MSMFB_HISTOGRAM_STOP &&
+		cmd != MSMFB_HISTOGRAM) {
 		pr_err("mdp3_ctrl_ioctl_handler, display off!\n");
 		return -EPERM;
 	}

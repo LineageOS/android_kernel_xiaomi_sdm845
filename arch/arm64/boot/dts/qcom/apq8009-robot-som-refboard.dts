@@ -19,7 +19,6 @@
 #include "apq8009-audio-external_codec.dtsi"
 #include "msm8909-pm8916-camera.dtsi"
 #include "msm8909-pm8916-camera-sensor-robot-som.dtsi"
-#include "dsi-panel-osd-disp-fwvga-video.dtsi"
 #include "dsi-panel-ili9806e-fwvga-video.dtsi"
 
 / {
@@ -60,16 +59,25 @@
 &soc {
 	ext_codec: sound-9335 {
 		compatible = "qcom,apq8009-audio-i2s-codec";
-		qcom,model = "apq8009-tashalite-snd-card-tdm";
 
 		qcom,audio-routing =
 			"AIF4 VI", "MCLK",
 			"RX_BIAS", "MCLK",
 			"MADINPUT", "MCLK",
+			"AMIC2", "MIC BIAS2",
+			"MIC BIAS2", "Headset Mic",
+			"DMIC0", "MIC BIAS1",
+			"MIC BIAS1", "Digital Mic0",
+			"DMIC1", "MIC BIAS1",
+			"MIC BIAS1", "Digital Mic1",
+			"DMIC2", "MIC BIAS3",
+			"MIC BIAS3", "Digital Mic2",
+			"DMIC3", "MIC BIAS3",
+			"MIC BIAS3", "Digital Mic3",
 			"SpkrLeft IN", "SPK1 OUT",
 			"SpkrRight IN", "SPK2 OUT";
 
-		qcom,tdm-i2s-switch-enable = <&msm_gpio 88 0>;
+		qcom,pdm-i2s-switch-enable = <&msm_gpio 88 0>;
 		qcom,pri-mi2s-gpios = <&cdc_pri_mi2s_gpios>;
 		qcom,quat-mi2s-gpios = <&cdc_quat_tdm_gpios>;
 	};
@@ -397,10 +405,6 @@
 	status = "okay";
 };
 
-&dsi_osd_disp_fwvga_video {
-	qcom,mdss-dsi-pwm-gpio = <&pm8916_mpps 4 0>;
-};
-
 &dsi_ili9806e_fwvga_video {
 	qcom,mdss-dsi-pwm-gpio = <&pm8916_mpps 4 0>;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_wled";
@@ -427,15 +431,17 @@
 };
 
 &mdss_dsi0 {
-	qcom,dsi-pref-prim-pan = <&dsi_osd_disp_fwvga_video>;
+	qcom,dsi-pref-prim-pan = <&dsi_ili9806e_fwvga_video>;
 
 	pinctrl-names = "mdss_default", "mdss_sleep";
 	pinctrl-0 = <&mdss_dsi_active &mdss_dsi_select_gpio>;
 	pinctrl-1 = <&mdss_dsi_suspend &mdss_dsi_select_gpio>;
 
+	qcom,platform-te-gpio = <&msm_gpio 24 0>;
 	qcom,platform-reset-gpio = <&msm_gpio 28 0>;
 	qcom,platform-bklight-en-gpio = <&msm_gpio 37 0>;
 
+	/delete-property/ qcom,platform-enable-gpio;
 	vdd-supply = <&pm8916_l17>;
 	vddio-supply = <&pm8916_l6>;
 	status = "okay";

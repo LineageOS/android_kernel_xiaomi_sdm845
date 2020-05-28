@@ -55,6 +55,10 @@
 #include "dbm.h"
 #include "debug.h"
 #include "xhci.h"
+#ifdef CONFIG_TUSB1064_XR_MISC
+#include "../../misc/tusb1064.h"
+#endif
+
 
 #define SDP_CONNETION_CHECK_TIME 5000 /* in ms */
 
@@ -2957,9 +2961,13 @@ static void dwc3_resume_work(struct work_struct *w)
 				EXTCON_PROP_USB_TYPEC_POLARITY, &val);
 		if (ret)
 			mdwc->typec_orientation = ORIENTATION_NONE;
-		else
+		else {
 			mdwc->typec_orientation = val.intval ?
 					ORIENTATION_CC2 : ORIENTATION_CC1;
+#ifdef CONFIG_TUSB1064_XR_MISC
+			tusb1064_usb_event(val.intval ? true : false);
+#endif
+		}
 
 		dbg_event(0xFF, "cc_state", mdwc->typec_orientation);
 

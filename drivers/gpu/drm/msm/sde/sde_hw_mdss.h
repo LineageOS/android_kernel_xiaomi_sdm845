@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -396,6 +396,12 @@ enum sde_3d_blend_mode {
 enum sde_csc_type {
 	SDE_CSC_RGB2YUV_601L,
 	SDE_CSC_RGB2YUV_601FR,
+	SDE_CSC_RGB2YUV_709L,
+	SDE_CSC_RGB2YUV_709FR,
+	SDE_CSC_RGB2YUV_2020L,
+	SDE_CSC_RGB2YUV_2020FR,
+	SDE_CSC_RGB2RGB_L,
+	SDE_CSC_RGB2RGB_FR,
 	SDE_MAX_CSC
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,6 +13,7 @@
 #include "msm8909.dtsi"
 #include "msm8909-pinctrl.dtsi"
 #include "msm8909-regulator.dtsi"
+#include "msm8909-camera-sensor-mtp.dtsi"
 
 &soc {
 	/*
@@ -71,7 +72,7 @@
 
 	i2c@78b9000 { /* BLSP1 QUP5 */
 		synaptics@20 {
-			compatible = "synaptics,dsx";
+			compatible = "synaptics,dsx-i2c";
 			reg = <0x20>;
 			interrupt-parent = <&msm_gpio>;
 			interrupts = <13 0x2008>;
@@ -84,10 +85,16 @@
 			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
 			pinctrl-2 = <&ts_release>;
 			synaptics,irq-gpio = <&msm_gpio 13 0x2008>;
+			synaptics,irq-on-state = <0>;
+			synaptics,irq-flags = <0x2008>;
+
 			synaptics,reset-gpio = <&msm_gpio 12 0x0>;
-			synaptics,disable-gpios;
-			synaptics,display-coords = <0 0 719 1279>;
-			synaptics,panel-coords = <0 0 719 1405>;
+			synaptics,reset-on-state = <0>;
+			synaptics,reset-active-ms = <20>;
+			synaptics,cap-button-codes = <139 158 172>;
+			/delete-property/ synaptics,disable-gpios;
+			/delete-property/ synaptics,display-coords;
+			/delete-property/ synaptics,panel-coords;
 		};
 	};
 
@@ -108,6 +115,16 @@
 			clocks = <&clock_rpm clk_bb_clk2_pin>;
 			clock-names = "ref_clk";
 		};
+	};
+
+	gen-vkeys {
+		compatible = "qcom,gen-vkeys";
+		label = "synaptics_dsx_i2c";
+		qcom,disp-maxx = <719>;
+		qcom,disp-maxy = <1279>;
+		qcom,panel-maxx = <719>;
+		qcom,panel-maxy = <1405>;
+		qcom,key-codes = <158 139 172 217>;
 	};
 
 	gpio_keys {
@@ -176,39 +193,21 @@
 			"AMIC1", "MIC BIAS External",
 			"AMIC2", "MIC BIAS Internal2",
 			"AMIC3", "MIC BIAS External";
-		qcom,msm-gpios =
-			"pri_i2s",
-			"us_eu_gpio";
-		qcom,pinctrl-names =
-			"all_off",
-			"pri_i2s_act",
-			"us_eu_gpio_act",
-			"pri_i2s_us_eu_gpio_act";
-		pinctrl-names =
-			"all_off",
-			"pri_i2s_act",
-			"us_eu_gpio_act",
-			"pri_i2s_us_eu_gpio_act";
-		pinctrl-0 = <&cdc_pdm_lines_sus &cross_conn_det_sus
-							&vdd_spkdrv_sus>;
-		pinctrl-1 = <&cdc_pdm_lines_act &cross_conn_det_sus
-							&vdd_spkdrv_act>;
-		pinctrl-2 = <&cdc_pdm_lines_sus &cross_conn_det_act
-							&vdd_spkdrv_sus>;
-		pinctrl-3 = <&cdc_pdm_lines_act &cross_conn_det_act
-							&vdd_spkdrv_act>;
 		qcom,cdc-us-euro-gpios = <&msm_gpio 97 0>;
+		qcom,cdc-us-eu-gpios = <&cdc_us_euro_sw>;
+		qcom,pri-mi2s-gpios = <&cdc_pri_mi2s_gpios>;
+
 		asoc-platform = <&pcm0>, <&pcm1>, <&pcm2>, <&voip>, <&voice>,
 				<&loopback>, <&compress>, <&hostless>,
 				<&afe>, <&lsm>, <&routing>, <&lpa>,
-				<&voice_svc>;
+				<&voice_svc>, <&pcm_noirq>;
 		asoc-platform-names = "msm-pcm-dsp.0", "msm-pcm-dsp.1",
 				"msm-pcm-dsp.2", "msm-voip-dsp",
 				"msm-pcm-voice", "msm-pcm-loopback",
 				"msm-compress-dsp", "msm-pcm-hostless",
 				"msm-pcm-afe", "msm-lsm-client",
 				"msm-pcm-routing", "msm-pcm-lpa",
-				"msm-voice-svc";
+				"msm-voice-svc", "msm-pcm-dsp-noirq";
 		asoc-cpu = <&dai_pri_auxpcm>,
 				<&dai_mi2s0>, <&dai_mi2s1>, <&dai_mi2s2>,
 				<&dai_mi2s3>, <&dai_mi2s4>, <&dai_mi2s5>,
@@ -228,8 +227,22 @@
 				"msm-dai-q6-dev.240", "msm-dai-q6-dev.32771",
 				"msm-dai-q6-dev.32772", "msm-dai-q6-dev.32773",
 				"msm-dai-q6-dev.32770";
-		asoc-codec = <&stub_codec>, <&pm8909_conga_dig>;
-		asoc-codec-names = "msm-stub-codec.1", "cajon_codec";
+		asoc-codec = <&stub_codec>;
+		asoc-codec-names = "msm-stub-codec.1";
+	};
+
+	cdc_us_euro_sw: msm_cdc_pinctrl_us_euro_sw {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&cross_conn_det_act>;
+		pinctrl-1 = <&cross_conn_det_sus>;
+	};
+
+	cdc_pri_mi2s_gpios: msm_cdc_pinctrl_pri {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&cdc_pdm_lines_act>;
+		pinctrl-1 = <&cdc_pdm_lines_sus>;
 	};
 };
 
@@ -326,6 +339,13 @@
 	qcom,mdss-pref-prim-intf = "dsi";
 };
 
+&dsi_hx8394d_720_vid {
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_pwm";
+	qcom,mdss-dsi-bl-pmic-pwm-frequency = <100>;
+	qcom,mdss-dsi-bl-pmic-bank-select = <0>;
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+};
+
 &msm_gpio {
 	pmx_mdss {
 		mdss_dsi_active: mdss_dsi_active {
@@ -411,4 +431,14 @@
 			};
 		};
 	};
+};
+
+&mdss_dsi0 {
+	qcom,dsi-pref-prim-pan = <&dsi_hx8394d_720_vid>;
+	pinctrl-names = "mdss_default", "mdss_sleep";
+	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
+	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
+
+	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
+	qcom,platform-bklight-en-gpio = <&msm_gpio 37 0>;
 };
