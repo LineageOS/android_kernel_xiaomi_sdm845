@@ -240,6 +240,8 @@ struct dsi_display {
 	struct work_struct fifo_underflow_work;
 	struct work_struct fifo_overflow_work;
 	struct work_struct lp_rx_timeout_work;
+
+	atomic_t fod_ui;
 };
 
 /**
@@ -672,5 +674,7 @@ int dsi_display_get_panel_vfp(void *display,
 	int h_active, int v_active);
 
 struct dsi_display *get_main_display(void);
+
+void dsi_display_set_fod_ui(struct dsi_display *display, bool status);
 
 #endif /* _DSI_DISPLAY_H_ */
