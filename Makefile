@@ -254,7 +254,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/x86/ -e s/x86_64/x86/ \
 # "make" in the configured kernel build directory always uses that.
 # Default value for CROSS_COMPILE is not to prefix executables
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
-ARCH		?= $(SUBARCH)
+override ARCH		:= arm64
 CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
 
 # Architecture as present in compile.h
@@ -301,10 +301,17 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
 
-HOSTCC       = gcc
-HOSTCXX      = g++
-HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
-HOSTCXXFLAGS = -O2
+HOSTCC       = clang$(LLVM_VERSION)
+HOSTCXX      = clang++$(LLVM_VERSION)
+HOSTCFLAGS      := -Wall -Wmissing-prototypes -Wstrict-prototypes -fomit-frame-pointer -std=gnu89 -O3 -ffast-math -pipe -fPIE -march=native -mtune=native \
+--param=ssp-buffer-size=32 -D_FORTIFY_SOURCE=2 -D_REENTRANT -fassociative-math -fasynchronous-unwind-tables -feliminate-unused-debug-types -Wformat-security -fno-semantic-interposition \
+-fno-signed-zeros -fno-strict-aliasing -fno-trapping-math -m64 -pthread -Wformat-security -fno-stack-protector -fwrapv -funroll-loops -ftree-vectorize -fforce-addr
+
+HOSTCXXFLAGS = -O3 -Wall -O3 -ffast-math
+HOSTLDFLAGS  := -O3 -fuse-ld=lld
+subdir-ccflags-y := -O3 -march=armv8.3-a+crc+crypto+fp16+simd+sve -ffast-math -mcpu=cortex-a55+crc+crypto+fp16+simd+sve -mtune=cortex-a55+crc+crypto+fp16+simd+sve -ffast-math -pipe -fPIE \
+--param=ssp-buffer-size=32 -D_FORTIFY_SOURCE=2 -D_REENTRANT -fassociative-math -fasynchronous-unwind-tables -feliminate-unused-debug-types -Wformat-security -fno-semantic-interposition \
+-fno-signed-zeros -fno-strict-aliasing -fno-trapping-math -m64 -pthread -Wformat-security -fno-stack-protector -fwrapv -funroll-loops -ftree-vectorize -fforce-addr -mfloat-abi=hard -mfpu=crypto-neon-fp-armv8
 
 ifeq ($(shell $(HOSTCC) -v 2>&1 | grep -c "clang version"), 1)
 HOSTCFLAGS  += -Wno-unused-value -Wno-unused-parameter \
@@ -394,7 +401,7 @@ LINUXINCLUDE    := \
 LINUXINCLUDE	+= $(filter-out $(LINUXINCLUDE),$(USERINCLUDE))
 
 KBUILD_AFLAGS   := -D__ASSEMBLY__
-KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
+KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -pipe \
 		   -fno-strict-aliasing -fno-common -fshort-wchar \
 		   -Wno-format-security \
 		   -std=gnu89 -fdiagnostics-color=always \
@@ -529,7 +536,6 @@ endif
 ifneq ($(GCC_TOOLCHAIN),)
 CLANG_FLAGS	+= --gcc-toolchain=$(GCC_TOOLCHAIN)
 endif
-CLANG_FLAGS	+= -no-integrated-as
 CLANG_FLAGS	+= -Werror=unknown-warning-option
 CLANG_FLAGS	+= $(call cc-option, -Wno-misleading-indentation)
 CLANG_FLAGS	+= $(call cc-option, -Wno-bool-operation)
@@ -660,8 +666,7 @@ export CFLAGS_GCOV CFLAGS_KCOV
 
 # Make toolchain changes before including arch/$(SRCARCH)/Makefile to ensure
 # ar/cc/ld-* macros return correct values.
-ifdef CONFIG_LTO_CLANG
-# use GNU gold with LLVMgold for LTO linking, and LD for vmlinux_link
+ifdef CONFIG_LD_GOLD
 LDFINAL_vmlinux := $(LD)
 LD		:= $(LDGOLD)
 LDFLAGS		+= -O3
@@ -678,13 +683,21 @@ endif
 endif
 ifdef CONFIG_LTO_CLANG
 # use GNU gold and LD for vmlinux_link, or LLD for LTO linking
-ifeq ($(ld-name),gold)
 LDFLAGS		+= -plugin LLVMgold.so
+LDFLAGS		+= --plugin-opt=O3
+
+LDFLAGS		+= -plugin-opt=-function-sections
+LDFLAGS		+= -plugin-opt=-data-sections
+LDFLAGS		+= -plugin-opt=new-pass-manager
+LDFLAGS		+= -plugin-opt=mcpu=kryo
+
 # use llvm-ar for building symbol tables from IR files, and llvm-dis instead
 # of objdump for processing symbol versions and exports
 LLVM_AR		:= llvm-ar
 LLVM_DIS	:= llvm-dis
 export LLVM_AR LLVM_DIS
+# Set O3 optimization level for LTO
+LDFLAGS		+= --plugin-opt=O3
 endif
 
 # The arch Makefile can set ARCH_{CPP,A,C}FLAGS to override the default
@@ -708,7 +721,24 @@ KBUILD_CFLAGS	+= $(call cc-option,-fdata-sections,)
 endif
 
 ifdef CONFIG_LTO_CLANG
-lto-clang-flags	:= -flto -fvisibility=hidden
+ifdef CONFIG_THINLTO
+lto-clang-flags := -flto=thin -fsplit-lto-unit -O3
+KBUILD_LDFLAGS += --thinlto-cache-dir=.thinlto-cache
+ifdef THINLTO_CACHE
+ifeq ($(ld-name),lld)
+LDFLAGS		+= --thinlto-cache-dir=$(THINLTO_CACHE)
+LDFLAGS		+= --thinlto-cache-policy=cache_size=5%:cache_size_bytes=5g
+else
+LDFLAGS		+= -plugin-opt,cache-dir=$(THINLTO_CACHE)
+LDFLAGS		+= -plugin-opt,cache-policy=cache_size=5%:cache_size_bytes=5g
+endif
+endif
+else
+lto-clang-flags	:= -flto
+LDFLAGS		+= -plugin-opt=-safestack-use-pointer-address
+endif
+lto-clang-flags += -fvisibility=hidden
+lto-clang-flags	+= -O3
 
 # allow disabling only clang LTO where needed
 DISABLE_LTO_CLANG := -fno-lto -fvisibility=default
@@ -718,6 +748,12 @@ endif
 ifdef CONFIG_LTO
 lto-flags	:= $(lto-clang-flags)
 KBUILD_CFLAGS	+= $(lto-flags)
+
+ifeq ($(ld-name),lld)
+LDFLAGS		+= --lto-O3
+endif
+
+
 
 DISABLE_LTO	:= $(DISABLE_LTO_CLANG)
 export DISABLE_LTO
@@ -754,15 +790,162 @@ DISABLE_LTO	+= $(DISABLE_CFI)
 export DISABLE_CFI
 endif
 
+ifdef CONFIG_SHADOW_CALL_STACK
+scs-flags	:= -fsanitize=shadow-call-stack
+KBUILD_CFLAGS	+= $(scs-flags)
+DISABLE_SCS	:= -fno-sanitize=shadow-call-stack
+export DISABLE_SCS
+endif
+ifdef CONFIG_SAFESTACK
+safestack-flags	+= -fsanitize=safe-stack
+safestack-extra-flags += -mllvm -safestack-use-pointer-address
+# safestack-flags are re-tested in prepare-compiler-check
+KBUILD_CFLAGS	+= $(call cc-option, $(safestack-flags))
+KBUILD_CFLAGS	+= $(call cc-option, $(safestack-extra-flags))
+DISABLE_SAFESTACK := -fno-sanitize=safe-stack
+export DISABLE_SAFESTACK
+endif
+
+ifdef CONFIG_SAFESTACK_COLORING
+safestack-extra-flags += -mllvm -safe-stack-coloring=1
+KBUILD_CFLAGS   += -O3
+endif
+
+ifdef CONFIG_LTO_CLANG
+#LDFLAGS		+= -plugin-opt=-safestack-use-pointer-address
+endif
+
+ifdef CONFIG_SAFESTACK_COLORING
+LDFLAGS		+= -plugin-opt=-safe-stack-coloring=1
+endif
+
+
+# Initialize all stack variables with a pattern, if desired.
+ifdef CONFIG_INIT_STACK_ALL
+KBUILD_CFLAGS	+= -ftrivial-auto-var-init=pattern
+endif
+
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS   += -Os
 else
-KBUILD_CFLAGS   += -O2
+ifdef CONFIG_PROFILE_ALL_BRANCHES
+KBUILD_CFLAGS	+= -O3 $(call cc-disable-warning,maybe-uninitialized,)
+else
+KBUILD_CFLAGS	+= -O3
+endif
 endif
 
-ifdef CONFIG_CC_WERROR
-KBUILD_CFLAGS	+= -Werror
+#THANAS
+
+# Optimization for gcc sdm845
+
+ifeq ($(cc-name),gcc)
+KBUILD_CFLAGS	+= -O3 -mtune=cortex-a75.cortex-a55 -ffast-math -mcpu=cortex-a75.cortex-a55+crc+crypto+fp16+simd+sve \
+-fomit-frame-pointer -pipe \
+-funroll-loops \
+-fforce-addr  \
+
+KBUILD_CFLAGS	+= -floop-parallelize-all -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block -floop-optimize -floop-nest-optimize -fprefetch-loop-arrays -ftree-vectorize -ftree-loop-vectorize
 endif
+
+#KBUILD_CFLAGS	+= -fno-gcse
+#KBUILD_CFLAGS	+= -ftracer
+LDFLAGS		+= -O3
+
+
+#LDFLAGS_vmlinux	+= $(call ld-option, --gc-sections,)
+#-fforce-addr -fopenmp -D_GLIBCXX_PARALLEL -ffunction-sections -fdata-sections -fvpt
+#-fprofile-arcs -fauto-profile
+#-fprofile-generate -fprofile-dir=~/TOOLCHAIN/PGO
+#-fprofile-use=~/TOOLCHAIN/PGO -fprofile-correction
+
+#KBUILD_CFLAGS += -Wno-undefined-optimized
+#LDFLAGS	+= -fuse-linker-plugin
+
+
+# This doesn't need 835769/843419 erratum fixes.
+# Some toolchains enable those fixes automatically, so opt-out.
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-835769)
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-843419)
+
+
+KBUILD_CFLAGS	+= $(call cc-option,-mabi=lp64)
+KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)
+
+
+
+
+
+
+ifeq ($(cc-name),clang)
+# Add Some optimization flags for clang
+KBUILD_CFLAGS	+= -O3 -march=armv8.3-a+crc+crypto+fp16+simd+sve -ffast-math -mcpu=cortex-a55+crc+crypto+fp16+simd+sve -mtune=cortex-a55+crc+crypto+fp16+simd+sve \
+-fomit-frame-pointer -pipe \
+-funroll-loops \
+-fforce-addr -ftree-vectorize \
+-mfloat-abi=hard -mfpu=crypto-neon-fp-armv8
+
+KBUILD_CFLAGS	+= -fopenmp
+KBUILD_CFLAGS	+= -mllvm -polly \
+		   -mllvm -polly-omp-backend=LLVM \
+		   -mllvm -polly-scheduling=dynamic \
+		   -mllvm -polly-scheduling-chunksize=1 \
+		   -mllvm -polly-vectorizer=polly \
+		   -mllvm -polly-opt-fusion=max \
+		   -mllvm -polly-opt-maximize-bands=yes \
+		   -mllvm -polly-run-dce \
+		   -mllvm -polly-position=after-loopopt \
+		   -mllvm -polly-run-inliner \
+		   -mllvm -polly-opt-fusion=max \
+		   -mllvm -polly-ast-use-context \
+		   -mllvm -polly-detect-keep-going \
+		   -mllvm -polly-vectorizer=stripmine \
+		   -mllvm -polly-opt-simplify-deps=no \
+		   -mllvm -polly-rtc-max-arrays-per-group=40 \
+		   -mllvm -polly-invariant-load-hoisting \
+		   -mllvm -polly-vectorizer=polly \
+		   -mllvm -polly-parallel \
+		   -mllvm -polly-parallel-force \
+			 -mllvm -polly-ast-detect-parallel
+
+
+			 #-mllvm -polly-no-early-exit
+
+# Add EXP New Pass Manager for clang
+KBUILD_CFLAGS	+= -fexperimental-new-pass-manager
+#endif
+
+#### too lazy to remove doubles...
+KBUILD_CFLAGS	+= -fassociative-math -fasynchronous-unwind-tables -feliminate-unused-debug-types -fexceptions -fno-semantic-interposition -fno-signed-zeros -D_FORTIFY_SOURCE=2 \
+-fno-strict-aliasing \
+-fno-trapping-math \
+-fno-stack-protector -pthread -Wall -Wformat-security -fwrapv --param=ssp-buffer-size=32 \
+-D_REENTRANT
+
+#-g
+
+#
+
+
+
+
+
+LDFLAGS		+= -O3
+#####
+endif
+
+
+
+KBUILD_CFLAGS += $(call cc-ifversion, -lt, 0409, \
+			$(call cc-disable-warning,maybe-uninitialized,))
+
+ifdef CONFIG_CC_WERROR
+#KBUILD_CFLAGS	+= -Werror
+endif
+KBUILD_CFLAGS	+= -Wno-error
+
+# Add EXP New Pass Manager for clang
+KBUILD_CFLAGS	+= $(call cc-option,-fexperimental-new-pass-manager)
 
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
@@ -813,6 +996,15 @@ endif
 KBUILD_CFLAGS += $(stackp-flag)
 
 ifeq ($(cc-name),clang)
+ifneq ($(CROSS_COMPILE),)
+CLANG_TARGET	:= -target $(notdir $(CROSS_COMPILE:%-=%))
+GCC_TOOLCHAIN	:= $(realpath $(dir $(shell which $(LD)))/..)
+endif
+ifneq ($(GCC_TOOLCHAIN),)
+CLANG_GCC_TC	:= -gcc-toolchain $(GCC_TOOLCHAIN)
+endif
+KBUILD_CFLAGS += $(CLANG_TARGET) $(CLANG_GCC_TC)
+KBUILD_AFLAGS += $(CLANG_TARGET) $(CLANG_GCC_TC)
 KBUILD_CPPFLAGS += $(call cc-option,-Qunused-arguments,)
 KBUILD_CFLAGS += $(call cc-disable-warning, format-invalid-specifier)
 KBUILD_CFLAGS += $(call cc-disable-warning, gnu)
@@ -825,11 +1017,15 @@ KBUILD_CFLAGS += $(call cc-disable-warning, tautological-compare)
 # See modpost pattern 2
 KBUILD_CFLAGS += $(call cc-option, -mno-global-merge,)
 KBUILD_CFLAGS += $(call cc-option, -fcatch-undefined-behavior)
+KBUILD_CFLAGS += $(call cc-option, -no-integrated-as)
 else
 
 # These warnings generated too much noise in a regular build.
 # Use make W=1 to enable them (see scripts/Makefile.extrawarn)
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
+KBUILD_CFLAGS += $(call cc-disable-warning, attribute-alias)
+KBUILD_CFLAGS += $(call cc-disable-warning, packed-not-aligned)
+KBUILD_CFLAGS += $(call cc-disable-warning, stringop-truncation)
 endif
 
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-const-variable)
@@ -922,13 +1118,10 @@ KBUILD_CFLAGS	+= $(call cc-option,-fno-merge-all-constants)
 
 # for gcc -fno-merge-all-constants disables everything, but it is fine
 # to have actual conforming behavior enabled.
-KBUILD_CFLAGS	+= $(call cc-option,-fmerge-constants)
+#KBUILD_CFLAGS	+= $(call cc-option,-fmerge-constants)
 
 # Make sure -fstack-check isn't enabled (like gentoo apparently did)
 KBUILD_CFLAGS  += $(call cc-option,-fno-stack-check,)
-
-# conserve stack if available
-KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 
 # disallow errors like 'EXPORT_GPL(foo);' with missing header
 KBUILD_CFLAGS   += $(call cc-option,-Werror=implicit-int)
@@ -979,6 +1172,10 @@ endif
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
 LDFLAGS_vmlinux	+= $(call ld-option, -X,)
+endif
+
+ifeq ($(CONFIG_RELR),y)
+LDFLAGS_vmlinux	+= --pack-dyn-relocs=relr
 endif
 
 # Default kernel image to build when no specific target is given.
@@ -1220,8 +1417,10 @@ ifdef CONFIG_LTO_CLANG
   ifneq ($(call clang-ifversion, -ge, 0500, y), y)
 	@echo Cannot use CONFIG_LTO_CLANG: requires clang 5.0 or later >&2 && exit 1
   endif
-  ifneq ($(call gold-ifversion, -ge, 112000000, y), y)
-	@echo Cannot use CONFIG_LTO_CLANG: requires GNU gold 1.12 or later >&2 && exit 1
+  ifneq ($(ld-name), lld)
+    ifneq ($(call gold-ifversion, -ge, 112000000, y), y)
+	@echo Cannot use CONFIG_LTO_CLANG: requires LLD or GNU gold 1.12 or later >&2 && exit 1
+    endif
   endif
 endif
 # Make sure compiler supports LTO flags
@@ -1307,7 +1506,7 @@ firmware_install:
 export INSTALL_HDR_PATH = $(objtree)/usr
 
 # If we do an all arch process set dst to asm-$(hdr-arch)
-hdr-dst = $(if $(KBUILD_HEADERS), dst=include/arch-$(hdr-arch), dst=include)
+hdr-dst = $(if $(KBUILD_HEADERS), dst=include/asm-$(hdr-arch), dst=include/asm)
 
 PHONY += archheaders
 archheaders:
@@ -1328,7 +1527,7 @@ headers_install: __headers
 	$(if $(wildcard $(srctree)/arch/$(hdr-arch)/include/uapi/asm/Kbuild),, \
 	  $(error Headers not exportable for the $(SRCARCH) architecture))
 	$(Q)$(MAKE) $(hdr-inst)=include/uapi
-	$(Q)$(MAKE) $(hdr-inst)=arch/$(hdr-arch)/include/uapi $(hdr-dst)
+	$(Q)$(MAKE) $(hdr-inst)=arch/$(hdr-arch)/include/uapi/asm $(hdr-dst)
 	$(Q)$(MAKE) $(hdr-inst)=techpack/audio/include/uapi
 
 PHONY += headers_check_all
@@ -1338,7 +1537,7 @@ headers_check_all: headers_install_all
 PHONY += headers_check
 headers_check: headers_install
 	$(Q)$(MAKE) $(hdr-inst)=include/uapi HDRCHECK=1
-	$(Q)$(MAKE) $(hdr-inst)=arch/$(hdr-arch)/include/uapi $(hdr-dst) HDRCHECK=1
+	$(Q)$(MAKE) $(hdr-inst)=arch/$(hdr-arch)/include/uapi/asm $(hdr-dst) HDRCHECK=1
 	$(Q)$(MAKE) $(hdr-inst)=techpack/audio/include/uapi HDRCHECK=1
 
 # ---------------------------------------------------------------------------
