@@ -1359,7 +1359,9 @@ static int lpm_cpuidle_enter(struct cpuidle_device *dev,
 	if (need_resched())
 		goto exit;
 
+	cpuidle_set_idle_cpu(dev->cpu);
 	success = psci_enter_sleep(cpu, idx, true);
+	cpuidle_clear_idle_cpu(dev->cpu);
 
 exit:
 	end_time = ktime_to_ns(ktime_get());
