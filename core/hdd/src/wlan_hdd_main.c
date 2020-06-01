@@ -8755,7 +8755,7 @@ static void hdd_pld_request_bus_bandwidth(struct hdd_context *hdd_ctx,
 		pld_request_bus_bandwidth(hdd_ctx->parent_dev, next_vote_level);
 		if ((next_vote_level == PLD_BUS_WIDTH_LOW) ||
 		    (next_vote_level == PLD_BUS_WIDTH_NONE)) {
-			if (hdd_ctx->hbw_requested) {
+			if (hdd_ctx->hbw_requested && !hdd_ctx->llm_enabled) {
 				PLD_REMOVE_PM_QOS(hdd_ctx->parent_dev);
 				hdd_ctx->hbw_requested = false;
 			}

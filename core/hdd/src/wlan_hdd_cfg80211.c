@@ -7759,6 +7759,28 @@ static int hdd_config_disconnect_ies(struct hdd_adapter *adapter,
 	return qdf_status_to_os_return(status);
 }
 
+#if defined(CLD_PM_QOS) && defined(WLAN_FEATURE_LL_MODE)
+void wlan_hdd_set_wlm_mode(struct hdd_context *hdd_ctx, uint16_t latency_level)
+{
+	if (latency_level ==
+	    QCA_WLAN_VENDOR_ATTR_CONFIG_LATENCY_LEVEL_ULTRALOW) {
+		hdd_ctx->llm_enabled = true;
+		if (!hdd_ctx->hbw_requested) {
+			pm_qos_update_request(&hdd_ctx->pm_qos_req,
+					      DISABLE_KRAIT_IDLE_PS_VAL);
+			hdd_ctx->hbw_requested = true;
+		}
+	} else {
+		if (hdd_ctx->hbw_requested) {
+			pm_qos_update_request(&hdd_ctx->pm_qos_req,
+					      PM_QOS_DEFAULT_VALUE);
+			hdd_ctx->hbw_requested = false;
+		}
+		hdd_ctx->llm_enabled = false;
+	}
+}
+#endif
+
 /**
  * __wlan_hdd_cfg80211_wifi_configuration_set() - Wifi configuration
  * vendor command
@@ -8315,6 +8337,8 @@ __wlan_hdd_cfg80211_wifi_configuration_set(struct wiphy *wiphy,
 			hdd_err("Invalid Wlan latency level value");
 			return -EINVAL;
 		}
+
+		wlan_hdd_set_wlm_mode(hdd_ctx, latency_level);
 
 		/* Mapping the latency value to the level which fw expected
 		 * 0 - normal, 1 - moderate, 2 - low, 3 - ultralow
