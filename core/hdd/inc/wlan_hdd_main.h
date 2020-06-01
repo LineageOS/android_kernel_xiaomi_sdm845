@@ -47,6 +47,9 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/cfg80211.h>
+#ifdef CLD_PM_QOS
+#include <linux/pm_qos.h>
+#endif
 #include <linux/ieee80211.h>
 #include <qdf_list.h>
 #include <qdf_types.h>
@@ -2103,6 +2106,10 @@ struct hdd_context {
 	qdf_atomic_t sar_safety_req_resp_event_in_progress;
 #endif
 	bool roam_ch_from_fw_supported;
+
+#ifdef CLD_PM_QOS
+	struct pm_qos_request pm_qos_req;
+#endif
 };
 
 /**
