@@ -358,7 +358,7 @@ LD		= $(CROSS_COMPILE)ld
 CC		= $(CROSS_COMPILE)gcc
 LDGOLD		= $(CROSS_COMPILE)ld.gold
 LDLLD		= ld.lld
-CC		= $(CROSS_COMPILE)gcc-10
+CC		= $(CROSS_COMPILE)gcc
 LDGOLD		= $(CROSS_COMPILE)ld.gold
 LDLLD		= ld.lld
 CPP		= $(CC) -E
@@ -685,7 +685,7 @@ endif
 endif
 ifdef CONFIG_LTO_CLANG
 # use GNU gold and LD for vmlinux_link, or LLD for LTO linking
-LDFLAGS		+= --plugin LLVMgold.so
+LDFLAGS		+= -plugin LLVMgold.so
 LDFLAGS		+= --plugin-opt=O3
 
 LDFLAGS		+= -plugin-opt=-function-sections
@@ -888,10 +888,7 @@ KBUILD_CFLAGS	+= -O3 -march=armv8.3-a+crc+crypto+fp16+simd+sve -ffast-math -mcpu
 -mfloat-abi=hard -mfpu=crypto-neon-fp-armv8
 
 KBUILD_CFLAGS	+= -fopenmp
-#LDFLAGS	+= -plugin LLVMPolly.so
-polly=/usr/lib/llvm-11/lib/LLVMPolly.so
-KBUILD_CFLAGS	+= -Xclang -load -Xclang $(polly) \
-			 -mllvm -polly \
+KBUILD_CFLAGS	+= -mllvm -polly \
 		   -mllvm -polly-omp-backend=LLVM \
 		   -mllvm -polly-scheduling=dynamic \
 		   -mllvm -polly-scheduling-chunksize=1 \
