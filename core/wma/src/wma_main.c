@@ -92,10 +92,7 @@
 #include "init_cmd_api.h"
 #include "wma_coex.h"
 #include <ftm_time_sync_ucfg_api.h>
-
-#ifdef WLAN_FEATURE_PKT_CAPTURE
 #include "wlan_pkt_capture_ucfg_api.h"
-#endif
 
 #define WMA_LOG_COMPLETION_TIMER 3000 /* 3 seconds */
 #define WMI_TLV_HEADROOM 128
@@ -6972,6 +6969,13 @@ int wma_rx_service_ready_ext_event(void *handle, uint8_t *event,
 	if (wmi_service_enabled(wma_handle->wmi_handle, wmi_service_nan_vdev) &&
 	    wma_get_separate_iface_support(wma_handle))
 		wlan_res_cfg->nan_separate_iface_support = true;
+
+	if (ucfg_pkt_capture_get_mode(wma_handle->psoc) &&
+	    wmi_service_enabled(wmi_handle,
+				wmi_service_packet_capture_support))
+		wlan_res_cfg->pktcapture_support = true;
+	else
+		wlan_res_cfg->pktcapture_support = false;
 
 	return 0;
 }
