@@ -27,6 +27,7 @@
 #include "wlan_pkt_capture_mgmt_txrx.h"
 #include "target_if_pkt_capture.h"
 #include "wlan_pkt_capture_data_txrx.h"
+#include "wlan_pkt_capture_tgt_api.h"
 
 enum pkt_capture_mode ucfg_pkt_capture_get_mode(struct wlan_objmgr_psoc *psoc)
 {

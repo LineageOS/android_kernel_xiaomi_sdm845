@@ -267,8 +267,8 @@ void ucfg_pkt_capture_record_channel(void);
 
 /**
  * ucfg_pkt_capture_register_callbacks - ucfg API to register WMA callbacks
- * @psoc - pointer to psoc object
- * @cb_obj - Pointer to packet capture callback structure
+ * @psoc: pointer to psoc object
+ * @cb_obj: Pointer to packet capture callback structure
  *
  * Return: status of operation
  */

@@ -217,10 +217,8 @@ target_if_unregister_mgmt_data_offload_event(struct wlan_objmgr_psoc *psoc)
 
 	status = wmi_unified_unregister_event(wmi_handle,
 					      wmi_mgmt_offload_data_event_id);
-	if (status) {
+	if (status)
 		pkt_capture_err("unregister mgmt data offload event cb failed");
-		return QDF_STATUS_E_FAILURE;
-	}
 
 	return status;
 }
