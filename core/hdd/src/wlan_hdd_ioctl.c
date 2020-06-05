@@ -2272,9 +2272,12 @@ static int hdd_parse_setmaxtxpower_command(uint8_t *pValue, int *pTxPower)
 	return 0;
 } /* End of hdd_parse_setmaxtxpower_command */
 
-static int hdd_get_dwell_time(struct hdd_config *pCfg, uint8_t *command,
+static int hdd_get_dwell_time(struct hdd_context *hdd_ctx,  uint8_t *command,
 			      char *extra, uint8_t n, uint8_t *len)
 {
+	uint32_t val = 0;
+	struct hdd_config *pCfg = hdd_ctx->config;
+
 	if (!pCfg || !command || !extra || !len) {
 		hdd_err("argument passed for GETDWELLTIME is incorrect");
 		return -EINVAL;
@@ -2298,6 +2301,12 @@ static int hdd_get_dwell_time(struct hdd_config *pCfg, uint8_t *command,
 	if (strncmp(command, "GETDWELLTIME PASSIVE MIN", 24) == 0) {
 		*len = scnprintf(extra, n, "GETDWELLTIME PASSIVE MIN %u\n",
 				 (int)pCfg->nPassiveMinChnTime);
+		return 0;
+	}
+	if (strncmp(command, "GETDWELLTIME 2G MAX", 19) == 0) {
+		ucfg_scan_cfg_get_active_2g_dwelltime(hdd_ctx->psoc, &val);
+		*len = scnprintf(extra, n, "GETDWELLTIME 2G MAX %u\n",
+				 val);
 		return 0;
 	}
 	if (strncmp(command, "GETDWELLTIME", 12) == 0) {
@@ -2406,7 +2415,21 @@ static int hdd_set_dwell_time(struct hdd_adapter *adapter, uint8_t *command)
 		pCfg->nPassiveMinChnTime = val;
 		sme_config->csrConfig.nPassiveMinChnTime = val;
 		sme_update_config(mac_handle, sme_config);
-	} else if (strncmp(command, "SETDWELLTIME", 12) == 0) {
+	} else if (strncmp(command, "SETDWELLTIME 2G MAX", 19) == 0) {
+		if (drv_cmd_validate(command, 19)) {
+			retval = -EINVAL;
+			goto free;
+		}
+
+		value = value + 20;
+		temp = kstrtou32(value, 10, &val);
+		if (temp ||  val < CFG_ACTIVE_MAX_2G_CHANNEL_TIME_MIN ||
+		    val > CFG_ACTIVE_MAX_2G_CHANNEL_TIME_MAX) {
+			hdd_err_rl("argument passed for SETDWELLTIME 2G MAX is incorrect");
+			return -EFAULT;
+		}
+		ucfg_scan_cfg_set_active_2g_dwelltime(hdd_ctx->psoc, val);
+	}  else if (strncmp(command, "SETDWELLTIME", 12) == 0) {
 		if (drv_cmd_validate(command, 12)) {
 			retval = -EINVAL;
 			goto free;
@@ -5117,13 +5140,11 @@ static int drv_cmd_get_dwell_time(struct hdd_adapter *adapter,
 				  struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	struct hdd_config *pCfg =
-		(WLAN_HDD_GET_CTX(adapter))->config;
 	char extra[32];
 	uint8_t len = 0;
 
 	memset(extra, 0, sizeof(extra));
-	ret = hdd_get_dwell_time(pCfg, command, extra, sizeof(extra), &len);
+	ret = hdd_get_dwell_time(hdd_ctx, command, extra, sizeof(extra), &len);
 	len = QDF_MIN(priv_data->total_len, len + 1);
 	if (ret != 0 || copy_to_user(priv_data->buf, &extra, len)) {
 		hdd_err("failed to copy data to user buffer");
