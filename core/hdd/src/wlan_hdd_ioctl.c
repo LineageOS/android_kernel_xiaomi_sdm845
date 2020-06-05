@@ -2312,6 +2312,7 @@ static int hdd_get_dwell_time(struct hdd_config *pCfg, uint8_t *command,
 static int hdd_set_dwell_time(struct hdd_adapter *adapter, uint8_t *command)
 {
 	mac_handle_t mac_handle = hdd_adapter_get_mac_handle(adapter);
+	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	struct hdd_config *pCfg;
 	uint8_t *value = command;
 	tSmeConfigParams *sme_config;
@@ -2323,6 +2324,10 @@ static int hdd_set_dwell_time(struct hdd_adapter *adapter, uint8_t *command)
 		hdd_err("argument passed for SETDWELLTIME is incorrect");
 		return -EINVAL;
 	}
+
+	retval = wlan_hdd_validate_context(hdd_ctx);
+	if (retval)
+		return retval;
 
 	sme_config = qdf_mem_malloc(sizeof(*sme_config));
 	if (!sme_config) {
@@ -2348,6 +2353,7 @@ static int hdd_set_dwell_time(struct hdd_adapter *adapter, uint8_t *command)
 		pCfg->nActiveMaxChnTime = val;
 		sme_config->csrConfig.nActiveMaxChnTime = val;
 		sme_update_config(mac_handle, sme_config);
+		ucfg_scan_cfg_set_active_dwelltime(hdd_ctx->psoc, val);
 	} else if (strncmp(command, "SETDWELLTIME ACTIVE MIN", 23) == 0) {
 		if (drv_cmd_validate(command, 23)) {
 			retval = -EINVAL;
@@ -2382,6 +2388,7 @@ static int hdd_set_dwell_time(struct hdd_adapter *adapter, uint8_t *command)
 		pCfg->nPassiveMaxChnTime = val;
 		sme_config->csrConfig.nPassiveMaxChnTime = val;
 		sme_update_config(mac_handle, sme_config);
+		ucfg_scan_cfg_set_passive_dwelltime(hdd_ctx->psoc, val);
 	} else if (strncmp(command, "SETDWELLTIME PASSIVE MIN", 24) == 0) {
 		if (drv_cmd_validate(command, 24)) {
 			retval = -EINVAL;
@@ -2416,6 +2423,7 @@ static int hdd_set_dwell_time(struct hdd_adapter *adapter, uint8_t *command)
 		pCfg->nActiveMaxChnTime = val;
 		sme_config->csrConfig.nActiveMaxChnTime = val;
 		sme_update_config(mac_handle, sme_config);
+		ucfg_scan_cfg_set_active_dwelltime(hdd_ctx->psoc, val);
 	} else {
 		retval = -EINVAL;
 		goto free;
@@ -2487,6 +2495,8 @@ static int hdd_conc_set_dwell_time(struct hdd_adapter *adapter,
 		p_cfg->nActiveMaxChnTimeConc = val;
 		sme_config->csrConfig.nActiveMaxChnTimeConc = val;
 		sme_update_config(mac_handle, sme_config);
+		ucfg_scan_cfg_set_conc_active_dwelltime(
+				(WLAN_HDD_GET_CTX(adapter))->psoc, val);
 	} else if (strncmp(command, "CONCSETDWELLTIME ACTIVE MIN", 27) == 0) {
 		if (drv_cmd_validate(command, 27)) {
 			hdd_err("Invalid driver command");
@@ -2525,6 +2535,8 @@ static int hdd_conc_set_dwell_time(struct hdd_adapter *adapter,
 		p_cfg->nPassiveMaxChnTimeConc = val;
 		sme_config->csrConfig.nPassiveMaxChnTimeConc = val;
 		sme_update_config(mac_handle, sme_config);
+		ucfg_scan_cfg_set_conc_passive_dwelltime(
+				(WLAN_HDD_GET_CTX(adapter))->psoc, val);
 	} else if (strncmp(command, "CONCSETDWELLTIME PASSIVE MIN", 28) == 0) {
 		if (drv_cmd_validate(command, 28)) {
 			hdd_err("Invalid driver command");
