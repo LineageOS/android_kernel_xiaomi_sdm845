@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016-2018, 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
