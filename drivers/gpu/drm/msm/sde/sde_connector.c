@@ -1,5 +1,5 @@
 /* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2018-2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -88,14 +88,19 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	if (brightness > display->panel->bl_config.bl_max_level)
 		brightness = display->panel->bl_config.bl_max_level;
 
-	/* map UI brightness into driver backlight level with rounding */
-	bl_lvl = mult_frac(brightness, display->panel->bl_config.bl_max_level,
-			display->panel->bl_config.brightness_max_level);
+	if (!display->panel->bl_config.bl_remap_flag) {
+		/* map UI brightness into driver backlight level with rounding */
+		bl_lvl = mult_frac(brightness, display->panel->bl_config.bl_max_level,
+				display->panel->bl_config.brightness_max_level);
+	} else {
+		bl_lvl = brightness;
+	}
 
 	if (!bl_lvl && brightness)
 		bl_lvl = 1;
 
-	if (bl_lvl && bl_lvl < display->panel->bl_config.bl_min_level)
+	if (bl_lvl && bl_lvl < display->panel->bl_config.bl_min_level
+		&& !display->panel->bl_config.bl_remap_flag)
 		bl_lvl = display->panel->bl_config.bl_min_level;
 
 	if (display->panel->bl_config.bl_update ==
@@ -699,6 +704,10 @@ void sde_connector_helper_bridge_enable(struct drm_connector *connector)
 		sde_encoder_wait_for_event(c_conn->encoder,
 				MSM_ENC_TX_COMPLETE);
 	c_conn->allow_bl_update = true;
+
+	/*after the first frame,need to delay some time for visionox*/
+	if (display->panel->bl_config.bl_update_delay)
+		msleep(display->panel->bl_config.bl_update_delay);
 
 	if (!display->is_first_boot && c_conn->bl_device) {
 		c_conn->bl_device->props.power = FB_BLANK_UNBLANK;
