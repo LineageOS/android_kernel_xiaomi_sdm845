@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2018-2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -296,6 +296,7 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_DISP_SKINCE_CABCMOVIEON,
 	DSI_CMD_SET_DISP_SKINCE_CABCOFF,
 	DSI_CMD_SET_DISP_DIMMINGON,
+	DSI_CMD_SET_DISP_DIMMINGOFF,
 	DSI_CMD_SET_DISP_ACL_OFF,
 	DSI_CMD_SET_DISP_ACL_L1,
 	DSI_CMD_SET_DISP_ACL_L2,
@@ -315,6 +316,8 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_DISP_CRC_DCIP3,
 	DSI_CMD_SET_DISP_CRC_OFF,
 	DSI_CMD_SET_READ_SS_PANEL_ID,
+	DSI_CMD_SET_FLASH_TEST_ON,
+	DSI_CMD_SET_FLASH_TEST_OFF,
 	DSI_CMD_SET_MAX
 };
 
