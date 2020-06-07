@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2018-2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -106,14 +106,18 @@ struct dsi_backlight_config {
 	enum dsi_backlight_type type;
 	enum bl_update_flag bl_update;
 
+	u32 bl_update_delay;
 	u32 bl_min_level;
 	u32 bl_max_level;
+	u32 bl_typical_level;
 	u32 brightness_max_level;
 	u32 bl_level;
 	u32 bl_scale;
 	u32 bl_scale_ad;
 
 	int en_gpio;
+	bool bl_remap_flag;
+	bool doze_brightness_varible_flag;
 	bool dcs_type_ss;
 	/* PWM params */
 	bool pwm_pmi_control;
@@ -265,7 +269,9 @@ struct dsi_panel {
 	bool fod_hbm_enabled;
 	bool in_aod;
 	u32 doze_backlight_threshold;
+	u32 dc_threshold;
 	ktime_t fod_hbm_off_time;
+	bool dc_enable;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
