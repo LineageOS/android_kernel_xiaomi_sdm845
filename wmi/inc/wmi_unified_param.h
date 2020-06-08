@@ -5790,6 +5790,7 @@ typedef enum {
 #endif
 	wmi_roam_stats_event_id,
 	wmi_roam_scan_chan_list_id,
+	wmi_vdev_bcn_latency_event_id,
 	wmi_events_max,
 } wmi_conv_event_id;
 

@@ -24991,6 +24991,8 @@ static void populate_tlv_events_id(uint32_t *event_ids)
 	event_ids[wmi_roam_scan_chan_list_id] =
 		WMI_ROAM_SCAN_CHANNEL_LIST_EVENTID;
 
+	event_ids[wmi_vdev_bcn_latency_event_id] =
+			WMI_VDEV_BCN_LATENCY_EVENTID;
 }
 
 /**
