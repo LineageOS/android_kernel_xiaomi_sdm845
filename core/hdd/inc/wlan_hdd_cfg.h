@@ -13716,7 +13716,7 @@ enum hdd_external_acs_policy {
  * sae_enabled - Enable/Disable SAE support in driver
  * @Min: 0
  * @Max: 1
- * @Default: 0
+ * @Default: 1
  *
  * This ini is used to enable/disable SAE support in driver
  * Driver will update config to supplicant based on this config.
@@ -13733,6 +13733,30 @@ enum hdd_external_acs_policy {
 #define CFG_IS_SAE_ENABLED_DEFAULT (1)
 #define CFG_IS_SAE_ENABLED_MIN     (0)
 #define CFG_IS_SAE_ENABLED_MAX     (1)
+
+/*
+ * <ini>
+ * enable_sae_for_sap - Enable/Disable SAE support in driver for SAP
+ * channel&bandwidth in the mission mode
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to enable/disable SAE support in driver for SAP mode
+ * Driver will process/drop the SAE authentication frames based on this config.
+ *
+ * Related: None
+ *
+ * Supported Feature: SAE
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_IS_SAP_SAE_ENABLED_NAME    "enable_sae_for_sap"
+#define CFG_IS_SAP_SAE_ENABLED_DEFAULT (1)
+#define CFG_IS_SAP_SAE_ENABLED_MIN     (0)
+#define CFG_IS_SAP_SAE_ENABLED_MAX     (1)
 
 /*
  * Type declarations
@@ -18622,6 +18646,7 @@ struct hdd_config {
 	uint32_t btm_offload_config;
 #ifdef WLAN_FEATURE_SAE
 	bool is_sae_enabled;
+	bool sap_sae_enabled;
 #endif
 	uint32_t btm_solicited_timeout;
 	uint32_t btm_max_attempt_cnt;
