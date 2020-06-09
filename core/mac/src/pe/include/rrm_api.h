@@ -101,4 +101,22 @@ rrm_process_beacon_report_xmit(tpAniSirGlobal pMac,
 
 void lim_update_rrm_capability(tpAniSirGlobal mac_ctx,
 			       tpSirSmeJoinReq join_req);
+/**
+ * rrm_reject_req - Reject rrm request
+ * @radiomes_report: radio measurement report
+ * @rrm_req: Array of Measurement request IEs
+ * @num_report: Num of report
+ * @index: Measurement index
+ * @measurement_type: Measurement Type
+ *
+ * Reject the Radio Resource Measurement request, if one is
+ * already in progress
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS rrm_reject_req(tpSirMacRadioMeasureReport *radiomes_report,
+			  tDot11fRadioMeasurementRequest *rrm_req,
+			  uint8_t *num_report, uint8_t index,
+			  uint8_t measurement_type);
+
 #endif
