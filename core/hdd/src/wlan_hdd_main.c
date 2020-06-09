@@ -10031,7 +10031,8 @@ void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind)
 						  frame_ind->frameBuf,
 						  frame_ind->frameType,
 						  frame_ind->rxChan,
-						  frame_ind->rxRssi);
+						  frame_ind->rxRssi,
+						  frame_ind->rx_flags);
 			wlan_objmgr_vdev_release_ref(vdev, WLAN_OSIF_ID);
 		}
 
@@ -10048,7 +10049,8 @@ void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind)
 						frame_ind->frameBuf,
 						frame_ind->frameType,
 						frame_ind->rxChan,
-						frame_ind->rxRssi);
+						frame_ind->rxRssi,
+						frame_ind->rx_flags);
 }
 
 void hdd_acs_response_timeout_handler(void *context)

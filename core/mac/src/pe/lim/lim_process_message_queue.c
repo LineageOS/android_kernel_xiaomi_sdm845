@@ -1098,7 +1098,8 @@ lim_check_mgmt_registered_frames(tpAniSirGlobal mac_ctx, uint8_t *buff_desc,
 			WMA_GET_RX_PAYLOAD_LEN(buff_desc) +
 			sizeof(tSirMacMgmtHdr), mgmt_frame->sessionId,
 			WMA_GET_RX_CH(buff_desc), session_entry,
-			WMA_GET_RX_RSSI_NORMALIZED(buff_desc));
+			WMA_GET_RX_RSSI_NORMALIZED(buff_desc),
+			RXMGMT_FLAG_NONE);
 
 		if ((type == SIR_MAC_MGMT_FRAME)
 		    && (fc.type == SIR_MAC_MGMT_FRAME)
