@@ -1065,6 +1065,8 @@ static bool lim_process_assoc_req_no_sta_ctx(tpAniSirGlobal mac_ctx,
 	}
 	/* Delete 'pre-auth' context of STA */
 	*auth_type = sta_pre_auth_ctx->authType;
+	if (sta_pre_auth_ctx->authType == eSIR_AUTH_TYPE_SAE)
+		assoc_req->is_sae_authenticated = true;
 	lim_delete_pre_auth_node(mac_ctx, hdr->sa);
 	/* All is well. Assign AID (after else part) */
 	return true;
@@ -2624,6 +2626,8 @@ void lim_send_mlm_assoc_ind(tpAniSirGlobal mac_ctx,
 		lim_fill_assoc_ind_vht_info(mac_ctx, session_entry, assoc_req,
 					    assoc_ind, sta_ds);
 		assoc_ind->he_caps_present = assoc_req->he_cap.present;
+		assoc_ind->is_sae_authenticated =
+					assoc_req->is_sae_authenticated;
 		lim_post_sme_message(mac_ctx, LIM_MLM_ASSOC_IND,
 			 (uint32_t *) assoc_ind);
 		qdf_mem_free(assoc_ind);
