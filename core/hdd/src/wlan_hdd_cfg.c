@@ -9161,8 +9161,16 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 		hdd_err("Couldn't pass on WNI_CFG_VHT_RXSTBC to CFG");
 	}
 
+	/* first get HW TX STBC capability */
+	if (sme_cfg_get_int(mac_handle, WNI_CFG_VHT_TXSTBC, &val) ==
+							QDF_STATUS_E_FAILURE) {
+		status = false;
+		hdd_err("Could not get WNI_CFG_VHT_TXSTBC");
+	}
+
+	/* set TX STBC combined with ini setting capability */
 	if (sme_cfg_set_int(mac_handle, WNI_CFG_VHT_TXSTBC,
-			    config->enableTxSTBC) == QDF_STATUS_E_FAILURE) {
+			    config->enableTxSTBC && val) == QDF_STATUS_E_FAILURE) {
 		status = false;
 		hdd_err("Couldn't pass on WNI_CFG_VHT_TXSTBC to CFG");
 	}
