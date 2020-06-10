@@ -1330,6 +1330,16 @@ typedef struct sSirSmeAssocInd {
 	bool is_sae_authenticated;
 } tSirSmeAssocInd, *tpSirSmeAssocInd;
 
+/**
+ * struct owe_assoc_ind - owe association indication
+ * @node : List entry element
+ * @assoc_ind: pointer to assoc ind
+ */
+struct owe_assoc_ind {
+	qdf_list_node_t node;
+	tSirSmeAssocInd *assoc_ind;
+};
+
 /* / Definition for Association confirm */
 /* / ---> MAC */
 typedef struct sSirSmeAssocCnf {
