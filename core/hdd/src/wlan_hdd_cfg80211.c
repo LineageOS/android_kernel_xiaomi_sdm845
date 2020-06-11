@@ -24738,7 +24738,7 @@ wlan_hdd_extauth_cache_pmkid(struct hdd_adapter *adapter,
 #else
 static void
 wlan_hdd_extauth_cache_pmkid(struct hdd_adapter *adapter,
-			     tHalHandle hHal mac_handle,
+			     tHalHandle mac_handle,
 			     struct cfg80211_external_auth_params *params)
 {}
 #endif
