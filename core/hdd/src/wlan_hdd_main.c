@@ -10864,8 +10864,11 @@ static int hdd_open_interfaces(struct hdd_context *hdd_ctx, bool rtnl_held)
 		hdd_debug("NAN separate vdev%s supported by host,%s supported by firmware",
 			   nan_iface_support ? "" : " not",
 			   hdd_ctx->nan_seperate_vdev_supported ? "" : " not");
+	if (!wlan_hdd_nan_is_supported(hdd_ctx))
+		hdd_debug("NAN is disabled");
 
-	if (hdd_ctx->nan_seperate_vdev_supported && nan_iface_support) {
+	if (wlan_hdd_nan_is_supported(hdd_ctx) &&
+	    hdd_ctx->nan_seperate_vdev_supported && nan_iface_support) {
 		adapter = hdd_open_adapter(hdd_ctx, QDF_NAN_DISC_MODE, "wifi-aware%d",
 				   wlan_hdd_get_intf_addr(hdd_ctx,
 							  QDF_NAN_DISC_MODE),
