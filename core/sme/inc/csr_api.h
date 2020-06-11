@@ -1896,4 +1896,14 @@ csr_update_pmf_cap_from_connected_profile(tCsrRoamConnectedProfile *profile,
 					  struct scan_filter *filter)
 {}
 #endif
+
+/**
+ * csr_update_owe_info() - Update OWE info
+ * @mac: mac context
+ * @assoc_ind: assoc ind
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS csr_update_owe_info(tpAniSirGlobal mac,
+			       tSirSmeAssocInd *assoc_ind);
 #endif

@@ -1578,6 +1578,20 @@ void wlansap_set_band_csa(struct sap_context *sap_ctx,
 			  enum band_info band);
 uint8_t wlansap_get_chan_band_restrict(struct sap_context *sap_ctx);
 
+/*
+ * wlansap_update_owe_info() - Update OWE info
+ * @sap_ctx: sap context
+ * @peer: peer mac
+ * @ie: IE from hostapd
+ * @ie_len: IE length
+ * @owe_status: status from hostapd
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wlansap_update_owe_info(struct sap_context *sap_ctx,
+				   uint8_t *peer, const uint8_t *ie,
+				   uint32_t ie_len, uint16_t owe_status);
+
 #ifdef __cplusplus
 }
 #endif

@@ -3228,4 +3228,14 @@ QDF_STATUS sme_get_prev_connected_bss_ies(mac_handle_t mac_handle,
  * Return: QDF_STATUS
  */
 QDF_STATUS sme_handle_peer_cleanup(tHalHandle hal, uint8_t vdev_id);
+
+/**
+ * sme_update_owe_info() - Update OWE info
+ * @mac: mac context
+ * @assoc_ind: assoc ind
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_update_owe_info(tpAniSirGlobal mac,
+			       tSirSmeAssocInd *assoc_ind);
 #endif /* #if !defined( __SME_API_H ) */

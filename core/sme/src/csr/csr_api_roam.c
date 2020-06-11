@@ -18178,7 +18178,8 @@ QDF_STATUS csr_send_assoc_cnf_msg(tpAniSirGlobal pMac,
 	tSirSmeAssocCnf *pMsg;
 	struct scheduler_msg msg = { 0 };
 
-	sme_debug("Posting eWNI_SME_ASSOC_CNF to LIM.HalStatus: %d", Halstatus);
+	sme_debug("HalStatus: %d, mac_status_code %d",
+		  Halstatus, mac_status_code);
 	do {
 		pMsg = qdf_mem_malloc(sizeof(tSirSmeAssocCnf));
 		if (NULL == pMsg)
@@ -18204,6 +18205,15 @@ QDF_STATUS csr_send_assoc_cnf_msg(tpAniSirGlobal pMac,
 			     QDF_MAC_ADDR_SIZE);
 		/* alternateChannelId */
 		pMsg->alternateChannelId = 11;
+		/* OWE IE */
+		if (pAssocInd->owe_ie_len) {
+			pMsg->owe_ie = qdf_mem_malloc(pAssocInd->owe_ie_len);
+			if (!pMsg->owe_ie)
+				return QDF_STATUS_E_NOMEM;
+			qdf_mem_copy(pMsg->owe_ie, pAssocInd->owe_ie,
+				     pAssocInd->owe_ie_len);
+			pMsg->owe_ie_len = pAssocInd->owe_ie_len;
+		}
 
 		msg.type = pMsg->messageType;
 		msg.bodyval = 0;
@@ -24565,3 +24575,35 @@ csr_roam_auth_offload_callback(tpAniSirGlobal mac_ctx,
 
 }
 #endif
+
+QDF_STATUS csr_update_owe_info(tpAniSirGlobal mac,
+			       tSirSmeAssocInd *assoc_ind)
+{
+	uint32_t session_id = CSR_SESSION_ID_INVALID;
+	QDF_STATUS status;
+
+	status = csr_roam_get_session_id_from_bssid(mac,
+					(struct qdf_mac_addr *)assoc_ind->bssId,
+					&session_id);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sme_debug("Couldn't find session_id for given BSSID");
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	/* Send Association completion message to PE */
+	if (assoc_ind->owe_status)
+		status = QDF_STATUS_E_INVAL;
+	status = csr_send_assoc_cnf_msg(mac, assoc_ind, status,
+					assoc_ind->owe_status);
+	/*
+	 * send a message to CSR itself just to avoid the EAPOL frames
+	 * going OTA before association response
+	 */
+	if (assoc_ind->owe_status == 0)
+		status = csr_send_assoc_ind_to_upper_layer_cnf_msg(mac,
+								   assoc_ind,
+								   status,
+								   session_id);
+
+	return status;
+}
