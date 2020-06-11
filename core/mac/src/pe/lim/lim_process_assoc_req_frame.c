@@ -827,6 +827,39 @@ static void lim_print_ht_cap(tpAniSirGlobal mac_ctx, tpPESession session,
 	}
 }
 
+#define WLAN_CRYPTO_RSN_CAP_MFP_ENABLED 0x80
+
+/**
+  * lim_check_sae_pmf_cap() - check pmf capability for SAE STA
+  * @session: pointer to pe session entry
+  * @rsn: pointer to RSN
+  *
+  * This function checks if SAE STA is pmf capable when SAE SAP is pmf
+  * capable. Reject with eSIR_MAC_ROBUST_MGMT_FRAMES_POLICY_VIOLATION
+  * if SAE STA is pmf disable.
+  *
+  * Return: tSirMacStatusCodes
+  */
+#ifdef WLAN_FEATURE_SAE
+static tSirMacStatusCodes lim_check_sae_pmf_cap(tpPESession session,
+						tDot11fIERSN *rsn)
+{
+	tSirMacStatusCodes status = eSIR_MAC_SUCCESS_STATUS;
+
+	if (session->pLimStartBssReq->pmfCapable &&
+	    (rsn->RSN_Cap[0] & WLAN_CRYPTO_RSN_CAP_MFP_ENABLED) == 0)
+		status = eSIR_MAC_ROBUST_MGMT_FRAMES_POLICY_VIOLATION_STATUS;
+
+	return status;
+}
+#else
+static tSirMacStatusCodes lim_check_sae_pmf_cap(tpPESession session,
+						tDot11fIERSN *rsn)
+{
+	return eSIR_MAC_SUCCESS_STATUS;
+}
+#endif
+
 /**
   * lim_check_wpa_rsn_ie() - wpa and rsn ie related checks
   * @session: pointer to pe session entry
@@ -850,6 +883,7 @@ static bool lim_check_wpa_rsn_ie(tpPESession session, tpAniSirGlobal mac_ctx,
 	tDot11fIEWPA dot11f_ie_wpa = {0};
 	tDot11fIERSN dot11f_ie_rsn = {0};
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	tSirMacStatusCodes ret_code = eSIR_MAC_SUCCESS_STATUS;
 
 	/*
 	 * Clear the buffers so that frame parser knows that there isn't a
@@ -920,6 +954,19 @@ static bool lim_check_wpa_rsn_ie(tpPESession session, tpAniSirGlobal mac_ctx,
 		}
 		*akm_type = lim_translate_rsn_oui_to_akm_type(
 					dot11f_ie_rsn.akm_suite[0]);
+
+		if (*akm_type == ANI_AKM_TYPE_SAE)
+			ret_code = lim_check_sae_pmf_cap(session,
+							 &dot11f_ie_rsn);
+		if (ret_code != eSIR_MAC_SUCCESS_STATUS) {
+			/* Reject pmf disable SAE STA */
+			pe_warn("Re/Assoc rejected from: " MAC_ADDRESS_STR,
+				MAC_ADDR_ARRAY(hdr->sa));
+			lim_send_assoc_rsp_mgmt_frame(mac_ctx, ret_code, 1,
+						      hdr->sa, sub_type, 0,
+						      session);
+			return false;
+		}
 	} else if (assoc_req->wpaPresent) {
 		if (!(assoc_req->wpa.length)) {
 			pe_warn("Re/Assoc rejected from: "
