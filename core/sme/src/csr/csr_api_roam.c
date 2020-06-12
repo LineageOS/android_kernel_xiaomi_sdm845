@@ -13987,6 +13987,8 @@ QDF_STATUS csr_fast_reassoc(tHalHandle hal, struct csr_roam_profile *profile,
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	struct csr_roam_session *session;
 	struct csr_roam_profile *roam_profile;
+	struct wlan_objmgr_vdev *vdev;
+	struct mlme_roam_invoke_entity_param *vdev_roam_params;
 
 	session = CSR_GET_SESSION(mac_ctx, vdev_id);
 	if (!session || !session->pCurRoamProfile) {
@@ -13999,15 +14001,37 @@ QDF_STATUS csr_fast_reassoc(tHalHandle hal, struct csr_roam_profile *profile,
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc, vdev_id,
+						    WLAN_LEGACY_SME_ID);
+
+	if (!vdev) {
+		sme_err("vdev is NULL, aborting roam invoke");
+		return QDF_STATUS_E_NULL_VALUE;
+	}
+
+	vdev_roam_params = mlme_get_roam_invoke_params(vdev);
+
+	if (!vdev_roam_params) {
+		sme_err("Invalid vdev roam params, aborting roam invoke");
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+		return QDF_STATUS_E_NULL_VALUE;
+	}
+
+	if (vdev_roam_params->roam_invoke_in_progress) {
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+		return QDF_STATUS_E_FAILURE;
+	}
 	roam_profile = session->pCurRoamProfile;
 	if (roam_profile->driver_disabled_roaming) {
 		sme_debug("roaming status in driver %d",
 			  roam_profile->driver_disabled_roaming);
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 		return QDF_STATUS_E_FAILURE;
 	}
 	fastreassoc = qdf_mem_malloc(sizeof(*fastreassoc));
 	if (NULL == fastreassoc) {
 		sme_err("qdf_mem_malloc failed for fastreassoc");
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 		return QDF_STATUS_E_NOMEM;
 	}
 	/* if both are same then set the flag */
@@ -14031,6 +14055,7 @@ QDF_STATUS csr_fast_reassoc(tHalHandle hal, struct csr_roam_profile *profile,
 	if (!channel) {
 		sme_err("channel retrieval from BSS desc fails!");
 		qdf_mem_free(fastreassoc);
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 		return QDF_STATUS_E_FAULT;
 	}
 
@@ -14060,7 +14085,13 @@ QDF_STATUS csr_fast_reassoc(tHalHandle hal, struct csr_roam_profile *profile,
 	if (QDF_STATUS_SUCCESS != status) {
 		sme_err("Not able to post ROAM_INVOKE_CMD message to PE");
 		qdf_mem_free(fastreassoc);
+	} else {
+		vdev_roam_params->roam_invoke_in_progress = true;
+		sme_debug("Trigger roaming for vdev id %d ",
+			  session->sessionId);
 	}
+
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 
 	return status;
 }
@@ -23791,13 +23822,33 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 	uint32_t chan_id;
 	bool abort_host_scan_cap = false;
 	wlan_scan_id scan_id;
+	struct wlan_objmgr_vdev *vdev;
+	struct mlme_roam_invoke_entity_param *vdev_roam_params;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc, session_id,
+						    WLAN_LEGACY_SME_ID);
+
+	if (!vdev) {
+		sme_err("vdev is NULL, aborting roam invoke");
+		return QDF_STATUS_E_NULL_VALUE;
+	}
+
+	vdev_roam_params = mlme_get_roam_invoke_params(vdev);
+
+	if (!vdev_roam_params) {
+		sme_err("Invalid vdev roam params, aborting roam invoke");
+		status = QDF_STATUS_E_NULL_VALUE;
+		goto end;
+	}
 
 	if (!session) {
 		sme_err("LFR3: Session not found");
-		return QDF_STATUS_E_FAILURE;
+		status = QDF_STATUS_E_FAILURE;
+		goto end;
 	}
 
-	sme_debug("LFR3: reason: %d", reason);
+	sme_debug("LFR3: reason: %d roaming in progress %d", reason,
+		  vdev_roam_params->roam_invoke_in_progress);
 	switch (reason) {
 	case SIR_ROAMING_DEREGISTER_STA:
 		/*
@@ -23807,16 +23858,19 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 		csr_roam_roaming_offload_timer_action(mac_ctx,
 				0, session_id, ROAMING_OFFLOAD_TIMER_STOP);
 		if (session->discon_in_progress ||
-		    neigh_roam_info->last_sent_cmd == ROAM_SCAN_OFFLOAD_STOP ||
+		    (neigh_roam_info->last_sent_cmd ==
+		     ROAM_SCAN_OFFLOAD_STOP &&
+		     !vdev_roam_params->roam_invoke_in_progress) ||
 		    !CSR_IS_ROAM_JOINED(mac_ctx, session_id)) {
 			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 				FL("LFR3: Session not in connected state or disconnect is in progress %d"),
 				session->discon_in_progress);
-			return QDF_STATUS_E_FAILURE;
+			status = QDF_STATUS_E_FAILURE;
+			goto end;
 		}
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				eCSR_ROAM_FT_START, eCSR_ROAM_RESULT_SUCCESS);
-		return status;
+		goto end;
 	case SIR_ROAMING_START:
 		csr_roam_roaming_offload_timer_action(mac_ctx,
 				CSR_ROAMING_OFFLOAD_TIMEOUT_PERIOD, session_id,
@@ -23846,24 +23900,26 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 
 		wlan_abort_scan(mac_ctx->pdev, INVAL_PDEV_ID,
 				session_id, scan_id, false);
-		return status;
+		goto end;
 	case SIR_ROAMING_ABORT:
 		csr_roam_roaming_offload_timer_action(mac_ctx,
 				0, session_id, ROAMING_OFFLOAD_TIMER_STOP);
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				eCSR_ROAM_ABORT, eCSR_ROAM_RESULT_SUCCESS);
-		return status;
+		vdev_roam_params->roam_invoke_in_progress = false;
+		goto end;
 	case SIR_ROAM_SYNCH_NAPI_OFF:
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				eCSR_ROAM_NAPI_OFF, eCSR_ROAM_RESULT_SUCCESS);
-		return status;
+		goto end;
 	case SIR_ROAMING_INVOKE_FAIL:
 		/* Userspace roam request failed, disconnect with current AP */
 		sme_debug("LFR3: roam invoke from user-space fail, dis cur AP");
 		csr_roam_disconnect(mac_ctx, session_id,
 				    eCSR_DISCONNECT_REASON_DEAUTH,
 				    eSIR_MAC_USER_TRIGGERED_ROAM_FAILURE);
-		return status;
+		vdev_roam_params->roam_invoke_in_progress = false;
+		goto end;
 	case SIR_ROAM_SYNCH_PROPAGATION:
 		break;
 	case SIR_ROAM_SYNCH_COMPLETE:
@@ -23881,7 +23937,8 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 					    eCSR_DISCONNECT_REASON_DEAUTH,
 					    eSIR_MAC_OPER_CHANNEL_BAND_CHANGE);
 			sme_debug("Roaming Failed for disabled channel or band");
-			return status;
+			vdev_roam_params->roam_invoke_in_progress = false;
+			goto end;
 		}
 		/*
 		 * Following operations need to be done once roam sync
@@ -23926,15 +23983,17 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 		csr_roam_call_callback(mac_ctx, session_id, NULL, 0,
 				       eCSR_ROAM_SYNCH_COMPLETE,
 				       eCSR_ROAM_RESULT_SUCCESS);
-		return status;
+		vdev_roam_params->roam_invoke_in_progress = false;
+		goto end;
 	case SIR_ROAMING_DEAUTH:
 		sme_debug("LFR3: callback reason %d", reason);
 		csr_roam_roaming_offload_timer_action(
 			mac_ctx, 0, session_id, ROAMING_OFFLOAD_TIMER_STOP);
-		return status;
+		goto end;
 	default:
 		sme_debug("LFR3: callback reason %d", reason);
-		return QDF_STATUS_E_FAILURE;
+		status = QDF_STATUS_E_FAILURE;
+		goto end;
 	}
 	session->roam_synch_in_progress = true;
 	session->roam_synch_data = roam_synch_data;
@@ -23943,7 +24002,8 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		sme_err("LFR3: fail to parse IEs");
 		session->roam_synch_in_progress = false;
-		return status;
+		vdev_roam_params->roam_invoke_in_progress = false;
+		goto end;
 	}
 
 	conn_profile = &session->connectedProfile;
@@ -23956,8 +24016,10 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
 			FL("LFR3: Mem Alloc failed for roam info"));
 		session->roam_synch_in_progress = false;
+		vdev_roam_params->roam_invoke_in_progress = false;
 		qdf_mem_free(ies_local);
-		return QDF_STATUS_E_NOMEM;
+		status = QDF_STATUS_E_NOMEM;
+		goto end;
 	}
 	csr_scan_save_roam_offload_ap_to_scan_cache(mac_ctx, roam_synch_data,
 						    bss_desc);
@@ -24071,10 +24133,12 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 	if (NULL == roam_info->pbFrames) {
 		sme_err("no memory available");
 		session->roam_synch_in_progress = false;
+		vdev_roam_params->roam_invoke_in_progress = false;
 		if (roam_info)
 			qdf_mem_free(roam_info);
 		qdf_mem_free(ies_local);
-		return QDF_STATUS_E_NOMEM;
+		status = QDF_STATUS_E_NOMEM;
+		goto end;
 	}
 	qdf_mem_copy(roam_info->pbFrames,
 			(uint8_t *)roam_synch_data +
@@ -24233,11 +24297,14 @@ static QDF_STATUS csr_process_roam_sync_callback(tpAniSirGlobal mac_ctx,
 
 	session->fRoaming = false;
 	session->roam_synch_in_progress = false;
+	vdev_roam_params->roam_invoke_in_progress = false;
 	sme_free_join_rsp_fils_params(roam_info);
 	qdf_mem_free(roam_info->pbFrames);
 	qdf_mem_free(roam_info);
 	qdf_mem_free(ies_local);
 
+end:
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 	return status;
 }
 
