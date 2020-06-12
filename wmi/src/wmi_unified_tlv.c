@@ -3058,6 +3058,8 @@ static QDF_STATUS send_scan_stop_cmd_tlv(wmi_unified_t wmi_handle,
 	} else if (param->req_type == WLAN_SCAN_CANCEL_SINGLE) {
 		/* Cancelling specific scan */
 		cmd->req_type = WMI_SCAN_STOP_ONE;
+	} else if (param->req_type == WLAN_SCAN_CANCEL_HOST_VDEV_ALL) {
+		cmd->req_type = WMI_SCN_STOP_HOST_VAP_ALL;
 	} else {
 		WMI_LOGE("%s: Invalid Command : ", __func__);
 		wmi_buf_free(wmi_buf);
@@ -6773,6 +6775,18 @@ static QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 					     roam_req->psk_pmk,
 					     roam_offload_11i->pmk_len);
 
+				if (auth_mode ==
+				   WMI_AUTH_RSNA_SUITE_B_8021X_SHA384) {
+					roam_offload_11i->pmk_ext_len =
+						(roam_req->pmk_len -
+						 ROAM_OFFLOAD_PMK_BYTES);
+					qdf_mem_copy(roam_offload_11i->pmk_ext,
+						     &roam_req->psk_pmk[
+							ROAM_OFFLOAD_PMK_BYTES],
+						     roam_offload_11i->
+							pmk_ext_len);
+				}
+
 				WMITLV_SET_HDR(&roam_offload_11i->tlv_header,
 				WMITLV_TAG_STRUC_wmi_roam_11i_offload_tlv_param,
 				WMITLV_GET_STRUCT_TLVLEN
@@ -6787,11 +6801,8 @@ static QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 				buf_ptr += WMI_TLV_HDR_SIZE;
 				WMI_LOGD("pmk_len = %d",
 					roam_offload_11i->pmk_len);
-				if (roam_offload_11i->pmk_len)
-					QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_WMI,
-						QDF_TRACE_LEVEL_DEBUG,
-						roam_offload_11i->pmk,
-						roam_offload_11i->pmk_len);
+				WMI_LOGD("pmk_ext_len = %d",
+					 roam_offload_11i->pmk_ext_len);
 			}
 		} else {
 			WMITLV_SET_HDR(buf_ptr, WMITLV_TAG_ARRAY_STRUC,
@@ -25211,6 +25222,10 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_AUDIO_SYNC_SUPPORT;
 	wmi_service[wmi_roam_scan_chan_list_to_host_support] =
 			WMI_SERVICE_ROAM_SCAN_CHANNEL_LIST_TO_HOST_SUPPORT;
+	wmi_service[wmi_service_host_scan_stop_vdev_all] =
+		WMI_SERVICE_HOST_SCAN_STOP_VDEV_ALL_SUPPORT;
+	wmi_service[wmi_service_suiteb_roam_support] =
+			WMI_SERVICE_WPA3_SUITEB_ROAM_SUPPORT;
 }
 
 #ifndef CONFIG_MCL

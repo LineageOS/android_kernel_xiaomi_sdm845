@@ -1284,11 +1284,10 @@ ucfg_scan_cancel_sync(struct scan_cancel_request *req)
 		return QDF_STATUS_E_NULL_VALUE;
 	}
 
-	if (req->cancel_req.req_type ==
-	   WLAN_SCAN_CANCEL_PDEV_ALL)
+	if (req->cancel_req.req_type == WLAN_SCAN_CANCEL_PDEV_ALL)
 		cancel_pdev = true;
-	else if (req->cancel_req.req_type ==
-	   WLAN_SCAN_CANCEL_VDEV_ALL)
+	else if (req->cancel_req.req_type == WLAN_SCAN_CANCEL_VDEV_ALL ||
+		 req->cancel_req.req_type == WLAN_SCAN_CANCEL_HOST_VDEV_ALL)
 		cancel_vdev = true;
 
 	vdev = req->vdev;
@@ -2530,4 +2529,15 @@ ucfg_scan_get_global_config(struct wlan_objmgr_psoc *psoc,
 uint32_t ucfg_scan_get_max_cmd_allowed(void)
 {
 	return MAX_SCAN_COMMANDS;
+}
+
+qdf_time_t ucfg_scan_get_aging_time(struct wlan_objmgr_psoc *psoc)
+{
+	struct wlan_scan_obj *scan_obj;
+
+	scan_obj = wlan_psoc_get_scan_obj(psoc);
+	if (!scan_obj)
+		return SCAN_CACHE_AGING_TIME;
+
+	return scan_obj->scan_def.scan_cache_aging_time;
 }
