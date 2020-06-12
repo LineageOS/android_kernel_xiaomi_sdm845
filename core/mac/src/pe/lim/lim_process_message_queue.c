@@ -1743,6 +1743,7 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx,
 	case eWNI_SME_ROAM_INVOKE:
 		/* fall through */
 	case eWNI_SME_ROAM_SCAN_OFFLOAD_REQ:
+	case eWNI_SME_ROAM_SEND_PER_REQ:
 	case eWNI_SME_SET_ADDBA_ACCEPT:
 	case eWNI_SME_UPDATE_EDCA_PROFILE:
 	case WNI_SME_REGISTER_BCN_REPORT_SEND_CB:

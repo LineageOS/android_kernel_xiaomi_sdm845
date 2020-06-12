@@ -78,6 +78,7 @@ struct wma_tgt_services {
 	bool bcn_reception_stats;
 	uint32_t akm_service_bitmap;
 	bool is_adaptive_11r_roam_supported;
+	bool stop_all_host_scan_support;
 	bool is_roam_scan_ch_to_host;
 };
 

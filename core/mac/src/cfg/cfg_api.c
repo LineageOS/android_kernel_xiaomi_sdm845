@@ -789,7 +789,7 @@ QDF_STATUS cfg_get_capability_info(tpAniSirGlobal pMac, uint16_t *pCap,
 	if (val)
 		pCapInfo->apsd = 1;
 
-	pCapInfo->rrm = pMac->rrm.rrmSmeContext.rrmConfig.rrm_enabled;
+	pCapInfo->rrm = pMac->rrm.rrmConfig.rrm_enabled;
 	pe_debug("RRM: %d", pCapInfo->rrm);
 	/* DSSS-OFDM */
 	/* FIXME : no config defined yet. */
