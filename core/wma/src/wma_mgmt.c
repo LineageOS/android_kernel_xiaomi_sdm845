@@ -1911,8 +1911,14 @@ static QDF_STATUS wma_setup_install_key_cmd(tp_wma_handle wma_handle,
 			key_params->vdev_id);
 		return QDF_STATUS_E_INVAL;
 	}
+
 	if (key_params->vdev_id >= wma_handle->max_bssid) {
 		WMA_LOGE(FL("Invalid vdev_id: %d"), key_params->vdev_id);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (!wma_is_vdev_up(key_params->vdev_id)) {
+		WMA_LOGE(FL("vdev : %d not up"), key_params->vdev_id);
 		return QDF_STATUS_E_INVAL;
 	}
 

@@ -1880,6 +1880,12 @@ void lim_process_assoc_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		return;
 	}
 
+	if (session->dfsIncludeChanSwIe) {
+		pe_err("csa in progress, drop ASSOC REQ on sessionid: %d",
+		       session->peSessionId);
+		return;
+	}
+
 	/*
 	 * If a STA is already present in DPH and it is initiating a Assoc
 	 * re-transmit, do not process it. This can happen when first Assoc Req
