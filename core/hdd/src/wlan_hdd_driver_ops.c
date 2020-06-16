@@ -380,6 +380,7 @@ static void hdd_soc_load_unlock(struct device *dev)
 	hdd_remove_pm_qos(dev);
 	hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_DRIVER_INIT);
 	hdd_stop_driver_ops_timer();
+	hdd_start_complete(0);
 	mutex_unlock(&hdd_init_deinit_lock);
 }
 
@@ -414,7 +415,6 @@ static int hdd_soc_probe(struct device *dev,
 
 	probe_fail_cnt = 0;
 	cds_set_driver_loaded(true);
-	hdd_start_complete(0);
 	cds_set_load_in_progress(false);
 
 	hdd_soc_load_unlock(dev);
