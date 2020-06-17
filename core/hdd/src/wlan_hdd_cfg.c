@@ -3743,6 +3743,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_DISABLE_RX_MRC_2G_MIN,
 		     CFG_DISABLE_RX_MRC_2G_MAX),
 
+	REG_VARIABLE(CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG, WLAN_PARAM_Integer,
+		     struct hdd_config, enable_dynamic_nss_chains_cfg,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG_DEF,
+		     CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG_MIN,
+		     CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG_MAX),
+
 	REG_VARIABLE(CFG_DISABLE_RX_MRC_5G, WLAN_PARAM_Integer,
 		     struct hdd_config, disable_rx_mrc_5g,
 		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,

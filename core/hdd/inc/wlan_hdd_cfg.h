@@ -10073,6 +10073,27 @@ enum dot11p_mode {
 
 /*
  * <ini>
+ * enable_dynamic_nss_chain_config - Enable/Disable dynamic nss and chain config
+ * to FW.
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * Related: STA/SAP/P2P/NAN.
+ *
+ * Supported Feature: Dynamic chainmask
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG       "enable_dynamic_nss_chain_config"
+#define CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG_MIN   0
+#define CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG_MAX   1
+#define CFG_ENABLE_DYNAMIC_NSS_CHAIN_CFG_DEF   1
+
+/*
+ * <ini>
  * disable_rx_mrc_5g - Config Param to disable 2 chains in 1x1 nss mode
  * @Min: 0
  * @Max: 1
@@ -18738,6 +18759,7 @@ struct hdd_config {
 	bool disable_rx_mrc_2g;
 	bool disable_tx_mrc_5g;
 	bool disable_rx_mrc_5g;
+	bool enable_dynamic_nss_chains_cfg;
 	bool mac_provision;
 	uint32_t provisioned_intf_pool;
 	uint32_t derived_intf_pool;
