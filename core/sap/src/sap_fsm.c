@@ -839,11 +839,14 @@ sap_validate_chan(struct sap_context *sap_context,
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	tpAniSirGlobal mac_ctx;
-	bool is_dfs;
-	bool is_safe;
 	tHalHandle h_hal;
 	uint8_t con_ch;
 	bool sta_sap_scc_on_dfs_chan;
+	uint32_t sta_go_bit_mask = QDF_STA_MASK | QDF_P2P_GO_MASK;
+	uint32_t sta_sap_bit_mask = QDF_STA_MASK | QDF_SAP_MASK;
+	uint32_t concurrent_state;
+	bool go_force_scc;
+	struct wlan_objmgr_vdev *vdev;
 
 	h_hal = cds_get_context(QDF_MODULE_ID_SME);
 	if (NULL == h_hal) {
@@ -860,79 +863,28 @@ sap_validate_chan(struct sap_context *sap_context,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	if (policy_mgr_concurrent_beaconing_sessions_running(mac_ctx->psoc) ||
-	   ((sap_context->cc_switch_mode ==
-		QDF_MCC_TO_SCC_SWITCH_FORCE_PREFERRED_WITHOUT_DISCONNECTION) &&
-	   (policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
-		PM_SAP_MODE, NULL) ||
-	     policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
-		PM_P2P_GO_MODE, NULL)))) {
-		con_ch =
-			sme_get_beaconing_concurrent_operation_channel(
-				h_hal, sap_context->sessionId);
-#ifdef FEATURE_WLAN_STA_AP_MODE_DFS_DISABLE
-		if (con_ch && sap_context->channel != con_ch &&
-		    wlan_reg_is_dfs_ch(mac_ctx->pdev,
-				       sap_context->channel)) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_WARN,
-				  FL("MCC DFS not supported in AP_AP Mode"));
-			return QDF_STATUS_E_ABORTED;
-		}
-#endif
-#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
-		if (con_ch && (sap_context->cc_switch_mode !=
-			       QDF_MCC_TO_SCC_SWITCH_DISABLE)) {
-			/*
-			 * For ACS request ,the sapContext->channel is 0,
-			 * we skip below overlap checking. When the ACS
-			 * finish and SAPBSS start, the sapContext->channel
-			 * will not be 0. Then the overlap checking will be
-			 * reactivated.If we use sapContext->channel = 0
-			 * to perform the overlap checking, an invalid overlap
-			 * channel con_ch could becreated. That may cause
-			 * SAP start failed.
-			 */
-			con_ch = sme_check_concurrent_channel_overlap(h_hal,
-					sap_context->channel,
-					sap_context->csr_roamProfile.phyMode,
-					sap_context->cc_switch_mode);
-
-			sta_sap_scc_on_dfs_chan =
-				policy_mgr_is_sta_sap_scc_allowed_on_dfs_chan(
-								mac_ctx->psoc);
-
-			if (sap_context->cc_switch_mode ==
-		QDF_MCC_TO_SCC_SWITCH_FORCE_PREFERRED_WITHOUT_DISCONNECTION)
-				sta_sap_scc_on_dfs_chan = false;
-
-			is_dfs = wlan_reg_is_dfs_ch(mac_ctx->pdev, con_ch);
-			is_safe = policy_mgr_is_safe_channel(
-							mac_ctx->psoc, con_ch);
-
-			if (con_ch && is_safe &&
-			    (!is_dfs || (is_dfs && sta_sap_scc_on_dfs_chan))) {
-				QDF_TRACE(QDF_MODULE_ID_SAP,
-					QDF_TRACE_LEVEL_ERROR,
-					"%s: Override ch %d to %d due to CC Intf",
-					__func__, sap_context->channel, con_ch);
-				sap_context->channel = con_ch;
-				if (WLAN_REG_IS_24GHZ_CH(con_ch))
-					sap_context->ch_params.ch_width =
-							CH_WIDTH_20MHZ;
-				wlan_reg_set_channel_params(mac_ctx->pdev,
-						sap_context->channel, 0,
-						&sap_context->ch_params);
-			}
-		}
-#endif
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
+						    sap_context->sessionId,
+						    WLAN_LEGACY_SME_ID);
+	if (!vdev) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid vdev objmgr"));
+		return QDF_STATUS_E_FAILURE;
 	}
 
-	if ((policy_mgr_get_concurrency_mode(mac_ctx->psoc) ==
-		(QDF_STA_MASK | QDF_SAP_MASK)) ||
-		((sap_context->cc_switch_mode ==
-		QDF_MCC_TO_SCC_SWITCH_FORCE_PREFERRED_WITHOUT_DISCONNECTION) &&
-		(policy_mgr_get_concurrency_mode(mac_ctx->psoc) ==
-		(QDF_STA_MASK | QDF_P2P_GO_MASK)))) {
+	go_force_scc = policy_mgr_go_scc_enforced(mac_ctx->psoc);
+	if (!go_force_scc &&
+	    (wlan_vdev_mlme_get_opmode(vdev) == QDF_P2P_GO_MODE)) {
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+		goto validation_done;
+	}
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+	vdev = NULL;
+
+	concurrent_state = policy_mgr_get_concurrency_mode(mac_ctx->psoc);
+	if (policy_mgr_concurrent_beaconing_sessions_running(mac_ctx->psoc) ||
+	    ((concurrent_state & sta_sap_bit_mask) == sta_sap_bit_mask) ||
+	    ((concurrent_state & sta_go_bit_mask) == sta_go_bit_mask)) {
 #ifdef FEATURE_WLAN_STA_AP_MODE_DFS_DISABLE
 		if (wlan_reg_is_dfs_ch(mac_ctx->pdev,
 				       sap_context->channel)) {
@@ -991,7 +943,7 @@ sap_validate_chan(struct sap_context *sap_context,
 		}
 #endif
 	}
-
+validation_done:
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 		  FL("for configured channel, Ch= %d"),
 		  sap_context->channel);

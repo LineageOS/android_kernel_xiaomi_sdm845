@@ -10238,6 +10238,27 @@ enum dot11p_mode {
 #define CFG_STA_SAP_SCC_ON_LTE_COEX_CHAN_DEFAULT      (1)
 
 /*
+ * <ini>
+ * g_enable_go_force_scc - Enable/Disable force SCC on P2P GO
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini and along with "gWlanMccToSccSwitchMode" is used to enable
+ * force SCC on P2P GO interface.
+ *
+ * Supported Feature: P2P GO
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_P2P_GO_ENABLE_FORCE_SCC              "g_enable_go_force_scc"
+#define CFG_P2P_GO_ENABLE_FORCE_SCC_MIN          (0)
+#define CFG_P2P_GO_ENABLE_FORCE_SCC_MAX          (1)
+#define CFG_P2P_GO_ENABLE_FORCE_SCC_DEFAULT      (0)
+
+/*
  * gPNOChannelPrediction will allow user to enable/disable the
  * PNO channel prediction feature.
  * In current PNO implementation, scan is always done until all configured
@@ -18361,6 +18382,7 @@ struct hdd_config {
 	uint8_t dbs_scan_selection[CFG_DBS_SCAN_PARAM_LENGTH];
 	uint32_t sta_sap_scc_on_dfs_chan;
 	uint32_t sta_sap_scc_on_lte_coex_chan;
+	uint32_t go_force_scc;
 	bool     tx_chain_mask_cck;
 	uint8_t  tx_chain_mask_1ss;
 	bool smart_chainmask_enabled;

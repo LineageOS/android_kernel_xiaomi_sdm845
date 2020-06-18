@@ -3856,6 +3856,13 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_STA_SAP_SCC_ON_LTE_COEX_CHAN_MIN,
 		     CFG_STA_SAP_SCC_ON_LTE_COEX_CHAN_MAX),
 
+	REG_VARIABLE(CFG_P2P_GO_ENABLE_FORCE_SCC, WLAN_PARAM_HexInteger,
+		     struct hdd_config, go_force_scc,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_P2P_GO_ENABLE_FORCE_SCC_DEFAULT,
+		     CFG_P2P_GO_ENABLE_FORCE_SCC_MIN,
+		     CFG_P2P_GO_ENABLE_FORCE_SCC_MAX),
+
 #ifdef FEATURE_WLAN_SCAN_PNO
 	REG_VARIABLE(CFG_PNO_CHANNEL_PREDICTION_NAME, WLAN_PARAM_Integer,
 		     struct hdd_config, pno_channel_prediction,
@@ -9637,6 +9644,7 @@ QDF_STATUS hdd_set_policy_mgr_user_cfg(struct hdd_context *hdd_ctx)
 		hdd_ctx->config->channel_select_logic_conc;
 	user_cfg->sta_sap_scc_on_lte_coex_chan =
 		hdd_ctx->config->sta_sap_scc_on_lte_coex_chan;
+	user_cfg->go_force_scc = hdd_ctx->config->go_force_scc;
 	user_cfg->enable_dfs_master_cap =
 		hdd_ctx->config->enableDFSMasterCap;
 	status = policy_mgr_set_user_cfg(hdd_ctx->psoc, user_cfg);
