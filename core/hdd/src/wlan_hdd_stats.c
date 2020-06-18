@@ -997,13 +997,16 @@ static void hdd_link_layer_process_radio_stats(struct hdd_adapter *adapter,
 					       tpSirWifiRadioStat pData,
 					       u32 num_radio)
 {
-	int status, i, nr, ret;
+	int i, nr, ret;
 	tSirWifiRadioStat *pWifiRadioStat = pData;
-	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
-	status = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != status)
-		return;
+	/*
+	 * There is no need for wlan_hdd_validate_context here. This is a NB
+	 * operation that will come with DSC synchronization. This ensures that
+	 * no driver transition will take place as long as this operation is
+	 * not complete. Thus the need to check validity of hdd_context is not
+	 * required.
+	 */
 
 	hdd_debug("LL_STATS_RADIO: number of radios: %u", num_radio);
 
