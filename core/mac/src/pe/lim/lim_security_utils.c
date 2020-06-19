@@ -328,6 +328,7 @@ void lim_release_pre_auth_node(tpAniSirGlobal pMac, tpLimPreAuthNode pAuthNode)
 		if (assoc->assocReqFrameLength)
 			qdf_mem_free(assoc->assocReqFrame);
 		qdf_mem_free(assoc);
+		pAuthNode->assoc_req.assoc_req = NULL;
 		pAuthNode->assoc_req.present = false;
 	}
 	MTRACE(mac_trace
