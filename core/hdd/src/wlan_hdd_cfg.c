@@ -9148,7 +9148,14 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 			hdd_err("Couldn't pass on WNI_CFG_VHT_MAX_MPDU_LENGTH to CFG");
 		}
 
-		if (config->enable2x2 && config->enable_su_tx_bformer) {
+		/* Get SU Bformer HW capability */
+		if (sme_cfg_get_int(mac_handle, WNI_CFG_VHT_SU_BEAMFORMER_CAP, &val) ==
+							QDF_STATUS_E_FAILURE) {
+			status = false;
+			hdd_err("Could not get WNI_CFG_VHT_SU_BEAMFORMER_CAP");
+		}
+
+		if (val && !config->enable_su_tx_bformer) {
 			if (sme_cfg_set_int(mac_handle,
 					WNI_CFG_VHT_SU_BEAMFORMER_CAP,
 					config->enable_su_tx_bformer) ==
