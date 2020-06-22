@@ -6425,7 +6425,7 @@ enum hdd_link_speed_rpt_type {
  * gSapGetPeerInfo - Enable/Disable remote peer info query support
  * @Min: 0 - Disable remote peer info query support
  * @Max: 1 - Enable remote peer info query support
- * @Default: 0
+ * @Default: 1
  *
  * This ini is used to enable/disable remote peer info query support
  *
@@ -6436,7 +6436,7 @@ enum hdd_link_speed_rpt_type {
 #define CFG_SAP_GET_PEER_INFO                      "gSapGetPeerInfo"
 #define CFG_SAP_GET_PEER_INFO_MIN                   (0)
 #define CFG_SAP_GET_PEER_INFO_MAX                   (1)
-#define CFG_SAP_GET_PEER_INFO_DEFAULT               (0)
+#define CFG_SAP_GET_PEER_INFO_DEFAULT               (1)
 
 /*
  * <ini>
