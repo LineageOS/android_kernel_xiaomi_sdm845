@@ -13577,8 +13577,11 @@ static enum band_info sme_get_connected_roaming_vdev_band(void)
 	uint8_t channel;
 
 	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
-	if (!wma_handle)
+	if (!wma_handle) {
 		sme_err("Invalid wma handle");
+		return BAND_UNKNOWN;
+	}
+
 	channel = wma_get_vdev_chan_roam_enabled(wma_handle);
 	band = csr_get_rf_band(channel);
 
