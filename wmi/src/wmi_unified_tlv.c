@@ -10712,14 +10712,14 @@ static QDF_STATUS send_update_tdls_peer_state_cmd_tlv(wmi_unified_t wmi_handle,
 	peer_cap->peer_operclass_len =
 		peerStateParams->peerCap.peerOperClassLen;
 
-	WMI_LOGD("%s: peer_operclass_len: %d",
-		 __func__, peer_cap->peer_operclass_len);
+	WMI_LOGD("peer_operclass_len: %d", peer_cap->peer_operclass_len);
 	for (i = 0; i < WMI_TDLS_MAX_SUPP_OPER_CLASSES; i++) {
 		peer_cap->peer_operclass[i] =
 			peerStateParams->peerCap.peerOperClass[i];
-		WMI_LOGD("%s: peer_operclass[%d]: %d",
-			 __func__, i, peer_cap->peer_operclass[i]);
 	}
+	qdf_trace_hex_dump(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_DEBUG,
+			   (uint8_t *)peer_cap->peer_operclass,
+			   WMI_TDLS_MAX_SUPP_OPER_CLASSES);
 
 	peer_cap->is_peer_responder = peerStateParams->peerCap.isPeerResponder;
 	peer_cap->pref_offchan_num = peerStateParams->peerCap.prefOffChanNum;
