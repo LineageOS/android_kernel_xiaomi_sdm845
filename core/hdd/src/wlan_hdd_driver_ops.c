@@ -467,7 +467,6 @@ assert_fail_count:
 
 unlock:
 	cds_set_driver_in_bad_state(true);
-	cds_set_recovery_in_progress(false);
 	hdd_soc_load_unlock(dev);
 
 	return check_for_probe_defer(errno);
