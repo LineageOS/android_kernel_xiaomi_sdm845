@@ -720,12 +720,12 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 	unsigned int blank;
 	char temp[4] = { 0x0 };
 
-	if (val != DRM_EVENT_BLANK)
+	if (val != MSM_DRM_EVENT_BLANK)
 		return 0;
 	pr_debug("[info] %s go to the goodix_fb_state_chg_callback value = %d\n",
 			__func__, (int)val);
 	gf_dev = container_of(nb, struct gf_dev, notifier);
-	if (evdata && evdata->data && val == DRM_EVENT_BLANK && gf_dev) {
+	if (evdata && evdata->data && val == MSM_DRM_EVENT_BLANK && gf_dev) {
 		blank = *(int *)(evdata->data);
 		switch (blank) {
 		case MSM_DRM_BLANK_POWERDOWN:
