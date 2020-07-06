@@ -1015,6 +1015,8 @@ static long snd_rawmidi_kernel_read1(struct snd_rawmidi_substream *substream,
  out:
 	snd_rawmidi_buffer_unref(runtime);
 	spin_unlock_irqrestore(&runtime->lock, flags);
+	if (userbuf)
+		mutex_unlock(&runtime->realloc_mutex);
 	return result > 0 ? result : err;
 }
 
