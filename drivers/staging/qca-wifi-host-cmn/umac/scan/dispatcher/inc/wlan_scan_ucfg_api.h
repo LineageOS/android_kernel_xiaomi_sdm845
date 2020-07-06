@@ -656,4 +656,12 @@ bool ucfg_scan_wake_lock_in_user_scan(struct wlan_objmgr_psoc *psoc);
  * Return: Max Scan commands allowed count
  */
 uint32_t ucfg_scan_get_max_cmd_allowed(void);
+
+/**
+ * wlan_scan_get_aging_time  - Get the scan aging time config
+ * @psoc: psoc context
+ *
+ * Return: Scan aging time config
+ */
+qdf_time_t ucfg_scan_get_aging_time(struct wlan_objmgr_psoc *psoc);
 #endif

@@ -6238,6 +6238,8 @@ typedef enum {
 	wmi_service_packet_capture_support,
 	wmi_service_time_sync_ftm,
 	wmi_roam_scan_chan_list_to_host_support,
+	wmi_service_host_scan_stop_vdev_all,
+	wmi_service_suiteb_roam_support,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF
