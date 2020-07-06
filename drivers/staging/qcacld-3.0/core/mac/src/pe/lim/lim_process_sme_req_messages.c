@@ -3723,6 +3723,37 @@ static void __lim_process_roam_scan_offload_req(tpAniSirGlobal mac_ctx,
 	}
 }
 
+#if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
+/**
+ * lim_send_roam_per_command() - Process roam send PER command from csr
+ * @mac_ctx: Pointer to Global MAC structure
+ * @msg_buf: Pointer to SME message buffer
+ *
+ * Return: None
+ */
+static void lim_send_roam_per_command(tpAniSirGlobal mac_ctx,
+				      uint32_t *msg_buf)
+{
+	struct scheduler_msg wma_msg = {0};
+	QDF_STATUS status;
+
+	wma_msg.type = WMA_SET_PER_ROAM_CONFIG_CMD;
+	wma_msg.bodyptr = msg_buf;
+
+	status = wma_post_ctrl_msg(mac_ctx, &wma_msg);
+	if (QDF_STATUS_SUCCESS != status) {
+		pe_err("Posting WMA_ROAM_INIT_PARAM failed");
+		qdf_mem_free(msg_buf);
+	}
+}
+#else
+static void lim_send_roam_per_command(tpAniSirGlobal mac_ctx,
+				      uint32_t *msg_buf)
+{
+	qdf_mem_free(msg_buf);
+}
+#endif
+
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /**
  * lim_process_roam_invoke() - process the Roam Invoke req
@@ -4663,6 +4694,10 @@ bool lim_process_sme_req_messages(tpAniSirGlobal pMac,
 		break;
 	case eWNI_SME_ROAM_SCAN_OFFLOAD_REQ:
 		__lim_process_roam_scan_offload_req(pMac, pMsgBuf);
+		bufConsumed = false;
+		break;
+	case eWNI_SME_ROAM_SEND_PER_REQ:
+		lim_send_roam_per_command(pMac, pMsgBuf);
 		bufConsumed = false;
 		break;
 	case eWNI_SME_ROAM_INVOKE:

@@ -171,6 +171,7 @@ struct mlme_roam_debug_info {
 #define AKM_FT_FILS          2
 #define AKM_SAE              3
 #define AKM_OWE              4
+#define AKM_SUITEB           5
 
 /**
  * enum sir_roam_op_code - Operation to be done by the callback.

@@ -1636,28 +1636,6 @@ static void hdd_clear_roam_profile_ie(struct hdd_adapter *adapter)
 }
 
 /**
- * hdd_roam_deregister_sta() - deregister station
- * @adapter: pointer to adapter
- * @staId: station identifier
- *
- * Return: QDF_STATUS enumeration
- */
-QDF_STATUS hdd_roam_deregister_sta(struct hdd_adapter *adapter, uint8_t staid)
-{
-	QDF_STATUS qdf_status;
-
-	qdf_status = cdp_clear_peer(cds_get_context(QDF_MODULE_ID_SOC),
-			(struct cdp_pdev *)cds_get_context(QDF_MODULE_ID_TXRX),
-			staid);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		hdd_err("cdp_clear_peer() failed for staid %d. Status(%d) [0x%08X]",
-			staid, qdf_status, qdf_status);
-	}
-
-	return qdf_status;
-}
-
-/**
  * hdd_print_bss_info() - print bss info
  * @hdd_sta_ctx: pointer to hdd station context
  *
@@ -1711,7 +1689,6 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 					  eCsrRoamResult roamResult)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	QDF_STATUS vstatus;
 	struct net_device *dev = adapter->dev;
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	struct hdd_station_ctx *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
@@ -1838,41 +1815,7 @@ static QDF_STATUS hdd_dis_connect_handler(struct hdd_adapter *adapter,
 						 adapter->session_id,
 						 SCAN_EVENT_TYPE_MAX, true);
 	}
-	if (eCSR_ROAM_IBSS_LEAVE == roamStatus) {
-		uint8_t i;
-
-		sta_id = sta_ctx->broadcast_staid;
-		vstatus = hdd_roam_deregister_sta(adapter, sta_id);
-		if (QDF_IS_STATUS_ERROR(vstatus))
-			status = QDF_STATUS_E_FAILURE;
-
-		if (sta_id < HDD_MAX_ADAPTERS)
-			hdd_ctx->sta_to_adapter[sta_id] = NULL;
-		else
-			hdd_debug("invalid sta id %d", sta_id);
-		/* Clear all the peer sta register with TL. */
-		for (i = 0; i < MAX_PEERS; i++) {
-			if (HDD_WLAN_INVALID_STA_ID ==
-				sta_ctx->conn_info.staId[i])
-				continue;
-			sta_id = sta_ctx->conn_info.staId[i];
-			hdd_debug("Deregister StaID %d", sta_id);
-			vstatus = hdd_roam_deregister_sta(adapter, sta_id);
-			if (QDF_IS_STATUS_ERROR(vstatus))
-				status = QDF_STATUS_E_FAILURE;
-			/* set the staid and peer mac as 0, all other
-			 * reset are done in hdd_connRemoveConnectInfo.
-			 */
-			sta_ctx->conn_info.staId[i] =
-						HDD_WLAN_INVALID_STA_ID;
-			qdf_mem_zero(&sta_ctx->conn_info.peerMacAddress[i],
-				sizeof(struct qdf_mac_addr));
-			if (sta_id < HDD_MAX_ADAPTERS)
-				hdd_ctx->sta_to_adapter[sta_id] = NULL;
-			else
-				hdd_debug("invalid sta_id %d", sta_id);
-		}
-	} else {
+	if (roamStatus != eCSR_ROAM_IBSS_LEAVE) {
 		sta_id = sta_ctx->conn_info.staId[0];
 		/* clear scan cache for Link Lost */
 		if (eCSR_ROAM_RESULT_DEAUTH_IND == roamResult ||
@@ -3723,7 +3666,7 @@ bool hdd_save_peer(struct hdd_station_ctx *sta_ctx, uint8_t sta_id,
 {
 	int idx;
 
-	for (idx = 0; idx < SIR_MAX_NUM_STA_IN_IBSS; idx++) {
+	for (idx = 0; idx < MAX_PEERS; idx++) {
 		if (HDD_WLAN_INVALID_STA_ID == sta_ctx->conn_info.staId[idx]) {
 			hdd_debug("adding peer: %pM, sta_id: %d, at idx: %d",
 				 peer_mac_addr, sta_id, idx);
@@ -3748,7 +3691,7 @@ void hdd_delete_peer(struct hdd_station_ctx *sta_ctx, uint8_t sta_id)
 {
 	int i;
 
-	for (i = 0; i < SIR_MAX_NUM_STA_IN_IBSS; i++) {
+	for (i = 0; i < MAX_PEERS; i++) {
 		if (sta_id == sta_ctx->conn_info.staId[i]) {
 			sta_ctx->conn_info.staId[i] = HDD_WLAN_INVALID_STA_ID;
 			return;
@@ -3761,7 +3704,7 @@ bool hdd_any_valid_peer_present(struct hdd_adapter *adapter)
 	struct hdd_station_ctx *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
 	int idx;
 
-	for (idx = 0; idx < SIR_MAX_NUM_STA_IN_IBSS; idx++)
+	for (idx = 0; idx < MAX_PEERS; idx++)
 		if (HDD_WLAN_INVALID_STA_ID != sta_ctx->conn_info.staId[idx])
 			return true;
 
@@ -4040,8 +3983,6 @@ roam_roam_connect_status_update_handler(struct hdd_adapter *adapter,
 			 MAC_ADDR_ARRAY(sta_ctx->conn_info.bssId.bytes),
 			 roam_info->staId);
 
-		hdd_roam_deregister_sta(adapter, roam_info->staId);
-
 		if (roam_info->staId < HDD_MAX_ADAPTERS)
 			hdd_ctx->sta_to_adapter[roam_info->staId] = NULL;
 		else
@@ -4155,6 +4096,7 @@ hdd_roam_tdls_status_update_handler(struct hdd_adapter *adapter,
 {
 	return QDF_STATUS_SUCCESS;
 }
+
 #endif
 
 #ifdef WLAN_FEATURE_11W
@@ -4714,7 +4656,6 @@ hdd_sme_roam_callback(void *pContext, struct csr_roam_info *roam_info,
 	QDF_STATUS qdf_ret_status = QDF_STATUS_SUCCESS;
 	struct hdd_adapter *adapter = (struct hdd_adapter *) pContext;
 	struct hdd_station_ctx *sta_ctx = NULL;
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	struct cfg80211_bss *bss_status;
 	struct hdd_context *hdd_ctx;
 
@@ -4768,10 +4709,6 @@ hdd_sme_roam_callback(void *pContext, struct csr_roam_info *roam_info,
 		wlan_hdd_netif_queue_control(adapter,
 				WLAN_STOP_ALL_NETIF_QUEUE,
 				WLAN_CONTROL_PATH);
-		status = hdd_roam_deregister_sta(adapter,
-					sta_ctx->conn_info.staId[0]);
-		if (!QDF_IS_STATUS_SUCCESS(status))
-			qdf_ret_status = QDF_STATUS_E_FAILURE;
 		sta_ctx->ft_carrier_on = true;
 		sta_ctx->hdd_reassoc_scenario = true;
 		hdd_debug("hdd_reassoc_scenario set to: %d, due to eCSR_ROAM_FT_START, session: %d",
