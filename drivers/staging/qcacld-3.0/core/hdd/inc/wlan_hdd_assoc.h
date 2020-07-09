@@ -392,7 +392,6 @@ QDF_STATUS hdd_roam_register_sta(struct hdd_adapter *adapter,
 bool hdd_save_peer(struct hdd_station_ctx *sta_ctx, uint8_t sta_id,
 		   struct qdf_mac_addr *peer_mac_addr);
 void hdd_delete_peer(struct hdd_station_ctx *sta_ctx, uint8_t sta_id);
-QDF_STATUS hdd_roam_deregister_sta(struct hdd_adapter *adapter, uint8_t sta_id);
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 QDF_STATUS

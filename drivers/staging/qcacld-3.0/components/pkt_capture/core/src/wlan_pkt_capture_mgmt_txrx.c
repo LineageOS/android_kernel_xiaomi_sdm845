@@ -269,7 +269,6 @@ pkt_capture_process_mgmt_tx_data(struct wlan_objmgr_pdev *pdev,
 {
 	struct mon_rx_status txrx_status = {0};
 	struct wlan_objmgr_psoc *psoc;
-	uint16_t channel_flags = 0;
 	struct ieee80211_frame *wh;
 	uint8_t type, sub_type;
 
@@ -311,13 +310,12 @@ pkt_capture_process_mgmt_tx_data(struct wlan_objmgr_pdev *pdev,
 	txrx_status.nr_ant = 1;
 	txrx_status.rtap_flags |=
 		((txrx_status.rate == 6 /* Mbps */) ? BIT(1) : 0);
-	channel_flags |=
-		((txrx_status.rate == 6 /* Mbps */) ?
-		IEEE80211_CHAN_OFDM : IEEE80211_CHAN_CCK);
-	channel_flags |=
-		(WLAN_REG_CHAN_TO_BAND(txrx_status.chan_num) == BAND_2G ?
-		IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
-	txrx_status.chan_flags = channel_flags;
+
+	if (txrx_status.rate == 6)
+		txrx_status.ofdm_flag = 1;
+	else
+		txrx_status.cck_flag = 1;
+
 	txrx_status.rate = ((txrx_status.rate == 6 /* Mbps */) ? 0x0c : 0x02);
 	txrx_status.tx_status = status;
 	txrx_status.tx_retry_cnt = params->tx_retry_cnt;
@@ -432,7 +430,6 @@ pkt_capture_mgmt_rx_data_cb(struct wlan_objmgr_psoc *psoc,
 			    enum mgmt_frame_type frm_type)
 {
 	struct mon_rx_status txrx_status = {0};
-	uint16_t channel_flags = 0;
 	struct ieee80211_frame *wh;
 	uint8_t type, sub_type;
 	qdf_nbuf_t nbuf;
@@ -483,13 +480,12 @@ pkt_capture_mgmt_rx_data_cb(struct wlan_objmgr_psoc *psoc,
 	txrx_status.nr_ant = 1;
 	txrx_status.rtap_flags |=
 		((txrx_status.rate == 6 /* Mbps */) ? BIT(1) : 0);
-	channel_flags |=
-		((txrx_status.rate == 6 /* Mbps */) ?
-		IEEE80211_CHAN_OFDM : IEEE80211_CHAN_CCK);
-	channel_flags |=
-		(WLAN_REG_CHAN_TO_BAND(txrx_status.chan_num) == BAND_2G ?
-		IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
-	txrx_status.chan_flags = channel_flags;
+
+	if (txrx_status.rate == 6)
+		txrx_status.ofdm_flag = 1;
+	else
+		txrx_status.cck_flag = 1;
+
 	txrx_status.rate = ((txrx_status.rate == 6 /* Mbps */) ? 0x0c : 0x02);
 	txrx_status.add_rtap_ext = true;
 

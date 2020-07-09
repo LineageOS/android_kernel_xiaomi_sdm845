@@ -359,6 +359,7 @@ typedef struct tagCsrScanResultFilter {
 	bool realm_check;
 	uint8_t fils_realm[2];
 	bool force_rsne_override;
+	qdf_time_t age_threshold;
 } tCsrScanResultFilter;
 
 typedef struct sCsrChnPower_ {
@@ -1793,6 +1794,9 @@ typedef QDF_STATUS (*csr_session_close_cb)(uint8_t session_id);
 
 #define CSR_IS_FW_FT_FILS_SUPPORTED(fw_akm_bitmap) \
 	(((fw_akm_bitmap) & (1 << AKM_FT_FILS))  ? true : false)
+
+#define CSR_IS_FW_SUITEB_ROAM_SUPPORTED(fw_akm_bitmap) \
+	(((fw_akm_bitmap) & (1 << AKM_SUITEB))  ? true : false)
 
 QDF_STATUS csr_set_channels(tpAniSirGlobal pMac, tCsrConfigParam *pParam);
 

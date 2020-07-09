@@ -10647,6 +10647,7 @@ static int hdd_open_interfaces(struct hdd_context *hdd_ctx, bool rtnl_held)
 	struct hdd_adapter *adapter;
 	enum QDF_GLOBAL_MODE curr_mode;
 	int ret;
+	bool nan_iface_support;
 
 	curr_mode = hdd_get_conparam();
 	/* open monitor mode adapter if con_mode is monitor mode */
@@ -10690,8 +10691,13 @@ static int hdd_open_interfaces(struct hdd_context *hdd_ctx, bool rtnl_held)
 	if (ret)
 		goto err_close_adapters;
 
-	if (hdd_ctx->nan_seperate_vdev_supported &&
-	    wlan_hdd_nan_separate_iface_supported(hdd_ctx)) {
+	nan_iface_support = wlan_hdd_nan_separate_iface_supported(hdd_ctx);
+	if (!hdd_ctx->nan_seperate_vdev_supported || !nan_iface_support)
+		hdd_debug("NAN separate vdev%s supported by host,%s supported by firmware",
+			   nan_iface_support ? "" : " not",
+			   hdd_ctx->nan_seperate_vdev_supported ? "" : " not");
+
+	if (hdd_ctx->nan_seperate_vdev_supported && nan_iface_support) {
 		adapter = hdd_open_adapter(hdd_ctx, QDF_NAN_DISC_MODE, "wifi-aware%d",
 				   wlan_hdd_get_intf_addr(hdd_ctx,
 							  QDF_NAN_DISC_MODE),
