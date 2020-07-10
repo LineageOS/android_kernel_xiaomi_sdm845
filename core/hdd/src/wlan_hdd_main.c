@@ -13223,6 +13223,12 @@ int hdd_register_cb(struct hdd_context *hdd_ctx)
 
 	sme_set_roam_scan_ch_event_cb(mac_handle, hdd_get_roam_scan_ch_cb);
 
+	status = sme_set_beacon_latency_event_cb(mac_handle,
+						 hdd_beacon_latency_event_cb);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err_rl("Register beacon latency event callback failed");
+
+
 	hdd_exit();
 
 	return ret;
@@ -16529,6 +16535,20 @@ void hdd_hidden_ssid_enable_roaming(hdd_handle_t hdd_handle, uint8_t vdev_id)
 	/* enable roaming on all adapters once hdd get hidden ssid rsp */
 	wlan_hdd_enable_roaming(adapter);
 }
+
+#if defined(CLD_PM_QOS) && defined(WLAN_FEATURE_LL_MODE)
+void hdd_beacon_latency_event_cb(uint32_t latency_level)
+{
+	struct hdd_context *hdd_ctx;
+
+	hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+	if (!hdd_ctx) {
+		hdd_err_rl("Invalid HDD_CTX");
+		return;
+	}
+	wlan_hdd_set_wlm_mode(hdd_ctx, latency_level);
+}
+#endif
 
 #ifdef WLAN_FEATURE_PKT_CAPTURE
 

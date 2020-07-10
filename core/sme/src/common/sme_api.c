@@ -17291,3 +17291,24 @@ QDF_STATUS sme_update_owe_info(tpAniSirGlobal mac,
 {
 	return csr_update_owe_info(mac, assoc_ind);
 }
+
+#if defined(CLD_PM_QOS) && defined(WLAN_FEATURE_LL_MODE)
+QDF_STATUS
+sme_set_beacon_latency_event_cb(mac_handle_t mac_handle,
+				void (*beacon_latency_event_cb)
+				(uint32_t latency_level))
+{
+	QDF_STATUS qdf_status;
+	struct sAniSirGlobal *mac = MAC_CONTEXT(mac_handle);
+
+	qdf_status = sme_acquire_global_lock(&mac->sme);
+	if (QDF_IS_STATUS_ERROR(qdf_status)) {
+		sme_err("Failed to acquire sme lock; status: %d", qdf_status);
+		return qdf_status;
+	}
+	mac->sme.beacon_latency_event_cb = beacon_latency_event_cb;
+	sme_release_global_lock(&mac->sme);
+
+	return qdf_status;
+}
+#endif
