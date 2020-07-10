@@ -1854,22 +1854,122 @@ uint32_t reg_freq_to_chan(struct wlan_objmgr_pdev *pdev,
 	struct regulatory_channel *chan_list;
 	struct wlan_regulatory_pdev_priv_obj *pdev_priv_obj;
 
+	if (freq == 0) {
+		reg_err("Invalid freq %d", freq);
+		return 0;
+	}
+
 	pdev_priv_obj = reg_get_pdev_obj(pdev);
 
 	if (!IS_VALID_PDEV_REG_OBJ(pdev_priv_obj)) {
 		reg_err("reg pdev priv obj is NULL");
-		return QDF_STATUS_E_FAILURE;
+		return 0;
 	}
 
-	chan_list = pdev_priv_obj->cur_chan_list;
+	chan_list = pdev_priv_obj->mas_chan_list;
+	for (count = 0; count < NUM_CHANNELS; count++) {
+		if (chan_list[count].center_freq >= freq)
+			break;
+	}
 
-	for (count = 0; count < NUM_CHANNELS; count++)
-		if (chan_list[count].center_freq == freq)
-			return chan_list[count].chan_num;
+	if (count == NUM_CHANNELS)
+		goto end;
 
+	if (chan_list[count].center_freq == freq)
+		return chan_list[count].chan_num;
+
+	if (count == 0)
+		goto end;
+
+	if ((chan_list[count - 1].chan_num == INVALID_CHANNEL_NUM) ||
+	    (chan_list[count].chan_num == INVALID_CHANNEL_NUM)) {
+		reg_err("Frequency %d invalid in current reg domain", freq);
+		return 0;
+	}
+
+	return (chan_list[count - 1].chan_num +
+		(freq - chan_list[count - 1].center_freq) / 5);
+
+end:
 	reg_err("invalid frequency %d", freq);
-
 	return 0;
+}
+
+static uint16_t reg_compute_chan_to_freq(struct wlan_objmgr_pdev *pdev,
+					 uint8_t chan_num,
+					 enum channel_enum min_chan_range,
+					 enum channel_enum max_chan_range)
+{
+	uint16_t count;
+	struct regulatory_channel *chan_list;
+	struct wlan_regulatory_pdev_priv_obj *pdev_priv_obj;
+
+	pdev_priv_obj = reg_get_pdev_obj(pdev);
+
+	if (!IS_VALID_PDEV_REG_OBJ(pdev_priv_obj)) {
+		reg_err("reg pdev priv obj is NULL");
+		return 0;
+	}
+
+	chan_list = pdev_priv_obj->mas_chan_list;
+
+	for (count = min_chan_range; count <= max_chan_range; count++) {
+		if (reg_chan_is_49ghz(pdev, chan_list[count].chan_num)) {
+			if (chan_list[count].chan_num == chan_num)
+				break;
+			continue;
+		} else if ((chan_list[count].chan_num >= chan_num) &&
+			   (chan_list[count].state != CHANNEL_STATE_DISABLE) &&
+			   !(chan_list[count].chan_flags &
+				 REGULATORY_CHAN_DISABLED) &&
+			   (chan_list[count].chan_num != INVALID_CHANNEL_NUM))
+			break;
+	}
+
+	if (count == max_chan_range + 1)
+		goto end;
+
+	if (chan_list[count].chan_num == chan_num) {
+		if (chan_list[count].chan_flags & REGULATORY_CHAN_DISABLED)
+			reg_err("Channel %d disabled in current reg domain",
+				chan_num);
+		return chan_list[count].center_freq;
+	}
+
+	if (count == min_chan_range)
+		goto end;
+
+	if ((chan_list[count - 1].chan_num == INVALID_CHANNEL_NUM) ||
+	    reg_chan_is_49ghz(pdev, chan_list[count - 1].chan_num) ||
+		(chan_list[count].chan_num == INVALID_CHANNEL_NUM)) {
+		reg_err("Channel %d invalid in current reg domain",
+			chan_num);
+		return 0;
+	}
+
+	return (chan_list[count - 1].center_freq +
+		(chan_num - chan_list[count - 1].chan_num) * 5);
+
+end:
+
+	reg_debug_rl("Invalid channel %d", chan_num);
+	return 0;
+}
+
+uint16_t reg_legacy_chan_to_freq(struct wlan_objmgr_pdev *pdev,
+				 uint8_t chan_num)
+{
+	uint16_t min_chan_range = MIN_24GHZ_CHANNEL;
+	uint16_t max_chan_range = MAX_5GHZ_CHANNEL;
+
+	if (chan_num == 0) {
+		reg_err("Invalid channel %d", chan_num);
+		return 0;
+	}
+
+	return reg_compute_chan_to_freq(pdev, chan_num,
+					min_chan_range,
+					max_chan_range);
 }
 
 uint32_t reg_chan_to_freq(struct wlan_objmgr_pdev *pdev,
