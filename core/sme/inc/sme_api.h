@@ -2092,6 +2092,18 @@ QDF_STATUS sme_get_beacon_frm(tHalHandle hal, struct csr_roam_profile *profile,
 			      int *channel);
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+
+/**
+ * sme_is_fast_reassoc_allowed  - API to check if roam invoke is
+ * allowed. Get the roam enabled vdev id and allow roaming only on
+ * that vdev id.
+ * @mac_handle: Opaque mac handle
+ * @vdev_id: vdev id
+ *
+ * Return: true if roam invoke is allowed, else return false
+ */
+bool sme_is_fast_reassoc_allowed(mac_handle_t mac_handle, uint8_t vdev_id);
+
 /**
  * sme_fast_reassoc() - invokes FAST REASSOC command
  * @hal: handle returned by mac_open
@@ -2106,6 +2118,12 @@ QDF_STATUS sme_get_beacon_frm(tHalHandle hal, struct csr_roam_profile *profile,
 QDF_STATUS sme_fast_reassoc(tHalHandle hal, struct csr_roam_profile *profile,
 			    const tSirMacAddr bssid, int channel,
 			    uint8_t vdev_id, const tSirMacAddr connected_bssid);
+#else
+static inline
+bool sme_is_fast_reassoc_allowed(mac_handle_t mac_handle, uint8_t vdev_id)
+{
+	return true;
+}
 #endif
 /**
  * sme_congestion_register_callback() - registers congestion callback

@@ -830,6 +830,31 @@ QDF_STATUS hdd_wma_send_fastreassoc_cmd(struct hdd_adapter *adapter,
 }
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0))
+/**
+ * hdd_is_fast_reassoc_allowed  - check if roam offload is enabled on the given
+ * vdev else, don't allow roam invoke to be triggered.
+ * @mac_handle: Opaque mac handle
+ * @vdev_id: vdev_id
+ *
+ * This API should return true if kernel version is less than 4.9, because
+ * the earlier versions don't have the fix to handle reassociation failure.
+ *
+ * Return: true if roaming module initialization is done else false
+ */
+static bool
+hdd_is_fast_reassoc_allowed(mac_handle_t mac_handle, uint8_t vdev_id)
+{
+	return sme_is_fast_reassoc_allowed(mac_handle, vdev_id);
+}
+#else
+static inline bool
+hdd_is_fast_reassoc_allowed(mac_handle_t mac_handle, uint8_t vdev_id)
+{
+	return true;
+}
+#endif
+
 /**
  * hdd_reassoc() - perform a userspace-directed reassoc
  * @adapter:    Adapter upon which the command was received
@@ -900,6 +925,13 @@ int hdd_reassoc(struct hdd_adapter *adapter, const uint8_t *bssid,
 
 	/* Proceed with reassoc */
 	if (roaming_offload_enabled(hdd_ctx)) {
+		if (!hdd_is_fast_reassoc_allowed(adapter->hdd_ctx->mac_handle,
+						 adapter->session_id)) {
+			hdd_err("LFR3: vdev[%d] RSO is not enabled",
+				adapter->session_id);
+			ret = -EPERM;
+			goto exit;
+		}
 		status = hdd_wma_send_fastreassoc_cmd(adapter,
 						      bssid, (int)channel);
 		if (status != QDF_STATUS_SUCCESS) {

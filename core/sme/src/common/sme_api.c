@@ -15670,6 +15670,19 @@ free_scan_flter:
 }
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+bool sme_is_fast_reassoc_allowed(mac_handle_t mac_handle, uint8_t vdev_id)
+{
+	tpAniSirGlobal mac = MAC_CONTEXT(mac_handle);
+	uint8_t roam_enabled_session_id;
+
+	roam_enabled_session_id = csr_get_roam_enabled_sta_sessionid(mac);
+	if (roam_enabled_session_id != CSR_SESSION_ID_INVALID &&
+	    roam_enabled_session_id != vdev_id)
+		return false;
+
+	return true;
+}
+
 QDF_STATUS sme_fast_reassoc(tHalHandle hal, struct csr_roam_profile *profile,
 			    const tSirMacAddr bssid, int channel,
 			    uint8_t vdev_id, const tSirMacAddr connected_bssid)
@@ -15694,7 +15707,6 @@ QDF_STATUS sme_fast_reassoc(tHalHandle hal, struct csr_roam_profile *profile,
 
 	return status;
 }
-
 #endif
 
 QDF_STATUS sme_set_del_pmkid_cache(tHalHandle hal, uint8_t session_id,
