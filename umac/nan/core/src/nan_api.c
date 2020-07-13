@@ -125,8 +125,18 @@ static QDF_STATUS nan_vdev_obj_created_notification(
 {
 	struct nan_vdev_priv_obj *nan_obj;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	struct wlan_objmgr_psoc *psoc;
 
 	nan_debug("nan_vdev_create_notif called");
+
+	psoc = wlan_vdev_get_psoc(vdev);
+	if (!psoc) {
+		nan_err("psoc is NULL");
+		return QDF_STATUS_E_INVAL;
+	}
+	target_if_nan_set_vdev_feature_config(psoc,
+					      wlan_vdev_get_id(vdev),
+					      wlan_vdev_mlme_get_opmode(vdev));
 	if (wlan_vdev_mlme_get_opmode(vdev) != QDF_NDI_MODE) {
 		nan_debug("not a ndi vdev. do nothing");
 		return QDF_STATUS_SUCCESS;
