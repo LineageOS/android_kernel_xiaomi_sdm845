@@ -15273,6 +15273,24 @@ static int hdd_update_pkt_capture_config(struct hdd_context *hdd_ctx)
 	return qdf_status_to_os_return(status);
 }
 
+/**
+ * hdd_update_nan_config - Update nan config
+ * @hdd_ctx: HDD context
+ *
+ * Return: 0 on success / error on failure
+ */
+static int hdd_update_nan_config(struct hdd_context *hdd_ctx)
+{
+	QDF_STATUS status;
+	uint32_t nan_feature_config = hdd_ctx->config->nan_feature_config;
+
+	status = ucfg_set_nan_feature_config(hdd_ctx->psoc, nan_feature_config);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("nan config failed");
+
+	return qdf_status_to_os_return(status);
+}
+
 #ifdef FEATURE_WLAN_TIME_SYNC_FTM
 /**
  * hdd_update_time_sync_ftm_config - Update time sync ftm config parameters
@@ -15638,6 +15656,10 @@ int hdd_update_components_config(struct hdd_context *hdd_ctx)
 		return ret;
 
 	ret = hdd_update_pkt_capture_config(hdd_ctx);
+	if (ret)
+		return ret;
+
+	ret = hdd_update_nan_config(hdd_ctx);
 	if (ret)
 		return ret;
 

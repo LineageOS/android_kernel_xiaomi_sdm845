@@ -2099,6 +2099,7 @@ struct hdd_context {
 	struct wlan_mlme_chain_cfg fw_chain_cfg;
 	struct sar_limit_cmd_params *sar_cmd_params;
 	bool nan_seperate_vdev_supported;
+	uint32_t nan_feature_config;
 
 #ifdef SAR_SAFETY_FEATURE
 	qdf_mc_timer_t sar_safety_timer;

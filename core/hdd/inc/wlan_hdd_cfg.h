@@ -8514,6 +8514,35 @@ enum hdd_link_speed_rpt_type {
 
 /*
  * <ini>
+ * nan_feature_config - Bitmap to enable/disable a particular NAN/NDP feature
+ *
+ * @Min: 0
+ * @Max: 0xFFFF
+ * @Default: 0x1
+ *
+ * This parameter helps to enable/disable a particular feature config by setting
+ * corresponding bit and send to firmware through the VDEV param
+ * WMI_VDEV_PARAM_ENABLE_DISABLE_NAN_CONFIG_FEATURES
+ * Acceptable values for this:
+ * BIT(0): Allow DW configuration from framework in sync role.
+ *	   If this is not set, firmware shall follow the spec/default behavior.
+ * BIT(1) to BIT(31): Reserved
+ *
+ * Related: None
+ *
+ * Supported Feature: NAN
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NAN_FEATURE_CONFIG                  "nan_feature_config"
+#define CFG_NAN_FEATURE_CONFIG_MIN              (0)
+#define CFG_NAN_FEATURE_CONFIG_MAX              (0xFFFF)
+#define CFG_NAN_FEATURE_CONFIG_DEFAULT          (1)
+
+/*
+ * <ini>
  * gSupportMp0Discovery - To support discovery of NAN cluster with
  * Master Preference (MP) as 0 when a new device is enabling NAN.
  *
@@ -18318,6 +18347,7 @@ struct hdd_config {
 	bool nan_separate_iface_support;
 	uint16_t ndp_keep_alive_period;
 	bool support_mp0_discovery;
+	uint32_t nan_feature_config;
 #endif
 	bool enableSelfRecovery;
 #ifdef FEATURE_WLAN_FORCE_SAP_SCC
