@@ -17626,6 +17626,28 @@ enum hdd_external_acs_policy {
 
 /*
  * <ini>
+ * nb_commands_interval - Used to rate limit nb commands from userspace
+ *
+ * @Min: 0
+ * @Max: 10
+ * Default: 3
+ *
+ * This ini is used to specify the duration in which any supp. nb command from
+ * userspace will not be processed completely in driver. For ex, the default
+ * value of 3 seconds signifies that consecutive commands within that
+ * time will not be processed fully.
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_NB_COMMANDS_RATE_LIMIT          "nb_commands_interval"
+#define CFG_NB_COMMANDS_RATE_LIMIT_MIN      (0)
+#define CFG_NB_COMMANDS_RATE_LIMIT_MAX      (10)
+#define CFG_NB_COMMANDS_RATE_LIMIT_DEFAULT  (3)
+
+/*
+ * <ini>
  * enable_time_sync_ftm - Time Sync FTM feature support
  * @Min: 0
  * @Max: 1
@@ -18835,6 +18857,7 @@ struct hdd_config {
 	bool ShortGI160MhzEnable;
 	uint32_t vendor_roam_score_algorithm;
 	uint32_t dp_proto_event_bitmap;
+	uint8_t nb_commands_interval;
 
 #ifdef SAR_SAFETY_FEATURE
 	uint32_t sar_safety_timeout;

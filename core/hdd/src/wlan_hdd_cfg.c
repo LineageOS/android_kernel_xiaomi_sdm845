@@ -6366,6 +6366,14 @@ struct reg_table_entry g_registry_table[] = {
 		     CFG_DISABLE_4WAY_HS_OFFLOAD_DEFAULT,
 		     CFG_DISABLE_4WAY_HS_OFFLOAD_MIN,
 		     CFG_DISABLE_4WAY_HS_OFFLOAD_MAX),
+
+	REG_VARIABLE(CFG_NB_COMMANDS_RATE_LIMIT, WLAN_PARAM_Integer,
+		     struct hdd_config, nb_commands_interval,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_NB_COMMANDS_RATE_LIMIT_DEFAULT,
+		     CFG_NB_COMMANDS_RATE_LIMIT_MIN,
+		     CFG_NB_COMMANDS_RATE_LIMIT_MAX),
+
 #ifdef FEATURE_WLAN_TIME_SYNC_FTM
 	REG_VARIABLE(CFG_ENABLE_TIME_SYNC_FTM, WLAN_PARAM_Integer,
 		     struct hdd_config, time_sync_ftm_enable,
