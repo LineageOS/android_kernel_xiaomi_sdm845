@@ -278,24 +278,4 @@ int ucfg_nan_register_lim_callbacks(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS ucfg_nan_get_callbacks(struct wlan_objmgr_psoc *psoc,
 				  struct nan_callbacks *cb_obj);
 
-/**
- * ucfg_set_nan_feature_config() - Set NAN feature bitmap
- * @psoc: pointer to psoc object
- * @nan_feature_config: NAN feature config bitmap configured by user
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS ucfg_set_nan_feature_config(struct wlan_objmgr_psoc *psoc,
-				       uint32_t nan_feature_config);
-
-/**
- * ucfg_get_nan_feature_config() - Get NAN feature bitmap
- * @psoc: pointer to psoc object
- * @nan_feature_config: NAN feature config bitmap to be enabled in firmware
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS ucfg_get_nan_feature_config(struct wlan_objmgr_psoc *psoc,
-				       uint32_t *nan_feature_config);
-
 #endif /* _NAN_UCFG_API_H_ */

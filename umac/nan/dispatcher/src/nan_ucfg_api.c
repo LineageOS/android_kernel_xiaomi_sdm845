@@ -485,33 +485,3 @@ int ucfg_nan_register_lim_callbacks(struct wlan_objmgr_psoc *psoc,
 
 	return 0;
 }
-
-QDF_STATUS ucfg_set_nan_feature_config(struct wlan_objmgr_psoc *psoc,
-				       uint32_t nan_feature_config)
-{
-	struct nan_psoc_priv_obj *psoc_nan_obj;
-
-	psoc_nan_obj = nan_get_psoc_priv_obj(psoc);
-	if (!psoc_nan_obj) {
-		nan_err("psoc_nan_obj is null");
-		return QDF_STATUS_E_INVAL;
-	}
-
-	psoc_nan_obj->nan_feature_config = nan_feature_config;
-	return QDF_STATUS_SUCCESS;
-}
-
-QDF_STATUS ucfg_get_nan_feature_config(struct wlan_objmgr_psoc *psoc,
-				       uint32_t *nan_feature_config)
-{
-	struct nan_psoc_priv_obj *psoc_nan_obj;
-
-	psoc_nan_obj = nan_get_psoc_priv_obj(psoc);
-	if (!psoc_nan_obj) {
-		nan_err("psoc_nan_obj is null");
-		return QDF_STATUS_E_INVAL;
-	}
-
-	*nan_feature_config = psoc_nan_obj->nan_feature_config;
-	return QDF_STATUS_SUCCESS;
-}

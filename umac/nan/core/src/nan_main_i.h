@@ -61,16 +61,12 @@ struct scheduler_msg;
  * @cb_obj: struct contaning callback pointers
  * @request_context: NAN context to carry cookie for wait_for_complete
  * @ndp_active_sessions: active ndp sessions
- * @nan_feature_config: Bitmap to enable/disable a particular NAN feature
- *                      configuration in firmware. It's sent to firmware through
- *                      WMI_VDEV_PARAM_ENABLE_DISABLE_NAN_CONFIG_FEATURES
  */
 struct nan_psoc_priv_obj {
 	qdf_spinlock_t lock;
 	struct nan_callbacks cb_obj;
 	void *request_context;
 	uint8_t ndp_active_sessions;
-	uint32_t nan_feature_config;
 };
 
 /**
