@@ -4772,9 +4772,30 @@ static void hdd_configure_nan_support_mp0_discovery(struct hdd_adapter *adapter)
 		VDEV_CMD);
 	}
 }
+
+static void hdd_set_nan_feature_config(struct hdd_adapter *adapter)
+{
+	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+
+	if (!wlan_hdd_nan_is_supported(hdd_ctx))
+		return;
+
+	if (QDF_NAN_DISC_MODE == adapter->device_mode ||
+	     (QDF_STA_MODE == adapter->device_mode &&
+	      (!hdd_ctx->nan_seperate_vdev_supported ||
+	       !wlan_hdd_nan_separate_iface_supported(hdd_ctx))))
+		sme_cli_set_command(adapter->session_id,
+			WMI_VDEV_PARAM_ENABLE_DISABLE_NAN_CONFIG_FEATURES,
+			hdd_ctx->config->nan_feature_config,
+			VDEV_CMD);
+}
 #else
 static inline void hdd_configure_nan_support_mp0_discovery(
 						struct hdd_adapter *adapter)
+{
+}
+
+static inline void hdd_set_nan_feature_config(struct hdd_adapter *adapter)
 {
 }
 #endif
@@ -4881,6 +4902,7 @@ int hdd_vdev_create(struct hdd_adapter *adapter,
 	hdd_nofl_debug("vdev %d created successfully", adapter->session_id);
 
 	hdd_configure_nan_support_mp0_discovery(adapter);
+	hdd_set_nan_feature_config(adapter);
 
 	return 0;
 
@@ -15282,24 +15304,6 @@ static int hdd_update_pkt_capture_config(struct hdd_context *hdd_ctx)
 	return qdf_status_to_os_return(status);
 }
 
-/**
- * hdd_update_nan_config - Update nan config
- * @hdd_ctx: HDD context
- *
- * Return: 0 on success / error on failure
- */
-static int hdd_update_nan_config(struct hdd_context *hdd_ctx)
-{
-	QDF_STATUS status;
-	uint32_t nan_feature_config = hdd_ctx->config->nan_feature_config;
-
-	status = ucfg_set_nan_feature_config(hdd_ctx->psoc, nan_feature_config);
-	if (QDF_IS_STATUS_ERROR(status))
-		hdd_err("nan config failed");
-
-	return qdf_status_to_os_return(status);
-}
-
 #ifdef FEATURE_WLAN_TIME_SYNC_FTM
 /**
  * hdd_update_time_sync_ftm_config - Update time sync ftm config parameters
@@ -15665,10 +15669,6 @@ int hdd_update_components_config(struct hdd_context *hdd_ctx)
 		return ret;
 
 	ret = hdd_update_pkt_capture_config(hdd_ctx);
-	if (ret)
-		return ret;
-
-	ret = hdd_update_nan_config(hdd_ctx);
 	if (ret)
 		return ret;
 
