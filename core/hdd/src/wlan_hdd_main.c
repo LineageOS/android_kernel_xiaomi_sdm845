@@ -7454,8 +7454,20 @@ QDF_STATUS hdd_start_all_adapters(struct hdd_context *hdd_ctx)
 			}
 			hdd_start_station_adapter(adapter);
 			hdd_set_mon_rx_cb(adapter->dev);
-			wlan_hdd_set_mon_chan(adapter, adapter->mon_chan,
-					      adapter->mon_bandwidth);
+
+			/*
+			 * Do not set channel for monitor mode if monitor iface
+			 * went down during SSR, as for set channels host sends
+			 * vdev start command to FW. For the interfaces went
+			 * down during SSR, host stops those adapters by sending
+			 * vdev stop/down/delete commands to FW. So FW doesn't
+			 * sends response for vdev start and vdev start response
+			 * timer expires and thus host triggers ASSERT.
+			 */
+			if (!test_bit(DOWN_DURING_SSR, &adapter->event_flags))
+				wlan_hdd_set_mon_chan(
+						adapter, adapter->mon_chan,
+						adapter->mon_bandwidth);
 			break;
 		default:
 			break;
