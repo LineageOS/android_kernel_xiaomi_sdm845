@@ -692,7 +692,7 @@ static QDF_STATUS sme_rrm_scan_request_callback(tpAniSirGlobal pMac,
 		valid_result = false;
 	}
 
-	if (pSmeRrmContext->channelList.ChannelList) {
+	if (!pSmeRrmContext->channelList.ChannelList) {
 		sme_err("[802.11 RRM]: Global freq list is null");
 		pSmeRrmContext->channelList.numOfChannels = 0;
 		sme_reset_ese_bcn_req_in_progress(pSmeRrmContext);

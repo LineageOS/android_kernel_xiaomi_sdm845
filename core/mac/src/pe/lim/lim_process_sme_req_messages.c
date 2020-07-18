@@ -3142,29 +3142,46 @@ void __lim_process_sme_assoc_cnf_new(tpAniSirGlobal mac_ctx, uint32_t msg_type,
 		 */
 		sta_ds->mlmStaContext.mlmState =
 			eLIM_MLM_LINK_ESTABLISHED_STATE;
+		sta_ds->mlmStaContext.owe_ie = assoc_cnf.owe_ie;
+		sta_ds->mlmStaContext.owe_ie_len = assoc_cnf.owe_ie_len;
 		pe_debug("sending Assoc Rsp frame to STA (assoc id=%d)",
 			sta_ds->assocId);
 		lim_send_assoc_rsp_mgmt_frame(mac_ctx, QDF_STATUS_SUCCESS,
 					sta_ds->assocId, sta_ds->staAddr,
 					sta_ds->mlmStaContext.subType, sta_ds,
 					session_entry);
+		sta_ds->mlmStaContext.owe_ie = NULL;
+		sta_ds->mlmStaContext.owe_ie_len = 0;
 		goto end;
 	} else {
+		uint8_t add_pre_auth_context = true;
 		/*
 		 * SME_ASSOC_CNF status is non-success, so STA is not allowed
 		 * to be associated since the HAL sta entry is created for
 		 * denied STA we need to remove this HAL entry.
 		 * So to do that set updateContext to 1
 		 */
+		tSirMacStatusCodes mac_status_code =
+					eSIR_MAC_UNSPEC_FAILURE_STATUS;
+
 		if (!sta_ds->mlmStaContext.updateContext)
 			sta_ds->mlmStaContext.updateContext = 1;
-		pe_debug("Recv Assoc Cnf, status Code : %d(assoc id=%d)",
-			assoc_cnf.statusCode, sta_ds->assocId);
+		pe_debug("Recv Assoc Cnf, status Code : %d(assoc id=%d) Reason code: %d",
+			 assoc_cnf.statusCode, sta_ds->assocId,
+			 assoc_cnf.mac_status_code);
+		if (assoc_cnf.mac_status_code)
+			mac_status_code = assoc_cnf.mac_status_code;
+		if (assoc_cnf.mac_status_code == eSIR_MAC_INVALID_PMKID ||
+		    assoc_cnf.mac_status_code ==
+			eSIR_MAC_AUTH_ALGO_NOT_SUPPORTED_STATUS)
+			add_pre_auth_context = false;
+
 		lim_reject_association(mac_ctx, sta_ds->staAddr,
 				       sta_ds->mlmStaContext.subType,
-				       true, sta_ds->mlmStaContext.authType,
+				       add_pre_auth_context,
+				       sta_ds->mlmStaContext.authType,
 				       sta_ds->assocId, true,
-				       eSIR_MAC_UNSPEC_FAILURE_STATUS,
+				       mac_status_code,
 				       session_entry);
 	}
 end:
@@ -3179,6 +3196,7 @@ end:
 		qdf_mem_free(session_entry->parsedAssocReq[sta_ds->assocId]);
 		session_entry->parsedAssocReq[sta_ds->assocId] = NULL;
 	}
+	qdf_mem_free(assoc_cnf.owe_ie);
 }
 
 static void __lim_process_sme_addts_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf)

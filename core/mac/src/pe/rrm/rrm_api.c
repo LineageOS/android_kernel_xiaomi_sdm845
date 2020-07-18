@@ -1031,7 +1031,7 @@ end:
 
 	if (beacon_xmit_ind->fMeasureDone) {
 		pe_debug("Measurement done.");
-		rrm_cleanup(mac_ctx);
+		rrm_cleanup(mac_ctx, beacon_xmit_ind->measurement_idx);
 	}
 
 	if (NULL != report)
@@ -1140,7 +1140,7 @@ QDF_STATUS rrm_process_beacon_req(tpAniSirGlobal mac_ctx, tSirMacAddr peer,
 		curr_req = mac_ctx->rrm.rrmPEContext.pCurrentReq[index];
 		if (curr_req) {
 			qdf_mem_free(curr_req);
-			curr_req = NULL;
+			mac_ctx->rrm.rrmPEContext.pCurrentReq[index] = NULL;
 		}
 
 		curr_req = qdf_mem_malloc(sizeof(*curr_req));
@@ -1162,7 +1162,7 @@ QDF_STATUS rrm_process_beacon_req(tpAniSirGlobal mac_ctx, tSirMacAddr peer,
 		if (eRRM_SUCCESS != rrm_status) {
 			rrm_process_beacon_request_failure(mac_ctx,
 				session_entry, peer, rrm_status, index);
-			rrm_cleanup(mac_ctx);
+			rrm_cleanup(mac_ctx, index);
 		}
 	}
 
@@ -1414,42 +1414,20 @@ QDF_STATUS rrm_initialize(tpAniSirGlobal pMac)
 	return QDF_STATUS_SUCCESS;
 }
 
-/* -------------------------------------------------------------------- */
-/**
- * rrm_cleanup
- *
- * FUNCTION:
- * cleanup RRM module
- *
- * LOGIC:
- *
- * ASSUMPTIONS:
- *
- * NOTE:
- *
- * @param mode
- * @param rate
- * @return None
- */
-
-QDF_STATUS rrm_cleanup(tpAniSirGlobal pMac)
+void rrm_cleanup(tpAniSirGlobal mac, uint8_t idx)
 {
-	uint8_t i;
+	tpRRMReq cur_rrm_req = NULL;
 
-	for (i = 0; i < MAX_MEASUREMENT_REQUEST; i++) {
-		if (pMac->rrm.rrmPEContext.pCurrentReq[i]) {
-			if (pMac->rrm.rrmPEContext.pCurrentReq[i]->request.
-			    Beacon.reqIes.pElementIds)
-				qdf_mem_free(pMac->rrm.rrmPEContext.
-					     pCurrentReq[i]->request.Beacon.
-					     reqIes.pElementIds);
+	cur_rrm_req = mac->rrm.rrmPEContext.pCurrentReq[idx];
+	if (!cur_rrm_req)
+		return;
 
-			qdf_mem_free(pMac->rrm.rrmPEContext.pCurrentReq[i]);
-		}
-	}
+	qdf_mem_free(cur_rrm_req->request.Beacon.reqIes.pElementIds);
+	cur_rrm_req->request.Beacon.reqIes.pElementIds = NULL;
+	cur_rrm_req->request.Beacon.reqIes.num = 0;
 
-	pMac->rrm.rrmPEContext.pCurrentReq[i] = NULL;
-	return QDF_STATUS_SUCCESS;
+	qdf_mem_free(cur_rrm_req);
+	mac->rrm.rrmPEContext.pCurrentReq[idx] = NULL;
 }
 
 /**

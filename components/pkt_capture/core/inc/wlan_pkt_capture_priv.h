@@ -32,31 +32,6 @@
 #include "wlan_pkt_capture_mon_thread.h"
 
 /**
- * struct wlan_pkt_capture_tx_ops - structure of tx operation function
- * pointers for packet capture component
- * @pkt_capture_send_mode: send packet capture mode
- *
- */
-struct wlan_pkt_capture_tx_ops {
-	QDF_STATUS (*pkt_capture_send_mode)(struct wlan_objmgr_psoc *psoc,
-					    uint8_t vdev_id,
-					    enum pkt_capture_mode mode);
-};
-
-/**
- * struct wlan_pkt_capture_rx_ops - structure of rx operation function
- * pointers for packet capture component
- * @pkt_capture_register_ev_handlers: register mgmt offload event
- * @pkt_capture_unregister_ev_handlers: unregister mgmt offload event
- */
-struct wlan_pkt_capture_rx_ops {
-	QDF_STATUS (*pkt_capture_register_ev_handlers)
-					(struct wlan_objmgr_psoc *psoc);
-	QDF_STATUS (*pkt_capture_unregister_ev_handlers)
-					(struct wlan_objmgr_psoc *psoc);
-};
-
-/**
  * struct pkt_capture_cb_context - packet capture callback context
  * @mon_cb: monitor callback function pointer
  * @mon_ctx: monitor callback context

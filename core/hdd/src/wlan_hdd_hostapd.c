@@ -2483,6 +2483,16 @@ QDF_STATUS hdd_hostapd_sap_event_cb(tpSap_Event pSapEvent,
 		hdd_debug("%s", maxAssocExceededEvent);
 		break;
 	case eSAP_STA_ASSOC_IND:
+		if (pSapEvent->sapevt.sapAssocIndication.owe_ie) {
+			hdd_send_update_owe_info_event(adapter,
+			      pSapEvent->sapevt.sapAssocIndication.staMac.bytes,
+			      pSapEvent->sapevt.sapAssocIndication.owe_ie,
+			      pSapEvent->sapevt.sapAssocIndication.owe_ie_len);
+			qdf_mem_free(
+				   pSapEvent->sapevt.sapAssocIndication.owe_ie);
+			pSapEvent->sapevt.sapAssocIndication.owe_ie = NULL;
+			pSapEvent->sapevt.sapAssocIndication.owe_ie_len = 0;
+		}
 		return QDF_STATUS_SUCCESS;
 
 	case eSAP_DISCONNECT_ALL_P2P_CLIENT:
@@ -2703,14 +2713,14 @@ stopbss:
 static int hdd_softap_unpack_ie(mac_handle_t mac_handle,
 				eCsrEncryptionType *pEncryptType,
 				eCsrEncryptionType *mcEncryptType,
-				eCsrAuthType *pAuthType,
+				tCsrAuthList *akm_list,
 				bool *pMFPCapable,
 				bool *pMFPRequired,
 				uint16_t gen_ie_len, uint8_t *gen_ie)
 {
 	uint32_t ret;
 	uint8_t *pRsnIe;
-	uint16_t RSNIeLen;
+	uint16_t RSNIeLen, i;
 	tDot11fIERSN dot11RSNIE = {0};
 	tDot11fIEWPA dot11WPAIE = {0};
 
@@ -2747,13 +2757,13 @@ static int hdd_softap_unpack_ie(mac_handle_t mac_handle,
 		hdd_debug("authentication suite count: %d",
 		       dot11RSNIE.akm_suite_cnt);
 		/*
-		 * Here we have followed the apple base code,
-		 * but probably I suspect we can do something different
-		 * dot11RSNIE.akm_suite_cnt
-		 * Just translate the FIRST one
+		 * Translate akms in akm suite
 		 */
-		*pAuthType =
-		    hdd_translate_rsn_to_csr_auth_type(dot11RSNIE.akm_suite[0]);
+		for (i = 0; i < dot11RSNIE.akm_suite_cnt; i++)
+			akm_list->authType[i] =
+				hdd_translate_rsn_to_csr_auth_type(
+						       dot11RSNIE.akm_suite[i]);
+		akm_list->numEntries = dot11RSNIE.akm_suite_cnt;
 		/* dot11RSNIE.pwise_cipher_suite_count */
 		*pEncryptType =
 			hdd_translate_rsn_to_csr_encryption_type(dot11RSNIE.
@@ -2788,9 +2798,14 @@ static int hdd_softap_unpack_ie(mac_handle_t mac_handle,
 		hdd_debug("WPA authentication suite count: %d",
 		       dot11WPAIE.auth_suite_count);
 		/* dot11WPAIE.auth_suite_count */
-		/* Just translate the FIRST one */
-		*pAuthType =
-			hdd_translate_wpa_to_csr_auth_type(dot11WPAIE.auth_suites[0]);
+		/*
+		 * Translate akms in akm suite
+		 */
+		for (i = 0; i < dot11WPAIE.auth_suite_count; i++)
+			akm_list->authType[i] =
+				hdd_translate_wpa_to_csr_auth_type(
+						     dot11WPAIE.auth_suites[i]);
+		akm_list->numEntries = dot11WPAIE.auth_suite_count;
 		/* dot11WPAIE.unicast_cipher_count */
 		*pEncryptType =
 			hdd_translate_wpa_to_csr_encryption_type(dot11WPAIE.
@@ -3144,6 +3159,12 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
 				  intf_ch);
 			goto sap_restart;
 		}
+	}
+	if (ap_adapter->device_mode == QDF_P2P_GO_MODE &&
+	    !policy_mgr_go_scc_enforced(psoc)) {
+		wlansap_context_put(sap_context);
+		hdd_debug("p2p go no scc required");
+		return QDF_STATUS_E_FAILURE;
 	}
 	/*
 	 * Check if STA's channel is DFS or passive or part of LTE avoided
@@ -7871,7 +7892,7 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 	struct ieee80211_mgmt mgmt;
 	const uint8_t *pIe = NULL;
 	uint16_t capab_info;
-	eCsrAuthType RSNAuthType;
+
 	eCsrEncryptionType RSNEncryptType;
 	eCsrEncryptionType mcRSNEncryptType;
 	int status = QDF_STATUS_SUCCESS, ret;
@@ -7880,6 +7901,7 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 	struct hdd_hostapd_state *hostapd_state;
 	mac_handle_t mac_handle;
 	int32_t i;
+	uint32_t ii;
 	struct hdd_config *iniConfig = NULL;
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	tSmeConfigParams *sme_config;
@@ -8165,7 +8187,8 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 			hdd_softap_unpack_ie(cds_get_context
 						     (QDF_MODULE_ID_SME),
 					     &RSNEncryptType, &mcRSNEncryptType,
-					     &RSNAuthType, &MFPCapable,
+					     &pConfig->akm_list,
+					     &MFPCapable,
 					     &MFPRequired,
 					     pConfig->RSNWPAReqIE[1] + 2,
 					     pConfig->RSNWPAReqIE);
@@ -8178,8 +8201,14 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 			pConfig->mcRSNEncryptType = mcRSNEncryptType;
 			(WLAN_HDD_GET_AP_CTX_PTR(adapter))->
 			encryption_type = RSNEncryptType;
-			hdd_debug("CSR AuthType = %d, EncryptionType = %d mcEncryptionType = %d",
-			       RSNAuthType, RSNEncryptType, mcRSNEncryptType);
+			hdd_debug("CSR EncryptionType = %d mcEncryptionType = %d",
+				  RSNEncryptType, mcRSNEncryptType);
+			hdd_debug("CSR AKM Suites %d",
+				  pConfig->akm_list.numEntries);
+			for (ii = 0; ii < pConfig->akm_list.numEntries;
+			     ii++)
+				hdd_debug("CSR AKM Suite [%d] = %d", ii,
+					  pConfig->akm_list.authType[ii]);
 		}
 	}
 
@@ -8210,7 +8239,8 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 			status = hdd_softap_unpack_ie
 					(cds_get_context(QDF_MODULE_ID_SME),
 					 &RSNEncryptType,
-					 &mcRSNEncryptType, &RSNAuthType,
+					 &mcRSNEncryptType,
+					 &pConfig->akm_list,
 					 &MFPCapable, &MFPRequired,
 					 pConfig->RSNWPAReqIE[1] + 2,
 					 pConfig->RSNWPAReqIE);
@@ -8224,9 +8254,15 @@ int wlan_hdd_cfg80211_start_bss(struct hdd_adapter *adapter,
 				pConfig->mcRSNEncryptType = mcRSNEncryptType;
 				(WLAN_HDD_GET_AP_CTX_PTR(adapter))->
 				encryption_type = RSNEncryptType;
-				hdd_debug("CSR AuthType = %d, EncryptionType = %d mcEncryptionType = %d",
-				       RSNAuthType, RSNEncryptType,
-				       mcRSNEncryptType);
+				hdd_debug("CSR EncryptionType = %d mcEncryptionType = %d",
+					  RSNEncryptType, mcRSNEncryptType);
+				hdd_debug("CSR AKM Suites %d",
+					  pConfig->akm_list.numEntries);
+				for (ii = 0; ii < pConfig->akm_list.numEntries;
+				     ii++)
+					hdd_debug("CSR AKM Suite [%d] = %d", ii,
+						  pConfig->akm_list.
+						  authType[ii]);
 			}
 		}
 	}
@@ -8673,8 +8709,14 @@ static int __wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
 	 */
 	hdd_abort_ongoing_sta_connection(hdd_ctx);
 
-	if (adapter->device_mode == QDF_SAP_MODE)
+	if (adapter->device_mode == QDF_SAP_MODE) {
 		wlan_hdd_del_station(adapter);
+		status = sme_roam_del_pmkid_from_cache(hdd_ctx->mac_handle,
+						       adapter->session_id,
+						       NULL, true);
+		if (QDF_IS_STATUS_ERROR(status))
+			hdd_debug("Cannot flush PMKIDCache");
+	}
 
 	cds_flush_work(&adapter->sap_stop_bss_work);
 	/*

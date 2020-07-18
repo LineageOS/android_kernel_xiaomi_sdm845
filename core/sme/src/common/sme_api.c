@@ -13573,21 +13573,17 @@ QDF_STATUS sme_set_rssi_monitoring(tHalHandle hal,
 static enum band_info sme_get_connected_roaming_vdev_band(void)
 {
 	enum band_info band = BAND_ALL;
-	tpAniSirGlobal mac = sme_get_mac_context();
-	struct csr_roam_session *session;
-	uint8_t session_id, channel;
+	tp_wma_handle wma_handle;
+	uint8_t channel;
 
-	if (!mac) {
-		sme_debug("MAC Context is NULL");
-		return band;
+	wma_handle = cds_get_context(QDF_MODULE_ID_WMA);
+	if (!wma_handle) {
+		sme_err("Invalid wma handle");
+		return BAND_UNKNOWN;
 	}
-	session_id = csr_get_roam_enabled_sta_sessionid(mac);
-	if (session_id != CSR_SESSION_ID_INVALID) {
-		session = CSR_GET_SESSION(mac, session_id);
-		channel = session->connectedProfile.operationChannel;
-		band = csr_get_rf_band(channel);
-		return band;
-	}
+
+	channel = wma_get_vdev_chan_roam_enabled(wma_handle);
+	band = csr_get_rf_band(channel);
 
 	return band;
 }
@@ -16652,8 +16648,13 @@ QDF_STATUS sme_handle_sae_msg(tHalHandle hal, uint8_t session_id,
 		sae_msg->length = sizeof(*sae_msg);
 		sae_msg->session_id = session_id;
 		sae_msg->sae_status = sae_status;
-		sme_debug("SAE: sae_status %d session_id %d",
-			  sae_msg->sae_status, sae_msg->session_id);
+		qdf_mem_copy(sae_msg->peer_mac_addr,
+			     peer_mac_addr.bytes,
+			     QDF_MAC_ADDR_SIZE);
+		sme_debug("SAE: sae_status %d session_id %d Peer: "
+			  MAC_ADDRESS_STR, sae_msg->sae_status,
+			  sae_msg->session_id,
+			  MAC_ADDR_ARRAY(sae_msg->peer_mac_addr));
 
 		sch_msg.type = eWNI_SME_SEND_SAE_MSG;
 		sch_msg.bodyptr = sae_msg;
@@ -17283,4 +17284,10 @@ error:
 	sme_release_global_lock(&mac->sme);
 
 	return qdf_status;
+}
+
+QDF_STATUS sme_update_owe_info(tpAniSirGlobal mac,
+			       tSirSmeAssocInd *assoc_ind)
+{
+	return csr_update_owe_info(mac, assoc_ind);
 }

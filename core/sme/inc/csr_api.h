@@ -818,6 +818,7 @@ struct csr_roam_profile {
 	eCsrRoamBssType BSSType;
 	tCsrAuthList AuthType;
 	eCsrAuthType negotiatedAuthType;
+	tCsrAuthList akm_list;
 	tCsrEncryptionList EncryptionType;
 	/* This field is for output only, not for input */
 	eCsrEncryptionType negotiatedUCEncryptionType;
@@ -933,6 +934,7 @@ typedef struct tagCsrRoamConnectedProfile {
 	eCsrRoamBssType BSSType;
 	eCsrAuthType AuthType;
 	tCsrAuthList AuthInfo;
+	tCsrAuthList akm_list;
 	eCsrEncryptionType EncryptionType;
 	tCsrEncryptionList EncryptionInfo;
 	eCsrEncryptionType mcEncryptionType;
@@ -1512,6 +1514,7 @@ struct csr_roam_info {
 #endif
 	uint16_t roam_reason;
 	struct wlan_ies *disconnect_ies;
+	tSirSmeAssocInd *owe_pending_assoc_ind;
 };
 
 typedef struct tagCsrFreqScanInfo {
@@ -1893,4 +1896,14 @@ csr_update_pmf_cap_from_connected_profile(tCsrRoamConnectedProfile *profile,
 					  struct scan_filter *filter)
 {}
 #endif
+
+/**
+ * csr_update_owe_info() - Update OWE info
+ * @mac: mac context
+ * @assoc_ind: assoc ind
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS csr_update_owe_info(tpAniSirGlobal mac,
+			       tSirSmeAssocInd *assoc_ind);
 #endif

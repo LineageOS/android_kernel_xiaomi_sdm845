@@ -814,6 +814,7 @@ struct bss_description {
 	uint8_t reservedPadding4;
 	uint32_t tsf_delta;
 	uint32_t adaptive_11r_ap;
+	uint32_t mbo_oce_enabled_ap;
 #if defined(WLAN_SAE_SINGLE_PMK) && defined(WLAN_FEATURE_ROAM_OFFLOAD)
 	bool sae_single_pmk_ap;
 #endif
@@ -1285,6 +1286,7 @@ typedef struct sSirSmeAssocInd {
 	tSirMacAddr bssId;      /* Self BSSID */
 	uint16_t staId;         /* Station ID for peer */
 	tAniAuthType authType;
+	enum ani_akm_type akm_type;
 	tAniSSID ssId;          /* SSID used by STA to associate */
 	tSirWAPIie wapiIE;      /* WAPI IE received from peer */
 	tSirRSNie rsnIE;        /* RSN IE received from peer */
@@ -1326,7 +1328,21 @@ typedef struct sSirSmeAssocInd {
 	tDot11fIEVHTCaps VHTCaps;
 	bool he_caps_present;
 	tSirMacCapabilityInfo capability_info;
+	bool is_sae_authenticated;
+	const uint8_t *owe_ie;
+	uint32_t owe_ie_len;
+	uint16_t owe_status;
 } tSirSmeAssocInd, *tpSirSmeAssocInd;
+
+/**
+ * struct owe_assoc_ind - owe association indication
+ * @node : List entry element
+ * @assoc_ind: pointer to assoc ind
+ */
+struct owe_assoc_ind {
+	qdf_list_node_t node;
+	tSirSmeAssocInd *assoc_ind;
+};
 
 /* / Definition for Association confirm */
 /* / ---> MAC */
@@ -1339,6 +1355,9 @@ typedef struct sSirSmeAssocCnf {
 	uint16_t aid;
 	struct qdf_mac_addr alternate_bssid;
 	uint8_t alternateChannelId;
+	tSirMacStatusCodes mac_status_code;
+	uint8_t *owe_ie;
+	uint32_t owe_ie_len;
 } tSirSmeAssocCnf, *tpSirSmeAssocCnf;
 
 /* / Enum definition for  Wireless medium status change codes */
@@ -2590,12 +2609,24 @@ typedef struct sSirKeepAliveReq {
 	uint8_t sessionId;
 } tSirKeepAliveReq, *tpSirKeepAliveReq;
 
+/**
+ * enum rxmgmt_flags - flags for received management frame.
+ * @RXMGMT_FLAG_NONE: Default value to indicate no flags are set.
+ * @RXMGMT_FLAG_EXTERNAL_AUTH: frame can be used for external authentication
+ *			       by upper layers.
+ */
+enum rxmgmt_flags {
+	RXMGMT_FLAG_NONE,
+	RXMGMT_FLAG_EXTERNAL_AUTH = 1 << 1,
+};
+
 typedef struct sSirSmeMgmtFrameInd {
 	uint16_t frame_len;
 	uint32_t rxChan;
 	uint8_t sessionId;
 	uint8_t frameType;
 	int8_t rxRssi;
+	enum rxmgmt_flags rx_flags;
 	uint8_t frameBuf[1];    /* variable */
 } tSirSmeMgmtFrameInd, *tpSirSmeMgmtFrameInd;
 
@@ -7291,12 +7322,14 @@ struct sir_sae_info {
  * @length: message length
  * @session_id: SME session id
  * @sae_status: SAE status, 0: Success, Non-zero: Failure.
+ * @peer_mac_addr: peer MAC address
  */
 struct sir_sae_msg {
 	uint16_t message_type;
 	uint16_t length;
 	uint16_t session_id;
 	uint8_t sae_status;
+	tSirMacAddr peer_mac_addr;
 };
 
 /**
