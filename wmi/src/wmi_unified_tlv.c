@@ -6473,6 +6473,8 @@ wmi_fill_sae_single_pmk_param(struct roam_offload_scan_params *params,
 }
 #endif
 
+#define ROAM_OFFLOAD_PMK_EXT_BYTES 16
+
 /**
  * send_roam_scan_offload_mode_cmd_tlv() - send roam scan mode request to fw
  * @wmi_handle: wmi handle
@@ -6775,17 +6777,17 @@ static QDF_STATUS send_roam_scan_offload_mode_cmd_tlv(wmi_unified_t wmi_handle,
 					     roam_req->psk_pmk,
 					     roam_offload_11i->pmk_len);
 
-				if (auth_mode ==
-				   WMI_AUTH_RSNA_SUITE_B_8021X_SHA384) {
-					roam_offload_11i->pmk_ext_len =
-						(roam_req->pmk_len -
-						 ROAM_OFFLOAD_PMK_BYTES);
-					qdf_mem_copy(roam_offload_11i->pmk_ext,
-						     &roam_req->psk_pmk[
-							ROAM_OFFLOAD_PMK_BYTES],
-						     roam_offload_11i->
-							pmk_ext_len);
-				}
+				roam_offload_11i->pmk_ext_len =
+					((roam_req->pmk_len >
+					 ROAM_OFFLOAD_PMK_BYTES) &&
+					 (auth_mode ==
+					 WMI_AUTH_RSNA_SUITE_B_8021X_SHA384)) ?
+					ROAM_OFFLOAD_PMK_EXT_BYTES : 0;
+
+				qdf_mem_copy(roam_offload_11i->pmk_ext,
+					     &roam_req->psk_pmk[
+					     ROAM_OFFLOAD_PMK_BYTES],
+					     roam_offload_11i->pmk_ext_len);
 
 				WMITLV_SET_HDR(&roam_offload_11i->tlv_header,
 				WMITLV_TAG_STRUC_wmi_roam_11i_offload_tlv_param,
@@ -10710,14 +10712,14 @@ static QDF_STATUS send_update_tdls_peer_state_cmd_tlv(wmi_unified_t wmi_handle,
 	peer_cap->peer_operclass_len =
 		peerStateParams->peerCap.peerOperClassLen;
 
-	WMI_LOGD("%s: peer_operclass_len: %d",
-		 __func__, peer_cap->peer_operclass_len);
+	WMI_LOGD("peer_operclass_len: %d", peer_cap->peer_operclass_len);
 	for (i = 0; i < WMI_TDLS_MAX_SUPP_OPER_CLASSES; i++) {
 		peer_cap->peer_operclass[i] =
 			peerStateParams->peerCap.peerOperClass[i];
-		WMI_LOGD("%s: peer_operclass[%d]: %d",
-			 __func__, i, peer_cap->peer_operclass[i]);
 	}
+	qdf_trace_hex_dump(QDF_MODULE_ID_WMI, QDF_TRACE_LEVEL_DEBUG,
+			   (uint8_t *)peer_cap->peer_operclass,
+			   WMI_TDLS_MAX_SUPP_OPER_CLASSES);
 
 	peer_cap->is_peer_responder = peerStateParams->peerCap.isPeerResponder;
 	peer_cap->pref_offchan_num = peerStateParams->peerCap.prefOffChanNum;
@@ -23898,8 +23900,11 @@ extract_roam_scan_ap_stats_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	uint8_t i;
 
 	param_buf = (WMI_ROAM_STATS_EVENTID_param_tlvs *)evt_buf;
-	if (!param_buf)
+	if (!param_buf || ap_idx >= param_buf->num_roam_ap_info) {
+		WMI_LOGE("Invalid roam scan AP tlv ap_idx:%d total_ap:%d",
+			 ap_idx, param_buf->num_roam_ap_info);
 		return QDF_STATUS_E_FAILURE;
+	}
 
 	src = &param_buf->roam_ap_info[ap_idx];
 
@@ -23945,7 +23950,8 @@ extract_roam_scan_stats_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	uint8_t i;
 
 	param_buf = (WMI_ROAM_STATS_EVENTID_param_tlvs *)evt_buf;
-	if (!param_buf || !param_buf->roam_scan_info)
+	if (!param_buf || !param_buf->roam_scan_info ||
+	    idx >= param_buf->num_roam_scan_info)
 		return QDF_STATUS_E_FAILURE;
 
 	src_data = &param_buf->roam_scan_info[idx];
@@ -23956,7 +23962,8 @@ extract_roam_scan_stats_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	dst->next_rssi_threshold = src_data->next_rssi_trigger_threshold;
 
 	/* Read the channel data only for dst->type is 0 (partial scan) */
-	if (dst->num_chan && !dst->type) {
+	if (dst->num_chan && !dst->type && param_buf->num_roam_scan_chan_info &&
+	    chan_idx < param_buf->num_roam_scan_chan_info) {
 		if (dst->num_chan > MAX_ROAM_SCAN_CHAN)
 			dst->num_chan = MAX_ROAM_SCAN_CHAN;
 
@@ -23967,7 +23974,7 @@ extract_roam_scan_stats_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 		}
 	}
 
-	if (!src_data->roam_ap_count)
+	if (!src_data->roam_ap_count || !param_buf->num_roam_ap_info)
 		return QDF_STATUS_SUCCESS;
 
 	dst->num_ap = src_data->roam_ap_count;
@@ -24000,7 +24007,8 @@ extract_roam_result_stats_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	wmi_roam_result *src_data = NULL;
 
 	param_buf = (WMI_ROAM_STATS_EVENTID_param_tlvs *)evt_buf;
-	if (!param_buf || !param_buf->roam_result)
+	if (!param_buf || !param_buf->roam_result ||
+	    idx >= param_buf->num_roam_result)
 		return QDF_STATUS_E_FAILURE;
 
 	src_data = &param_buf->roam_result[idx];
@@ -24033,8 +24041,12 @@ extract_roam_11kv_stats_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	uint8_t i;
 
 	param_buf = (WMI_ROAM_STATS_EVENTID_param_tlvs *)evt_buf;
-	if (!param_buf || !param_buf->roam_neighbor_report_info)
+	if (!param_buf || !param_buf->roam_neighbor_report_info ||
+	    !param_buf->num_roam_neighbor_report_info ||
+	    idx >= param_buf->num_roam_neighbor_report_info) {
+		WMI_LOGD("%s: Invalid 1kv param buf", __func__);
 		return QDF_STATUS_E_FAILURE;
+	}
 
 	src_data = &param_buf->roam_neighbor_report_info[idx];
 
@@ -24044,10 +24056,22 @@ extract_roam_11kv_stats_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	dst->req_time = src_data->neighbor_report_request_timestamp;
 	dst->resp_time = src_data->neighbor_report_response_timestamp;
 
-	if (!dst->num_freq)
+	if (!dst->num_freq || !param_buf->num_roam_neighbor_report_chan_info ||
+	    rpt_idx >= param_buf->num_roam_neighbor_report_chan_info)
 		return QDF_STATUS_SUCCESS;
 
+	if (!param_buf->roam_neighbor_report_chan_info) {
+		WMI_LOGD("%s: 11kv channel present, but TLV is NULL num_freq:%d",
+			 __func__, dst->num_freq);
+		dst->num_freq = 0;
+		/* return success as its optional tlv and we can print neighbor
+		 * report received info
+		 */
+		return QDF_STATUS_SUCCESS;
+	}
+
 	src_freq = &param_buf->roam_neighbor_report_chan_info[rpt_idx];
+
 	if (dst->num_freq > MAX_ROAM_SCAN_CHAN)
 		dst->num_freq = MAX_ROAM_SCAN_CHAN;
 
