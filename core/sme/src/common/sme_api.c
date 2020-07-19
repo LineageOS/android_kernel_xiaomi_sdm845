@@ -10574,6 +10574,13 @@ QDF_STATUS sme_set_auto_shutdown_timer(tHalHandle hHal, uint32_t timer_val)
 }
 #endif
 
+void sme_free_blacklist(tHalHandle mac_handle)
+{
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(mac_handle);
+
+	csr_assoc_rej_free_rssi_disallow_list(mac_ctx);
+}
+
 #ifdef FEATURE_WLAN_CH_AVOID
 /*
  * sme_ch_avoid_update_req() -

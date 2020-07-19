@@ -14121,6 +14121,17 @@ static int wlan_hdd_state_ctrl_param_open(struct inode *inode,
 	return 0;
 }
 
+static void hdd_inform_wifi_off(void)
+{
+	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	if (!hdd_ctx) {
+		hdd_err("Invalid hdd/pdev context");
+		return;
+	}
+	sme_free_blacklist(hdd_ctx->mac_handle);
+}
+
 static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 						const char __user *user_buf,
 						size_t count,
@@ -14139,6 +14150,7 @@ static ssize_t wlan_hdd_state_ctrl_param_write(struct file *filp,
 
 	if (strncmp(buf, wlan_off_str, strlen(wlan_off_str)) == 0) {
 		pr_debug("Wifi turning off from UI\n");
+		hdd_inform_wifi_off();
 		goto exit;
 	}
 

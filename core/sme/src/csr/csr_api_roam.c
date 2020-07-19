@@ -584,7 +584,7 @@ static void csr_close_stats_ll(struct sAniSirGlobal *mac_ctx)
  *
  * Return: void
  */
-static void csr_assoc_rej_free_rssi_disallow_list(struct sAniSirGlobal *mac)
+void csr_assoc_rej_free_rssi_disallow_list(struct sAniSirGlobal *mac)
 {
 	QDF_STATUS status;
 	struct sir_rssi_disallow_lst *cur_node;
@@ -603,7 +603,6 @@ static void csr_assoc_rej_free_rssi_disallow_list(struct sAniSirGlobal *mac)
 		cur_lst = next_lst;
 		next_lst = NULL;
 	}
-	qdf_list_destroy(list);
 	qdf_mutex_release(&mac->roam.rssi_disallow_bssid_lock);
 }
 
@@ -635,6 +634,7 @@ static QDF_STATUS csr_roam_rssi_disallow_bssid_deinit(
 					     struct sAniSirGlobal *mac_ctx)
 {
 	csr_assoc_rej_free_rssi_disallow_list(mac_ctx);
+	qdf_list_destroy(&mac_ctx->roam.rssi_disallow_bssid);
 	qdf_mutex_destroy(&mac_ctx->roam.rssi_disallow_bssid_lock);
 	return QDF_STATUS_SUCCESS;
 }

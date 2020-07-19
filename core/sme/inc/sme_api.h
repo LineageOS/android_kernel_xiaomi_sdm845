@@ -1058,6 +1058,8 @@ uint8_t sme_get_roam_bmiss_final_bcnt(tHalHandle hHal);
 QDF_STATUS sme_set_roam_beacon_rssi_weight(tHalHandle hHal, uint8_t sessionId,
 		const uint8_t nRoamBeaconRssiWeight);
 uint8_t sme_get_roam_beacon_rssi_weight(tHalHandle hHal);
+void sme_free_blacklist(tHalHandle mac_handle);
+
 /**
  * sme_get_roam_rssi_diff() - get Roam rssi diff
  * @mac_handle: The handle returned by mac_open
