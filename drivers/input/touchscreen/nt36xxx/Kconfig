@@ -9,3 +9,12 @@ config TOUCHSCREEN_NT36xxx
 	  to your system.
 
 	  If unsure, say N.
+
+config TOUCHSCREEN_NT36xxx_MP_CTRLRAM
+	bool "Novatek NT36xxx Multipoint Control RAM"
+	depends on TOUCHSCREEN_NT36xxx
+	default n
+	help
+	  Say Y here if you need to use Multipoint Control RAM Testing
+
+	  If unsure, say N.
