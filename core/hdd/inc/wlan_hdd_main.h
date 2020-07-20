@@ -2139,6 +2139,7 @@ struct hdd_context {
 #ifdef CLD_PM_QOS
 	struct pm_qos_request pm_qos_req;
 #endif
+	bool ll_stats_per_chan_rx_tx_time;
 };
 
 /**

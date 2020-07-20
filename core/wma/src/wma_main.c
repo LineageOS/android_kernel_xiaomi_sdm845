@@ -5137,6 +5137,10 @@ static inline void wma_update_target_services(struct wmi_unified *wmi_handle,
 		cfg->is_roam_scan_ch_to_host = true;
 	if (wmi_service_enabled(wmi_handle, wmi_service_suiteb_roam_support))
 		cfg->akm_service_bitmap |= (1 << AKM_SUITEB);
+
+	cfg->ll_stats_per_chan_rx_tx_time =
+		wmi_service_enabled(wmi_handle,
+				    wmi_service_ll_stats_per_chan_rx_tx_time);
 }
 
 /**

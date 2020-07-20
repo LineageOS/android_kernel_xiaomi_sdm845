@@ -4910,6 +4910,10 @@ typedef struct {
 	uint32_t onTime;
 	/* msecs the CCA register is busy (32 bits number accruing over time) */
 	uint32_t ccaBusyTime;
+	/* msecs the radio is transmitting on this channel */
+	uint32_t tx_time;
+	/* msecs the radio is in active receive on this channel */
+	uint32_t rx_time;
 } tSirWifiChannelStats, *tpSirWifiChannelStats;
 
 #define MAX_TPC_LEVELS 64
