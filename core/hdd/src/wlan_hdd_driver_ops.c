@@ -1519,12 +1519,10 @@ static void wlan_hdd_set_the_pld_uevent(struct pld_uevent_data *uevent)
 {
 	switch (uevent->uevent) {
 	case PLD_RECOVERY:
-		cds_set_target_ready(false);
-		cds_set_recovery_in_progress(true);
-		break;
 	case PLD_FW_DOWN:
 		cds_set_target_ready(false);
 		cds_set_recovery_in_progress(true);
+		qdf_complete_wait_events();
 		break;
 	case PLD_FW_HANG_EVENT:
 		break;
@@ -1565,17 +1563,13 @@ static void wlan_hdd_handle_the_pld_uevent(struct pld_uevent_data *uevent)
 
 	switch (uevent->uevent) {
 	case PLD_RECOVERY:
-		cds_set_target_ready(false);
 		hdd_pld_ipa_uc_shutdown_pipes();
-		qdf_complete_wait_events();
 		break;
 	case PLD_FW_DOWN:
-		cds_set_target_ready(false);
 		wlan_cfg80211_cleanup_scan_queue(hdd_ctx->pdev, NULL);
 		if (pld_is_fw_rejuvenate(hdd_ctx->parent_dev) &&
 		    ucfg_ipa_is_enabled())
 			ucfg_ipa_fw_rejuvenate_send_msg(hdd_ctx->pdev);
-		qdf_complete_wait_events();
 		break;
 	case PLD_FW_HANG_EVENT:
 		hdd_info("Received fimrware hang event");
@@ -1633,6 +1627,7 @@ static void wlan_hdd_pld_uevent(struct device *dev,
 	wlan_hdd_set_the_pld_uevent(uevent);
 
 	hdd_psoc_idle_timer_stop(hdd_ctx);
+
 	mutex_lock(&hdd_init_deinit_lock);
 	wlan_hdd_handle_the_pld_uevent(uevent);
 	mutex_unlock(&hdd_init_deinit_lock);
