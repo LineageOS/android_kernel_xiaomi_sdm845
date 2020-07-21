@@ -1184,8 +1184,10 @@ static int hdd_update_tdls_config(struct hdd_context *hdd_ctx)
 		(cfg->fEnableTDLSSupport ? 1 << TDLS_FEATURE_ENABLE : 0) |
 		(cfg->fEnableTDLSImplicitTrigger ?
 		 1 << TDLS_FEAUTRE_IMPLICIT_TRIGGER : 0) |
-		(cfg->fTDLSExternalControl ?
-		 1 << TDLS_FEATURE_EXTERNAL_CONTROL : 0));
+		(cfg->fTDLSExternalControl & TDLS_STRICT_EXTERNAL_CONTROL ?
+		 1 << TDLS_FEATURE_EXTERNAL_CONTROL : 0) |
+		(cfg->fTDLSExternalControl & TDLS_LIBERAL_EXTERNAL_CONTROL ?
+		 1 << TDLS_FEATURE_LIBERAL_EXTERNAL_CONTROL : 0 ));
 	config->tdls_vdev_nss_2g = GET_VDEV_NSS_CHAIN(cfg->rx_nss_2g,
 						      QDF_TDLS_MODE);
 	config->tdls_vdev_nss_5g = GET_VDEV_NSS_CHAIN(cfg->rx_nss_5g,
