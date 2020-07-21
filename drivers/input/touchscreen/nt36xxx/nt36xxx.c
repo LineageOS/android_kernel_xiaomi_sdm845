@@ -573,7 +573,7 @@ static int32_t nvt_flash_open(struct inode *inode, struct file *file)
 {
 	struct nvt_flash_data *dev;
 
-	dev = kmalloc(sizeof(struct nvt_flash_data), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct nvt_flash_data), GFP_KERNEL);
 	if (dev == NULL) {
 		NVT_ERR("Failed to allocate memory for nvt flash data\n");
 		return -ENOMEM;
@@ -1215,8 +1215,11 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	int32_t i = 0;
 	int32_t finger_cnt = 0;
 
+	struct sched_param param = { .sched_priority = MAX_USER_RT_PRIO / 2 };
+	sched_setscheduler(current, SCHED_FIFO, &param);
+
 #if WAKEUP_GESTURE
-	if (bTouchIsAwake == 0) {
+	if (likely(bTouchIsAwake == 0)) {
 		pm_wakeup_event(&ts->input_dev->dev, 5000);
 	}
 #endif
@@ -1224,18 +1227,10 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	mutex_lock(&ts->lock);
 
 	ret = CTP_I2C_READ(ts->client, I2C_FW_Address, point_data, POINT_DATA_LEN + 1);
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
 		NVT_ERR("CTP_I2C_READ failed.(%d)\n", ret);
 		goto XFER_ERROR;
 	}
-/*
-	//--- dump I2C buf ---
-	for (i = 0; i < 10; i++) {
-		printk("%02X %02X %02X %02X %02X %02X  ",
-			point_data[1+i*6], point_data[2+i*6], point_data[3+i*6], point_data[4+i*6], point_data[5+i*6], point_data[6+i*6]);
-	}
-	printk("\n");
-*/
 
 	if (nvt_fw_recovery(point_data)) {
 #if NVT_TOUCH_ESD_PROTECT
@@ -1252,9 +1247,10 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 #if WAKEUP_GESTURE
-	if (bTouchIsAwake == 0) {
+	if (likely(bTouchIsAwake == 0)) {
 		input_id = (uint8_t)(point_data[1] >> 3);
 		nvt_ts_wakeup_gesture_report(input_id, point_data);
+		nvt_irq_enable(true);
 		mutex_unlock(&ts->lock);
 		return IRQ_HANDLED;
 	}
