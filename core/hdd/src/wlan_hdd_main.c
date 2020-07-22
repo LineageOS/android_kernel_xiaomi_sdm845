@@ -6308,6 +6308,14 @@ QDF_STATUS hdd_stop_adapter_ext(struct hdd_context *hdd_ctx,
 		/* Diassociate with all the peers before stop ap post */
 		if (test_bit(SOFTAP_BSS_STARTED, &adapter->event_flags))
 			wlan_hdd_del_station(adapter);
+
+		qdf_ret_status =
+			sme_roam_del_pmkid_from_cache(hdd_ctx->mac_handle,
+						      adapter->session_id,
+						      NULL, true);
+		if (QDF_IS_STATUS_ERROR(qdf_ret_status))
+			hdd_err("Cannot flush PMKSA Cache");
+
 		/* Flush IPA exception path packets */
 		sap_config = &adapter->session.ap.sap_config;
 		if (sap_config)
