@@ -1854,7 +1854,7 @@ void lim_process_assoc_cleanup(tpAniSirGlobal mac_ctx,
 
 		qdf_mem_free(assoc_req);
 		/* to avoid double free */
-		if (assoc_req_copied && session->parsedAssocReq)
+		if (sta_ds && assoc_req_copied && session->parsedAssocReq)
 			session->parsedAssocReq[sta_ds->assocId] = NULL;
 	}
 
