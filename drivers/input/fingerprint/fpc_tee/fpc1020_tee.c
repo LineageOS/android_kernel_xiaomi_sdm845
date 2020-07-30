@@ -651,7 +651,7 @@ static int fpc_fb_notif_callback(struct notifier_block *nb,
 
 	pr_debug("[info] %s value = %d\n", __func__, (int)val);
 
-	if (evdata && evdata->data && val == MSM_DRM_EVENT_BLANK) {
+	if (evdata && evdata->data && val == MSM_DRM_EARLY_EVENT_BLANK) {
 		blank = *(int *)(evdata->data);
 		switch (blank) {
 		case MSM_DRM_BLANK_POWERDOWN:
