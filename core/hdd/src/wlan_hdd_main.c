@@ -1424,8 +1424,12 @@ static void hdd_update_tgt_ht_cap(struct hdd_context *hdd_ctx,
 
 	enable_tx_stbc = pconfig->enableTxSTBC;
 
-	if (pconfig->enable2x2 && (cfg->num_rf_chains == 2))
+	if (pconfig->enable2x2 && (cfg->num_rf_chains == 2)) {
 		pconfig->enable2x2 = 1;
+	} else {
+		pconfig->enable2x2 = 0;
+		enable_tx_stbc = 0;
+	}
 
 	if (!(cfg->ht_tx_stbc && pconfig->enable2x2))
 		enable_tx_stbc = 0;
