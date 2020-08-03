@@ -14127,7 +14127,7 @@ static void hdd_inform_wifi_off(void)
 {
 	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
 
-	if (!hdd_ctx) {
+	if (!hdd_ctx || !hdd_ctx->mac_handle) {
 		hdd_err("Invalid hdd/pdev context");
 		return;
 	}
