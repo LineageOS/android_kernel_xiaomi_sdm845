@@ -3407,11 +3407,12 @@ wma_get_trigger_detail_str(struct wmi_roam_trigger_info *roam_info, char *buf)
 		 * Use roam_info->current_rssi get the RSSI of current AP after
 		 * roam scan is triggered. This avoids discrepency with the
 		 * next rssi threshold value printed in roam scan details.
-		 * roam_info->rssi_trig_data.threshold gives the rssi of AP
-		 * before the roam scan was triggered.
+		 * roam_info->rssi_trig_data.threshold gives the rssi threshold
+		 * for the Low Rssi/Periodic scan trigger.
 		 */
 		buf_cons = qdf_snprint(temp, buf_left,
-				       " Current AP RSSI: %d",
+				       " Cur_Rssi threshold:%d Current AP RSSI: %d",
+				       roam_info->rssi_trig_data.threshold,
 				       roam_info->current_rssi);
 		temp += buf_cons;
 		buf_left -= buf_cons;
