@@ -4712,7 +4712,8 @@ static void wma_update_roam_offload_flag(tp_wma_handle wma, uint8_t vdev_id,
 	}
 
 	for (id = 0; id < wma->max_bssid; id++) {
-		if (wma->interfaces[id].roam_offload_enabled)
+		if (wma_is_vdev_valid(id) &&
+		    wma->interfaces[id].roam_offload_enabled)
 			roam_offload_vdev_id = id;
 	}
 

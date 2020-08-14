@@ -6932,7 +6932,7 @@ enum hdd_link_speed_rpt_type {
  * <ini>
  * gTDLSExternalControl - Enable external TDLS control.
  * @Min: 0
- * @Max: 1
+ * @Max: 2
  * @Default: 1
  *
  * This ini is used to enable/disable external TDLS control.
@@ -6940,6 +6940,12 @@ enum hdd_link_speed_rpt_type {
  * control allows a user to add a MAC address of potential TDLS peers so
  * that the CLD driver can initiate implicit TDLS setup to only those peers
  * when criteria for TDLS setup (throughput and RSSI threshold) is met.
+ * There are two flavors of external control supported. If control default
+ * is set 1 it means strict external control where only for configured
+ * tdls peer mac address tdls link will be established. If control default
+ * is set 2 it means liberal tdls external control needed. It means
+ * tdls link will be established with configured peer mac address as well
+ * as any other peer which supports tdls.
  *
  * Related: gEnableTDLSSupport, gEnableTDLSImplicitTrigger.
  *
@@ -6951,7 +6957,7 @@ enum hdd_link_speed_rpt_type {
  */
 #define CFG_TDLS_EXTERNAL_CONTROL                   "gTDLSExternalControl"
 #define CFG_TDLS_EXTERNAL_CONTROL_MIN               (0)
-#define CFG_TDLS_EXTERNAL_CONTROL_MAX               (1)
+#define CFG_TDLS_EXTERNAL_CONTROL_MAX               (2)
 #define CFG_TDLS_EXTERNAL_CONTROL_DEFAULT           (1)
 
 /*
@@ -8511,6 +8517,35 @@ enum hdd_link_speed_rpt_type {
 #define CFG_NDP_KEEP_ALIVE_PERIOD_MIN              (10)
 #define CFG_NDP_KEEP_ALIVE_PERIOD_MAX              (30)
 #define CFG_NDP_KEEP_ALIVE_PERIOD_DEFAULT          (20)
+
+/*
+ * <ini>
+ * nan_feature_config - Bitmap to enable/disable a particular NAN/NDP feature
+ *
+ * @Min: 0
+ * @Max: 0xFFFF
+ * @Default: 0x1
+ *
+ * This parameter helps to enable/disable a particular feature config by setting
+ * corresponding bit and send to firmware through the VDEV param
+ * WMI_VDEV_PARAM_ENABLE_DISABLE_NAN_CONFIG_FEATURES
+ * Acceptable values for this:
+ * BIT(0): Allow DW configuration from framework in sync role.
+ *	   If this is not set, firmware shall follow the spec/default behavior.
+ * BIT(1) to BIT(31): Reserved
+ *
+ * Related: None
+ *
+ * Supported Feature: NAN
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_NAN_FEATURE_CONFIG                  "nan_feature_config"
+#define CFG_NAN_FEATURE_CONFIG_MIN              (0)
+#define CFG_NAN_FEATURE_CONFIG_MAX              (0xFFFF)
+#define CFG_NAN_FEATURE_CONFIG_DEFAULT          (1)
 
 /*
  * <ini>
@@ -17597,6 +17632,28 @@ enum hdd_external_acs_policy {
 
 /*
  * <ini>
+ * nb_commands_interval - Used to rate limit nb commands from userspace
+ *
+ * @Min: 0
+ * @Max: 10
+ * Default: 3
+ *
+ * This ini is used to specify the duration in which any supp. nb command from
+ * userspace will not be processed completely in driver. For ex, the default
+ * value of 3 seconds signifies that consecutive commands within that
+ * time will not be processed fully.
+ *
+ * Usage: Internal
+ *
+ * </ini>
+ */
+#define CFG_NB_COMMANDS_RATE_LIMIT          "nb_commands_interval"
+#define CFG_NB_COMMANDS_RATE_LIMIT_MIN      (0)
+#define CFG_NB_COMMANDS_RATE_LIMIT_MAX      (10)
+#define CFG_NB_COMMANDS_RATE_LIMIT_DEFAULT  (3)
+
+/*
+ * <ini>
  * enable_time_sync_ftm - Time Sync FTM feature support
  * @Min: 0
  * @Max: 1
@@ -18139,7 +18196,7 @@ struct hdd_config {
 	uint32_t fTDLSRxFrameThreshold;
 	uint32_t fTDLSPuapsdPTIWindow;
 	uint32_t fTDLSPuapsdPTRTimeout;
-	bool fTDLSExternalControl;
+	uint8_t fTDLSExternalControl;
 	uint32_t fEnableTDLSOffChannel;
 	uint32_t fEnableTDLSWmmMode;
 	uint8_t fTDLSPrefOffChanNum;
@@ -18318,6 +18375,7 @@ struct hdd_config {
 	bool nan_separate_iface_support;
 	uint16_t ndp_keep_alive_period;
 	bool support_mp0_discovery;
+	uint32_t nan_feature_config;
 #endif
 	bool enableSelfRecovery;
 #ifdef FEATURE_WLAN_FORCE_SAP_SCC
@@ -18805,6 +18863,7 @@ struct hdd_config {
 	bool ShortGI160MhzEnable;
 	uint32_t vendor_roam_score_algorithm;
 	uint32_t dp_proto_event_bitmap;
+	uint8_t nb_commands_interval;
 
 #ifdef SAR_SAFETY_FEATURE
 	uint32_t sar_safety_timeout;

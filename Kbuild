@@ -1980,6 +1980,14 @@ ifeq ($(CONFIG_ARCH_SDX20), y)
 cppflags-y += -DSYNC_IPA_READY
 endif
 
+ifeq ($(CONFIG_ARCH_MSM8996), y)
+CONFIG_RX_THREAD_PRIORITY := y
+endif
+
+ifeq ($(CONFIG_RX_THREAD_PRIORITY), y)
+cppflags-y += -DRX_THREAD_PRIORITY
+endif
+
 #Enable wbuff
 cppflags-$(CONFIG_WLAN_WBUFF) += -DWLAN_FEATURE_WBUFF
 

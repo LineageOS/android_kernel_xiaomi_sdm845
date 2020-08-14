@@ -1072,13 +1072,19 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 {
 	tpSirBeaconReportReqInd pBeaconReq = (tpSirBeaconReportReqInd) pMsgBuf;
 	tpRrmSMEContext pSmeRrmContext;
-	uint32_t len = 0, i = 0;
+	uint32_t len = 0, i = 0, j = 0;
 	uint8_t country[WNI_CFG_COUNTRY_CODE_LEN];
 	uint32_t session_id;
 	struct csr_roam_session *session;
 	QDF_STATUS status;
+	uint8_t local_num_channel, local_bcn_chan_freq;
+	uint8_t *local_rrm_freq_list;
+	tRrmPEContext rrm_context;
+	bool chan_valid = true;
 
 	pSmeRrmContext = &pMac->rrm.rrmSmeContext[pBeaconReq->measurement_idx];
+	rrm_context = pMac->rrm.rrmPEContext;
+
 	status = csr_roam_get_session_id_from_bssid(pMac, (struct qdf_mac_addr *)
 						    pBeaconReq->bssId,
 						    &session_id);
@@ -1192,6 +1198,50 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
 		}
 	}
 
+	local_rrm_freq_list = pSmeRrmContext->channelList.ChannelList;
+	local_num_channel = 0;
+	for (i = 0; i < pSmeRrmContext->channelList.numOfChannels; i++) {
+		local_bcn_chan_freq = local_rrm_freq_list[i];
+		chan_valid = true;
+
+		if (pBeaconReq->measurement_idx > 0) {
+			for (j = 0; j < rrm_context.beacon_rpt_chan_num; j++) {
+				if (rrm_context.beacon_rpt_chan_list[j] ==
+				    local_bcn_chan_freq) {
+				/*
+				 * Ignore this channel, As this is already
+				 * included in previous request
+				 */
+					chan_valid = false;
+					break;
+				}
+			}
+		}
+
+		if (chan_valid) {
+			rrm_context.
+			beacon_rpt_chan_list[rrm_context.beacon_rpt_chan_num] =
+							local_bcn_chan_freq;
+			rrm_context.beacon_rpt_chan_num++;
+
+			if (rrm_context.beacon_rpt_chan_num >=
+			    MAX_NUM_CHANNELS) {
+			    /* this should never happen */
+				sme_err("Reset beacon_rpt_chan_num : %d",
+					rrm_context.beacon_rpt_chan_num);
+				rrm_context.beacon_rpt_chan_num = 0;
+			}
+			local_rrm_freq_list[local_num_channel] =
+							local_bcn_chan_freq;
+			local_num_channel++;
+		}
+	}
+
+	if (local_num_channel == 0)
+		goto cleanup;
+
+	pSmeRrmContext->channelList.numOfChannels = local_num_channel;
+
 	/* Copy session bssid */
 	qdf_mem_copy(pSmeRrmContext->sessionBssId.bytes, pBeaconReq->bssId,
 		     sizeof(tSirMacAddr));
@@ -1233,6 +1283,14 @@ cleanup:
 		/* copy measurement bssid */
 		qdf_mem_copy(pSmeRrmContext->bssId, pBeaconReq->macaddrBssid,
 			     sizeof(tSirMacAddr));
+
+		pSmeRrmContext->token = pBeaconReq->uDialogToken;
+		pSmeRrmContext->regClass =
+				pBeaconReq->channelInfo.regulatoryClass;
+		pSmeRrmContext->randnIntvl =
+			QDF_MAX(pBeaconReq->randomizationInterval,
+				pMac->rrm.rrmConfig.max_randn_interval);
+
 		sme_rrm_send_beacon_report_xmit_ind(pMac,
 						    pBeaconReq->measurement_idx,
 						    NULL, true, 0);

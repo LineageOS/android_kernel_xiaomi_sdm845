@@ -21602,7 +21602,7 @@ static int __wlan_hdd_cfg80211_connect(struct wiphy *wiphy,
 	 * Check if this is reassoc to same bssid, if reassoc is success, return
 	 */
 	status = wlan_hdd_reassoc_bssid_hint(adapter, req);
-	if (!status)
+	if (!status || status == -EPERM)
 		return status;
 
 	/* Try disconnecting if already in connected state */

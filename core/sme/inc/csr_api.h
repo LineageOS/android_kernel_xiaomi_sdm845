@@ -1818,6 +1818,7 @@ typedef void (*tCsrTsmStatsCallback)(tAniTrafStrmMetrics tsmMetrics,
 #endif /* FEATURE_WLAN_ESE */
 typedef void (*tCsrSnrCallback)(int8_t snr, uint32_t staId, void *pContext);
 
+void csr_assoc_rej_free_rssi_disallow_list(struct sAniSirGlobal *mac);
 /**
  * csr_roam_issue_ft_preauth_req() - Initiate Preauthentication request
  * @max_ctx: Global MAC context

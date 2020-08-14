@@ -1058,6 +1058,8 @@ uint8_t sme_get_roam_bmiss_final_bcnt(tHalHandle hHal);
 QDF_STATUS sme_set_roam_beacon_rssi_weight(tHalHandle hHal, uint8_t sessionId,
 		const uint8_t nRoamBeaconRssiWeight);
 uint8_t sme_get_roam_beacon_rssi_weight(tHalHandle hHal);
+void sme_free_blacklist(tHalHandle mac_handle);
+
 /**
  * sme_get_roam_rssi_diff() - get Roam rssi diff
  * @mac_handle: The handle returned by mac_open
@@ -2092,6 +2094,18 @@ QDF_STATUS sme_get_beacon_frm(tHalHandle hal, struct csr_roam_profile *profile,
 			      int *channel);
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+
+/**
+ * sme_is_fast_reassoc_allowed  - API to check if roam invoke is
+ * allowed. Get the roam enabled vdev id and allow roaming only on
+ * that vdev id.
+ * @mac_handle: Opaque mac handle
+ * @vdev_id: vdev id
+ *
+ * Return: true if roam invoke is allowed, else return false
+ */
+bool sme_is_fast_reassoc_allowed(mac_handle_t mac_handle, uint8_t vdev_id);
+
 /**
  * sme_fast_reassoc() - invokes FAST REASSOC command
  * @hal: handle returned by mac_open
@@ -2106,6 +2120,12 @@ QDF_STATUS sme_get_beacon_frm(tHalHandle hal, struct csr_roam_profile *profile,
 QDF_STATUS sme_fast_reassoc(tHalHandle hal, struct csr_roam_profile *profile,
 			    const tSirMacAddr bssid, int channel,
 			    uint8_t vdev_id, const tSirMacAddr connected_bssid);
+#else
+static inline
+bool sme_is_fast_reassoc_allowed(mac_handle_t mac_handle, uint8_t vdev_id)
+{
+	return true;
+}
 #endif
 /**
  * sme_congestion_register_callback() - registers congestion callback
@@ -3238,4 +3258,27 @@ QDF_STATUS sme_handle_peer_cleanup(tHalHandle hal, uint8_t vdev_id);
  */
 QDF_STATUS sme_update_owe_info(tpAniSirGlobal mac,
 			       tSirSmeAssocInd *assoc_ind);
+
+#if defined(CLD_PM_QOS) && defined(WLAN_FEATURE_LL_MODE)
+/**
+ * sme_set_beacon_latency_event_cb() - Register beacon latency IE callback
+ * @mac_handle: Opaque handle to the MAC context
+ * @beacon_latency_event_cb: callback to be registered
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+sme_set_beacon_latency_event_cb(mac_handle_t mac_handle,
+				void (*beacon_latency_event_cb)
+				(uint32_t latency_level));
+#else
+static inline QDF_STATUS
+sme_set_beacon_latency_event_cb(mac_handle_t mac_handle,
+				void (*beacon_latency_event_cb)
+				(uint32_t latency_level))
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
+
 #endif /* #if !defined( __SME_API_H ) */
