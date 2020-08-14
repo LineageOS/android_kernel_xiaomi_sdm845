@@ -279,4 +279,3 @@ QDF_STATUS ucfg_nan_get_callbacks(struct wlan_objmgr_psoc *psoc,
 				  struct nan_callbacks *cb_obj);
 
 #endif /* _NAN_UCFG_API_H_ */
-

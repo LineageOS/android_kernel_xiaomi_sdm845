@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -111,4 +111,39 @@ void qdf_print_thread_trace(qdf_thread_t *thread);
  * Return: pointer to task struct
  */
 qdf_thread_t *qdf_get_current_task(void);
+
+/**
+ * qdf_thread_set_cpus_allowed_mask() - set cpu mask for a particular thread
+ * @thread: thread for which new cpu mask is set
+ * @new_mask: new cpu mask to be set for the thread
+ *
+ * Return: None
+ */
+void
+qdf_thread_set_cpus_allowed_mask(qdf_thread_t *thread, qdf_cpu_mask *new_mask);
+
+/**
+ * qdf_cpumask_clear() - clear all cpus in a cpumask
+ * @dstp: cpumask pointer
+ *
+ * Return: None
+ */
+void qdf_cpumask_clear(qdf_cpu_mask *dstp);
+
+/**
+ * qdf_cpumask_set_cpu() - set a cpu in a cpumask
+ * @cpu: cpu number
+ * @dstp: cpumask pointer
+ *
+ * Return: None
+ */
+void qdf_cpumask_set_cpu(unsigned int cpu, qdf_cpu_mask *dstp);
+
+/**
+ * qdf_cpumask_setall - set all cpus
+ * @dstp: cpumask pointer
+ *
+ * Return: None
+ */
+void qdf_cpumask_setall(qdf_cpu_mask *dstp);
 #endif /* __QDF_THREADS_H */
