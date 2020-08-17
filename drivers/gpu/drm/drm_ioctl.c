@@ -475,7 +475,7 @@ static int drm_version(struct drm_device *dev, void *data,
 char support_list[MAX_LIST_NUM][MAX_TASK_NAME_LEN] = {
 		"displayfeature",
 		"DisplayFeature",
-		"disp_pcc"
+		"disp_pcc",
 		"displayeffect"
 };
 
