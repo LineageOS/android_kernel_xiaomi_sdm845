@@ -2760,6 +2760,7 @@ void hdd_deinit(void);
 int hdd_wlan_startup(struct device *dev);
 void __hdd_wlan_exit(void);
 int hdd_wlan_notify_modem_power_state(int state);
+void hdd_context_destroy(struct hdd_context *hdd_ctx);
 #ifdef QCA_HT_2040_COEX
 /**
  * hdd_wlan_set_ht2040_mode() - notify FW with HT20/HT40 mode

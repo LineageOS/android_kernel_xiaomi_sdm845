@@ -8223,7 +8223,7 @@ static int hdd_context_deinit(struct hdd_context *hdd_ctx)
  *
  * Return: None
  */
-static void hdd_context_destroy(struct hdd_context *hdd_ctx)
+void hdd_context_destroy(struct hdd_context *hdd_ctx)
 {
 	wlan_hdd_sar_timers_deinit(hdd_ctx);
 
@@ -14490,9 +14490,6 @@ static void hdd_driver_unload(void)
 		hdd_psoc_idle_timer_stop(hdd_ctx);
 
 	wlan_hdd_unregister_driver();
-
-	if (hdd_ctx)
-		hdd_context_destroy(hdd_ctx);
 
 	pld_deinit();
 	wlan_hdd_state_ctrl_param_destroy();

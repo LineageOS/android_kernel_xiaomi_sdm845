@@ -505,6 +505,12 @@ static int wlan_hdd_probe(struct device *dev, void *bdev,
  */
 static void wlan_hdd_remove(struct device *dev)
 {
+	struct hdd_context *hdd_ctx = cds_get_context(QDF_MODULE_ID_HDD);
+
+	QDF_BUG(hdd_ctx);
+	if (!hdd_ctx)
+		return;
+
 	pr_info("%s: Removing driver v%s\n", WLAN_MODULE_NAME,
 		QWLAN_VERSIONSTR);
 
@@ -526,6 +532,7 @@ static void wlan_hdd_remove(struct device *dev)
 		__hdd_wlan_exit();
 	}
 	hdd_stop_driver_ops_timer();
+	hdd_context_destroy(hdd_ctx);
 	mutex_unlock(&hdd_init_deinit_lock);
 
 	cds_set_driver_in_bad_state(false);
