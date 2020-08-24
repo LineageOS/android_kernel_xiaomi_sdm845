@@ -447,6 +447,7 @@
 
 &qupv3_se14_i2c {
 	status = "ok";
+	qcom,clk-freq-out = <400000>;
 	/* Novatek device tree node */
 	novatek@62 {
 		compatible = "novatek,NVT-ts";
