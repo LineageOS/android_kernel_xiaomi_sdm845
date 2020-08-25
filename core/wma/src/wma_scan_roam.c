@@ -235,6 +235,10 @@ QDF_STATUS wma_update_channel_list(WMA_HANDLE handle,
 			WMI_SET_CHANNEL_FLAG(tchan_info,
 				WMI_CHAN_FLAG_QUARTER_RATE);
 
+		if (chan_list->chanParam[i].nan_disabled)
+			WMI_SET_CHANNEL_FLAG(tchan_info,
+					     WMI_CHAN_FLAG_NAN_DISABLED);
+
 		WMI_SET_CHANNEL_MAX_TX_POWER(tchan_info,
 					     chan_list->chanParam[i].pwr);
 
