@@ -1825,7 +1825,12 @@ bool reg_is_etsi13_srd_chan(struct wlan_objmgr_pdev *pdev, uint32_t chan)
 	return reg_is_etsi13_regdmn(pdev);
 }
 
-bool reg_is_etsi13_srd_chan_allowed_master_mode(struct wlan_objmgr_pdev *pdev)
+#define SRD_MASTER_MODE_FOR_SAP       0
+#define SRD_MASTER_MODE_FOR_GO        2
+#define SRD_MASTER_MODE_FOR_NAN       4
+
+bool reg_is_etsi13_srd_chan_allowed_master_mode(struct wlan_objmgr_pdev *pdev,
+						enum QDF_OPMODE vdev_opmode)
 {
 	struct wlan_objmgr_psoc *psoc;
 	struct wlan_regulatory_psoc_priv_obj *psoc_priv_obj;
@@ -1842,9 +1847,30 @@ bool reg_is_etsi13_srd_chan_allowed_master_mode(struct wlan_objmgr_pdev *pdev)
 		return true;
 	}
 
-	return psoc_priv_obj->enable_srd_chan_in_master_mode &&
-	       reg_is_etsi13_regdmn(pdev);
+	switch (vdev_opmode) {
+	case QDF_SAP_MODE:
+		if (!(psoc_priv_obj->enable_srd_chan_in_master_mode &
+		    SRD_MASTER_MODE_FOR_SAP))
+			return false;
+		break;
+	case QDF_P2P_GO_MODE:
+		if (!(psoc_priv_obj->enable_srd_chan_in_master_mode &
+		    SRD_MASTER_MODE_FOR_GO))
+			return false;
+		break;
+	case QDF_NAN_DISC_MODE:
+		if (!(psoc_priv_obj->enable_srd_chan_in_master_mode &
+		    SRD_MASTER_MODE_FOR_NAN))
+			return false;
+		break;
+	default :
+		reg_err("Invalid mode passed %d", vdev_opmode);
+		return false;
+	}
+
+	return reg_is_etsi13_regdmn(pdev);
 }
+
 #endif
 
 uint32_t reg_freq_to_chan(struct wlan_objmgr_pdev *pdev,
@@ -2736,11 +2762,21 @@ reg_modify_chan_list_for_srd_channels(struct wlan_objmgr_pdev *pdev,
 				      struct regulatory_channel *chan_list)
 {
 	enum channel_enum chan_enum;
+	struct wlan_objmgr_psoc *psoc;
+	struct wlan_regulatory_psoc_priv_obj *psoc_priv_obj;
 
 	if (!reg_is_etsi13_regdmn(pdev))
 		return;
 
-	if (reg_is_etsi13_srd_chan_allowed_master_mode(pdev))
+	psoc = wlan_pdev_get_psoc(pdev);
+
+	psoc_priv_obj = reg_get_psoc_obj(psoc);
+	if (!IS_VALID_PSOC_REG_OBJ(psoc_priv_obj)) {
+		reg_alert("psoc reg component is NULL");
+		return;
+	}
+
+	if (psoc_priv_obj->enable_srd_chan_in_master_mode)
 		return;
 
 	for (chan_enum = 0; chan_enum < NUM_CHANNELS; chan_enum++) {
