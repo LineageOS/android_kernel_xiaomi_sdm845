@@ -471,6 +471,9 @@ static inline void copy_channel_info(
 	if (req->channel.dfs_set_cfreq2)
 		WMI_SET_CHANNEL_FLAG(chan, WMI_CHAN_FLAG_DFS_CFREQ2);
 
+	if (req->channel.nan_disabled)
+		WMI_SET_CHANNEL_FLAG(chan, WMI_CHAN_FLAG_NAN_DISABLED);
+
 	/* According to firmware both reg power and max tx power
 	 * on set channel power is used and set it to max reg
 	 * power from regulatory.
@@ -3229,6 +3232,10 @@ static QDF_STATUS send_scan_chan_list_cmd_tlv(wmi_unified_t wmi_handle,
 		if (tchan_info->quarter_rate)
 			WMI_SET_CHANNEL_FLAG(chan_info,
 					WMI_CHAN_FLAG_QUARTER_RATE);
+
+		if (tchan_info->nan_disabled)
+			WMI_SET_CHANNEL_FLAG(chan_info,
+					     WMI_CHAN_FLAG_NAN_DISABLED);
 
 		/* also fill in power information */
 		WMI_SET_CHANNEL_MIN_POWER(chan_info,
@@ -16699,6 +16706,9 @@ static QDF_STATUS send_multiple_vdev_restart_req_cmd_tlv(
 	else  if (tchan_info->allow_ht)
 		WMI_SET_CHANNEL_FLAG(chan_info,
 				     WMI_CHAN_FLAG_ALLOW_HT);
+
+	if (tchan_info->nan_disabled)
+		WMI_SET_CHANNEL_FLAG(chan_info, WMI_CHAN_FLAG_NAN_DISABLED);
 	WMI_SET_CHANNEL_MODE(chan_info, tchan_info->phy_mode);
 	WMI_SET_CHANNEL_MIN_POWER(chan_info, tchan_info->minpower);
 	WMI_SET_CHANNEL_MAX_POWER(chan_info, tchan_info->maxpower);
