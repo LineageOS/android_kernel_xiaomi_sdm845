@@ -3393,7 +3393,8 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 		 * are not enabled in master mode
 		 */
 		if (!wlan_reg_is_etsi13_srd_chan_allowed_master_mode(mac_ctx->
-								     pdev) &&
+								     pdev,
+		    QDF_SAP_MODE) &&
 		    wlan_reg_is_etsi13_srd_chan(mac_ctx->pdev,
 						WLAN_REG_CH_NUM(loop_count)))
 			continue;
