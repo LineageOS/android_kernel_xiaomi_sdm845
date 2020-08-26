@@ -22,6 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/uaccess.h>
+#include <linux/pm_qos.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
@@ -160,6 +161,7 @@ struct nvt_ts_data {
 	int gesture_enabled;
 #endif
 	int current_index;
+	struct pm_qos_request pm_qos_req;
 };
 
 #if WAKEUP_GESTURE
