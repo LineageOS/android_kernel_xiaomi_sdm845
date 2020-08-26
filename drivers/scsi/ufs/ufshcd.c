@@ -402,6 +402,7 @@ ufs_get_desired_pm_lvl_for_dev_link_state(enum ufs_dev_pwr_mode dev_state,
 	return UFS_PM_LVL_0;
 }
 
+
 static inline bool ufshcd_is_valid_pm_lvl(int lvl)
 {
 	if (lvl >= 0 && lvl < ARRAY_SIZE(ufs_pm_lvl_states))
