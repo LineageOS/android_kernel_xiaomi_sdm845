@@ -23,7 +23,7 @@
 #include "nt36xxx.h"
 #include "nt36xxx_mp_ctrlram.h"
 
-#if NVT_TOUCH_MP
+#ifdef CONFIG_TOUCHSCREEN_NT36xxx_MP_CTRLRAM
 
 #define NORMAL_MODE 0x00
 #define TEST_MODE_1 0x21
@@ -1617,4 +1617,4 @@ void nvt_mp_proc_deinit(void)
 		NVT_LOG("Removed /proc/%s\n", "nvt_selftest");
 	}
 }
-#endif /* #if NVT_TOUCH_MP */
+#endif /* CONFIG_TOUCHSCREEN_NT36xxx_MP_CTRLRAM */
