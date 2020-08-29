@@ -34,17 +34,17 @@
 #endif
 
 #include "nt36xxx.h"
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 #include <linux/jiffies.h>
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 static struct delayed_work nvt_esd_check_work;
 static struct workqueue_struct *nvt_esd_check_wq;
 static unsigned long irq_timer = 0;
 uint8_t esd_check = false;
 uint8_t esd_retry = 0;
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 
 #if NVT_TOUCH_EXT_PROC
 extern int32_t nvt_extra_proc_init(void);
@@ -501,14 +501,14 @@ static ssize_t nvt_flash_read(struct file *file, char __user *buff, size_t count
 		return -EFAULT;
 	}
 
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 	/*
 	 * stop esd check work to avoid case that 0x77 report righ after here to enable esd check again
 	 * finally lead to trigger esd recovery bootloader reset
 	 */
 	cancel_delayed_work_sync(&nvt_esd_check_work);
 	nvt_esd_check_enable(false);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 
 	i2c_wr = str[0] >> 7;
 
@@ -1068,7 +1068,7 @@ static uint8_t nvt_fw_recovery(uint8_t *point_data)
 	return detected;
 }
 
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 void nvt_esd_check_enable(uint8_t enable)
 {
 	/* update interrupt timer */
@@ -1100,7 +1100,7 @@ static void nvt_esd_check_func(struct work_struct *work)
 	queue_delayed_work(nvt_esd_check_wq, &nvt_esd_check_work,
 			msecs_to_jiffies(NVT_TOUCH_ESD_CHECK_PERIOD));
 }
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 
 #if WAKEUP_GESTURE
 #define EVENT_START				0
@@ -1222,9 +1222,9 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	}
 
 	if (nvt_fw_recovery(point_data)) {
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 		nvt_esd_check_enable(true);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 		goto XFER_ERROR;
 	}
 
@@ -1245,10 +1245,10 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 			continue;
 
 		if (likely(((point_data[position] & 0x07) == 0x01) || ((point_data[position] & 0x07) == 0x02))) {	//finger down (enter & moving)
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 			/* update interrupt timer */
 			irq_timer = jiffies;
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 			input_x = (uint32_t) (point_data[position + 1] << 4) + (uint32_t) (point_data[position + 3] >> 4);
 			input_y = (uint32_t) (point_data[position + 2] << 4) + (uint32_t) (point_data[position + 3] & 0x0F);
 
@@ -1292,10 +1292,10 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 
 #if TOUCH_KEY_NUM > 0
 	if (point_data[61] == 0xF8) {
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 		/* update interrupt timer */
 		irq_timer = jiffies;
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 		for (i = 0; i < ts->max_button_num; i++) {
 			input_report_key(ts->input_dev, touch_key_array[i], ((point_data[62] >> i) & 0x01));
 		}
@@ -1692,8 +1692,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	queue_delayed_work(nvt_fwu_wq, &ts->nvt_fwu_work, msecs_to_jiffies(14000));
 #endif
 
-	NVT_LOG("NVT_TOUCH_ESD_PROTECT is %d\n", NVT_TOUCH_ESD_PROTECT);
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 	INIT_DELAYED_WORK(&nvt_esd_check_work, nvt_esd_check_func);
 	nvt_esd_check_wq = alloc_workqueue("nvt_esd_check_wq", WQ_MEM_RECLAIM, 1);
 	if (!nvt_esd_check_wq) {
@@ -1703,7 +1702,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	}
 	queue_delayed_work(nvt_esd_check_wq, &nvt_esd_check_work,
 			msecs_to_jiffies(NVT_TOUCH_ESD_CHECK_PERIOD));
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 
 	//---set device node---
 #if NVT_TOUCH_PROC
@@ -1763,7 +1762,7 @@ err_extra_proc_init_failed:
 nvt_flash_proc_deinit();
 err_flash_proc_init_failed:
 #endif
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 	if (nvt_esd_check_wq) {
 		cancel_delayed_work_sync(&nvt_esd_check_work);
 		destroy_workqueue(nvt_esd_check_wq);
@@ -1834,7 +1833,7 @@ static int32_t nvt_ts_remove(struct i2c_client *client)
 	nvt_flash_proc_deinit();
 #endif
 
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 	if (nvt_esd_check_wq) {
 		cancel_delayed_work_sync(&nvt_esd_check_work);
 		nvt_esd_check_enable(false);
@@ -1900,14 +1899,14 @@ static void nvt_ts_shutdown(struct i2c_client *client)
 	nvt_flash_proc_deinit();
 #endif
 
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 	if (nvt_esd_check_wq) {
 		cancel_delayed_work_sync(&nvt_esd_check_work);
 		nvt_esd_check_enable(false);
 		destroy_workqueue(nvt_esd_check_wq);
 		nvt_esd_check_wq = NULL;
 	}
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 
 #if BOOT_UPDATE_FIRMWARE
 	if (nvt_fwu_wq) {
@@ -1945,11 +1944,11 @@ static int32_t nvt_ts_suspend(struct device *dev)
 	nvt_irq_enable(false);
 #endif
 
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 	NVT_LOG("cancel delayed work sync\n");
 	cancel_delayed_work_sync(&nvt_esd_check_work);
 	nvt_esd_check_enable(false);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 
 	mutex_lock(&ts->lock);
 
@@ -2057,11 +2056,11 @@ static int32_t nvt_ts_resume(struct device *dev)
 	}
 #endif
 
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 	nvt_esd_check_enable(false);
 	queue_delayed_work(nvt_esd_check_wq, &nvt_esd_check_work,
 			msecs_to_jiffies(NVT_TOUCH_ESD_CHECK_PERIOD));
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 
 	bTouchIsAwake = 1;
 
