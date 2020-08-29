@@ -89,8 +89,9 @@ extern const uint16_t gesture_key_array[];
 #define BOOT_UPDATE_FIRMWARE_NAME "novatek_nt36672_e10.fw"
 
 //---ESD Protect.---
-#define NVT_TOUCH_ESD_PROTECT 0
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 #define NVT_TOUCH_ESD_CHECK_PERIOD 1500	/* ms */
+#endif
 
 //---Lockdown---
 #define NVT_LOCKDOWN_SIZE	8
@@ -203,9 +204,9 @@ extern int32_t nvt_get_fw_info(void);
 extern int32_t nvt_clear_fw_status(void);
 extern int32_t nvt_check_fw_status(void);
 extern int32_t nvt_set_page(uint16_t i2c_addr, uint32_t addr);
-#if NVT_TOUCH_ESD_PROTECT
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
 extern void nvt_esd_check_enable(uint8_t enable);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
+#endif /* #ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
 extern void nvt_stop_crc_reboot(void);
 
 extern int32_t Init_BootLoader(void);
