@@ -1935,7 +1935,7 @@ bool policy_mgr_dump_channel_list(uint32_t len, uint8_t *pcl_channels,
 		return false;
 
 	policymgr_nofl_debug("Total PCL Chan Freq %d", len);
-	for (idx = 0; idx < len; idx++) {
+	for (idx = 0; idx < len && idx < QDF_MAX_NUM_CHAN; idx++) {
 		num += qdf_scnprintf(chan_buff + num, buff_len - num, " %d[%d]",
 				     pcl_channels[idx], pcl_weight[idx]);
 		count++;

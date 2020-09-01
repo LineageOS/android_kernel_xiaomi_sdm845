@@ -61,7 +61,7 @@
 #endif /* __KERNEL__ */
 #include <qdf_status.h>
 
-#ifdef CONFIG_ARM_SMMU
+#if IS_ENABLED(CONFIG_ARM_SMMU)
 #include <pld_common.h>
 #include <asm/dma-iommu.h>
 #include <linux/iommu.h>
@@ -212,7 +212,7 @@ static inline bool __qdf_mem_smmu_s1_enabled(qdf_device_t osdev)
 	return osdev->smmu_s1_enabled;
 }
 
-#ifdef CONFIG_ARM_SMMU
+#if IS_ENABLED(CONFIG_ARM_SMMU)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 /**
  * __qdf_dev_get_domain() - get iommu domain from osdev
