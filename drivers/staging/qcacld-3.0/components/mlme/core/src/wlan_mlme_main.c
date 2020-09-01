@@ -174,6 +174,20 @@ mlme_vdev_object_created_notification(struct wlan_objmgr_vdev *vdev,
 	return status;
 }
 
+struct mlme_roam_invoke_entity_param *
+mlme_get_roam_invoke_params(struct wlan_objmgr_vdev *vdev)
+{
+	struct vdev_mlme_priv_obj *vdev_mlme;
+
+	vdev_mlme = wlan_vdev_mlme_get_priv_obj(vdev);
+	if (!vdev_mlme) {
+		mlme_err("vdev component object is NULL");
+		return NULL;
+	}
+
+	return &vdev_mlme->roam_invoke_params;
+}
+
 QDF_STATUS
 mlme_vdev_object_destroyed_notification(struct wlan_objmgr_vdev *vdev,
 					void *arg)

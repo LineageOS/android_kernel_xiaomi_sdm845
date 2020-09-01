@@ -230,6 +230,33 @@ typedef struct sLimMlmOemDataRsp {
 } tLimMlmOemDataRsp, *tpLimMlmOemDataRsp;
 #endif
 
+/* Forward declarations */
+struct sSirAssocReq;
+struct sDphHashNode;
+
+/* struct lim_assoc_data - Assoc data to be cached to defer association
+ *			   indication to SME
+ * @present: Indicates whether assoc data is present or not
+ * @sub_type: Indicates whether it is Association Request(=0) or Reassociation
+ *            Request(=1) frame
+ * @hdr: MAC header
+ * @assoc_req: pointer to parsed ASSOC/REASSOC Request frame
+ * @pmf_connection: flag indicating pmf connection
+ * @assoc_req_copied: boolean to indicate if assoc req was copied to tmp above
+ * @dup_entry: flag indicating if duplicate entry found
+ * @sta_ds: station dph entry
+ */
+struct lim_assoc_data {
+	bool present;
+	uint8_t sub_type;
+	tSirMacMgmtHdr hdr;
+	struct sSirAssocReq *assoc_req;
+	bool pmf_connection;
+	bool assoc_req_copied;
+	bool dup_entry;
+	struct sDphHashNode *sta_ds;
+};
+
 /* Pre-authentication structure definition */
 typedef struct tLimPreAuthNode {
 	struct tLimPreAuthNode *next;
@@ -245,6 +272,10 @@ typedef struct tLimPreAuthNode {
 	TX_TIMER timer;
 	uint16_t seq_num;
 	unsigned long timestamp;
+	/* keeping copy of association request received, this is
+	 * to defer the association request processing
+	 */
+	struct lim_assoc_data assoc_req;
 } tLimPreAuthNode, *tpLimPreAuthNode;
 
 /* Pre-authentication table definition */
@@ -256,7 +287,8 @@ typedef struct tLimPreAuthTable {
 /* / Per STA context structure definition */
 typedef struct sLimMlmStaContext {
 	tLimMlmStates mlmState;
-	tAniAuthType authType;
+	tAniAuthType authType;		/* auth algo in auth frame */
+	enum ani_akm_type akm_type;	/* akm in rsn/wpa ie */
 	uint16_t listenInterval;
 	tSirMacCapabilityInfo capabilityInfo;
 	tSirMacReasonCodes disassocReason;
@@ -275,6 +307,8 @@ typedef struct sLimMlmStaContext {
 #ifdef WLAN_FEATURE_11AX
 	bool he_capable;
 #endif
+	uint8_t *owe_ie;
+	uint32_t owe_ie_len;
 } tLimMlmStaContext, *tpLimMlmStaContext;
 
 /* Structure definition to hold deferred messages queue parameters */

@@ -1060,8 +1060,8 @@ QDF_STATUS wlan_ipa_uc_disable_pipes(struct wlan_ipa_priv *ipa_ctx)
 
 	qdf_spin_lock_bh(&ipa_ctx->pipes_down_lock);
 	if (ipa_ctx->pipes_down_in_progress || ipa_ctx->ipa_pipes_down) {
-		ipa_warn("IPA WDI Pipes down already in progress");
 		qdf_spin_unlock_bh(&ipa_ctx->pipes_down_lock);
+		ipa_warn("IPA WDI Pipes down already in progress");
 		return QDF_STATUS_E_ALREADY;
 	}
 	ipa_ctx->pipes_down_in_progress = true;

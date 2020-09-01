@@ -278,6 +278,7 @@ struct sap_context {
 	bool dfs_cac_offload;
 	bool is_chan_change_inprogress;
 	bool stop_bss_in_progress;
+	qdf_list_t owe_pending_assoc_ind_list;
 };
 
 /*----------------------------------------------------------------------------

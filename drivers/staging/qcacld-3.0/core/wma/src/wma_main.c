@@ -92,10 +92,7 @@
 #include "init_cmd_api.h"
 #include "wma_coex.h"
 #include <ftm_time_sync_ucfg_api.h>
-
-#ifdef WLAN_FEATURE_PKT_CAPTURE
 #include "wlan_pkt_capture_ucfg_api.h"
-#endif
 
 #define WMA_LOG_COMPLETION_TIMER 3000 /* 3 seconds */
 #define WMI_TLV_HEADROOM 128
@@ -3569,6 +3566,12 @@ QDF_STATUS wma_open(struct wlan_objmgr_psoc *psoc,
 				WMA_RX_SERIALIZER_CTX);
 #endif
 
+#if defined(CLD_PM_QOS) && defined(WLAN_FEATURE_LL_MODE)
+	wmi_unified_register_event_handler(wma_handle->wmi_handle,
+					   wmi_vdev_bcn_latency_event_id,
+					   wma_vdev_bcn_latency_event_handler,
+					   WMA_RX_SERIALIZER_CTX);
+#endif
 	/* register for linkspeed response event */
 	wmi_unified_register_event_handler(wma_handle->wmi_handle,
 					   wmi_peer_estimated_linkspeed_event_id,
@@ -6972,6 +6975,13 @@ int wma_rx_service_ready_ext_event(void *handle, uint8_t *event,
 	if (wmi_service_enabled(wma_handle->wmi_handle, wmi_service_nan_vdev) &&
 	    wma_get_separate_iface_support(wma_handle))
 		wlan_res_cfg->nan_separate_iface_support = true;
+
+	if (ucfg_pkt_capture_get_mode(wma_handle->psoc) &&
+	    wmi_service_enabled(wmi_handle,
+				wmi_service_packet_capture_support))
+		wlan_res_cfg->pktcapture_support = true;
+	else
+		wlan_res_cfg->pktcapture_support = false;
 
 	return 0;
 }

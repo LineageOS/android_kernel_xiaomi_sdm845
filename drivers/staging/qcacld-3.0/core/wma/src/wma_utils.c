@@ -4712,7 +4712,8 @@ static void wma_update_roam_offload_flag(tp_wma_handle wma, uint8_t vdev_id,
 	}
 
 	for (id = 0; id < wma->max_bssid; id++) {
-		if (wma->interfaces[id].roam_offload_enabled)
+		if (wma_is_vdev_valid(id) &&
+		    wma->interfaces[id].roam_offload_enabled)
 			roam_offload_vdev_id = id;
 	}
 
@@ -5140,5 +5141,18 @@ int wma_oem_event_handler(void *wma_ctx, uint8_t *event_buff, uint32_t len)
 	pmac->sme.oem_data_event_handler_cb(&oem_event_data);
 
 	return QDF_STATUS_SUCCESS;
+}
+
+uint8_t wma_get_vdev_chan_roam_enabled(WMA_HANDLE wma_handle)
+{
+	uint8_t id;
+	tp_wma_handle wma = (tp_wma_handle)wma_handle;
+
+	for (id = 0; id < wma->max_bssid; id++) {
+		if (wma->interfaces[id].roam_offload_enabled)
+			return wma->interfaces[id].channel;
+	}
+
+	return 0;
 }
 #endif

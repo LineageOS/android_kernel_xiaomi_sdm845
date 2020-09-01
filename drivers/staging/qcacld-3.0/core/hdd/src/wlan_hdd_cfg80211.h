@@ -793,4 +793,20 @@ static inline void hdd_configure_sar_resume_index(struct hdd_context *hdd_ctx)
 
 #endif
 
+/**
+ * wlan_hdd_set_wlm_mode() - Function to set pm_qos config in wlm mode
+ * @hdd_ctx: HDD context
+ * @latency level: latency value received
+ *
+ * Return: None
+ */
+#if defined(CLD_PM_QOS) && defined(WLAN_FEATURE_LL_MODE)
+void wlan_hdd_set_wlm_mode(struct hdd_context *hdd_ctx, uint16_t latency_level);
+#else
+static inline
+void wlan_hdd_set_wlm_mode(struct hdd_context *hdd_ctx, uint16_t latency_level)
+{
+}
+#endif
+
 #endif
