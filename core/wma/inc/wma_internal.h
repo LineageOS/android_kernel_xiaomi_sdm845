@@ -1246,7 +1246,7 @@ QDF_STATUS wma_process_ch_avoid_update_req(tp_wma_handle wma_handle,
 
 QDF_STATUS wma_update_fw_tdls_state(WMA_HANDLE handle, void *pwmaTdlsparams);
 int wma_update_tdls_peer_state(WMA_HANDLE handle,
-			       tTdlsPeerStateParams *peerStateParams);
+			       struct tdls_peer_update_state *peerStateParams);
 /**
  * wma_set_tdls_offchan_mode() - set tdls off channel mode
  * @handle: wma handle
