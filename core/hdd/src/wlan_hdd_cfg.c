@@ -4098,6 +4098,30 @@ struct reg_table_entry g_registry_table[] = {
 		CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_MIN,
 		CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_MAX),
 
+	REG_VARIABLE(CFG_ROAM_DATA_RSSI_THRESHOLD_TRIGGERS_NAME,
+		WLAN_PARAM_HexInteger, struct hdd_config,
+		roam_data_rssi_threshold_triggers,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ROAM_DATA_RSSI_THRESHOLD_TRIGGERS_DEFAULT,
+		CFG_ROAM_DATA_RSSI_THRESHOLD_TRIGGERS_MIN,
+		CFG_ROAM_DATA_RSSI_THRESHOLD_TRIGGERS_MAX),
+
+	REG_VARIABLE(CFG_ROAM_DATA_RSSI_THRESHOLD_NAME,
+		WLAN_PARAM_SignedInteger, struct hdd_config,
+		roam_data_rssi_threshold,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_ROAM_DATA_RSSI_THRESHOLD_DEFAULT,
+		CFG_ROAM_DATA_RSSI_THRESHOLD_MIN,
+		CFG_ROAM_DATA_RSSI_THRESHOLD_MAX),
+
+	REG_VARIABLE(CFG_RX_DATA_INACTIVITY_TIME_NAME,
+		WLAN_PARAM_Integer, struct hdd_config,
+		rx_data_inactivity_time,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_RX_DATA_INACTIVITY_TIME_DEFAULT,
+		CFG_RX_DATA_INACTIVITY_TIME_MIN,
+		CFG_RX_DATA_INACTIVITY_TIME_MAX),
+
 	REG_VARIABLE(CFG_ROAM_HO_DELAY_FOR_RX_NAME,
 		WLAN_PARAM_Integer, struct hdd_config,
 		ho_delay_for_rx,
@@ -8080,6 +8104,15 @@ void hdd_cfg_print(struct hdd_context *hdd_ctx)
 		CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_NAME,
 		hdd_ctx->config->roam_bad_rssi_thresh_offset_2g);
 	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_ROAM_DATA_RSSI_THRESHOLD_TRIGGERS_NAME,
+		  hdd_ctx->config->roam_data_rssi_threshold_triggers);
+	hdd_debug("Name = [%s] Value = [%d]",
+		  CFG_ROAM_DATA_RSSI_THRESHOLD_NAME,
+		  hdd_ctx->config->roam_data_rssi_threshold);
+	hdd_debug("Name = [%s] Value = [%u]",
+		  CFG_RX_DATA_INACTIVITY_TIME_NAME,
+		  hdd_ctx->config->rx_data_inactivity_time);
+	hdd_debug("Name = [%s] Value = [%u]",
 		CFG_ROAM_HO_DELAY_FOR_RX_NAME,
 		hdd_ctx->config->ho_delay_for_rx);
 	hdd_debug("Name = [%s] Value = [%u]",
@@ -10256,6 +10289,12 @@ QDF_STATUS hdd_set_sme_config(struct hdd_context *hdd_ctx)
 		hdd_ctx->config->roam_bg_scan_client_bitmap;
 	smeConfig->csrConfig.roam_bad_rssi_thresh_offset_2g =
 		hdd_ctx->config->roam_bad_rssi_thresh_offset_2g;
+	smeConfig->csrConfig.roam_data_rssi_threshold_triggers =
+		hdd_ctx->config->roam_data_rssi_threshold_triggers;
+	smeConfig->csrConfig.roam_data_rssi_threshold =
+		hdd_ctx->config->roam_data_rssi_threshold;
+	smeConfig->csrConfig.rx_data_inactivity_time =
+		hdd_ctx->config->rx_data_inactivity_time;
 	smeConfig->csrConfig.ho_delay_for_rx =
 		hdd_ctx->config->ho_delay_for_rx;
 

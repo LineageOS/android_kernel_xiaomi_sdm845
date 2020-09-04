@@ -3263,6 +3263,12 @@ QDF_STATUS csr_change_default_config_param(tpAniSirGlobal pMac,
 		pMac->roam.configParam.roam_params.
 			roam_bad_rssi_thresh_offset_2g =
 			pParam->roam_bad_rssi_thresh_offset_2g;
+		pMac->roam.configParam.roam_params.roam_data_rssi_threshold_triggers =
+			pParam->roam_data_rssi_threshold_triggers;
+		pMac->roam.configParam.roam_params.roam_data_rssi_threshold =
+			pParam->roam_data_rssi_threshold;
+		pMac->roam.configParam.roam_params.rx_data_inactivity_time =
+			pParam->rx_data_inactivity_time;
 
 		pMac->roam.configParam.enable_ftopen =
 			pParam->enable_ftopen;
@@ -3693,6 +3699,12 @@ QDF_STATUS csr_get_config_param(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 		cfg_params->roam_params.bg_scan_client_bitmap;
 	pParam->roam_bad_rssi_thresh_offset_2g =
 		cfg_params->roam_params.roam_bad_rssi_thresh_offset_2g;
+	pParam->roam_data_rssi_threshold_triggers =
+		cfg_params->roam_params.roam_data_rssi_threshold_triggers;
+	pParam->roam_data_rssi_threshold =
+		cfg_params->roam_params.roam_data_rssi_threshold;
+	pParam->rx_data_inactivity_time =
+		cfg_params->roam_params.rx_data_inactivity_time;
 
 	pParam->enable_ftopen = cfg_params->enable_ftopen;
 	pParam->scan_adaptive_dwell_mode =
