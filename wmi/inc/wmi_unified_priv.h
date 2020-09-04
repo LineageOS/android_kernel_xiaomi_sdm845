@@ -780,8 +780,8 @@ QDF_STATUS (*send_update_fw_tdls_state_cmd)(wmi_unified_t wmi_handle,
 					 void *tdls_param, uint8_t tdls_state);
 
 QDF_STATUS (*send_update_tdls_peer_state_cmd)(wmi_unified_t wmi_handle,
-			       struct tdls_peer_state_params *peerStateParams,
-				   uint32_t *ch_mhz);
+				struct tdls_peer_update_state *peer_state,
+				uint32_t *ch_mhz);
 
 
 QDF_STATUS (*send_process_fw_mem_dump_cmd)(wmi_unified_t wmi_handle,
