@@ -849,6 +849,27 @@ config RTMV20
 	help
 	  Say Y here if you want to support Ricktek RTMV2.0 device.
 
+
+config FORCE_FAST_CHARGE
+	bool "Force faster charge rate for USB"
+	default y
+	help
+	  This allows users to override default charge rate for USB
+
+config BATTERY_SAVER
+	bool "Battery saver mode for kernelspace"
+	default y
+	help
+	  This driver creates a sysfs toggle that can be enabled when
+	  battery saver mode is activated in userspace, and provides
+	  functions to check the status of battery saver and to activate
+	  it from anywhere in the kernel.
+
+	  The former can be used to disable features that may otherwise
+	  drain battery faster, such as CPU and DDR boosting.
+
+	  If in doubt, say Y.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
