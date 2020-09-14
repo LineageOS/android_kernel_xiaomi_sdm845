@@ -534,6 +534,7 @@ lim_encrypt_auth_frame(tpAniSirGlobal pMac, uint8_t keyId, uint8_t *pKey,
 	 * Make sure that IV is non-zero, because few IOT APs fails to decrypt
 	 * auth sequence 3 encrypted frames if initialization vector value is 0
 	 */
+	qdf_get_random_bytes(seed, SIR_MAC_WEP_IV_LENGTH);
 	while (!(*(uint32_t *)seed))
 		qdf_get_random_bytes(seed, SIR_MAC_WEP_IV_LENGTH);
 
