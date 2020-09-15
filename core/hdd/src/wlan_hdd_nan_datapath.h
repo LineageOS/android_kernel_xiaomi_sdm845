@@ -48,6 +48,38 @@ struct wireless_dev;
 #define WLAN_HDD_IS_NDI_CONNECTED(adapter) (false)
 #endif /* WLAN_FEATURE_NAN_DATAPATH */
 
+#define NAN_MSG_ID_DISABLE_INDICATION 26
+/**
+ * struct nan_msg_hdr - NAN msg header to be sent to userspace
+ * @msg_version: NAN msg version
+ * @msg_id: NAN message id
+ * @reserved: Reserved for now to avoid padding
+ *
+ * 8-byte control message header used by NAN
+ *
+ */
+struct nan_msg_hdr {
+	uint16_t msg_version:4;
+	uint16_t msg_id:12;
+	uint16_t reserved[3];
+};
+
+#define NAN_STATUS_SUCCESS 0
+#define NAN_STATUS_UNSUPPORTED_CONCURRENCY_NAN_DISABLED 12
+
+/**
+ * struct nan_disable_ind_msg - NAN disable ind params
+ * @msg_hdr: NAN msg header
+ * @reason: NAN disable reason, below are valid reasons for NAN disable ind
+ *          NAN_STATUS_SUCCESS
+ *          NAN_STATUS_UNSUPPORTED_CONCURRENCY_NAN_DISABLED
+ * @reserved: Reserved for now to avoid padding
+ */
+struct nan_disable_ind_msg {
+	struct nan_msg_hdr msg_hdr;
+	uint16_t reason;
+	uint16_t reserved;
+};
 #ifdef WLAN_FEATURE_NAN_DATAPATH
 void hdd_ndp_print_ini_config(struct hdd_context *hdd_ctx);
 void hdd_nan_datapath_target_config(struct hdd_context *hdd_ctx,
