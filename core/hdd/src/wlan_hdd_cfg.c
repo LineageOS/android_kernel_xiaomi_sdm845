@@ -9225,6 +9225,16 @@ static bool hdd_update_vht_cap_in_cfg(struct hdd_context *hdd_ctx)
 				status = false;
 				hdd_err("set SU_BEAMFORMER_CAP to CFG failed");
 			}
+		}
+
+		/* Get Merged SU Bformer capability */
+		if (sme_cfg_get_int(mac_handle, WNI_CFG_VHT_SU_BEAMFORMER_CAP, &val) ==
+							QDF_STATUS_E_FAILURE) {
+			status = false;
+			hdd_err("Could not get WNI_CFG_VHT_SU_BEAMFORMER_CAP");
+		}
+		/*set num of sounding dimensions according to merged flag*/
+		if (val) {
 			if (sme_cfg_set_int(mac_handle,
 					WNI_CFG_VHT_NUM_SOUNDING_DIMENSIONS,
 					NUM_OF_SOUNDING_DIMENSIONS) ==
