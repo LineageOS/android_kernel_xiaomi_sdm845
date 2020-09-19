@@ -101,7 +101,7 @@ else
 KBUILD_CPPFLAGS	+= -mlittle-endian
 AS		+= -EL
 LD		+= -EL
-#LDFLAGS		+= -maarch64linux
+LDFLAGS		+= -maarch64linux
 UTS_MACHINE	:= aarch64
 endif
 

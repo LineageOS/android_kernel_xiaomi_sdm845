@@ -23,9 +23,9 @@ MLX="$(pwd)"
 AK=$MLX/AnyKernel3
 OUT=$MLX/out/arch/arm64/boot
 KERNEL=~/Desktop/MLX
-TC=/usr
+TC=~/TOOLCHAIN
 ###
-CLANG=$TC/bin
+CLANG=$TC/clang/bin
 ###
 
 ### update stuff
