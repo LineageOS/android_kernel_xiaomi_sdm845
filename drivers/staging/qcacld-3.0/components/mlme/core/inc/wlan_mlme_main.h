@@ -72,6 +72,14 @@ struct peer_mlme_priv_obj {
 };
 
 /**
+ * struct mlme_roam_invoke_entity_param - roam invoke entity params
+ * @roam_invoke_in_progress: is roaming already in progress.
+ */
+struct mlme_roam_invoke_entity_param {
+	bool roam_invoke_in_progress;
+};
+
+/**
  * struct vdev_mlme_obj - VDEV MLME component object
  * @dynamic_cfg: current configuration of nss, chains for vdev.
  * @ini_cfg: Max configuration of nss, chains supported for vdev.
@@ -79,6 +87,7 @@ struct peer_mlme_priv_obj {
  * @follow_ap_edca: if true, it is forced to follow the AP's edca
  * @disconnect_info: Disconnection information
  * @reconn_after_assoc_timeout: reconnect to the same AP if association timeout
+ * @roam_invoke_params: Roam invoke params
  */
 struct vdev_mlme_priv_obj {
 	struct mlme_nss_chains dynamic_cfg;
@@ -87,6 +96,7 @@ struct vdev_mlme_priv_obj {
 	bool follow_ap_edca;
 	struct wlan_disconnect_info disconnect_info;
 	bool reconn_after_assoc_timeout;
+	struct mlme_roam_invoke_entity_param roam_invoke_params;
 };
 
 
@@ -153,6 +163,15 @@ mlme_vdev_object_created_notification(struct wlan_objmgr_vdev *vdev,
 QDF_STATUS
 mlme_vdev_object_destroyed_notification(struct wlan_objmgr_vdev *vdev,
 					void *arg);
+
+/**
+ * mlme_get_roam_invoke_params() - get the roam invoke params
+ * @vdev: vdev pointer
+ *
+ * Return: pointer to the vdev roam invoke config structure
+ */
+struct mlme_roam_invoke_entity_param *
+mlme_get_roam_invoke_params(struct wlan_objmgr_vdev *vdev);
 
 /**
  * wlan_peer_set_unicast_cipher() - set unicast cipher

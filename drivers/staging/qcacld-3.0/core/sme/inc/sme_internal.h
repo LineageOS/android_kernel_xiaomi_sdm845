@@ -355,6 +355,9 @@ typedef struct tagSmeStruct {
 	sme_get_raom_scan_ch_Callback roam_scan_ch_callback;
 	void *roam_scan_ch_get_context;
 #endif
+#if defined(CLD_PM_QOS) && defined(WLAN_FEATURE_LL_MODE)
+	void (*beacon_latency_event_cb)(uint32_t latency_level);
+#endif
 } tSmeStruct, *tpSmeStruct;
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

@@ -258,6 +258,8 @@ typedef struct sap_StationAssocIndication_s {
 	eCsrEncryptionType negotiatedMCEncryptionType;
 	bool fAuthRequired;
 	uint8_t ecsa_capable;
+	uint32_t owe_ie_len;
+	uint8_t *owe_ie;
 } tSap_StationAssocIndication;
 
 typedef struct sap_StationAssocReassocCompleteEvent_s {
@@ -612,6 +614,7 @@ typedef struct sap_config {
 	uint8_t RSNEncryptType;
 	uint8_t mcRSNEncryptType;
 	eSapAuthType authType;
+	tCsrAuthList akm_list;
 	bool privacy;
 	bool UapsdEnable;
 	bool fwdWPSPBCProbeReq;
@@ -1574,6 +1577,20 @@ void wlansap_set_band_csa(struct sap_context *sap_ctx,
 			  struct sap_config *sap_config,
 			  enum band_info band);
 uint8_t wlansap_get_chan_band_restrict(struct sap_context *sap_ctx);
+
+/*
+ * wlansap_update_owe_info() - Update OWE info
+ * @sap_ctx: sap context
+ * @peer: peer mac
+ * @ie: IE from hostapd
+ * @ie_len: IE length
+ * @owe_status: status from hostapd
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wlansap_update_owe_info(struct sap_context *sap_ctx,
+				   uint8_t *peer, const uint8_t *ie,
+				   uint32_t ie_len, uint16_t owe_status);
 
 #ifdef __cplusplus
 }
