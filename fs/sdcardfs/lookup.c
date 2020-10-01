@@ -165,10 +165,11 @@ struct inode *sdcardfs_iget(struct super_block *sb, struct inode *lower_inode, u
  * Helper interpose routine, called directly by ->lookup to handle
  * spliced dentries.
  */
-static struct dentry *__sdcardfs_interpose(struct dentry *dentry,
-					 struct super_block *sb,
-					 struct path *lower_path,
-					 userid_t id)
+static struct dentry *__sdcardfs_interpose(struct inode *dir,
+					struct dentry *dentry,
+					struct super_block *sb,
+					struct path *lower_path,
+					userid_t id)
 {
 	struct inode *inode;
 	struct inode *lower_inode;
@@ -196,10 +197,15 @@ static struct dentry *__sdcardfs_interpose(struct dentry *dentry,
 		goto out;
 	}
 
+	mutex_lock(&SDCARDFS_I(inode)->top_mutex);
+
 	ret_dentry = d_splice_alias(inode, dentry);
 	dentry = ret_dentry ?: dentry;
+
 	if (!IS_ERR(dentry))
-		update_derived_permission_lock(dentry);
+		update_derived_permission_lock(dir, inode, dentry);
+
+	mutex_unlock(&SDCARDFS_I(inode)->top_mutex);
 out:
 	return ret_dentry;
 }
@@ -212,12 +218,13 @@ out:
  * @sb: sdcardfs's super_block
  * @lower_path: the lower path (caller does path_get/put)
  */
-int sdcardfs_interpose(struct dentry *dentry, struct super_block *sb,
-		     struct path *lower_path, userid_t id)
+int sdcardfs_interpose(struct inode *dir, struct dentry *dentry,
+			struct super_block *sb,
+			struct path *lower_path, userid_t id)
 {
 	struct dentry *ret_dentry;
 
-	ret_dentry = __sdcardfs_interpose(dentry, sb, lower_path, id);
+	ret_dentry = __sdcardfs_interpose(dir, dentry, sb, lower_path, id);
 	return PTR_ERR(ret_dentry);
 }
 
@@ -249,8 +256,11 @@ static int sdcardfs_name_match(struct dir_context *ctx, const char *name,
  * Returns: NULL (ok), ERR_PTR if an error occurred.
  * Fills in lower_parent_path with <dentry,mnt> on success.
  */
-static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
-		unsigned int flags, struct path *lower_parent_path, userid_t id)
+static struct dentry *__sdcardfs_lookup(struct inode *dir,
+					struct dentry *dentry,
+					unsigned int flags,
+					struct path *lower_parent_path,
+					userid_t id)
 {
 	int err = 0;
 	struct vfsmount *lower_dir_mnt;
@@ -347,8 +357,8 @@ put_name:
 		}
 
 		sdcardfs_set_lower_path(dentry, &lower_path);
-		ret_dentry =
-			__sdcardfs_interpose(dentry, dentry->d_sb, &lower_path, id);
+		ret_dentry = __sdcardfs_interpose(dir, dentry,
+					dentry->d_sb, &lower_path, id);
 		if (IS_ERR(ret_dentry)) {
 			err = PTR_ERR(ret_dentry);
 			 /* path_put underlying path on error */
@@ -450,7 +460,7 @@ struct dentry *sdcardfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
-	ret = __sdcardfs_lookup(dentry, flags, &lower_parent_path,
+	ret = __sdcardfs_lookup(dir, dentry, flags, &lower_parent_path,
 				SDCARDFS_I(dir)->data->userid);
 	if (IS_ERR(ret))
 		goto out;
@@ -460,7 +470,7 @@ struct dentry *sdcardfs_lookup(struct inode *dir, struct dentry *dentry,
 		fsstack_copy_attr_times(d_inode(dentry),
 					sdcardfs_lower_inode(d_inode(dentry)));
 		/* get derived permission */
-		get_derived_permission(parent, dentry);
+		get_derived_permission(dir, dentry);
 		fixup_tmp_permissions(d_inode(dentry));
 		fixup_lower_ownership(dentry, dentry->d_name.name);
 	}

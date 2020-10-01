@@ -51,11 +51,11 @@ void setup_derived_state(struct inode *inode, perm_t perm, userid_t userid,
 /* While renaming, there is a point where we want the path from dentry,
  * but the name from newdentry
  */
-void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
+void get_derived_permission_new(struct inode *parent, struct inode *inode,
 				const struct qstr *name)
 {
-	struct sdcardfs_inode_info *info = SDCARDFS_I(d_inode(dentry));
-	struct sdcardfs_inode_info *parent_info = SDCARDFS_I(d_inode(parent));
+	struct sdcardfs_inode_info *info = SDCARDFS_I(inode);
+	struct sdcardfs_inode_info *parent_info = SDCARDFS_I(parent);
 	struct sdcardfs_inode_data *parent_data = parent_info->data;
 	appid_t appid;
 	unsigned long user_num;
@@ -75,10 +75,10 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 	 * of using the inode permissions.
 	 */
 
-	inherit_derived_state(d_inode(parent), d_inode(dentry));
+	inherit_derived_state(parent, inode);
 
 	/* Files don't get special labels */
-	if (!S_ISDIR(d_inode(dentry)->i_mode)) {
+	if (!S_ISDIR(inode->i_mode)) {
 		set_top(info, parent_info);
 		return;
 	}
@@ -145,9 +145,9 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 	}
 }
 
-void get_derived_permission(struct dentry *parent, struct dentry *dentry)
+void get_derived_permission(struct inode *parent, struct dentry *dentry)
 {
-	get_derived_permission_new(parent, dentry, &dentry->d_name);
+	get_derived_permission_new(parent, d_inode(dentry), &dentry->d_name);
 }
 
 static appid_t get_type(const char *name)
@@ -306,9 +306,11 @@ static void __fixup_perms_recursive(struct dentry *dentry, struct limit_search *
 	if (needs_fixup(info->data->perm)) {
 		list_for_each_entry(child, &dentry->d_subdirs, d_child) {
 			spin_lock_nested(&child->d_lock, depth + 1);
-			if (!(limit->flags & BY_NAME) || qstr_case_eq(&child->d_name, &limit->name)) {
+			if (!(limit->flags & BY_NAME) ||
+				qstr_case_eq(&child->d_name, &limit->name)) {
 				if (d_inode(child)) {
-					get_derived_permission(dentry, child);
+					get_derived_permission(d_inode(dentry),
+									child);
 					fixup_tmp_permissions(d_inode(child));
 					spin_unlock(&child->d_lock);
 					break;
@@ -330,25 +332,16 @@ void fixup_perms_recursive(struct dentry *dentry, struct limit_search *limit)
 }
 
 /* main function for updating derived permission */
-inline void update_derived_permission_lock(struct dentry *dentry)
+inline void update_derived_permission_lock(struct inode *dir,
+					struct inode *inode,
+					struct dentry *dentry)
 {
-	struct dentry *parent;
-
-	if (!dentry || !d_inode(dentry)) {
-		pr_err("sdcardfs: %s: invalid dentry\n", __func__);
-		return;
-	}
 	/* FIXME:
 	 * 1. need to check whether the dentry is updated or not
 	 * 2. remove the root dentry update
 	 */
-	if (!IS_ROOT(dentry)) {
-		parent = dget_parent(dentry);
-		if (parent) {
-			get_derived_permission(parent, dentry);
-			dput(parent);
-		}
-	}
+	if (!IS_ROOT(dentry))
+		get_derived_permission(dir, dentry);
 	fixup_tmp_permissions(d_inode(dentry));
 }
 
