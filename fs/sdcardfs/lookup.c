@@ -197,7 +197,7 @@ static struct dentry *__sdcardfs_interpose(struct inode *dir,
 		goto out;
 	}
 
-	mutex_lock(&SDCARDFS_I(inode)->top_mutex);
+	spin_lock(&SDCARDFS_I(inode)->top_alias_lock);
 
 	ret_dentry = d_splice_alias(inode, dentry);
 	dentry = ret_dentry ?: dentry;
@@ -205,7 +205,7 @@ static struct dentry *__sdcardfs_interpose(struct inode *dir,
 	if (!IS_ERR(dentry))
 		update_derived_permission_lock(dir, inode, dentry);
 
-	mutex_unlock(&SDCARDFS_I(inode)->top_mutex);
+	spin_unlock(&SDCARDFS_I(inode)->top_alias_lock);
 out:
 	return ret_dentry;
 }

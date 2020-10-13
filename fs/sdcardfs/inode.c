@@ -577,10 +577,10 @@ static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int ma
 	 */
 	copy_attrs(&tmp, inode);
 
-	mutex_lock(&SDCARDFS_I(inode)->top_mutex);
+	spin_lock(&SDCARDFS_I(inode)->top_alias_lock);
 	top = top_data_get(SDCARDFS_I(inode));
 	if (!top) {
-		mutex_unlock(&SDCARDFS_I(inode)->top_mutex);
+		spin_unlock(&SDCARDFS_I(inode)->top_alias_lock);
 		return -EINVAL;
 	}
 
@@ -589,7 +589,7 @@ static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int ma
 	tmp.i_mode = (inode->i_mode & S_IFMT)
 			| get_mode(mnt, SDCARDFS_I(inode), top);
 	data_put(top);
-	mutex_unlock(&SDCARDFS_I(inode)->top_mutex);
+	spin_unlock(&SDCARDFS_I(inode)->top_alias_lock);
 
 	tmp.i_sb = inode->i_sb;
 	if (IS_POSIXACL(inode))

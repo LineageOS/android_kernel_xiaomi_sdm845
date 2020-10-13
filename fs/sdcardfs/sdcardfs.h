@@ -178,7 +178,7 @@ struct sdcardfs_inode_info {
 
 	/* top folder for ownership */
 	spinlock_t top_lock;
-	struct mutex top_mutex;
+	spinlock_t top_alias_lock;
 	struct sdcardfs_inode_data *top_data;
 
 	struct inode vfs_inode;

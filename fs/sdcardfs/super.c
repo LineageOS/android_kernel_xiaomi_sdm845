@@ -217,8 +217,8 @@ static struct inode *sdcardfs_alloc_inode(struct super_block *sb)
 	kref_init(&d->refcount);
 	i->top_data = d;
 	spin_lock_init(&i->top_lock);
+	spin_lock_init(&i->top_alias_lock);
 	kref_get(&d->refcount);
-	mutex_init(&i->top_mutex);
 
 	i->vfs_inode.i_version = 1;
 	return &i->vfs_inode;
