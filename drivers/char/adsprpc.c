@@ -1635,9 +1635,10 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 	PERF_END);
 	for (i = bufs; i < bufs + handles; ++i) {
 		struct fastrpc_mmap *map = ctx->maps[i];
-
-		pages[i].addr = map->phys;
-		pages[i].size = map->size;
+		if (map) {
+			pages[i].addr = map->phys;
+			pages[i].size = map->size;
+		}
 	}
 	if (!me->legacy) {
 		fdlist = (uint64_t *)&pages[bufs + handles];
@@ -1718,7 +1719,8 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 	}
 	PERF_END);
 	for (i = bufs; rpra && lrpra && i < bufs + handles; i++) {
-		rpra[i].dma.fd = lrpra[i].dma.fd = ctx->fds[i];
+		if (ctx->fds)
+			rpra[i].dma.fd = lrpra[i].dma.fd = ctx->fds[i];
 		rpra[i].dma.len = lrpra[i].dma.len = (uint32_t)lpra[i].buf.len;
 		rpra[i].dma.offset = lrpra[i].dma.offset =
 			 (uint32_t)(uintptr_t)lpra[i].buf.pv;
@@ -2108,7 +2110,7 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 	if (err)
 		goto bail;
  bail:
-	if (ctx->handle) {
+	if (ctx && ctx->handle) {
 		glink_rx_done(ctx->handle, ctx->ptr, true);
 		ctx->handle = NULL;
 	}
@@ -3999,7 +4001,7 @@ static int fastrpc_pdr_notifier_cb(struct notifier_block *pdrnb,
 }
 
 static int fastrpc_get_service_location_notify(struct notifier_block *nb,
-					     unsigned long opcode, void *data)
+				unsigned long opcode, void *data)
 {
 	struct fastrpc_static_pd *spd;
 	struct pd_qmi_client_data *pdr = data;
@@ -4010,31 +4012,39 @@ static int fastrpc_get_service_location_notify(struct notifier_block *nb,
 		pr_err("ADSPRPC: Audio PD restart notifier locator down\n");
 		return NOTIFY_DONE;
 	}
-
 	for (i = 0; i < pdr->total_domains; i++) {
-		if ((!strcmp(pdr->domain_list[i].name,
-					"msm/adsp/audio_pd")) ||
-					(!strcmp(pdr->domain_list[i].name,
-					"msm/adsp/sensor_pd"))) {
-			spd->pdrhandle =
-				service_notif_register_notifier(
-				pdr->domain_list[i].name,
-				pdr->domain_list[i].instance_id,
-				&spd->pdrnb, &curr_state);
-			if (IS_ERR(spd->pdrhandle)) {
-				pr_err("ADSPRPC: Unable to register notifier\n");
-			} else if (curr_state ==
-				SERVREG_NOTIF_SERVICE_STATE_UP_V01) {
-				pr_info("ADSPRPC: STATE_UP_V01 received\n");
-				spd->ispdup = 1;
-			} else if (curr_state ==
-				SERVREG_NOTIF_SERVICE_STATE_UNINIT_V01) {
-				pr_info("ADSPRPC: STATE_UNINIT_V01 received\n");
-			}
-			break;
+		if ((!strcmp(spd->spdname, "audio_pdr_adsprpc"))
+					&& (!strcmp(pdr->domain_list[i].name,
+						"msm/adsp/audio_pd"))) {
+			goto pdr_register;
+		} else if ((!strcmp(spd->spdname, "sensors_pdr_adsprpc"))
+					&& (!strcmp(pdr->domain_list[i].name,
+						"msm/adsp/sensor_pd"))) {
+			goto pdr_register;
 		}
 	}
+	return NOTIFY_DONE;
 
+pdr_register:
+	if (!spd->pdrhandle) {
+		spd->pdrhandle =
+			service_notif_register_notifier(
+			pdr->domain_list[i].name,
+			pdr->domain_list[i].instance_id,
+			&spd->pdrnb, &curr_state);
+	} else {
+		pr_err("ADSPRPC: %s is already registered\n", spd->spdname);
+	}
+
+	if (IS_ERR(spd->pdrhandle))
+		pr_err("ADSPRPC: Unable to register notifier\n");
+
+	if (curr_state == SERVREG_NOTIF_SERVICE_STATE_UP_V01) {
+		pr_info("ADSPRPC: %s is up\n", spd->spdname);
+		spd->ispdup = 1;
+	} else if (curr_state == SERVREG_NOTIF_SERVICE_STATE_UNINIT_V01) {
+		pr_info("ADSPRPC: %s is uninitialzed\n", spd->spdname);
+	}
 	return NOTIFY_DONE;
 }
 
