@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -16,35 +16,31 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/**
- * DOC: i_qdf_event.h
- * This file provides OS dependent event API's.
- */
+#include <linux/string.h>
+#include <qdf_func_tracker.h>
+#include <qdf_mem.h>
 
-#if !defined(__I_QDF_EVENT_H)
-#define __I_QDF_EVENT_H
+#ifdef FUNC_CALL_MAP
+char qdf_func_call_map_buf[QDF_FUNCTION_CALL_MAP_BUF_LEN] = {0};
 
-#include <linux/completion.h>
+void cc_func(unsigned int track)
+{
+	unsigned int index = 0;
+	unsigned int bit = 0;
 
-/**
- * qdf_event_t - manages events
- * @complete: instance to completion
- * @cookie: unsigned int
- * @done: indicate completion
- * @force_set: indicate forceful completion
- */
-typedef struct qdf_evt {
-	struct completion complete;
-	uint32_t cookie;
-	bool done;
-	bool force_set;
-} __qdf_event_t;
+	index = track / 8;
+	bit = track % 8;
+	qdf_func_call_map_buf[index] |= (char)(1 << bit);
+}
 
-/* Preprocessor definitions and constants */
-#define LINUX_EVENT_COOKIE 0x12341234
+void qdf_get_func_call_map(char *data)
+{
+	qdf_mem_copy(data, qdf_func_call_map_buf,
+		     QDF_FUNCTION_CALL_MAP_BUF_LEN);
+}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
-#define INIT_COMPLETION(event) reinit_completion(&event)
+void qdf_clear_func_call_map(void)
+{
+	qdf_mem_zero(qdf_func_call_map_buf, QDF_FUNCTION_CALL_MAP_BUF_LEN);
+}
 #endif
-
-#endif /*__I_QDF_EVENT_H*/
