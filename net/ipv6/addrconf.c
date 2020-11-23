@@ -385,8 +385,6 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 
 	if (ndev->cnf.stable_secret.initialized)
 		ndev->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_STABLE_PRIVACY;
-	else
-		ndev->cnf.addr_gen_mode = ipv6_devconf_dflt.addr_gen_mode;
 
 	ndev->cnf.mtu6 = dev->mtu;
 	ndev->nd_parms = neigh_parms_alloc(dev, &nd_tbl);
@@ -3188,6 +3186,10 @@ static void addrconf_addr_gen(struct inet6_dev *idev, bool prefix_route)
 
 	/* no link local addresses on L3 master devices */
 	if (netif_is_l3_master(idev->dev))
+		return;
+
+	/* no link local addresses on devices flagged as slaves */
+	if (idev->dev->flags & IFF_SLAVE)
 		return;
 
 	ipv6_addr_set(&addr, htonl(0xFE800000), 0, 0, 0);
