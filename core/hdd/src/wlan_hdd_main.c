@@ -3539,25 +3539,23 @@ static int __hdd_open(struct net_device *dev)
 		   TRACE_CODE_HDD_OPEN_REQUEST,
 		   adapter->session_id, adapter->device_mode);
 
-	mutex_lock(&hdd_init_deinit_lock);
 	/* Nothing to be done if device is unloading */
 	if (cds_is_driver_unloading()) {
-		mutex_unlock(&hdd_init_deinit_lock);
 		hdd_err("Driver is unloading can not open the hdd");
 		return -EBUSY;
 	}
 
 	if (cds_is_driver_recovering()) {
-		mutex_unlock(&hdd_init_deinit_lock);
 		hdd_err("WLAN is currently recovering; Please try again.");
 		return -EBUSY;
 	}
 
 	if (qdf_atomic_read(&hdd_ctx->con_mode_flag)) {
-		mutex_unlock(&hdd_init_deinit_lock);
 		hdd_err("con_mode_handler is in progress; Please try again.");
 		return -EBUSY;
 	}
+
+	mutex_lock(&hdd_init_deinit_lock);
 	hdd_start_driver_ops_timer(eHDD_DRV_OP_IFF_UP);
 
 	/*
@@ -12685,6 +12683,7 @@ int hdd_wlan_stop_modules(struct hdd_context *hdd_ctx, bool ftm_mode)
 		}
 	}
 
+	hdd_bus_bw_compute_timer_stop(hdd_ctx);
 	hdd_deregister_policy_manager_callback(hdd_ctx->psoc);
 
 	/* free user wowl patterns */
@@ -14535,10 +14534,8 @@ static void hdd_driver_unload(void)
 	if (!hdd_wait_for_recovery_completion())
 		return;
 
-	mutex_lock(&hdd_init_deinit_lock);
 	cds_set_driver_loaded(false);
 	cds_set_unload_in_progress(true);
-	mutex_unlock(&hdd_init_deinit_lock);
 
 	if (hdd_ctx)
 		hdd_psoc_idle_timer_stop(hdd_ctx);
