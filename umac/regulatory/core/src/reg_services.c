@@ -1794,7 +1794,7 @@ bool reg_is_etsi13_regdmn(struct wlan_objmgr_pdev *pdev)
 
 	status = reg_get_curr_regdomain(pdev, &cur_reg_dmn);
 	if (QDF_STATUS_SUCCESS != status) {
-		reg_err("Failed to get reg domain");
+		reg_debug("Failed to get reg domain");
 		return false;
 	}
 
@@ -5288,7 +5288,7 @@ QDF_STATUS reg_get_curr_regdomain(struct wlan_objmgr_pdev *pdev,
 	}
 
 	if (index == num_reg_dmn) {
-		reg_err("invalid regdomain");
+		reg_debug("invalid regdomain");
 		return QDF_STATUS_E_FAILURE;
 	}
 
