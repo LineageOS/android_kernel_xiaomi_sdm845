@@ -481,7 +481,7 @@
 	};
 
 	chosen {
-		bootargs = "rcupdate.rcu_expedited=1";
+		bootargs = "rcupdate.rcu_expedited=1 noirqdebug";
 	};
 
 	soc: soc { };
