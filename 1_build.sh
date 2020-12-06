@@ -25,7 +25,7 @@ OUT=$MLX/out/arch/arm64/boot
 KERNEL=~/Desktop/MLX
 TC=~/TOOLCHAIN
 ###
-CLANG=$TC/clang/bin
+#CLANG=$TC/clang/bin
 ###
 
 ### update stuff
@@ -57,8 +57,8 @@ CLANG_FLAGS="CC=clang"
 ###
 export ARCH=arm64 && export SUBARCH=arm64 $DEFCONFIG
 
-export CROSS_COMPILE=$CLANG/aarch64-linux-gnu-
-export CROSS_COMPILE_ARM32=$CLANG/arm-linux-gnueabi-
+export CROSS_COMPILE=aarch64-linux-gnu-
+export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
 #export CLANG_TRIPLE=aarch64-linux-gnu-
 export LD_LIBRARY_PATH="$CLANG/../lib:$CLANG/../lib64:$LD_LIBRARY_PATH"
