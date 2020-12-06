@@ -11,6 +11,7 @@
 #include "messages.h"
 #include "cookie.h"
 
+#include <linux/simd.h>
 #include <linux/uio.h>
 #include <linux/inetdevice.h>
 #include <linux/socket.h>
@@ -159,7 +160,8 @@ static unsigned int calculate_skb_padding(struct sk_buff *skb)
 	return padded_size - last_unit;
 }
 
-static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair)
+static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair,
+			   simd_context_t *simd_context)
 {
 	unsigned int padding_len, plaintext_len, trailer_len;
 	struct scatterlist sg[MAX_SKB_FRAGS + 8];
@@ -215,7 +217,8 @@ static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair)
 		return false;
 	return chacha20poly1305_encrypt_sg_inplace(sg, plaintext_len, NULL, 0,
 						   PACKET_CB(skb)->nonce,
-						   keypair->sending.key);
+						   keypair->sending.key,
+						   simd_context);
 }
 
 void wg_packet_send_keepalive(struct wg_peer *peer)
@@ -293,13 +296,16 @@ void wg_packet_encrypt_worker(struct work_struct *work)
 	struct crypt_queue *queue = container_of(work, struct multicore_worker,
 						 work)->ptr;
 	struct sk_buff *first, *skb, *next;
+	simd_context_t simd_context;
 
+	simd_get(&simd_context);
 	while ((first = ptr_ring_consume_bh(&queue->ring)) != NULL) {
 		enum packet_state state = PACKET_STATE_CRYPTED;
 
 		skb_list_walk_safe(first, skb, next) {
 			if (likely(encrypt_packet(skb,
-					PACKET_CB(first)->keypair))) {
+						  PACKET_CB(first)->keypair,
+						  &simd_context))) {
 				wg_reset_packet(skb, true);
 			} else {
 				state = PACKET_STATE_DEAD;
@@ -308,9 +314,10 @@ void wg_packet_encrypt_worker(struct work_struct *work)
 		}
 		wg_queue_enqueue_per_peer(&PACKET_PEER(first)->tx_queue, first,
 					  state);
-		if (need_resched())
-			cond_resched();
+
+		simd_relax(&simd_context);
 	}
+	simd_put(&simd_context);
 }
 
 static void wg_packet_create_data(struct sk_buff *first)
