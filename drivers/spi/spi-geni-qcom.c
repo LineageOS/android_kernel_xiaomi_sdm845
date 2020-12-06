@@ -167,6 +167,13 @@ static struct spi_master *get_spi_master(struct device *dev)
 	return spi;
 }
 
+int geni_spi_get_master_irq(struct spi_device *spi_slv)
+{
+	struct spi_geni_master *mas = spi_master_get_devdata(spi_slv->master);
+
+	return mas->irq;
+}
+
 static int get_spi_clk_cfg(u32 speed_hz, struct spi_geni_master *mas,
 			int *clk_idx, int *clk_div)
 {

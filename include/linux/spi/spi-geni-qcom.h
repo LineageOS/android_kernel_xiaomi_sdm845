@@ -20,4 +20,7 @@ struct spi_geni_qcom_ctrl_data {
 	u32 spi_inter_words_delay;
 };
 
+struct spi_device;
+int geni_spi_get_master_irq(struct spi_device *spi_slv);
+
 #endif /*__SPI_GENI_QCOM_HEADER___*/
