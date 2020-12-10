@@ -2344,18 +2344,10 @@ sap_fsm_state_init(struct sap_context *sap_ctx,
 			goto exit;
 		}
 
-		/* Transition from SAP_INIT to SAP_STARTING */
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("new from state %s => %s: session:%d"),
-			  "SAP_INIT", "SAP_STARTING",
-			  sap_ctx->sessionId);
-
 		qdf_status = sap_goto_starting(sap_ctx, sap_event,
 					       mac_ctx, hal);
-		if (!QDF_IS_STATUS_SUCCESS(qdf_status))
-			QDF_TRACE(QDF_MODULE_ID_SAP,
-				  QDF_TRACE_LEVEL_ERROR,
-				  FL("sap_goto_starting failed"));
+		if (!QDF_IS_STATUS_ERROR(qdf_status))
+			sap_err("sap_goto_starting failed");
 	} else if (msg == eSAP_DFS_CHANNEL_CAC_START) {
 		/*
 		 * No need of state check here, caller is expected to perform
@@ -2374,9 +2366,7 @@ sap_fsm_state_init(struct sap_context *sap_ctx,
 
 		qdf_status = sap_cac_start_notify(hal);
 	} else {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("in state %s, event msg %d"),
-			  "SAP_INIT", msg);
+		sap_err("in state %s, event msg %d", "SAP_INIT", msg);
 	}
 
 exit:
@@ -2919,8 +2909,7 @@ sapconvert_to_csr_profile(tsap_config_t *pconfig_params, eCsrRoamBssType bssType
 	profile->nWPAReqIELength = 0;
 
 	if (profile->pRSNReqIE) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-			  FL("pRSNReqIE already allocated."));
+		sap_debug("pRSNReqIE already allocated.");
 		qdf_mem_free(profile->pRSNReqIE);
 		profile->pRSNReqIE = NULL;
 	}
@@ -3393,29 +3382,11 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 		 * are not enabled in master mode
 		 */
 		if (!wlan_reg_is_etsi13_srd_chan_allowed_master_mode(mac_ctx->
-								     pdev) &&
+								     pdev,
+		    QDF_SAP_MODE) &&
 		    wlan_reg_is_etsi13_srd_chan(mac_ctx->pdev,
 						WLAN_REG_CH_NUM(loop_count)))
 			continue;
-		/*
-		 * If we have any 5Ghz channel in the channel list
-		 * and bw is 40/80/160 Mhz then we don't want SAP to
-		 * come up in 2.4Ghz as for 40Mhz, 2.4Ghz channel is
-		 * not preferred and 80/160Mhz is not allowed for 2.4Ghz
-		 * band. So, don't even scan on 2.4Ghz channels if bw is
-		 * 40/80/160Mhz and channel list has any 5Ghz channel.
-		 */
-		if (end_ch_num >= WLAN_REG_CH_NUM(CHAN_ENUM_36) &&
-		    ((ch_width == CH_WIDTH_40MHZ) ||
-		     (ch_width == CH_WIDTH_80MHZ) ||
-		     (ch_width == CH_WIDTH_80P80MHZ) ||
-		     (ch_width == CH_WIDTH_160MHZ))) {
-			if (WLAN_REG_CH_NUM(loop_count) >=
-			    WLAN_REG_CH_NUM(CHAN_ENUM_1) &&
-			    WLAN_REG_CH_NUM(loop_count) <=
-			    WLAN_REG_CH_NUM(CHAN_ENUM_14))
-				continue;
-		}
 
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
 		uint8_t ch;
