@@ -355,13 +355,6 @@ static inline bool is_reserved_clus(u32 clus)
 	return false;
 }
 
-static inline bool is_valid_clus(FS_INFO_T *fsi, u32 clus)
-{
-	if (clus < CLUS_BASE || fsi->num_clusters <= clus)
-		return false;
-	return true;
-}
-
 s32 fat_ent_get(struct super_block *sb, u32 loc, u32 *content)
 {
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);

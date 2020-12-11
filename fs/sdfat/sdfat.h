@@ -142,6 +142,9 @@ struct sdfat_sb_info {
 	struct mutex s_vlock;   /* volume lock */
 	int use_vmalloc;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+	struct rcu_head rcu;
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0)
 	int s_dirt;
 	struct mutex s_lock;    /* superblock lock */
@@ -215,6 +218,30 @@ typedef struct timespec64	sdfat_timespec_t;
 typedef struct timespec		sdfat_timespec_t;
 #endif
 
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+
+#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0) */
+/*
+ * sb->s_flags.  Note that these mirror the equivalent MS_* flags where
+ * represented in both.
+ */
+#define SB_RDONLY	1	/* Mount read-only */
+#define SB_NODIRATIME	2048	/* Do not update directory access times */
+static inline bool sb_rdonly(const struct super_block *sb)
+{
+	return sb->s_flags & MS_RDONLY;
+}
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+	/* EMPTY */
+#else
+static inline sdfat_timespec_t current_time(struct inode *inode)
+{
+	return CURRENT_TIME_SEC;
+}
+#endif
 /*
  * FIXME : needs on-disk-slot in-memory data
  */
@@ -387,7 +414,14 @@ extern void sdfat_time_fat2unix(struct sdfat_sb_info *sbi, sdfat_timespec_t *ts,
 				DATE_TIME_T *tp);
 extern void sdfat_time_unix2fat(struct sdfat_sb_info *sbi, sdfat_timespec_t *ts,
 				DATE_TIME_T *tp);
-extern TIMESTAMP_T *tm_now(struct sdfat_sb_info *sbi, TIMESTAMP_T *tm);
+extern TIMESTAMP_T *tm_now(struct inode *inode, TIMESTAMP_T *tm);
+static inline TIMESTAMP_T *tm_now_sb(struct super_block *sb, TIMESTAMP_T *tm)
+{
+	struct inode fake_inode;
+
+	fake_inode.i_sb = sb;
+	return tm_now(&fake_inode, tm);
+}
 
 #ifdef CONFIG_SDFAT_DEBUG
 

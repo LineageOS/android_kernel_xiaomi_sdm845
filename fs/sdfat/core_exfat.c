@@ -220,20 +220,27 @@ static void exfat_set_entry_size(DENTRY_T *p_entry, u64 size)
 	ep->size = cpu_to_le64(size);
 } /* end of exfat_set_entry_size */
 
+
+#define TENS_MS_PER_SEC	(100)
+#define SEC_TO_TENS_MS(sec)	(((sec) & 0x01) ? TENS_MS_PER_SEC : 0)
+#define TENS_MS_TO_SEC(tens_ms)	(((tens_ms) / TENS_MS_PER_SEC) ? 1 : 0)
+
 static void exfat_get_entry_time(DENTRY_T *p_entry, TIMESTAMP_T *tp, u8 mode)
 {
-	u16 t = 0x00, d = 0x21, tz = 0x00;
+	u16 t = 0x00, d = 0x21, tz = 0x00, s = 0x00;
 	FILE_DENTRY_T *ep = (FILE_DENTRY_T *)p_entry;
 
 	switch (mode) {
 	case TM_CREATE:
 		t = le16_to_cpu(ep->create_time);
 		d = le16_to_cpu(ep->create_date);
+		s = TENS_MS_TO_SEC(ep->create_time_ms);
 		tz = ep->create_tz;
 		break;
 	case TM_MODIFY:
 		t = le16_to_cpu(ep->modify_time);
 		d = le16_to_cpu(ep->modify_date);
+		s = TENS_MS_TO_SEC(ep->modify_time_ms);
 		tz = ep->modify_tz;
 		break;
 	case TM_ACCESS:
@@ -244,7 +251,7 @@ static void exfat_get_entry_time(DENTRY_T *p_entry, TIMESTAMP_T *tp, u8 mode)
 	}
 
 	tp->tz.value = tz;
-	tp->sec  = (t & 0x001F) << 1;
+	tp->sec  = ((t & 0x001F) << 1) + s;
 	tp->min  = (t >> 5) & 0x003F;
 	tp->hour = (t >> 11);
 	tp->day  = (d & 0x001F);
@@ -263,12 +270,14 @@ static void exfat_set_entry_time(DENTRY_T *p_entry, TIMESTAMP_T *tp, u8 mode)
 	switch (mode) {
 	case TM_CREATE:
 		ep->create_time = cpu_to_le16(t);
+		ep->create_time_ms = SEC_TO_TENS_MS(tp->sec);
 		ep->create_date = cpu_to_le16(d);
 		ep->create_tz = tp->tz.value;
 		break;
 	case TM_MODIFY:
 		ep->modify_time = cpu_to_le16(t);
 		ep->modify_date = cpu_to_le16(d);
+		ep->modify_time_ms = (tp->sec & 0x1) ? TENS_MS_PER_SEC : 0;
 		ep->modify_tz = tp->tz.value;
 		break;
 	case TM_ACCESS:
@@ -286,12 +295,10 @@ static void __init_file_entry(struct super_block *sb, FILE_DENTRY_T *ep, u32 typ
 
 	exfat_set_entry_type((DENTRY_T *) ep, type);
 
-	tp = tm_now(SDFAT_SB(sb), &tm);
+	tp = tm_now_sb(sb, &tm);
 	exfat_set_entry_time((DENTRY_T *) ep, tp, TM_CREATE);
 	exfat_set_entry_time((DENTRY_T *) ep, tp, TM_MODIFY);
 	exfat_set_entry_time((DENTRY_T *) ep, tp, TM_ACCESS);
-	ep->create_time_ms = 0;
-	ep->modify_time_ms = 0;
 } /* end of __init_file_entry */
 
 static void __init_strm_entry(STRM_DENTRY_T *ep, u8 flags, u32 start_clu, u64 size)
@@ -1279,7 +1286,7 @@ static s32 exfat_free_cluster(struct super_block *sb, CHAIN_T *p_chain, s32 do_r
 	}
 
 	/* check cluster validation */
-	if ((p_chain->dir < 2) && (p_chain->dir >= fsi->num_clusters)) {
+	if (!is_valid_clus(fsi, p_chain->dir)) {
 		EMSG("%s: invalid start cluster (%u)\n", __func__, p_chain->dir);
 		sdfat_debug_bug_on(1);
 		return -EIO;
@@ -1367,9 +1374,13 @@ static s32 exfat_alloc_cluster(struct super_block *sb, u32 num_alloc, CHAIN_T *p
 	}
 
 	/* check cluster validation */
-	if ((hint_clu < CLUS_BASE) && (hint_clu >= fsi->num_clusters)) {
-		EMSG("%s: hint_cluster is invalid (%u)\n", __func__, hint_clu);
-		ASSERT(0);
+	if (!is_valid_clus(fsi, hint_clu)) {
+		/* "last + 1" can be passed as hint_clu. Otherwise, bug_on */
+		if (hint_clu != fsi->num_clusters) {
+			EMSG("%s: hint_cluster is invalid (%u)\n",
+			     __func__, hint_clu);
+			sdfat_debug_bug_on(1);
+		}
 		hint_clu = CLUS_BASE;
 		if (p_chain->flags == 0x03) {
 			if (exfat_chain_cont_cluster(sb, p_chain->dir, num_clusters))
@@ -1508,43 +1519,53 @@ s32 mount_exfat(struct super_block *sb, pbr_t *p_pbr)
 	pbr64_t *p_bpb = (pbr64_t *)p_pbr;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
 
-	if (!p_bpb->bsx.num_fats) {
-		sdfat_msg(sb, KERN_ERR, "bogus number of FAT structure");
-		return -EINVAL;
-	}
-
 	fsi->sect_per_clus = 1 << p_bpb->bsx.sect_per_clus_bits;
 	fsi->sect_per_clus_bits = p_bpb->bsx.sect_per_clus_bits;
 	fsi->cluster_size_bits = fsi->sect_per_clus_bits + sb->s_blocksize_bits;
 	fsi->cluster_size = 1 << fsi->cluster_size_bits;
 
+	if (!p_bpb->bsx.num_fats) {
+		sdfat_msg(sb, KERN_ERR, "bogus number of FAT structure");
+		return -EINVAL;
+	}
+
+	if (p_bpb->bsx.num_fats >= 2) {
+		sdfat_msg(sb, KERN_WARNING,
+			"unsupported number of FAT structure :%u, try with 1",
+			p_bpb->bsx.num_fats);
+	}
+
 	fsi->num_FAT_sectors = le32_to_cpu(p_bpb->bsx.fat_length);
+	if (!fsi->num_FAT_sectors) {
+		sdfat_msg(sb, KERN_ERR, "bogus fat size");
+		return -EINVAL;
+	}
 
 	fsi->FAT1_start_sector = le32_to_cpu(p_bpb->bsx.fat_offset);
-	if (p_bpb->bsx.num_fats == 1)
-		fsi->FAT2_start_sector = fsi->FAT1_start_sector;
-	else
-		fsi->FAT2_start_sector = fsi->FAT1_start_sector + fsi->num_FAT_sectors;
+	fsi->FAT2_start_sector = fsi->FAT1_start_sector;
 
 	fsi->root_start_sector = le32_to_cpu(p_bpb->bsx.clu_offset);
 	fsi->data_start_sector = fsi->root_start_sector;
 
 	fsi->num_sectors = le64_to_cpu(p_bpb->bsx.vol_length);
-	fsi->num_clusters = le32_to_cpu(p_bpb->bsx.clu_count) + 2;
+	if (!fsi->num_sectors) {
+		sdfat_msg(sb, KERN_ERR, "bogus number of total sector count");
+		return -EINVAL;
+	}
+
 	/* because the cluster index starts with 2 */
+	fsi->num_clusters = le32_to_cpu(p_bpb->bsx.clu_count) + CLUS_BASE;
 
-	fsi->vol_type = EXFAT;
 	fsi->vol_id = le32_to_cpu(p_bpb->bsx.vol_serial);
-
 	fsi->root_dir = le32_to_cpu(p_bpb->bsx.root_cluster);
 	fsi->dentries_in_root = 0;
 	fsi->dentries_per_clu = 1 << (fsi->cluster_size_bits - DENTRY_SIZE_BITS);
-
 	fsi->vol_flag = (u32) le16_to_cpu(p_bpb->bsx.vol_flags);
 	fsi->clu_srch_ptr = CLUS_BASE;
 	fsi->used_clusters = (u32) ~0;
 
 	fsi->fs_func = &exfat_fs_func;
+	fsi->vol_type = EXFAT;
 	fat_ent_ops_init(sb);
 
 	if (p_bpb->bsx.vol_flags & VOL_DIRTY) {

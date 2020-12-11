@@ -22,4 +22,4 @@
 /*  PURPOSE : sdFAT File Manager                                        */
 /*                                                                      */
 /************************************************************************/
-#define SDFAT_VERSION	"2.3.0"
+#define SDFAT_VERSION	"2.4.5"

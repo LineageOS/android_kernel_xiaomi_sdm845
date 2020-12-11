@@ -79,12 +79,22 @@ ssize_t __sdfat_getxattr(const char *name, void *value, size_t size)
  * FUNCTIONS WHICH HAS KERNEL VERSION DEPENDENCY
  *************************************************************************/
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+#if defined(CONFIG_ANDROID) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+static int sdfat_xattr_get(const struct xattr_handler *handler,
+		struct dentry *dentry, struct inode *inode,
+		const char *name, void *buffer, size_t size,
+		int flags)
+{
+	return __sdfat_getxattr(name, buffer, size);
+}
+#else
 static int sdfat_xattr_get(const struct xattr_handler *handler,
 		struct dentry *dentry, struct inode *inode,
 		const char *name, void *buffer, size_t size)
 {
 	return __sdfat_getxattr(name, buffer, size);
 }
+#endif
 
 static int sdfat_xattr_set(const struct xattr_handler *handler,
 		struct dentry *dentry, struct inode *inode,
