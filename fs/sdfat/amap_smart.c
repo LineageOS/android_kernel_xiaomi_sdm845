@@ -705,7 +705,8 @@ static inline AU_INFO_T *amap_get_packing_au(AMAP_T *amap, int dest, int num_to_
 		}
 	}
 
-	if ((PACKING_HARDLIMIT) && amap->n_need_packing >= PACKING_HARDLIMIT) {
+	if ((PACKING_HARDLIMIT != 0) &&
+	    amap->n_need_packing >= PACKING_HARDLIMIT) {
 		/* Compulsory SLC flushing:
 		 * If there was no chance to do best-fit packing
 		 * and the # of AU-aligned allocation exceeds HARD threshold,
