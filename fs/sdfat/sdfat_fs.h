@@ -145,6 +145,13 @@
 #define CS_PBR_SECTOR           1
 #define CS_DEFAULT              2
 
+/* time min/max */
+/* Jan 1 GMT 00:00:00 1980 */
+#define SDFAT_MIN_TIMESTAMP_SECS    315532800LL
+/* Dec 31 GMT 23:59:59 2107 */
+#define SDFAT_MAX_TIMESTAMP_SECS    4354819199LL
+
+
 /*
  * ioctl command
  */
@@ -179,7 +186,7 @@
 /*  On-Disk Type Definitions                                            */
 /*----------------------------------------------------------------------*/
 
-/* FAT12/16 BIOS parameter block (64 bytes) */
+/* FAT12/16/32 BIOS parameter block (64 bytes) */
 typedef struct {
 	__u8	jmp_boot[3];
 	__u8	oem_name[8];
@@ -197,41 +204,28 @@ typedef struct {
 	__le32	num_hid_sectors;	/* . */
 	__le32	num_huge_sectors;
 
-	__u8	phy_drv_no;
-	__u8	state;			/* used by WindowsNT for mount state */
-	__u8	ext_signature;
-	__u8	vol_serial[4];
-	__u8	vol_label[11];
-	__u8	vol_type[8];
-	__le16	dummy;
-} bpb16_t;
+	union {
+		struct {
+			__u8	phy_drv_no;
+			__u8	state;	/* used by WinNT for mount state */
+			__u8	ext_signature;
+			__u8	vol_serial[4];
+			__u8	vol_label[11];
+			__u8	vol_type[8];
+			__le16  nouse;
+		} f16;
 
-/* FAT32 BIOS parameter block (64 bytes) */
-typedef struct {
-	__u8	jmp_boot[3];
-	__u8	oem_name[8];
-
-	__u8	sect_size[2];		/* unaligned */
-	__u8	sect_per_clus;
-	__le16	num_reserved;
-	__u8	num_fats;
-	__u8	num_root_entries[2];	/* unaligned */
-	__u8	num_sectors[2];		/* unaligned */
-	__u8	media_type;
-	__le16  num_fat_sectors;	/* zero */
-	__le16  sectors_in_track;
-	__le16  num_heads;
-	__le32	num_hid_sectors;	/* . */
-	__le32	num_huge_sectors;
-
-	__le32	num_fat32_sectors;
-	__le16	ext_flags;
-	__u8	fs_version[2];
-	__le32	root_cluster;		/* . */
-	__le16	fsinfo_sector;
-	__le16	backup_sector;
-	__le16	reserved[6];		/* . */
-} bpb32_t;
+		struct {
+			__le32	num_fat32_sectors;
+			__le16	ext_flags;
+			__u8	fs_version[2];
+			__le32	root_cluster;		/* . */
+			__le16	fsinfo_sector;
+			__le16	backup_sector;
+			__le16	reserved[6];		/* . */
+		} f32;
+	};
+} bpb_t;
 
 /* FAT32 EXTEND BIOS parameter block (32 bytes) */
 typedef struct {
@@ -273,12 +267,12 @@ typedef struct {
 
 /* FAT32 PBR (64 bytes) */
 typedef struct {
-	bpb16_t bpb;
+	bpb_t bpb;
 } pbr16_t;
 
 /* FAT32 PBR[BPB+BSX] (96 bytes) */
 typedef struct {
-	bpb32_t bpb;
+	bpb_t bpb;
 	bsx32_t bsx;
 } pbr32_t;
 
@@ -292,8 +286,7 @@ typedef struct {
 typedef struct {
 	union {
 		__u8	raw[64];
-		bpb16_t f16;
-		bpb32_t f32;
+		bpb_t	fat;
 		bpb64_t f64;
 	} bpb;
 	union {

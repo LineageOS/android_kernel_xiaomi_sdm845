@@ -60,7 +60,15 @@ typedef struct {
 	void	*__buf;		// __buf should be the last member
 } ENTRY_SET_CACHE_T;
 
-
+/*----------------------------------------------------------------------*/
+/*  Inline Functions                                                    */
+/*----------------------------------------------------------------------*/
+static inline bool is_valid_clus(FS_INFO_T *fsi, u32 clus)
+{
+	if (clus < CLUS_BASE || fsi->num_clusters <= clus)
+		return false;
+	return true;
+}
 
 /*----------------------------------------------------------------------*/
 /*  External Function Declarations                                      */
