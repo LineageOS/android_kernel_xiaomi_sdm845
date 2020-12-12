@@ -1024,6 +1024,18 @@ csr_clear_sae_single_pmk(tpAniSirGlobal pMac, uint8_t vdev_id,
 }
 #endif
 
+/**
+ * csr_update_pmk_cache_ft - API to update MDID in PMKSA cache entry
+ * @mac_ctx: Mac context
+ * @vdev_id: session ID
+ * @BSSID: Connecting AP MAC address
+ * @mdid: Connecting AP Mobility Domain ID
+ *
+ * Return: None
+ */
+void csr_update_pmk_cache_ft(tpAniSirGlobal mac_ctx,
+			     uint32_t vdev_id, uint8_t *cache_id);
+
 bool csr_elected_country_info(tpAniSirGlobal pMac);
 void csr_add_vote_for_country_info(tpAniSirGlobal pMac, uint8_t *pCountryCode);
 void csr_clear_votes_for_country_info(tpAniSirGlobal pMac);
