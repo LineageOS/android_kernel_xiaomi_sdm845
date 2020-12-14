@@ -55,15 +55,6 @@
 /*************************************************************************
  * FUNCTIONS WHICH HAS KERNEL VERSION DEPENDENCY
  *************************************************************************/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0)
-#define CURRENT_TIME_SEC	timespec64_trunc(current_kernel_time64(), NSEC_PER_SEC)
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
-#define CURRENT_TIME_SEC        timespec_trunc(current_kernel_time(), NSEC_PER_SEC)
-#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0) */
-       /* EMPTY */
-#endif
-
-
 #ifdef CONFIG_SDFAT_UEVENT
 static struct kobject sdfat_uevent_kobj;
 
@@ -93,6 +84,10 @@ void sdfat_uevent_ro_remount(struct super_block *sb)
 
 	char major[16], minor[16];
 	char *envp[] = { major, minor, NULL };
+
+	/* Do not trigger uevent if a device has been ejected */
+	if (fsapi_check_bdi_valid(sb))
+		return;
 
 	snprintf(major, sizeof(major), "MAJOR=%d", MAJOR(bd_dev));
 	snprintf(minor, sizeof(minor), "MINOR=%d", MINOR(bd_dev));
@@ -127,7 +122,7 @@ void __sdfat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 		pr_err("[SDFAT](%s[%d:%d]):ERR: %pV\n",
 			sb->s_id, MAJOR(bd_dev), MINOR(bd_dev), &vaf);
 #ifdef CONFIG_SDFAT_SUPPORT_STLOG
-		if (opts->errors == SDFAT_ERRORS_RO && !(sb->s_flags & MS_RDONLY)) {
+		if (opts->errors == SDFAT_ERRORS_RO && !sb_rdonly(sb)) {
 			ST_LOG("[SDFAT](%s[%d:%d]):ERR: %pV\n",
 				sb->s_id, MAJOR(bd_dev), MINOR(bd_dev), &vaf);
 		}
@@ -138,8 +133,8 @@ void __sdfat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 	if (opts->errors == SDFAT_ERRORS_PANIC) {
 		panic("[SDFAT](%s[%d:%d]): fs panic from previous error\n",
 			sb->s_id, MAJOR(bd_dev), MINOR(bd_dev));
-	} else if (opts->errors == SDFAT_ERRORS_RO && !(sb->s_flags & MS_RDONLY)) {
-		sb->s_flags |= MS_RDONLY;
+	} else if (opts->errors == SDFAT_ERRORS_RO && !sb_rdonly(sb)) {
+		sb->s_flags |= SB_RDONLY;
 		sdfat_statistics_set_mnt_ro();
 		pr_err("[SDFAT](%s[%d:%d]): Filesystem has been set "
 			"read-only\n", sb->s_id, MAJOR(bd_dev), MINOR(bd_dev));
@@ -333,12 +328,12 @@ void sdfat_time_unix2fat(struct sdfat_sb_info *sbi, sdfat_timespec_t *ts,
 	tp->Year = year;
 }
 
-TIMESTAMP_T *tm_now(struct sdfat_sb_info *sbi, TIMESTAMP_T *tp)
+TIMESTAMP_T *tm_now(struct inode *inode, TIMESTAMP_T *tp)
 {
-	sdfat_timespec_t ts = CURRENT_TIME_SEC;
+	sdfat_timespec_t ts = current_time(inode);
 	DATE_TIME_T dt;
 
-	sdfat_time_unix2fat(sbi, &ts, &dt);
+	sdfat_time_unix2fat(SDFAT_SB(inode->i_sb), &ts, &dt);
 
 	tp->year = dt.Year;
 	tp->mon = dt.Month;
