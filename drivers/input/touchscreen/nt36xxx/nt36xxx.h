@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/spi/spi-geni-qcom.h>
 #include <linux/uaccess.h>
 #include <linux/pm_qos.h>
 
@@ -169,7 +170,8 @@ struct nvt_ts_data {
 	struct completion dev_pm_suspend_completion;
 	struct proc_dir_entry *input_proc;
 
-	struct pm_qos_request pm_qos_req;
+	struct pm_qos_request pm_spi_req;
+	struct pm_qos_request pm_touch_req;
 };
 
 #if WAKEUP_GESTURE

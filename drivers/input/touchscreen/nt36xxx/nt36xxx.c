@@ -1213,7 +1213,8 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	int32_t i = 0;
 	int32_t finger_cnt = 0;
 
-	pm_qos_update_request(&ts->pm_qos_req, 100);
+	pm_qos_update_request(&ts->pm_touch_req, 100);
+	pm_qos_update_request(&ts->pm_spi_req, 100);
 
 #if WAKEUP_GESTURE
 	if (likely(bTouchIsAwake == 0)) {
@@ -1323,7 +1324,8 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 
 XFER_ERROR:
 
-	pm_qos_update_request(&ts->pm_qos_req, PM_QOS_DEFAULT_VALUE);
+	pm_qos_update_request(&ts->pm_spi_req, PM_QOS_DEFAULT_VALUE);
+	pm_qos_update_request(&ts->pm_touch_req, PM_QOS_DEFAULT_VALUE);
 
 	input_sync(ts->input_dev);
 
@@ -1766,9 +1768,14 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 			NVT_LOG("request irq %d succeed\n", client->irq);
 		}
 
-		ts->pm_qos_req.type = PM_QOS_REQ_AFFINE_IRQ;
-		ts->pm_qos_req.irq = ts->client->irq;
-		pm_qos_add_request(&ts->pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+		ts->pm_spi_req.type = PM_QOS_REQ_AFFINE_IRQ;
+		ts->pm_spi_req.irq = ts->client->irq;
+		pm_qos_add_request(&ts->pm_spi_req, PM_QOS_CPU_DMA_LATENCY,
+			PM_QOS_DEFAULT_VALUE);
+
+		ts->pm_touch_req.type = PM_QOS_REQ_AFFINE_IRQ;
+		ts->pm_touch_req.irq = client->irq;
+		pm_qos_add_request(&ts->pm_touch_req, PM_QOS_CPU_DMA_LATENCY,
 				PM_QOS_DEFAULT_VALUE);
 	}
 	update_hardware_info(TYPE_TOUCH, 5);
@@ -1942,7 +1949,8 @@ static int32_t nvt_ts_remove(struct i2c_client *client)
 		NVT_ERR("Error occurred while unregistering drm_notifier.\n");
 #endif
 
-	pm_qos_remove_request(&ts->pm_qos_req);
+	pm_qos_remove_request(&ts->pm_touch_req);
+	pm_qos_remove_request(&ts->pm_spi_req);
 
 #if NVT_TOUCH_MP
 	nvt_mp_proc_deinit();
