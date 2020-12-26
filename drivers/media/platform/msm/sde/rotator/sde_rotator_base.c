@@ -716,14 +716,6 @@ static int sde_mdp_parse_dt_misc(struct platform_device *pdev,
 
 	sde_mdp_parse_inline_rot_lut_setting(pdev, mdata);
 
-	rc = of_property_read_u32(pdev->dev.of_node,
-		"qcom,mdss-rot-qos-cpu-mask", &data);
-	mdata->rot_pm_qos_cpu_mask = (!rc ? data : 0);
-
-	rc = of_property_read_u32(pdev->dev.of_node,
-		 "qcom,mdss-rot-qos-cpu-dma-latency", &data);
-	mdata->rot_pm_qos_cpu_dma_latency = (!rc ? data : 0);
-
 	mdata->mdp_base = mdata->sde_io.base + SDE_MDP_OFFSET;
 
 	return 0;
