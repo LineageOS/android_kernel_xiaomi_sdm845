@@ -25,7 +25,7 @@
 
 struct mb_cache {
 	/* Hash table of entries */
-	struct hlist_bl_head	*c_hash;
+	struct mb_bucket	*c_bucket;
 	/* log2 of hash table size */
 	int			c_bucket_bits;
 	/* Maximum entries in cache to avoid degrading hash too much */
@@ -40,6 +40,17 @@ struct mb_cache {
 	struct work_struct	c_shrink_work;
 };
 
+struct mb_bucket {
+	struct hlist_bl_head hash;
+	struct list_head req_list;
+};
+
+struct mb_cache_req {
+	struct list_head lnode;
+	u32 e_key;
+	u64 e_value;
+};
+
 static struct kmem_cache *mb_entry_cache;
 
 static unsigned long mb_cache_shrink(struct mb_cache *cache,
@@ -48,7 +59,7 @@ static unsigned long mb_cache_shrink(struct mb_cache *cache,
 static inline struct hlist_bl_head *mb_cache_entry_head(struct mb_cache *cache,
 							u32 key)
 {
-	return &cache->c_hash[hash_32(key, cache->c_bucket_bits)];
+	return &cache->c_bucket[hash_32(key, cache->c_bucket_bits)].hash;
 }
 
 /*
@@ -75,6 +86,11 @@ int mb_cache_entry_create(struct mb_cache *cache, gfp_t mask, u32 key,
 	struct mb_cache_entry *entry, *dup;
 	struct hlist_bl_node *dup_node;
 	struct hlist_bl_head *head;
+	struct mb_cache_req *tmp_req, req = {
+		.e_key = key,
+		.e_value = value
+	};
+	struct mb_bucket *bucket;
 
 	/* Schedule background reclaim if there are too many entries */
 	if (cache->c_entry_count >= cache->c_max_entries)
@@ -83,33 +99,48 @@ int mb_cache_entry_create(struct mb_cache *cache, gfp_t mask, u32 key,
 	if (cache->c_entry_count >= 2*cache->c_max_entries)
 		mb_cache_shrink(cache, SYNC_SHRINK_BATCH);
 
-	entry = kmem_cache_alloc(mb_entry_cache, mask);
-	if (!entry)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&entry->e_list);
-	/* One ref for hash, one ref returned */
-	atomic_set(&entry->e_refcnt, 1);
-	entry->e_key = key;
-	entry->e_value = value;
-	entry->e_reusable = reusable;
-	entry->e_referenced = 0;
-	head = mb_cache_entry_head(cache, key);
+	bucket = &cache->c_bucket[hash_32(key, cache->c_bucket_bits)];
+	head = &bucket->hash;
 	hlist_bl_lock(head);
-	hlist_bl_for_each_entry(dup, dup_node, head, e_hash_list) {
-		if (dup->e_key == key && dup->e_value == value) {
+	list_for_each_entry(tmp_req, &bucket->req_list, lnode) {
+		if (tmp_req->e_key == key && tmp_req->e_value == value) {
 			hlist_bl_unlock(head);
-			kmem_cache_free(mb_entry_cache, entry);
 			return -EBUSY;
 		}
 	}
+	hlist_bl_for_each_entry(dup, dup_node, head, e_hash_list) {
+		if (dup->e_key == key && dup->e_value == value) {
+			hlist_bl_unlock(head);
+			return -EBUSY;
+		}
+	}
+	list_add(&req.lnode, &bucket->req_list);
+	hlist_bl_unlock(head);
+
+	entry = kmem_cache_alloc(mb_entry_cache, mask);
+	if (!entry) {
+		hlist_bl_lock(head);
+		list_del(&req.lnode);
+		hlist_bl_unlock(head);
+		return -ENOMEM;
+	}
+
+	*entry = (typeof(*entry)){
+		.e_list = LIST_HEAD_INIT(entry->e_list),
+		/* One ref for hash, one ref returned */
+		.e_refcnt = ATOMIC_INIT(2),
+		.e_key = key,
+		.e_value = value,
+		.e_reusable = reusable
+	};
+
+	hlist_bl_lock(head);
+	list_del(&req.lnode);
 	hlist_bl_add_head(&entry->e_hash_list, head);
 	hlist_bl_unlock(head);
 
 	spin_lock(&cache->c_list_lock);
 	list_add_tail(&entry->e_list, &cache->c_list);
-	/* Grab ref for LRU list */
-	atomic_inc(&entry->e_refcnt);
 	cache->c_entry_count++;
 	spin_unlock(&cache->c_list_lock);
 
@@ -352,20 +383,22 @@ struct mb_cache *mb_cache_create(int bucket_bits)
 	cache->c_max_entries = bucket_count << 4;
 	INIT_LIST_HEAD(&cache->c_list);
 	spin_lock_init(&cache->c_list_lock);
-	cache->c_hash = kmalloc(bucket_count * sizeof(struct hlist_bl_head),
-				GFP_KERNEL);
-	if (!cache->c_hash) {
+	cache->c_bucket = kmalloc(bucket_count * sizeof(*cache->c_bucket),
+				  GFP_KERNEL);
+	if (!cache->c_bucket) {
 		kfree(cache);
 		goto err_out;
 	}
-	for (i = 0; i < bucket_count; i++)
-		INIT_HLIST_BL_HEAD(&cache->c_hash[i]);
+	for (i = 0; i < bucket_count; i++) {
+		INIT_HLIST_BL_HEAD(&cache->c_bucket[i].hash);
+		INIT_LIST_HEAD(&cache->c_bucket[i].req_list);
+	}
 
 	cache->c_shrink.count_objects = mb_cache_count;
 	cache->c_shrink.scan_objects = mb_cache_scan;
 	cache->c_shrink.seeks = DEFAULT_SEEKS;
 	if (register_shrinker(&cache->c_shrink)) {
-		kfree(cache->c_hash);
+		kfree(cache->c_bucket);
 		kfree(cache);
 		goto err_out;
 	}
@@ -406,7 +439,7 @@ void mb_cache_destroy(struct mb_cache *cache)
 		WARN_ON(atomic_read(&entry->e_refcnt) != 1);
 		mb_cache_entry_put(cache, entry);
 	}
-	kfree(cache->c_hash);
+	kfree(cache->c_bucket);
 	kfree(cache);
 }
 EXPORT_SYMBOL(mb_cache_destroy);
