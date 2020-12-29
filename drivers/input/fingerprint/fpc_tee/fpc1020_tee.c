@@ -94,6 +94,8 @@ struct fpc1020_data {
 	bool fb_black;
 	bool wait_finger_down;
 	struct work_struct work;
+
+	int proximity_state;
 };
 
 static irqreturn_t fpc1020_irq_handler(int irq, void *handle);
@@ -557,6 +559,34 @@ static ssize_t screen_status_get(struct device *dev, struct device_attribute *at
 
 static DEVICE_ATTR(screen_status, S_IRUSR | S_IRGRP, screen_status_get, NULL);
 
+static ssize_t proximity_state_set(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct fpc1020_data *fpc1020 = dev_get_drvdata(dev);
+	int rc, val;
+
+	rc = kstrtoint(buf, 10, &val);
+	if (rc)
+		return -EINVAL;
+
+	fpc1020->proximity_state = !!val;
+
+	if (fpc1020->proximity_state) {
+		mutex_lock(&fpc1020->lock);
+		disable_irq(gpio_to_irq(fpc1020->irq_gpio));
+		mutex_unlock(&fpc1020->lock);
+		pr_debug("fpc disable irq\n");
+	} else {
+		mutex_lock(&fpc1020->lock);
+		enable_irq(gpio_to_irq(fpc1020->irq_gpio));
+		mutex_unlock(&fpc1020->lock);
+		pr_debug("fpc enable irq\n");
+	}
+	
+	return count;
+}
+static DEVICE_ATTR(proximity_state, S_IWUSR, NULL, proximity_state_set);
+
 static struct attribute *attributes[] = {
 	&dev_attr_pinctl_set.attr,
 	&dev_attr_device_prepare.attr,
@@ -568,6 +598,7 @@ static struct attribute *attributes[] = {
 	&dev_attr_irq.attr,
 	&dev_attr_screen_status.attr,
 	&dev_attr_fingerdown_wait.attr,
+	&dev_attr_proximity_state.attr,
 	NULL
 };
 
