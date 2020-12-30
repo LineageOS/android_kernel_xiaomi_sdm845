@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "f5fcc399_b2444b5b",
+        "filename": "drivers/input/fingerprint/fpc_tee/fpc1020_tee.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 585,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2020-12-30T09:07:49Z",
+      "side": 1,
+      "message": "Remove stray tab.",
+      "range": {
+        "startLine": 585,
+        "startChar": 0,
+        "endLine": 585,
+        "endChar": 1
+      },
+      "revId": "a8b2cccd527c162de1a9972b54c56c5bd6bacf9e",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": true
+    }
+  ]
+}
