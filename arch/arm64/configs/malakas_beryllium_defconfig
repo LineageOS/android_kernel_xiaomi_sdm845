@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.9.247 Kernel Configuration
+# Linux/arm64 4.9.249 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -1519,6 +1519,7 @@ CONFIG_NETDEVICES=y
 CONFIG_NET_CORE=y
 # CONFIG_BONDING is not set
 CONFIG_DUMMY=y
+# CONFIG_WIREGUARD is not set
 # CONFIG_EQUALIZER is not set
 # CONFIG_NET_FC is not set
 # CONFIG_IFB is not set
@@ -2041,6 +2042,7 @@ CONFIG_SPI_QCOM_GENI=y
 #
 CONFIG_SPI_SPIDEV=y
 # CONFIG_SPI_TLE62X0 is not set
+# CONFIG_SPI_DYNAMIC is not set
 CONFIG_SLIMBUS=y
 # CONFIG_SLIMBUS_MSM_CTRL is not set
 CONFIG_SLIMBUS_MSM_NGD=y
