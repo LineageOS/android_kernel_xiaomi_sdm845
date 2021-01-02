@@ -94,6 +94,7 @@ struct fpc1020_data {
 	bool fb_black;
 	bool wait_finger_down;
 	struct work_struct work;
+	int irq_enabled;
 };
 
 static irqreturn_t fpc1020_irq_handler(int irq, void *handle);
@@ -522,28 +523,40 @@ static ssize_t fingerdown_wait_set(struct device *dev,
 }
 static DEVICE_ATTR(fingerdown_wait, S_IWUSR, NULL, fingerdown_wait_set);
 
-static ssize_t irq_enable_set(struct device *dev,
+static void set_fpc_irq(struct fpc1020_data *fpc1020, bool enable)
+{
+	if (enable == fpc1020->irq_enabled)
+		return;
+
+	fpc1020->irq_enabled = enable;
+	if (enable)
+		enable_irq(gpio_to_irq(fpc1020->irq_gpio));
+	else
+		disable_irq(gpio_to_irq(fpc1020->irq_gpio));
+}
+
+static ssize_t proximity_state_set(struct device *dev,
 	struct device_attribute *attr,
 	const char *buf, size_t count)
 {
 	int rc = 0;
 	struct fpc1020_data *fpc1020 = dev_get_drvdata(dev);
 
-	if (!strncmp(buf, "1", strlen("1"))) {
+	if (!strncmp(buf, "0", strlen("1"))) {
 		mutex_lock(&fpc1020->lock);
-		enable_irq(gpio_to_irq(fpc1020->irq_gpio));
+		set_fpc_irq(fpc1020, true);
 		mutex_unlock(&fpc1020->lock);
 		pr_debug("fpc enable irq\n");
-	} else if (!strncmp(buf, "0", strlen("0"))) {
+	} else if (!strncmp(buf, "1", strlen("0"))) {
 		mutex_lock(&fpc1020->lock);
-		disable_irq(gpio_to_irq(fpc1020->irq_gpio));
+		set_fpc_irq(fpc1020, false);
 		mutex_unlock(&fpc1020->lock);
 		pr_debug("fpc disable irq\n");
 	}
 
 	return rc ? rc : count;
 }
-static DEVICE_ATTR(irq_enable, S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP , NULL, irq_enable_set);
+static DEVICE_ATTR(proximity_state, S_IWUSR, NULL, proximity_state_set);
 
 static ssize_t screen_status_get(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -564,7 +577,7 @@ static struct attribute *attributes[] = {
 	&dev_attr_hw_reset.attr,
 	&dev_attr_wakeup_enable.attr,
 	&dev_attr_clk_enable.attr,
-	&dev_attr_irq_enable.attr,
+	&dev_attr_proximity_state.attr,
 	&dev_attr_irq.attr,
 	&dev_attr_screen_status.attr,
 	&dev_attr_fingerdown_wait.attr,
@@ -580,7 +593,6 @@ static void notification_work(struct work_struct *work)
 	pr_debug("%s: unblank\n", __func__);
 	dsi_bridge_interface_enable(FP_UNLOCK_REJECTION_TIMEOUT);
 }
-
 
 static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 {
@@ -748,6 +760,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 		(void)device_prepare(fpc1020, true);
 	}
 
+	fpc1020->irq_enabled = true;
 	fpc1020->fb_black = false;
 	fpc1020->wait_finger_down = false;
 	INIT_WORK(&fpc1020->work, notification_work);
