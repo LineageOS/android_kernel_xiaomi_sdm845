@@ -240,8 +240,7 @@ void *vmalloc_user(unsigned long size)
 {
 	void *ret;
 
-	ret = __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
-			PAGE_KERNEL);
+	ret = __vmalloc(size, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
 	if (ret) {
 		struct vm_area_struct *vma;
 
@@ -358,10 +357,6 @@ void *vzalloc_node(unsigned long size, int node)
 	return vzalloc(size);
 }
 EXPORT_SYMBOL(vzalloc_node);
-
-#ifndef PAGE_KERNEL_EXEC
-# define PAGE_KERNEL_EXEC PAGE_KERNEL
-#endif
 
 /**
  *	vmalloc_exec  -  allocate virtually contiguous, executable memory

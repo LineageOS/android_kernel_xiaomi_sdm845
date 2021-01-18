@@ -191,7 +191,7 @@ struct smb2 {
 	bool			bad_part;
 };
 
-static int __debug_mask = PR_OEM | PR_MISC;
+static int __debug_mask;
 module_param_named(
 	debug_mask, __debug_mask, int, 0600
 );

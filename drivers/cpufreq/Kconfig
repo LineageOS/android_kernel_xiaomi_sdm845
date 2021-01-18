@@ -256,6 +256,114 @@ config CPU_FREQ_GOV_SCHEDUTIL
 
 	  If in doubt, say N.
 
+if CPU_FREQ_GOV_SCHEDUTIL
+
+config SCHEDUTIL_UP_RATE_LIMIT
+	int "Default up rate-limit for schedutil"
+	default 500
+	help
+	  This sets schedutil's default frequency up rate-limit in
+	  microseconds.
+
+config SCHEDUTIL_DOWN_RATE_LIMIT
+	int "Default down rate-limit for schedutil"
+	default 20000
+	help
+	  This sets schedutil's default frequency down rate-limit in
+	  microseconds.
+
+endif
+
+config CPU_FREQ_GOV_BLU_SCHEDUTIL
+	tristate "'blu_schedutil' cpufreq policy governor"
+	depends on CPU_FREQ
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  This governor makes decisions based on the utilization data provided
+	  by the scheduler.  It sets the CPU frequency to be proportional to
+	  the utilization/capacity ratio coming from the scheduler.  If the
+	  utilization is frequency-invariant, the new frequency is also
+	  proportional to the maximum available frequency.  If that is not the
+	  case, it is proportional to the current frequency of the CPU.  The
+	  frequency tipping point is at utilization/capacity equal to 80% in
+	  both cases.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called cpufreq_blu_schedutil.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_PIXUTIL
+	tristate "'pixutil' cpufreq policy governor"
+	depends on CPU_FREQ
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  This governor makes decisions based on the utilization data provided
+	  by the scheduler.  It sets the CPU frequency to be proportional to
+	  the utilization/capacity ratio coming from the scheduler.  If the
+	  utilization is frequency-invariant, the new frequency is also
+	  proportional to the maximum available frequency.  If that is not the
+	  case, it is proportional to the current frequency of the CPU.  The
+	  frequency tipping point is at utilization/capacity equal to 80% in
+	  both cases.
+
+ 	  To compile this driver as a module, choose M here: the module will
+	  be called cpufreq_pixutil.
+
+ 	  If in doubt, say N.
+
+config CPU_INPUT_BOOST
+	bool "CPU Input Boost"
+	help
+	  Boosts the CPU on touchscreen and touchpad input, and allows for
+	  boosting on other custom events, mainly which is intended to be for
+	  boosting when there is a new frame ready to be rendered to the
+	  display. The boost frequencies for this driver should be set so that
+	  frame drops are near-zero at the boosted frequencies and power
+	  consumption is minimized at said frequency combination.
+
+if CPU_INPUT_BOOST
+
+config INPUT_BOOST_DURATION_MS
+	int "Input boost duration"
+	default "100"
+	help
+	  Input boost duration in milliseconds.
+
+config WAKE_BOOST_DURATION_MS
+	int "Wake boost duration"
+	default "1000"
+	help
+	  Wake boost duration in milliseconds.
+
+config INPUT_BOOST_FREQ_LP
+	int "Low-power cluster boost freq"
+	default "0"
+	help
+	  Input boost frequency for the low-power CPU cluster.
+
+config INPUT_BOOST_FREQ_PERF
+	int "Performance cluster boost freq"
+	default "0"
+	help
+	  Input boost frequency for the performance CPU cluster.
+
+config MAX_BOOST_FREQ_LP
+	int "Low-power cluster max-boost freq"
+	default "0"
+	help
+	  Max-boost frequency for the low-power CPU cluster.
+
+config MAX_BOOST_FREQ_PERF
+	int "Performance cluster max-boost freq"
+	default "0"
+	help
+	  Max-boost frequency for the performance CPU cluster.
+
+endif
+
 comment "CPU frequency scaling drivers"
 
 config CPUFREQ_DT

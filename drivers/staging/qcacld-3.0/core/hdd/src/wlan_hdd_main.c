@@ -11576,6 +11576,49 @@ void hdd_populate_random_mac_addr(struct hdd_context *hdd_ctx, uint32_t num)
 	}
 }
 
+static int randomize_mac = 1;
+
+static struct ctl_table randomize_mac_table[] =
+{
+       {
+               .procname       = "randomize_mac",
+               .data           = &randomize_mac,
+               .maxlen         = sizeof(int),
+               .mode           = 0600,
+               .proc_handler   = proc_dointvec
+       },
+       { }
+};
+
+static struct ctl_table cnss_table[] =
+{
+       {
+               .procname       = "cnss",
+               .maxlen         = 0,
+               .mode           = 0555,
+               .child          = randomize_mac_table,
+       },
+       { }
+};
+
+static struct ctl_table dev_table[] =
+{
+       {
+               .procname       = "dev",
+               .maxlen         = 0,
+               .mode           = 0555,
+               .child          = cnss_table,
+       },
+       { }
+};
+
+static int __init init_randomize_mac(void)
+{
+	register_sysctl_table(dev_table);
+	return 0;
+}
+late_initcall(init_randomize_mac);
+
 /**
  * hdd_platform_wlan_mac() - API to get mac addresses from platform driver
  * @hdd_ctx: HDD Context
