@@ -20,8 +20,8 @@ cd $MLX
 ### daily llvm git builds - not always support for lto
 ### DO NOT change distro on the llvm repos. these branches are only meant for the toolchain
 ### and will ensure you will always use latest llvm when using "make CC=clang"
-llvm_1='deb http://apt.llvm.org/focal/ llvm-toolchain-focal main'
-llvm_2='deb-src http://apt.llvm.org/focal/ llvm-toolchain-focal main'
+#llvm_1='deb http://apt.llvm.org/focal/ llvm-toolchain-focal main'
+#llvm_2='deb-src http://apt.llvm.org/focal/ llvm-toolchain-focal main'
 llvm_3='deb http://apt.llvm.org/unstable/ llvm-toolchain main'
 llvm_4='deb-src http://apt.llvm.org/unstable/ llvm-toolchain main'
 new_sources=("$llvm_1" "$llvm_2" "$llvm_3" "$llvm_4")
