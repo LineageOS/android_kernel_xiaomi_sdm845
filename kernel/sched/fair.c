@@ -7600,6 +7600,9 @@ static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu, int sync
 #ifdef CONFIG_CGROUP_SCHEDTUNE
 	boosted = schedtune_task_boost(p) > 0;
 	prefer_idle = schedtune_prefer_idle(p) > 0;
+#elif  CONFIG_UCLAMP_TASK
+	boosted = uclamp_boosted(p);
+	prefer_idle = uclamp_latency_sensitive(p);
 #else
 	boosted = get_sysctl_sched_cfs_boost() > 0;
 	prefer_idle = 0;
