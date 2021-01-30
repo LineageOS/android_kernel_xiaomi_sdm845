@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -29,7 +29,6 @@
 #include "regtable.h"
 
 #include <cds_ieee80211_common.h>   /* ieee80211_frame, ieee80211_qoscntl */
-#include <cds_ieee80211_defines.h>  /* ieee80211_rx_status */
 #include <cds_utils.h>
 #include <wlan_policy_mgr_api.h>
 #include "ol_txrx_types.h"
@@ -40,8 +39,6 @@
 #include <pktlog_ac_fmt.h>
 
 #define HTT_FCS_LEN (4)
-
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 enum {
 	HW_RX_DECAP_FORMAT_RAW = 0,
@@ -99,7 +96,7 @@ int htt_mon_rx_handle_amsdu_packet(qdf_nbuf_t msdu, htt_pdev_handle pdev,
 	paddr = htt_rx_in_ord_paddr_get(*msg_word);
 	frag_nbuf = htt_rx_in_order_netbuf_pop(pdev, paddr);
 	if (qdf_unlikely(!frag_nbuf)) {
-		qdf_print("%s: netbuf pop failed!\n", __func__);
+		qdf_print("netbuf pop failed!");
 		return 0;
 	}
 	*frag_cnt = *frag_cnt + 1;
@@ -109,7 +106,7 @@ int htt_mon_rx_handle_amsdu_packet(qdf_nbuf_t msdu, htt_pdev_handle pdev,
 	qdf_nbuf_set_pktlen(frag_nbuf, HTT_RX_BUF_SIZE);
 	qdf_nbuf_unmap(pdev->osdev, frag_nbuf, QDF_DMA_FROM_DEVICE);
 	/* For msdu's other than parent will not have htt_host_rx_desc_base */
-	len = MIN(amsdu_len, HTT_RX_BUF_SIZE);
+	len = QDF_MIN(amsdu_len, HTT_RX_BUF_SIZE);
 	amsdu_len -= len;
 	qdf_nbuf_trim_tail(frag_nbuf, HTT_RX_BUF_SIZE - len);
 
@@ -126,7 +123,7 @@ int htt_mon_rx_handle_amsdu_packet(qdf_nbuf_t msdu, htt_pdev_handle pdev,
 			     *msg_word)->msdu_info;
 
 		if (qdf_unlikely(!frag_nbuf)) {
-			qdf_print("%s: netbuf pop failed!\n", __func__);
+			qdf_print("netbuf pop failed!");
 			prev_frag_nbuf->next = NULL;
 			return 0;
 		}
@@ -134,7 +131,7 @@ int htt_mon_rx_handle_amsdu_packet(qdf_nbuf_t msdu, htt_pdev_handle pdev,
 		qdf_nbuf_set_pktlen(frag_nbuf, HTT_RX_BUF_SIZE);
 		qdf_nbuf_unmap(pdev->osdev, frag_nbuf, QDF_DMA_FROM_DEVICE);
 
-		len = MIN(amsdu_len, HTT_RX_BUF_SIZE);
+		len = QDF_MIN(amsdu_len, HTT_RX_BUF_SIZE);
 		amsdu_len -= len;
 		qdf_nbuf_trim_tail(frag_nbuf, HTT_RX_BUF_SIZE - len);
 		HTT_PKT_DUMP(qdf_trace_hex_dump(QDF_MODULE_ID_TXRX,
@@ -425,6 +422,8 @@ static void htt_mon_rx_get_phy_info(struct htt_host_rx_desc_base *rx_desc,
 	rx_status->ldpc = ldpc;
 	rx_status->beamformed = beamformed;
 	rx_status->vht_flag_values3[0] = mcs << 0x4 | (nss + 1);
+	if (ht_flags)
+		rx_status->ht_mcs = mcs;
 	rx_status->ht_flags = ht_flags;
 	rx_status->vht_flags = vht_flags;
 	rx_status->rtap_flags |= ((preamble == SHORT_PREAMBLE) ? BIT(1) : 0);
@@ -461,10 +460,19 @@ static uint8_t htt_mon_rx_get_rtap_flags(struct htt_host_rx_desc_base *rx_desc)
 	return rtap_flags;
 }
 
-void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
-			      struct htt_host_rx_desc_base *rx_desc,
-			      struct mon_rx_status *rx_status)
+/**
+ * htt_rx_mon_get_rx_status() - Update information about the rx status,
+ * which is used later for radiotap updation.
+ * @rx_desc: Pointer to struct htt_host_rx_desc_base
+ * @rx_status: Return variable updated with rx_status
+ *
+ * Return: None
+ */
+static void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
+				     struct htt_host_rx_desc_base *rx_desc,
+				     struct mon_rx_status *rx_status)
 {
+	uint16_t channel_flags = 0;
 	struct mon_channel *ch_info = &pdev->mon_ch_info;
 
 	rx_status->tsft = (u_int64_t)TSF_TIMESTAMP(rx_desc);
@@ -472,14 +480,16 @@ void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
 	rx_status->chan_num = ch_info->ch_num;
 	htt_mon_rx_get_phy_info(rx_desc, rx_status);
 	rx_status->rtap_flags |= htt_mon_rx_get_rtap_flags(rx_desc);
+	channel_flags |= rx_desc->ppdu_start.l_sig_rate_select ?
+		IEEE80211_CHAN_CCK : IEEE80211_CHAN_OFDM;
+	channel_flags |=
+		(cds_chan_to_band(ch_info->ch_num) == CDS_BAND_2GHZ ?
+		IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
 
-	if (rx_desc->ppdu_start.l_sig_rate_select)
-		rx_status->cck_flag = 1;
-	else
-		rx_status->ofdm_flag = 1;
-
+	rx_status->chan_flags = channel_flags;
 	rx_status->ant_signal_db = rx_desc->ppdu_start.rssi_comb;
 	rx_status->rssi_comb = rx_desc->ppdu_start.rssi_comb;
+	rx_status->chan_noise_floor = pdev->txrx_pdev->chan_noise_floor;
 }
 
 /**
@@ -535,7 +545,7 @@ int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 	msdu = htt_rx_in_order_netbuf_pop(pdev, paddr);
 
 	if (qdf_unlikely(!msdu)) {
-		qdf_print("%s: netbuf pop failed!\n", __func__);
+		qdf_print("netbuf pop failed!");
 		*tail_msdu = NULL;
 		return 0;
 	}
@@ -568,8 +578,7 @@ int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 					htt_rx_in_ord_paddr_ind_msdu_t *)
 					msg_word)->msdu_info;
 				if (qdf_unlikely(!msdu)) {
-					qdf_print("%s: netbuf pop failed!\n",
-						  __func__);
+					qdf_print("netbuf pop failed!");
 					return 0;
 				}
 				*replenish_cnt = *replenish_cnt + 1;
@@ -667,7 +676,7 @@ int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		 * MAX_RX_PAYLOAD_SZ when we have AMSDU packet. amsdu_len in
 		 * which case is the total length of sum of all AMSDU's
 		 */
-		len = MIN(amsdu_len, MAX_RX_PAYLOAD_SZ);
+		len = QDF_MIN(amsdu_len, MAX_RX_PAYLOAD_SZ);
 		amsdu_len -= len;
 		qdf_nbuf_trim_tail(msdu, HTT_RX_BUF_SIZE -
 				   (RX_STD_DESC_SIZE + len));
@@ -690,8 +699,7 @@ int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 							    &msg_word,
 							    amsdu_len,
 							    replenish_cnt)) {
-				qdf_print("%s: failed to handle amsdu packet\n",
-					  __func__);
+				qdf_print("failed to handle amsdu packet");
 				return 0;
 			}
 		}
@@ -703,8 +711,7 @@ next_pop:
 			paddr = htt_rx_in_ord_paddr_get(msg_word);
 			next = htt_rx_in_order_netbuf_pop(pdev, paddr);
 			if (qdf_unlikely(!next)) {
-				qdf_print("%s: netbuf pop failed!\n",
-					  __func__);
+				qdf_print("netbuf pop failed!");
 				*tail_msdu = NULL;
 				return 0;
 			}
@@ -723,7 +730,9 @@ next_pop:
 }
 #endif /* CONFIG_HL_SUPPORT */
 
-#if !defined(QCA6290_HEADERS_DEF)
+#if defined(FEATURE_MONITOR_MODE_SUPPORT)
+#if !defined(QCA6290_HEADERS_DEF) && !defined(QCA6390_HEADERS_DEF) && \
+    !defined(QCA6490_HEADERS_DEF) && !defined(QCA6750_HEADERS_DEF)
 static void
 htt_rx_parse_ppdu_start_status(struct htt_host_rx_desc_base *rx_desc,
 			       struct ieee80211_rx_status *rs)
@@ -909,7 +918,7 @@ htt_rx_restitch_mpdu_from_msdus(htt_pdev_handle pdev,
 		wifi_hdr_len += 6;
 
 	is_amsdu = 0;
-	if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS) {
+	if (wh->i_fc[0] & QDF_IEEE80211_FC0_SUBTYPE_QOS) {
 		qos = (struct ieee80211_qoscntl *)
 		      (hdr_desc + wifi_hdr_len);
 		wifi_hdr_len += 2;
@@ -1074,4 +1083,5 @@ mpdu_stitch_fail:
 
 	return NULL;
 }
+#endif
 #endif

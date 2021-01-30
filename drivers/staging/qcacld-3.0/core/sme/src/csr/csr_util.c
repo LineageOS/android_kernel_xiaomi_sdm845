@@ -32,6 +32,7 @@
 #include "wlan_policy_mgr_api.h"
 #include "wlan_serialization_legacy_api.h"
 #include "wlan_reg_services_api.h"
+#include "wlan_crypto_global_api.h"
 
 
 uint8_t csr_wpa_oui[][CSR_WPA_OUI_SIZE] = {
@@ -148,8 +149,6 @@ uint8_t csr_wapi_oui[][CSR_WAPI_OUI_SIZE] = {
 	{0x00, 0x14, 0x72, 0x02} /* WAI PSK */
 };
 #endif /* FEATURE_WLAN_WAPI */
-uint8_t csr_wme_info_oui[CSR_WME_OUI_SIZE] = { 0x00, 0x50, 0xf2, 0x02 };
-uint8_t csr_wme_parm_oui[CSR_WME_OUI_SIZE] = { 0x00, 0x50, 0xf2, 0x02 };
 
 uint8_t csr_group_mgmt_oui[][CSR_RSN_OUI_SIZE] = {
 #define ENUM_CMAC 0
@@ -365,6 +364,7 @@ const char *get_e_csr_roam_result_str(eCsrRoamResult val)
 		CASE_RETURN_STR(eCSR_ROAM_RESULT_DFS_RADAR_FOUND_IND);
 		CASE_RETURN_STR(eCSR_ROAM_RESULT_CHANNEL_CHANGE_SUCCESS);
 		CASE_RETURN_STR(eCSR_ROAM_RESULT_CHANNEL_CHANGE_FAILURE);
+		CASE_RETURN_STR(eCSR_ROAM_RESULT_CSA_RESTART_RSP);
 		CASE_RETURN_STR(eCSR_ROAM_RESULT_DFS_CHANSW_UPDATE_SUCCESS);
 		CASE_RETURN_STR(eCSR_ROAM_EXT_CHG_CHNL_UPDATE_IND);
 		CASE_RETURN_STR(eCSR_ROAM_RESULT_NDI_CREATE_RSP);
@@ -418,99 +418,43 @@ const char *csr_phy_mode_str(eCsrPhyMode phy_mode)
 	}
 }
 
-void csr_purge_vdev_pending_ser_cmd_list(struct sAniSirGlobal *mac_ctx,
+void csr_purge_vdev_pending_ser_cmd_list(struct mac_context *mac_ctx,
 					 uint32_t vdev_id)
 {
-	wlan_serialization_purge_cmd_list_by_vdev_id(mac_ctx->psoc, vdev_id,
-						     false, true, false,
-						     true, false);
+	wlan_serialization_purge_all_pending_cmd_by_vdev_id(mac_ctx->pdev,
+							    vdev_id);
 }
 
-void csr_purge_vdev_all_ser_cmd_list(struct sAniSirGlobal *mac_ctx,
-				     uint32_t vdev_id)
+void csr_purge_vdev_all_scan_ser_cmd_list(struct mac_context *mac_ctx,
+					  uint32_t vdev_id)
 {
-	wlan_serialization_purge_cmd_list_by_vdev_id(mac_ctx->psoc, vdev_id,
-						     true, true, true,
-						     true, true);
+	wlan_serialization_purge_all_scan_cmd_by_vdev_id(mac_ctx->pdev,
+							 vdev_id);
 }
 
-void csr_purge_pdev_all_ser_cmd_list(struct sAniSirGlobal *mac_ctx)
+void csr_purge_pdev_all_ser_cmd_list(struct mac_context *mac_ctx)
 {
-	wlan_serialization_purge_cmd_list(mac_ctx->psoc, NULL, true, true,
-					  true, true, true);
+	wlan_serialization_purge_all_pdev_cmd(mac_ctx->pdev);
 }
 
-void csr_nonscan_active_ll_insert_head(struct sAniSirGlobal *mac_ctx,
-			tListElem *entry, bool inter_locked)
-{
-}
-
-void csr_nonscan_pending_ll_insert_head(struct sAniSirGlobal *mac_ctx,
-		tListElem *entry, bool inter_locked)
-{
-}
-
-void csr_nonscan_pending_ll_insert_tail(struct sAniSirGlobal *mac_ctx,
-		tListElem *entry, bool inter_locked)
-{
-}
-
-void csr_nonscan_pending_ll_unlock(struct sAniSirGlobal *mac_ctx)
-{
-}
-
-void csr_nonscan_active_ll_unlock(struct sAniSirGlobal *mac_ctx)
-{
-}
-
-void csr_nonscan_pending_ll_lock(struct sAniSirGlobal *mac_ctx)
-{
-}
-
-void csr_nonscan_active_ll_lock(struct sAniSirGlobal *mac_ctx)
-{
-}
-
-uint32_t csr_nonscan_active_ll_count(struct sAniSirGlobal *mac_ctx)
-{
-	return wlan_serialization_get_active_list_count(mac_ctx->psoc, false);
-}
-
-uint32_t csr_nonscan_pending_ll_count(struct sAniSirGlobal *mac_ctx)
-{
-	return wlan_serialization_get_pending_list_count(mac_ctx->psoc, false);
-}
-
-bool csr_nonscan_active_ll_is_list_empty(struct sAniSirGlobal *mac_ctx,
-				bool inter_locked)
-{
-	return !wlan_serialization_get_active_list_count(mac_ctx->psoc, false);
-}
-bool csr_nonscan_pending_ll_is_list_empty(struct sAniSirGlobal *mac_ctx,
-				bool inter_locked)
-{
-	return !wlan_serialization_get_pending_list_count(mac_ctx->psoc, false);
-}
-
-tListElem *csr_nonscan_active_ll_peek_head(struct sAniSirGlobal *mac_ctx,
-		bool inter_locked)
+tListElem *csr_nonscan_active_ll_peek_head(struct mac_context *mac_ctx,
+					   bool inter_locked)
 {
 	struct wlan_serialization_command *cmd;
 	tSmeCmd *sme_cmd;
 
 	cmd = wlan_serialization_peek_head_active_cmd_using_psoc(mac_ctx->psoc,
 								 false);
-	if (!cmd) {
-		sme_err("No cmd found");
+	if (!cmd)
 		return NULL;
-	}
+
 	sme_cmd = cmd->umac_cmd;
 
 	return &sme_cmd->Link;
 }
 
-tListElem *csr_nonscan_pending_ll_peek_head(struct sAniSirGlobal *mac_ctx,
-		bool inter_locked)
+tListElem *csr_nonscan_pending_ll_peek_head(struct mac_context *mac_ctx,
+					    bool inter_locked)
 {
 	struct wlan_serialization_command *cmd;
 	tSmeCmd *sme_cmd;
@@ -525,8 +469,8 @@ tListElem *csr_nonscan_pending_ll_peek_head(struct sAniSirGlobal *mac_ctx,
 	return &sme_cmd->Link;
 }
 
-bool csr_nonscan_active_ll_remove_entry(struct sAniSirGlobal *mac_ctx,
-		tListElem *entry, bool inter_locked)
+bool csr_nonscan_active_ll_remove_entry(struct mac_context *mac_ctx,
+					tListElem *entry, bool inter_locked)
 {
 	tListElem *head;
 
@@ -537,20 +481,8 @@ bool csr_nonscan_active_ll_remove_entry(struct sAniSirGlobal *mac_ctx,
 	return false;
 }
 
-tListElem *csr_nonscan_active_ll_remove_head(struct sAniSirGlobal *mac_ctx,
-		bool inter_locked)
-{
-	return csr_nonscan_active_ll_peek_head(mac_ctx, inter_locked);
-}
-
-tListElem *csr_nonscan_pending_ll_remove_head(struct sAniSirGlobal *mac_ctx,
-		bool inter_locked)
-{
-	return csr_nonscan_pending_ll_peek_head(mac_ctx, inter_locked);
-}
-
-tListElem *csr_nonscan_pending_ll_next(struct sAniSirGlobal *mac_ctx,
-				tListElem *entry, bool inter_locked)
+tListElem *csr_nonscan_pending_ll_next(struct mac_context *mac_ctx,
+				       tListElem *entry, bool inter_locked)
 {
 	tSmeCmd *sme_cmd;
 	struct wlan_serialization_command cmd, *tcmd;
@@ -562,7 +494,7 @@ tListElem *csr_nonscan_pending_ll_next(struct sAniSirGlobal *mac_ctx,
 	cmd.cmd_type = csr_get_cmd_type(sme_cmd);
 	cmd.vdev = wlan_objmgr_get_vdev_by_id_from_psoc_no_state(
 				mac_ctx->psoc,
-				sme_cmd->sessionId, WLAN_LEGACY_SME_ID);
+				sme_cmd->vdev_id, WLAN_LEGACY_SME_ID);
 	tcmd = wlan_serialization_get_pending_list_next_node_using_psoc(
 				mac_ctx->psoc, &cmd, false);
 	if (cmd.vdev)
@@ -575,7 +507,7 @@ tListElem *csr_nonscan_pending_ll_next(struct sAniSirGlobal *mac_ctx,
 	return &sme_cmd->Link;
 }
 
-bool csr_get_bss_id_bss_desc(tSirBssDescription *pSirBssDesc,
+bool csr_get_bss_id_bss_desc(struct bss_description *pSirBssDesc,
 			     struct qdf_mac_addr *pBssId)
 {
 	qdf_mem_copy(pBssId, &pSirBssDesc->bssId[0],
@@ -583,8 +515,8 @@ bool csr_get_bss_id_bss_desc(tSirBssDescription *pSirBssDesc,
 	return true;
 }
 
-bool csr_is_bss_id_equal(tSirBssDescription *pSirBssDesc1,
-			 tSirBssDescription *pSirBssDesc2)
+bool csr_is_bss_id_equal(struct bss_description *pSirBssDesc1,
+			 struct bss_description *pSirBssDesc2)
 {
 	bool fEqual = false;
 	struct qdf_mac_addr bssId1;
@@ -607,63 +539,91 @@ bool csr_is_bss_id_equal(tSirBssDescription *pSirBssDesc1,
 	return fEqual;
 }
 
-static bool csr_is_conn_state(tpAniSirGlobal mac_ctx, uint32_t session_id,
+static bool csr_is_conn_state(struct mac_context *mac_ctx, uint32_t session_id,
 			      eCsrConnectState state)
 {
-	QDF_BUG(session_id < CSR_ROAM_SESSION_MAX);
-	if (session_id >= CSR_ROAM_SESSION_MAX)
+	QDF_BUG(session_id < WLAN_MAX_VDEVS);
+	if (session_id >= WLAN_MAX_VDEVS)
 		return false;
 
 	return mac_ctx->roam.roamSession[session_id].connectState == state;
 }
 
-bool csr_is_conn_state_connected_ibss(tpAniSirGlobal mac_ctx,
-				      uint32_t session_id)
-{
-	return csr_is_conn_state(mac_ctx, session_id,
-				 eCSR_ASSOC_STATE_TYPE_IBSS_CONNECTED);
-}
-
-bool csr_is_conn_state_disconnected_ibss(tpAniSirGlobal mac_ctx,
-					 uint32_t session_id)
-{
-	return csr_is_conn_state(mac_ctx, session_id,
-				 eCSR_ASSOC_STATE_TYPE_IBSS_DISCONNECTED);
-}
-
-bool csr_is_conn_state_connected_infra(tpAniSirGlobal mac_ctx,
+bool csr_is_conn_state_connected_infra(struct mac_context *mac_ctx,
 				       uint32_t session_id)
 {
 	return csr_is_conn_state(mac_ctx, session_id,
 				 eCSR_ASSOC_STATE_TYPE_INFRA_ASSOCIATED);
 }
 
-bool csr_is_conn_state_connected(tpAniSirGlobal pMac, uint32_t sessionId)
+bool csr_is_conn_state_connected(struct mac_context *mac, uint32_t sessionId)
 {
-	return csr_is_conn_state_connected_ibss(pMac, sessionId) ||
-		csr_is_conn_state_connected_infra(pMac, sessionId) ||
-		csr_is_conn_state_connected_wds(pMac, sessionId);
+	return csr_is_conn_state_connected_ibss(mac, sessionId) ||
+		csr_is_conn_state_connected_infra(mac, sessionId) ||
+		csr_is_conn_state_connected_wds(mac, sessionId);
 }
 
-bool csr_is_conn_state_infra(tpAniSirGlobal pMac, uint32_t sessionId)
+bool csr_is_conn_state_infra(struct mac_context *mac, uint32_t sessionId)
 {
-	return csr_is_conn_state_connected_infra(pMac, sessionId);
+	return csr_is_conn_state_connected_infra(mac, sessionId);
 }
 
-bool csr_is_conn_state_ibss(tpAniSirGlobal pMac, uint32_t sessionId)
+static tSirMacCapabilityInfo csr_get_bss_capabilities(struct bss_description *
+						      pSirBssDesc)
 {
-	return csr_is_conn_state_connected_ibss(pMac, sessionId) ||
-	       csr_is_conn_state_disconnected_ibss(pMac, sessionId);
+	tSirMacCapabilityInfo dot11Caps;
+
+	/* tSirMacCapabilityInfo is 16-bit */
+	qdf_get_u16((uint8_t *) &pSirBssDesc->capabilityInfo,
+		    (uint16_t *) &dot11Caps);
+
+	return dot11Caps;
 }
 
-bool csr_is_conn_state_connected_wds(tpAniSirGlobal mac_ctx,
+#ifdef QCA_IBSS_SUPPORT
+bool csr_is_conn_state_connected_ibss(struct mac_context *mac_ctx,
+				      uint32_t session_id)
+{
+	return csr_is_conn_state(mac_ctx, session_id,
+				 eCSR_ASSOC_STATE_TYPE_IBSS_CONNECTED);
+}
+
+bool csr_is_conn_state_disconnected_ibss(struct mac_context *mac_ctx,
+					 uint32_t session_id)
+{
+	return csr_is_conn_state(mac_ctx, session_id,
+				 eCSR_ASSOC_STATE_TYPE_IBSS_DISCONNECTED);
+}
+
+bool csr_is_conn_state_ibss(struct mac_context *mac, uint32_t sessionId)
+{
+	return csr_is_conn_state_connected_ibss(mac, sessionId) ||
+	       csr_is_conn_state_disconnected_ibss(mac, sessionId);
+}
+
+bool csr_is_bss_type_ibss(eCsrRoamBssType bssType)
+{
+	return (bool)
+		(eCSR_BSS_TYPE_START_IBSS == bssType
+		 || eCSR_BSS_TYPE_IBSS == bssType);
+}
+
+bool csr_is_ibss_bss_desc(struct bss_description *pSirBssDesc)
+{
+	tSirMacCapabilityInfo dot11Caps = csr_get_bss_capabilities(pSirBssDesc);
+
+	return (bool) dot11Caps.ibss;
+}
+#endif
+
+bool csr_is_conn_state_connected_wds(struct mac_context *mac_ctx,
 				     uint32_t session_id)
 {
 	return csr_is_conn_state(mac_ctx, session_id,
 				 eCSR_ASSOC_STATE_TYPE_WDS_CONNECTED);
 }
 
-bool csr_is_conn_state_connected_infra_ap(tpAniSirGlobal mac_ctx,
+bool csr_is_conn_state_connected_infra_ap(struct mac_context *mac_ctx,
 					  uint32_t session_id)
 {
 	return csr_is_conn_state(mac_ctx, session_id,
@@ -672,24 +632,84 @@ bool csr_is_conn_state_connected_infra_ap(tpAniSirGlobal mac_ctx,
 				  eCSR_ASSOC_STATE_TYPE_INFRA_DISCONNECTED);
 }
 
-bool csr_is_conn_state_disconnected_wds(tpAniSirGlobal mac_ctx,
+bool csr_is_conn_state_disconnected_wds(struct mac_context *mac_ctx,
 					uint32_t session_id)
 {
 	return csr_is_conn_state(mac_ctx, session_id,
 				 eCSR_ASSOC_STATE_TYPE_WDS_DISCONNECTED);
 }
 
-bool csr_is_conn_state_wds(tpAniSirGlobal pMac, uint32_t sessionId)
+bool csr_is_conn_state_wds(struct mac_context *mac, uint32_t sessionId)
 {
-	return csr_is_conn_state_connected_wds(pMac, sessionId) ||
-	       csr_is_conn_state_disconnected_wds(pMac, sessionId);
+	return csr_is_conn_state_connected_wds(mac, sessionId) ||
+	       csr_is_conn_state_disconnected_wds(mac, sessionId);
 }
 
-static bool csr_is_conn_state_ap(tpAniSirGlobal pMac, uint32_t sessionId)
+enum csr_cfgdot11mode
+csr_get_vdev_dot11_mode(struct mac_context *mac,
+			enum QDF_OPMODE device_mode,
+			enum csr_cfgdot11mode curr_dot11_mode)
+{
+	enum mlme_vdev_dot11_mode vdev_dot11_mode;
+	uint8_t dot11_mode_indx;
+	enum csr_cfgdot11mode dot11_mode = curr_dot11_mode;
+	uint32_t vdev_type_dot11_mode =
+				mac->mlme_cfg->dot11_mode.vdev_type_dot11_mode;
+
+	sme_debug("curr_dot11_mode %d, vdev_dot11 %08X, dev_mode %d",
+		  curr_dot11_mode, vdev_type_dot11_mode, device_mode);
+
+	switch (device_mode) {
+	case QDF_STA_MODE:
+		dot11_mode_indx = STA_DOT11_MODE_INDX;
+		break;
+	case QDF_P2P_CLIENT_MODE:
+	case QDF_P2P_DEVICE_MODE:
+		dot11_mode_indx = P2P_DEV_DOT11_MODE_INDX;
+		break;
+	case QDF_TDLS_MODE:
+		dot11_mode_indx = TDLS_DOT11_MODE_INDX;
+		break;
+	case QDF_NAN_DISC_MODE:
+		dot11_mode_indx = NAN_DISC_DOT11_MODE_INDX;
+		break;
+	case QDF_NDI_MODE:
+		dot11_mode_indx = NDI_DOT11_MODE_INDX;
+		break;
+	case QDF_OCB_MODE:
+		dot11_mode_indx = OCB_DOT11_MODE_INDX;
+		break;
+	default:
+		return dot11_mode;
+	}
+	vdev_dot11_mode = CSR_GET_BITS(vdev_type_dot11_mode,
+				       dot11_mode_indx, 4);
+	if (vdev_dot11_mode == MLME_VDEV_DOT11_MODE_AUTO)
+		dot11_mode = curr_dot11_mode;
+
+	if (CSR_IS_DOT11_MODE_11N(curr_dot11_mode) &&
+	    vdev_dot11_mode == MLME_VDEV_DOT11_MODE_11N)
+		dot11_mode = eCSR_CFG_DOT11_MODE_11N;
+
+	if (CSR_IS_DOT11_MODE_11AC(curr_dot11_mode) &&
+	    vdev_dot11_mode == MLME_VDEV_DOT11_MODE_11AC)
+		dot11_mode = eCSR_CFG_DOT11_MODE_11AC;
+
+	if (CSR_IS_DOT11_MODE_11AX(curr_dot11_mode) &&
+	    vdev_dot11_mode == MLME_VDEV_DOT11_MODE_11AX)
+		dot11_mode = eCSR_CFG_DOT11_MODE_11AX;
+
+	sme_debug("INI vdev_dot11_mode %d new dot11_mode %d",
+		  vdev_dot11_mode, dot11_mode);
+
+	return dot11_mode;
+}
+
+static bool csr_is_conn_state_ap(struct mac_context *mac, uint32_t sessionId)
 {
 	struct csr_roam_session *pSession;
 
-	pSession = CSR_GET_SESSION(pMac, sessionId);
+	pSession = CSR_GET_SESSION(mac, sessionId);
 	if (!pSession)
 		return false;
 	if (CSR_IS_INFRA_AP(&pSession->connectedProfile))
@@ -697,62 +717,46 @@ static bool csr_is_conn_state_ap(tpAniSirGlobal pMac, uint32_t sessionId)
 	return false;
 }
 
-bool csr_is_any_session_in_connect_state(tpAniSirGlobal pMac)
+bool csr_is_any_session_in_connect_state(struct mac_context *mac)
 {
 	uint32_t i;
-	bool fRc = false;
 
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
-		if (CSR_IS_SESSION_VALID(pMac, i) &&
-		    (csr_is_conn_state_infra(pMac, i)
-		     || csr_is_conn_state_ibss(pMac, i)
-		     || csr_is_conn_state_ap(pMac, i))) {
-			fRc = true;
-			break;
+	for (i = 0; i < WLAN_MAX_VDEVS; i++) {
+		if (CSR_IS_SESSION_VALID(mac, i) &&
+		    (csr_is_conn_state_infra(mac, i) ||
+		     csr_is_conn_state_ibss(mac, i) ||
+		     csr_is_conn_state_ap(mac, i))) {
+			return true;
 		}
 	}
 
-	return fRc;
+	return false;
 }
 
-int8_t csr_get_infra_session_id(tpAniSirGlobal pMac)
+uint32_t csr_get_infra_operation_chan_freq(
+	struct mac_context *mac, uint8_t vdev_id)
 {
-	uint8_t i;
-	int8_t sessionid = -1;
+	uint32_t chan_freq = 0;
+	struct csr_roam_session *session;
 
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
-		if (CSR_IS_SESSION_VALID(pMac, i)
-		    && csr_is_conn_state_infra(pMac, i)) {
-			sessionid = i;
-			break;
-		}
-	}
+	session = CSR_GET_SESSION(mac, vdev_id);
+	if (!session)
+		return chan_freq;
 
-	return sessionid;
+	if (CSR_IS_SESSION_VALID(mac, vdev_id))
+		chan_freq = session->connectedProfile.op_freq;
+
+	return chan_freq;
 }
 
-uint8_t csr_get_infra_operation_channel(tpAniSirGlobal pMac, uint8_t sessionId)
-{
-	uint8_t channel;
-
-	if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
-		channel =
-			pMac->roam.roamSession[sessionId].connectedProfile.
-			operationChannel;
-	} else {
-		channel = 0;
-	}
-	return channel;
-}
-
-bool csr_is_session_client_and_connected(tpAniSirGlobal pMac, uint8_t sessionId)
+bool csr_is_session_client_and_connected(struct mac_context *mac, uint8_t sessionId)
 {
 	struct csr_roam_session *pSession = NULL;
 
-	if (CSR_IS_SESSION_VALID(pMac, sessionId)
-	    && csr_is_conn_state_infra(pMac, sessionId)) {
-		pSession = CSR_GET_SESSION(pMac, sessionId);
-		if (NULL != pSession->pCurRoamProfile) {
+	if (CSR_IS_SESSION_VALID(mac, sessionId)
+	    && csr_is_conn_state_infra(mac, sessionId)) {
+		pSession = CSR_GET_SESSION(mac, sessionId);
+		if (pSession->pCurRoamProfile) {
 			if ((pSession->pCurRoamProfile->csrPersona ==
 			     QDF_STA_MODE)
 			    || (pSession->pCurRoamProfile->csrPersona ==
@@ -763,17 +767,17 @@ bool csr_is_session_client_and_connected(tpAniSirGlobal pMac, uint8_t sessionId)
 	return false;
 }
 
-uint8_t csr_get_concurrent_operation_channel(tpAniSirGlobal mac_ctx)
+uint32_t csr_get_concurrent_operation_freq(struct mac_context *mac_ctx)
 {
 	struct csr_roam_session *session = NULL;
 	uint8_t i = 0;
 	enum QDF_OPMODE persona;
 
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
+	for (i = 0; i < WLAN_MAX_VDEVS; i++) {
 		if (!CSR_IS_SESSION_VALID(mac_ctx, i))
 			continue;
 		session = CSR_GET_SESSION(mac_ctx, i);
-		if (NULL == session->pCurRoamProfile)
+		if (!session->pCurRoamProfile)
 			continue;
 		persona = session->pCurRoamProfile->csrPersona;
 		if ((((persona == QDF_STA_MODE) ||
@@ -784,33 +788,32 @@ uint8_t csr_get_concurrent_operation_channel(tpAniSirGlobal mac_ctx)
 				(persona == QDF_SAP_MODE))
 				 && (session->connectState !=
 					 eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED)))
-			return session->connectedProfile.operationChannel;
-
+			return session->connectedProfile.op_freq;
 	}
 	return 0;
 }
 
-uint8_t csr_get_beaconing_concurrent_channel(tpAniSirGlobal mac_ctx,
+uint32_t csr_get_beaconing_concurrent_channel(struct mac_context *mac_ctx,
 					     uint8_t vdev_id_to_skip)
 {
 	struct csr_roam_session *session = NULL;
 	uint8_t i = 0;
 	enum QDF_OPMODE persona;
 
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
+	for (i = 0; i < WLAN_MAX_VDEVS; i++) {
 		if (i == vdev_id_to_skip)
 			continue;
 		if (!CSR_IS_SESSION_VALID(mac_ctx, i))
 			continue;
 		session = CSR_GET_SESSION(mac_ctx, i);
-		if (NULL == session->pCurRoamProfile)
+		if (!session->pCurRoamProfile)
 			continue;
 		persona = session->pCurRoamProfile->csrPersona;
 		if (((persona == QDF_P2P_GO_MODE) ||
 		     (persona == QDF_SAP_MODE)) &&
 		     (session->connectState !=
 		      eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
-			return session->connectedProfile.operationChannel;
+			return session->connectedProfile.op_freq;
 	}
 
 	return 0;
@@ -822,19 +825,19 @@ uint8_t csr_get_beaconing_concurrent_channel(tpAniSirGlobal mac_ctx,
 
 /* calculation of center channel based on V/HT BW and WIFI channel bw=5MHz) */
 
-#define CSR_GET_HT40_PLUS_CCH(och) ((och)+2)
-#define CSR_GET_HT40_MINUS_CCH(och) ((och)-2)
+#define CSR_GET_HT40_PLUS_CCH(och) ((och) + 10)
+#define CSR_GET_HT40_MINUS_CCH(och) ((och) - 10)
 
-#define CSR_GET_HT80_PLUS_LL_CCH(och) ((och)+6)
-#define CSR_GET_HT80_PLUS_HL_CCH(och) ((och)+2)
-#define CSR_GET_HT80_MINUS_LH_CCH(och) ((och)-2)
-#define CSR_GET_HT80_MINUS_HH_CCH(och) ((och)-6)
+#define CSR_GET_HT80_PLUS_LL_CCH(och) ((och) + 30)
+#define CSR_GET_HT80_PLUS_HL_CCH(och) ((och) + 30)
+#define CSR_GET_HT80_MINUS_LH_CCH(och) ((och) - 10)
+#define CSR_GET_HT80_MINUS_HH_CCH(och) ((och) - 30)
 
 /**
  * csr_get_ch_from_ht_profile() - to get channel from HT profile
- * @pMac: pointer to Mac context
+ * @mac: pointer to Mac context
  * @htp: pointer to HT profile
- * @och: operating channel
+ * @och_freq: operating channel frequency
  * @cfreq: channel frequency
  * @hbw: half bandwidth
  *
@@ -843,19 +846,19 @@ uint8_t csr_get_beaconing_concurrent_channel(tpAniSirGlobal mac_ctx,
  *
  * Return: none
  */
-static void csr_get_ch_from_ht_profile(tpAniSirGlobal pMac,
+static void csr_get_ch_from_ht_profile(struct mac_context *mac,
 				       tCsrRoamHTProfile *htp,
-				       uint16_t och, uint16_t *cfreq,
-				       uint16_t *hbw)
+				       uint32_t och_freq, uint32_t *cfreq,
+				       uint32_t *hbw)
 {
-	uint16_t cch, ch_bond;
+	uint32_t ch_bond;
+	struct ch_params chan_params = {0};
 
-	if (och > 14)
-		ch_bond = pMac->roam.configParam.channelBondingMode5GHz;
+	if (!WLAN_REG_IS_24GHZ_CH_FREQ(och_freq))
+		ch_bond = mac->roam.configParam.channelBondingMode5GHz;
 	else
-		ch_bond = pMac->roam.configParam.channelBondingMode24GHz;
+		ch_bond = mac->roam.configParam.channelBondingMode24GHz;
 
-	cch = och;
 	*hbw = HALF_BW_OF(eCSR_BW_20MHz_VAL);
 
 	if (!ch_bond)
@@ -869,7 +872,6 @@ static void csr_get_ch_from_ht_profile(tpAniSirGlobal pMac,
 	       );
 
 	if (htp->vhtCapability) {
-		cch = htp->apCenterChan;
 		if (htp->apChanWidth == WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ)
 			*hbw = HALF_BW_OF(eCSR_BW_80MHz_VAL);
 		else if (htp->apChanWidth == WNI_CFG_VHT_CHANNEL_WIDTH_160MHZ)
@@ -886,20 +888,29 @@ static void csr_get_ch_from_ht_profile(tpAniSirGlobal pMac,
 		if (htp->htSupportedChannelWidthSet ==
 					eHT_CHANNEL_WIDTH_40MHZ) {
 			*hbw = HALF_BW_OF(eCSR_BW_40MHz_VAL);
-			if (htp->htSecondaryChannelOffset ==
-					PHY_DOUBLE_CHANNEL_LOW_PRIMARY)
-				cch = CSR_GET_HT40_PLUS_CCH(och);
-			else if (htp->htSecondaryChannelOffset ==
-					PHY_DOUBLE_CHANNEL_HIGH_PRIMARY)
-				cch = CSR_GET_HT40_MINUS_CCH(och);
 		} else {
-			cch = och;
 			*hbw = HALF_BW_OF(eCSR_BW_20MHz_VAL);
 		}
 	}
-
 ret:
-	*cfreq = cds_chan_to_freq(cch);
+	switch (*hbw * 2) {
+	case eCSR_BW_40MHz_VAL:
+		chan_params.ch_width = CH_WIDTH_40MHZ;
+		break;
+	case eCSR_BW_80MHz_VAL:
+		chan_params.ch_width = CH_WIDTH_80MHZ;
+		break;
+	case eCSR_BW_160MHz_VAL:
+		chan_params.ch_width = CH_WIDTH_160MHZ;
+		break;
+	default:
+		chan_params.ch_width = CH_WIDTH_20MHZ;
+		break;
+	}
+	wlan_reg_set_channel_params_for_freq(mac->pdev, och_freq, 0,
+					     &chan_params);
+
+	*cfreq = chan_params.mhz_freq_seg0;
 }
 
 /**
@@ -915,9 +926,9 @@ ret:
  *
  * Return: none
  */
-static void csr_calc_chb_for_sap_phymode(tpAniSirGlobal mac_ctx,
-		uint16_t *sap_ch, eCsrPhyMode *sap_phymode,
-		uint16_t *sap_cch, uint16_t *sap_hbw, uint8_t *chb)
+static void csr_calc_chb_for_sap_phymode(struct mac_context *mac_ctx,
+		uint32_t *sap_ch, eCsrPhyMode *sap_phymode,
+		uint32_t *sap_cch, uint32_t *sap_hbw, uint8_t *chb)
 {
 	if (*sap_phymode == eCSR_DOT11_MODE_11n ||
 			*sap_phymode == eCSR_DOT11_MODE_11n_ONLY) {
@@ -976,10 +987,10 @@ static void csr_calc_chb_for_sap_phymode(tpAniSirGlobal mac_ctx,
  * csr_handle_conc_chnl_overlap_for_sap_go - To handle overlap for AP+AP
  * @mac_ctx: pointer to mac context
  * @session: Current session
- * @sap_ch: SAP/GO operating channel
+ * @sap_ch_freq: SAP/GO operating channel frequency
  * @sap_hbw: SAP/GO half bw
  * @sap_cfreq: SAP/GO channel frequency
- * @intf_ch: concurrent SAP/GO operating channel
+ * @intf_ch_freq: concurrent SAP/GO operating channel frequency
  * @intf_hbw: concurrent SAP/GO half bw
  * @intf_cfreq: concurrent SAP/GO channel frequency
  *
@@ -988,11 +999,16 @@ static void csr_calc_chb_for_sap_phymode(tpAniSirGlobal mac_ctx,
  *
  * Return: none
  */
-static void csr_handle_conc_chnl_overlap_for_sap_go(tpAniSirGlobal mac_ctx,
+static void csr_handle_conc_chnl_overlap_for_sap_go(
+		struct mac_context *mac_ctx,
 		struct csr_roam_session *session,
-		uint16_t *sap_ch, uint16_t *sap_hbw, uint16_t *sap_cfreq,
-		uint16_t *intf_ch, uint16_t *intf_hbw, uint16_t *intf_cfreq)
+		uint32_t *sap_ch_freq, uint32_t *sap_hbw, uint32_t *sap_cfreq,
+		uint32_t *intf_ch_freq, uint32_t *intf_hbw,
+		uint32_t *intf_cfreq)
 {
+	uint32_t op_chan_freq;
+
+	op_chan_freq = session->connectedProfile.op_freq;
 	/*
 	 * if conc_custom_rule1 is defined then we don't
 	 * want p2pgo to follow SAP's channel or SAP to
@@ -1000,25 +1016,24 @@ static void csr_handle_conc_chnl_overlap_for_sap_go(tpAniSirGlobal mac_ctx,
 	 */
 	if (0 == mac_ctx->roam.configParam.conc_custom_rule1 &&
 		0 == mac_ctx->roam.configParam.conc_custom_rule2) {
-		if (*sap_ch == 0) {
-			*sap_ch = session->connectedProfile.operationChannel;
+		if (*sap_ch_freq == 0) {
+			*sap_ch_freq = op_chan_freq;
 			csr_get_ch_from_ht_profile(mac_ctx,
-				&session->connectedProfile.HTProfile,
-				*sap_ch, sap_cfreq, sap_hbw);
-		} else if (*sap_ch !=
-				session->connectedProfile.operationChannel) {
-			*intf_ch = session->connectedProfile.operationChannel;
+				&session->connectedProfile.ht_profile,
+				*sap_ch_freq, sap_cfreq, sap_hbw);
+		} else if (*sap_ch_freq != op_chan_freq) {
+			*intf_ch_freq = op_chan_freq;
 			csr_get_ch_from_ht_profile(mac_ctx,
-					&session->connectedProfile.HTProfile,
-					*intf_ch, intf_cfreq, intf_hbw);
+					&session->connectedProfile.ht_profile,
+					*intf_ch_freq, intf_cfreq, intf_hbw);
 		}
-	} else if (*sap_ch == 0 &&
+	} else if (*sap_ch_freq == 0 &&
 			(session->pCurRoamProfile->csrPersona ==
 					QDF_SAP_MODE)) {
-		*sap_ch = session->connectedProfile.operationChannel;
+		*sap_ch_freq = op_chan_freq;
 		csr_get_ch_from_ht_profile(mac_ctx,
-				&session->connectedProfile.HTProfile,
-				*sap_ch, sap_cfreq, sap_hbw);
+				&session->connectedProfile.ht_profile,
+				*sap_ch_freq, sap_cfreq, sap_hbw);
 	}
 }
 
@@ -1034,57 +1049,57 @@ static void csr_handle_conc_chnl_overlap_for_sap_go(tpAniSirGlobal mac_ctx,
  *
  * Return: uint16_t
  */
-uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
-			uint16_t sap_ch, eCsrPhyMode sap_phymode,
+uint16_t csr_check_concurrent_channel_overlap(struct mac_context *mac_ctx,
+			uint32_t sap_ch_freq, eCsrPhyMode sap_phymode,
 			uint8_t cc_switch_mode)
 {
 	struct csr_roam_session *session = NULL;
 	uint8_t i = 0, chb = PHY_SINGLE_CHANNEL_CENTERED;
-	uint16_t intf_ch = 0, sap_hbw = 0, intf_hbw = 0, intf_cfreq = 0;
-	uint16_t sap_cfreq = 0;
-	uint16_t sap_lfreq, sap_hfreq, intf_lfreq, intf_hfreq, sap_cch = 0;
+	uint32_t intf_ch_freq = 0, sap_hbw = 0, intf_hbw = 0, intf_cfreq = 0;
+	uint32_t sap_cfreq = 0;
+	uint32_t sap_lfreq, sap_hfreq, intf_lfreq, intf_hfreq;
 	QDF_STATUS status;
 
 	if (mac_ctx->roam.configParam.cc_switch_mode ==
 			QDF_MCC_TO_SCC_SWITCH_DISABLE)
 		return 0;
 
-	if (sap_ch != 0) {
-		sap_cch = sap_ch;
+	if (sap_ch_freq != 0) {
+		sap_cfreq = sap_ch_freq;
 		sap_hbw = HALF_BW_OF(eCSR_BW_20MHz_VAL);
 
-		if (sap_ch > 14)
+		if (!WLAN_REG_IS_24GHZ_CH_FREQ(sap_ch_freq))
 			chb = mac_ctx->roam.configParam.channelBondingMode5GHz;
 		else
 			chb = mac_ctx->roam.configParam.channelBondingMode24GHz;
 
 		if (chb)
-			csr_calc_chb_for_sap_phymode(mac_ctx, &sap_ch,
-					&sap_phymode, &sap_cch, &sap_hbw, &chb);
-		sap_cfreq = cds_chan_to_freq(sap_cch);
+			csr_calc_chb_for_sap_phymode(mac_ctx, &sap_ch_freq,
+						     &sap_phymode, &sap_cfreq,
+						     &sap_hbw, &chb);
 	}
 
 	sme_debug("sap_ch:%d sap_phymode:%d sap_cch:%d sap_hbw:%d chb:%d",
-		sap_ch, sap_phymode, sap_cch, sap_hbw, chb);
+		  sap_ch_freq, sap_phymode, sap_cfreq, sap_hbw, chb);
 
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
+	for (i = 0; i < WLAN_MAX_VDEVS; i++) {
 		if (!CSR_IS_SESSION_VALID(mac_ctx, i))
 			continue;
 
 		session = CSR_GET_SESSION(mac_ctx, i);
-		if (NULL == session->pCurRoamProfile)
+		if (!session->pCurRoamProfile)
 			continue;
 		if (((session->pCurRoamProfile->csrPersona == QDF_STA_MODE) ||
 			(session->pCurRoamProfile->csrPersona ==
 				QDF_P2P_CLIENT_MODE)) &&
 			(session->connectState ==
 				eCSR_ASSOC_STATE_TYPE_INFRA_ASSOCIATED)) {
-			intf_ch = session->connectedProfile.operationChannel;
+			intf_ch_freq = session->connectedProfile.op_freq;
 			csr_get_ch_from_ht_profile(mac_ctx,
-				&session->connectedProfile.HTProfile,
-				intf_ch, &intf_cfreq, &intf_hbw);
+				&session->connectedProfile.ht_profile,
+				intf_ch_freq, &intf_cfreq, &intf_hbw);
 			sme_debug("%d: intf_ch:%d intf_cfreq:%d intf_hbw:%d",
-				i, intf_ch, intf_cfreq, intf_hbw);
+				i, intf_ch_freq, intf_cfreq, intf_hbw);
 		} else if (((session->pCurRoamProfile->csrPersona ==
 					QDF_P2P_GO_MODE) ||
 				(session->pCurRoamProfile->csrPersona ==
@@ -1095,85 +1110,86 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 				continue;
 
 			csr_handle_conc_chnl_overlap_for_sap_go(mac_ctx,
-					session, &sap_ch, &sap_hbw, &sap_cfreq,
-					&intf_ch, &intf_hbw, &intf_cfreq);
-
+					session, &sap_ch_freq, &sap_hbw,
+					&sap_cfreq, &intf_ch_freq, &intf_hbw,
+					&intf_cfreq);
 		}
-		if (intf_ch && ((intf_ch > 14 && sap_ch > 14) ||
-				(intf_ch <= 14 && sap_ch <= 14)))
+		if (intf_ch_freq &&
+		    ((intf_ch_freq <= wlan_reg_ch_to_freq(CHAN_ENUM_2484) &&
+		     sap_ch_freq <= wlan_reg_ch_to_freq(CHAN_ENUM_2484)) ||
+		    (intf_ch_freq > wlan_reg_ch_to_freq(CHAN_ENUM_2484) &&
+		     sap_ch_freq > wlan_reg_ch_to_freq(CHAN_ENUM_2484))))
 			break;
 	}
 
 	sme_debug("intf_ch:%d sap_ch:%d cc_switch_mode:%d, dbs:%d",
-		  intf_ch, sap_ch, cc_switch_mode,
+		  intf_ch_freq, sap_ch_freq, cc_switch_mode,
 		  policy_mgr_is_dbs_enable(mac_ctx->psoc));
 
-	if (intf_ch && sap_ch != intf_ch &&
+	if (intf_ch_freq && sap_ch_freq != intf_ch_freq &&
 	    !policy_mgr_is_force_scc(mac_ctx->psoc)) {
 		sap_lfreq = sap_cfreq - sap_hbw;
 		sap_hfreq = sap_cfreq + sap_hbw;
 		intf_lfreq = intf_cfreq - intf_hbw;
 		intf_hfreq = intf_cfreq + intf_hbw;
 
-		sme_debug("SAP:  OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d INTF: OCH: %03d OCF: %d CCH: %03d CF: %d BW: %d LF: %d HF: %d",
-			  sap_ch, cds_chan_to_freq(sap_ch),
-			  cds_freq_to_chan(sap_cfreq), sap_cfreq, sap_hbw * 2,
-			  sap_lfreq, sap_hfreq, intf_ch,
-			  cds_chan_to_freq(intf_ch),
-			  cds_freq_to_chan(intf_cfreq),
-			  intf_cfreq, intf_hbw * 2, intf_lfreq, intf_hfreq);
+		sme_debug("SAP:  OCH: %03d CCH: %03d BW: %d LF: %d HF: %d INTF: OCH: %03d CF: %d BW: %d LF: %d HF: %d",
+			sap_ch_freq, sap_cfreq, sap_hbw * 2,
+			sap_lfreq, sap_hfreq, intf_ch_freq,
+			intf_cfreq, intf_hbw * 2, intf_lfreq, intf_hfreq);
 
 		if (!(((sap_lfreq > intf_lfreq && sap_lfreq < intf_hfreq) ||
 			(sap_hfreq > intf_lfreq && sap_hfreq < intf_hfreq)) ||
 			((intf_lfreq > sap_lfreq && intf_lfreq < sap_hfreq) ||
 			(intf_hfreq > sap_lfreq && intf_hfreq < sap_hfreq))))
-			intf_ch = 0;
-	} else if (intf_ch && sap_ch != intf_ch &&
-		((cc_switch_mode == QDF_MCC_TO_SCC_SWITCH_FORCE) ||
-		 policy_mgr_is_force_scc(mac_ctx->psoc))) {
-		if (!((intf_ch <= 14 && sap_ch <= 14) ||
-			(intf_ch > 14 && sap_ch > 14))) {
+			intf_ch_freq = 0;
+	} else if (intf_ch_freq && sap_ch_freq != intf_ch_freq &&
+		   (policy_mgr_is_force_scc(mac_ctx->psoc))) {
+		if (!((intf_ch_freq <= wlan_reg_ch_to_freq(CHAN_ENUM_2484) &&
+		       sap_ch_freq <= wlan_reg_ch_to_freq(CHAN_ENUM_2484)) ||
+		     (intf_ch_freq > wlan_reg_ch_to_freq(CHAN_ENUM_2484) &&
+		      sap_ch_freq > wlan_reg_ch_to_freq(CHAN_ENUM_2484)))) {
 			if (policy_mgr_is_dbs_enable(mac_ctx->psoc) ||
 			    cc_switch_mode ==
 			    QDF_MCC_TO_SCC_WITH_PREFERRED_BAND)
-				intf_ch = 0;
+				intf_ch_freq = 0;
 		} else if (cc_switch_mode ==
-			QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL) {
-			status =
-				policy_mgr_get_sap_mandatory_channel(
-				mac_ctx->psoc,
-				(uint32_t *)&intf_ch);
+			   QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL) {
+			status = policy_mgr_get_sap_mandatory_channel(
+					mac_ctx->psoc,
+					&intf_ch_freq);
 			if (QDF_IS_STATUS_ERROR(status))
 				sme_err("no mandatory channel");
 		}
-	} else if ((intf_ch == sap_ch) && (cc_switch_mode ==
+	} else if ((intf_ch_freq == sap_ch_freq) && (cc_switch_mode ==
 				QDF_MCC_TO_SCC_SWITCH_WITH_FAVORITE_CHANNEL)) {
-		if (cds_chan_to_band(intf_ch) == CDS_BAND_2GHZ) {
+		if (WLAN_REG_IS_24GHZ_CH_FREQ(intf_ch_freq)) {
 			status =
 				policy_mgr_get_sap_mandatory_channel(
-					mac_ctx->psoc, (uint32_t *)&intf_ch);
+					mac_ctx->psoc, &intf_ch_freq);
 			if (QDF_IS_STATUS_ERROR(status))
 				sme_err("no mandatory channel");
 		}
 	}
 
-	if (intf_ch == sap_ch)
-		intf_ch = 0;
+	if (intf_ch_freq == sap_ch_freq)
+		intf_ch_freq = 0;
 
 	sme_debug("##Concurrent Channels %s Interfering",
-		  intf_ch == 0 ? "Not" : "Are");
-	return intf_ch;
+		  intf_ch_freq == 0 ? "Not" : "Are");
+
+	return intf_ch_freq;
 }
 #endif
 
-bool csr_is_all_session_disconnected(tpAniSirGlobal pMac)
+bool csr_is_all_session_disconnected(struct mac_context *mac)
 {
 	uint32_t i;
 	bool fRc = true;
 
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
-		if (CSR_IS_SESSION_VALID(pMac, i)
-		    && !csr_is_conn_state_disconnected(pMac, i)) {
+	for (i = 0; i < WLAN_MAX_VDEVS; i++) {
+		if (CSR_IS_SESSION_VALID(mac, i)
+		    && !csr_is_conn_state_disconnected(mac, i)) {
 			fRc = false;
 			break;
 		}
@@ -1182,109 +1198,12 @@ bool csr_is_all_session_disconnected(tpAniSirGlobal pMac)
 	return fRc;
 }
 
-/**
- * csr_is_sta_session_connected() - to find if concurrent sta is active
- * @mac_ctx: pointer to mac context
- *
- * This function will iterate through each session and check if sta
- * session exist and active
- *
- * Return: true or false
- */
-bool csr_is_sta_session_connected(tpAniSirGlobal mac_ctx)
+uint8_t csr_get_connected_infra(struct mac_context *mac_ctx)
 {
 	uint32_t i;
-	struct csr_roam_session *pSession = NULL;
+	uint8_t connected_session = WLAN_UMAC_VDEV_ID_MAX;
 
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
-		if (CSR_IS_SESSION_VALID(mac_ctx, i) &&
-			!csr_is_conn_state_disconnected(mac_ctx, i)) {
-			pSession = CSR_GET_SESSION(mac_ctx, i);
-
-			if ((NULL != pSession->pCurRoamProfile) &&
-				(QDF_STA_MODE ==
-					pSession->pCurRoamProfile->csrPersona))
-				return true;
-		}
-	}
-
-	return false;
-}
-
-/**
- * csr_is_p2p_session_connected() - to find if any p2p session is active
- * @mac_ctx: pointer to mac context
- *
- * This function will iterate through each session and check if any p2p
- * session exist and active
- *
- * Return: true or false
- */
-bool csr_is_p2p_session_connected(tpAniSirGlobal pMac)
-{
-	uint32_t i;
-	struct csr_roam_session *pSession = NULL;
-	enum QDF_OPMODE persona;
-
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
-		if (!CSR_IS_SESSION_VALID(pMac, i))
-			continue;
-
-		if (csr_is_conn_state_disconnected(pMac, i))
-			continue;
-
-		pSession = CSR_GET_SESSION(pMac, i);
-		if (pSession->pCurRoamProfile == NULL)
-			continue;
-
-		persona = pSession->pCurRoamProfile->csrPersona;
-		if (QDF_P2P_CLIENT_MODE == persona ||
-				QDF_P2P_GO_MODE == persona)
-			return true;
-	}
-
-	return false;
-}
-
-bool csr_is_any_session_connected(tpAniSirGlobal pMac)
-{
-	uint32_t i, count;
-	bool fRc = false;
-
-	count = 0;
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
-		if (CSR_IS_SESSION_VALID(pMac, i)
-		    && !csr_is_conn_state_disconnected(pMac, i))
-			count++;
-	}
-
-	if (count > 0)
-		fRc = true;
-	return fRc;
-}
-
-bool csr_is_infra_connected(tpAniSirGlobal pMac)
-{
-	uint32_t i;
-	bool fRc = false;
-
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
-		if (CSR_IS_SESSION_VALID(pMac, i)
-		    && csr_is_conn_state_connected_infra(pMac, i)) {
-			fRc = true;
-			break;
-		}
-	}
-
-	return fRc;
-}
-
-uint8_t csr_get_connected_infra(tpAniSirGlobal mac_ctx)
-{
-	uint32_t i;
-	uint8_t connected_session = CSR_SESSION_ID_INVALID;
-
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
+	for (i = 0; i < WLAN_MAX_VDEVS; i++) {
 		if (CSR_IS_SESSION_VALID(mac_ctx, i)
 		    && csr_is_conn_state_connected_infra(mac_ctx, i)) {
 			connected_session = i;
@@ -1296,52 +1215,17 @@ uint8_t csr_get_connected_infra(tpAniSirGlobal mac_ctx)
 }
 
 
-bool csr_is_concurrent_infra_connected(tpAniSirGlobal pMac)
-{
-	uint32_t i, noOfConnectedInfra = 0;
-
-	bool fRc = false;
-
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
-		if (CSR_IS_SESSION_VALID(pMac, i)
-		    && csr_is_conn_state_connected_infra(pMac, i)) {
-			++noOfConnectedInfra;
-		}
-	}
-
-	/* More than one Infra Sta Connected */
-	if (noOfConnectedInfra > 1)
-		fRc = true;
-	return fRc;
-}
-
-bool csr_is_ibss_started(tpAniSirGlobal pMac)
-{
-	uint32_t i;
-	bool fRc = false;
-
-	for (i = 0; i < CSR_ROAM_SESSION_MAX; i++) {
-		if (CSR_IS_SESSION_VALID(pMac, i)
-		    && csr_is_conn_state_ibss(pMac, i)) {
-			fRc = true;
-			break;
-		}
-	}
-
-	return fRc;
-}
-
-bool csr_is_concurrent_session_running(tpAniSirGlobal pMac)
+bool csr_is_concurrent_session_running(struct mac_context *mac)
 {
 	uint32_t sessionId, noOfCocurrentSession = 0;
 	eCsrConnectState connectState;
 
 	bool fRc = false;
 
-	for (sessionId = 0; sessionId < CSR_ROAM_SESSION_MAX; sessionId++) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId)) {
+	for (sessionId = 0; sessionId < WLAN_MAX_VDEVS; sessionId++) {
+		if (CSR_IS_SESSION_VALID(mac, sessionId)) {
 			connectState =
-				pMac->roam.roamSession[sessionId].connectState;
+				mac->roam.roamSession[sessionId].connectState;
 			if ((eCSR_ASSOC_STATE_TYPE_INFRA_ASSOCIATED ==
 			     connectState)
 			    || (eCSR_ASSOC_STATE_TYPE_INFRA_CONNECTED ==
@@ -1359,14 +1243,14 @@ bool csr_is_concurrent_session_running(tpAniSirGlobal pMac)
 	return fRc;
 }
 
-bool csr_is_infra_ap_started(tpAniSirGlobal pMac)
+bool csr_is_infra_ap_started(struct mac_context *mac)
 {
 	uint32_t sessionId;
 	bool fRc = false;
 
-	for (sessionId = 0; sessionId < CSR_ROAM_SESSION_MAX; sessionId++) {
-		if (CSR_IS_SESSION_VALID(pMac, sessionId) &&
-				(csr_is_conn_state_connected_infra_ap(pMac,
+	for (sessionId = 0; sessionId < WLAN_MAX_VDEVS; sessionId++) {
+		if (CSR_IS_SESSION_VALID(mac, sessionId) &&
+				(csr_is_conn_state_connected_infra_ap(mac,
 					sessionId))) {
 			fRc = true;
 			break;
@@ -1377,10 +1261,10 @@ bool csr_is_infra_ap_started(tpAniSirGlobal pMac)
 
 }
 
-bool csr_is_conn_state_disconnected(tpAniSirGlobal pMac, uint32_t sessionId)
+bool csr_is_conn_state_disconnected(struct mac_context *mac, uint32_t sessionId)
 {
 	return eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED ==
-	       pMac->roam.roamSession[sessionId].connectState;
+	       mac->roam.roamSession[sessionId].connectState;
 }
 
 /**
@@ -1393,9 +1277,9 @@ bool csr_is_conn_state_disconnected(tpAniSirGlobal pMac, uint32_t sessionId)
  *
  * Return: true or false
  */
-bool csr_is_valid_mc_concurrent_session(tpAniSirGlobal mac_ctx,
+bool csr_is_valid_mc_concurrent_session(struct mac_context *mac_ctx,
 		uint32_t session_id,
-		tSirBssDescription *bss_descr)
+		struct bss_description *bss_descr)
 {
 	struct csr_roam_session *pSession = NULL;
 
@@ -1406,89 +1290,53 @@ bool csr_is_valid_mc_concurrent_session(tpAniSirGlobal mac_ctx,
 		return false;
 	/* Validate BeaconInterval */
 	pSession = CSR_GET_SESSION(mac_ctx, session_id);
-	if (NULL == pSession->pCurRoamProfile)
+	if (!pSession->pCurRoamProfile)
 		return false;
-	if (QDF_STATUS_SUCCESS == csr_validate_mcc_beacon_interval(mac_ctx,
-					bss_descr->channelId,
-					&bss_descr->beaconInterval, session_id,
-					pSession->pCurRoamProfile->csrPersona))
+	if (QDF_STATUS_SUCCESS == csr_validate_mcc_beacon_interval(
+				mac_ctx,
+				bss_descr->chan_freq,
+				&bss_descr->beaconInterval, session_id,
+				pSession->pCurRoamProfile->csrPersona))
 		return true;
 	return false;
 }
 
-static tSirMacCapabilityInfo csr_get_bss_capabilities(tSirBssDescription *
-						      pSirBssDesc)
-{
-	tSirMacCapabilityInfo dot11Caps;
-
-	/* tSirMacCapabilityInfo is 16-bit */
-	qdf_get_u16((uint8_t *) &pSirBssDesc->capabilityInfo,
-		    (uint16_t *) &dot11Caps);
-
-	return dot11Caps;
-}
-
-bool csr_is_infra_bss_desc(tSirBssDescription *pSirBssDesc)
+bool csr_is_infra_bss_desc(struct bss_description *pSirBssDesc)
 {
 	tSirMacCapabilityInfo dot11Caps = csr_get_bss_capabilities(pSirBssDesc);
 
 	return (bool) dot11Caps.ess;
 }
 
-bool csr_is_ibss_bss_desc(tSirBssDescription *pSirBssDesc)
-{
-	tSirMacCapabilityInfo dot11Caps = csr_get_bss_capabilities(pSirBssDesc);
-
-	return (bool) dot11Caps.ibss;
-}
-
-static bool csr_is_qos_bss_desc(tSirBssDescription *pSirBssDesc)
+static bool csr_is_qos_bss_desc(struct bss_description *pSirBssDesc)
 {
 	tSirMacCapabilityInfo dot11Caps = csr_get_bss_capabilities(pSirBssDesc);
 
 	return (bool) dot11Caps.qos;
 }
 
-bool csr_is_privacy(tSirBssDescription *pSirBssDesc)
+bool csr_is11h_supported(struct mac_context *mac)
 {
-	tSirMacCapabilityInfo dot11Caps = csr_get_bss_capabilities(pSirBssDesc);
-
-	return (bool) dot11Caps.privacy;
+	return mac->mlme_cfg->gen.enabled_11h;
 }
 
-bool csr_is11d_supported(tpAniSirGlobal pMac)
+bool csr_is11e_supported(struct mac_context *mac)
 {
-	return pMac->roam.configParam.Is11dSupportEnabled;
+	return mac->roam.configParam.Is11eSupportEnabled;
 }
 
-bool csr_is11h_supported(tpAniSirGlobal pMac)
+bool csr_is_wmm_supported(struct mac_context *mac)
 {
-	return pMac->roam.configParam.Is11hSupportEnabled;
-}
-
-bool csr_is11e_supported(tpAniSirGlobal pMac)
-{
-	return pMac->roam.configParam.Is11eSupportEnabled;
-}
-
-bool csr_is_mcc_supported(tpAniSirGlobal pMac)
-{
-	return pMac->roam.configParam.fenableMCCMode;
-
-}
-
-bool csr_is_wmm_supported(tpAniSirGlobal pMac)
-{
-	if (eCsrRoamWmmNoQos == pMac->roam.configParam.WMMSupportMode)
+	if (eCsrRoamWmmNoQos == mac->roam.configParam.WMMSupportMode)
 		return false;
 	else
 		return true;
 }
 
 /* pIes is the IEs for pSirBssDesc2 */
-bool csr_is_ssid_equal(tpAniSirGlobal pMac,
-		       tSirBssDescription *pSirBssDesc1,
-		       tSirBssDescription *pSirBssDesc2,
+bool csr_is_ssid_equal(struct mac_context *mac,
+		       struct bss_description *pSirBssDesc1,
+		       struct bss_description *pSirBssDesc2,
 		       tDot11fBeaconIEs *pIes2)
 {
 	bool fEqual = false;
@@ -1497,18 +1345,18 @@ bool csr_is_ssid_equal(tpAniSirGlobal pMac,
 	tDot11fBeaconIEs *pIesLocal = pIes2;
 
 	do {
-		if ((NULL == pSirBssDesc1) || (NULL == pSirBssDesc2))
+		if ((!pSirBssDesc1) || (!pSirBssDesc2))
 			break;
 		if (!pIesLocal
 		    &&
 		    !QDF_IS_STATUS_SUCCESS(csr_get_parsed_bss_description_ies
-						   (pMac, pSirBssDesc2,
+						   (mac, pSirBssDesc2,
 						    &pIesLocal))) {
 			sme_err("fail to parse IEs");
 			break;
 		}
 		if (!QDF_IS_STATUS_SUCCESS
-			(csr_get_parsed_bss_description_ies(pMac,
+			(csr_get_parsed_bss_description_ies(mac,
 				pSirBssDesc1, &pIes1))) {
 			break;
 		}
@@ -1534,8 +1382,8 @@ bool csr_is_ssid_equal(tpAniSirGlobal pMac,
 }
 
 /* pIes can be passed in as NULL if the caller doesn't have one prepared */
-static bool csr_is_bss_description_wme(tpAniSirGlobal pMac,
-				       tSirBssDescription *pSirBssDesc,
+static bool csr_is_bss_description_wme(struct mac_context *mac,
+				       struct bss_description *pSirBssDesc,
 				       tDot11fBeaconIEs *pIes)
 {
 	/* Assume that WME is found... */
@@ -1543,10 +1391,10 @@ static bool csr_is_bss_description_wme(tpAniSirGlobal pMac,
 	tDot11fBeaconIEs *pIesTemp = pIes;
 
 	do {
-		if (pIesTemp == NULL) {
+		if (!pIesTemp) {
 			if (!QDF_IS_STATUS_SUCCESS
 				    (csr_get_parsed_bss_description_ies
-					    (pMac, pSirBssDesc, &pIesTemp))) {
+					    (mac, pSirBssDesc, &pIesTemp))) {
 				fWme = false;
 				break;
 			}
@@ -1557,25 +1405,26 @@ static bool csr_is_bss_description_wme(tpAniSirGlobal pMac,
 		/* if none of these are found, then WME is NOT supported... */
 		fWme = false;
 	} while (0);
-	if (!csr_is_wmm_supported(pMac) && fWme)
+	if (!csr_is_wmm_supported(mac) && fWme)
 		if (!pIesTemp->HTCaps.present)
 			fWme = false;
 
-	if ((pIes == NULL) && (NULL != pIesTemp))
+	if ((!pIes) && (pIesTemp))
 		/* we allocate memory here so free it before returning */
 		qdf_mem_free(pIesTemp);
 
 	return fWme;
 }
 
-eCsrMediaAccessType csr_get_qos_from_bss_desc(tpAniSirGlobal mac_ctx,
-					      tSirBssDescription *pSirBssDesc,
-					      tDot11fBeaconIEs *pIes)
+eCsrMediaAccessType
+csr_get_qos_from_bss_desc(struct mac_context *mac_ctx,
+			  struct bss_description *pSirBssDesc,
+			  tDot11fBeaconIEs *pIes)
 {
 	eCsrMediaAccessType qosType = eCSR_MEDIUM_ACCESS_DCF;
 
-	if (NULL == pIes) {
-		QDF_ASSERT(pIes != NULL);
+	if (!pIes) {
+		QDF_ASSERT(pIes);
 		return qosType;
 	}
 
@@ -1608,18 +1457,18 @@ eCsrMediaAccessType csr_get_qos_from_bss_desc(tpAniSirGlobal mac_ctx,
 }
 
 /* Caller allocates memory for pIEStruct */
-QDF_STATUS csr_parse_bss_description_ies(tpAniSirGlobal mac_ctx,
-					 tSirBssDescription *pBssDesc,
+QDF_STATUS csr_parse_bss_description_ies(struct mac_context *mac_ctx,
+					 struct bss_description *bss_desc,
 					 tDot11fBeaconIEs *pIEStruct)
 {
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	int ieLen =
-		(int)(pBssDesc->length + sizeof(pBssDesc->length) -
-		      GET_FIELD_OFFSET(tSirBssDescription, ieFields));
+		(int)(bss_desc->length + sizeof(bss_desc->length) -
+		      GET_FIELD_OFFSET(struct bss_description, ieFields));
 
 	if (ieLen > 0 && pIEStruct) {
 		if (!DOT11F_FAILED(dot11f_unpack_beacon_i_es
-				    (mac_ctx, (uint8_t *) pBssDesc->ieFields,
+				    (mac_ctx, (uint8_t *)bss_desc->ieFields,
 				    ieLen, pIEStruct, false)))
 		status = QDF_STATUS_SUCCESS;
 	}
@@ -1631,17 +1480,17 @@ QDF_STATUS csr_parse_bss_description_ies(tpAniSirGlobal mac_ctx,
  * Caller must free the memory after it is done with the data only if
  * this function succeeds
  */
-QDF_STATUS csr_get_parsed_bss_description_ies(tpAniSirGlobal mac_ctx,
-					      tSirBssDescription *pBssDesc,
+QDF_STATUS csr_get_parsed_bss_description_ies(struct mac_context *mac_ctx,
+					      struct bss_description *bss_desc,
 					      tDot11fBeaconIEs **ppIEStruct)
 {
 	QDF_STATUS status = QDF_STATUS_E_INVAL;
 
-	if (pBssDesc && ppIEStruct) {
+	if (bss_desc && ppIEStruct) {
 		*ppIEStruct = qdf_mem_malloc(sizeof(tDot11fBeaconIEs));
 		if ((*ppIEStruct) != NULL) {
 			status = csr_parse_bss_description_ies(mac_ctx,
-							       pBssDesc,
+							       bss_desc,
 							       *ppIEStruct);
 			if (!QDF_IS_STATUS_SUCCESS(status)) {
 				qdf_mem_free(*ppIEStruct);
@@ -1695,19 +1544,19 @@ bool csr_is_nullssid(uint8_t *pBssSsid, uint8_t len)
 	return fNullSsid;
 }
 
-uint32_t csr_get_frag_thresh(tpAniSirGlobal mac_ctx)
+uint32_t csr_get_frag_thresh(struct mac_context *mac_ctx)
 {
-	return mac_ctx->roam.configParam.FragmentationThreshold;
+	return mac_ctx->mlme_cfg->threshold.frag_threshold;
 }
 
-uint32_t csr_get_rts_thresh(tpAniSirGlobal mac_ctx)
+uint32_t csr_get_rts_thresh(struct mac_context *mac_ctx)
 {
-	return mac_ctx->roam.configParam.RTSThreshold;
+	return mac_ctx->mlme_cfg->threshold.rts_threshold;
 }
 
 static eCsrPhyMode
-csr_translate_to_phy_mode_from_bss_desc(tpAniSirGlobal mac_ctx,
-					tSirBssDescription *pSirBssDesc,
+csr_translate_to_phy_mode_from_bss_desc(struct mac_context *mac_ctx,
+					struct bss_description *pSirBssDesc,
 					tDot11fBeaconIEs *ies)
 {
 	eCsrPhyMode phyMode;
@@ -1754,7 +1603,7 @@ csr_translate_to_phy_mode_from_bss_desc(tpAniSirGlobal mac_ctx,
 	return phyMode;
 }
 
-uint32_t csr_translate_to_wni_cfg_dot11_mode(tpAniSirGlobal pMac,
+uint32_t csr_translate_to_wni_cfg_dot11_mode(struct mac_context *mac,
 					     enum csr_cfgdot11mode csrDot11Mode)
 {
 	uint32_t ret;
@@ -1762,64 +1611,64 @@ uint32_t csr_translate_to_wni_cfg_dot11_mode(tpAniSirGlobal pMac,
 	switch (csrDot11Mode) {
 	case eCSR_CFG_DOT11_MODE_AUTO:
 		if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AX))
-			ret = WNI_CFG_DOT11_MODE_11AX;
+			ret = MLME_DOT11_MODE_11AX;
 		else if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
-			ret = WNI_CFG_DOT11_MODE_11AC;
+			ret = MLME_DOT11_MODE_11AC;
 		else
-			ret = WNI_CFG_DOT11_MODE_11N;
+			ret = MLME_DOT11_MODE_11N;
 		break;
 	case eCSR_CFG_DOT11_MODE_11A:
-		ret = WNI_CFG_DOT11_MODE_11A;
+		ret = MLME_DOT11_MODE_11A;
 		break;
 	case eCSR_CFG_DOT11_MODE_11B:
-		ret = WNI_CFG_DOT11_MODE_11B;
+		ret = MLME_DOT11_MODE_11B;
 		break;
 	case eCSR_CFG_DOT11_MODE_11G:
-		ret = WNI_CFG_DOT11_MODE_11G;
+		ret = MLME_DOT11_MODE_11G;
 		break;
 	case eCSR_CFG_DOT11_MODE_11N:
-		ret = WNI_CFG_DOT11_MODE_11N;
+		ret = MLME_DOT11_MODE_11N;
 		break;
 	case eCSR_CFG_DOT11_MODE_11G_ONLY:
-		ret = WNI_CFG_DOT11_MODE_11G_ONLY;
+		ret = MLME_DOT11_MODE_11G_ONLY;
 		break;
 	case eCSR_CFG_DOT11_MODE_11N_ONLY:
-		ret = WNI_CFG_DOT11_MODE_11N_ONLY;
+		ret = MLME_DOT11_MODE_11N_ONLY;
 		break;
 	case eCSR_CFG_DOT11_MODE_11AC_ONLY:
 		if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
-			ret = WNI_CFG_DOT11_MODE_11AC_ONLY;
+			ret = MLME_DOT11_MODE_11AC_ONLY;
 		else
-			ret = WNI_CFG_DOT11_MODE_11N;
+			ret = MLME_DOT11_MODE_11N;
 		break;
 	case eCSR_CFG_DOT11_MODE_11AC:
 		if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
-			ret = WNI_CFG_DOT11_MODE_11AC;
+			ret = MLME_DOT11_MODE_11AC;
 		else
-			ret = WNI_CFG_DOT11_MODE_11N;
+			ret = MLME_DOT11_MODE_11N;
 		break;
 	case eCSR_CFG_DOT11_MODE_11AX_ONLY:
 		if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AX))
-			ret = WNI_CFG_DOT11_MODE_11AX_ONLY;
+			ret = MLME_DOT11_MODE_11AX_ONLY;
 		else if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
-			ret = WNI_CFG_DOT11_MODE_11AC;
+			ret = MLME_DOT11_MODE_11AC;
 		else
-			ret = WNI_CFG_DOT11_MODE_11N;
+			ret = MLME_DOT11_MODE_11N;
 		break;
 	case eCSR_CFG_DOT11_MODE_11AX:
 		if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AX))
-			ret = WNI_CFG_DOT11_MODE_11AX;
+			ret = MLME_DOT11_MODE_11AX;
 		else if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
-			ret = WNI_CFG_DOT11_MODE_11AC;
+			ret = MLME_DOT11_MODE_11AC;
 		else
-			ret = WNI_CFG_DOT11_MODE_11N;
+			ret = MLME_DOT11_MODE_11N;
 		break;
 	default:
 		sme_warn("doesn't expect %d as csrDo11Mode", csrDot11Mode);
-		if (BAND_2G == pMac->roam.configParam.eBand)
-			ret = WNI_CFG_DOT11_MODE_11G;
+		if (BAND_2G == mac->mlme_cfg->gen.band)
+			ret = MLME_DOT11_MODE_11G;
 		else
-			ret = WNI_CFG_DOT11_MODE_11A;
+			ret = MLME_DOT11_MODE_11A;
 		break;
 	}
 
@@ -1828,7 +1677,7 @@ uint32_t csr_translate_to_wni_cfg_dot11_mode(tpAniSirGlobal pMac,
 
 /**
  * csr_get_phy_mode_from_bss() - Get Phy Mode
- * @pMac:           Global MAC context
+ * @mac:           Global MAC context
  * @pBSSDescription: BSS Descriptor
  * @pPhyMode:        Physical Mode
  * @pIes:            Pointer to the IE fields
@@ -1838,13 +1687,13 @@ uint32_t csr_translate_to_wni_cfg_dot11_mode(tpAniSirGlobal pMac,
  *
  * Return: success
  **/
-QDF_STATUS csr_get_phy_mode_from_bss(tpAniSirGlobal pMac,
-		tSirBssDescription *pBSSDescription,
+QDF_STATUS csr_get_phy_mode_from_bss(struct mac_context *mac,
+		struct bss_description *pBSSDescription,
 		eCsrPhyMode *pPhyMode, tDot11fBeaconIEs *pIes)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	eCsrPhyMode phyMode =
-		csr_translate_to_phy_mode_from_bss_desc(pMac, pBSSDescription,
+		csr_translate_to_phy_mode_from_bss_desc(mac, pBSSDescription,
 							pIes);
 
 	if (pIes) {
@@ -1855,7 +1704,14 @@ QDF_STATUS csr_get_phy_mode_from_bss(tpAniSirGlobal pMac,
 				phyMode = eCSR_DOT11_MODE_11ac;
 			if (pIes->he_cap.present)
 				phyMode = eCSR_DOT11_MODE_11ax;
+		} else if (WLAN_REG_IS_6GHZ_CHAN_FREQ(
+					pBSSDescription->chan_freq)) {
+			if (pIes->he_cap.present)
+				phyMode = eCSR_DOT11_MODE_11ax;
+			else
+				sme_debug("Warning - 6Ghz AP no he cap");
 		}
+
 		*pPhyMode = phyMode;
 	}
 
@@ -1875,7 +1731,7 @@ QDF_STATUS csr_get_phy_mode_from_bss(tpAniSirGlobal pMac,
  *
  * Return: true or false
  */
-static bool csr_get_phy_mode_in_use(tpAniSirGlobal mac_ctx,
+static bool csr_get_phy_mode_in_use(struct mac_context *mac_ctx,
 				    eCsrPhyMode phyModeIn,
 				    eCsrPhyMode bssPhyMode,
 				    bool f5GhzBand,
@@ -2076,7 +1932,7 @@ static bool csr_get_phy_mode_in_use(tpAniSirGlobal mac_ctx,
 
 /**
  * csr_is_phy_mode_match() - to find if phy mode matches
- * @pMac: pointer to mac context
+ * @mac: pointer to mac context
  * @phyMode: physical mode
  * @pSirBssDesc: bss description
  * @pProfile: pointer to roam profile
@@ -2088,27 +1944,36 @@ static bool csr_get_phy_mode_in_use(tpAniSirGlobal mac_ctx,
  *
  * Return: true or false based on mode that fits the criteria
  */
-bool csr_is_phy_mode_match(tpAniSirGlobal pMac, uint32_t phyMode,
-			   tSirBssDescription *pSirBssDesc,
+bool csr_is_phy_mode_match(struct mac_context *mac, uint32_t phyMode,
+			   struct bss_description *pSirBssDesc,
 			   struct csr_roam_profile *pProfile,
 			   enum csr_cfgdot11mode *pReturnCfgDot11Mode,
 			   tDot11fBeaconIEs *pIes)
 {
 	bool fMatch = false;
-	eCsrPhyMode phyModeInBssDesc = eCSR_DOT11_MODE_AUTO, phyMode2;
+	eCsrPhyMode phyModeInBssDesc = eCSR_DOT11_MODE_AUTO;
+	eCsrPhyMode phyMode2 = eCSR_DOT11_MODE_AUTO;
 	enum csr_cfgdot11mode cfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_AUTO;
 	uint32_t bitMask, loopCount;
+	uint32_t bss_chan_freq;
 
-	if (!QDF_IS_STATUS_SUCCESS(csr_get_phy_mode_from_bss(pMac, pSirBssDesc,
+	if (!QDF_IS_STATUS_SUCCESS(csr_get_phy_mode_from_bss(mac, pSirBssDesc,
 					&phyModeInBssDesc, pIes)))
 		return fMatch;
 
+	bss_chan_freq = pSirBssDesc->chan_freq;
+	if (WLAN_REG_IS_6GHZ_CHAN_FREQ(bss_chan_freq)) {
+		if (pReturnCfgDot11Mode)
+			*pReturnCfgDot11Mode = eCSR_CFG_DOT11_MODE_11AX;
+		return true;
+	}
+
 	if ((0 == phyMode) || (eCSR_DOT11_MODE_AUTO & phyMode)) {
 		if (eCSR_CFG_DOT11_MODE_ABG ==
-				pMac->roam.configParam.uCfgDot11Mode) {
+				mac->roam.configParam.uCfgDot11Mode) {
 			phyMode = eCSR_DOT11_MODE_abg;
 		} else if (eCSR_CFG_DOT11_MODE_AUTO ==
-				pMac->roam.configParam.uCfgDot11Mode) {
+				mac->roam.configParam.uCfgDot11Mode) {
 			if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AX))
 				phyMode = eCSR_DOT11_MODE_11ax;
 			else if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
@@ -2117,7 +1982,7 @@ bool csr_is_phy_mode_match(tpAniSirGlobal pMac, uint32_t phyMode,
 				phyMode = eCSR_DOT11_MODE_11n;
 		} else {
 			/* user's pick */
-			phyMode = pMac->roam.configParam.phyMode;
+			phyMode = mac->roam.configParam.phyMode;
 		}
 	}
 
@@ -2130,10 +1995,10 @@ bool csr_is_phy_mode_match(tpAniSirGlobal pMac, uint32_t phyMode,
 		} else {
 			phyMode2 = phyMode;
 		}
-		fMatch = csr_get_phy_mode_in_use(pMac, phyMode2,
+		fMatch = csr_get_phy_mode_in_use(mac, phyMode2,
 						 phyModeInBssDesc,
-						 WLAN_REG_IS_5GHZ_CH(
-						 pSirBssDesc->channelId),
+						 !WLAN_REG_IS_24GHZ_CH_FREQ
+							(bss_chan_freq),
 						 &cfgDot11ModeToUse);
 	} else {
 		bitMask = 1;
@@ -2141,15 +2006,18 @@ bool csr_is_phy_mode_match(tpAniSirGlobal pMac, uint32_t phyMode,
 		while (loopCount < eCSR_NUM_PHY_MODE) {
 			phyMode2 = (phyMode & (bitMask << loopCount++));
 			if (0 != phyMode2 &&
-			    csr_get_phy_mode_in_use(pMac, phyMode2,
+			    csr_get_phy_mode_in_use(mac, phyMode2,
 			    phyModeInBssDesc,
-			    WLAN_REG_IS_5GHZ_CH(pSirBssDesc->channelId),
+			    !WLAN_REG_IS_24GHZ_CH_FREQ(bss_chan_freq),
 			    &cfgDot11ModeToUse)) {
 				fMatch = true;
 				break;
 			}
 		}
 	}
+
+	cfgDot11ModeToUse = csr_get_vdev_dot11_mode(mac, pProfile->csrPersona,
+						    cfgDot11ModeToUse);
 	if (fMatch && pReturnCfgDot11Mode) {
 		if (pProfile) {
 			/*
@@ -2168,8 +2036,7 @@ bool csr_is_phy_mode_match(tpAniSirGlobal pMac, uint32_t phyMode,
 					(eCSR_CFG_DOT11_MODE_11AX ==
 						cfgDot11ModeToUse))) {
 				/* We cannot do 11n here */
-				if (!WLAN_REG_IS_5GHZ_CH
-						(pSirBssDesc->channelId)) {
+				if (WLAN_REG_IS_24GHZ_CH_FREQ(bss_chan_freq)) {
 					cfgDot11ModeToUse =
 						eCSR_CFG_DOT11_MODE_11G;
 				} else {
@@ -2184,11 +2051,11 @@ bool csr_is_phy_mode_match(tpAniSirGlobal pMac, uint32_t phyMode,
 	return fMatch;
 }
 
-enum csr_cfgdot11mode csr_find_best_phy_mode(tpAniSirGlobal pMac,
+enum csr_cfgdot11mode csr_find_best_phy_mode(struct mac_context *mac,
 			uint32_t phyMode)
 {
 	enum csr_cfgdot11mode cfgDot11ModeToUse;
-	enum band_info eBand = pMac->roam.configParam.eBand;
+	enum band_info band = mac->mlme_cfg->gen.band;
 
 	if ((0 == phyMode) ||
 	    (eCSR_DOT11_MODE_AUTO & phyMode) ||
@@ -2215,7 +2082,7 @@ enum csr_cfgdot11mode csr_find_best_phy_mode(tpAniSirGlobal pMac,
 		if ((eCSR_DOT11_MODE_11n | eCSR_DOT11_MODE_11n_ONLY) & phyMode)
 			cfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_11N;
 		else if (eCSR_DOT11_MODE_abg & phyMode) {
-			if (BAND_2G != eBand)
+			if (BAND_2G != band)
 				cfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_11A;
 			else
 				cfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_11G;
@@ -2231,7 +2098,7 @@ enum csr_cfgdot11mode csr_find_best_phy_mode(tpAniSirGlobal pMac,
 	return cfgDot11ModeToUse;
 }
 
-uint32_t csr_get11h_power_constraint(tpAniSirGlobal mac_ctx,
+uint32_t csr_get11h_power_constraint(struct mac_context *mac_ctx,
 				     tDot11fIEPowerConstraints *constraints)
 {
 	uint32_t localPowerConstraint = 0;
@@ -2239,10 +2106,9 @@ uint32_t csr_get11h_power_constraint(tpAniSirGlobal mac_ctx,
 	/* check if .11h support is enabled, if not,
 	 * the power constraint is 0.
 	 */
-	if (mac_ctx->roam.configParam.Is11hSupportEnabled &&
-	    constraints->present) {
+	if (mac_ctx->mlme_cfg->gen.enabled_11h &&
+	    constraints->present)
 		localPowerConstraint = constraints->localPowerConstraints;
-	}
 
 	return localPowerConstraint;
 }
@@ -2305,6 +2171,7 @@ bool csr_is_profile_rsn(struct csr_roam_profile *pProfile)
 	case eCSR_AUTH_TYPE_FT_FILS_SHA256:
 	case eCSR_AUTH_TYPE_FT_FILS_SHA384:
 	case eCSR_AUTH_TYPE_DPP_RSN:
+	case eCSR_AUTH_TYPE_OSEN:
 		fRSNProfile = true;
 		break;
 
@@ -2354,7 +2221,7 @@ bool csr_is_profile_rsn(struct csr_roam_profile *pProfile)
  *
  * Return: QDF_STATUS
  */
-static QDF_STATUS csr_update_mcc_p2p_beacon_interval(tpAniSirGlobal mac_ctx)
+static QDF_STATUS csr_update_mcc_p2p_beacon_interval(struct mac_context *mac_ctx)
 {
 	uint32_t session_id = 0;
 	struct csr_roam_session *roam_session;
@@ -2363,7 +2230,7 @@ static QDF_STATUS csr_update_mcc_p2p_beacon_interval(tpAniSirGlobal mac_ctx)
 	if (!mac_ctx->roam.configParam.fenableMCCMode)
 		return QDF_STATUS_E_FAILURE;
 
-	for (session_id = 0; session_id < CSR_ROAM_SESSION_MAX; session_id++) {
+	for (session_id = 0; session_id < WLAN_MAX_VDEVS; session_id++) {
 		/*
 		 * If GO in MCC support different beacon interval,
 		 * change the BI of the P2P-GO
@@ -2398,7 +2265,7 @@ static QDF_STATUS csr_update_mcc_p2p_beacon_interval(tpAniSirGlobal mac_ctx)
 	return QDF_STATUS_E_FAILURE;
 }
 
-static uint16_t csr_calculate_mcc_beacon_interval(tpAniSirGlobal pMac,
+static uint16_t csr_calculate_mcc_beacon_interval(struct mac_context *mac,
 						  uint16_t sta_bi,
 						  uint16_t go_gbi)
 {
@@ -2467,8 +2334,8 @@ static uint16_t csr_calculate_mcc_beacon_interval(tpAniSirGlobal pMac,
  *
  * Return: bool
  */
-static bool csr_validate_p2pcli_bcn_intrvl(tpAniSirGlobal mac_ctx,
-		uint8_t chnl_id, uint16_t *bcn_interval, uint32_t session_id,
+static bool csr_validate_p2pcli_bcn_intrvl(struct mac_context *mac_ctx,
+		uint32_t ch_freq, uint16_t *bcn_interval, uint32_t session_id,
 		QDF_STATUS *status)
 {
 	struct csr_roam_session *roamsession;
@@ -2481,9 +2348,8 @@ static bool csr_validate_p2pcli_bcn_intrvl(tpAniSirGlobal mac_ctx,
 		sme_debug("Ignore Beacon Interval Validation...");
 	} else if (roamsession->bssParams.bssPersona == QDF_P2P_GO_MODE) {
 		/* Check for P2P go scenario */
-		if ((roamsession->bssParams.operationChn != chnl_id)
-			&& (roamsession->bssParams.beaconInterval !=
-				*bcn_interval)) {
+		if (roamsession->bssParams.operation_chan_freq != ch_freq &&
+		    roamsession->bssParams.beaconInterval != *bcn_interval) {
 			sme_err("BcnIntrvl is diff can't connect to P2P_GO network");
 			*status = QDF_STATUS_E_FAILURE;
 			return true;
@@ -2505,8 +2371,8 @@ static bool csr_validate_p2pcli_bcn_intrvl(tpAniSirGlobal mac_ctx,
  *
  * Return: bool
  */
-static bool csr_validate_p2pgo_bcn_intrvl(tpAniSirGlobal mac_ctx,
-		uint8_t chnl_id, uint16_t *bcn_interval,
+static bool csr_validate_p2pgo_bcn_intrvl(struct mac_context *mac_ctx,
+		uint32_t ch_freq, uint16_t *bcn_interval,
 		uint32_t session_id, QDF_STATUS *status)
 {
 	struct csr_roam_session *roamsession;
@@ -2523,13 +2389,13 @@ static bool csr_validate_p2pgo_bcn_intrvl(tpAniSirGlobal mac_ctx,
 		(roamsession->pCurRoamProfile->csrPersona ==
 			  QDF_STA_MODE))) {
 		/* check for P2P_client scenario */
-		if ((conn_profile->operationChannel == 0) &&
-			(conn_profile->beaconInterval == 0))
+		if ((conn_profile->op_freq == 0) &&
+		    (conn_profile->beaconInterval == 0))
 			return false;
 
 		if (csr_is_conn_state_connected_infra(mac_ctx, session_id) &&
-			(conn_profile->operationChannel != chnl_id) &&
-			(conn_profile->beaconInterval != *bcn_interval)) {
+		    conn_profile->op_freq != ch_freq &&
+		    conn_profile->beaconInterval != *bcn_interval) {
 			/*
 			 * Updated beaconInterval should be used only when
 			 * we are starting a new BSS not incase of
@@ -2569,8 +2435,8 @@ static bool csr_validate_p2pgo_bcn_intrvl(tpAniSirGlobal mac_ctx,
  *
  * Return: bool
  */
-static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
-			uint8_t chnl_id, uint16_t *bcn_interval,
+static bool csr_validate_sta_bcn_intrvl(struct mac_context *mac_ctx,
+			uint32_t ch_freq, uint16_t *bcn_interval,
 			uint32_t session_id, QDF_STATUS *status)
 {
 	struct csr_roam_session *roamsession;
@@ -2587,8 +2453,8 @@ static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
 		sme_debug("Bcn Intrvl validation not require for STA/CLIENT");
 		return false;
 	}
-	if ((roamsession->bssParams.bssPersona == QDF_SAP_MODE) &&
-		   (roamsession->bssParams.operationChn != chnl_id)) {
+	if (roamsession->bssParams.bssPersona == QDF_SAP_MODE &&
+	    roamsession->bssParams.operation_chan_freq != ch_freq) {
 		/*
 		 * IF SAP has started and STA wants to connect
 		 * on different channel MCC should
@@ -2605,9 +2471,9 @@ static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
 	 * beacon interval,
 	 * change the BI of the P2P-GO
 	 */
-	if ((roamsession->bssParams.bssPersona == QDF_P2P_GO_MODE) &&
-		(roamsession->bssParams.operationChn != chnl_id) &&
-		(roamsession->bssParams.beaconInterval != *bcn_interval)) {
+	if (roamsession->bssParams.bssPersona == QDF_P2P_GO_MODE &&
+	    roamsession->bssParams.operation_chan_freq != ch_freq &&
+	    roamsession->bssParams.beaconInterval != *bcn_interval) {
 		/* if GO in MCC support diff beacon interval, return success */
 		if (cfg_param->fAllowMCCGODiffBI == 0x01) {
 			*status = QDF_STATUS_SUCCESS;
@@ -2667,23 +2533,11 @@ static bool csr_validate_sta_bcn_intrvl(tpAniSirGlobal mac_ctx,
 	return false;
 }
 
-/**
- * csr_validate_mcc_beacon_interval() - to validate the mcc beacon interval
- * @mac_ctx: pointer to mac context
- * @chnl_id: channel number
- * @bcn_interval: provided beacon interval
- * @cur_session_id: current session id
- * @cur_bss_persona: Current BSS persona
- *
- * This API will validate the mcc beacon interval
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal mac_ctx,
-					uint8_t chnl_id,
-					uint16_t *bcn_interval,
-					uint32_t cur_session_id,
-					enum QDF_OPMODE cur_bss_persona)
+QDF_STATUS csr_validate_mcc_beacon_interval(struct mac_context *mac_ctx,
+					    uint32_t ch_freq,
+					    uint16_t *bcn_interval,
+					    uint32_t cur_session_id,
+					    enum QDF_OPMODE cur_bss_persona)
 {
 	uint32_t session_id = 0;
 	QDF_STATUS status;
@@ -2693,7 +2547,7 @@ QDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal mac_ctx,
 	if (!mac_ctx->roam.configParam.fenableMCCMode)
 		return QDF_STATUS_E_FAILURE;
 
-	for (session_id = 0; session_id < CSR_ROAM_SESSION_MAX; session_id++) {
+	for (session_id = 0; session_id < WLAN_MAX_VDEVS; session_id++) {
 		if (cur_session_id == session_id)
 			continue;
 
@@ -2702,15 +2556,16 @@ QDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal mac_ctx,
 
 		switch (cur_bss_persona) {
 		case QDF_STA_MODE:
-			is_done = csr_validate_sta_bcn_intrvl(mac_ctx, chnl_id,
-					bcn_interval, session_id, &status);
+			is_done = csr_validate_sta_bcn_intrvl(
+						mac_ctx, ch_freq, bcn_interval,
+						session_id, &status);
 			if (true == is_done)
 				return status;
 			break;
 
 		case QDF_P2P_CLIENT_MODE:
 			is_done = csr_validate_p2pcli_bcn_intrvl(mac_ctx,
-					chnl_id, bcn_interval, session_id,
+					ch_freq, bcn_interval, session_id,
 					&status);
 			if (true == is_done)
 				return status;
@@ -2722,7 +2577,7 @@ QDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal mac_ctx,
 
 		case QDF_P2P_GO_MODE:
 			is_done = csr_validate_p2pgo_bcn_intrvl(mac_ctx,
-					chnl_id, bcn_interval,
+					ch_freq, bcn_interval,
 					session_id, &status);
 			if (true == is_done)
 				return status;
@@ -2744,13 +2599,13 @@ QDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal mac_ctx,
  *
  * Return: true if is 11R auth type, false otherwise
  */
-bool csr_is_auth_type11r(tpAniSirGlobal mac, eCsrAuthType auth_type,
-			uint8_t mdie_present)
+bool csr_is_auth_type11r(struct mac_context *mac, enum csr_akm_type auth_type,
+			 uint8_t mdie_present)
 {
 	switch (auth_type) {
 	case eCSR_AUTH_TYPE_OPEN_SYSTEM:
 		if (mdie_present &&
-		    mac->roam.configParam.enable_ftopen)
+		    mac->mlme_cfg->lfr.enable_ftopen)
 			return true;
 		break;
 	case eCSR_AUTH_TYPE_FT_RSN_PSK:
@@ -2767,14 +2622,14 @@ bool csr_is_auth_type11r(tpAniSirGlobal mac, eCsrAuthType auth_type,
 }
 
 /* Function to return true if the profile is 11r */
-bool csr_is_profile11r(tpAniSirGlobal mac,
+bool csr_is_profile11r(struct mac_context *mac,
 			struct csr_roam_profile *pProfile)
 {
 	return csr_is_auth_type11r(mac, pProfile->negotiatedAuthType,
-				   pProfile->MDID.mdiePresent);
+				   pProfile->mdid.mdie_present);
 }
 
-bool csr_is_auth_type_ese(eCsrAuthType AuthType)
+bool csr_is_auth_type_ese(enum csr_akm_type AuthType)
 {
 	switch (AuthType) {
 	case eCSR_AUTH_TYPE_CCKM_WPA:
@@ -2825,42 +2680,16 @@ bool csr_is_profile_wapi(struct csr_roam_profile *pProfile)
 	}
 	return fWapiProfile;
 }
-
-static bool csr_is_wapi_oui_equal(tpAniSirGlobal pMac, uint8_t *Oui1,
-				  uint8_t *Oui2)
-{
-	return !qdf_mem_cmp(Oui1, Oui2, CSR_WAPI_OUI_SIZE);
-}
-
-static bool csr_is_wapi_oui_match(tpAniSirGlobal pMac,
-				  uint8_t AllCyphers[][CSR_WAPI_OUI_SIZE],
-				  uint8_t cAllCyphers, uint8_t Cypher[],
-				  uint8_t Oui[])
-{
-	bool fYes = false;
-	uint8_t idx;
-
-	for (idx = 0; idx < cAllCyphers; idx++) {
-		if (csr_is_wapi_oui_equal(pMac, AllCyphers[idx], Cypher)) {
-			fYes = true;
-			break;
-		}
-	}
-
-	if (fYes && Oui)
-		qdf_mem_copy(Oui, AllCyphers[idx], CSR_WAPI_OUI_SIZE);
-
-	return fYes;
-}
 #endif /* FEATURE_WLAN_WAPI */
 
-static bool csr_is_wpa_oui_equal(tpAniSirGlobal pMac, uint8_t *Oui1,
+#ifdef WLAN_FEATURE_11W
+static bool csr_is_wpa_oui_equal(struct mac_context *mac, uint8_t *Oui1,
 				 uint8_t *Oui2)
 {
 	return !qdf_mem_cmp(Oui1, Oui2, CSR_WPA_OUI_SIZE);
 }
 
-static bool csr_is_oui_match(tpAniSirGlobal pMac,
+static bool csr_is_oui_match(struct mac_context *mac,
 			     uint8_t AllCyphers[][CSR_WPA_OUI_SIZE],
 			   uint8_t cAllCyphers, uint8_t Cypher[], uint8_t Oui[])
 {
@@ -2868,7 +2697,7 @@ static bool csr_is_oui_match(tpAniSirGlobal pMac,
 	uint8_t idx;
 
 	for (idx = 0; idx < cAllCyphers; idx++) {
-		if (csr_is_wpa_oui_equal(pMac, AllCyphers[idx], Cypher)) {
+		if (csr_is_wpa_oui_equal(mac, AllCyphers[idx], Cypher)) {
 			fYes = true;
 			break;
 		}
@@ -2880,357 +2709,6 @@ static bool csr_is_oui_match(tpAniSirGlobal pMac,
 	return fYes;
 }
 
-static bool csr_match_rsnoui_index(tpAniSirGlobal pMac,
-				   uint8_t AllCyphers[][CSR_RSN_OUI_SIZE],
-				   uint8_t cAllCyphers, uint8_t ouiIndex,
-				   uint8_t Oui[])
-{
-	return csr_is_oui_match
-		(pMac, AllCyphers, cAllCyphers, csr_rsn_oui[ouiIndex], Oui);
-
-}
-
-#ifdef FEATURE_WLAN_WAPI
-static bool csr_match_wapi_oui_index(tpAniSirGlobal pMac,
-				     uint8_t AllCyphers[][CSR_WAPI_OUI_SIZE],
-				     uint8_t cAllCyphers, uint8_t ouiIndex,
-				     uint8_t Oui[])
-{
-	return csr_is_wapi_oui_match
-		(pMac, AllCyphers, cAllCyphers, csr_wapi_oui[ouiIndex], Oui);
-
-}
-#endif /* FEATURE_WLAN_WAPI */
-
-static bool csr_match_wpaoui_index(tpAniSirGlobal pMac,
-				   uint8_t AllCyphers[][CSR_RSN_OUI_SIZE],
-				   uint8_t cAllCyphers, uint8_t ouiIndex,
-				   uint8_t Oui[])
-{
-	if (ouiIndex < QDF_ARRAY_SIZE(csr_wpa_oui))
-		return csr_is_oui_match
-			(pMac, AllCyphers, cAllCyphers,
-			 csr_wpa_oui[ouiIndex], Oui);
-	else
-		return false;
-}
-
-#ifdef FEATURE_WLAN_WAPI
-static bool csr_is_auth_wapi_cert(tpAniSirGlobal pMac,
-				  uint8_t AllSuites[][CSR_WAPI_OUI_SIZE],
-				  uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_wapi_oui_match
-		(pMac, AllSuites, cAllSuites, csr_wapi_oui[1], Oui);
-}
-
-static bool csr_is_auth_wapi_psk(tpAniSirGlobal pMac,
-				 uint8_t AllSuites[][CSR_WAPI_OUI_SIZE],
-				 uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_wapi_oui_match
-		(pMac, AllSuites, cAllSuites, csr_wapi_oui[2], Oui);
-}
-#endif /* FEATURE_WLAN_WAPI */
-
-
-/*
- * Function for 11R FT Authentication. We match the FT Authentication Cipher
- * suite here. This matches for FT Auth with the 802.1X exchange.
- */
-static bool csr_is_ft_auth_rsn(tpAniSirGlobal pMac,
-			       uint8_t AllSuites[][CSR_RSN_OUI_SIZE],
-			       uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_oui_match
-		(pMac, AllSuites, cAllSuites, csr_rsn_oui[03], Oui);
-}
-
-/*
- * Function for 11R FT Authentication. We match the FT Authentication Cipher
- * suite here. This matches for FT Auth with the PSK.
- */
-static bool csr_is_ft_auth_rsn_psk(tpAniSirGlobal pMac,
-				   uint8_t AllSuites[][CSR_RSN_OUI_SIZE],
-				   uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_oui_match
-		(pMac, AllSuites, cAllSuites, csr_rsn_oui[04], Oui);
-}
-
-
-#ifdef FEATURE_WLAN_ESE
-
-/*
- * Function for ESE CCKM AKM Authentication. We match the CCKM AKM
- * Authentication Key Management suite here. This matches for CCKM AKM Auth
- * with the 802.1X exchange.
- */
-static bool csr_is_ese_cckm_auth_rsn(tpAniSirGlobal pMac,
-				     uint8_t AllSuites[][CSR_RSN_OUI_SIZE],
-				     uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_oui_match
-		(pMac, AllSuites, cAllSuites, csr_rsn_oui[06], Oui);
-}
-
-static bool csr_is_ese_cckm_auth_wpa(tpAniSirGlobal pMac,
-				     uint8_t AllSuites[][CSR_WPA_OUI_SIZE],
-				     uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_oui_match
-		(pMac, AllSuites, cAllSuites, csr_wpa_oui[06], Oui);
-}
-
-#endif
-
-static bool csr_is_auth_rsn(tpAniSirGlobal pMac,
-			    uint8_t AllSuites[][CSR_RSN_OUI_SIZE],
-			    uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_oui_match
-		(pMac, AllSuites, cAllSuites, csr_rsn_oui[01], Oui);
-}
-
-static bool csr_is_auth_rsn_psk(tpAniSirGlobal pMac,
-				uint8_t AllSuites[][CSR_RSN_OUI_SIZE],
-				uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_oui_match
-		(pMac, AllSuites, cAllSuites, csr_rsn_oui[02], Oui);
-}
-
-#ifdef WLAN_FEATURE_11W
-static bool csr_is_auth_rsn_psk_sha256(tpAniSirGlobal pMac,
-				       uint8_t AllSuites[][CSR_RSN_OUI_SIZE],
-				       uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_oui_match
-		(pMac, AllSuites, cAllSuites, csr_rsn_oui[07], Oui);
-}
-static bool csr_is_auth_rsn8021x_sha256(tpAniSirGlobal pMac,
-					uint8_t AllSuites[][CSR_RSN_OUI_SIZE],
-					uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_oui_match
-		(pMac, AllSuites, cAllSuites, csr_rsn_oui[8], Oui);
-}
-#endif
-
-#ifdef WLAN_FEATURE_FILS_SK
-/*
- * csr_is_auth_fils_sha256() - check whether oui is fils sha256
- * @mac: Global MAC context
- * @all_suites: pointer to all supported akm suites
- * @suite_count: all supported akm suites count
- * @oui: Oui needs to be matched
- *
- * Return: True if OUI is FILS SHA256, false otherwise
- */
-static bool csr_is_auth_fils_sha256(tpAniSirGlobal mac,
-					uint8_t all_suites[][CSR_RSN_OUI_SIZE],
-					uint8_t suite_count, uint8_t oui[])
-{
-	return csr_is_oui_match(mac, all_suites, suite_count,
-				csr_rsn_oui[ENUM_FILS_SHA256], oui);
-}
-
-/*
- * csr_is_auth_fils_sha384() - check whether oui is fils sha384
- * @mac: Global MAC context
- * @all_suites: pointer to all supported akm suites
- * @suite_count: all supported akm suites count
- * @oui: Oui needs to be matched
- *
- * Return: True if OUI is FILS SHA384, false otherwise
- */
-static bool csr_is_auth_fils_sha384(tpAniSirGlobal mac,
-					uint8_t all_suites[][CSR_RSN_OUI_SIZE],
-					uint8_t suite_count, uint8_t oui[])
-{
-	return csr_is_oui_match(mac, all_suites, suite_count,
-				csr_rsn_oui[ENUM_FILS_SHA384], oui);
-}
-
-/*
- * csr_is_auth_fils_ft_sha256() - check whether oui is fils ft sha256
- * @mac: Global MAC context
- * @all_suites: pointer to all supported akm suites
- * @suite_count: all supported akm suites count
- * @oui: Oui needs to be matched
- *
- * Return: True if OUI is FT FILS SHA256, false otherwise
- */
-static bool csr_is_auth_fils_ft_sha256(tpAniSirGlobal mac,
-					uint8_t all_suites[][CSR_RSN_OUI_SIZE],
-					uint8_t suite_count, uint8_t oui[])
-{
-	return csr_is_oui_match(mac, all_suites, suite_count,
-				csr_rsn_oui[ENUM_FT_FILS_SHA256], oui);
-}
-
-/*
- * csr_is_auth_fils_ft_sha384() - check whether oui is fils ft sha384
- * @mac: Global MAC context
- * @all_suites: pointer to all supported akm suites
- * @suite_count: all supported akm suites count
- * @oui: Oui needs to be matched
- *
- * Return: True if OUI is FT FILS SHA384, false otherwise
- */
-static bool csr_is_auth_fils_ft_sha384(tpAniSirGlobal mac,
-					uint8_t all_suites[][CSR_RSN_OUI_SIZE],
-					uint8_t suite_count, uint8_t oui[])
-{
-	return csr_is_oui_match(mac, all_suites, suite_count,
-				csr_rsn_oui[ENUM_FT_FILS_SHA384], oui);
-}
-#endif
-
-/*
- * csr_is_auth_dpp_rsn() - check whether oui is dpp rsn
- * @mac: Global MAC context
- * @all_suites: pointer to all supported akm suites
- * @suite_count: all supported akm suites count
- * @oui: Oui needs to be matched
- *
- * Return: True if OUI is dpp rsn, false otherwise
- */
-static bool csr_is_auth_dpp_rsn(tpAniSirGlobal mac,
-					uint8_t all_suites[][CSR_RSN_OUI_SIZE],
-					uint8_t suite_count, uint8_t oui[])
-{
-	return csr_is_oui_match(mac, all_suites, suite_count,
-				csr_rsn_oui[ENUM_DPP_RSN], oui);
-}
-
-/*
- * csr_is_auth_wpa_owe() - check whether oui is OWE
- * @mac: Global MAC context
- * @all_suites: pointer to all supported akm suites
- * @suite_count: all supported akm suites count
- * @oui: Oui needs to be matched
- *
- * Return: True if OUI is OWE, false otherwise
- */
-static bool csr_is_auth_wpa_owe(tpAniSirGlobal mac,
-			       uint8_t all_suites[][CSR_RSN_OUI_SIZE],
-			       uint8_t suite_count, uint8_t oui[])
-{
-	return csr_is_oui_match
-		(mac, all_suites, suite_count, csr_rsn_oui[ENUM_OWE], oui);
-}
-
-/*
- * csr_is_auth_suiteb_eap_256() - check whether oui is SuiteB EAP256
- * @mac: Global MAC context
- * @all_suites: pointer to all supported akm suites
- * @suite_count: all supported akm suites count
- * @oui: Oui needs to be matched
- *
- * Return: True if OUI is SuiteB EAP256, false otherwise
- */
-static bool csr_is_auth_suiteb_eap_256(tpAniSirGlobal mac,
-			       uint8_t all_suites[][CSR_RSN_OUI_SIZE],
-			       uint8_t suite_count, uint8_t oui[])
-{
-	return csr_is_oui_match(mac, all_suites, suite_count,
-				csr_rsn_oui[ENUM_SUITEB_EAP256], oui);
-}
-
-/*
- * csr_is_auth_suiteb_eap_384() - check whether oui is SuiteB EAP384
- * @mac: Global MAC context
- * @all_suites: pointer to all supported akm suites
- * @suite_count: all supported akm suites count
- * @oui: Oui needs to be matched
- *
- * Return: True if OUI is SuiteB EAP384, false otherwise
- */
-static bool csr_is_auth_suiteb_eap_384(tpAniSirGlobal mac,
-			       uint8_t all_suites[][CSR_RSN_OUI_SIZE],
-			       uint8_t suite_count, uint8_t oui[])
-{
-	return csr_is_oui_match(mac, all_suites, suite_count,
-				csr_rsn_oui[ENUM_SUITEB_EAP384], oui);
-}
-
-/*
- * csr_is_auth_ft_suiteb_eap_384() - check whether oui is SuiteB EAP384
- * @mac: Global MAC context
- * @all_suites: pointer to all supported akm suites
- * @suite_count: all supported akm suites count
- * @oui: Oui needs to be matched
- *
- * Return: True if OUI is FT SuiteB EAP384, false otherwise
- */
-static
-bool csr_is_auth_ft_suiteb_eap_384(tpAniSirGlobal mac,
-				   uint8_t all_suites[][CSR_RSN_OUI_SIZE],
-				   uint8_t suite_count, uint8_t oui[])
-{
-	return csr_is_oui_match(mac, all_suites, suite_count,
-				csr_rsn_oui[ENUM_FT_SUITEB_SHA384], oui);
-}
-
-#ifdef WLAN_FEATURE_SAE
-/*
- * csr_is_auth_wpa_sae() - check whether oui is SAE
- * @mac: Global MAC context
- * @all_suites: pointer to all supported akm suites
- * @suite_count: all supported akm suites count
- * @oui: Oui needs to be matched
- *
- * Return: True if OUI is SAE, false otherwise
- */
-static bool csr_is_auth_wpa_sae(tpAniSirGlobal mac,
-			       uint8_t all_suites[][CSR_RSN_OUI_SIZE],
-			       uint8_t suite_count, uint8_t oui[])
-{
-	bool is_sae_auth;
-
-	is_sae_auth = (csr_is_oui_match(mac, all_suites, suite_count,
-					csr_rsn_oui[ENUM_SAE], oui));
-	return is_sae_auth;
-}
-
-/*
- * csr_is_auth_ft_sae() - check whether oui is SAE
- * @mac: Global MAC context
- * @all_suites: pointer to all supported akm suites
- * @suite_count: all supported akm suites count
- * @oui: Oui needs to be matched
- *
- * Return: True if OUI is FT-SAE, false otherwise
- */
-static bool csr_is_auth_ft_sae(tpAniSirGlobal mac,
-			       uint8_t all_suites[][CSR_RSN_OUI_SIZE],
-			       uint8_t suite_count, uint8_t oui[])
-{
-	bool is_ft_sae_auth;
-
-	is_ft_sae_auth = csr_is_oui_match(mac, all_suites, suite_count,
-					  csr_rsn_oui[ENUM_FT_SAE], oui);
-	return is_ft_sae_auth;
-}
-#endif
-
-static bool csr_is_auth_wpa(tpAniSirGlobal pMac,
-			    uint8_t AllSuites[][CSR_WPA_OUI_SIZE],
-			    uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_oui_match
-		(pMac, AllSuites, cAllSuites, csr_wpa_oui[01], Oui);
-}
-
-static bool csr_is_auth_wpa_psk(tpAniSirGlobal pMac,
-				uint8_t AllSuites[][CSR_WPA_OUI_SIZE],
-				uint8_t cAllSuites, uint8_t Oui[])
-{
-	return csr_is_oui_match
-		(pMac, AllSuites, cAllSuites, csr_wpa_oui[02], Oui);
-}
-
 /*
  * csr_is_group_mgmt_gmac_128() - check whether oui is GMAC_128
  * @mac: Global MAC context
@@ -3240,11 +2718,11 @@ static bool csr_is_auth_wpa_psk(tpAniSirGlobal pMac,
  *
  * Return: True if OUI is GMAC_128, false otherwise
  */
-static bool csr_is_group_mgmt_gmac_128(tpAniSirGlobal pMac,
+static bool csr_is_group_mgmt_gmac_128(struct mac_context *mac,
 				uint8_t AllSuites[][CSR_RSN_OUI_SIZE],
 				uint8_t cAllSuites, uint8_t Oui[])
 {
-	return csr_is_oui_match(pMac, AllSuites, cAllSuites,
+	return csr_is_oui_match(mac, AllSuites, cAllSuites,
 				csr_group_mgmt_oui[ENUM_GMAC_128], Oui);
 }
 
@@ -3257,800 +2735,106 @@ static bool csr_is_group_mgmt_gmac_128(tpAniSirGlobal pMac,
  *
  * Return: True if OUI is GMAC_256, false otherwise
  */
-static bool csr_is_group_mgmt_gmac_256(tpAniSirGlobal pMac,
+static bool csr_is_group_mgmt_gmac_256(struct mac_context *mac,
 				uint8_t AllSuites[][CSR_RSN_OUI_SIZE],
 				uint8_t cAllSuites, uint8_t Oui[])
 {
-	return csr_is_oui_match(pMac, AllSuites, cAllSuites,
+	return csr_is_oui_match(mac, AllSuites, cAllSuites,
 				csr_group_mgmt_oui[ENUM_GMAC_256], Oui);
 }
-
-static uint8_t csr_get_oui_index_from_cipher(eCsrEncryptionType enType)
-{
-	uint8_t OUIIndex;
-
-	switch (enType) {
-	case eCSR_ENCRYPT_TYPE_WEP40:
-	case eCSR_ENCRYPT_TYPE_WEP40_STATICKEY:
-		OUIIndex = CSR_OUI_WEP40_OR_1X_INDEX;
-		break;
-	case eCSR_ENCRYPT_TYPE_WEP104:
-	case eCSR_ENCRYPT_TYPE_WEP104_STATICKEY:
-		OUIIndex = CSR_OUI_WEP104_INDEX;
-		break;
-	case eCSR_ENCRYPT_TYPE_TKIP:
-		OUIIndex = CSR_OUI_TKIP_OR_PSK_INDEX;
-		break;
-	case eCSR_ENCRYPT_TYPE_AES:
-		OUIIndex = CSR_OUI_AES_INDEX;
-		break;
-	case eCSR_ENCRYPT_TYPE_AES_GCMP:
-		OUIIndex = CSR_OUI_AES_GCMP_INDEX;
-		break;
-	case eCSR_ENCRYPT_TYPE_AES_GCMP_256:
-		OUIIndex = CSR_OUI_AES_GCMP_256_INDEX;
-		break;
-	case eCSR_ENCRYPT_TYPE_NONE:
-		OUIIndex = CSR_OUI_USE_GROUP_CIPHER_INDEX;
-		break;
-#ifdef FEATURE_WLAN_WAPI
-	case eCSR_ENCRYPT_TYPE_WPI:
-		OUIIndex = CSR_OUI_WAPI_WAI_CERT_OR_SMS4_INDEX;
-		break;
-#endif /* FEATURE_WLAN_WAPI */
-	default:                /* HOWTO handle this? */
-		OUIIndex = CSR_OUI_RESERVED_INDEX;
-		break;
-	} /* switch */
-
-	return OUIIndex;
-}
-
-#ifdef WLAN_FEATURE_FILS_SK
-/**
- * csr_is_fils_auth() - update negotiated auth if matches to FILS auth type
- * @mac_ctx: pointer to mac context
- * @authsuites: auth suites
- * @c_auth_suites: auth suites count
- * @authentication: authentication
- * @auth_type: authentication type list
- * @index: current counter
- * @neg_authtype: pointer to negotiated auth
- *
- * Return: None
- */
-static void csr_is_fils_auth(tpAniSirGlobal mac_ctx,
-	uint8_t authsuites[][CSR_RSN_OUI_SIZE], uint8_t c_auth_suites,
-	uint8_t authentication[], tCsrAuthList *auth_type,
-	uint8_t index, eCsrAuthType *neg_authtype)
-{
-	/*
-	 * TODO Always try with highest security
-	 * move this down once sha384 is validated
-	 */
-	if (csr_is_auth_fils_sha256(mac_ctx, authsuites,
-				c_auth_suites, authentication)) {
-		if (eCSR_AUTH_TYPE_FILS_SHA256 ==
-				auth_type->authType[index])
-			*neg_authtype = eCSR_AUTH_TYPE_FILS_SHA256;
-	}
-	if ((*neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-			csr_is_auth_fils_sha384(mac_ctx, authsuites,
-				c_auth_suites, authentication)) {
-		if (eCSR_AUTH_TYPE_FILS_SHA384 ==
-				auth_type->authType[index])
-			*neg_authtype = eCSR_AUTH_TYPE_FILS_SHA384;
-	}
-	if ((*neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-			csr_is_auth_fils_ft_sha256(mac_ctx, authsuites,
-				c_auth_suites, authentication)) {
-		if (eCSR_AUTH_TYPE_FT_FILS_SHA256 ==
-				auth_type->authType[index])
-			*neg_authtype = eCSR_AUTH_TYPE_FT_FILS_SHA256;
-	}
-	if ((*neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-			csr_is_auth_fils_ft_sha384(mac_ctx, authsuites,
-				c_auth_suites, authentication)) {
-		if (eCSR_AUTH_TYPE_FT_FILS_SHA384 ==
-				auth_type->authType[index])
-			*neg_authtype = eCSR_AUTH_TYPE_FT_FILS_SHA384;
-	}
-	sme_debug("negotiated auth type is %d", *neg_authtype);
-}
-#else
-static void csr_is_fils_auth(tpAniSirGlobal mac_ctx,
-	uint8_t authsuites[][CSR_RSN_OUI_SIZE], uint8_t c_auth_suites,
-	uint8_t authentication[], tCsrAuthList *auth_type,
-	uint8_t index, eCsrAuthType *neg_authtype)
-{
-}
 #endif
 
-#ifdef WLAN_FEATURE_SAE
-/**
- * csr_check_sae_auth() - update negotiated auth and oui if matches to SAE auth
- * type
- * @mac_ctx: pointer to mac context
- * @authsuites: auth suites
- * @c_auth_suites: auth suites count
- * @authentication: authentication
- * @auth_type: authentication type list
- * @index: current counter
- * @neg_authtype: pointer to negotiated auth
- *
- * Return: None
- */
-static void
-csr_check_sae_auth(tpAniSirGlobal mac_ctx,
-		   uint8_t authsuites[][CSR_RSN_OUI_SIZE],
-		   uint8_t c_auth_suites,
-		   uint8_t authentication[], tCsrAuthList *auth_type,
-		   uint8_t index, eCsrAuthType *neg_authtype)
-{
-	if ((*neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-	    csr_is_auth_ft_sae(mac_ctx, authsuites, c_auth_suites,
-			       authentication)) {
-		if (eCSR_AUTH_TYPE_FT_SAE == auth_type->authType[index])
-			*neg_authtype = eCSR_AUTH_TYPE_FT_SAE;
-		else if (eCSR_AUTH_TYPE_OPEN_SYSTEM == auth_type->authType[index])
-			*neg_authtype = eCSR_AUTH_TYPE_OPEN_SYSTEM;
-	}
-
-	if ((*neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-	    csr_is_auth_wpa_sae(mac_ctx, authsuites,
-				c_auth_suites, authentication)) {
-		if (eCSR_AUTH_TYPE_SAE == auth_type->authType[index])
-			*neg_authtype = eCSR_AUTH_TYPE_SAE;
-		else if (eCSR_AUTH_TYPE_OPEN_SYSTEM == auth_type->authType[index])
-			*neg_authtype = eCSR_AUTH_TYPE_OPEN_SYSTEM;
-	}
-	sme_debug("negotiated auth type is %d", *neg_authtype);
-}
-#else
-static void csr_check_sae_auth(tpAniSirGlobal mac_ctx,
-	uint8_t authsuites[][CSR_RSN_OUI_SIZE], uint8_t c_auth_suites,
-	uint8_t authentication[], tCsrAuthList *auth_type,
-	uint8_t index, eCsrAuthType *neg_authtype)
-{
-}
-#endif
-
-bool csr_is_pmkid_found_for_peer(tpAniSirGlobal mac,
+bool csr_is_pmkid_found_for_peer(struct mac_context *mac,
 				 struct csr_roam_session *session,
 				 tSirMacAddr peer_mac_addr,
 				 uint8_t *pmkid,
 				 uint16_t pmkid_count)
 {
-	uint32_t i, index;
+	uint32_t i;
 	uint8_t *session_pmkid;
-	tPmkidCacheInfo pmkid_cache;
+	tPmkidCacheInfo *pmkid_cache;
 
-	qdf_mem_zero(&pmkid_cache, sizeof(pmkid_cache));
-	qdf_mem_copy(pmkid_cache.BSSID.bytes, peer_mac_addr,
+	pmkid_cache = qdf_mem_malloc(sizeof(*pmkid_cache));
+	if (!pmkid_cache)
+		return false;
+
+	qdf_mem_copy(pmkid_cache->BSSID.bytes, peer_mac_addr,
 		     QDF_MAC_ADDR_SIZE);
 
-	if (!csr_lookup_pmkid_using_bssid(mac, session, &pmkid_cache, &index))
+	if (!csr_lookup_pmkid_using_bssid(mac, session, pmkid_cache)) {
+		qdf_mem_free(pmkid_cache);
 		return false;
-	session_pmkid = &session->PmkidCacheInfo[index].PMKID[0];
+	}
+
+	session_pmkid = pmkid_cache->PMKID;
 	for (i = 0; i < pmkid_count; i++) {
-		if (!qdf_mem_cmp(pmkid + (i * CSR_RSN_PMKID_SIZE),
-				 session_pmkid, CSR_RSN_PMKID_SIZE))
+		if (!qdf_mem_cmp(pmkid + (i * PMKID_LEN),
+				 session_pmkid, PMKID_LEN)) {
+			qdf_mem_free(pmkid_cache);
 			return true;
+		}
 	}
 
 	sme_debug("PMKID in PmkidCacheInfo doesn't match with PMKIDs of peer");
+	qdf_mem_free(pmkid_cache);
+
 	return false;
 }
 
-/**
- * csr_get_rsn_information() - to get RSN information
- * @mac_ctx: pointer to global MAC context
- * @auth_type: auth type
- * @encr_type: encryption type
- * @mc_encryption: multicast encryption type
- * @rsn_ie: pointer to RSN IE
- * @ucast_cipher: Unicast cipher
- * @mcast_cipher: Multicast cipher
- * @auth_suite: Authentication suite
- * @capabilities: RSN capabilities
- * @negotiated_authtype: Negotiated auth type
- * @negotiated_mccipher: negotiated multicast cipher
- * @gp_mgmt_cipher: group management cipher
- * @mgmt_encryption_type: group management encryption type
- * @adaptive_11r: is adaptive 11r connection
- *
- * This routine will get all RSN information
- *
- * Return: bool
- */
-static bool csr_get_rsn_information(tpAniSirGlobal mac_ctx,
-				    tCsrAuthList *auth_type,
-				    eCsrEncryptionType encr_type,
-				    tCsrEncryptionList *mc_encryption,
-				    tDot11fIERSN *rsn_ie, uint8_t *ucast_cipher,
-				    uint8_t *mcast_cipher, uint8_t *auth_suite,
-				    struct rsn_caps *capabilities,
-				    eCsrAuthType *negotiated_authtype,
-				    eCsrEncryptionType *negotiated_mccipher,
-				    uint8_t *gp_mgmt_cipher,
-				    tAniEdType *mgmt_encryption_type,
-				    bool adaptive_11r)
+bool csr_lookup_pmkid_using_bssid(struct mac_context *mac,
+				  struct csr_roam_session *session,
+				  tPmkidCacheInfo *pmk_cache)
 {
-	bool acceptable_cipher = false;
-	bool group_mgmt_acceptable_cipher = false;
-	uint8_t c_ucast_cipher = 0;
-	uint8_t c_mcast_cipher = 0;
-	uint8_t c_group_mgmt_cipher = 0;
-	uint8_t c_auth_suites = 0, i;
-	uint8_t unicast[CSR_RSN_OUI_SIZE];
-	uint8_t multicast[CSR_RSN_OUI_SIZE];
-	uint8_t group_mgmt[CSR_RSN_OUI_SIZE];
-	uint8_t authsuites[CSR_RSN_MAX_AUTH_SUITES][CSR_RSN_OUI_SIZE];
-	uint8_t authentication[CSR_RSN_OUI_SIZE];
-	uint8_t mccipher_arr[CSR_RSN_MAX_MULTICAST_CYPHERS][CSR_RSN_OUI_SIZE];
-	uint8_t group_mgmt_arr[CSR_RSN_MAX_MULTICAST_CYPHERS][CSR_RSN_OUI_SIZE];
-	eCsrAuthType neg_authtype = eCSR_AUTH_TYPE_UNKNOWN;
+	struct wlan_crypto_pmksa *pmksa;
+	struct wlan_objmgr_vdev *vdev;
 
-	if (!rsn_ie->present)
-		goto end;
-	c_mcast_cipher++;
-	qdf_mem_copy(mccipher_arr, rsn_ie->gp_cipher_suite,
-			CSR_RSN_OUI_SIZE);
-	c_ucast_cipher =
-		(uint8_t) (rsn_ie->pwise_cipher_suite_count);
-
-	c_auth_suites = (uint8_t) (rsn_ie->akm_suite_cnt);
-	for (i = 0; i < c_auth_suites && i < CSR_RSN_MAX_AUTH_SUITES; i++) {
-		qdf_mem_copy((void *)&authsuites[i],
-			(void *)&rsn_ie->akm_suite[i], CSR_RSN_OUI_SIZE);
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac->psoc, session->vdev_id,
+						    WLAN_LEGACY_SME_ID);
+	if (!vdev) {
+		sme_err("Invalid vdev");
+		return false;
 	}
 
-	/* Check - Is requested unicast Cipher supported by the BSS. */
-	acceptable_cipher = csr_match_rsnoui_index(mac_ctx,
-				rsn_ie->pwise_cipher_suites, c_ucast_cipher,
-				csr_get_oui_index_from_cipher(encr_type),
-				unicast);
-
-	if (!acceptable_cipher)
-		goto end;
-
-	/* unicast is supported. Pick the first matching Group cipher, if any */
-	for (i = 0; i < mc_encryption->numEntries; i++) {
-		acceptable_cipher = csr_match_rsnoui_index(mac_ctx,
-					mccipher_arr, c_mcast_cipher,
-					csr_get_oui_index_from_cipher(
-					    mc_encryption->encryptionType[i]),
-					multicast);
-		if (acceptable_cipher)
-			break;
+	pmksa = wlan_crypto_get_pmksa(vdev, &pmk_cache->BSSID);
+	if (!pmksa) {
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+		return false;
 	}
-	if (!acceptable_cipher)
-		goto end;
+	qdf_mem_copy(pmk_cache->PMKID, pmksa->pmkid, sizeof(pmk_cache->PMKID));
+	qdf_mem_copy(pmk_cache->pmk, pmksa->pmk, pmksa->pmk_len);
+	pmk_cache->pmk_len = pmksa->pmk_len;
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 
-	if (negotiated_mccipher)
-		*negotiated_mccipher = mc_encryption->encryptionType[i];
-
-	/* Group Management Cipher only for 11w */
-	if (mgmt_encryption_type) {
-		c_group_mgmt_cipher++;
-		qdf_mem_copy(group_mgmt_arr, rsn_ie->gp_mgmt_cipher_suite,
-						CSR_RSN_OUI_SIZE);
-		if (csr_is_group_mgmt_gmac_128(mac_ctx, group_mgmt_arr,
-			  c_group_mgmt_cipher, group_mgmt)) {
-			group_mgmt_acceptable_cipher = true;
-			*mgmt_encryption_type = eSIR_ED_AES_GMAC_128;
-		} else if (csr_is_group_mgmt_gmac_256(mac_ctx, group_mgmt_arr,
-			  c_group_mgmt_cipher, group_mgmt)) {
-			group_mgmt_acceptable_cipher = true;
-			*mgmt_encryption_type = eSIR_ED_AES_GMAC_256;
-		} else {
-			/* Default is CMAC */
-			group_mgmt_acceptable_cipher = true;
-			*mgmt_encryption_type = eSIR_ED_AES_128_CMAC;
-			qdf_mem_copy(group_mgmt, csr_group_mgmt_oui[ENUM_CMAC],
-						CSR_RSN_OUI_SIZE);
-		}
-	}
-
-	/* Initializing with false as it has true value already */
-	acceptable_cipher = false;
-	for (i = 0; i < auth_type->numEntries; i++) {
-		/*
-		 * Ciphers are supported, Match authentication algorithm and
-		 * pick first matching authtype.
-		 */
-		/* Set FILS as first preference */
-		csr_is_fils_auth(mac_ctx, authsuites, c_auth_suites,
-			authentication, auth_type, i, &neg_authtype);
-		/* Changed the AKM suites according to order of preference */
-		csr_check_sae_auth(mac_ctx, authsuites, c_auth_suites,
-			authentication, auth_type, i, &neg_authtype);
-
-		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-				csr_is_auth_dpp_rsn(mac_ctx, authsuites,
-					c_auth_suites, authentication)) {
-			if (eCSR_AUTH_TYPE_DPP_RSN == auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_DPP_RSN;
-		}
-		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-				csr_is_ft_auth_rsn(mac_ctx, authsuites,
-					c_auth_suites, authentication)) {
-			if (eCSR_AUTH_TYPE_FT_RSN == auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_FT_RSN;
-		}
-		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN)
-				&& csr_is_ft_auth_rsn_psk(mac_ctx, authsuites,
-					c_auth_suites, authentication)) {
-			if (eCSR_AUTH_TYPE_FT_RSN_PSK ==
-					auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_FT_RSN_PSK;
-		}
-#ifdef FEATURE_WLAN_ESE
-		/* ESE only supports 802.1X.  No PSK. */
-		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-				csr_is_ese_cckm_auth_rsn(mac_ctx, authsuites,
-					c_auth_suites, authentication)) {
-			if (eCSR_AUTH_TYPE_CCKM_RSN == auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_CCKM_RSN;
-		}
-#endif
-		if (neg_authtype == eCSR_AUTH_TYPE_UNKNOWN &&
-		    csr_is_auth_rsn(mac_ctx, authsuites,
-				    c_auth_suites, authentication)) {
-			/*
-			 * For adaptive 11r connection send FT-802.1X akm in
-			 * association request
-			 */
-			if (adaptive_11r &&
-			    eCSR_AUTH_TYPE_FT_RSN == auth_type->authType[i]) {
-				neg_authtype = eCSR_AUTH_TYPE_FT_RSN;
-				qdf_mem_copy(authentication,
-					     csr_rsn_oui[FT_8021X_IDX],
-					     CSR_WPA_OUI_SIZE);
-			}
-
-			if (eCSR_AUTH_TYPE_RSN == auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_RSN;
-		}
-		if (neg_authtype == eCSR_AUTH_TYPE_UNKNOWN &&
-		    csr_is_auth_rsn_psk(mac_ctx, authsuites,
-					c_auth_suites, authentication)) {
-			/*
-			 * For adaptive 11r connection send FT-PSK akm in
-			 * association request
-			 */
-			if (adaptive_11r &&
-			    eCSR_AUTH_TYPE_FT_RSN_PSK == auth_type->authType[i]) {
-				neg_authtype = eCSR_AUTH_TYPE_FT_RSN_PSK;
-				qdf_mem_copy(authentication,
-					     csr_rsn_oui[FT_PSK_IDX],
-					     CSR_WPA_OUI_SIZE);
-			}
-
-			if (eCSR_AUTH_TYPE_RSN_PSK == auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_RSN_PSK;
-		}
-#ifdef WLAN_FEATURE_11W
-		if (neg_authtype == eCSR_AUTH_TYPE_UNKNOWN &&
-		    csr_is_auth_rsn_psk_sha256(mac_ctx, authsuites,
-					       c_auth_suites, authentication)) {
-			/*
-			 * For adaptive 11r connection send AP advertises only
-			 * PSK AKM. STA can choose FT-PSK akm in association
-			 * request if FT capable.
-			 */
-			if (adaptive_11r &&
-			    eCSR_AUTH_TYPE_FT_RSN_PSK == auth_type->authType[i]) {
-				neg_authtype = eCSR_AUTH_TYPE_FT_RSN_PSK;
-				qdf_mem_copy(authentication,
-					     csr_rsn_oui[FT_PSK_IDX],
-					     CSR_WPA_OUI_SIZE);
-			}
-
-			if (eCSR_AUTH_TYPE_RSN_PSK_SHA256 ==
-					auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_RSN_PSK_SHA256;
-		}
-		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-		    csr_is_auth_rsn8021x_sha256(mac_ctx,
-						authsuites, c_auth_suites,
-						authentication)) {
-			/*
-			 * For adaptive 11r connection send FT-802.1x akm in
-			 * association request
-			 */
-			if (adaptive_11r &&
-			    eCSR_AUTH_TYPE_FT_RSN == auth_type->authType[i]) {
-				neg_authtype = eCSR_AUTH_TYPE_FT_RSN;
-				qdf_mem_copy(authentication,
-					     csr_rsn_oui[FT_8021X_IDX],
-					     CSR_WPA_OUI_SIZE);
-			}
-			if (eCSR_AUTH_TYPE_RSN_8021X_SHA256 ==
-					auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_RSN_8021X_SHA256;
-		}
-#endif
-		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-				csr_is_auth_wpa_owe(mac_ctx, authsuites,
-					c_auth_suites, authentication)) {
-			if (eCSR_AUTH_TYPE_OWE == auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_OWE;
-		}
-		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-		   csr_is_auth_suiteb_eap_256(mac_ctx, authsuites,
-		   c_auth_suites, authentication)) {
-			if (eCSR_AUTH_TYPE_SUITEB_EAP_SHA256 ==
-						auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_SUITEB_EAP_SHA256;
-		}
-		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-		   csr_is_auth_suiteb_eap_384(mac_ctx, authsuites,
-		   c_auth_suites, authentication)) {
-			if (eCSR_AUTH_TYPE_SUITEB_EAP_SHA384 ==
-						auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_SUITEB_EAP_SHA384;
-		}
-		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-		    csr_is_auth_ft_suiteb_eap_384(mac_ctx, authsuites,
-						  c_auth_suites,
-						  authentication)) {
-			if (eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384 ==
-						auth_type->authType[i])
-				neg_authtype =
-					eCSR_AUTH_TYPE_FT_SUITEB_EAP_SHA384;
-		}
-
-		/*
-		 * The 1st auth type in the APs RSN IE, to match stations
-		 * connecting profiles auth type will cause us to exit this
-		 * loop. This is added as some APs advertise multiple akms in
-		 * the RSN IE
-		 */
-		if (eCSR_AUTH_TYPE_UNKNOWN != neg_authtype) {
-			acceptable_cipher = true;
-			break;
-		}
-	} /* for */
-end:
-	if (acceptable_cipher) {
-		if (mcast_cipher)
-			qdf_mem_copy(mcast_cipher, multicast,
-					CSR_RSN_OUI_SIZE);
-
-		if (ucast_cipher)
-			qdf_mem_copy(ucast_cipher, unicast, CSR_RSN_OUI_SIZE);
-
-		if (gp_mgmt_cipher && group_mgmt_acceptable_cipher)
-			qdf_mem_copy(gp_mgmt_cipher, group_mgmt,
-				     CSR_RSN_OUI_SIZE);
-
-		if (auth_suite)
-			qdf_mem_copy(auth_suite, authentication,
-					CSR_RSN_OUI_SIZE);
-
-		if (negotiated_authtype)
-			*negotiated_authtype = neg_authtype;
-
-		if (capabilities) {
-			/* Bit 0 Preauthentication */
-			capabilities->PreAuthSupported =
-				(rsn_ie->RSN_Cap[0] >> 0) & 0x1;
-			/* Bit 1 No Pairwise */
-			capabilities->NoPairwise =
-				(rsn_ie->RSN_Cap[0] >> 1) & 0x1;
-			/* Bit 2, 3 PTKSA Replay Counter */
-			capabilities->PTKSAReplayCounter =
-				(rsn_ie->RSN_Cap[0] >> 2) & 0x3;
-			/* Bit 4, 5 GTKSA Replay Counter */
-			capabilities->GTKSAReplayCounter =
-				(rsn_ie->RSN_Cap[0] >> 4) & 0x3;
-#ifdef WLAN_FEATURE_11W
-			/* Bit 6 MFPR */
-			capabilities->MFPRequired =
-				(rsn_ie->RSN_Cap[0] >> 6) & 0x1;
-			/* Bit 7 MFPC */
-			capabilities->MFPCapable =
-				(rsn_ie->RSN_Cap[0] >> 7) & 0x1;
-#else
-			/* Bit 6 MFPR */
-			capabilities->MFPRequired = 0;
-			/* Bit 7 MFPC */
-			capabilities->MFPCapable = 0;
-#endif
-			/* remaining reserved */
-			capabilities->Reserved = rsn_ie->RSN_Cap[1] & 0xff;
-		}
-	}
-	return acceptable_cipher;
-}
-
-#ifdef WLAN_FEATURE_11W
-/**
- * csr_is_pmf_capabilities_in_rsn_match() - check for PMF capability
- * @mac:                   Global MAC Context
- * @pFilterMFPEnabled:     given by supplicant to us to specify what kind
- *                         of connection supplicant is expecting to make
- *                         if it is enabled then make PMF connection.
- *                         if it is disabled then make normal connection.
- * @pFilterMFPRequired:    given by supplicant based on our configuration
- *                         if it is 1 then we will require mandatory
- *                         PMF connection and if it is 0 then we PMF
- *                         connection is optional.
- * @pFilterMFPCapable:     given by supplicant based on our configuration
- *                         if it 1 then we are PMF capable and if it 0
- *                         then we are not PMF capable.
- * @pRSNIe:                RSNIe from Beacon/probe response of
- *                         neighbor AP against which we will compare
- *                         our capabilities.
- *
- * This function is to match our current capabilities with the AP
- * to which we are expecting make the connection.
- *
- * Return:   if our PMF capabilities matches with AP then we
- *           will return true to indicate that we are good
- *           to make connection with it. Else we will return false
- **/
-static bool
-csr_is_pmf_capabilities_in_rsn_match(tpAniSirGlobal mac,
-				     bool *pFilterMFPEnabled,
-				     uint8_t *pFilterMFPRequired,
-				     uint8_t *pFilterMFPCapable,
-				     tDot11fIERSN *pRSNIe)
-{
-	uint8_t apProfileMFPCapable = 0;
-	uint8_t apProfileMFPRequired = 0;
-
-	if (pRSNIe && pFilterMFPEnabled && pFilterMFPCapable
-	    && pFilterMFPRequired) {
-		/* Extracting MFPCapable bit from RSN Ie */
-		apProfileMFPCapable = csr_is_mfpc_capable(pRSNIe);
-		apProfileMFPRequired = (pRSNIe->RSN_Cap[0] >> 6) & 0x1;
-
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			"pFilterMFPEnabled: %d pFilterMFPRequired: %d pFilterMFPCapable: %d apProfileMFPCapable: %d apProfileMFPRequired: %d",
-			 *pFilterMFPEnabled, *pFilterMFPRequired,
-			 *pFilterMFPCapable, apProfileMFPCapable,
-			 apProfileMFPRequired);
-
-		if (*pFilterMFPEnabled && *pFilterMFPCapable
-		    && *pFilterMFPRequired && (apProfileMFPCapable == 0)) {
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-				  "AP is not capable to make PMF connection");
-			return false;
-		}  else if (!(*pFilterMFPCapable) &&
-			   apProfileMFPCapable && apProfileMFPRequired) {
-
-			/*
-			 * In this case, AP with whom we trying to connect
-			 * requires mandatory PMF connections and we are not
-			 * capable so this AP is not good choice to connect
-			 */
-			QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-				  "AP needs PMF connection and we are not capable of pmf connection");
-			return false;
-		}
-	}
 	return true;
 }
-#endif
 
-static bool csr_is_rsn_match(tpAniSirGlobal mac_ctx, tCsrAuthList *pAuthType,
-			     eCsrEncryptionType enType,
-			     tCsrEncryptionList *pEnMcType,
-			     bool *pMFPEnabled, uint8_t *pMFPRequired,
-			     uint8_t *pMFPCapable,
-			     tDot11fBeaconIEs *pIes,
-			     eCsrAuthType *pNegotiatedAuthType,
-			     eCsrEncryptionType *pNegotiatedMCCipher)
+bool csr_lookup_fils_pmkid(struct mac_context *mac,
+			   uint8_t vdev_id, uint8_t *cache_id,
+			   uint8_t *ssid, uint8_t ssid_len,
+			   struct qdf_mac_addr *bssid)
 {
-	bool fRSNMatch = false;
+	struct wlan_crypto_pmksa *fils_ssid_pmksa, *bssid_lookup_pmksa;
+	struct wlan_objmgr_vdev *vdev;
 
-	/* See if the cyphers in the Bss description match with the
-	 * settings in the profile.
-	 */
-	fRSNMatch = csr_get_rsn_information(mac_ctx, pAuthType, enType,
-					    pEnMcType, &pIes->RSN, NULL, NULL,
-					    NULL, NULL, pNegotiatedAuthType,
-					    pNegotiatedMCCipher, NULL, NULL,
-					    false);
-#ifdef WLAN_FEATURE_11W
-	/* If all the filter matches then finally checks for PMF capabilities */
-	if (fRSNMatch)
-		fRSNMatch = csr_is_pmf_capabilities_in_rsn_match(mac_ctx,
-								pMFPEnabled,
-								 pMFPRequired,
-								 pMFPCapable,
-								 &pIes->RSN);
-#endif
-	return fRSNMatch;
-}
-
-/**
- * csr_lookup_pmkid_using_ssid() - lookup pmkid using ssid and cache_id
- * @mac: pointer to mac
- * @session: sme session pointer
- * @pmk_cache: pointer to pmk cache
- * @index: index value needs to be seached
- *
- * Return: true if pmkid is found else false
- */
-static bool csr_lookup_pmkid_using_ssid(tpAniSirGlobal mac,
-					struct csr_roam_session *session,
-					tPmkidCacheInfo *pmk_cache,
-					uint32_t *index)
-{
-	uint32_t i;
-	tPmkidCacheInfo *session_pmk;
-
-	for (i = 0; i < session->NumPmkidCache; i++) {
-		session_pmk = &session->PmkidCacheInfo[i];
-		sme_debug("match PMKID ssid %*.*s cache id %x %x ssid_len %d to ssid %s cache_id %x %x",
-			pmk_cache->ssid_len, pmk_cache->ssid_len,
-			pmk_cache->ssid, pmk_cache->cache_id[0],
-			pmk_cache->cache_id[1], pmk_cache->ssid_len,
-			session_pmk->ssid,
-			session_pmk->cache_id[0], session_pmk->cache_id[1]);
-
-		if ((!qdf_mem_cmp(pmk_cache->ssid, session_pmk->ssid,
-				  pmk_cache->ssid_len)) &&
-		    (!qdf_mem_cmp(session_pmk->cache_id,
-				  pmk_cache->cache_id, CACHE_ID_LEN))) {
-			/* match found */
-			*index = i;
-			sme_debug("PMKID found at index %d", i);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool csr_lookup_pmkid_using_bssid(tpAniSirGlobal mac,
-					struct csr_roam_session *session,
-					tPmkidCacheInfo *pmk_cache,
-					uint32_t *index)
-{
-	uint32_t i;
-	tPmkidCacheInfo *session_pmk;
-
-	for (i = 0; i < session->NumPmkidCache; i++) {
-		session_pmk = &session->PmkidCacheInfo[i];
-		sme_debug("Matching BSSID: " MAC_ADDRESS_STR " to cached BSSID:"
-			MAC_ADDRESS_STR, MAC_ADDR_ARRAY(pmk_cache->BSSID.bytes),
-			MAC_ADDR_ARRAY(session_pmk->BSSID.bytes));
-		if (qdf_is_macaddr_equal(&pmk_cache->BSSID,
-					 &session_pmk->BSSID)) {
-			/* match found */
-			*index = i;
-			sme_debug("PMKID found at index %d", i);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-/**
- * csr_lookup_pmkid() - lookup pmkid using bssid or ssid + cache_id
- * @mac: pointer to mac
- * @session: sme session pointer
- * @pmk_cache: pointer to pmk cache
- * @index: index value needs to be seached
- *
- * Return: true if pmkid is found else false
- */
-static bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId,
-				tPmkidCacheInfo *pmk_cache)
-{
-	bool fRC = false, fMatchFound = false;
-	uint32_t Index;
-	struct csr_roam_session *pSession = CSR_GET_SESSION(pMac, sessionId);
-
-	if (!pSession) {
-		sme_err("session %d not found", sessionId);
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac->psoc, vdev_id,
+						    WLAN_LEGACY_SME_ID);
+	if (!vdev) {
+		sme_err("Invalid vdev");
 		return false;
 	}
 
-	if (pmk_cache->ssid_len) {
-		/* Try to find based on cache_id and ssid first */
-		fMatchFound = csr_lookup_pmkid_using_ssid(pMac, pSession,
-							  pmk_cache, &Index);
-	}
-
-	/* If not able to find using cache id or ssid_len is not present */
-	if (!fMatchFound)
-		fMatchFound = csr_lookup_pmkid_using_bssid(pMac,
-						pSession, pmk_cache, &Index);
-
-	if (!fMatchFound) {
-		sme_debug("no pmkid match found NumPmkidCache = %d",
-			pSession->NumPmkidCache);
+	bssid_lookup_pmksa = wlan_crypto_get_pmksa(vdev, bssid);
+	fils_ssid_pmksa =
+		wlan_crypto_get_fils_pmksa(vdev, cache_id, ssid, ssid_len);
+	if (!fils_ssid_pmksa && !bssid_lookup_pmksa) {
+		sme_err("FILS_PMKSA: Lookup failed");
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 		return false;
 	}
-
-	qdf_mem_copy(pmk_cache->PMKID,
-		     pSession->PmkidCacheInfo[Index].PMKID,
-		     CSR_RSN_PMKID_SIZE);
-
-	qdf_mem_copy(pmk_cache->pmk,
-		     pSession->PmkidCacheInfo[Index].pmk,
-		     pSession->PmkidCacheInfo[Index].pmk_len);
-	pmk_cache->pmk_len = pSession->PmkidCacheInfo[Index].pmk_len;
-
-	fRC = true;
-	sme_debug("match = %d NumPmkidCache = %d",
-		fRC, pSession->NumPmkidCache);
-
-	return fRC;
-}
-
-#ifdef WLAN_FEATURE_FILS_SK
-/*
- * csr_update_pmksa_for_cache_id: update tPmkidCacheInfo to lookup using
- * ssid and cache id
- * @bss_desc: bss description
- * @profile: csr roam profile
- * @pmkid_cache: pmksa cache
- *
- * Return: true if cache identifier present else false
- */
-static bool csr_update_pmksa_for_cache_id(tSirBssDescription *bss_desc,
-				struct csr_roam_profile *profile,
-				tPmkidCacheInfo *pmkid_cache)
-{
-	if (!bss_desc->fils_info_element.is_cache_id_present)
-		return false;
-
-	pmkid_cache->ssid_len =
-		profile->SSIDs.SSIDList[0].SSID.length;
-	qdf_mem_copy(pmkid_cache->ssid,
-		profile->SSIDs.SSIDList[0].SSID.ssId,
-		profile->SSIDs.SSIDList[0].SSID.length);
-	qdf_mem_copy(pmkid_cache->cache_id,
-		bss_desc->fils_info_element.cache_id,
-		CACHE_ID_LEN);
-	qdf_mem_copy(pmkid_cache->BSSID.bytes,
-		bss_desc->bssId, QDF_MAC_ADDR_SIZE);
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 
 	return true;
-
 }
-
-/*
- * csr_update_pmksa_to_profile: update pmk and pmkid to profile which will be
- * used in case of fils session
- * @profile: profile
- * @pmkid_cache: pmksa cache
- *
- * Return: None
- */
-static inline void csr_update_pmksa_to_profile(struct csr_roam_profile *profile,
-					       tPmkidCacheInfo *pmkid_cache)
-{
-	if (!profile->fils_con_info)
-		return;
-
-	profile->fils_con_info->pmk_len = pmkid_cache->pmk_len;
-	qdf_mem_copy(profile->fils_con_info->pmk,
-			pmkid_cache->pmk, pmkid_cache->pmk_len);
-	qdf_mem_copy(profile->fils_con_info->pmkid,
-		pmkid_cache->PMKID, CSR_RSN_PMKID_SIZE);
-
-}
-#else
-static inline bool csr_update_pmksa_for_cache_id(tSirBssDescription *bss_desc,
-				struct csr_roam_profile *profile,
-				tPmkidCacheInfo *pmkid_cache)
-{
-	return false;
-}
-
-static inline void csr_update_pmksa_to_profile(struct csr_roam_profile *profile,
-					       tPmkidCacheInfo *pmkid_cache)
-{
-}
-#endif
 
 /**
  * csr_update_session_pmk() - Update the pmk len and pmk in the roam session
@@ -4061,777 +2845,194 @@ static inline void csr_update_pmksa_to_profile(struct csr_roam_profile *profile,
  */
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 static void csr_update_session_pmk(struct csr_roam_session *session,
-				   tPmkidCacheInfo *pmkid_cache)
+				   struct wlan_crypto_pmksa *pmksa)
 {
-	session->pmk_len = pmkid_cache->pmk_len;
+	session->pmk_len = pmksa->pmk_len;
 	qdf_mem_zero(session->psk_pmk, sizeof(session->psk_pmk));
-	qdf_mem_copy(session->psk_pmk, pmkid_cache->pmk, session->pmk_len);
+	qdf_mem_copy(session->psk_pmk, pmksa->pmk, session->pmk_len);
 }
 #else
 static inline void csr_update_session_pmk(struct csr_roam_session *session,
-					  tPmkidCacheInfo *pmkid_cache)
+					  struct wlan_crypto_pmksa *pmksa)
 {
 }
 #endif
 
-uint8_t csr_construct_rsn_ie(tpAniSirGlobal pMac, uint32_t sessionId,
-			     struct csr_roam_profile *pProfile,
-			     tSirBssDescription *pSirBssDesc,
-			     tDot11fBeaconIEs *pIes, tCsrRSNIe *pRSNIe)
+#ifdef WLAN_FEATURE_FILS_SK
+/**
+ * csr_update_pmksa_to_profile() - update pmk and pmkid to profile which will be
+ * used in case of fils session
+ * @profile: profile
+ * @pmkid_cache: pmksa cache
+ *
+ * Return: None
+ */
+static inline void csr_update_pmksa_to_profile(struct csr_roam_profile *profile,
+					       struct wlan_crypto_pmksa *pmksa)
 {
-	uint32_t ret;
-	bool fRSNMatch;
-	uint8_t cbRSNIe = 0;
-	uint8_t UnicastCypher[CSR_RSN_OUI_SIZE];
-	uint8_t MulticastCypher[CSR_RSN_OUI_SIZE];
-	uint8_t gp_mgmt_cipher_suite[CSR_RSN_OUI_SIZE];
-	uint8_t AuthSuite[CSR_RSN_OUI_SIZE];
-	tCsrRSNAuthIe *pAuthSuite;
-	struct rsn_caps RSNCapabilities;
-	tCsrRSNPMKIe *pPMK;
-	tPmkidCacheInfo pmkid_cache;
-#ifdef WLAN_FEATURE_11W
-	uint8_t *pGroupMgmtCipherSuite;
-#endif
-	tDot11fBeaconIEs *pIesLocal = pIes;
-	eCsrAuthType negAuthType = eCSR_AUTH_TYPE_UNKNOWN;
-	tDot11fIERSN rsn_ie = {0};
-	struct csr_roam_session *session = CSR_GET_SESSION(pMac, sessionId);
+	if (!profile->fils_con_info)
+		return;
 
-	if (!CSR_IS_SESSION_VALID(pMac, sessionId) || !session)
-		return 0;
-	qdf_mem_zero(&pmkid_cache, sizeof(pmkid_cache));
-	qdf_mem_zero(&rsn_ie, sizeof(rsn_ie));
-
-	do {
-		if (!csr_is_profile_rsn(pProfile))
-			break;
-
-		if (!pIesLocal
-		    &&
-		    (!QDF_IS_STATUS_SUCCESS
-			     (csr_get_parsed_bss_description_ies
-				     (pMac, pSirBssDesc, &pIesLocal)))) {
-			break;
-		}
-
-		/*
-		 * Use intersection of the RSN cap sent by user space and
-		 * the AP, so that only common capability are enabled.
-		 */
-		if (pProfile->pRSNReqIE && pProfile->nRSNReqIELength) {
-			ret = dot11f_unpack_ie_rsn(pMac,
-						   pProfile->pRSNReqIE + 2,
-				  pProfile->nRSNReqIELength -2, &rsn_ie, false);
-			if (!DOT11F_FAILED(ret)) {
-				pIesLocal->RSN.RSN_Cap[0] =
-						pIesLocal->RSN.RSN_Cap[0] &
-						rsn_ie.RSN_Cap[0];
-				pIesLocal->RSN.RSN_Cap[1] =
-						pIesLocal->RSN.RSN_Cap[1] &
-						rsn_ie.RSN_Cap[1];
-			}
-		}
-		/* See if the cyphers in the Bss description match with the
-		 * settings in the profile.
-		 */
-		fRSNMatch = csr_get_rsn_information(pMac, &pProfile->AuthType,
-					pProfile->negotiatedUCEncryptionType,
-					&pProfile->mcEncryptionType,
-					&pIesLocal->RSN, UnicastCypher,
-					MulticastCypher, AuthSuite,
-					&RSNCapabilities, &negAuthType, NULL,
-					gp_mgmt_cipher_suite,
-					&pProfile->mgmt_encryption_type,
-					session->is_adaptive_11r_connection);
-		if (!fRSNMatch)
-			break;
-
-		pRSNIe->IeHeader.ElementID = SIR_MAC_RSN_EID;
-
-		pRSNIe->Version = CSR_RSN_VERSION_SUPPORTED;
-
-		qdf_mem_copy(pRSNIe->MulticastOui, MulticastCypher,
-			     sizeof(MulticastCypher));
-
-		pRSNIe->cUnicastCyphers = 1;
-
-		qdf_mem_copy(&pRSNIe->UnicastOui[0], UnicastCypher,
-			     sizeof(UnicastCypher));
-
-		pAuthSuite =
-			(tCsrRSNAuthIe *) (&pRSNIe->
-					   UnicastOui[pRSNIe->cUnicastCyphers]);
-
-		pAuthSuite->cAuthenticationSuites = 1;
-		qdf_mem_copy(&pAuthSuite->AuthOui[0], AuthSuite,
-			     sizeof(AuthSuite));
-
-		/* PreAuthSupported is an AP only capability */
-		RSNCapabilities.PreAuthSupported = 0;
-		/*
-		 * Use the Management Frame Protection values given by the
-		 * supplicant, if AP and STA both are MFP capable.
-		 */
-#ifdef WLAN_FEATURE_11W
-		if (RSNCapabilities.MFPCapable && pProfile->MFPCapable) {
-			RSNCapabilities.MFPCapable = pProfile->MFPCapable;
-			RSNCapabilities.MFPRequired = pProfile->MFPRequired;
-		} else {
-			RSNCapabilities.MFPCapable = 0;
-			RSNCapabilities.MFPRequired = 0;
-		}
-#endif
-		*(uint16_t *) (&pAuthSuite->AuthOui[1]) =
-			*((uint16_t *) (&RSNCapabilities));
-
-		pPMK = (tCsrRSNPMKIe *) (((uint8_t *) (&pAuthSuite->AuthOui[1]))
-				+ sizeof(uint16_t));
-
-		if (!csr_update_pmksa_for_cache_id(pSirBssDesc,
-			pProfile, &pmkid_cache))
-			qdf_mem_copy(pmkid_cache.BSSID.bytes,
-				pSirBssDesc->bssId, QDF_MAC_ADDR_SIZE);
-		/* Don't include the PMK SA IDs for CCKM associations. */
-		if (
-#ifdef FEATURE_WLAN_ESE
-			(eCSR_AUTH_TYPE_CCKM_RSN != negAuthType) &&
-#endif
-			csr_lookup_pmkid(pMac, sessionId, &pmkid_cache)) {
-			pPMK->cPMKIDs = 1;
-
-			qdf_trace_hex_dump(QDF_MODULE_ID_PE,
-				   QDF_TRACE_LEVEL_INFO,
-				   pmkid_cache.pmk, pmkid_cache.pmk_len);
-			qdf_mem_copy(pPMK->PMKIDList[0].PMKID,
-				     pmkid_cache.PMKID,
-				     CSR_RSN_PMKID_SIZE);
-
-			/*
-			 * If a PMK cache is found for the BSSID, then
-			 * update the PMK in CSR session also as this
-			 * will be sent to the FW during RSO.
-			 */
-			csr_update_session_pmk(session, &pmkid_cache);
-
-			csr_update_pmksa_to_profile(pProfile, &pmkid_cache);
-		} else {
-			pPMK->cPMKIDs = 0;
-		}
-		session->rsn_caps = RSNCapabilities;
-
-		qdf_mem_zero(&pmkid_cache, sizeof(pmkid_cache));
-
-#ifdef WLAN_FEATURE_11W
-		/* Advertise BIP in group cipher key management only if PMF is
-		 * enabled and AP is capable.
-		 */
-		if (pProfile->MFPEnabled &&
-			(RSNCapabilities.MFPCapable && pProfile->MFPCapable)) {
-			pGroupMgmtCipherSuite =
-				(uint8_t *) pPMK + sizeof(uint16_t) +
-				(pPMK->cPMKIDs * CSR_RSN_PMKID_SIZE);
-			qdf_mem_copy(pGroupMgmtCipherSuite,
-				     gp_mgmt_cipher_suite, CSR_RSN_OUI_SIZE);
-		}
-#endif
-	host_log_rsn_info(UnicastCypher, MulticastCypher,
-			  AuthSuite, gp_mgmt_cipher_suite);
-
-		/* Add in the fixed fields plus 1 Unicast cypher, less the
-		 * IE Header length Add in the size of the Auth suite (count
-		 * plus a single OUI) Add in the RSN caps field.
-		 * Add PMKID count and PMKID (if any)
-		 * Add group management cipher suite
-		 */
-		pRSNIe->IeHeader.Length =
-			(uint8_t) (sizeof(*pRSNIe) - sizeof(pRSNIe->IeHeader) +
-				   sizeof(*pAuthSuite) +
-				   sizeof(struct rsn_caps));
-		if (pPMK->cPMKIDs)
-			pRSNIe->IeHeader.Length += (uint8_t) (sizeof(uint16_t) +
-							      (pPMK->cPMKIDs *
-							CSR_RSN_PMKID_SIZE));
-#ifdef WLAN_FEATURE_11W
-		if (pProfile->MFPEnabled &&
-			(RSNCapabilities.MFPCapable && pProfile->MFPCapable)) {
-			if (0 == pPMK->cPMKIDs)
-				pRSNIe->IeHeader.Length += sizeof(uint16_t);
-			pRSNIe->IeHeader.Length += CSR_WPA_OUI_SIZE;
-		}
+	profile->fils_con_info->pmk_len = pmksa->pmk_len;
+	qdf_mem_copy(profile->fils_con_info->pmk,
+		     pmksa->pmk, pmksa->pmk_len);
+	qdf_mem_copy(profile->fils_con_info->pmkid,
+		     pmksa->pmkid, PMKID_LEN);
+}
+#else
+static inline void csr_update_pmksa_to_profile(struct csr_roam_profile *profile,
+					       struct wlan_crypto_pmksa *pmksa)
+{
+}
 #endif
 
-		/* return the size of the IE header (total) constructed... */
-		cbRSNIe = pRSNIe->IeHeader.Length + sizeof(pRSNIe->IeHeader);
+uint8_t csr_construct_rsn_ie(struct mac_context *mac, uint32_t sessionId,
+			     struct csr_roam_profile *pProfile,
+			     struct bss_description *pSirBssDesc,
+			     tDot11fBeaconIEs *ap_ie, tCsrRSNIe *pRSNIe)
+{
+	struct wlan_objmgr_vdev *vdev;
+	uint8_t *rsn_ie_end = NULL;
+	uint8_t *rsn_ie = (uint8_t *)pRSNIe;
+	uint8_t ie_len = 0;
+	tDot11fBeaconIEs *local_ap_ie = ap_ie;
+	uint16_t rsn_cap = 0, self_rsn_cap;
+	struct wlan_crypto_pmksa pmksa, *pmksa_peer;
+	struct csr_roam_session *session = &mac->roam.roamSession[sessionId];
 
-	} while (0);
+	if (!local_ap_ie &&
+	    (!QDF_IS_STATUS_SUCCESS(csr_get_parsed_bss_description_ies
+	     (mac, pSirBssDesc, &local_ap_ie))))
+		return ie_len;
 
-	if (!pIes && pIesLocal)
+	/* get AP RSN cap */
+	qdf_mem_copy(&rsn_cap, local_ap_ie->RSN.RSN_Cap, sizeof(rsn_cap));
+	if (!ap_ie && local_ap_ie)
 		/* locally allocated */
-		qdf_mem_free(pIesLocal);
+		qdf_mem_free(local_ap_ie);
 
-	return cbRSNIe;
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac->psoc, sessionId,
+						    WLAN_LEGACY_SME_ID);
+	if (!vdev) {
+		sme_err("Invalid vdev");
+		return ie_len;
+	}
+
+	self_rsn_cap = (uint16_t)wlan_crypto_get_param(vdev,
+						   WLAN_CRYPTO_PARAM_RSN_CAP);
+	/* If AP is capable then use self capability else set PMF as 0 */
+	if (rsn_cap & WLAN_CRYPTO_RSN_CAP_MFP_ENABLED &&
+	    pProfile->MFPCapable) {
+		self_rsn_cap |= WLAN_CRYPTO_RSN_CAP_MFP_ENABLED;
+		if (pProfile->MFPRequired)
+			self_rsn_cap |= WLAN_CRYPTO_RSN_CAP_MFP_REQUIRED;
+	} else {
+		self_rsn_cap &= ~WLAN_CRYPTO_RSN_CAP_MFP_ENABLED;
+		self_rsn_cap &= ~WLAN_CRYPTO_RSN_CAP_MFP_REQUIRED;
+	}
+	wlan_crypto_set_vdev_param(vdev, WLAN_CRYPTO_PARAM_RSN_CAP,
+				   self_rsn_cap);
+	qdf_mem_zero(&pmksa, sizeof(pmksa));
+	if (pSirBssDesc->fils_info_element.is_cache_id_present) {
+		pmksa.ssid_len =
+			pProfile->SSIDs.SSIDList[0].SSID.length;
+		qdf_mem_copy(pmksa.ssid,
+			     pProfile->SSIDs.SSIDList[0].SSID.ssId,
+			     pProfile->SSIDs.SSIDList[0].SSID.length);
+		qdf_mem_copy(pmksa.cache_id,
+			     pSirBssDesc->fils_info_element.cache_id,
+			     CACHE_ID_LEN);
+		qdf_mem_copy(&pmksa.bssid,
+			     pSirBssDesc->bssId, QDF_MAC_ADDR_SIZE);
+	} else {
+		qdf_mem_copy(&pmksa.bssid,
+			     pSirBssDesc->bssId, QDF_MAC_ADDR_SIZE);
+	}
+	pmksa_peer = wlan_crypto_get_peer_pmksa(vdev, &pmksa);
+	qdf_mem_zero(&pmksa, sizeof(pmksa));
+	/*
+	 * TODO: Add support for Adaptive 11r connection after
+	 * call to csr_get_rsn_information is added here
+	 */
+	rsn_ie_end = wlan_crypto_build_rsnie_with_pmksa(vdev, rsn_ie,
+							pmksa_peer);
+	if (rsn_ie_end)
+		ie_len = rsn_ie_end - rsn_ie;
+
+	/*
+	 * If a PMK cache is found for the BSSID, then
+	 * update the PMK in CSR session also as this
+	 * will be sent to the FW during RSO.
+	 */
+	if (pmksa_peer) {
+		csr_update_session_pmk(session, pmksa_peer);
+		csr_update_pmksa_to_profile(pProfile, pmksa_peer);
+	}
+
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+
+	return ie_len;
+}
+
+uint8_t csr_construct_wpa_ie(struct mac_context *mac, uint8_t session_id,
+			     struct csr_roam_profile *pProfile,
+			     struct bss_description *pSirBssDesc,
+			     tDot11fBeaconIEs *pIes, tCsrWpaIe *pWpaIe)
+{
+	struct wlan_objmgr_vdev *vdev;
+	uint8_t *wpa_ie_end = NULL;
+	uint8_t *wpa_ie = (uint8_t *)pWpaIe;
+	uint8_t ie_len = 0;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac->psoc, session_id,
+						    WLAN_LEGACY_SME_ID);
+	if (!vdev) {
+		sme_err("Invalid vdev");
+		return ie_len;
+	}
+	wpa_ie_end = wlan_crypto_build_wpaie(vdev, wpa_ie);
+	if (wpa_ie_end)
+		ie_len = wpa_ie_end - wpa_ie;
+
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+
+	return ie_len;
 }
 
 #ifdef FEATURE_WLAN_WAPI
-/**
- * csr_get_wapi_information() - to get WAPI information
- * @mac_ctx: pointer to global MAC context
- * @auth_type: auth type
- * @encr_type: encryption type
- * @mc_encryption: multicast encryption type
- * @wapi_ie: pointer to WAPI IE
- * @ucast_cipher: Unicast cipher
- * @mcast_cipher: Multicast cipher
- * @auth_suite: Authentication suite
- * @negotiated_authtype: Negotiated auth type
- * @negotiated_mccipher: negotiated multicast cipher
- *
- * This routine will get all WAPI information
- *
- * Return: bool
- */
-static bool csr_get_wapi_information(tpAniSirGlobal mac_ctx,
-				     tCsrAuthList *auth_type,
-				     eCsrEncryptionType encr_type,
-				     tCsrEncryptionList *mc_encryption,
-				     tDot11fIEWAPI *wapi_ie,
-				     uint8_t *ucast_cipher,
-				     uint8_t *mcast_cipher, uint8_t *auth_suite,
-				     eCsrAuthType *negotiated_authtype,
-				     eCsrEncryptionType *negotiated_mccipher)
-{
-	bool acceptable_cipher = false;
-	uint8_t c_ucast_cipher = 0;
-	uint8_t c_mcast_cipher = 0;
-	uint8_t c_auth_suites = 0, i;
-	uint8_t unicast[CSR_WAPI_OUI_SIZE];
-	uint8_t multicast[CSR_WAPI_OUI_SIZE];
-	uint8_t authsuites[CSR_WAPI_MAX_AUTH_SUITES][CSR_WAPI_OUI_SIZE];
-	uint8_t authentication[CSR_WAPI_OUI_SIZE];
-	uint8_t mccipher_arr[CSR_WAPI_MAX_MULTICAST_CYPHERS][CSR_WAPI_OUI_SIZE];
-	eCsrAuthType neg_authtype = eCSR_AUTH_TYPE_UNKNOWN;
-	uint8_t wapioui_idx = 0;
-
-	if (!wapi_ie->present)
-		goto end;
-
-	c_mcast_cipher++;
-	qdf_mem_copy(mccipher_arr, wapi_ie->multicast_cipher_suite,
-			CSR_WAPI_OUI_SIZE);
-	c_ucast_cipher = (uint8_t) (wapi_ie->unicast_cipher_suite_count);
-	c_auth_suites = (uint8_t) (wapi_ie->akm_suite_count);
-	for (i = 0; i < c_auth_suites && i < CSR_WAPI_MAX_AUTH_SUITES; i++)
-		qdf_mem_copy((void *)&authsuites[i],
-			(void *)&wapi_ie->akm_suites[i], CSR_WAPI_OUI_SIZE);
-
-	wapioui_idx = csr_get_oui_index_from_cipher(encr_type);
-	if (wapioui_idx >= CSR_OUI_WAPI_WAI_MAX_INDEX) {
-		sme_err("Wapi OUI index = %d out of limit",
-			wapioui_idx);
-		acceptable_cipher = false;
-		goto end;
-	}
-	/* Check - Is requested unicast Cipher supported by the BSS. */
-	acceptable_cipher = csr_match_wapi_oui_index(mac_ctx,
-				wapi_ie->unicast_cipher_suites,
-				c_ucast_cipher, wapioui_idx, unicast);
-	if (!acceptable_cipher)
-		goto end;
-
-	/* unicast is supported. Pick the first matching Group cipher, if any */
-	for (i = 0; i < mc_encryption->numEntries; i++) {
-		wapioui_idx = csr_get_oui_index_from_cipher(
-					mc_encryption->encryptionType[i]);
-		if (wapioui_idx >= CSR_OUI_WAPI_WAI_MAX_INDEX) {
-			sme_err("Wapi OUI index = %d out of limit",
-				wapioui_idx);
-			acceptable_cipher = false;
-			break;
-		}
-		acceptable_cipher = csr_match_wapi_oui_index(mac_ctx,
-						mccipher_arr, c_mcast_cipher,
-						wapioui_idx, multicast);
-		if (acceptable_cipher)
-			break;
-	}
-	if (!acceptable_cipher)
-		goto end;
-
-	if (negotiated_mccipher)
-		*negotiated_mccipher =
-			mc_encryption->encryptionType[i];
-
-	/*
-	 * Ciphers are supported, Match authentication algorithm and
-	 * pick first matching authtype
-	 */
-	if (csr_is_auth_wapi_cert
-			(mac_ctx, authsuites, c_auth_suites, authentication)) {
-		neg_authtype =
-			eCSR_AUTH_TYPE_WAPI_WAI_CERTIFICATE;
-	} else if (csr_is_auth_wapi_psk(mac_ctx, authsuites,
-				c_auth_suites, authentication)) {
-		neg_authtype = eCSR_AUTH_TYPE_WAPI_WAI_PSK;
-	} else {
-		acceptable_cipher = false;
-		neg_authtype = eCSR_AUTH_TYPE_UNKNOWN;
-	}
-
-	/* Caller doesn't care about auth type, or BSS doesn't match */
-	if ((0 == auth_type->numEntries) || (false == acceptable_cipher))
-		goto end;
-
-	acceptable_cipher = false;
-	for (i = 0; i < auth_type->numEntries; i++) {
-		if (auth_type->authType[i] == neg_authtype) {
-			acceptable_cipher = true;
-			break;
-		}
-	}
-
-end:
-	if (acceptable_cipher) {
-		if (mcast_cipher)
-			qdf_mem_copy(mcast_cipher, multicast,
-					CSR_WAPI_OUI_SIZE);
-		if (ucast_cipher)
-			qdf_mem_copy(ucast_cipher, unicast, CSR_WAPI_OUI_SIZE);
-		if (auth_suite)
-			qdf_mem_copy(auth_suite, authentication,
-					CSR_WAPI_OUI_SIZE);
-		if (negotiated_authtype)
-			*negotiated_authtype = neg_authtype;
-	}
-	return acceptable_cipher;
-}
-
-static bool csr_is_wapi_match(tpAniSirGlobal mac_ctx, tCsrAuthList *pAuthType,
-			      eCsrEncryptionType enType,
-			      tCsrEncryptionList *pEnMcType,
-			      tDot11fBeaconIEs *pIes,
-			      eCsrAuthType *pNegotiatedAuthType,
-			      eCsrEncryptionType *pNegotiatedMCCipher)
-{
-	bool fWapiMatch = false;
-
-	/* See if the cyphers in the Bss description match with the
-	 * settings in the profile.
-	 */
-	fWapiMatch =
-		csr_get_wapi_information(mac_ctx, pAuthType, enType, pEnMcType,
-					 &pIes->WAPI, NULL, NULL, NULL,
-					 pNegotiatedAuthType,
-					 pNegotiatedMCCipher);
-
-	return fWapiMatch;
-}
-
-static bool csr_lookup_bkid(tpAniSirGlobal pMac, uint32_t sessionId,
-			    uint8_t *pBSSId, uint8_t *pBKId)
-{
-	bool fRC = false, fMatchFound = false;
-	uint32_t Index;
-	struct csr_roam_session *pSession = CSR_GET_SESSION(pMac, sessionId);
-
-	if (!pSession) {
-		sme_err("session %d not found", sessionId);
-		return false;
-	}
-
-	do {
-		for (Index = 0; Index < pSession->NumBkidCache; Index++) {
-			sme_debug("match BKID " MAC_ADDRESS_STR " to ",
-				MAC_ADDR_ARRAY(pBSSId));
-			if (!qdf_mem_cmp
-			    (pBSSId, pSession->BkidCacheInfo[Index].BSSID.bytes,
-				    sizeof(struct qdf_mac_addr))) {
-				/* match found */
-				fMatchFound = true;
-				break;
-			}
-		}
-
-		if (!fMatchFound)
-			break;
-
-		qdf_mem_copy(pBKId, pSession->BkidCacheInfo[Index].BKID,
-			     CSR_WAPI_BKID_SIZE);
-
-		fRC = true;
-	} while (0);
-	sme_debug(
-		"csr_lookup_bkid called return match = %d pMac->roam.NumBkidCache = %d",
-		fRC, pSession->NumBkidCache);
-
-	return fRC;
-}
-
-uint8_t csr_construct_wapi_ie(tpAniSirGlobal pMac, uint32_t sessionId,
+uint8_t csr_construct_wapi_ie(struct mac_context *mac, uint32_t sessionId,
 			      struct csr_roam_profile *pProfile,
-			      tSirBssDescription *pSirBssDesc,
+			      struct bss_description *pSirBssDesc,
 			      tDot11fBeaconIEs *pIes, tCsrWapiIe *pWapiIe)
 {
-	bool fWapiMatch = false;
-	uint8_t cbWapiIe = 0;
-	uint8_t UnicastCypher[CSR_WAPI_OUI_SIZE];
-	uint8_t MulticastCypher[CSR_WAPI_OUI_SIZE];
-	uint8_t AuthSuite[CSR_WAPI_OUI_SIZE];
-	uint8_t BKId[CSR_WAPI_BKID_SIZE];
-	uint8_t *pWapi = NULL;
-	bool fBKIDFound = false;
-	tDot11fBeaconIEs *pIesLocal = pIes;
+	struct wlan_objmgr_vdev *vdev;
+	uint8_t *wapi_ie_end = NULL;
+	uint8_t *wapi_ie = (uint8_t *)pWapiIe;
+	uint8_t ie_len = 0;
 
-	do {
-		if (!csr_is_profile_wapi(pProfile))
-			break;
-
-		if (!pIesLocal
-		    &&
-		    (!QDF_IS_STATUS_SUCCESS
-			     (csr_get_parsed_bss_description_ies
-				     (pMac, pSirBssDesc, &pIesLocal)))) {
-			break;
-		}
-		/* See if the cyphers in the Bss description match with the
-		 * settings in the profile.
-		 */
-		fWapiMatch =
-			csr_get_wapi_information(pMac, &pProfile->AuthType,
-					pProfile->negotiatedUCEncryptionType,
-					&pProfile->mcEncryptionType,
-					&pIesLocal->WAPI, UnicastCypher,
-					MulticastCypher, AuthSuite, NULL,
-						 NULL);
-		if (!fWapiMatch)
-			break;
-
-		qdf_mem_zero(pWapiIe, sizeof(tCsrWapiIe));
-
-		pWapiIe->IeHeader.ElementID = DOT11F_EID_WAPI;
-
-		pWapiIe->Version = CSR_WAPI_VERSION_SUPPORTED;
-
-		pWapiIe->cAuthenticationSuites = 1;
-		qdf_mem_copy(&pWapiIe->AuthOui[0], AuthSuite,
-			     sizeof(AuthSuite));
-
-		pWapi = (uint8_t *) (&pWapiIe->AuthOui[1]);
-
-		*pWapi = (uint16_t) 1;  /* cUnicastCyphers */
-		pWapi += 2;
-		qdf_mem_copy(pWapi, UnicastCypher, sizeof(UnicastCypher));
-		pWapi += sizeof(UnicastCypher);
-
-		qdf_mem_copy(pWapi, MulticastCypher, sizeof(MulticastCypher));
-		pWapi += sizeof(MulticastCypher);
-
-		/* WAPI capabilities follows the Auth Suite (two octects)
-		 * we shouldn't EVER be sending out "pre-auth supported".
-		 * It is an AP only capability & since we already did a memset
-		 * pWapiIe to 0, skip these fields
-		 */
-		pWapi += 2;
-
-		fBKIDFound =
-			csr_lookup_bkid(pMac, sessionId, pSirBssDesc->bssId,
-					&(BKId[0]));
-
-		if (fBKIDFound) {
-			/* Do we need to change the endianness here */
-			*pWapi = (uint16_t) 1;  /* cBKIDs */
-			pWapi += 2;
-			qdf_mem_copy(pWapi, BKId, CSR_WAPI_BKID_SIZE);
-		} else {
-			*pWapi = 0;
-			pWapi += 1;
-			*pWapi = 0;
-			pWapi += 1;
-		}
-
-		/* Add in the IE fields except the IE header */
-		/* Add BKID count and BKID (if any) */
-		pWapiIe->IeHeader.Length =
-			(uint8_t) (sizeof(*pWapiIe) -
-				sizeof(pWapiIe->IeHeader));
-
-		/*2 bytes for BKID Count field */
-		pWapiIe->IeHeader.Length += sizeof(uint16_t);
-
-		if (fBKIDFound)
-			pWapiIe->IeHeader.Length += CSR_WAPI_BKID_SIZE;
-
-		/* return the size of the IE header (total) constructed... */
-		cbWapiIe = pWapiIe->IeHeader.Length + sizeof(pWapiIe->IeHeader);
-
-	} while (0);
-
-	if (!pIes && pIesLocal)
-		/* locally allocated */
-		qdf_mem_free(pIesLocal);
-
-	return cbWapiIe;
-}
-#endif /* FEATURE_WLAN_WAPI */
-
-/**
- * csr_get_wpa_cyphers() - to get WPA cipher info
- * @mac_ctx: pointer to mac context
- * @auth_type: auth type
- * @encr_type: encryption type
- * @mc_encryption: multicast encryption type
- * @wpa_ie: pointer to WPA IE
- * @ucast_cipher: Unicast cipher
- * @mcast_cipher: Multicast cipher
- * @auth_suite: Authentication suite
- * @negotiated_authtype: Negotiated auth type
- * @negotiated_mccipher: negotiated multicast cipher
- *
- * This routine will get all WPA information
- *
- * Return: bool
- */
-static bool csr_get_wpa_cyphers(tpAniSirGlobal mac_ctx, tCsrAuthList *auth_type,
-				eCsrEncryptionType encr_type,
-				tCsrEncryptionList *mc_encryption,
-				tDot11fIEWPA *wpa_ie, uint8_t *ucast_cipher,
-				uint8_t *mcast_cipher, uint8_t *auth_suite,
-				eCsrAuthType *negotiated_authtype,
-				eCsrEncryptionType *negotiated_mccipher)
-{
-	bool acceptable_cipher = false;
-	uint8_t c_ucast_cipher = 0;
-	uint8_t c_mcast_cipher = 0;
-	uint8_t c_auth_suites = 0;
-	uint8_t unicast[CSR_WPA_OUI_SIZE];
-	uint8_t multicast[CSR_WPA_OUI_SIZE];
-	uint8_t authentication[CSR_WPA_OUI_SIZE];
-	uint8_t mccipher_arr[1][CSR_WPA_OUI_SIZE];
-	uint8_t i;
-	uint8_t index;
-	eCsrAuthType neg_authtype = eCSR_AUTH_TYPE_UNKNOWN;
-
-	if (!wpa_ie->present)
-		goto end;
-	c_mcast_cipher = 1;
-	qdf_mem_copy(mccipher_arr, wpa_ie->multicast_cipher, CSR_WPA_OUI_SIZE);
-	c_ucast_cipher = (uint8_t) (wpa_ie->unicast_cipher_count);
-	c_auth_suites = (uint8_t) (wpa_ie->auth_suite_count);
-
-	/*
-	 * csr_match_wpaoui_index will provide the index of the
-	 * array csr_wpa_oui to be read and determine if it is
-	 * accepatable cipher or not. Below check ensures that
-	 * the index will not be out of range of the array size.
-	 */
-	index = csr_get_oui_index_from_cipher(encr_type);
-	if (!(index < (sizeof(csr_wpa_oui)/CSR_WPA_OUI_SIZE))) {
-		sme_debug("Unacceptable index: %d", index);
-		goto end;
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac->psoc, sessionId,
+						    WLAN_LEGACY_SME_ID);
+	if (!vdev) {
+		sme_err("Invalid vdev");
+		return ie_len;
 	}
+	wapi_ie_end = wlan_crypto_build_wapiie(vdev, wapi_ie);
+	if (wapi_ie_end)
+		ie_len = wapi_ie_end - wapi_ie;
 
-	sme_debug("kw_dbg: index: %d", index);
-	/* Check - Is requested unicast Cipher supported by the BSS. */
-	acceptable_cipher = csr_match_wpaoui_index(mac_ctx,
-				wpa_ie->unicast_ciphers, c_ucast_cipher,
-				index, unicast);
-	if (!acceptable_cipher)
-		goto end;
-	/* unicast is supported. Pick the first matching Group cipher, if any */
-	for (i = 0; i < mc_encryption->numEntries; i++) {
-		index = csr_get_oui_index_from_cipher(
-				mc_encryption->encryptionType[i]);
-		sme_debug("kw_dbg: index: %d", index);
-		if (!(index < (sizeof(csr_wpa_oui)/CSR_WPA_OUI_SIZE))) {
-			sme_debug("Unacceptable MC index: %d", index);
-			acceptable_cipher = false;
-			continue;
-		}
-		acceptable_cipher = csr_match_wpaoui_index(mac_ctx,
-					mccipher_arr, c_mcast_cipher,
-					index, multicast);
-		if (acceptable_cipher)
-			break;
-	}
-	if (!acceptable_cipher)
-		goto end;
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 
-	if (negotiated_mccipher)
-		*negotiated_mccipher = mc_encryption->encryptionType[i];
-
-	/* Initializing with false as it has true value already */
-	acceptable_cipher = false;
-	for (i = 0; i < auth_type->numEntries; i++) {
-		/*
-		 * Ciphers are supported, Match authentication algorithm and
-		 * pick first matching authtype
-		 */
-		if (csr_is_auth_wpa(mac_ctx, wpa_ie->auth_suites, c_auth_suites,
-			authentication)) {
-			if (eCSR_AUTH_TYPE_WPA == auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_WPA;
-		}
-		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN) &&
-			csr_is_auth_wpa_psk(mac_ctx,
-				wpa_ie->auth_suites, c_auth_suites,
-				authentication)) {
-			if (eCSR_AUTH_TYPE_WPA_PSK == auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_WPA_PSK;
-		}
-#ifdef FEATURE_WLAN_ESE
-		if ((neg_authtype == eCSR_AUTH_TYPE_UNKNOWN)
-			&& csr_is_ese_cckm_auth_wpa(mac_ctx,
-				wpa_ie->auth_suites, c_auth_suites,
-				authentication)) {
-			if (eCSR_AUTH_TYPE_CCKM_WPA == auth_type->authType[i])
-				neg_authtype = eCSR_AUTH_TYPE_CCKM_WPA;
-		}
-#endif /* FEATURE_WLAN_ESE */
-
-		/*
-		 * The 1st auth type in the APs WPA IE, to match stations
-		 * connecting profiles auth type will cause us to exit this
-		 * loop. This is added as some APs advertise multiple akms in
-		 * the WPA IE
-		 */
-		if (eCSR_AUTH_TYPE_UNKNOWN != neg_authtype) {
-			acceptable_cipher = true;
-			break;
-		}
-	}
-
-end:
-	if (acceptable_cipher) {
-		if (mcast_cipher)
-			qdf_mem_copy((uint8_t **) mcast_cipher, multicast,
-					CSR_WPA_OUI_SIZE);
-
-		if (ucast_cipher)
-			qdf_mem_copy((uint8_t **) ucast_cipher, unicast,
-					CSR_WPA_OUI_SIZE);
-
-		if (auth_suite)
-			qdf_mem_copy((uint8_t **) auth_suite, authentication,
-					CSR_WPA_OUI_SIZE);
-
-		if (negotiated_authtype)
-			*negotiated_authtype = neg_authtype;
-	}
-
-	return acceptable_cipher;
+	return ie_len;
 }
-
-static bool csr_is_wpa_encryption_match(tpAniSirGlobal pMac,
-					tCsrAuthList *pAuthType,
-					eCsrEncryptionType enType,
-					tCsrEncryptionList *pEnMcType,
-					tDot11fBeaconIEs *pIes,
-					eCsrAuthType *pNegotiatedAuthtype,
-					eCsrEncryptionType *pNegotiatedMCCipher)
-{
-	bool fWpaMatch = false;
-
-	/* See if the cyphers in the Bss description match with the
-	 * settings in the profile.
-	 */
-	fWpaMatch =
-		csr_get_wpa_cyphers(pMac, pAuthType, enType, pEnMcType,
-				&pIes->WPA,
-				    NULL, NULL, NULL, pNegotiatedAuthtype,
-				    pNegotiatedMCCipher);
-
-	return fWpaMatch;
-}
-
-uint8_t csr_construct_wpa_ie(tpAniSirGlobal pMac,
-			     struct csr_roam_profile *pProfile,
-			     tSirBssDescription *pSirBssDesc,
-			     tDot11fBeaconIEs *pIes, tCsrWpaIe *pWpaIe)
-{
-	bool fWpaMatch;
-	uint8_t cbWpaIe = 0;
-	uint8_t UnicastCypher[CSR_WPA_OUI_SIZE];
-	uint8_t MulticastCypher[CSR_WPA_OUI_SIZE];
-	uint8_t AuthSuite[CSR_WPA_OUI_SIZE];
-	tCsrWpaAuthIe *pAuthSuite;
-	tDot11fBeaconIEs *pIesLocal = pIes;
-
-	do {
-		if (!csr_is_profile_wpa(pProfile))
-			break;
-
-		if (!pIesLocal
-		    &&
-		    (!QDF_IS_STATUS_SUCCESS
-			     (csr_get_parsed_bss_description_ies
-				     (pMac, pSirBssDesc, &pIesLocal))))
-			break;
-		/* See if the cyphers in the Bss description match with the
-		 * settings in the profile.
-		 */
-		fWpaMatch =
-			csr_get_wpa_cyphers(pMac, &pProfile->AuthType,
-					   pProfile->negotiatedUCEncryptionType,
-					    &pProfile->mcEncryptionType,
-					    &pIesLocal->WPA, UnicastCypher,
-					MulticastCypher, AuthSuite, NULL, NULL);
-		if (!fWpaMatch)
-			break;
-
-		pWpaIe->IeHeader.ElementID = SIR_MAC_WPA_EID;
-
-		qdf_mem_copy(pWpaIe->Oui, csr_wpa_oui[01], sizeof(pWpaIe->Oui));
-
-		pWpaIe->Version = CSR_WPA_VERSION_SUPPORTED;
-
-		qdf_mem_copy(pWpaIe->MulticastOui, MulticastCypher,
-			     sizeof(MulticastCypher));
-
-		pWpaIe->cUnicastCyphers = 1;
-
-		qdf_mem_copy(&pWpaIe->UnicastOui[0], UnicastCypher,
-			     sizeof(UnicastCypher));
-
-		pAuthSuite =
-			(tCsrWpaAuthIe *) (&pWpaIe->
-					   UnicastOui[pWpaIe->cUnicastCyphers]);
-
-		pAuthSuite->cAuthenticationSuites = 1;
-		qdf_mem_copy(&pAuthSuite->AuthOui[0], AuthSuite,
-			     sizeof(AuthSuite));
-
-		/* The WPA capabilities follows the Auth Suite (two octects)-
-		 * this field is optional, and we always "send" zero, so just
-		 * remove it.  This is consistent with our assumptions in the
-		 * frames compiler; c.f. bug 15234:
-		 * http://gold.woodsidenet.com/bugzilla/show_bug.cgi?id=15234
-		 * Add in the fixed fields plus 1 Unicast cypher, less the IE
-		 * Header length Add in the size of the Auth suite (count plus
-		 * a single OUI)
-		 */
-		pWpaIe->IeHeader.Length =
-			sizeof(*pWpaIe) - sizeof(pWpaIe->IeHeader) +
-			sizeof(*pAuthSuite);
-
-		/* return the size of the IE header (total) constructed... */
-		cbWpaIe = pWpaIe->IeHeader.Length + sizeof(pWpaIe->IeHeader);
-
-	} while (0);
-
-	if (!pIes && pIesLocal)
-		/* locally allocated */
-		qdf_mem_free(pIesLocal);
-
-	return cbWpaIe;
-}
+#endif
 
 /* If a WPAIE exists in the profile, just use it. Or else construct
  * one from the BSS Caller allocated memory for pWpaIe and guarrantee
  * it can contain a max length WPA IE
  */
-uint8_t csr_retrieve_wpa_ie(tpAniSirGlobal pMac,
+uint8_t csr_retrieve_wpa_ie(struct mac_context *mac, uint8_t session_id,
 			    struct csr_roam_profile *pProfile,
-			    tSirBssDescription *pSirBssDesc,
+			    struct bss_description *pSirBssDesc,
 			    tDot11fBeaconIEs *pIes, tCsrWpaIe *pWpaIe)
 {
 	uint8_t cbWpaIe = 0;
@@ -4845,12 +3046,14 @@ uint8_t csr_retrieve_wpa_ie(tpAniSirGlobal pMac,
 				cbWpaIe = (uint8_t) pProfile->nWPAReqIELength;
 				qdf_mem_copy(pWpaIe, pProfile->pWPAReqIE,
 					     cbWpaIe);
-			} else
-				sme_warn("csr_retrieve_wpa_ie detect invalid WPA IE length (%d)",
-					pProfile->nWPAReqIELength);
-		} else
-			cbWpaIe = csr_construct_wpa_ie(pMac, pProfile,
-						pSirBssDesc, pIes, pWpaIe);
+			} else {
+				sme_warn("Invalid WPA IE length %d",
+					 pProfile->nWPAReqIELength);
+			}
+			break;
+		}
+		cbWpaIe = csr_construct_wpa_ie(mac, session_id, pProfile,
+					       pSirBssDesc, pIes, pWpaIe);
 	} while (0);
 
 	return cbWpaIe;
@@ -4866,9 +3069,9 @@ uint8_t csr_retrieve_wpa_ie(tpAniSirGlobal pMac,
  *
  * Return: none
  */
-static void csr_get_mc_mgmt_cipher(tpAniSirGlobal mac,
+static void csr_get_mc_mgmt_cipher(struct mac_context *mac,
 				   struct csr_roam_profile *profile,
-				   tSirBssDescription *bss,
+				   struct bss_description *bss,
 				   tDot11fBeaconIEs *ap_ie)
 {
 	int ret;
@@ -4921,9 +3124,9 @@ static void csr_get_mc_mgmt_cipher(tpAniSirGlobal mac,
 }
 #else
 static inline
-void csr_get_mc_mgmt_cipher(tpAniSirGlobal mac,
+void csr_get_mc_mgmt_cipher(struct mac_context *mac,
 			    struct csr_roam_profile *profile,
-			    tSirBssDescription *bss,
+			    struct bss_description *bss,
 			    tDot11fBeaconIEs *ap_ie)
 {
 }
@@ -4932,9 +3135,9 @@ void csr_get_mc_mgmt_cipher(tpAniSirGlobal mac,
  * one from the BSS Caller allocated memory for pWpaIe and guarrantee
  * it can contain a max length WPA IE
  */
-uint8_t csr_retrieve_rsn_ie(tpAniSirGlobal pMac, uint32_t sessionId,
+uint8_t csr_retrieve_rsn_ie(struct mac_context *mac, uint32_t sessionId,
 			    struct csr_roam_profile *pProfile,
-			    tSirBssDescription *pSirBssDesc,
+			    struct bss_description *pSirBssDesc,
 			    tDot11fBeaconIEs *pIes, tCsrRSNIe *pRsnIe)
 {
 	uint8_t cbRsnIe = 0;
@@ -4951,16 +3154,15 @@ uint8_t csr_retrieve_rsn_ie(tpAniSirGlobal pMac, uint32_t sessionId,
 				cbRsnIe = (uint8_t) pProfile->nRSNReqIELength;
 				qdf_mem_copy(pRsnIe, pProfile->pRSNReqIE,
 					     cbRsnIe);
-				csr_get_mc_mgmt_cipher(pMac, pProfile,
+				csr_get_mc_mgmt_cipher(mac, pProfile,
 						       pSirBssDesc, pIes);
 			} else {
-				sme_warn("csr_retrieve_rsn_ie detect invalid RSN IE length (%d)",
-					pProfile->nRSNReqIELength);
+				sme_warn("Invalid RSN IE length: %d",
+					 pProfile->nRSNReqIELength);
 			}
 			break;
 		}
-
-		cbRsnIe = csr_construct_rsn_ie(pMac, sessionId, pProfile,
+		cbRsnIe = csr_construct_rsn_ie(mac, sessionId, pProfile,
 					       pSirBssDesc, pIes, pRsnIe);
 	} while (0);
 
@@ -4972,9 +3174,9 @@ uint8_t csr_retrieve_rsn_ie(tpAniSirGlobal pMac, uint32_t sessionId,
  * one from the BSS Caller allocated memory for pWapiIe and guarrantee
  * it can contain a max length WAPI IE
  */
-uint8_t csr_retrieve_wapi_ie(tpAniSirGlobal pMac, uint32_t sessionId,
+uint8_t csr_retrieve_wapi_ie(struct mac_context *mac, uint32_t sessionId,
 			     struct csr_roam_profile *pProfile,
-			     tSirBssDescription *pSirBssDesc,
+			     struct bss_description *pSirBssDesc,
 			     tDot11fBeaconIEs *pIes, tCsrWapiIe *pWapiIe)
 {
 	uint8_t cbWapiIe = 0;
@@ -4988,13 +3190,15 @@ uint8_t csr_retrieve_wapi_ie(tpAniSirGlobal pMac, uint32_t sessionId,
 				cbWapiIe = (uint8_t) pProfile->nWAPIReqIELength;
 				qdf_mem_copy(pWapiIe, pProfile->pWAPIReqIE,
 					     cbWapiIe);
-			} else
-				sme_warn("csr_retrieve_wapi_ie detect invalid WAPI IE length (%d)",
-					pProfile->nWAPIReqIELength);
-		} else
-			cbWapiIe =
-				csr_construct_wapi_ie(pMac, sessionId, pProfile,
-						    pSirBssDesc, pIes, pWapiIe);
+			} else {
+				sme_warn("Invalid WAPI IE length %d",
+					 pProfile->nWAPIReqIELength);
+			}
+			break;
+		}
+		cbWapiIe = csr_construct_wapi_ie(mac, sessionId,
+						 pProfile, pSirBssDesc,
+						 pIes, pWapiIe);
 	} while (0);
 
 	return cbWapiIe;
@@ -5102,416 +3306,7 @@ tAniEdType csr_translate_encrypt_type_to_ed_type(eCsrEncryptionType EncryptType)
 	return edType;
 }
 
-/**
- * csr_validate_wep() - to validate wep
- * @uc_encry_type: unicast encryption type
- * @auth_list: Auth list
- * @mc_encryption_list: multicast encryption type
- * @negotiated_authtype: negotiated auth type
- * @negotiated_mc_encry: negotiated mc encry type
- * @bss_descr: BSS description
- * @ie_ptr: IE pointer
- *
- * This function just checks whether HDD is giving correct values for
- * Multicast cipher and Auth
- *
- * Return: bool
- */
-static bool csr_validate_wep(tpAniSirGlobal mac_ctx,
-			     eCsrEncryptionType uc_encry_type,
-			     tCsrAuthList *auth_list,
-			     tCsrEncryptionList *mc_encryption_list,
-			     eCsrAuthType *negotiated_authtype,
-			     eCsrEncryptionType *negotiated_mc_encry,
-			     tSirBssDescription *bss_descr,
-			     tDot11fBeaconIEs *ie_ptr)
-{
-	uint32_t idx;
-	bool match = false;
-	eCsrAuthType negotiated_auth = eCSR_AUTH_TYPE_OPEN_SYSTEM;
-	eCsrEncryptionType negotiated_mccipher = eCSR_ENCRYPT_TYPE_UNKNOWN;
-	uint8_t oui_index;
-
-	/* If privacy bit is not set, consider no match */
-	if (!csr_is_privacy(bss_descr))
-		goto end;
-
-	for (idx = 0; idx < mc_encryption_list->numEntries; idx++) {
-		switch (mc_encryption_list->encryptionType[idx]) {
-		case eCSR_ENCRYPT_TYPE_WEP40_STATICKEY:
-		case eCSR_ENCRYPT_TYPE_WEP104_STATICKEY:
-		case eCSR_ENCRYPT_TYPE_WEP40:
-		case eCSR_ENCRYPT_TYPE_WEP104:
-			/*
-			 * Multicast list may contain WEP40/WEP104.
-			 * Check whether it matches UC.
-			 */
-			if (uc_encry_type ==
-				mc_encryption_list->encryptionType[idx]) {
-				match = true;
-				negotiated_mccipher =
-					mc_encryption_list->encryptionType[idx];
-			}
-			break;
-		default:
-			match = false;
-			break;
-		}
-		if (match)
-			break;
-	}
-
-	if (!match)
-		goto end;
-
-	for (idx = 0; idx < auth_list->numEntries; idx++) {
-		switch (auth_list->authType[idx]) {
-		case eCSR_AUTH_TYPE_OPEN_SYSTEM:
-		case eCSR_AUTH_TYPE_SHARED_KEY:
-		case eCSR_AUTH_TYPE_AUTOSWITCH:
-			match = true;
-			negotiated_auth = auth_list->authType[idx];
-			break;
-		default:
-			match = false;
-		}
-		if (match)
-			break;
-	}
-
-	if (!match)
-		goto end;
-
-	if (!ie_ptr)
-		goto end;
-
-	/*
-	 * In case of WPA / WPA2, check whether it supports WEP as well.
-	 * Prepare the encryption type for WPA/WPA2 functions
-	 */
-	if (eCSR_ENCRYPT_TYPE_WEP40_STATICKEY == uc_encry_type)
-		uc_encry_type = eCSR_ENCRYPT_TYPE_WEP40;
-	else if (eCSR_ENCRYPT_TYPE_WEP104 == uc_encry_type)
-		uc_encry_type = eCSR_ENCRYPT_TYPE_WEP104;
-
-	/* else we can use the encryption type directly */
-	if (ie_ptr->WPA.present) {
-		oui_index = csr_get_oui_index_from_cipher(uc_encry_type);
-		if (oui_index < QDF_ARRAY_SIZE(csr_wpa_oui))
-			match = (!qdf_mem_cmp(ie_ptr->WPA.multicast_cipher,
-					csr_wpa_oui[oui_index],
-					CSR_WPA_OUI_SIZE));
-		if (match)
-			goto end;
-	}
-	if (ie_ptr->RSN.present) {
-		match = (!qdf_mem_cmp(ie_ptr->RSN.gp_cipher_suite,
-				csr_rsn_oui[csr_get_oui_index_from_cipher(
-					uc_encry_type)],
-				CSR_RSN_OUI_SIZE));
-	}
-
-
-end:
-	if (match) {
-		if (negotiated_authtype)
-			*negotiated_authtype = negotiated_auth;
-		if (negotiated_mc_encry)
-			*negotiated_mc_encry = negotiated_mccipher;
-	}
-	return match;
-}
-
-/**
- * csr_validate_open_none() - Check if the security is matching
- * @bss_desc:          BSS Descriptor on which the check is done
- * @mc_enc_type:       Multicast encryption type
- * @mc_cipher:         Multicast Cipher
- * @auth_type:         Authentication type
- * @neg_auth_type:     Negotiated Auth type with the AP
- *
- * Return: Boolean value to tell if matched or not.
- */
-static bool csr_validate_open_none(tSirBssDescription *bss_desc,
-	tCsrEncryptionList *mc_enc_type, eCsrEncryptionType *mc_cipher,
-	tCsrAuthList *auth_type, eCsrAuthType *neg_auth_type)
-{
-	bool match;
-	uint8_t idx;
-
-	/*
-	 * for NO encryption, if the Bss description has the
-	 * Privacy bit turned on, then encryption is required
-	 * so we have to reject this Bss.
-	 */
-	if (csr_is_privacy(bss_desc))
-		match = false;
-	else
-		match = true;
-	if (match) {
-		match = false;
-		/* Check MC cipher and Auth type requested. */
-		for (idx = 0; idx < mc_enc_type->numEntries; idx++) {
-			if (eCSR_ENCRYPT_TYPE_NONE ==
-				mc_enc_type->encryptionType[idx]) {
-				match = true;
-				*mc_cipher = mc_enc_type->encryptionType[idx];
-				break;
-			}
-		}
-		if (!match)
-			return match;
-
-		match = false;
-		/* Check Auth list. It should contain AuthOpen. */
-		for (idx = 0; idx < auth_type->numEntries; idx++) {
-			if ((eCSR_AUTH_TYPE_OPEN_SYSTEM ==
-				auth_type->authType[idx]) ||
-				(eCSR_AUTH_TYPE_AUTOSWITCH ==
-				auth_type->authType[idx])) {
-				match = true;
-				*neg_auth_type =
-					eCSR_AUTH_TYPE_OPEN_SYSTEM;
-				break;
-			}
-		}
-		if (!match)
-			return match;
-
-	}
-	return match;
-}
-
-/**
- * csr_validate_any_default() - Check if the security is matching
- * @mac_ctx:           Global MAC context
- * @auth_type:         Authentication type
- * @mc_enc_type:       Multicast encryption type
- * @mfp_enabled:       Management frame protection feature
- * @mfp_required:      Management frame protection mandatory
- * @mfp_capable:       Device capable of MFP
- * @ies_ptr:           Pointer to the IE fields
- * @neg_auth_type:     Negotiated Auth type with the AP
- * @bss_desc:          BSS Descriptor
- * @neg_uc_cipher:     Negotiated unicast cipher suite
- * @neg_mc_cipher:     Negotiated multicast cipher
- *
- * Return: Boolean value to tell if matched or not.
- */
-static bool csr_validate_any_default(tpAniSirGlobal mac_ctx,
-				     tCsrAuthList *auth_type,
-				     tCsrEncryptionList *mc_enc_type,
-				     bool *mfp_enabled,
-				     uint8_t *mfp_required,
-				     uint8_t *mfp_capable,
-				     tDot11fBeaconIEs *ies_ptr,
-				     eCsrAuthType *neg_auth_type,
-				     tSirBssDescription *bss_desc,
-				     eCsrEncryptionType *uc_cipher,
-				     eCsrEncryptionType *mc_cipher)
-{
-	bool match_any = false;
-	bool match = true;
-	/* It is allowed to match anything. Try the more secured ones first. */
-	if (ies_ptr) {
-		/* Check GCMP-256 first */
-		*uc_cipher = eCSR_ENCRYPT_TYPE_AES_GCMP_256;
-		match_any = csr_is_rsn_match(mac_ctx, auth_type,
-				*uc_cipher, mc_enc_type, mfp_enabled,
-				mfp_required, mfp_capable, ies_ptr,
-				neg_auth_type, mc_cipher);
-		/* Check GCMP second */
-		*uc_cipher = eCSR_ENCRYPT_TYPE_AES_GCMP;
-		match_any = csr_is_rsn_match(mac_ctx, auth_type,
-				*uc_cipher, mc_enc_type, mfp_enabled,
-				mfp_required, mfp_capable, ies_ptr,
-				neg_auth_type, mc_cipher);
-		/* Check AES third */
-		*uc_cipher = eCSR_ENCRYPT_TYPE_AES;
-		match_any = csr_is_rsn_match(mac_ctx, auth_type,
-				*uc_cipher, mc_enc_type, mfp_enabled,
-				mfp_required, mfp_capable, ies_ptr,
-				neg_auth_type, mc_cipher);
-		if (!match_any) {
-			/* Check TKIP */
-			*uc_cipher = eCSR_ENCRYPT_TYPE_TKIP;
-			match_any = csr_is_rsn_match(mac_ctx, auth_type,
-					*uc_cipher,
-					mc_enc_type, mfp_enabled, mfp_required,
-					mfp_capable, ies_ptr, neg_auth_type,
-					mc_cipher);
-		}
-#ifdef FEATURE_WLAN_WAPI
-		if (!match_any) {
-			/* Check WAPI */
-			*uc_cipher = eCSR_ENCRYPT_TYPE_WPI;
-			match_any = csr_is_wapi_match(mac_ctx, auth_type,
-					*uc_cipher, mc_enc_type, ies_ptr,
-					neg_auth_type, mc_cipher);
-		}
-#endif
-	}
-	if (match_any)
-		return match;
-	*uc_cipher = eCSR_ENCRYPT_TYPE_WEP104;
-	if (csr_validate_wep(mac_ctx, *uc_cipher, auth_type, mc_enc_type,
-			neg_auth_type, mc_cipher, bss_desc, ies_ptr))
-		return match;
-	*uc_cipher = eCSR_ENCRYPT_TYPE_WEP40;
-	if (csr_validate_wep(mac_ctx, *uc_cipher, auth_type, mc_enc_type,
-			neg_auth_type, mc_cipher, bss_desc, ies_ptr))
-		return match;
-	*uc_cipher = eCSR_ENCRYPT_TYPE_WEP104_STATICKEY;
-	if (csr_validate_wep(mac_ctx, *uc_cipher, auth_type, mc_enc_type,
-			neg_auth_type, mc_cipher, bss_desc, ies_ptr))
-		return match;
-	*uc_cipher = eCSR_ENCRYPT_TYPE_WEP40_STATICKEY;
-	if (csr_validate_wep(mac_ctx, *uc_cipher, auth_type, mc_enc_type,
-			neg_auth_type, mc_cipher, bss_desc, ies_ptr))
-		return match;
-	/* It must be open and no enc */
-	if (csr_is_privacy(bss_desc)) {
-		match = false;
-		return match;
-	}
-
-	*neg_auth_type = eCSR_AUTH_TYPE_OPEN_SYSTEM;
-	*mc_cipher = eCSR_ENCRYPT_TYPE_NONE;
-	*uc_cipher = eCSR_ENCRYPT_TYPE_NONE;
-	return match;
-
-}
-
-/**
- * csr_is_security_match() - Check if the security is matching
- * @mac_ctx:           Global MAC context
- * @auth_type:         Authentication type
- * @uc_enc_type:       Unicast Encryption type
- * @mc_enc_type:       Multicast encryption type
- * @mfp_enabled:       Management frame protection feature
- * @mfp_required:      Management frame protection mandatory
- * @mfp_capable:       Device capable of MFP
- * @bss_desc:          BSS Descriptor
- * @ies_ptr:           Pointer to the IE fields
- * @neg_auth_type:     Negotiated Auth type with the AP
- * @neg_uc_cipher:     Negotiated unicast cipher suite
- * @neg_mc_cipher:     Negotiated multicast cipher
- *
- * Return: Boolean value to tell if matched or not.
- */
-bool csr_is_security_match(tpAniSirGlobal mac_ctx, tCsrAuthList *auth_type,
-	tCsrEncryptionList *uc_enc_type,
-	tCsrEncryptionList *mc_enc_type, bool *mfp_enabled,
-	uint8_t *mfp_required, uint8_t *mfp_capable,
-	tSirBssDescription *bss_desc, tDot11fBeaconIEs *ies_ptr,
-	eCsrAuthType *neg_auth_type,
-	eCsrEncryptionType *neg_uc_cipher,
-	eCsrEncryptionType *neg_mc_cipher)
-{
-	bool match = false;
-	uint8_t i;
-	eCsrEncryptionType mc_cipher = eCSR_ENCRYPT_TYPE_UNKNOWN;
-	eCsrEncryptionType uc_cipher = eCSR_ENCRYPT_TYPE_UNKNOWN;
-	eCsrAuthType local_neg_auth_type = eCSR_AUTH_TYPE_UNKNOWN;
-
-	for (i = 0; ((i < uc_enc_type->numEntries) && (!match)); i++) {
-		uc_cipher = uc_enc_type->encryptionType[i];
-		/*
-		 * If the Bss description shows the Privacy bit is on, then we
-		 * must have some sort of encryption configured for the profile
-		 * to work.  Don't attempt to join networks with Privacy bit
-		 * set when profiles say NONE for encryption type.
-		 */
-		switch (uc_cipher) {
-		case eCSR_ENCRYPT_TYPE_NONE:
-			match = csr_validate_open_none(bss_desc, mc_enc_type,
-					&mc_cipher, auth_type,
-					&local_neg_auth_type);
-			break;
-
-		case eCSR_ENCRYPT_TYPE_WEP40_STATICKEY:
-		case eCSR_ENCRYPT_TYPE_WEP104_STATICKEY:
-			/*
-			 * !! might want to check for WEP keys set in the
-			 * Profile.... ? !! don't need to have the privacy bit
-			 * in the Bss description.  Many AP policies make
-			 * legacy encryption 'optional' so we don't know if we
-			 * can associate or not.  The AP will reject if
-			 * encryption is not allowed without the Privacy bit
-			 * turned on.
-			 */
-			match = csr_validate_wep(mac_ctx, uc_cipher, auth_type,
-					mc_enc_type, &local_neg_auth_type,
-					&mc_cipher, bss_desc, ies_ptr);
-
-			break;
-		/* these are all of the WPA encryption types... */
-		case eCSR_ENCRYPT_TYPE_WEP40:
-		case eCSR_ENCRYPT_TYPE_WEP104:
-			match = csr_validate_wep(mac_ctx, uc_cipher, auth_type,
-					mc_enc_type, &local_neg_auth_type,
-					&mc_cipher, bss_desc, ies_ptr);
-			break;
-
-		case eCSR_ENCRYPT_TYPE_TKIP:
-		case eCSR_ENCRYPT_TYPE_AES:
-		case eCSR_ENCRYPT_TYPE_AES_GCMP:
-		case eCSR_ENCRYPT_TYPE_AES_GCMP_256:
-			if (!ies_ptr) {
-				match = false;
-				break;
-			}
-			/* First check if there is a RSN match */
-			match = csr_is_rsn_match(mac_ctx, auth_type,
-					uc_cipher, mc_enc_type,
-					mfp_enabled, mfp_required,
-					mfp_capable, ies_ptr,
-					&local_neg_auth_type,
-					&mc_cipher);
-			/* If not RSN, then check WPA match */
-			if (!match)
-				match = csr_is_wpa_encryption_match(
-						mac_ctx, auth_type,
-						uc_cipher, mc_enc_type,
-						ies_ptr,
-						&local_neg_auth_type,
-						&mc_cipher);
-			break;
-#ifdef FEATURE_WLAN_WAPI
-		case eCSR_ENCRYPT_TYPE_WPI:     /* WAPI */
-			if (ies_ptr)
-				match = csr_is_wapi_match(mac_ctx, auth_type,
-						uc_cipher, mc_enc_type, ies_ptr,
-						&local_neg_auth_type,
-						&mc_cipher);
-			else
-				match = false;
-			break;
-#endif /* FEATURE_WLAN_WAPI */
-		case eCSR_ENCRYPT_TYPE_ANY:
-		default:
-			match  = csr_validate_any_default(mac_ctx, auth_type,
-					mc_enc_type, mfp_enabled, mfp_required,
-					mfp_capable, ies_ptr,
-					&local_neg_auth_type, bss_desc,
-					&uc_cipher, &mc_cipher);
-			break;
-		}
-
-	}
-
-	if (match) {
-		if (neg_uc_cipher)
-			*neg_uc_cipher = uc_cipher;
-		if (neg_mc_cipher)
-			*neg_mc_cipher = mc_cipher;
-		if (neg_auth_type)
-			*neg_auth_type = local_neg_auth_type;
-	}
-	return match;
-}
-
-bool csr_is_ssid_match(tpAniSirGlobal pMac, uint8_t *ssid1, uint8_t ssid1Len,
+bool csr_is_ssid_match(struct mac_context *mac, uint8_t *ssid1, uint8_t ssid1Len,
 		       uint8_t *bssSsid, uint8_t bssSsidLen, bool fSsidRequired)
 {
 	bool fMatch = false;
@@ -5611,22 +3406,6 @@ bool csr_is_bssid_match(struct qdf_mac_addr *pProfBssid,
 	return fMatch;
 }
 
-bool csr_is_bss_type_match(eCsrRoamBssType bssType1, eCsrRoamBssType bssType2)
-{
-	if ((eCSR_BSS_TYPE_ANY != bssType1 && eCSR_BSS_TYPE_ANY != bssType2)
-	    && (bssType1 != bssType2))
-		return false;
-	else
-		return true;
-}
-
-bool csr_is_bss_type_ibss(eCsrRoamBssType bssType)
-{
-	return (bool)
-		(eCSR_BSS_TYPE_START_IBSS == bssType
-		 || eCSR_BSS_TYPE_IBSS == bssType);
-}
-
 /**
  * csr_is_aggregate_rate_supported() - to check if aggregate rate is supported
  * @mac_ctx: pointer to mac context
@@ -5650,7 +3429,7 @@ bool csr_is_bss_type_ibss(eCsrRoamBssType bssType)
  * Return: true if  the adapter is currently capable of supporting this rate
  */
 
-static bool csr_is_aggregate_rate_supported(tpAniSirGlobal mac_ctx,
+static bool csr_is_aggregate_rate_supported(struct mac_context *mac_ctx,
 			uint16_t rate)
 {
 	bool supported = false;
@@ -5891,137 +3670,11 @@ bool csr_check_rate_bitmap(uint8_t rate, uint16_t rateBitmap)
 	return !!rateBitmap;
 }
 
-bool csr_rates_is_dot11_rate_supported(tpAniSirGlobal mac_ctx, uint8_t rate)
+bool csr_rates_is_dot11_rate_supported(struct mac_context *mac_ctx, uint8_t rate)
 {
 	uint16_t n = BITS_OFF(rate, CSR_DOT11_BASIC_RATE_MASK);
 
 	return csr_is_aggregate_rate_supported(mac_ctx, n);
-}
-
-static uint16_t csr_rates_mac_prop_to_dot11(uint16_t Rate)
-{
-	uint16_t ConvertedRate = Rate;
-
-	switch (Rate) {
-	case SIR_MAC_RATE_1:
-		ConvertedRate = 2;
-		break;
-	case SIR_MAC_RATE_2:
-		ConvertedRate = 4;
-		break;
-	case SIR_MAC_RATE_5_5:
-		ConvertedRate = 11;
-		break;
-	case SIR_MAC_RATE_11:
-		ConvertedRate = 22;
-		break;
-
-	case SIR_MAC_RATE_6:
-		ConvertedRate = 12;
-		break;
-	case SIR_MAC_RATE_9:
-		ConvertedRate = 18;
-		break;
-	case SIR_MAC_RATE_12:
-		ConvertedRate = 24;
-		break;
-	case SIR_MAC_RATE_18:
-		ConvertedRate = 36;
-		break;
-	case SIR_MAC_RATE_24:
-		ConvertedRate = 48;
-		break;
-	case SIR_MAC_RATE_36:
-		ConvertedRate = 72;
-		break;
-	case SIR_MAC_RATE_42:
-		ConvertedRate = 84;
-		break;
-	case SIR_MAC_RATE_48:
-		ConvertedRate = 96;
-		break;
-	case SIR_MAC_RATE_54:
-		ConvertedRate = 108;
-		break;
-
-	case SIR_MAC_RATE_72:
-		ConvertedRate = 144;
-		break;
-	case SIR_MAC_RATE_84:
-		ConvertedRate = 168;
-		break;
-	case SIR_MAC_RATE_96:
-		ConvertedRate = 192;
-		break;
-	case SIR_MAC_RATE_108:
-		ConvertedRate = 216;
-		break;
-	case SIR_MAC_RATE_126:
-		ConvertedRate = 252;
-		break;
-	case SIR_MAC_RATE_144:
-		ConvertedRate = 288;
-		break;
-	case SIR_MAC_RATE_168:
-		ConvertedRate = 336;
-		break;
-	case SIR_MAC_RATE_192:
-		ConvertedRate = 384;
-		break;
-	case SIR_MAC_RATE_216:
-		ConvertedRate = 432;
-		break;
-	case SIR_MAC_RATE_240:
-		ConvertedRate = 480;
-		break;
-
-	case 0xff:
-		ConvertedRate = 0;
-		break;
-	}
-
-	return ConvertedRate;
-}
-
-uint16_t csr_rates_find_best_rate(tSirMacRateSet *pSuppRates,
-				  tSirMacRateSet *pExtRates,
-				  tSirMacPropRateSet *pPropRates)
-{
-	uint8_t i;
-	uint16_t nBest;
-
-	nBest = pSuppRates->rate[0] & (~CSR_DOT11_BASIC_RATE_MASK);
-
-	if (pSuppRates->numRates > SIR_MAC_RATESET_EID_MAX)
-		pSuppRates->numRates = SIR_MAC_RATESET_EID_MAX;
-
-	for (i = 1U; i < pSuppRates->numRates; ++i) {
-		nBest =
-			(uint16_t) CSR_MAX(nBest,
-					   pSuppRates->
-					rate[i] & (~CSR_DOT11_BASIC_RATE_MASK));
-	}
-
-	if (NULL != pExtRates) {
-		for (i = 0U; i < pExtRates->numRates; ++i) {
-			nBest =
-				(uint16_t) CSR_MAX(nBest,
-						   pExtRates->
-						   rate[i] &
-						  (~CSR_DOT11_BASIC_RATE_MASK));
-		}
-	}
-
-	if (NULL != pPropRates) {
-		for (i = 0U; i < pPropRates->numPropRates; ++i) {
-			nBest =
-				(uint16_t) CSR_MAX(nBest,
-						   csr_rates_mac_prop_to_dot11
-						(pPropRates->propRate[i]));
-		}
-	}
-
-	return nBest;
 }
 
 #ifdef WLAN_FEATURE_FILS_SK
@@ -6043,7 +3696,7 @@ static inline void csr_free_fils_profile_info(struct csr_roam_profile *profile)
 { }
 #endif
 
-void csr_release_profile(tpAniSirGlobal pMac, struct csr_roam_profile *pProfile)
+void csr_release_profile(struct mac_context *mac, struct csr_roam_profile *pProfile)
 {
 	if (pProfile) {
 		if (pProfile->BSSIDs.bssid) {
@@ -6078,46 +3731,29 @@ void csr_release_profile(tpAniSirGlobal pMac, struct csr_roam_profile *pProfile)
 			qdf_mem_free(pProfile->pAddIEAssoc);
 			pProfile->pAddIEAssoc = NULL;
 		}
-		if (pProfile->ChannelInfo.ChannelList) {
-			qdf_mem_free(pProfile->ChannelInfo.ChannelList);
-			pProfile->ChannelInfo.ChannelList = NULL;
+		if (pProfile->ChannelInfo.freq_list) {
+			qdf_mem_free(pProfile->ChannelInfo.freq_list);
+			pProfile->ChannelInfo.freq_list = NULL;
 		}
 		csr_free_fils_profile_info(pProfile);
 		qdf_mem_zero(pProfile, sizeof(struct csr_roam_profile));
 	}
 }
 
-void csr_free_scan_filter(tpAniSirGlobal pMac, tCsrScanResultFilter
-						*pScanFilter)
+void csr_free_roam_profile(struct mac_context *mac, uint32_t sessionId)
 {
-	if (pScanFilter->BSSIDs.bssid) {
-		qdf_mem_free(pScanFilter->BSSIDs.bssid);
-		pScanFilter->BSSIDs.bssid = NULL;
-	}
-	if (pScanFilter->ChannelInfo.ChannelList) {
-		qdf_mem_free(pScanFilter->ChannelInfo.ChannelList);
-		pScanFilter->ChannelInfo.ChannelList = NULL;
-	}
-	if (pScanFilter->SSIDs.SSIDList) {
-		qdf_mem_free(pScanFilter->SSIDs.SSIDList);
-		pScanFilter->SSIDs.SSIDList = NULL;
-	}
-}
-
-void csr_free_roam_profile(tpAniSirGlobal pMac, uint32_t sessionId)
-{
-	struct csr_roam_session *pSession = &pMac->roam.roamSession[sessionId];
+	struct csr_roam_session *pSession = &mac->roam.roamSession[sessionId];
 
 	if (pSession->pCurRoamProfile) {
-		csr_release_profile(pMac, pSession->pCurRoamProfile);
+		csr_release_profile(mac, pSession->pCurRoamProfile);
 		qdf_mem_free(pSession->pCurRoamProfile);
 		pSession->pCurRoamProfile = NULL;
 	}
 }
 
-void csr_free_connect_bss_desc(tpAniSirGlobal pMac, uint32_t sessionId)
+void csr_free_connect_bss_desc(struct mac_context *mac, uint32_t sessionId)
 {
-	struct csr_roam_session *pSession = &pMac->roam.roamSession[sessionId];
+	struct csr_roam_session *pSession = &mac->roam.roamSession[sessionId];
 
 	if (pSession->pConnectBssDesc) {
 		qdf_mem_free(pSession->pConnectBssDesc);
@@ -6125,21 +3761,7 @@ void csr_free_connect_bss_desc(tpAniSirGlobal pMac, uint32_t sessionId)
 	}
 }
 
-tSirResultCodes csr_get_disassoc_rsp_status_code(tSirSmeDisassocRsp *
-						 pSmeDisassocRsp)
-{
-	uint8_t *pBuffer = (uint8_t *) pSmeDisassocRsp;
-	uint32_t ret;
-
-	pBuffer += (sizeof(uint16_t) + sizeof(uint16_t) + sizeof(tSirMacAddr));
-	/* tSirResultCodes is an enum, assuming is 32bit */
-	/* If we cannot make this assumption, use copymemory */
-	qdf_get_u32(pBuffer, &ret);
-
-	return (tSirResultCodes) ret;
-}
-
-tSirResultCodes csr_get_de_auth_rsp_status_code(tSirSmeDeauthRsp *pSmeRsp)
+tSirResultCodes csr_get_de_auth_rsp_status_code(struct deauth_rsp *pSmeRsp)
 {
 	uint8_t *pBuffer = (uint8_t *) pSmeRsp;
 	uint32_t ret;
@@ -6154,33 +3776,21 @@ tSirResultCodes csr_get_de_auth_rsp_status_code(tSirSmeDeauthRsp *pSmeRsp)
 	return (tSirResultCodes) ret;
 }
 
-tSirScanType csr_get_scan_type(tpAniSirGlobal pMac, uint8_t chnId)
+tSirScanType csr_get_scan_type(struct mac_context *mac, uint8_t chnId)
 {
 	tSirScanType scanType = eSIR_PASSIVE_SCAN;
 	enum channel_state channelEnabledType;
 
-	channelEnabledType = wlan_reg_get_channel_state(pMac->pdev, chnId);
+	channelEnabledType = wlan_reg_get_channel_state(mac->pdev, chnId);
 	if (CHANNEL_STATE_ENABLE == channelEnabledType)
 		scanType = eSIR_ACTIVE_SCAN;
 
 	return scanType;
 }
 
-uint8_t csr_to_upper(uint8_t ch)
+enum bss_type csr_translate_bsstype_to_mac_type(eCsrRoamBssType csrtype)
 {
-	uint8_t chOut;
-
-	if (ch >= 'a' && ch <= 'z')
-		chOut = ch - 'a' + 'A';
-	else
-		chOut = ch;
-
-	return chOut;
-}
-
-tSirBssType csr_translate_bsstype_to_mac_type(eCsrRoamBssType csrtype)
-{
-	tSirBssType ret;
+	enum bss_type ret;
 
 	switch (csrtype) {
 	case eCSR_BSS_TYPE_INFRASTRUCTURE:
@@ -6206,8 +3816,8 @@ tSirBssType csr_translate_bsstype_to_mac_type(eCsrRoamBssType csrtype)
 }
 
 /* This function use the parameters to decide the CFG value. */
-/* CSR never sets WNI_CFG_DOT11_MODE_ALL to the CFG */
-/* So PE should not see WNI_CFG_DOT11_MODE_ALL when it gets the CFG value */
+/* CSR never sets MLME_DOT11_MODE_ALL to the CFG */
+/* So PE should not see MLME_DOT11_MODE_ALL when it gets the CFG value */
 enum csr_cfgdot11mode
 csr_get_cfg_dot11_mode_from_csr_phy_mode(struct csr_roam_profile *pProfile,
 					 eCsrPhyMode phyMode,
@@ -6284,7 +3894,7 @@ csr_get_cfg_dot11_mode_from_csr_phy_mode(struct csr_roam_profile *pProfile,
 	return cfgDot11Mode;
 }
 
-QDF_STATUS csr_get_regulatory_domain_for_country(tpAniSirGlobal pMac,
+QDF_STATUS csr_get_regulatory_domain_for_country(struct mac_context *mac,
 						 uint8_t *pCountry,
 						 v_REGDOMAIN_t *pDomainId,
 						 enum country_src source)
@@ -6315,7 +3925,7 @@ QDF_STATUS csr_get_regulatory_domain_for_country(tpAniSirGlobal pMac,
 	return status;
 }
 
-QDF_STATUS csr_get_modify_profile_fields(tpAniSirGlobal pMac,
+QDF_STATUS csr_get_modify_profile_fields(struct mac_context *mac,
 					uint32_t sessionId,
 					 tCsrRoamModifyProfileFields *
 					 pModifyProfileFields)
@@ -6324,18 +3934,18 @@ QDF_STATUS csr_get_modify_profile_fields(tpAniSirGlobal pMac,
 		return QDF_STATUS_E_FAILURE;
 
 	qdf_mem_copy(pModifyProfileFields,
-		     &pMac->roam.roamSession[sessionId].connectedProfile.
+		     &mac->roam.roamSession[sessionId].connectedProfile.
 		     modifyProfileFields, sizeof(tCsrRoamModifyProfileFields));
 
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS csr_set_modify_profile_fields(tpAniSirGlobal pMac,
+QDF_STATUS csr_set_modify_profile_fields(struct mac_context *mac,
 					uint32_t sessionId,
 					 tCsrRoamModifyProfileFields *
 					 pModifyProfileFields)
 {
-	struct csr_roam_session *pSession = CSR_GET_SESSION(pMac, sessionId);
+	struct csr_roam_session *pSession = CSR_GET_SESSION(mac, sessionId);
 
 	qdf_mem_copy(&pSession->connectedProfile.modifyProfileFields,
 		     pModifyProfileFields, sizeof(tCsrRoamModifyProfileFields));
@@ -6344,12 +3954,12 @@ QDF_STATUS csr_set_modify_profile_fields(tpAniSirGlobal pMac,
 }
 
 
-bool csr_is_set_key_allowed(tpAniSirGlobal pMac, uint32_t sessionId)
+bool csr_is_set_key_allowed(struct mac_context *mac, uint32_t sessionId)
 {
 	bool fRet = true;
 	struct csr_roam_session *pSession;
 
-	pSession = CSR_GET_SESSION(pMac, sessionId);
+	pSession = CSR_GET_SESSION(mac, sessionId);
 
 	/*
 	 * This condition is not working for infra state. When infra is in
@@ -6360,9 +3970,10 @@ bool csr_is_set_key_allowed(tpAniSirGlobal pMac, uint32_t sessionId)
 	 * The current work-around is to process setcontext_rsp no matter
 	 * what the state is.
 	 */
-	if ((NULL == pSession)
-	    || (csr_is_conn_state_disconnected(pMac, sessionId)
-		&& (pSession->pCurRoamProfile != NULL)
+	sme_debug("is not what it intends to. Must be revisit or removed");
+	if ((!pSession)
+	    || (csr_is_conn_state_disconnected(mac, sessionId)
+		&& (pSession->pCurRoamProfile)
 		&& (!(CSR_IS_INFRA_AP(pSession->pCurRoamProfile))))
 	    ) {
 		fRet = false;
@@ -6385,7 +3996,7 @@ uint16_t sme_chn_to_freq(uint8_t chanNum)
 }
 
 struct lim_channel_status *
-csr_get_channel_status(tpAniSirGlobal mac, uint32_t channel_id)
+csr_get_channel_status(struct mac_context *mac, uint32_t chan_freq)
 {
 	uint8_t i;
 	struct lim_scan_channel_status *channel_status;
@@ -6397,15 +4008,15 @@ csr_get_channel_status(tpAniSirGlobal mac, uint32_t channel_id)
 	channel_status = &mac->lim.scan_channel_status;
 	for (i = 0; i < channel_status->total_channel; i++) {
 		entry = &channel_status->channel_status_list[i];
-		if (entry->channel_id == channel_id)
+		if (entry->channelfreq == chan_freq)
 			return entry;
 	}
-	sme_err("Channel %d status info not exist", channel_id);
+	sme_err("Channel %d status info not exist", chan_freq);
 
 	return NULL;
 }
 
-void csr_clear_channel_status(tpAniSirGlobal mac)
+void csr_clear_channel_status(struct mac_context *mac)
 {
 	struct lim_scan_channel_status *channel_status;
 
@@ -6418,8 +4029,8 @@ void csr_clear_channel_status(tpAniSirGlobal mac)
 	return;
 }
 
-bool csr_is_channel_present_in_list(uint8_t *pChannelList,
-				    int numChannels, uint8_t channel)
+bool csr_is_channel_present_in_list(uint32_t *pChannelList,
+				    int numChannels, uint32_t chan_freq)
 {
 	int i = 0;
 
@@ -6429,8 +4040,8 @@ bool csr_is_channel_present_in_list(uint8_t *pChannelList,
 
 	/* Look for the channel in the list */
 	for (i = 0; (i < numChannels) &&
-	     (i < WNI_CFG_VALID_CHANNEL_LIST_LEN); i++) {
-		if (pChannelList[i] == channel)
+	     (i < CFG_VALID_CHANNEL_LIST_LEN); i++) {
+		if (pChannelList[i] == chan_freq)
 			return true;
 	}
 
@@ -6456,8 +4067,8 @@ const char *sme_bss_type_to_string(const uint8_t bss_type)
 	}
 }
 
-QDF_STATUS csr_add_to_channel_list_front(uint8_t *pChannelList,
-					 int numChannels, uint8_t channel)
+QDF_STATUS csr_add_to_channel_list_front(uint32_t *pChannelList,
+					 int numChannels, uint32_t chan_freq)
 {
 	int i = 0;
 
@@ -6470,7 +4081,7 @@ QDF_STATUS csr_add_to_channel_list_front(uint8_t *pChannelList,
 		pChannelList[i] = pChannelList[i - 1];
 
 	/* Now add the NEW channel...at the front */
-	pChannelList[0] = channel;
+	pChannelList[0] = chan_freq;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -6486,7 +4097,7 @@ QDF_STATUS csr_add_to_channel_list_front(uint8_t *pChannelList,
  *
  * Return: True if the wait was successful, false otherwise
  */
-bool csr_wait_for_connection_update(tpAniSirGlobal mac,
+bool csr_wait_for_connection_update(struct mac_context *mac,
 		bool do_release_reacquire_lock)
 {
 	QDF_STATUS status, ret;
@@ -6503,10 +4114,8 @@ bool csr_wait_for_connection_update(tpAniSirGlobal mac,
 
 	if (do_release_reacquire_lock == true) {
 		ret = sme_acquire_global_lock(&mac->sme);
-		if (!QDF_IS_STATUS_SUCCESS(ret)) {
-			cds_err("lock acquire fail %d", ret);
+		if (!QDF_IS_STATUS_SUCCESS(ret))
 			return false;
-		}
 	}
 
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
@@ -6526,13 +4135,13 @@ bool csr_wait_for_connection_update(tpAniSirGlobal mac,
  *
  * Reture: enum QDF_OPMODE persona
  */
-enum QDF_OPMODE csr_get_session_persona(tpAniSirGlobal pmac,
+enum QDF_OPMODE csr_get_session_persona(struct mac_context *pmac,
 					uint32_t session_id)
 {
 	struct csr_roam_session *session = NULL;
 
 	session = CSR_GET_SESSION(pmac, session_id);
-	if (NULL == session || NULL == session->pCurRoamProfile)
+	if (!session || !session->pCurRoamProfile)
 		return QDF_MAX_NO_OF_MODE;
 
 	return session->pCurRoamProfile->csrPersona;
@@ -6545,7 +4154,7 @@ enum QDF_OPMODE csr_get_session_persona(tpAniSirGlobal pmac,
  *
  * returns: true if NDI is started, false otherwise
  */
-bool csr_is_ndi_started(tpAniSirGlobal mac_ctx, uint32_t session_id)
+bool csr_is_ndi_started(struct mac_context *mac_ctx, uint32_t session_id)
 {
 	struct csr_roam_session *session = CSR_GET_SESSION(mac_ctx, session_id);
 
@@ -6555,20 +4164,22 @@ bool csr_is_ndi_started(tpAniSirGlobal mac_ctx, uint32_t session_id)
 	return eCSR_CONNECT_STATE_TYPE_NDI_STARTED == session->connectState;
 }
 
-bool csr_is_mcc_channel(tpAniSirGlobal mac_ctx, uint8_t channel)
+bool csr_is_mcc_channel(struct mac_context *mac_ctx, uint32_t chan_freq)
 {
 	struct csr_roam_session *session;
 	enum QDF_OPMODE oper_mode;
-	uint8_t oper_channel = 0;
+	uint32_t oper_chan_freq = 0;
 	uint8_t session_id;
+	bool hw_dbs_capable, same_band_freqs;
 
-	if (channel == 0)
+	if (chan_freq == 0)
 		return false;
 
-	for (session_id = 0; session_id < CSR_ROAM_SESSION_MAX; session_id++) {
+	hw_dbs_capable = policy_mgr_is_hw_dbs_capable(mac_ctx->psoc);
+	for (session_id = 0; session_id < WLAN_MAX_VDEVS; session_id++) {
 		if (CSR_IS_SESSION_VALID(mac_ctx, session_id)) {
 			session = CSR_GET_SESSION(mac_ctx, session_id);
-			if (NULL == session->pCurRoamProfile)
+			if (!session->pCurRoamProfile)
 				continue;
 			oper_mode = session->pCurRoamProfile->csrPersona;
 			if ((((oper_mode == QDF_STA_MODE) ||
@@ -6579,13 +4190,14 @@ bool csr_is_mcc_channel(tpAniSirGlobal mac_ctx, uint8_t channel)
 			    (oper_mode == QDF_SAP_MODE))
 			    && (session->connectState !=
 			    eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED)))
-				oper_channel = session->connectedProfile.
-					operationChannel;
+				oper_chan_freq =
+					session->connectedProfile.op_freq;
 
-			if (oper_channel && channel != oper_channel &&
-			    (!policy_mgr_is_hw_dbs_capable(mac_ctx->psoc) ||
-			    WLAN_REG_IS_SAME_BAND_CHANNELS(channel,
-						 oper_channel)))
+			same_band_freqs = WLAN_REG_IS_SAME_BAND_FREQS(
+				chan_freq, oper_chan_freq);
+
+			if (oper_chan_freq && chan_freq != oper_chan_freq &&
+			    (!hw_dbs_capable || same_band_freqs))
 				return true;
 		}
 	}

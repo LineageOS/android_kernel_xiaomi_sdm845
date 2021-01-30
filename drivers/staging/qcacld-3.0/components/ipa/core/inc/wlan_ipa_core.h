@@ -47,31 +47,6 @@ static inline bool wlan_ipa_uc_is_enabled(struct wlan_ipa_config *ipa_cfg)
 }
 
 /**
- * wlan_ipa_is_rm_enabled() - Is IPA RM enabled?
- * @ipa_cfg: IPA config
- *
- * Return: true if IPA RM is enabled, false otherwise
- */
-static inline bool wlan_ipa_is_rm_enabled(struct wlan_ipa_config *ipa_cfg)
-{
-	return WLAN_IPA_IS_CONFIG_ENABLED(ipa_cfg, WLAN_IPA_RM_ENABLE_MASK);
-}
-
-/**
- * wlan_ipa_is_clk_scaling_enabled() - Is IPA clock scaling enabled?
- * @ipa_cfg: IPA config
- *
- * Return: true if IPA RM is enabled, false otherwise
- */
-static inline
-bool wlan_ipa_is_clk_scaling_enabled(struct wlan_ipa_config *ipa_cfg)
-{
-	return WLAN_IPA_IS_CONFIG_ENABLED(ipa_cfg,
-					  WLAN_IPA_CLK_SCALING_ENABLE_MASK |
-					  WLAN_IPA_RM_ENABLE_MASK);
-}
-
-/**
  * wlan_ipa_is_rt_debugging_enabled() - Is IPA RT debugging enabled?
  * @ipa_cfg: IPA config
  *
@@ -120,10 +95,21 @@ QDF_STATUS wlan_ipa_uc_enable_pipes(struct wlan_ipa_priv *ipa_ctx);
 /**
  * wlan_ipa_uc_disable_pipes() - Disable IPA uC pipes
  * @ipa_ctx: IPA context
+ * @force_disable: If true, immediately disable IPA pipes. If false, wait for
+ *		   pending IPA WLAN TX completions
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS wlan_ipa_uc_disable_pipes(struct wlan_ipa_priv *ipa_ctx);
+QDF_STATUS wlan_ipa_uc_disable_pipes(struct wlan_ipa_priv *ipa_ctx,
+				     bool force_disable);
+
+/**
+ * wlan_ipa_is_tx_pending() - Check if IPA TX Completions are pending
+ * @ipa_ctx: IPA context
+ *
+ * Return: bool
+ */
+bool wlan_ipa_is_tx_pending(struct wlan_ipa_priv *ipa_ctx);
 
 /**
  * wlan_ipa_set_perf_level() - Set IPA performance level
@@ -157,7 +143,45 @@ QDF_STATUS wlan_ipa_init_perf_level(struct wlan_ipa_priv *ipa_ctx);
 struct wlan_ipa_iface_context
 *wlan_ipa_get_iface(struct wlan_ipa_priv *ipa_ctx, uint8_t mode);
 
+/**
+ * wlan_ipa_get_iface_by_mode_netdev() - Get IPA interface
+ * @ipa_ctx: IPA context
+ * @ndev: Interface netdev pointer
+ * @mode: Interface device mode
+ *
+ * Return: IPA interface address
+ */
+struct wlan_ipa_iface_context *
+wlan_ipa_get_iface_by_mode_netdev(struct wlan_ipa_priv *ipa_ctx,
+				  qdf_netdev_t ndev, uint8_t mode);
+
 #ifndef CONFIG_IPA_WDI_UNIFIED_API
+
+/**
+ * wlan_ipa_is_rm_enabled() - Is IPA RM enabled?
+ * @ipa_cfg: IPA config
+ *
+ * Return: true if IPA RM is enabled, false otherwise
+ */
+static inline bool wlan_ipa_is_rm_enabled(struct wlan_ipa_config *ipa_cfg)
+{
+	return WLAN_IPA_IS_CONFIG_ENABLED(ipa_cfg, WLAN_IPA_RM_ENABLE_MASK);
+}
+
+/**
+ * wlan_ipa_is_clk_scaling_enabled() - Is IPA clock scaling enabled?
+ * @ipa_cfg: IPA config
+ *
+ * Return: true if IPA clock scaling is enabled, false otherwise
+ */
+static inline
+bool wlan_ipa_is_clk_scaling_enabled(struct wlan_ipa_config *ipa_cfg)
+{
+	return WLAN_IPA_IS_CONFIG_ENABLED(ipa_cfg,
+					  WLAN_IPA_CLK_SCALING_ENABLE_MASK |
+					  WLAN_IPA_RM_ENABLE_MASK);
+}
+
 /**
  * wlan_ipa_wdi_rm_request_resource() - IPA WDI request resource
  * @ipa_ctx: IPA context
@@ -238,6 +262,34 @@ bool wlan_ipa_is_rm_released(struct wlan_ipa_priv *ipa_ctx);
 
 #else /* CONFIG_IPA_WDI_UNIFIED_API */
 
+/**
+ * wlan_ipa_is_rm_enabled() - Is IPA RM enabled?
+ * @ipa_cfg: IPA config
+ *
+ * IPA RM is deprecated and IPA PM is involved. WLAN driver
+ * has no control over IPA PM and thus we could regard IPA
+ * RM as always enabled for power efficiency.
+ *
+ * Return: true
+ */
+static inline bool wlan_ipa_is_rm_enabled(struct wlan_ipa_config *ipa_cfg)
+{
+	return true;
+}
+
+/**
+ * wlan_ipa_is_clk_scaling_enabled() - Is IPA clock scaling enabled?
+ * @ipa_cfg: IPA config
+ *
+ * Return: true if IPA clock scaling is enabled, false otherwise
+ */
+static inline
+bool wlan_ipa_is_clk_scaling_enabled(struct wlan_ipa_config *ipa_cfg)
+{
+	return WLAN_IPA_IS_CONFIG_ENABLED(ipa_cfg,
+					  WLAN_IPA_CLK_SCALING_ENABLE_MASK);
+}
+
 static inline int wlan_ipa_wdi_rm_request_resource(
 			struct wlan_ipa_priv *ipa_ctx,
 			qdf_ipa_rm_resource_name_t res_name)
@@ -297,6 +349,7 @@ bool wlan_ipa_is_rm_released(struct wlan_ipa_priv *ipa_ctx)
 
 #ifdef FEATURE_METERING
 
+#ifndef WDI3_STATS_UPDATE
 /**
  * wlan_ipa_uc_op_metering() - IPA uC operation for stats and quota limit
  * @ipa_ctx: IPA context
@@ -305,7 +358,15 @@ bool wlan_ipa_is_rm_released(struct wlan_ipa_priv *ipa_ctx)
  * Return: QDF_STATUS enumeration
  */
 QDF_STATUS wlan_ipa_uc_op_metering(struct wlan_ipa_priv *ipa_ctx,
-				  struct op_msg_type *op_msg);
+				   struct op_msg_type *op_msg);
+#else
+static inline
+QDF_STATUS wlan_ipa_uc_op_metering(struct wlan_ipa_priv *ipa_ctx,
+				   struct op_msg_type *op_msg)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 
 /**
  * wlan_ipa_wdi_meter_notifier_cb() - SSR wrapper for
@@ -327,6 +388,25 @@ void wlan_ipa_wdi_meter_notifier_cb(qdf_ipa_wdi_meter_evt_type_t evt,
  * Return: QDF_STATUS enumeration
  */
 void wlan_ipa_init_metering(struct wlan_ipa_priv *ipa_ctx);
+
+#ifdef WDI3_STATS_UPDATE
+/**
+ * wlan_ipa_update_tx_stats() - send embedded tx traffic in bytes to IPA
+ * @ipa_ctx: IPA context
+ * @sta_tx: tx in bytes on sta interface
+ * @sap_tx: tx in bytes on sap interface
+ *
+ * Return: void
+ */
+void wlan_ipa_update_tx_stats(struct wlan_ipa_priv *ipa_ctx, uint64_t sta_tx,
+			      uint64_t sap_tx);
+#else
+static inline void wlan_ipa_update_tx_stats(struct wlan_ipa_priv *ipa_ctx,
+					    uint64_t sta_tx, uint64_t sap_tx)
+{
+}
+#endif /* WDI3_STATS_UPDATE */
+
 #else
 
 static inline
@@ -341,6 +421,11 @@ static inline void wlan_ipa_wdi_meter_notifier_cb(void)
 }
 
 static inline void wlan_ipa_init_metering(struct wlan_ipa_priv *ipa_ctx)
+{
+}
+
+static inline void wlan_ipa_update_tx_stats(struct wlan_ipa_priv *ipa_ctx,
+					    uint64_t sta_tx, uint64_t sap_tx)
 {
 }
 #endif /* FEATURE_METERING */
@@ -576,7 +661,6 @@ static inline void wlan_ipa_mcc_work_handler(void *data)
  * wlan_ipa_wlan_evt() - IPA event handler
  * @net_dev: Interface net device
  * @device_mode: Net interface device mode
- * @sta_id: station id for the event
  * @session_id: session id for the event
  * @type: event enum of type ipa_wlan_event
  * @mac_address: MAC address associated with the event
@@ -584,7 +668,7 @@ static inline void wlan_ipa_mcc_work_handler(void *data)
  * Return: QDF_STATUS
  */
 QDF_STATUS wlan_ipa_wlan_evt(qdf_netdev_t net_dev, uint8_t device_mode,
-			     uint8_t sta_id, uint8_t session_id,
+			     uint8_t session_id,
 			     enum wlan_ipa_wlan_event ipa_event_type,
 			     uint8_t *mac_addr);
 
@@ -660,5 +744,16 @@ void wlan_ipa_uc_ssr_cleanup(struct wlan_ipa_priv *ipa_ctx);
  */
 void wlan_ipa_fw_rejuvenate_send_msg(struct wlan_ipa_priv *ipa_ctx);
 
+/**
+ * wlan_ipa_flush_pending_vdev_events() - flush pending vdev ipa events
+ * @ipa_ctx: IPA context
+ * vdev_id: vdev id
+ *
+ * This function is to flush vdev wlan ipa pending events
+ *
+ * Return: None
+ */
+void wlan_ipa_flush_pending_vdev_events(struct wlan_ipa_priv *ipa_ctx,
+					uint8_t vdev_id);
 #endif /* IPA_OFFLOAD */
 #endif /* _WLAN_IPA_CORE_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -47,8 +47,6 @@ extern "C" {
 
 /* Define basic constants for the ThreadX kernel.  */
 
-#define TX_NO_WAIT          0
-#define TX_WAIT_FOREVER     0xFFFFFFFFUL
 #define TX_AUTO_ACTIVATE    1
 #define TX_NO_ACTIVATE      0
 
@@ -106,33 +104,32 @@ typedef struct TX_TIMER_STRUCT {
 
 	/* Pointer to the MAC global structure, which stores the context for the NIC, */
 	/* for which this timer is supposed to operate. */
-	void *pMac;
+	void *mac;
 
 } TX_TIMER;
 
-#define TX_TIMER_VALID(timer) (timer.pMac != 0)
+#define TX_TIMER_VALID(timer) (timer.mac != 0)
 
-extern uint64_t tx_time_get(void);
-extern uint32_t tx_timer_activate(TX_TIMER *);
-extern uint32_t tx_timer_change(TX_TIMER *, uint64_t, uint64_t);
-extern uint32_t tx_timer_change_context(TX_TIMER *, uint32_t);
+uint32_t tx_timer_activate(TX_TIMER *);
+uint32_t tx_timer_change(TX_TIMER *, uint64_t, uint64_t);
+uint32_t tx_timer_change_context(TX_TIMER *, uint32_t);
 #ifdef TIMER_MANAGER
-extern uint32_t tx_timer_create_intern_debug(void *, TX_TIMER *,
-					     char *, void (*)(void *,
-							      uint32_t),
-					     uint32_t, uint64_t,
-					     uint64_t, uint64_t,
-					     char *fileName,
-					     uint32_t lineNum);
+uint32_t tx_timer_create_intern_debug(void *, TX_TIMER *,
+				      char *, void (*)(void *,
+						       uint32_t),
+				      uint32_t, uint64_t,
+				      uint64_t, uint64_t,
+				      char *fileName,
+				      uint32_t lineNum);
 #else
-extern uint32_t tx_timer_create_intern(void *, TX_TIMER *, char *,
-				       void (*)(void *, uint32_t),
-				       uint32_t, uint64_t, uint64_t,
-				       uint64_t);
+uint32_t tx_timer_create_intern(void *, TX_TIMER *, char *,
+				void (*)(void *, uint32_t),
+				uint32_t, uint64_t, uint64_t,
+				uint64_t);
 #endif
-extern uint32_t tx_timer_deactivate(TX_TIMER *);
-extern uint32_t tx_timer_delete(TX_TIMER *);
-extern bool tx_timer_running(TX_TIMER *);
+uint32_t tx_timer_deactivate(TX_TIMER *);
+uint32_t tx_timer_delete(TX_TIMER *);
+bool tx_timer_running(TX_TIMER *);
 
 #ifdef __cplusplus
 }

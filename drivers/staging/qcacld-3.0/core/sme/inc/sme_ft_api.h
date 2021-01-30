@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2013-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016, 2018, 2019-2020 The Linux Foundation.
+ * All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -40,7 +41,7 @@ typedef enum eFTIEState {
 
 /* FT neighbor roam callback user context */
 typedef struct sFTRoamCallbackUsrCtx {
-	tpAniSirGlobal pMac;
+	struct mac_context *mac;
 	uint8_t sessionId;
 } tFTRoamCallbackUsrCtx, *tpFTRoamCallbackUsrCtx;
 
@@ -54,11 +55,10 @@ typedef struct sFTSMEContext {
 	/* Pre-Auth info */
 	tFTIEStates FTState;    /* The state of FT in the current 11rAssoc */
 	tSirMacAddr preAuthbssId;       /* BSSID to preauth to */
-	uint32_t smeSessionId;
+	uint32_t vdev_id;
 	/* Saved pFTPreAuthRsp */
 	tpSirFTPreAuthRsp psavedFTPreAuthRsp;
 	bool setFTPreAuthState;
-	bool setFTPTKState;
 	/* Time to trigger reassoc once pre-auth is successful */
 	qdf_mc_timer_t preAuthReassocIntvlTimer;
 	bool addMDIE;
@@ -73,18 +73,27 @@ typedef struct sFTSMEContext {
 /*--------------------------------------------------------------------------
   Prototype functions
   ------------------------------------------------------------------------*/
-void sme_ft_open(tHalHandle hHal, uint32_t sessionId);
-void sme_ft_close(tHalHandle hHal, uint32_t sessionId);
-void sme_ft_reset(tHalHandle hHal, uint32_t sessionId);
-void sme_set_ft_ies(tHalHandle hHal, uint32_t sessionId, const uint8_t *ft_ies,
-		uint16_t ft_ies_length);
-QDF_STATUS sme_ft_update_key(tHalHandle hHal, uint32_t sessionId,
-		tCsrRoamSetKey *pFTKeyInfo);
-void sme_get_ft_pre_auth_response(tHalHandle hHal, uint32_t sessionId,
-		uint8_t *ft_ies, uint32_t ft_ies_ip_len,
-		uint16_t *ft_ies_length);
-void sme_get_rici_es(tHalHandle hHal, uint32_t sessionId, uint8_t *ric_ies,
-		uint32_t ric_ies_ip_len, uint32_t *ric_ies_length);
+void sme_ft_open(mac_handle_t mac_handle, uint32_t sessionId);
+void sme_ft_close(mac_handle_t mac_handle, uint32_t sessionId);
+void sme_ft_reset(mac_handle_t mac_handle, uint32_t sessionId);
+void sme_set_ft_ies(mac_handle_t mac_handle, uint32_t sessionId,
+		    const uint8_t *ft_ies, uint16_t ft_ies_length);
+QDF_STATUS sme_ft_update_key(mac_handle_t mac_handle, uint32_t sessionId,
+			     tCsrRoamSetKey *pFTKeyInfo);
+void sme_get_ft_pre_auth_response(mac_handle_t mac_handle, uint32_t sessionId,
+				  uint8_t *ft_ies, uint32_t ft_ies_ip_len,
+				  uint16_t *ft_ies_length);
+void sme_get_rici_es(mac_handle_t mac_handle, uint32_t sessionId,
+		     uint8_t *ric_ies,
+		     uint32_t ric_ies_ip_len, uint32_t *ric_ies_length);
+/**
+ * sme_check_ft_status() - Check for key wait status in FT mode
+ * @mac_handle: MAC handle
+ * @session_id: vdev identifier
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_check_ft_status(mac_handle_t mac_handle, uint32_t session_id);
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /**
@@ -102,8 +111,7 @@ static inline void sme_reset_key(mac_handle_t mac_handle, uint32_t vdev_id)
 #endif
 
 void sme_preauth_reassoc_intvl_timer_callback(void *context);
-void sme_set_ft_pre_auth_state(tHalHandle hHal, uint32_t sessionId, bool state);
-bool sme_get_ft_pre_auth_state(tHalHandle hHal, uint32_t sessionId);
-bool sme_get_ftptk_state(tHalHandle hHal, uint32_t sessionId);
-void sme_set_ftptk_state(tHalHandle hHal, uint32_t sessionId, bool state);
+void sme_set_ft_pre_auth_state(mac_handle_t mac_handle, uint32_t sessionId,
+			       bool state);
+bool sme_get_ft_pre_auth_state(mac_handle_t mac_handle, uint32_t sessionId);
 #endif

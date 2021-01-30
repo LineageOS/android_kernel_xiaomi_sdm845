@@ -28,6 +28,7 @@
 
 #include "pld_internal.h"
 #include "pld_pcie.h"
+#include "osif_psoc_sync.h"
 
 #ifdef CONFIG_PCI
 
@@ -59,7 +60,7 @@ static int pld_pcie_probe(struct pci_dev *pdev,
 		goto out;
 	}
 
-	ret = pld_add_dev(pld_context, &pdev->dev, PLD_BUS_TYPE_PCIE);
+	ret = pld_add_dev(pld_context, &pdev->dev, NULL, PLD_BUS_TYPE_PCIE);
 	if (ret)
 		goto out;
 
@@ -82,18 +83,75 @@ out:
 static void pld_pcie_remove(struct pci_dev *pdev)
 {
 	struct pld_context *pld_context;
+	int errno;
+	struct osif_psoc_sync *psoc_sync;
+
+	errno = osif_psoc_sync_trans_start_wait(&pdev->dev, &psoc_sync);
+	if (errno)
+		return;
+
+	osif_psoc_sync_unregister(&pdev->dev);
+
+	osif_psoc_sync_wait_for_ops(psoc_sync);
 
 	pld_context = pld_get_global_context();
 
 	if (!pld_context)
-		return;
+		goto out;
 
 	pld_context->ops->remove(&pdev->dev, PLD_BUS_TYPE_PCIE);
 
 	pld_del_dev(pld_context, &pdev->dev);
+
+out:
+	osif_psoc_sync_trans_stop(psoc_sync);
+	osif_psoc_sync_destroy(psoc_sync);
 }
 
 #ifdef CONFIG_PLD_PCIE_CNSS
+/**
+ * pld_pcie_idle_restart_cb() - Perform idle restart
+ * @pdev: PCIE device
+ * @id: PCIE device ID
+ *
+ * This function will be called if there is an idle restart request
+ *
+ * Return: int
+ */
+static int pld_pcie_idle_restart_cb(struct pci_dev *pdev,
+				    const struct pci_device_id *id)
+{
+	struct pld_context *pld_context;
+
+	pld_context = pld_get_global_context();
+	if (pld_context->ops->idle_restart)
+		return pld_context->ops->idle_restart(&pdev->dev,
+						      PLD_BUS_TYPE_PCIE);
+
+	return -ENODEV;
+}
+
+/**
+ * pld_pcie_idle_shutdown_cb() - Perform idle shutdown
+ * @pdev: PCIE device
+ * @id: PCIE device ID
+ *
+ * This function will be called if there is an idle shutdown request
+ *
+ * Return: int
+ */
+static int pld_pcie_idle_shutdown_cb(struct pci_dev *pdev)
+{
+	struct pld_context *pld_context;
+
+	pld_context = pld_get_global_context();
+	if (pld_context->ops->shutdown)
+		return pld_context->ops->idle_shutdown(&pdev->dev,
+						       PLD_BUS_TYPE_PCIE);
+
+	return -ENODEV;
+}
+
 /**
  * pld_pcie_reinit() - SSR re-initialize function for PCIE device
  * @pdev: PCIE device
@@ -192,7 +250,10 @@ static void pld_pcie_uevent(struct pci_dev *pdev, uint32_t status)
 
 	switch (status) {
 	case CNSS_RECOVERY:
-		data.uevent = PLD_RECOVERY;
+		data.uevent = PLD_FW_RECOVERY_START;
+		break;
+	case CNSS_FW_DOWN:
+		data.uevent = PLD_FW_DOWN;
 		break;
 	default:
 		goto out;
@@ -204,6 +265,51 @@ static void pld_pcie_uevent(struct pci_dev *pdev, uint32_t status)
 out:
 	return;
 }
+
+/**
+ * pld_pcie_update_event() - update wlan driver status callback function
+ * @pdev: PCIE device
+ * @cnss_uevent_data: driver uevent data
+ *
+ * This function will be called when platform driver wants to update wlan
+ * driver's status.
+ *
+ * Return: void
+ */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
+static int pld_pcie_update_event(struct pci_dev *pdev,
+				 struct cnss_uevent_data *uevent_data)
+{
+	struct pld_context *pld_context;
+	struct pld_uevent_data data = {0};
+	struct cnss_hang_event *hang_event;
+
+	pld_context = pld_get_global_context();
+
+	if (!pld_context || !uevent_data)
+		return -EINVAL;
+
+	switch (uevent_data->status) {
+	case CNSS_HANG_EVENT:
+		if (!uevent_data->data)
+			return -EINVAL;
+		hang_event = (struct cnss_hang_event *)uevent_data->data;
+		data.uevent = PLD_FW_HANG_EVENT;
+		data.hang_data.hang_event_data = hang_event->hang_event_data;
+		data.hang_data.hang_event_data_len =
+					hang_event->hang_event_data_len;
+		break;
+	default:
+		goto out;
+	}
+
+	if (pld_context->ops->uevent)
+		pld_context->ops->uevent(&pdev->dev, &data);
+
+out:
+	return 0;
+}
+#endif
 
 #ifdef FEATURE_RUNTIME_PM
 /**
@@ -430,11 +536,22 @@ static int pld_pcie_pm_resume_noirq(struct device *dev)
 #endif
 
 static struct pci_device_id pld_pcie_id_table[] = {
-	{ 0x168c, 0x003c, PCI_ANY_ID, PCI_ANY_ID },
+#ifdef CONFIG_AR6320_SUPPORT
 	{ 0x168c, 0x003e, PCI_ANY_ID, PCI_ANY_ID },
+#elif defined(QCA_WIFI_QCA6290)
+	{ 0x17cb, 0x1100, PCI_ANY_ID, PCI_ANY_ID },
+#elif defined(QCA_WIFI_QCA6390)
+	{ 0x17cb, 0x1101, PCI_ANY_ID, PCI_ANY_ID },
+#elif defined(QCA_WIFI_QCA6490)
+	{ 0x17cb, 0x1103, PCI_ANY_ID, PCI_ANY_ID },
+#elif defined(QCN7605_SUPPORT)
+	{ 0x17cb, 0x1102, PCI_ANY_ID, PCI_ANY_ID },
+#else
+	{ 0x168c, 0x003c, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0x168c, 0x0041, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0x168c, 0xabcd, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0x168c, 0x7021, PCI_ANY_ID, PCI_ANY_ID },
+#endif
 	{ 0 }
 };
 
@@ -457,11 +574,16 @@ struct cnss_wlan_driver pld_pcie_ops = {
 	.id_table   = pld_pcie_id_table,
 	.probe      = pld_pcie_probe,
 	.remove     = pld_pcie_remove,
+	.idle_restart  = pld_pcie_idle_restart_cb,
+	.idle_shutdown = pld_pcie_idle_shutdown_cb,
 	.reinit     = pld_pcie_reinit,
 	.shutdown   = pld_pcie_shutdown,
 	.crash_shutdown = pld_pcie_crash_shutdown,
 	.modem_status   = pld_pcie_notify_handler,
 	.update_status  = pld_pcie_uevent,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
+	.update_event = pld_pcie_update_event,
+#endif
 #ifdef CONFIG_PM
 	.suspend    = pld_pcie_suspend,
 	.resume     = pld_pcie_resume,
@@ -573,6 +695,13 @@ int pld_pcie_wlan_enable(struct device *dev, struct pld_wlan_enable_cfg *config,
 	cfg.num_shadow_reg_v2_cfg = config->num_shadow_reg_v2_cfg;
 	cfg.shadow_reg_v2_cfg = (struct cnss_shadow_reg_v2_cfg *)
 		config->shadow_reg_v2_cfg;
+	cfg.rri_over_ddr_cfg_valid = config->rri_over_ddr_cfg_valid;
+	if (config->rri_over_ddr_cfg_valid) {
+		cfg.rri_over_ddr_cfg.base_addr_low =
+			 config->rri_over_ddr_cfg.base_addr_low;
+		cfg.rri_over_ddr_cfg.base_addr_high =
+			 config->rri_over_ddr_cfg.base_addr_high;
+	}
 
 	switch (mode) {
 	case PLD_FTM:
@@ -622,7 +751,7 @@ int pld_pcie_get_fw_files_for_target(struct device *dev,
 	int ret = 0;
 	struct cnss_fw_files cnss_fw_files;
 
-	if (pfw_files == NULL)
+	if (!pfw_files)
 		return -ENODEV;
 
 	memset(pfw_files, 0, sizeof(*pfw_files));
@@ -632,20 +761,20 @@ int pld_pcie_get_fw_files_for_target(struct device *dev,
 	if (ret)
 		return ret;
 
-	strlcpy(pfw_files->image_file, cnss_fw_files.image_file,
-		PLD_MAX_FILE_NAME);
-	strlcpy(pfw_files->board_data, cnss_fw_files.board_data,
-		PLD_MAX_FILE_NAME);
-	strlcpy(pfw_files->otp_data, cnss_fw_files.otp_data,
-		PLD_MAX_FILE_NAME);
-	strlcpy(pfw_files->utf_file, cnss_fw_files.utf_file,
-		PLD_MAX_FILE_NAME);
-	strlcpy(pfw_files->utf_board_data, cnss_fw_files.utf_board_data,
-		PLD_MAX_FILE_NAME);
-	strlcpy(pfw_files->epping_file, cnss_fw_files.epping_file,
-		PLD_MAX_FILE_NAME);
-	strlcpy(pfw_files->evicted_data, cnss_fw_files.evicted_data,
-		PLD_MAX_FILE_NAME);
+	scnprintf(pfw_files->image_file, PLD_MAX_FILE_NAME, PREFIX "%s",
+		  cnss_fw_files.image_file);
+	scnprintf(pfw_files->board_data, PLD_MAX_FILE_NAME, PREFIX "%s",
+		  cnss_fw_files.board_data);
+	scnprintf(pfw_files->otp_data, PLD_MAX_FILE_NAME, PREFIX "%s",
+		  cnss_fw_files.otp_data);
+	scnprintf(pfw_files->utf_file, PLD_MAX_FILE_NAME, PREFIX "%s",
+		  cnss_fw_files.utf_file);
+	scnprintf(pfw_files->utf_board_data, PLD_MAX_FILE_NAME, PREFIX "%s",
+		  cnss_fw_files.utf_board_data);
+	scnprintf(pfw_files->epping_file, PLD_MAX_FILE_NAME, PREFIX "%s",
+		  cnss_fw_files.epping_file);
+	scnprintf(pfw_files->evicted_data, PLD_MAX_FILE_NAME, PREFIX "%s",
+		  cnss_fw_files.evicted_data);
 
 	return 0;
 }
@@ -665,7 +794,7 @@ int pld_pcie_get_platform_cap(struct device *dev, struct pld_platform_cap *cap)
 	int ret = 0;
 	struct cnss_platform_cap cnss_cap;
 
-	if (cap == NULL)
+	if (!cap)
 		return -ENODEV;
 
 	ret = cnss_get_platform_cap(dev, &cnss_cap);
@@ -691,7 +820,7 @@ int pld_pcie_get_soc_info(struct device *dev, struct pld_soc_info *info)
 	int ret = 0;
 	struct cnss_soc_info cnss_info = {0};
 
-	if (info == NULL)
+	if (!info)
 		return -ENODEV;
 
 	ret = cnss_get_soc_info(dev, &cnss_info);
@@ -707,6 +836,14 @@ int pld_pcie_get_soc_info(struct device *dev, struct pld_soc_info *info)
 	info->fw_version = cnss_info.fw_version;
 	strlcpy(info->fw_build_timestamp, cnss_info.fw_build_timestamp,
 		sizeof(info->fw_build_timestamp));
+	info->device_version.family_number =
+		cnss_info.device_version.family_number;
+	info->device_version.device_number =
+		cnss_info.device_version.device_number;
+	info->device_version.major_version =
+		cnss_info.device_version.major_version;
+	info->device_version.minor_version =
+		cnss_info.device_version.minor_version;
 
 	return 0;
 }

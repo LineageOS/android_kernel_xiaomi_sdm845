@@ -35,7 +35,7 @@ static int wma_mws_coex_state_host_event_handler(void *handle, uint8_t *event,
 	WMI_VDEV_GET_MWS_COEX_STATE_EVENTID_param_tlvs *param_tlvs;
 	wmi_vdev_get_mws_coex_state_fixed_param *param_buf;
 	struct mws_coex_state coex_state;
-	tpAniSirGlobal mac = cds_get_context(QDF_MODULE_ID_PE);
+	struct mac_context *mac = cds_get_context(QDF_MODULE_ID_PE);
 
 	wma_debug("Enter");
 	param_tlvs =
@@ -95,7 +95,7 @@ static int wma_mws_coex_state_dpwb_event_handler(void *handle, uint8_t *event,
 	WMI_VDEV_GET_MWS_COEX_DPWB_STATE_EVENTID_param_tlvs *param_tlvs;
 	wmi_vdev_get_mws_coex_dpwb_state_fixed_param *param_buf;
 	struct mws_coex_dpwb_state coex_dpwb;
-	tpAniSirGlobal mac = cds_get_context(QDF_MODULE_ID_PE);
+	struct mac_context *mac = cds_get_context(QDF_MODULE_ID_PE);
 
 	wma_debug("Enter");
 	param_tlvs =
@@ -155,7 +155,7 @@ static int wma_mws_coex_tdm_event_handler(void *handle, uint8_t *event,
 {
 	WMI_VDEV_GET_MWS_COEX_TDM_STATE_EVENTID_param_tlvs *param_tlvs;
 	wmi_vdev_get_mws_coex_tdm_state_fixed_param *param_buf;
-	tpAniSirGlobal mac = cds_get_context(QDF_MODULE_ID_PE);
+	struct mac_context *mac = cds_get_context(QDF_MODULE_ID_PE);
 	struct mws_coex_tdm_state coex_tdm;
 
 	wma_debug("Enter");
@@ -205,7 +205,7 @@ static int wma_mws_coex_idrx_event_handler(void *handle, uint8_t *event,
 {
 	WMI_VDEV_GET_MWS_COEX_IDRX_STATE_EVENTID_param_tlvs *param_tlvs;
 	wmi_vdev_get_mws_coex_idrx_state_fixed_param *param_buf;
-	tpAniSirGlobal mac = cds_get_context(QDF_MODULE_ID_PE);
+	struct mac_context *mac = cds_get_context(QDF_MODULE_ID_PE);
 	struct mws_coex_idrx_state coex_idrx;
 
 	wma_debug("Enter");
@@ -270,7 +270,7 @@ static int wma_mws_coex_antenna_sharing_event_handler(void *handle,
 	*param_tlvs =
 	(WMI_VDEV_GET_MWS_COEX_ANTENNA_SHARING_STATE_EVENTID_param_tlvs *)event;
 	wmi_vdev_get_mws_coex_antenna_sharing_state_fixed_param *param_buf;
-	tpAniSirGlobal mac = cds_get_context(QDF_MODULE_ID_PE);
+	struct mac_context *mac = cds_get_context(QDF_MODULE_ID_PE);
 	struct mws_antenna_sharing_info *antenna_sharing;
 
 	wma_debug("Enter");

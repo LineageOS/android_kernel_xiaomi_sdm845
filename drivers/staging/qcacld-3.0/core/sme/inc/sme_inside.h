@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -51,86 +51,17 @@ ePhyChanBondState csr_convert_cb_ini_value_to_phy_cb_state(uint32_t cbIniValue);
  * to make sure we have space for these cmds + some additional cmds.
  */
 #define SME_TOTAL_COMMAND                (HAL_NUM_STA * 3)
-/* default sme timeout is set to 30 secs */
-#define SME_DEFAULT_CMD_TIMEOUT  30000
 
 typedef struct sGenericQosCmd {
 	struct sme_qos_wmmtspecinfo tspecInfo;
-	sme_QosEdcaAcType ac;
+	enum qca_wlan_ac_type ac;
 	uint8_t tspec_mask;
 } tGenericQosCmd;
-
-typedef struct sRemainChlCmd {
-	uint8_t chn;
-	uint8_t phyMode;
-	uint32_t duration;
-	uint8_t isP2PProbeReqAllowed;
-	uint32_t scan_id;
-	void *callback;
-	void *callbackCtx;
-} tRemainChlCmd;
-
-#ifdef FEATURE_WLAN_TDLS
-typedef struct TdlsSendMgmtInfo {
-	tSirMacAddr peerMac;
-	uint8_t frameType;
-	uint8_t dialog;
-	uint16_t statusCode;
-	uint8_t responder;
-	uint32_t peerCapability;
-	uint8_t *buf;
-	uint8_t len;
-	enum wifi_traffic_ac ac;
-} tTdlsSendMgmtCmdInfo;
-
-typedef struct TdlsLinkEstablishInfo {
-	struct qdf_mac_addr peermac;
-	uint8_t uapsdQueues;
-	uint8_t maxSp;
-	uint8_t isBufSta;
-	uint8_t isOffChannelSupported;
-	uint8_t isResponder;
-	uint8_t supportedChannelsLen;
-	uint8_t supportedChannels[SIR_MAC_MAX_SUPP_CHANNELS];
-	uint8_t supportedOperClassesLen;
-	uint8_t supportedOperClasses[REG_MAX_SUPP_OPER_CLASSES];
-} tTdlsLinkEstablishCmdInfo;
-
-typedef struct TdlsAddStaInfo {
-	eTdlsAddOper tdlsAddOper;
-	struct qdf_mac_addr peermac;
-	uint16_t capability;
-	uint8_t extnCapability[SIR_MAC_MAX_EXTN_CAP];
-	uint8_t supportedRatesLen;
-	uint8_t supportedRates[SIR_MAC_MAX_SUPP_RATES];
-	uint8_t htcap_present;
-	tSirHTCap HTCap;
-	uint8_t vhtcap_present;
-	tSirVHTCap VHTCap;
-	uint8_t uapsdQueues;
-	uint8_t maxSp;
-} tTdlsAddStaCmdInfo;
-
-typedef struct TdlsDelStaInfo {
-	struct qdf_mac_addr peermac;
-} tTdlsDelStaCmdInfo;
-/*
- * TDLS cmd info, CMD from SME to PE.
- */
-typedef struct s_tdls_cmd {
-	uint32_t size;
-	union {
-		tTdlsLinkEstablishCmdInfo tdlsLinkEstablishCmdInfo;
-		tTdlsSendMgmtCmdInfo tdlsSendMgmtCmdInfo;
-		tTdlsAddStaCmdInfo tdlsAddStaCmdInfo;
-		tTdlsDelStaCmdInfo tdlsDelStaCmdInfo;
-	} u;
-} tTdlsCmd;
-#endif /* FEATURE_WLAN_TDLS */
 
 /**
  * struct s_nss_update_cmd - Format of nss update request
  * @new_nss: new nss value
+ * @ch_width: new channel width - optional
  * @session_id: Session ID
  * @set_hw_mode_cb: HDD nss update callback
  * @context: Adapter context
@@ -140,6 +71,7 @@ typedef struct s_tdls_cmd {
  */
 struct s_nss_update_cmd {
 	uint32_t new_nss;
+	uint32_t ch_width;
 	uint32_t session_id;
 	void *nss_update_cb;
 	void *context;
@@ -148,25 +80,30 @@ struct s_nss_update_cmd {
 	uint32_t original_vdev_id;
 };
 
+/**
+ * struct sir_disconnect_stats_cmd: command structure to get disconnect stats
+ * @peer_mac_addr: MAC address of the peer disconnected
+ *
+ */
+struct sir_disconnect_stats_cmd {
+	struct qdf_mac_addr peer_mac_addr;
+};
+
 typedef struct tagSmeCmd {
 	tListElem Link;
 	eSmeCommandType command;
 	uint32_t cmd_id;
-	uint32_t sessionId;
+	uint32_t vdev_id;
 	union {
 		struct roam_cmd roamCmd;
 		struct wmstatus_changecmd wmStatusChangeCmd;
 		tGenericQosCmd qosCmd;
-		tRemainChlCmd remainChlCmd;
-		struct addstafor_sessioncmd addStaSessionCmd;
 		struct delstafor_sessionCmd delStaSessionCmd;
-#ifdef FEATURE_WLAN_TDLS
-		tTdlsCmd tdlsCmd;
-#endif
 		struct policy_mgr_hw_mode set_hw_mode_cmd;
 		struct s_nss_update_cmd nss_update_cmd;
 		struct policy_mgr_dual_mac_config set_dual_mac_cmd;
 		struct sir_antenna_mode_param set_antenna_mode_cmd;
+		struct sir_disconnect_stats_cmd disconnect_stats_cmd;
 	} u;
 } tSmeCmd;
 
@@ -193,15 +130,14 @@ enum wlan_serialization_cmd_type csr_get_cmd_type(tSmeCmd *sme_cmd);
  *
  * Return: QDF_STATUS_SUCCESS or QDF_STATUS_E_FAILURE
  */
-QDF_STATUS csr_set_serialization_params_to_cmd(tpAniSirGlobal mac_ctx,
+QDF_STATUS csr_set_serialization_params_to_cmd(struct mac_context *mac_ctx,
 		tSmeCmd *sme_cmd, struct wlan_serialization_command *cmd,
 		uint8_t high_priority);
-tSmeCmd *sme_get_command_buffer(tpAniSirGlobal pMac);
-void sme_release_command(tpAniSirGlobal pMac, tSmeCmd *pCmd);
-bool qos_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
-void qos_release_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
-QDF_STATUS csr_process_scan_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
-QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
+tSmeCmd *sme_get_command_buffer(struct mac_context *mac);
+void sme_release_command(struct mac_context *mac, tSmeCmd *pCmd);
+bool qos_process_command(struct mac_context *mac, tSmeCmd *pCommand);
+void qos_release_command(struct mac_context *mac, tSmeCmd *pCommand);
+QDF_STATUS csr_roam_process_command(struct mac_context *mac, tSmeCmd *pCommand);
 
 /**
  * csr_roam_wm_status_change_complete() - Remove WM status change command
@@ -214,43 +150,42 @@ QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
  *
  * Return: void
  */
-void csr_roam_wm_status_change_complete(tpAniSirGlobal mac_ctx,
+void csr_roam_wm_status_change_complete(struct mac_context *mac_ctx,
 					uint8_t session_id);
-void csr_roam_process_wm_status_change_command(tpAniSirGlobal pMac,
+void csr_roam_process_wm_status_change_command(struct mac_context *mac,
 		tSmeCmd *pCommand);
+
 /**
- * csr_process_del_sta_session_command() - Post WMA_DEL_STA_SELF_REQ to wma
- *
+ * csr_roam_get_disconnect_stats_complete() - Remove get disconnect stats
+ * command from SME active command list
  * @mac_ctx: global mac context
- * @sme_command: received Delete Self station request command
+ * This API removes get disconnect stats command from SME active command list
+ * if present.
  *
- * This API sends the WMA_DEL_STA_SELF_REQ msg to WMA.
- *
- * Return: QDF_STATUS_SUCCESS or QDF_STATUS_E_FAILURE
+ * Return: void
  */
-QDF_STATUS csr_process_del_sta_session_command(tpAniSirGlobal mac_ctx,
-					       tSmeCmd *sme_command);
-void csr_reinit_roam_cmd(tpAniSirGlobal pMac, tSmeCmd *pCommand);
-void csr_reinit_wm_status_change_cmd(tpAniSirGlobal pMac, tSmeCmd *pCommand);
-QDF_STATUS csr_roam_send_set_key_cmd(tpAniSirGlobal mac_ctx,
-		uint32_t session_id, struct setkey_cmd *set_key_cmd);
-QDF_STATUS csr_is_valid_channel(tpAniSirGlobal pMac, uint8_t chnNum);
-
-QDF_STATUS sme_acquire_global_lock(tSmeStruct *psSme);
+void csr_roam_get_disconnect_stats_complete(struct mac_context *mac_ctx);
 
 /**
- * sme_get_vht_ch_width() - SME API to get the max supported FW chan width
+ * csr_roam_process_get_disconnect_stats_command() - Process get disconnect
+ * stats
+ * @mac_ctx: global mac context
+ * @pCommand: Command to be processed
  *
- * Return: Max channel width supported by FW (eg. 20, 40, 80, 160, 80+80)
+ * Return: void
  */
-uint32_t sme_get_vht_ch_width(void);
+void csr_roam_process_get_disconnect_stats_command(struct mac_context *mac,
+						   tSmeCmd *cmd);
+void csr_reinit_roam_cmd(struct mac_context *mac, tSmeCmd *pCommand);
+void csr_reinit_wm_status_change_cmd(struct mac_context *mac,
+				     tSmeCmd *pCommand);
+QDF_STATUS csr_is_valid_channel(struct mac_context *mac, uint32_t freq);
 
-QDF_STATUS sme_release_global_lock(tSmeStruct *psSme);
+QDF_STATUS sme_acquire_global_lock(struct sme_context *sme);
+QDF_STATUS sme_release_global_lock(struct sme_context *sme);
 
-QDF_STATUS csr_process_add_sta_session_rsp(tpAniSirGlobal pMac, uint8_t *pMsg);
-QDF_STATUS csr_process_del_sta_session_rsp(tpAniSirGlobal pMac, uint8_t *pMsg);
-
-bool csr_roamGetConcurrencyConnectStatusForBmps(tpAniSirGlobal pMac);
+QDF_STATUS
+csr_process_vdev_del_rsp(struct mac_context *mac, uint8_t *pmsg);
 
 /**
  * csr_flush_cfg_bg_scan_roam_channel_list() - Flush the channel list
@@ -264,29 +199,27 @@ void csr_flush_cfg_bg_scan_roam_channel_list(tCsrChannelInfo *channel_info);
  * csr_create_bg_scan_roam_channel_list() - Create roam scan chan list
  * @mac: global mac context
  * @channel_info: Channel list to be populated for roam scan
- * @chan_list: Channel list to be populated from
+ * @chan_freq_list: Channel list to be populated from
  * @num_chan: Number of channels
  *
  * Return: QDF_STATUS_SUCCESS or QDF_STATUS_E_FAILURE
  */
-QDF_STATUS csr_create_bg_scan_roam_channel_list(tpAniSirGlobal pMac,
+QDF_STATUS csr_create_bg_scan_roam_channel_list(struct mac_context *mac,
 						tCsrChannelInfo *channel_info,
-						const uint8_t *chan_list,
+						const uint32_t *chan_freq_list,
 						const uint8_t num_chan);
 
 #ifdef FEATURE_WLAN_ESE
-QDF_STATUS csr_create_roam_scan_channel_list(tpAniSirGlobal pMac,
+QDF_STATUS csr_create_roam_scan_channel_list(struct mac_context *mac,
 		uint8_t sessionId,
-		uint8_t *pChannelList,
+		uint32_t *chan_freq_list,
 		uint8_t numChannels,
-		const enum band_info eBand);
+		const enum band_info band);
 #endif
 
-QDF_STATUS p2p_process_remain_on_channel_cmd(tpAniSirGlobal pMac,
-					     tSmeCmd *p2pRemainonChn);
 ePhyChanBondState csr_convert_cb_ini_value_to_phy_cb_state(uint32_t cbIniValue);
-void csr_process_set_dual_mac_config(tpAniSirGlobal mac, tSmeCmd *command);
-void csr_process_set_antenna_mode(tpAniSirGlobal mac, tSmeCmd *command);
-void csr_process_set_hw_mode(tpAniSirGlobal mac, tSmeCmd *command);
-void csr_process_nss_update_req(tpAniSirGlobal mac, tSmeCmd *command);
+void csr_process_set_dual_mac_config(struct mac_context *mac, tSmeCmd *command);
+void csr_process_set_antenna_mode(struct mac_context *mac, tSmeCmd *command);
+void csr_process_set_hw_mode(struct mac_context *mac, tSmeCmd *command);
+void csr_process_nss_update_req(struct mac_context *mac, tSmeCmd *command);
 #endif /* #if !defined( __SMEINSIDE_H ) */

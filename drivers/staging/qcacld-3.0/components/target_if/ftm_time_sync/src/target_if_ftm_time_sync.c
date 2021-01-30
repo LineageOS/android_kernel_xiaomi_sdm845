@@ -23,9 +23,7 @@
 #include "target_if.h"
 #include "target_if_ftm_time_sync.h"
 #include "wlan_ftm_time_sync_public_struct.h"
-#include "wlan_ftm_time_sync_tgt_api.h"
 #include <wmi_unified_api.h>
-#include <wma.h>
 
 static QDF_STATUS
 target_if_ftm_time_sync_send_qtime(struct wlan_objmgr_psoc *psoc,
@@ -86,8 +84,6 @@ target_if_time_sync_ftm_start_stop_event_handler(ol_scn_t scn_handle,
 		return -EINVAL;
 	}
 
-	tgt_ftm_ts_start_stop_evt(psoc, &param);
-
 	return 0;
 }
 
@@ -103,12 +99,11 @@ target_if_ftm_time_sync_start_stop_event(struct wlan_objmgr_psoc *psoc)
 		return QDF_STATUS_E_INVAL;
 	}
 
-	status = wmi_unified_register_event_handler(
+	status = wmi_unified_register_event(
 			wmi_handle, wmi_wlan_time_sync_ftm_start_stop_event_id,
-			target_if_time_sync_ftm_start_stop_event_handler,
-			WMA_RX_SERIALIZER_CTX);
+			target_if_time_sync_ftm_start_stop_event_handler);
 	if (status) {
-		target_if_err("Ftm time_sync start stop event register failed");
+		target_if_err("Ftm timesync start stop event register failed");
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -143,11 +138,9 @@ target_if_time_sync_master_slave_offset_event_handler(ol_scn_t scn_handle,
 
 	if (wmi_unified_extract_time_sync_ftm_offset(
 			wmi_handle, data, &param) != QDF_STATUS_SUCCESS) {
-		target_if_err("time_sync ftm offset param extraction failed");
+		target_if_err("Extraction of timesync ftm offset param failed");
 		return -EINVAL;
 	}
-
-	tgt_ftm_ts_offset_evt(psoc, &param);
 
 	return 0;
 }
@@ -164,72 +157,37 @@ target_if_ftm_time_sync_master_slave_offset(struct wlan_objmgr_psoc *psoc)
 		return QDF_STATUS_E_INVAL;
 	}
 
-	status = wmi_unified_register_event_handler(
+	status = wmi_unified_register_event(
 			wmi_handle,
 			wmi_wlan_time_sync_q_master_slave_offset_eventid,
-			target_if_time_sync_master_slave_offset_event_handler,
-			WMA_RX_SERIALIZER_CTX);
+			target_if_time_sync_master_slave_offset_event_handler);
 	if (status) {
-		target_if_err("Ftm time_sync offset event register failed");
+		target_if_err("Ftm timesync offset event register failed");
 		return QDF_STATUS_E_FAILURE;
 	}
 
 	return status;
 }
 
-QDF_STATUS
-target_if_ftm_time_sync_unregister_ev_handlers(struct wlan_objmgr_psoc *psoc)
-{
-	wmi_unified_t wmi_handle;
-	int ret, status = 0;
-
-	wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
-	if (!wmi_handle) {
-		target_if_err("Invalid wmi handle");
-		return QDF_STATUS_E_INVAL;
-	}
-
-	ret = wmi_unified_unregister_event(
-				wmi_handle,
-				wmi_wlan_time_sync_ftm_start_stop_event_id);
-	if (ret) {
-		target_if_err("failed to unregister time sync start/stop evt");
-		status = ret;
-	}
-
-	ret = wmi_unified_unregister_event(
-			wmi_handle,
-			wmi_wlan_time_sync_q_master_slave_offset_eventid);
-	if (ret) {
-		target_if_err("failed to unregister time sync offset evt");
-		status = ret;
-	}
-
-	if (status)
-		return QDF_STATUS_E_FAILURE;
-	else
-		return QDF_STATUS_SUCCESS;
-}
-
-void target_if_ftm_time_sync_register_rx_ops(
-				struct wlan_ftm_time_sync_rx_ops *rx_ops)
+void
+target_if_ftm_time_sync_register_rx_ops(struct wlan_ftm_timesync_rx_ops *rx_ops)
 {
 	if (!rx_ops) {
-		target_if_err("FTM time_sync rx_ops is null");
+		target_if_err("FTM timesync rx_ops is null");
 		return;
 	}
 
-	rx_ops->ftm_time_sync_register_start_stop =
+	rx_ops->ftm_timesync_register_start_stop =
 				target_if_ftm_time_sync_start_stop_event;
-	rx_ops->ftm_time_sync_regiser_master_slave_offset =
+	rx_ops->ftm_timesync_regiser_master_slave_offset =
 				target_if_ftm_time_sync_master_slave_offset;
 }
 
-void target_if_ftm_time_sync_register_tx_ops(
-				struct wlan_ftm_time_sync_tx_ops *tx_ops)
+void
+target_if_ftm_time_sync_register_tx_ops(struct wlan_ftm_timesync_tx_ops *tx_ops)
 {
 	if (!tx_ops) {
-		target_if_err("FTM time_sync tx_ops is null");
+		target_if_err("FTM timesync tx_ops is null");
 		return;
 	}
 
@@ -237,3 +195,4 @@ void target_if_ftm_time_sync_register_tx_ops(
 	tx_ops->ftm_time_sync_send_trigger =
 				target_if_ftm_time_sync_send_trigger;
 }
+

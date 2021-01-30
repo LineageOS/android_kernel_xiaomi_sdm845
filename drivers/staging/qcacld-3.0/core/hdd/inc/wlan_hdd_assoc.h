@@ -33,16 +33,6 @@
 
 #define HDD_TIME_STRING_LEN 24
 
-/* Preprocessor Definitions and Constants */
-#ifdef FEATURE_WLAN_TDLS
-#define HDD_MAX_NUM_TDLS_STA          8
-#define HDD_MAX_NUM_TDLS_STA_P_UAPSD_OFFCHAN  1
-#define TDLS_STA_INDEX_VALID(staId) \
-	(((staId) >= 0) && ((staId) < 0xFF))
-#else
-#define HDD_MAX_NUM_TDLS_STA          0
-
-#endif
 /* Timeout (in ms) for Link to Up before Registering Station */
 #define ASSOC_LINKUP_TIMEOUT 60
 
@@ -140,24 +130,21 @@ struct hdd_conn_flag {
 
 /**
  * struct hdd_connection_info - structure to store connection information
- * @connState: connection state of the NIC
- * @bssId: BSSID
+ * @conn_state: connection state of the NIC
+ * @bssid: BSSID
  * @SSID: SSID Info
- * @staId: Station ID
- * @peerMacAddress:Peer Mac Address of the IBSS Stations
- * @authType: Auth Type
- * @ucEncryptionType: Unicast Encryption Type
- * @mcEncryptionType: Multicast Encryption Type
- * @Keys: Keys
- * @operationChannel: Operation Channel
- * @uIsAuthenticated: Remembers authenticated state
- * @dot11Mode: dot11Mode
- * @proxyARPService: proxy arp service
+ * @peer_macaddr:Peer Mac Address of the IBSS Stations
+ * @auth_type: Auth Type
+ * @uc_encrypt_type: Unicast Encryption Type
+ * @mc_encrypt_type: Multicast Encryption Type
+ * @is_authenticated: Remembers authenticated state
+ * @dot11mode: dot11mode
+ * @proxy_arp_service: proxy arp service
  * @ptk_installed: ptk installed state
  * @gtk_installed: gtk installed state
  * @nss: number of spatial streams negotiated
  * @rate_flags: rate flags for current connection
- * @freq: channel frequency
+ * @chan_freq: channel frequency
  * @txrate: txrate structure holds nss & datarate info
  * @rxrate: rx rate info
  * @noise: holds noise information
@@ -174,26 +161,25 @@ struct hdd_conn_flag {
  * @auth_time: last authentication established time
  * @connect_time: last association established time
  * @ch_width: channel width of operating channel
+ * @max_tx_bitrate: Max tx bitrate supported by the AP
+ * to which currently sta is connected.
  */
 struct hdd_connection_info {
-	eConnectionState connState;
-	struct qdf_mac_addr bssId;
-	tCsrSSIDInfo SSID;
-	uint8_t staId[MAX_PEERS];
-	struct qdf_mac_addr peerMacAddress[MAX_PEERS];
-	eCsrAuthType authType;
-	eCsrEncryptionType ucEncryptionType;
-	eCsrEncryptionType mcEncryptionType;
-	tCsrKeys Keys;
-	uint8_t operationChannel;
-	uint8_t uIsAuthenticated;
-	uint32_t dot11Mode;
-	uint8_t proxyARPService;
+	eConnectionState conn_state;
+	struct qdf_mac_addr bssid;
+	tCsrSSIDInfo ssid;
+	struct qdf_mac_addr peer_macaddr[MAX_PEERS];
+	enum csr_akm_type auth_type;
+	eCsrEncryptionType uc_encrypt_type;
+	eCsrEncryptionType mc_encrypt_type;
+	uint8_t is_authenticated;
+	uint32_t dot11mode;
+	uint8_t proxy_arp_service;
 	bool ptk_installed;
 	bool gtk_installed;
 	uint8_t nss;
 	uint32_t rate_flags;
-	uint32_t freq;
+	uint32_t chan_freq;
 	struct rate_info txrate;
 	struct rate_info rxrate;
 	int8_t noise;
@@ -203,15 +189,20 @@ struct hdd_connection_info {
 	tDot11fIEhs20vendor_ie hs20vendor_ie;
 	struct ieee80211_ht_operation ht_operation;
 	struct ieee80211_vht_operation vht_operation;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)) \
+     && defined(WLAN_FEATURE_11AX)
+	struct ieee80211_he_operation *he_operation;
+	uint32_t he_oper_len;
+#endif
 	uint32_t roam_count;
 	int8_t signal;
 	int32_t assoc_status_code;
-	uint32_t cca;
 	tCsrSSIDInfo last_ssid;
-	eCsrAuthType last_auth_type;
+	enum csr_akm_type last_auth_type;
 	char auth_time[HDD_TIME_STRING_LEN];
 	char connect_time[HDD_TIME_STRING_LEN];
 	enum phy_ch_width ch_width;
+	struct rate_info max_tx_bitrate;
 };
 
 /* Forward declarations */
@@ -234,6 +225,18 @@ bool hdd_is_connecting(struct hdd_station_ctx *hdd_sta_ctx);
  * Return: true if fils connection else false
  */
 bool hdd_is_fils_connection(struct hdd_adapter *adapter);
+
+/**
+ * hdd_conn_set_connection_state() - set connection state
+ * @adapter: pointer to the adapter
+ * @conn_state: connection state
+ *
+ * This function updates the global HDD station context connection state.
+ *
+ * Return: none
+ */
+void hdd_conn_set_connection_state(struct hdd_adapter *adapter,
+				   eConnectionState conn_state);
 
 /**
  * hdd_conn_is_connected() - Function to check connection status
@@ -282,68 +285,55 @@ void hdd_abort_ongoing_sta_connection(struct hdd_context *hdd_ctx);
 
 /**
  * hdd_sme_roam_callback() - hdd sme roam callback
- * @pContext: pointer to adapter context
+ * @context: pointer to adapter context
  * @roam_info: pointer to roam info
- * @roamId: roam id
- * @roamStatus: roam status
- * @roamResult: roam result
+ * @roam_id: roam id
+ * @roam_status: roam status
+ * @roam_result: roam result
  *
  * Return: QDF_STATUS enumeration
  */
-QDF_STATUS hdd_sme_roam_callback(void *pContext,
+QDF_STATUS hdd_sme_roam_callback(void *context,
 				 struct csr_roam_info *roam_info,
-				 uint32_t roamId,
-				 eRoamCmdStatus roamStatus,
-				 eCsrRoamResult roamResult);
+				 uint32_t roam_id,
+				 eRoamCmdStatus roam_status,
+				 eCsrRoamResult roam_result);
 
 /**
  * hdd_set_genie_to_csr() - set genie to csr
  * @adapter: pointer to adapter
- * @RSNAuthType: pointer to auth type
+ * @rsn_auth_type: pointer to auth type
  *
  * Return: 0 on success, error number otherwise
  */
 int hdd_set_genie_to_csr(struct hdd_adapter *adapter,
-			 eCsrAuthType *RSNAuthType);
+			 enum csr_akm_type *rsn_auth_type);
 
 /**
  * hdd_set_csr_auth_type() - set csr auth type
  * @adapter: pointer to adapter
- * @RSNAuthType: auth type
+ * @rsn_auth_type: auth type
  *
  * Return: 0 on success, error number otherwise
  */
 int hdd_set_csr_auth_type(struct hdd_adapter *adapter,
-			  eCsrAuthType RSNAuthType);
+			  enum csr_akm_type rsn_auth_type);
 
 #ifdef FEATURE_WLAN_TDLS
 /**
  * hdd_roam_register_tdlssta() - register new TDLS station
  * @adapter: pointer to adapter
  * @peerMac: pointer to peer MAC address
- * @staId: station identifier
  * @qos: Quality of service
  *
- * Construct the staDesc and register the new STA with the Data Plane.
+ * Construct the txrx_desc and register the new STA with the Data Plane.
  * This is called as part of ADD_STA in the TDLS setup.
  *
  * Return: QDF_STATUS enumeration
  */
 QDF_STATUS hdd_roam_register_tdlssta(struct hdd_adapter *adapter,
-				     const uint8_t *peerMac, uint16_t staId,
-				     uint8_t qos);
+				     const uint8_t *peerMac, uint8_t qos);
 #endif
-
-QDF_STATUS hdd_roam_deregister_tdlssta(struct hdd_adapter *adapter,
-				       uint8_t staId);
-
-/**
- * hdd_perform_roam_set_key_complete() - perform set key complete
- * @adapter: pointer to adapter
- *
- * Return: none
- */
-void hdd_perform_roam_set_key_complete(struct hdd_adapter *adapter);
 
 #ifdef FEATURE_WLAN_ESE
 /**
@@ -365,8 +355,17 @@ hdd_indicate_ese_bcn_report_no_results(const struct hdd_adapter *adapter,
 					    const uint8_t numBss);
 #endif /* FEATURE_WLAN_ESE */
 
+/**
+ * hdd_change_peer_state() - change peer state
+ * @adapter: HDD adapter
+ * @peer_mac_addr: Peer MAC address
+ * @sta_state: peer state
+ * @roam_synch_in_progress: roam synch in progress
+ *
+ * Return: QDF status
+ */
 QDF_STATUS hdd_change_peer_state(struct hdd_adapter *adapter,
-				 uint8_t sta_id,
+				 uint8_t *peer_mac_addr,
 				 enum ol_txrx_peer_state sta_state,
 				 bool roam_synch_in_progress);
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
@@ -378,25 +377,51 @@ static inline bool hdd_is_roam_sync_in_progress(struct csr_roam_info *roaminfo)
 }
 #endif
 
+/**
+ * hdd_update_dp_vdev_flags() - update datapath vdev flags
+ * @cbk_data: callback data
+ * @vdev_id: virtual interface id
+ * @vdev_param: vdev parameter
+ * @is_link_up: link state up or down
+ *
+ * Return: QDF status
+ */
 QDF_STATUS hdd_update_dp_vdev_flags(void *cbk_data,
-				    uint8_t sta_id,
+				    uint8_t vdev_id,
 				    uint32_t vdev_param,
 				    bool is_link_up);
 
 QDF_STATUS hdd_roam_register_sta(struct hdd_adapter *adapter,
 				 struct csr_roam_info *roam_info,
-				 uint8_t sta_id,
-				 struct qdf_mac_addr *peer_mac_addr,
 				 struct bss_description *bss_desc);
 
-bool hdd_save_peer(struct hdd_station_ctx *sta_ctx, uint8_t sta_id,
+/**
+ * hdd_save_peer() - Save peer MAC address in adapter peer table.
+ * @sta_ctx: pointer to hdd station context
+ * @peer_mac_addr: mac address of new peer
+ *
+ * This information is passed to iwconfig later. The peer that joined
+ * last is passed as information to iwconfig.
+
+ * Return: true if success, false otherwise
+ */
+bool hdd_save_peer(struct hdd_station_ctx *sta_ctx,
 		   struct qdf_mac_addr *peer_mac_addr);
-void hdd_delete_peer(struct hdd_station_ctx *sta_ctx, uint8_t sta_id);
+
+/**
+ * hdd_delete_peer() - removes peer from hdd station context peer table
+ * @sta_ctx: pointer to hdd station context
+ * @peer_mac_addr: mac address of peer to be deleted
+ *
+ * Return: None
+ */
+void hdd_delete_peer(struct hdd_station_ctx *sta_ctx,
+		     struct qdf_mac_addr *peer_mac_addr);
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 QDF_STATUS
 hdd_wma_send_fastreassoc_cmd(struct hdd_adapter *adapter,
-			     const tSirMacAddr bssid, int channel);
+			     const tSirMacAddr bssid, uint32_t ch_freq);
 /**
  * hdd_save_gtk_params() - Save GTK offload params
  * @adapter: HDD adapter
@@ -410,7 +435,7 @@ void hdd_save_gtk_params(struct hdd_adapter *adapter,
 #else
 static inline QDF_STATUS
 hdd_wma_send_fastreassoc_cmd(struct hdd_adapter *adapter,
-			     const tSirMacAddr bssid, int channel)
+			     const tSirMacAddr bssid, uint32_t ch_freq)
 {
 	return QDF_STATUS_SUCCESS;
 }
@@ -465,12 +490,12 @@ void hdd_roam_profile_init(struct hdd_adapter *adapter);
 
 /**
  * hdd_any_valid_peer_present() - Check if any valid peer is present
- * @adapter: The HDD adapter being initialized
+ * @adapter: The HDD adapter
  *
- * Return true if there are any valid sta_id present in the given adapter.
- * Return false if no valid sta_id is present.
+ * Check if there is any peer present with non-zero mac address other than
+ * broadcast address.
  *
- * Return: True if there is any valid sta present
+ * Return: True if there is any valid peer present
  */
 bool hdd_any_valid_peer_present(struct hdd_adapter *adapter);
 

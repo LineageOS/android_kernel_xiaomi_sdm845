@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016, 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016, 2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -32,21 +32,6 @@
 #include "lim_global.h"
 #include "mac_trace.h"
 #include "qdf_trace.h"
-#ifdef LIM_TRACE_RECORD
-
-#define LIM_TRACE_GET_SSN(data)    (((data) >> 16) & 0xff)
-#define LIM_TRACE_GET_SUBTYPE(data)    (data & 0xff)
-#define LIM_TRACE_GET_DEFERRED(data) (data & 0x80000000)
-#define LIM_TRACE_GET_DEFRD_OR_DROPPED(data) (data & 0xc0000000)
-
-#define LIM_MSG_PROCESSED 0
-#define LIM_MSG_DEFERRED   1
-#define LIM_MSG_DROPPED     2
-
-#define LIM_TRACE_MAKE_RXMGMT(type, ssn) \
-	((ssn << 16) | (type))
-#define LIM_TRACE_MAKE_RXMSG(msg, action) \
-	((msg) | (action << 30))
 
 enum {
 	TRACE_CODE_MLM_STATE,
@@ -61,8 +46,6 @@ enum {
 	TRACE_CODE_RX_WMA_MSG,
 	TRACE_CODE_TX_LIM_MSG,
 	TRACE_CODE_RX_LIM_MSG,
-	TRACE_CODE_TX_CFG_MSG,
-	TRACE_CODE_RX_CFG_MSG,
 	TRACE_CODE_RX_MGMT_DROP,
 
 	TRACE_CODE_TIMER_ACTIVATE,
@@ -70,21 +53,29 @@ enum {
 	TRACE_CODE_INFO_LOG
 };
 
-void lim_trace_init(tpAniSirGlobal pMac);
-void limTraceReset(tpAniSirGlobal pMac);
-void limTraceUpdateMgmtStat(tpAniSirGlobal pMac, uint8_t subtype);
-void lim_trace_dumpMgmtStat(tpAniSirGlobal pMac, uint8_t subtype);
+#ifdef LIM_TRACE_RECORD
+
+#define LIM_TRACE_GET_SSN(data)    (((data) >> 16) & 0xff)
+#define LIM_TRACE_GET_SUBTYPE(data)    ((data) & 0xff)
+#define LIM_TRACE_GET_DEFRD_OR_DROPPED(data) ((data) & 0xc0000000)
+
+#define LIM_MSG_PROCESSED 0
+#define LIM_MSG_DEFERRED   1
+#define LIM_MSG_DROPPED     2
+
+#define LIM_TRACE_MAKE_RXMGMT(type, ssn) \
+	(((ssn) << 16) | (type))
+#define LIM_TRACE_MAKE_RXMSG(msg, action) \
+	((msg) | ((action) << 30))
+
+void lim_trace_init(struct mac_context *mac);
 uint8_t *lim_trace_get_mlm_state_string(uint32_t mlmState);
 uint8_t *lim_trace_get_sme_state_string(uint32_t smeState);
-void lim_trace_dump(void *pMac, tp_qdf_trace_record pRecord,
+void lim_trace_dump(void *mac, tp_qdf_trace_record pRecord,
 		    uint16_t recIndex);
-void mac_trace_msg_tx(tpAniSirGlobal pMac, uint8_t session, uint32_t data);
-void mac_trace_msg_rx(tpAniSirGlobal pMac, uint8_t session, uint32_t data);
+void mac_trace_msg_tx(struct mac_context *mac, uint8_t session, uint32_t data);
+void mac_trace_msg_rx(struct mac_context *mac, uint8_t session, uint32_t data);
 
-void mac_trace_msg_rx_new(tpAniSirGlobal pMac, uint8_t module, uint8_t session,
-			  uint32_t data);
-void mac_trace_msg_tx_new(tpAniSirGlobal pMac, uint8_t module, uint8_t session,
-			  uint32_t data);
 #endif /* endof LIM_TRACE_RECORD MACRO */
 
 #endif

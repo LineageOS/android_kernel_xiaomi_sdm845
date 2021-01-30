@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -45,19 +45,6 @@
 /* Deferred Message Queue Length */
 #define MAX_DEFERRED_QUEUE_LEN                  80
 
-/* Maximum number of PS - TIM's to be sent with out wakeup from STA */
-#define LIM_TIM_WAIT_COUNT_FACTOR          5
-
-/*
- * Use this count if (LIM_TIM_WAIT_FACTOR * ListenInterval)
- * is less than LIM_MIN_TIM_WAIT_CNT
- */
-#define LIM_MIN_TIM_WAIT_COUNT          50
-
-#define GET_TIM_WAIT_COUNT(LIntrvl) \
-	((LIntrvl * LIM_TIM_WAIT_COUNT_FACTOR) > LIM_MIN_TIM_WAIT_COUNT ? \
-	(LIntrvl * LIM_TIM_WAIT_COUNT_FACTOR) : LIM_MIN_TIM_WAIT_COUNT)
-
 #ifdef CHANNEL_HOPPING_ALL_BANDS
 #define CHAN_HOP_ALL_BANDS_ENABLE        1
 #else
@@ -89,7 +76,6 @@ typedef enum eLimSmeStates {
 	eLIM_SME_OFFLINE_STATE,
 	eLIM_SME_IDLE_STATE,
 	eLIM_SME_SUSPEND_STATE,
-	eLIM_SME_WT_SCAN_STATE,
 	eLIM_SME_WT_JOIN_STATE,
 	eLIM_SME_WT_AUTH_STATE,
 	eLIM_SME_WT_ASSOC_STATE,
@@ -98,15 +84,12 @@ typedef enum eLimSmeStates {
 	eLIM_SME_ASSOCIATED_STATE,
 	eLIM_SME_REASSOCIATED_STATE,
 	eLIM_SME_LINK_EST_STATE,
-	eLIM_SME_LINK_EST_WT_SCAN_STATE,
 	eLIM_SME_WT_PRE_AUTH_STATE,
 	eLIM_SME_WT_DISASSOC_STATE,
 	eLIM_SME_WT_DEAUTH_STATE,
 	eLIM_SME_WT_START_BSS_STATE,
 	eLIM_SME_WT_STOP_BSS_STATE,
 	eLIM_SME_NORMAL_STATE,
-	eLIM_SME_CHANNEL_SCAN_STATE,
-	eLIM_SME_NORMAL_CHANNEL_SCAN_STATE
 } tLimSmeStates;
 
 /*
@@ -118,8 +101,6 @@ typedef enum eLimSmeStates {
 typedef enum eLimMlmStates {
 	eLIM_MLM_OFFLINE_STATE,
 	eLIM_MLM_IDLE_STATE,
-	eLIM_MLM_WT_PROBE_RESP_STATE,
-	eLIM_MLM_PASSIVE_SCAN_STATE,
 	eLIM_MLM_WT_JOIN_BEACON_STATE,
 	eLIM_MLM_JOINED_STATE,
 	eLIM_MLM_BSS_STARTED_STATE,
@@ -134,7 +115,6 @@ typedef enum eLimMlmStates {
 	eLIM_MLM_REASSOCIATED_STATE,
 	eLIM_MLM_LINK_ESTABLISHED_STATE,
 	eLIM_MLM_WT_ASSOC_CNF_STATE,
-	eLIM_MLM_LEARN_STATE,
 	eLIM_MLM_WT_ADD_BSS_RSP_STATE,
 	eLIM_MLM_WT_DEL_BSS_RSP_STATE,
 	eLIM_MLM_WT_ADD_BSS_RSP_ASSOC_STATE,
@@ -153,31 +133,10 @@ typedef enum eLimMlmStates {
 	eLIM_MLM_WT_SET_BSS_KEY_STATE,
 	eLIM_MLM_WT_SET_STA_KEY_STATE,
 	eLIM_MLM_WT_SET_STA_BCASTKEY_STATE,
-	eLIM_MLM_WT_SET_MIMOPS_STATE,
 	eLIM_MLM_WT_ADD_BSS_RSP_FT_REASSOC_STATE,
 	eLIM_MLM_WT_FT_REASSOC_RSP_STATE,
-	eLIM_MLM_P2P_LISTEN_STATE,
 	eLIM_MLM_WT_SAE_AUTH_STATE,
 } tLimMlmStates;
-
-/* 11h channel quiet states */
-
-/*
- * This enum indicates in which state the device is in
- * when it receives quiet element in beacon or probe-response.
- * The default quiet state of the device is always INIT
- * eLIM_QUIET_BEGIN - When Quiet period is started
- * eLIM_QUIET_CHANGED - When Quiet period is updated
- * eLIM_QUIET_RUNNING - Between two successive Quiet updates
- * eLIM_QUIET_END - When quiet period ends
- */
-typedef enum eLimQuietStates {
-	eLIM_QUIET_INIT,
-	eLIM_QUIET_BEGIN,
-	eLIM_QUIET_CHANGED,
-	eLIM_QUIET_RUNNING,
-	eLIM_QUIET_END
-} tLimQuietStates;
 
 /* 11h channel switch states */
 
@@ -198,37 +157,19 @@ typedef enum eLimDot11hChanSwStates {
 typedef struct sLimMlmAuthReq {
 	tSirMacAddr peerMacAddr;
 	tAniAuthType authType;
-	uint32_t authFailureTimeout;
 	uint8_t sessionId;
 } tLimMlmAuthReq, *tpLimMlmAuthReq;
 
 typedef struct sLimMlmJoinReq {
-	uint32_t joinFailureTimeout;
 	tSirMacRateSet operationalRateSet;
 	uint8_t sessionId;
-	tSirBssDescription bssDescription;
+	struct bss_description bssDescription;
 	/*
 	 * WARNING: Pls make bssDescription as last variable in struct
 	 * tLimMlmJoinReq as it has ieFields followed after this bss
 	 * description. Adding a variable after this corrupts the ieFields
 	 */
 } tLimMlmJoinReq, *tpLimMlmJoinReq;
-
-#ifdef FEATURE_OEM_DATA_SUPPORT
-
-/* OEM Data related structure definitions */
-typedef struct sLimMlmOemDataReq {
-	struct qdf_mac_addr selfMacAddr;
-	uint32_t data_len;
-	uint8_t *data;
-} tLimMlmOemDataReq, *tpLimMlmOemDataReq;
-
-typedef struct sLimMlmOemDataRsp {
-	bool target_rsp;
-	uint32_t rsp_len;
-	uint8_t *oem_data_rsp;
-} tLimMlmOemDataRsp, *tpLimMlmOemDataRsp;
-#endif
 
 /* Forward declarations */
 struct sSirAssocReq;
@@ -284,8 +225,27 @@ typedef struct tLimPreAuthTable {
 	tLimPreAuthNode **pTable;
 } tLimPreAuthTable, *tpLimPreAuthTable;
 
-/* / Per STA context structure definition */
-typedef struct sLimMlmStaContext {
+/**
+ * struct lim_sta_context - LIM per STA structure
+ * @mlmState: LIM State
+ * @authType: Authentication algorithm
+ * @akm_type: AKM of the connection
+ * @listenInterval: Listen interval
+ * @capabilityInfo: Capabilities
+ * @disassocReason: Disassociation reason code
+ * @resultCode:     Result code
+ * @subType:        Indicates association or reassociation
+ * @updateContext:  Update context
+ * @schClean:       Scheduler clean
+ * @htCapability:   802.11n HT capability
+ * @vhtCapability:  802.11ac VHT capability
+ * @cleanupTrigger: Cleanup trigger
+ * @protStatusCode: Protocol Status code
+ * @he_capable:     802.11ax HE capability
+ * @owe_ie:         Pointer to OWE IE
+ * @owe_ie_len:     Length of OWE IE
+ */
+struct lim_sta_context {
 	tLimMlmStates mlmState;
 	tAniAuthType authType;		/* auth algo in auth frame */
 	enum ani_akm_type akm_type;	/* akm in rsn/wpa ie */
@@ -295,7 +255,6 @@ typedef struct sLimMlmStaContext {
 
 	tSirResultCodes resultCode;
 
-	tSirMacPropRateSet propRateSet;
 	uint8_t subType:1;      /* Indicates ASSOC (0) or REASSOC (1) */
 	uint8_t updateContext:1;
 	uint8_t schClean:1;
@@ -307,9 +266,10 @@ typedef struct sLimMlmStaContext {
 #ifdef WLAN_FEATURE_11AX
 	bool he_capable;
 #endif
+	bool force_1x1;
 	uint8_t *owe_ie;
 	uint32_t owe_ie_len;
-} tLimMlmStaContext, *tpLimMlmStaContext;
+};
 
 /* Structure definition to hold deferred messages queue parameters */
 typedef struct sLimDeferredMsgQParams {
@@ -455,6 +415,7 @@ typedef enum eLimChannelSwitchState {
 /* Channel Switch Info */
 typedef struct sLimChannelSwitchInfo {
 	tLimChannelSwitchState state;
+	uint32_t sw_target_freq;
 	uint8_t primaryChannel;
 	uint8_t ch_center_freq_seg0;
 	uint8_t ch_center_freq_seg1;
@@ -479,33 +440,6 @@ typedef struct sLimWiderBWChannelSwitch {
 	uint8_t newCenterChanFreq1;
 } tLimWiderBWChannelSwitchInfo, *tpLimWiderBWChannelSwitchInfo;
 
-/* Enums used when stopping the Tx. */
-typedef enum eLimQuietTxMode {
-	/* Stop/resume transmission of all stations,Uses the global flag */
-	eLIM_TX_ALL = 0,
-	/*
-	 * Stops/resumes the transmission of specific stations identified
-	 * by staId.
-	 */
-	eLIM_TX_STA,
-	/* Stops/resumes the transmission of all the packets in BSS */
-	eLIM_TX_BSS,
-	/*
-	 * Stops/resumes the transmission of all packets except beacons in BSS
-	 * This is used when radar is detected in the current operating channel.
-	 * Beacon has to be sent to notify the stations associated about the
-	 * scheduled channel switch
-	 */
-	eLIM_TX_BSS_BUT_BEACON
-} tLimQuietTxMode;
-
-typedef enum eLimControlTx {
-	eLIM_RESUME_TX = 0,
-	eLIM_STOP_TX
-} tLimControlTx;
-
-/* -------------------------------------------------------------------- */
-
 typedef struct sLimTspecInfo {
 	/* 0==free, else used */
 	uint8_t inuse;
@@ -513,7 +447,7 @@ typedef struct sLimTspecInfo {
 	uint8_t idx;
 	tSirMacAddr staAddr;
 	uint16_t assocId;
-	tSirMacTspecIE tspec;
+	struct mac_tspec_ie tspec;
 	/* number of Tclas elements */
 	uint8_t numTclas;
 	tSirTclasInfo tclasInfo[SIR_MAC_TCLASIE_MAXNUM];
@@ -554,64 +488,20 @@ typedef struct sLimWscIeInfo {
 
 /* structure to hold all 11h specific data */
 typedef struct sLimSpecMgmtInfo {
-	tLimQuietStates quietState;
-	uint32_t quietCount;
-	/* This is in units of system TICKS */
-	uint32_t quietDuration;
-	/* This is in units of TU, for over the air transmission */
-	uint32_t quietDuration_TU;
-	/* After this timeout, actual quiet starts */
-	uint32_t quietTimeoutValue;
-	/* Used on AP, if quiet is enabled during learning */
-	bool fQuietEnabled;
 	tLimDot11hChanSwStates dot11hChanSwState;
-	/* Radar detected in cur oper chan on AP */
-	bool fRadarDetCurOperChan;
-	/* Whether radar interrupt has been configured */
-	bool fRadarIntrConfigured;
 } tLimSpecMgmtInfo, *tpLimSpecMgmtInfo;
 
-#ifdef FEATURE_WLAN_TDLS
-/*
- * Peer info needed for TDLS setup..
+/**
+ * struct lim_delba_req_info - Delba request struct
+ * @vdev_id: vdev id
+ * @peer_macaddr: peer mac address
+ * @tid: tid
+ * @reason_code: reason code
  */
-typedef struct tLimTDLSPeerSta {
-	struct tLimTDLSPeerSta *next;
-	uint8_t dialog;
-	tSirMacAddr peerMac;
-	tSirMacCapabilityInfo capabilityInfo;
-	tSirMacRateSet supportedRates;
-	tSirMacRateSet extendedRates;
-	tSirMacQosCapabilityStaIE qosCaps;
-	tSirMacEdcaParamSetIE edcaParams;
-	uint8_t mcsSet[SIZE_OF_SUPPORTED_MCS_SET];
-	uint8_t tdls_bIsResponder;
-	/* HT Capabilties */
-	tDot11fIEHTCaps tdlsPeerHTCaps;
-	tDot11fIEExtCap tdlsPeerExtCaps;
-	uint8_t tdls_flags;
-	uint8_t tdls_link_state;
-	uint8_t tdls_prev_link_state;
-	uint8_t tdls_sessionId;
-	uint8_t ExtRatesPresent;
-	TX_TIMER gLimTdlsLinkSetupRspTimeoutTimer;
-	TX_TIMER gLimTdlsLinkSetupCnfTimeoutTimer;
-} tLimTdlsLinkSetupPeer, *tpLimTdlsLinkSetupPeer;
-
-typedef struct tLimTdlsLinkSetupInfo {
-	tLimTdlsLinkSetupPeer *tdlsLinkSetupList;
-	uint8_t num_tdls_peers;
-	uint8_t tdls_flags;
-	uint8_t tdls_state;
-	uint8_t tdls_prev_state;
-} tLimTdlsLinkSetupInfo, *tpLimTdlsLinkSetupInfo;
-
-typedef enum tdlsLinkMode {
-	TDLS_LINK_MODE_BG,
-	TDLS_LINK_MODE_N,
-	TDLS_LINK_MODE_AC,
-	TDLS_LINK_MODE_NONE
-} eLimTdlsLinkMode;
-#endif /* FEATURE_WLAN_TDLS */
-
+struct lim_delba_req_info {
+	uint8_t vdev_id;
+	tSirMacAddr peer_macaddr;
+	uint8_t tid;
+	uint8_t reason_code;
+};
 #endif

@@ -28,7 +28,7 @@
 #include "wlan_hdd_hw_capability.h"
 #include "qca_vendor.h"
 #include "wlan_osif_request_manager.h"
-#include "wlan_hdd_cfg.h"
+#include "osif_sync.h"
 
 /**
  * hdd_get_isolation_cb - Callback function to get isolation information
@@ -196,12 +196,17 @@ int wlan_hdd_cfg80211_get_hw_capability(struct wiphy *wiphy,
 					const void *data,
 					int data_len)
 {
-	int ret;
+	int errno;
+	struct osif_vdev_sync *vdev_sync;
 
-	cds_ssr_protect(__func__);
-	ret = __wlan_hdd_cfg80211_get_hw_capability(wiphy, wdev,
-						    data, data_len);
-	cds_ssr_unprotect(__func__);
+	errno = osif_vdev_sync_op_start(wdev->netdev, &vdev_sync);
+	if (errno)
+		return errno;
 
-	return ret;
+	errno = __wlan_hdd_cfg80211_get_hw_capability(wiphy, wdev,
+						      data, data_len);
+
+	osif_vdev_sync_op_stop(vdev_sync);
+
+	return errno;
 }

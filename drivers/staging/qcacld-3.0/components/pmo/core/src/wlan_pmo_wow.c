@@ -26,6 +26,8 @@
 #include <wlan_scan_ucfg_api.h>
 #include "wlan_pmo_static_config.h"
 #include "wlan_reg_services_api.h"
+#include "cfg_nan_api.h"
+#include "wlan_utility.h"
 
 void pmo_set_wow_event_bitmap(WOW_WAKE_EVENT_TYPE event,
 			      uint32_t wow_bitmap_size,
@@ -91,7 +93,7 @@ QDF_STATUS pmo_core_add_wow_user_pattern(struct wlan_objmgr_vdev *vdev,
 	pmo_set_wow_default_ptrn(vdev_ctx, 0);
 
 	pmo_debug("Add user passed wow pattern id %d vdev id %d",
-		  ptrn->pattern_id, ptrn->session_id);
+		  ptrn->pattern_id, wlan_vdev_get_id(vdev));
 	/*
 	 * Convert received pattern mask value from bit representation
 	 * to byte representation.
@@ -261,7 +263,7 @@ bool pmo_is_beaconing_vdev_up(struct wlan_objmgr_psoc *psoc)
 
 		vdev_opmode = pmo_get_vdev_opmode(vdev);
 		is_beaconing = pmo_is_vdev_in_beaconning_mode(vdev_opmode) &&
-			       pmo_is_vdev_up(vdev);
+			       QDF_IS_STATUS_SUCCESS(wlan_vdev_is_up(vdev));
 
 		pmo_vdev_put_ref(vdev);
 
@@ -318,7 +320,7 @@ bool pmo_core_is_wow_applicable(struct wlan_objmgr_psoc *psoc)
 		return true;
 	}
 
-	if (pmo_core_is_nan_enabled(psoc)) {
+	if (cfg_nan_get_enable(psoc)) {
 		pmo_debug("nan enabled, enabling wow");
 		return true;
 	}
@@ -333,7 +335,7 @@ bool pmo_core_is_wow_applicable(struct wlan_objmgr_psoc *psoc)
 		if (QDF_IS_STATUS_ERROR(status))
 			continue;
 
-		if (wlan_vdev_is_up(vdev)) {
+		if (wlan_vdev_is_up(vdev) == QDF_STATUS_SUCCESS) {
 			pmo_debug("STA is connected, enabling wow");
 			is_wow_applicable = true;
 		} else if (ucfg_scan_get_pno_in_progress(vdev)) {
@@ -414,6 +416,9 @@ void pmo_set_sta_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmap_size)
 	pmo_set_wow_event_bitmap(WOW_11D_SCAN_EVENT,
 				 wow_bitmap_size,
 				 bitmask);
+	pmo_set_wow_event_bitmap(WOW_NLO_SCAN_COMPLETE_EVENT,
+				 wow_bitmap_size,
+				 bitmask);
 	/*
 	 * WPA3 roaming offloads SAE authentication to wpa_supplicant
 	 * Firmware will send WMI_ROAM_PREAUTH_STATUS_CMDID
@@ -474,7 +479,19 @@ uint8_t pmo_get_num_wow_filters(struct wlan_objmgr_psoc *psoc)
 	if (!apf && !pkt_filter)
 		return PMO_WOW_FILTERS_MAX;
 
-
 	return PMO_WOW_FILTERS_PKT_OR_APF;
 }
 
+#ifdef WLAN_FEATURE_NAN
+void pmo_set_ndp_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmap_size)
+{
+	/* wake up host when Nan Management Frame is received */
+	pmo_set_wow_event_bitmap(WOW_NAN_DATA_EVENT,
+				 wow_bitmap_size,
+				 bitmask);
+	/* wake up host when NDP data packet is received */
+	pmo_set_wow_event_bitmap(WOW_PATTERN_MATCH_EVENT,
+				 wow_bitmap_size,
+				 bitmask);
+}
+#endif

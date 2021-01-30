@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, 2014-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012, 2014-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -29,17 +29,11 @@
 #ifndef __RRM_API_H__
 #define __RRM_API_H__
 
-#define RRM_MIN_TX_PWR_CAP    13
-#define RRM_MAX_TX_PWR_CAP    19
-
 #define RRM_BCN_RPT_NO_BSS_INFO    0
 #define RRM_BCN_RPT_MIN_RPT        1
 #define RRM_CH_BUF_LEN             45
 
-uint8_t rrm_get_min_of_max_tx_power(tpAniSirGlobal pMac, int8_t regMax,
-				    int8_t apTxPower);
-
-QDF_STATUS rrm_initialize(tpAniSirGlobal pMac);
+QDF_STATUS rrm_initialize(struct mac_context *mac);
 
 /**
  * rrm_cleanup  - cleanup RRM measurement related data for the measurement
@@ -49,58 +43,53 @@ QDF_STATUS rrm_initialize(tpAniSirGlobal pMac);
  *
  * Return: None
  */
-void rrm_cleanup(tpAniSirGlobal mac, uint8_t idx);
+void rrm_cleanup(struct mac_context *mac, uint8_t idx);
 
-QDF_STATUS rrm_process_link_measurement_request(tpAniSirGlobal pMac,
+QDF_STATUS rrm_process_link_measurement_request(struct mac_context *mac,
 						uint8_t *pRxPacketInfo,
 						tDot11fLinkMeasurementRequest
 							  *pLinkReq,
-						tpPESession
-							  pSessionEntry);
+						struct pe_session *
+							  pe_session);
 
-QDF_STATUS rrm_process_radio_measurement_request(tpAniSirGlobal pMac,
-						 tSirMacAddr peer,
-						 tDot11fRadioMeasurementRequest
-							   *pRRMReq,
-						 tpPESession
-							   pSessionEntry);
+QDF_STATUS
+rrm_process_radio_measurement_request(struct mac_context *mac_ctx,
+				      tSirMacAddr peer,
+				      tDot11fRadioMeasurementRequest *rrm_req,
+				      struct pe_session *session_entry);
 
-QDF_STATUS rrm_process_neighbor_report_response(tpAniSirGlobal pMac,
+QDF_STATUS rrm_process_neighbor_report_response(struct mac_context *mac,
 						tDot11fNeighborReportResponse
 							  *pNeighborRep,
-						tpPESession
-							  pSessionEntry);
+						struct pe_session *
+							  pe_session);
 
-QDF_STATUS rrm_send_set_max_tx_power_req(tpAniSirGlobal pMac,
+QDF_STATUS rrm_send_set_max_tx_power_req(struct mac_context *mac,
 					 int8_t txPower,
-					 tpPESession pSessionEntry);
+					 struct pe_session *pe_session);
 
-int8_t rrm_get_mgmt_tx_power(tpAniSirGlobal pMac,
-			     tpPESession pSessionEntry);
+int8_t rrm_get_mgmt_tx_power(struct mac_context *mac,
+			     struct pe_session *pe_session);
 
-void rrm_cache_mgmt_tx_power(tpAniSirGlobal pMac,
-			     int8_t txPower, tpPESession pSessionEntry);
+void rrm_cache_mgmt_tx_power(struct mac_context *mac,
+			     int8_t txPower, struct pe_session *pe_session);
 
-tpRRMCaps rrm_get_capabilities(tpAniSirGlobal pMac,
-			       tpPESession pSessionEntry);
+tpRRMCaps rrm_get_capabilities(struct mac_context *mac,
+			       struct pe_session *pe_session);
 
-void rrm_get_start_tsf(tpAniSirGlobal pMac, uint32_t *pStartTSF);
+void rrm_get_start_tsf(struct mac_context *mac, uint32_t *pStartTSF);
 
-void rrm_update_start_tsf(tpAniSirGlobal pMac, uint32_t startTSF[2]);
-
-QDF_STATUS rrm_set_max_tx_power_rsp(tpAniSirGlobal pMac,
+QDF_STATUS rrm_set_max_tx_power_rsp(struct mac_context *mac,
 				    struct scheduler_msg *limMsgQ);
 
 QDF_STATUS
-rrm_process_neighbor_report_req(tpAniSirGlobal pMac,
+rrm_process_neighbor_report_req(struct mac_context *mac,
 				tpSirNeighborReportReqInd pNeighborReq);
 
 QDF_STATUS
-rrm_process_beacon_report_xmit(tpAniSirGlobal pMac,
-			       tpSirBeaconReportXmitInd pBcnReport);
+rrm_process_beacon_report_xmit(struct mac_context *mac_ctx,
+			       tpSirBeaconReportXmitInd beacon_xmit_ind);
 
-void lim_update_rrm_capability(tpAniSirGlobal mac_ctx,
-			       tpSirSmeJoinReq join_req);
 /**
  * rrm_reject_req - Reject rrm request
  * @radiomes_report: radio measurement report
@@ -119,4 +108,6 @@ QDF_STATUS rrm_reject_req(tpSirMacRadioMeasureReport *radiomes_report,
 			  uint8_t *num_report, uint8_t index,
 			  uint8_t measurement_type);
 
+void lim_update_rrm_capability(struct mac_context *mac_ctx,
+			       struct join_req *join_req);
 #endif

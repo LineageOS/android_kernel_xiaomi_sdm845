@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -28,8 +28,6 @@
 #define WLAN_HDD_GET_TYPE_FRM_FC(__fc__)         (((__fc__) & 0x0F) >> 2)
 #define WLAN_HDD_GET_SUBTYPE_FRM_FC(__fc__)      (((__fc__) & 0xF0) >> 4)
 #define WLAN_HDD_80211_FRM_DA_OFFSET             4
-#define WLAN_HDD_80211_PEER_ADDR_OFFSET (WLAN_HDD_80211_FRM_DA_OFFSET + \
-					 MAC_ADDR_LEN)
 
 #define P2P_POWER_SAVE_TYPE_OPPORTUNISTIC        (1 << 0)
 #define P2P_POWER_SAVE_TYPE_PERIODIC_NOA         (1 << 1)
@@ -37,12 +35,12 @@
 
 struct p2p_app_set_ps {
 	uint8_t opp_ps;
-	uint32_t ctWindow;
+	uint32_t ct_window;
 	uint8_t count;
 	uint32_t duration;
 	uint32_t interval;
 	uint32_t single_noa_duration;
-	uint8_t psSelection;
+	uint8_t ps_selection;
 };
 
 int wlan_hdd_cfg80211_remain_on_channel(struct wiphy *wiphy,
@@ -62,10 +60,21 @@ int hdd_set_p2p_ps(struct net_device *dev, void *msgData);
 int hdd_set_p2p_opps(struct net_device *dev, uint8_t *command);
 int hdd_set_p2p_noa(struct net_device *dev, uint8_t *command);
 
-void __hdd_indicate_mgmt_frame(struct hdd_adapter *adapter,
-			       uint32_t frm_len, uint8_t *pb_frames,
-			       uint8_t frame_type, uint32_t rx_chan,
-			       int8_t rx_rssi, enum rxmgmt_flags rx_flags);
+/**
+ * hdd_indicate_mgmt_frame_to_user- send mgmt frame to user
+ * @adapter: adapter pointer
+ * @frm_len: frame length
+ * @pb_frames: frame bytes
+ * @frame_type: frame type
+ * @rx_freq: frequency on which frame was received
+ * @rx_rssi: rssi
+ * @rx_flags: rx flags of the frame
+ */
+void hdd_indicate_mgmt_frame_to_user(struct hdd_adapter *adapter,
+				     uint32_t frm_len, uint8_t *pb_frames,
+				     uint8_t frame_type, uint32_t rx_freq,
+				     int8_t rx_rssi,
+				     enum rxmgmt_flags rx_flags);
 
 int wlan_hdd_check_remain_on_channel(struct hdd_adapter *adapter);
 void wlan_hdd_cancel_existing_remain_on_channel(struct hdd_adapter *adapter);
@@ -109,8 +118,6 @@ int __wlan_hdd_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev);
 
 void wlan_hdd_cleanup_remain_on_channel_ctx(struct hdd_adapter *adapter);
 
-void wlan_hdd_roc_request_dequeue(struct work_struct *work);
-
 /**
  * wlan_hdd_set_power_save() - hdd set power save
  * @adapter:    adapter context
@@ -123,30 +130,6 @@ void wlan_hdd_roc_request_dequeue(struct work_struct *work);
  */
 int wlan_hdd_set_power_save(struct hdd_adapter *adapter,
 	struct p2p_ps_config *ps_config);
-
-/**
- * wlan_hdd_listen_offload_start() - hdd set listen offload start
- * @adapter:  adapter context
- * @params:   listen offload parameters
- *
- * This function sets listen offload start parameters.
- *
- * Return: 0 - success
- *    others - failure
- */
-int wlan_hdd_listen_offload_start(struct hdd_adapter *adapter,
-	struct sir_p2p_lo_start *params);
-
-/**
- * wlan_hdd_listen_offload_stop() - hdd set listen offload stop
- * @adapter:  adapter context
- *
- * This function sets listen offload stop parameters.
- *
- * Return: 0 - success
- *    others - failure
- */
-int wlan_hdd_listen_offload_stop(struct hdd_adapter *adapter);
 
 /**
  * wlan_hdd_set_mas() - Function to set MAS value to FW

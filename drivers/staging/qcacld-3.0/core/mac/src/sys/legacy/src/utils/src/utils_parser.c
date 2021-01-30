@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -32,27 +32,27 @@
 #include "utils_parser.h"
 #include "lim_ser_des_utils.h"
 
-void convert_ssid(tpAniSirGlobal pMac, tSirMacSSid *pOld, tDot11fIESSID *pNew)
+void convert_ssid(struct mac_context *mac, tSirMacSSid *pOld, tDot11fIESSID *pNew)
 {
 	pOld->length = pNew->num_ssid;
 	qdf_mem_copy(pOld->ssId, pNew->ssid, pNew->num_ssid);
 }
 
-void convert_supp_rates(tpAniSirGlobal pMac,
+void convert_supp_rates(struct mac_context *mac,
 			tSirMacRateSet *pOld, tDot11fIESuppRates *pNew)
 {
 	pOld->numRates = pNew->num_rates;
 	qdf_mem_copy(pOld->rate, pNew->rates, pNew->num_rates);
 }
 
-void convert_ext_supp_rates(tpAniSirGlobal pMac,
+void convert_ext_supp_rates(struct mac_context *mac,
 			    tSirMacRateSet *pOld, tDot11fIEExtSuppRates *pNew)
 {
 	pOld->numRates = pNew->num_rates;
 	qdf_mem_copy(pOld->rate, pNew->rates, pNew->num_rates);
 }
 
-void convert_qos_caps(tpAniSirGlobal pMac,
+void convert_qos_caps(struct mac_context *mac,
 		      tSirMacQosCapabilityIE *pOld, tDot11fIEQOSCapsAp *pNew)
 {
 	pOld->type = 46;
@@ -61,7 +61,7 @@ void convert_qos_caps(tpAniSirGlobal pMac,
 	pOld->qosInfo.count = pNew->count;
 }
 
-void convert_qos_caps_station(tpAniSirGlobal pMac,
+void convert_qos_caps_station(struct mac_context *mac,
 			      tSirMacQosCapabilityStaIE *pOld,
 			      tDot11fIEQOSCapsStation *pNew)
 {
@@ -77,7 +77,7 @@ void convert_qos_caps_station(tpAniSirGlobal pMac,
 	pOld->qosInfo.acvo_uapsd = pNew->acvo_uapsd;
 }
 
-QDF_STATUS convert_wpa(tpAniSirGlobal pMac,
+QDF_STATUS convert_wpa(struct mac_context *mac,
 		       tSirMacWpaInfo *pOld, tDot11fIEWPA *pNew)
 {
 	/* This is awful, I know, but the old code just rammed the IE into an */
@@ -85,7 +85,7 @@ QDF_STATUS convert_wpa(tpAniSirGlobal pMac,
 	uint8_t buffer[257];
 	uint32_t status, written = 0, nbuffer = 257;
 
-	status = dot11f_pack_ie_wpa(pMac, pNew, buffer, nbuffer, &written);
+	status = dot11f_pack_ie_wpa(mac, pNew, buffer, nbuffer, &written);
 	if (DOT11F_FAILED(status)) {
 		pe_err("Failed to re-pack the WPA IE (0x%0x8)", status);
 		return QDF_STATUS_E_FAILURE;
@@ -97,7 +97,7 @@ QDF_STATUS convert_wpa(tpAniSirGlobal pMac,
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS convert_wpa_opaque(tpAniSirGlobal pMac,
+QDF_STATUS convert_wpa_opaque(struct mac_context *mac,
 			      tSirMacWpaInfo *pOld, tDot11fIEWPAOpaque *pNew)
 {
 	/* This is awful, I know, but the old code just rammed the IE into */
@@ -113,7 +113,7 @@ QDF_STATUS convert_wpa_opaque(tpAniSirGlobal pMac,
 }
 
 #ifdef FEATURE_WLAN_WAPI
-QDF_STATUS convert_wapi_opaque(tpAniSirGlobal pMac,
+QDF_STATUS convert_wapi_opaque(struct mac_context *mac,
 			       tSirMacWapiInfo *pOld,
 			       tDot11fIEWAPIOpaque *pNew)
 {
@@ -126,7 +126,7 @@ QDF_STATUS convert_wapi_opaque(tpAniSirGlobal pMac,
 }
 #endif
 
-QDF_STATUS convert_wsc_opaque(tpAniSirGlobal pMac,
+QDF_STATUS convert_wsc_opaque(struct mac_context *mac,
 			      tSirAddie *pOld, tDot11fIEWscIEOpaque *pNew)
 {
 	/* This is awful, I know, but the old code just rammed the IE into */
@@ -145,7 +145,7 @@ QDF_STATUS convert_wsc_opaque(tpAniSirGlobal pMac,
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS convert_p2p_opaque(tpAniSirGlobal pMac,
+QDF_STATUS convert_p2p_opaque(struct mac_context *mac,
 			      tSirAddie *pOld, tDot11fIEP2PIEOpaque *pNew)
 {
 	/* This is awful, I know, but the old code just rammed the IE into */
@@ -165,7 +165,7 @@ QDF_STATUS convert_p2p_opaque(tpAniSirGlobal pMac,
 }
 
 #ifdef WLAN_FEATURE_WFD
-QDF_STATUS convert_wfd_opaque(tpAniSirGlobal pMac,
+QDF_STATUS convert_wfd_opaque(struct mac_context *mac,
 			      tSirAddie *pOld, tDot11fIEWFDIEOpaque *pNew)
 {
 	/* This is awful, I know, but the old code just rammed the IE into */
@@ -185,13 +185,13 @@ QDF_STATUS convert_wfd_opaque(tpAniSirGlobal pMac,
 }
 #endif
 
-QDF_STATUS convert_rsn(tpAniSirGlobal pMac,
+QDF_STATUS convert_rsn(struct mac_context *mac,
 		       tSirMacRsnInfo *pOld, tDot11fIERSN *pNew)
 {
 	uint8_t buffer[257];
 	uint32_t status, written = 0, nbuffer = 257;
 
-	status = dot11f_pack_ie_rsn(pMac, pNew, buffer, nbuffer, &written);
+	status = dot11f_pack_ie_rsn(mac, pNew, buffer, nbuffer, &written);
 	if (DOT11F_FAILED(status)) {
 		pe_err("Failed to re-pack the RSN IE (0x%0x8)", status);
 		return QDF_STATUS_E_FAILURE;
@@ -203,7 +203,7 @@ QDF_STATUS convert_rsn(tpAniSirGlobal pMac,
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS convert_rsn_opaque(tpAniSirGlobal pMac,
+QDF_STATUS convert_rsn_opaque(struct mac_context *mac,
 			      tSirMacRsnInfo *pOld, tDot11fIERSNOpaque *pNew)
 {
 	/* This is awful, I know, but the old code just rammed the IE into */
@@ -214,7 +214,7 @@ QDF_STATUS convert_rsn_opaque(tpAniSirGlobal pMac,
 	return QDF_STATUS_SUCCESS;
 }
 
-void convert_power_caps(tpAniSirGlobal pMac,
+void convert_power_caps(struct mac_context *mac,
 			tSirMacPowerCapabilityIE *pOld,
 			tDot11fIEPowerCaps *pNew)
 {
@@ -224,7 +224,7 @@ void convert_power_caps(tpAniSirGlobal pMac,
 	pOld->maxTxPower = pNew->maxTxPower;
 }
 
-void convert_supp_channels(tpAniSirGlobal pMac,
+void convert_supp_channels(struct mac_context *mac,
 			   tSirMacSupportedChannelIE *pOld,
 			   tDot11fIESuppChannels *pNew)
 {
@@ -234,7 +234,7 @@ void convert_supp_channels(tpAniSirGlobal pMac,
 		     (uint8_t *) pNew->bands, pOld->length);
 }
 
-void convert_cf_params(tpAniSirGlobal pMac,
+void convert_cf_params(struct mac_context *mac,
 		       tSirMacCfParamSet *pOld, tDot11fIECFParams *pNew)
 {
 	pOld->cfpCount = pNew->cfp_count;
@@ -243,7 +243,7 @@ void convert_cf_params(tpAniSirGlobal pMac,
 	pOld->cfpDurRemaining = pNew->cfp_durremaining;
 }
 
-void convert_fh_params(tpAniSirGlobal pMac,
+void convert_fh_params(struct mac_context *mac,
 		       tSirMacFHParamSet *pOld, tDot11fIEFHParamSet *pNew)
 {
 	pOld->dwellTime = pNew->dwell_time;
@@ -252,7 +252,7 @@ void convert_fh_params(tpAniSirGlobal pMac,
 	pOld->hopIndex = pNew->hop_index;
 }
 
-void convert_tim(tpAniSirGlobal pMac, tSirMacTim *pOld, tDot11fIETIM *pNew)
+void convert_tim(struct mac_context *mac, tSirMacTim *pOld, tDot11fIETIM *pNew)
 {
 	pOld->dtimCount = pNew->dtim_count;
 	pOld->dtimPeriod = pNew->dtim_period;
@@ -262,7 +262,7 @@ void convert_tim(tpAniSirGlobal pMac, tSirMacTim *pOld, tDot11fIETIM *pNew)
 	qdf_mem_copy(pOld->bitmap, pNew->vbmp, pNew->num_vbmp);
 }
 
-void convert_country(tpAniSirGlobal pMac,
+void convert_country(struct mac_context *mac,
 		     tSirCountryInformation *pOld, tDot11fIECountry *pNew)
 {
 	int i;
@@ -280,7 +280,7 @@ void convert_country(tpAniSirGlobal pMac,
 	}
 }
 
-void convert_wmm_params(tpAniSirGlobal pMac,
+void convert_wmm_params(struct mac_context *mac,
 			tSirMacEdcaParamSetIE *pOld, tDot11fIEWMMParams *pNew)
 {
 	pOld->type = 221;
@@ -318,7 +318,7 @@ void convert_wmm_params(tpAniSirGlobal pMac,
 	pOld->acvo.txoplimit = pNew->acvo_txoplimit;
 }
 
-void convert_erp_info(tpAniSirGlobal pMac,
+void convert_erp_info(struct mac_context *mac,
 		      tSirMacErpInfo *pOld, tDot11fIEERPInfo *pNew)
 {
 	pOld->nonErpPresent = pNew->non_erp_present;
@@ -326,7 +326,7 @@ void convert_erp_info(tpAniSirGlobal pMac,
 	pOld->barkerPreambleMode = pNew->barker_preamble;
 }
 
-void convert_edca_param(tpAniSirGlobal pMac,
+void convert_edca_param(struct mac_context *mac,
 			tSirMacEdcaParamSetIE *pOld,
 			tDot11fIEEDCAParamSet *pNew)
 {
@@ -365,7 +365,7 @@ void convert_edca_param(tpAniSirGlobal pMac,
 
 }
 
-void convert_mu_edca_param(tpAniSirGlobal mac_ctx,
+void convert_mu_edca_param(struct mac_context *mac_ctx,
 			tSirMacEdcaParamSetIE *mu_edca,
 			tDot11fIEmu_edca_param_set *ie)
 {
@@ -401,8 +401,8 @@ void convert_mu_edca_param(tpAniSirGlobal mac_ctx,
 
 }
 
-void convert_tspec(tpAniSirGlobal pMac,
-		   tSirMacTspecIE *pOld, tDot11fIETSPEC *pNew)
+void convert_tspec(struct mac_context *mac,
+		   struct mac_tspec_ie *pOld, tDot11fIETSPEC *pNew)
 {
 	pOld->tsinfo.traffic.trafficType = (uint16_t) pNew->traffic_type;
 	pOld->tsinfo.traffic.tsid = (uint16_t) pNew->tsid;
@@ -432,12 +432,12 @@ void convert_tspec(tpAniSirGlobal pMac,
 	pOld->mediumTime = pNew->medium_time;
 }
 
-QDF_STATUS convert_tclas(tpAniSirGlobal pMac,
+QDF_STATUS convert_tclas(struct mac_context *mac,
 			 tSirTclasInfo *pOld, tDot11fIETCLAS *pNew)
 {
 	uint32_t length = 0;
 
-	if (DOT11F_FAILED(dot11f_get_packed_ietclas(pMac, pNew, &length))) {
+	if (DOT11F_FAILED(dot11f_get_packed_ietclas(mac, pNew, &length))) {
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -508,8 +508,8 @@ QDF_STATUS convert_tclas(tpAniSirGlobal pMac,
 	return QDF_STATUS_SUCCESS;
 }
 
-void convert_wmmtspec(tpAniSirGlobal pMac,
-		      tSirMacTspecIE *pOld, tDot11fIEWMMTSPEC *pNew)
+void convert_wmmtspec(struct mac_context *mac,
+		      struct mac_tspec_ie *pOld, tDot11fIEWMMTSPEC *pNew)
 {
 	pOld->tsinfo.traffic.trafficType = (uint16_t) pNew->traffic_type;
 	pOld->tsinfo.traffic.tsid = (uint16_t) pNew->tsid;
@@ -536,12 +536,12 @@ void convert_wmmtspec(tpAniSirGlobal pMac,
 	pOld->mediumTime = pNew->medium_time;
 }
 
-QDF_STATUS convert_wmmtclas(tpAniSirGlobal pMac,
+QDF_STATUS convert_wmmtclas(struct mac_context *mac,
 			    tSirTclasInfo *pOld, tDot11fIEWMMTCLAS *pNew)
 {
 	uint32_t length = 0;
 
-	if (DOT11F_FAILED(dot11f_get_packed_iewmmtclas(pMac, pNew, &length))) {
+	if (DOT11F_FAILED(dot11f_get_packed_iewmmtclas(mac, pNew, &length))) {
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -612,7 +612,7 @@ QDF_STATUS convert_wmmtclas(tpAniSirGlobal pMac,
 	return QDF_STATUS_SUCCESS;
 }
 
-void convert_ts_delay(tpAniSirGlobal pMac,
+void convert_ts_delay(struct mac_context *mac,
 		      tSirMacTsDelayIE *pOld, tDot11fIETSDelay *pNew)
 {
 	pOld->type = DOT11F_EID_TSDELAY;
@@ -620,7 +620,7 @@ void convert_ts_delay(tpAniSirGlobal pMac,
 	pOld->delay = pNew->delay;
 }
 
-void convert_schedule(tpAniSirGlobal pMac,
+void convert_schedule(struct mac_context *mac,
 		      tSirMacScheduleIE *pOld, tDot11fIESchedule *pNew)
 {
 	pOld->type = DOT11F_EID_SCHEDULE;
@@ -635,7 +635,7 @@ void convert_schedule(tpAniSirGlobal pMac,
 	pOld->specInterval = pNew->spec_interval;
 }
 
-void convert_wmm_schedule(tpAniSirGlobal pMac,
+void convert_wmm_schedule(struct mac_context *mac,
 			  tSirMacScheduleIE *pOld, tDot11fIEWMMSchedule *pNew)
 {
 	pOld->type = DOT11F_EID_WMMSCHEDULE;
@@ -650,35 +650,35 @@ void convert_wmm_schedule(tpAniSirGlobal pMac,
 	pOld->specInterval = pNew->spec_interval;
 }
 
-void convert_qos_mapset_frame(tpAniSirGlobal pMac, tSirQosMapSet *Qos,
-			      tDot11fIEQosMapSet *dot11fIE)
+void convert_qos_mapset_frame(struct mac_context *mac, struct qos_map_set *qos,
+			      tDot11fIEQosMapSet *dot11f_ie)
 {
 	uint8_t i, j = 0;
-	uint8_t qos_dscp_sz, dot11_dscp_sz;
+	uint8_t dot11_dscp_exception_sz;
 
-	qos_dscp_sz = (sizeof(Qos->dscp_exceptions)/2);
-	dot11_dscp_sz = sizeof(dot11fIE->dscp_exceptions);
-	if (dot11fIE->num_dscp_exceptions > QOS_MAP_LEN_MAX)
-		dot11fIE->num_dscp_exceptions = QOS_MAP_LEN_MAX;
-	if (dot11fIE->num_dscp_exceptions < QOS_MAP_LEN_MIN)
+	if (dot11f_ie->num_dscp_exceptions < DOT11F_IE_QOSMAPSET_MIN_LEN ||
+	    dot11f_ie->num_dscp_exceptions % 2) {
+		pe_debug("Invalid num_dscp_exceptions %d",
+			 dot11f_ie->num_dscp_exceptions);
 		return;
-	Qos->num_dscp_exceptions =
-		(dot11fIE->num_dscp_exceptions - QOS_MAP_LEN_MIN) / 2;
-
-	for (i = 0;
-			i < Qos->num_dscp_exceptions &&
-			i < qos_dscp_sz && j < dot11_dscp_sz;
-			i++) {
-		Qos->dscp_exceptions[i][0] = dot11fIE->dscp_exceptions[j];
-		j++;
-		Qos->dscp_exceptions[i][1] = dot11fIE->dscp_exceptions[j];
-		j++;
 	}
-	for (i = 0; i < 8 && j < dot11_dscp_sz; i++) {
-		Qos->dscp_range[i][0] = dot11fIE->dscp_exceptions[j];
-		j++;
-		Qos->dscp_range[i][1] = dot11fIE->dscp_exceptions[j];
-		j++;
+
+	dot11_dscp_exception_sz = dot11f_ie->num_dscp_exceptions -
+				  DOT11F_IE_QOSMAPSET_MIN_LEN;
+	qos->num_dscp_exceptions = dot11_dscp_exception_sz / 2;
+	if (qos->num_dscp_exceptions > QOS_MAP_MAX_EX)
+		qos->num_dscp_exceptions = QOS_MAP_MAX_EX;
+
+	for (i = 0; i < qos->num_dscp_exceptions &&
+	     j < dot11_dscp_exception_sz - 1; i++) {
+		qos->dscp_exceptions[i][0] = dot11f_ie->dscp_exceptions[j++];
+		qos->dscp_exceptions[i][1] = dot11f_ie->dscp_exceptions[j++];
+	}
+
+	for (i = 0; i < QOS_MAP_RANGE_NUM &&
+	     j < dot11f_ie->num_dscp_exceptions - 1; i++) {
+		qos->dscp_range[i][0] = dot11f_ie->dscp_exceptions[j++];
+		qos->dscp_range[i][1] = dot11f_ie->dscp_exceptions[j++];
 	}
 }
 

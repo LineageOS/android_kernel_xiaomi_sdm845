@@ -36,7 +36,7 @@
 #include <wlan_hdd_debugfs_coex.h>
 #include "wmi_unified.h"
 #include "wmi_unified_param.h"
-#include "cds_sched.h"
+#include "osif_sync.h"
 
 #define MWS_DEBUGFS_PERMS	(QDF_FILE_USR_READ |	\
 				 QDF_FILE_GRP_READ |	\
@@ -156,7 +156,7 @@ static QDF_STATUS __hdd_debugfs_mws_coex_state_read(struct hdd_context *hdd_ctx,
 	cookie = osif_request_cookie(request);
 
 	status = sme_get_mws_coex_info(hdd_ctx->mac_handle,
-				       adapter->session_id, WMI_MWS_COEX_STATE,
+				       adapter->vdev_id, WMI_MWS_COEX_STATE,
 				       hdd_debugfs_mws_coex_info_cb, cookie);
 
 	if (QDF_IS_STATUS_ERROR(status)) {
@@ -199,14 +199,19 @@ exit:
 static QDF_STATUS hdd_debugfs_mws_coex_state_read(qdf_debugfs_file_t file,
 						  void *arg)
 {
+	struct osif_psoc_sync *psoc_sync;
 	struct hdd_context *hdd_ctx = arg;
+	int ret;
 	QDF_STATUS status;
 
-	cds_ssr_protect(__func__);
-	status = __hdd_debugfs_mws_coex_state_read(hdd_ctx, file);
-	cds_ssr_unprotect(__func__);
+	ret = osif_psoc_sync_op_start(wiphy_dev(hdd_ctx->wiphy), &psoc_sync);
+	if (ret)
+		return qdf_status_from_os_return(ret);
 
-	return status;
+	status = __hdd_debugfs_mws_coex_state_read(hdd_ctx, file);
+
+	osif_psoc_sync_op_stop(psoc_sync);
+	return qdf_status_from_os_return(ret);
 }
 
 static QDF_STATUS __hdd_debugfs_mws_coex_dpwb_read(struct hdd_context *hdd_ctx,
@@ -247,7 +252,7 @@ static QDF_STATUS __hdd_debugfs_mws_coex_dpwb_read(struct hdd_context *hdd_ctx,
 	cookie = osif_request_cookie(request);
 
 	status = sme_get_mws_coex_info(hdd_ctx->mac_handle,
-				       adapter->session_id,
+				       adapter->vdev_id,
 				       WMI_MWS_COEX_DPWB_STATE,
 				       hdd_debugfs_mws_coex_info_cb, cookie);
 
@@ -270,7 +275,6 @@ static QDF_STATUS __hdd_debugfs_mws_coex_dpwb_read(struct hdd_context *hdd_ctx,
 				 "pnp1_value = %d\n"
 				 "lte_dutycycle = %d\n"
 				 "sinr_wlan_on = %d\n"
-				 "sinr_wlan_off = %d\n"
 				 "bler_count = %u\n"
 				 "block_count = %u\n"
 				 "wlan_rssi_level = %u\n"
@@ -296,14 +300,19 @@ exit:
 static QDF_STATUS hdd_debugfs_mws_coex_dpwb_read(qdf_debugfs_file_t file,
 						 void *arg)
 {
+	struct osif_psoc_sync *psoc_sync;
 	struct hdd_context *hdd_ctx = arg;
+	int ret;
 	QDF_STATUS status;
 
-	cds_ssr_protect(__func__);
-	status = __hdd_debugfs_mws_coex_dpwb_read(hdd_ctx, file);
-	cds_ssr_unprotect(__func__);
+	ret = osif_psoc_sync_op_start(wiphy_dev(hdd_ctx->wiphy), &psoc_sync);
+	if (ret)
+		return qdf_status_from_os_return(ret);
 
-	return status;
+	status = __hdd_debugfs_mws_coex_dpwb_read(hdd_ctx, file);
+
+	osif_psoc_sync_op_stop(psoc_sync);
+	return qdf_status_from_os_return(ret);
 }
 
 static QDF_STATUS __hdd_debugfs_mws_tdm_state_read(struct hdd_context *hdd_ctx,
@@ -344,8 +353,7 @@ static QDF_STATUS __hdd_debugfs_mws_tdm_state_read(struct hdd_context *hdd_ctx,
 	cookie = osif_request_cookie(request);
 
 	status = sme_get_mws_coex_info(hdd_ctx->mac_handle,
-				       adapter->session_id,
-				       WMI_MWS_COEX_TDM_STATE,
+				       adapter->vdev_id, WMI_MWS_COEX_TDM_STATE,
 				       hdd_debugfs_mws_coex_info_cb, cookie);
 
 	if (QDF_IS_STATUS_ERROR(status)) {
@@ -378,14 +386,19 @@ exit:
 static QDF_STATUS hdd_debugfs_mws_tdm_state_read(qdf_debugfs_file_t file,
 						 void *arg)
 {
+	struct osif_psoc_sync *psoc_sync;
 	struct hdd_context *hdd_ctx = arg;
+	int ret;
 	QDF_STATUS status;
 
-	cds_ssr_protect(__func__);
-	status = __hdd_debugfs_mws_tdm_state_read(hdd_ctx, file);
-	cds_ssr_unprotect(__func__);
+	ret = osif_psoc_sync_op_start(wiphy_dev(hdd_ctx->wiphy), &psoc_sync);
+	if (ret)
+		return qdf_status_from_os_return(ret);
 
-	return status;
+	status = __hdd_debugfs_mws_tdm_state_read(hdd_ctx, file);
+
+	osif_psoc_sync_op_stop(psoc_sync);
+	return qdf_status_from_os_return(ret);
 }
 
 static QDF_STATUS __hdd_debugfs_mws_coex_idrx_read(struct hdd_context *hdd_ctx,
@@ -426,7 +439,7 @@ static QDF_STATUS __hdd_debugfs_mws_coex_idrx_read(struct hdd_context *hdd_ctx,
 	cookie = osif_request_cookie(request);
 
 	status = sme_get_mws_coex_info(hdd_ctx->mac_handle,
-				       adapter->session_id,
+				       adapter->vdev_id,
 				       WMI_MWS_COEX_IDRX_STATE,
 				       hdd_debugfs_mws_coex_info_cb, cookie);
 
@@ -450,11 +463,11 @@ static QDF_STATUS __hdd_debugfs_mws_coex_idrx_read(struct hdd_context *hdd_ctx,
 				 "sub0_is_link_critical = %u\n"
 				 "sub0_static_power = %u\n"
 				 "sub0_rssi = %d\n"
-				 "sub0_techid = %d\n"
-				 "sub0_policy = %d\n"
-				 "sub0_is_link_critical = %d\n"
-				 "sub0_static_power = %u\n"
-				 "sub0_rssi = %d\n",
+				 "sub1_techid = %d\n"
+				 "sub1_policy = %d\n"
+				 "sub1_is_link_critical = %d\n"
+				 "sub1_static_power = %u\n"
+				 "sub1_rssi = %d\n",
 			   idrx_state->vdev_id,
 			   idrx_state->sub0_techid,
 			   idrx_state->sub0_policy,
@@ -475,14 +488,19 @@ exit:
 static QDF_STATUS hdd_debugfs_mws_coex_idrx_read(qdf_debugfs_file_t file,
 						 void *arg)
 {
+	struct osif_psoc_sync *psoc_sync;
 	struct hdd_context *hdd_ctx = arg;
+	int ret;
 	QDF_STATUS status;
 
-	cds_ssr_protect(__func__);
-	status = __hdd_debugfs_mws_coex_idrx_read(hdd_ctx, file);
-	cds_ssr_unprotect(__func__);
+	ret = osif_psoc_sync_op_start(wiphy_dev(hdd_ctx->wiphy), &psoc_sync);
+	if (ret)
+		return qdf_status_from_os_return(ret);
 
-	return status;
+	status = __hdd_debugfs_mws_coex_idrx_read(hdd_ctx, file);
+
+	osif_psoc_sync_op_stop(psoc_sync);
+	return qdf_status_from_os_return(ret);
 }
 
 static QDF_STATUS __hdd_debugfs_mws_antenna_sharing_read(struct hdd_context
@@ -525,7 +543,7 @@ static QDF_STATUS __hdd_debugfs_mws_antenna_sharing_read(struct hdd_context
 	cookie = osif_request_cookie(request);
 
 	status = sme_get_mws_coex_info(hdd_ctx->mac_handle,
-				       adapter->session_id,
+				       adapter->vdev_id,
 				       WMI_MWS_COEX_ANTENNA_SHARING_STATE,
 				       hdd_debugfs_mws_coex_info_cb, cookie);
 
@@ -580,14 +598,19 @@ exit:
 static QDF_STATUS hdd_debugfs_mws_antenna_sharing_read(qdf_debugfs_file_t file,
 						       void *arg)
 {
+	struct osif_psoc_sync *psoc_sync;
 	struct hdd_context *hdd_ctx = arg;
+	int ret;
 	QDF_STATUS status;
 
-	cds_ssr_protect(__func__);
-	status = __hdd_debugfs_mws_antenna_sharing_read(hdd_ctx, file);
-	cds_ssr_unprotect(__func__);
+	ret = osif_psoc_sync_op_start(wiphy_dev(hdd_ctx->wiphy), &psoc_sync);
+	if (ret)
+		return qdf_status_from_os_return(ret);
 
-	return status;
+	status = __hdd_debugfs_mws_antenna_sharing_read(hdd_ctx, file);
+
+	osif_psoc_sync_op_stop(psoc_sync);
+	return qdf_status_from_os_return(ret);
 }
 
 static struct qdf_debugfs_fops hdd_mws_debugfs_coex_state_fops = {

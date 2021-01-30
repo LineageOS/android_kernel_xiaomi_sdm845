@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -23,7 +23,7 @@
 #ifndef _OL_TX_DESC__H_
 #define _OL_TX_DESC__H_
 
-#include <cds_queue.h>          /* TAILQ_HEAD */
+#include "queue.h"          /* TAILQ_HEAD */
 #include <qdf_nbuf.h>           /* qdf_nbuf_t */
 #include <cdp_txrx_cmn.h>       /* ol_txrx_vdev_t, etc. */
 #include <ol_txrx_internal.h>   /*TXRX_ASSERT2 */
@@ -359,8 +359,6 @@ void ol_tx_desc_dup_detect_init(struct ol_txrx_pdev_t *pdev, uint16_t pool_size)
 	uint16_t size = (pool_size >> DIV_BY_8) +
 		sizeof(*pdev->tx_desc.free_list_bitmap);
 	pdev->tx_desc.free_list_bitmap = qdf_mem_malloc(size);
-	if (!pdev->tx_desc.free_list_bitmap)
-		qdf_print("%s: malloc failed", __func__);
 }
 
 /**
@@ -397,8 +395,8 @@ void ol_tx_desc_dup_detect_set(struct ol_txrx_pdev_t *pdev,
 		return;
 
 	if (qdf_unlikely(msdu_id > pdev->tx_desc.pool_size)) {
-		qdf_print("%s: msdu_id %d > pool_size %d",
-			  __func__, msdu_id, pdev->tx_desc.pool_size);
+		qdf_print("msdu_id %d > pool_size %d",
+			  msdu_id, pdev->tx_desc.pool_size);
 		QDF_BUG(0);
 	}
 
@@ -406,7 +404,7 @@ void ol_tx_desc_dup_detect_set(struct ol_txrx_pdev_t *pdev,
 	if (qdf_unlikely(test)) {
 		uint16_t size = (pdev->tx_desc.pool_size >> DIV_BY_8) +
 			((pdev->tx_desc.pool_size & MOD_BY_8) ? 1 : 0);
-		qdf_print("duplicate msdu_id %d detected !!\n", msdu_id);
+		qdf_print("duplicate msdu_id %d detected!!", msdu_id);
 		qdf_trace_hex_dump(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 		(void *)pdev->tx_desc.free_list_bitmap, size);
 		QDF_BUG(0);
@@ -431,8 +429,8 @@ void ol_tx_desc_dup_detect_reset(struct ol_txrx_pdev_t *pdev,
 		return;
 
 	if (qdf_unlikely(msdu_id > pdev->tx_desc.pool_size)) {
-		qdf_print("%s: msdu_id %d > pool_size %d",
-			  __func__, msdu_id, pdev->tx_desc.pool_size);
+		qdf_print("msdu_id %d > pool_size %d",
+			  msdu_id, pdev->tx_desc.pool_size);
 		QDF_BUG(0);
 	}
 

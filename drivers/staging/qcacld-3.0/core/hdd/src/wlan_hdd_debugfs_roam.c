@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -144,7 +141,7 @@ wmi_roam_scan_stats_res *hdd_get_roam_scan_stats(struct hdd_context *hdd_ctx,
 
 	status = sme_get_roam_scan_stats(hdd_ctx->mac_handle,
 					 hdd_roam_scan_stats_cb,
-					 context, adapter->session_id);
+					 context, adapter->vdev_id);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		hdd_err("roam scan stats request failed");
 		goto cleanup;
@@ -479,16 +476,16 @@ wlan_hdd_update_roam_stats(struct hdd_context *hdd_ctx,
 			ret = scnprintf(buf + length,
 					buf_avail_len - length,
 					"\nSTA roamed from "
-					MAC_ADDRESS_STR " to "
-					MAC_ADDRESS_STR "\n",
-					MAC_ADDR_ARRAY(scan->old_bssid),
-					MAC_ADDR_ARRAY(scan->new_bssid));
+					QDF_FULL_MAC_FMT " to "
+					QDF_FULL_MAC_FMT "\n",
+					QDF_FULL_MAC_REF(scan->old_bssid),
+					QDF_FULL_MAC_REF(scan->new_bssid));
 		} else {
 			ret = scnprintf(buf + length,
 					buf_avail_len - length,
-					"\nSTA is connected to " MAC_ADDRESS_STR
+					"\nSTA is connected to " QDF_FULL_MAC_FMT
 					" before and after scan, not roamed\n",
-					MAC_ADDR_ARRAY(scan->old_bssid));
+					QDF_FULL_MAC_REF(scan->old_bssid));
 		}
 		if (ret <= 0)
 			goto free_mem;
@@ -529,8 +526,8 @@ wlan_hdd_update_roam_stats(struct hdd_context *hdd_ctx,
 
 			ret = scnprintf(buf + length,
 					buf_avail_len - length,
-					MAC_ADDRESS_STR " %4u  %3u   %3u\n",
-					MAC_ADDR_ARRAY(bssid),
+					QDF_FULL_MAC_FMT " %4u  %3u   %3u\n",
+					QDF_FULL_MAC_REF(bssid),
 					scan->cand[rci].freq,
 					scan->cand[rci].score,
 					scan->cand[rci].rssi);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -41,10 +41,12 @@
 #include <wdi_ipa.h>            /* HTT host->target WDI IPA msg defs */
 #include <ol_txrx_htt_api.h>    /* ol_tx_completion_handler, htt_tx_status */
 #include <ol_htt_tx_api.h>
+#include <ol_txrx_types.h>
+#include <ol_tx_send.h>
+#include <ol_htt_rx_api.h>
 
 #include <htt_internal.h>
 #include <wlan_policy_mgr_api.h>
-#include <ol_htt_rx_api.h>
 
 #define HTT_MSG_BUF_SIZE(msg_bytes) \
 	((msg_bytes) + HTC_HEADER_LEN + HTC_HDR_ALIGNMENT_PADDING)
@@ -78,6 +80,30 @@ htt_h2t_send_complete_free_netbuf(void *pdev, QDF_STATUS status,
 	qdf_nbuf_free(netbuf);
 }
 
+#ifndef QCN7605_SUPPORT
+static void htt_t2h_adjust_bus_target_delta(struct htt_pdev_t *pdev)
+{
+	int32_t credit_delta;
+
+	if (pdev->cfg.is_high_latency && !pdev->cfg.default_tx_comp_req) {
+		HTT_TX_MUTEX_ACQUIRE(&pdev->credit_mutex);
+		qdf_atomic_add(1, &pdev->htt_tx_credit.bus_delta);
+		credit_delta = htt_tx_credit_update(pdev);
+		HTT_TX_MUTEX_RELEASE(&pdev->credit_mutex);
+
+		if (credit_delta)
+			ol_tx_credit_completion_handler(pdev->txrx_pdev,
+							credit_delta);
+	}
+}
+#else
+static void htt_t2h_adjust_bus_target_delta(struct htt_pdev_t *pdev)
+{
+	/* UNPAUSE OS Q */
+	ol_tx_flow_ct_unpause_os_q(pdev->txrx_pdev);
+}
+#endif
+
 void htt_h2t_send_complete(void *context, HTC_PACKET *htc_pkt)
 {
 	void (*send_complete_part2)(void *pdev, QDF_STATUS status,
@@ -92,24 +118,12 @@ void htt_h2t_send_complete(void *context, HTC_PACKET *htc_pkt)
 
 	/* process (free or keep) the netbuf that held the message */
 	netbuf = (qdf_nbuf_t) htc_pkt->pNetBufContext;
-	if (send_complete_part2 != NULL) {
+	if (send_complete_part2) {
 		send_complete_part2(htt_pkt->pdev_ctxt, htc_pkt->Status, netbuf,
 				    htt_pkt->msdu_id);
 	}
 
-	if (pdev->cfg.is_high_latency && !pdev->cfg.default_tx_comp_req) {
-		int32_t credit_delta;
-
-		HTT_TX_MUTEX_ACQUIRE(&pdev->credit_mutex);
-		qdf_atomic_add(1, &pdev->htt_tx_credit.bus_delta);
-		credit_delta = htt_tx_credit_update(pdev);
-		HTT_TX_MUTEX_RELEASE(&pdev->credit_mutex);
-
-		if (credit_delta)
-			ol_tx_credit_completion_handler(pdev->txrx_pdev,
-							credit_delta);
-	}
-
+	htt_t2h_adjust_bus_target_delta(pdev);
 	/* free the htt_htc_pkt / HTC_PACKET object */
 	htt_htc_pkt_free(pdev, htt_pkt);
 }
@@ -291,9 +305,7 @@ QDF_STATUS htt_h2t_ver_req_msg(struct htt_pdev_t *pdev)
 	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
 	HTT_SEND_HTC_PKT(pdev, pkt);
 
-	if ((pdev->cfg.is_high_latency) &&
-	    (!pdev->cfg.default_tx_comp_req))
-		ol_tx_target_credit_update(pdev->txrx_pdev, -1);
+	ol_tx_deduct_one_credit(pdev->txrx_pdev);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -357,7 +369,7 @@ QDF_STATUS htt_h2t_rx_ring_rfs_cfg_msg_ll(struct htt_pdev_t *pdev)
 		      "Disable Rx flow steering");
 	}
 	cds_cfg = cds_get_ini_config();
-	if (cds_cfg != NULL) {
+	if (cds_cfg) {
 		msg_local |= ((cds_cfg->max_msdus_per_rxinorderind & 0xff)
 			      << 16);
 		QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_INFO_LOW,
@@ -748,9 +760,7 @@ htt_h2t_rx_ring_cfg_msg_hl(struct htt_pdev_t *pdev)
 	htc_send_pkt(pdev->htc_pdev, &pkt->htc_pkt);
 #endif
 
-	if ((pdev->cfg.is_high_latency) &&
-	    (!pdev->cfg.default_tx_comp_req))
-		ol_tx_target_credit_update(pdev->txrx_pdev, -1);
+	ol_tx_deduct_one_credit(pdev->txrx_pdev);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -863,9 +873,7 @@ htt_h2t_dbg_stats_get(struct htt_pdev_t *pdev,
 	htc_send_pkt(pdev->htc_pdev, &pkt->htc_pkt);
 #endif
 
-	if ((pdev->cfg.is_high_latency) &&
-	    (!pdev->cfg.default_tx_comp_req))
-		ol_tx_target_credit_update(pdev->txrx_pdev, -1);
+	ol_tx_deduct_one_credit(pdev->txrx_pdev);
 
 	return 0;
 }
@@ -917,9 +925,7 @@ A_STATUS htt_h2t_sync_msg(struct htt_pdev_t *pdev, uint8_t sync_cnt)
 	SET_HTC_PACKET_NET_BUF_CONTEXT(&pkt->htc_pkt, msg);
 	HTT_SEND_HTC_PKT(pdev, pkt);
 
-	if ((pdev->cfg.is_high_latency) &&
-	    (!pdev->cfg.default_tx_comp_req))
-		ol_tx_target_credit_update(pdev->txrx_pdev, -1);
+	ol_tx_deduct_one_credit(pdev->txrx_pdev);
 
 	return A_OK;
 }
@@ -992,9 +998,7 @@ htt_h2t_aggr_cfg_msg(struct htt_pdev_t *pdev,
 	htc_send_pkt(pdev->htc_pdev, &pkt->htc_pkt);
 #endif
 
-	if ((pdev->cfg.is_high_latency) &&
-	    (!pdev->cfg.default_tx_comp_req))
-		ol_tx_target_credit_update(pdev->txrx_pdev, -1);
+	ol_tx_deduct_one_credit(pdev->txrx_pdev);
 
 	return 0;
 }

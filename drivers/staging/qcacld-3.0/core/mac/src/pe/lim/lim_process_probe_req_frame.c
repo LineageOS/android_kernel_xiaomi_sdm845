@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -29,7 +29,6 @@
 
 #include "wni_cfg.h"
 #include "ani_global.h"
-#include "cfg_api.h"
 
 #include "utils_api.h"
 #include "lim_types.h"
@@ -43,67 +42,14 @@
 
 void
 
-lim_send_sme_probe_req_ind(tpAniSirGlobal pMac,
+lim_send_sme_probe_req_ind(struct mac_context *mac,
 			   tSirMacAddr peerMacAddr,
 			   uint8_t *pProbeReqIE,
-			   uint32_t ProbeReqIELen, tpPESession psessionEntry);
-
-/**
- * lim_get_wpspbc_sessions() - to get wps pbs sessions
- * @mac_ctx: Pointer to Global MAC structure
- * @addr: probe request source MAC address
- * @uuid_e: A pointer to UUIDE element of WPS IE in WPS PBC probe request
- * @session: A pointer to station PE session
- *
- * This function is called to query the WPS PBC overlap. This function
- * check WPS PBC probe request link list for PBC overlap
- *
- * @return None
- */
-
-void lim_get_wpspbc_sessions(tpAniSirGlobal mac_ctx, struct qdf_mac_addr addr,
-		uint8_t *uuid_e, eWPSPBCOverlap *overlap,
-		tpPESession session)
-{
-	int count = 0;
-	tSirWPSPBCSession *pbc;
-	uint32_t cur_time;
-
-	cur_time = (uint32_t) (qdf_mc_timer_get_system_ticks() /
-						QDF_TICKS_PER_SECOND);
-	qdf_zero_macaddr(&addr);
-	qdf_mem_zero((uint8_t *) uuid_e, SIR_WPS_UUID_LEN);
-	for (pbc = session->pAPWPSPBCSession; pbc; pbc = pbc->next) {
-		if (cur_time > pbc->timestamp + SIR_WPS_PBC_WALK_TIME)
-			break;
-		count++;
-		if (count > 1)
-			break;
-		qdf_copy_macaddr(&addr, &pbc->addr);
-		qdf_mem_copy((uint8_t *) uuid_e, (uint8_t *) pbc->uuid_e,
-				SIR_WPS_UUID_LEN);
-	}
-	if (count > 1)
-		/* Overlap */
-		*overlap = eSAP_WPSPBC_OVERLAP_IN120S;
-	else if (count == 0)
-		/* no WPS probe request in 120 second */
-		*overlap = eSAP_WPSPBC_NO_WPSPBC_PROBE_REQ_IN120S;
-	else
-		/* One WPS probe request in 120 second */
-		*overlap = eSAP_WPSPBC_ONE_WPSPBC_PROBE_REQ_IN120S;
-
-	pe_debug("overlap: %d", *overlap);
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-			   addr.bytes, QDF_MAC_ADDR_SIZE);
-	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-			   uuid_e, SIR_WPS_UUID_LEN);
-	return;
-}
+			   uint32_t ProbeReqIELen, struct pe_session *pe_session);
 
 /**
  * lim_remove_timeout_pbc_sessions() - remove pbc probe req entries.
- * @pMac - Pointer to Global MAC structure
+ * @mac - Pointer to Global MAC structure
  * @pbc - The beginning entry in WPS PBC probe request link list
  *
  * This function is called to remove the WPS PBC probe request entries from
@@ -111,7 +57,7 @@ void lim_get_wpspbc_sessions(tpAniSirGlobal mac_ctx, struct qdf_mac_addr addr,
  *
  * Return - None
  */
-static void lim_remove_timeout_pbc_sessions(tpAniSirGlobal pMac,
+static void lim_remove_timeout_pbc_sessions(struct mac_context *mac,
 					    tSirWPSPBCSession *pbc)
 {
 	tSirWPSPBCSession *prev;
@@ -126,34 +72,6 @@ static void lim_remove_timeout_pbc_sessions(tpAniSirGlobal pMac,
 			   prev->uuid_e, SIR_WPS_UUID_LEN);
 
 		qdf_mem_free(prev);
-	}
-}
-
-/**
- * lim_remove_pbc_sessions() - Remove PBC sessions
- * @mac: Pointer to Global MAC structure
- * @remove_mac: MAC Address of STA in WPS Session to be removed
- * @session_entry: session entry
- *
- * Return: none
- */
-void lim_remove_pbc_sessions(tpAniSirGlobal mac, struct qdf_mac_addr remove_mac,
-			     tpPESession session_entry)
-{
-	tSirWPSPBCSession *pbc, *prev = NULL;
-
-	prev = pbc = session_entry->pAPWPSPBCSession;
-
-	while (pbc) {
-		if (qdf_is_macaddr_equal(&pbc->addr, &remove_mac)) {
-			prev->next = pbc->next;
-			if (pbc == session_entry->pAPWPSPBCSession)
-				session_entry->pAPWPSPBCSession = pbc->next;
-			qdf_mem_free(pbc);
-			return;
-		}
-		prev = pbc;
-		pbc = pbc->next;
 	}
 }
 
@@ -173,17 +91,17 @@ void lim_remove_pbc_sessions(tpAniSirGlobal mac, struct qdf_mac_addr remove_mac,
  *
  ***NOTE:
  *
- * @param  pMac   Pointer to Global MAC structure
+ * @param  mac   Pointer to Global MAC structure
  * @param  addr   A pointer to probe request source MAC address
  * @param  uuid_e A pointer to UUIDE element of WPS IE
- * @param  psessionEntry   A pointer to station PE session
+ * @param  pe_session   A pointer to station PE session
  *
  * @return None
  */
 
-static void lim_update_pbc_session_entry(tpAniSirGlobal pMac,
+static void lim_update_pbc_session_entry(struct mac_context *mac,
 					 uint8_t *addr, uint8_t *uuid_e,
-					 tpPESession psessionEntry)
+					 struct pe_session *pe_session)
 {
 	tSirWPSPBCSession *pbc, *prev = NULL;
 
@@ -199,7 +117,7 @@ static void lim_update_pbc_session_entry(tpAniSirGlobal pMac,
 	QDF_TRACE_HEX_DUMP(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
 			   uuid_e, SIR_WPS_UUID_LEN);
 
-	pbc = psessionEntry->pAPWPSPBCSession;
+	pbc = pe_session->pAPWPSPBCSession;
 
 	while (pbc) {
 		if ((!qdf_mem_cmp
@@ -210,7 +128,7 @@ static void lim_update_pbc_session_entry(tpAniSirGlobal pMac,
 			if (prev)
 				prev->next = pbc->next;
 			else
-				psessionEntry->pAPWPSPBCSession = pbc->next;
+				pe_session->pAPWPSPBCSession = pbc->next;
 			break;
 		}
 		prev = pbc;
@@ -219,10 +137,8 @@ static void lim_update_pbc_session_entry(tpAniSirGlobal pMac,
 
 	if (!pbc) {
 		pbc = qdf_mem_malloc(sizeof(tSirWPSPBCSession));
-		if (NULL == pbc) {
-			pe_err("memory allocate failed!");
+		if (!pbc)
 			return;
-		}
 		qdf_mem_copy((uint8_t *) pbc->addr.bytes, (uint8_t *) addr,
 			     QDF_MAC_ADDR_SIZE);
 
@@ -231,8 +147,8 @@ static void lim_update_pbc_session_entry(tpAniSirGlobal pMac,
 				     (uint8_t *) uuid_e, SIR_WPS_UUID_LEN);
 	}
 
-	pbc->next = psessionEntry->pAPWPSPBCSession;
-	psessionEntry->pAPWPSPBCSession = pbc;
+	pbc->next = pe_session->pAPWPSPBCSession;
+	pe_session->pAPWPSPBCSession = pbc;
 	pbc->timestamp = curTime;
 
 	/* remove entries that have timed out */
@@ -242,7 +158,7 @@ static void lim_update_pbc_session_entry(tpAniSirGlobal pMac,
 	while (pbc) {
 		if (curTime > pbc->timestamp + SIR_WPS_PBC_WALK_TIME) {
 			prev->next = NULL;
-			lim_remove_timeout_pbc_sessions(pMac, pbc);
+			lim_remove_timeout_pbc_sessions(mac, pbc);
 			break;
 		}
 		prev = pbc;
@@ -264,16 +180,16 @@ static void lim_update_pbc_session_entry(tpAniSirGlobal pMac,
  *
  ***NOTE:
  *
- * @param  pMac   Pointer to Global MAC structure
- * @param  psessionEntry   A pointer to station PE session
+ * @param  mac   Pointer to Global MAC structure
+ * @param  pe_session   A pointer to station PE session
  *
  * @return None
  */
 
-void lim_wpspbc_close(tpAniSirGlobal pMac, tpPESession psessionEntry)
+void lim_wpspbc_close(struct mac_context *mac, struct pe_session *pe_session)
 {
 
-	lim_remove_timeout_pbc_sessions(pMac, psessionEntry->pAPWPSPBCSession);
+	lim_remove_timeout_pbc_sessions(mac, pe_session->pAPWPSPBCSession);
 
 }
 
@@ -329,8 +245,8 @@ static bool lim_check11b_rates(uint8_t rate)
  */
 
 void
-lim_process_probe_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
-		tpPESession session)
+lim_process_probe_req_frame(struct mac_context *mac_ctx, uint8_t *rx_pkt_info,
+		struct pe_session *session)
 {
 	uint8_t *body_ptr;
 	tpSirMacMgmtHdr mac_hdr;
@@ -338,19 +254,6 @@ lim_process_probe_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	tSirProbeReq probe_req;
 	tAniSSID ssid;
 
-	/* Don't send probe responses if disabled */
-	if (mac_ctx->lim.gLimProbeRespDisableFlag)
-		return;
-
-	/*
-	 * Don't send probe response if P2P go is scanning till scan
-	 * come to idle state.
-	 */
-	if ((session->pePersona == QDF_P2P_GO_MODE) &&
-	    mac_ctx->lim.gpLimRemainOnChanReq) {
-		pe_debug("GO is scanning, don't send probersp on diff chnl");
-		return;
-	}
 	mac_hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
 	if (LIM_IS_AP_ROLE(session) ||
 		(LIM_IS_IBSS_ROLE(session) &&
@@ -380,11 +283,11 @@ lim_process_probe_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		if (sir_convert_probe_req_frame2_struct(mac_ctx, body_ptr,
 				frame_len, &probe_req) == QDF_STATUS_E_FAILURE) {
 			pe_err("Parse error ProbeReq, length: %d, SA is: "
-					MAC_ADDRESS_STR, frame_len,
-					MAC_ADDR_ARRAY(mac_hdr->sa));
+					QDF_MAC_ADDR_FMT, frame_len,
+					QDF_MAC_ADDR_REF(mac_hdr->sa));
 			return;
 		}
-		if (session->pePersona == QDF_P2P_GO_MODE) {
+		if (session->opmode == QDF_P2P_GO_MODE) {
 			uint8_t i = 0, rate_11b = 0, other_rates = 0;
 			/* Check 11b rates in supported rates */
 			for (i = 0; i < probe_req.supportedRates.numRates;
@@ -455,12 +358,10 @@ lim_process_probe_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 						(uint8_t) (ssid.length + 1))) {
 				lim_send_probe_rsp_mgmt_frame(mac_ctx,
 						mac_hdr->sa, &ssid,
-						DPH_USE_MGMT_STAID,
-						DPH_NON_KEEPALIVE_FRAME,
 						session,
 						probe_req.p2pIePresent);
 				return;
-			} else if (session->pePersona ==
+			} else if (session->opmode ==
 					QDF_P2P_GO_MODE) {
 				uint8_t direct_ssid[7] = "DIRECT-";
 				uint8_t direct_ssid_len = 7;
@@ -471,8 +372,6 @@ lim_process_probe_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 					lim_send_probe_rsp_mgmt_frame(mac_ctx,
 							mac_hdr->sa,
 							&ssid,
-							DPH_USE_MGMT_STAID,
-							DPH_NON_KEEPALIVE_FRAME,
 							session,
 							probe_req.p2pIePresent);
 					return;
@@ -498,8 +397,6 @@ lim_process_probe_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 				return;
 			lim_send_probe_rsp_mgmt_frame(mac_ctx, mac_hdr->sa,
 					&ssid,
-					DPH_USE_MGMT_STAID,
-					DPH_NON_KEEPALIVE_FRAME,
 					session,
 					probe_req.p2pIePresent);
 			return;
@@ -526,16 +423,16 @@ multipleSSIDcheck:
  * This function processes received Probe Request frame and Pass
  * Probe Request Frame to HDD.
  *
- * @param  pMac              Pointer to Global MAC structure
+ * @param  mac              Pointer to Global MAC structure
  * @param  *pBd              A pointer to Buffer descriptor + associated PDUs
- * @param  psessionEntry     A pointer to PE session
+ * @param  pe_session     A pointer to PE session
  *
  * @return None
  */
 
 static void
-lim_indicate_probe_req_to_hdd(tpAniSirGlobal pMac, uint8_t *pBd,
-			      tpPESession psessionEntry)
+lim_indicate_probe_req_to_hdd(struct mac_context *mac, uint8_t *pBd,
+			      struct pe_session *pe_session)
 {
 	tpSirMacMgmtHdr pHdr;
 	uint32_t frameLen;
@@ -546,12 +443,12 @@ lim_indicate_probe_req_to_hdd(tpAniSirGlobal pMac, uint8_t *pBd,
 	frameLen = WMA_GET_RX_PAYLOAD_LEN(pBd);
 
 	/* send the probe req to SME. */
-	lim_send_sme_mgmt_frame_ind(pMac, pHdr->fc.subType,
+	lim_send_sme_mgmt_frame_ind(mac, pHdr->fc.subType,
 				    (uint8_t *) pHdr,
 				    (frameLen + sizeof(tSirMacMgmtHdr)),
-				    psessionEntry->smeSessionId,
-				    WMA_GET_RX_CH(pBd),
-				    psessionEntry,
+				    pe_session->smeSessionId,
+				    WMA_GET_RX_FREQ(pBd),
+				    pe_session,
 				    WMA_GET_RX_RSSI_NORMALIZED(pBd),
 				    RXMGMT_FLAG_NONE);
 } /*** end lim_indicate_probe_req_to_hdd() ***/
@@ -572,12 +469,12 @@ lim_indicate_probe_req_to_hdd(tpAniSirGlobal pMac, uint8_t *pBd,
  * @return None
  */
 void
-lim_process_probe_req_frame_multiple_bss(tpAniSirGlobal mac_ctx,
-			uint8_t *buf_descr, tpPESession session)
+lim_process_probe_req_frame_multiple_bss(struct mac_context *mac_ctx,
+			uint8_t *buf_descr, struct pe_session *session)
 {
 	uint8_t i;
 
-	if (session != NULL) {
+	if (session) {
 		if (LIM_IS_AP_ROLE(session)) {
 			lim_indicate_probe_req_to_hdd(mac_ctx,
 					buf_descr, session);
@@ -588,7 +485,7 @@ lim_process_probe_req_frame_multiple_bss(tpAniSirGlobal mac_ctx,
 
 	for (i = 0; i < mac_ctx->lim.maxBssId; i++) {
 		session = pe_find_session_by_session_id(mac_ctx, i);
-		if (session == NULL)
+		if (!session)
 			continue;
 		if (LIM_IS_AP_ROLE(session))
 			lim_indicate_probe_req_to_hdd(mac_ctx,
@@ -622,41 +519,38 @@ lim_process_probe_req_frame_multiple_bss(tpAniSirGlobal mac_ctx,
  *                          is generated.
  * @param pProbeReqIE       pointer to RAW probe request IE
  * @param ProbeReqIELen     The length of probe request IE.
- * @param psessionEntry     A pointer to PE session
+ * @param pe_session     A pointer to PE session
  *
  * @return None
  */
 void
-lim_send_sme_probe_req_ind(tpAniSirGlobal pMac,
+lim_send_sme_probe_req_ind(struct mac_context *mac,
 			   tSirMacAddr peerMacAddr,
 			   uint8_t *pProbeReqIE,
-			   uint32_t ProbeReqIELen, tpPESession psessionEntry)
+			   uint32_t ProbeReqIELen, struct pe_session *pe_session)
 {
 	tSirSmeProbeReqInd *pSirSmeProbeReqInd;
 	struct scheduler_msg msgQ = {0};
 
 	pSirSmeProbeReqInd = qdf_mem_malloc(sizeof(tSirSmeProbeReqInd));
-	if (NULL == pSirSmeProbeReqInd) {
-		/* Log error */
-		pe_err("call to AllocateMemory failed for eWNI_SME_PROBE_REQ_IND");
+	if (!pSirSmeProbeReqInd)
 		return;
-	}
 
 	msgQ.type = eWNI_SME_WPS_PBC_PROBE_REQ_IND;
 	msgQ.bodyval = 0;
 	msgQ.bodyptr = pSirSmeProbeReqInd;
 
 	pSirSmeProbeReqInd->messageType = eWNI_SME_WPS_PBC_PROBE_REQ_IND;
-	pSirSmeProbeReqInd->length = sizeof(tSirSmeProbeReq);
-	pSirSmeProbeReqInd->sessionId = psessionEntry->smeSessionId;
+	pSirSmeProbeReqInd->length = sizeof(*pSirSmeProbeReqInd);
+	pSirSmeProbeReqInd->sessionId = pe_session->smeSessionId;
 
-	qdf_mem_copy(pSirSmeProbeReqInd->bssid.bytes, psessionEntry->bssId,
+	qdf_mem_copy(pSirSmeProbeReqInd->bssid.bytes, pe_session->bssId,
 		     QDF_MAC_ADDR_SIZE);
 	qdf_mem_copy(pSirSmeProbeReqInd->WPSPBCProbeReq.peer_macaddr.bytes,
 		     peerMacAddr, QDF_MAC_ADDR_SIZE);
 
-	MTRACE(mac_trace(pMac, TRACE_CODE_TX_SME_MSG,
-				psessionEntry->peSessionId, msgQ.type));
+	MTRACE(mac_trace(mac, TRACE_CODE_TX_SME_MSG,
+				pe_session->peSessionId, msgQ.type));
 
 	if (ProbeReqIELen > sizeof(pSirSmeProbeReqInd->WPSPBCProbeReq.
 	    probeReqIE)) {
@@ -669,7 +563,6 @@ lim_send_sme_probe_req_ind(tpAniSirGlobal pMac,
 	qdf_mem_copy(pSirSmeProbeReqInd->WPSPBCProbeReq.probeReqIE, pProbeReqIE,
 		     ProbeReqIELen);
 
-	if (lim_sys_process_mmh_msg_api(pMac, &msgQ, ePROT) != QDF_STATUS_SUCCESS)
-		pe_err("couldnt send the probe req to hdd");
+	lim_sys_process_mmh_msg_api(mac, &msgQ);
 
 } /*** end lim_send_sme_probe_req_ind() ***/

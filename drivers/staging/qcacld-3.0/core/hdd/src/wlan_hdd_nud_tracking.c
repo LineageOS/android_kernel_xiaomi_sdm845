@@ -20,7 +20,10 @@
  * DOC: contains nud event tracking main function definitions
  */
 
+#include "osif_sync.h"
 #include "wlan_hdd_main.h"
+#include "wlan_blm_ucfg_api.h"
+#include "hdd_dp_cfg.h"
 
 void hdd_nud_set_gateway_addr(struct hdd_adapter *adapter,
 			      struct qdf_mac_addr gw_mac_addr)
@@ -29,13 +32,6 @@ void hdd_nud_set_gateway_addr(struct hdd_adapter *adapter,
 		     gw_mac_addr.bytes,
 		     sizeof(struct qdf_mac_addr));
 	adapter->nud_tracking.is_gw_updated = true;
-}
-
-void hdd_nud_cfg_print(struct hdd_context *hdd_ctx)
-{
-	hdd_debug("Name = [%s] value = [0x%x]",
-		  CFG_ENABLE_NUD_TRACKING_NAME,
-		  hdd_ctx->config->enable_nud_tracking);
 }
 
 void hdd_nud_incr_gw_rx_pkt_cnt(struct hdd_adapter *adapter,
@@ -203,13 +199,13 @@ static bool hdd_nud_honour_failure(struct hdd_adapter *adapter)
 			->nud_tracking.tx_rx_stats.gw_rx_packets);
 
 	if (!tx_transmitted || !tx_acked || !gw_rx_pkt) {
-		hdd_debug("NUD_FAILURE_HONORED [mac:%pM]",
-			  adapter->nud_tracking.gw_mac_addr.bytes);
+		hdd_debug("NUD_FAILURE_HONORED [mac:"QDF_MAC_ADDR_FMT"]",
+			  QDF_MAC_ADDR_REF(adapter->nud_tracking.gw_mac_addr.bytes));
 		hdd_nud_stats_info(adapter);
 		return true;
 	}
-	hdd_debug("NUD_FAILURE_NOT_HONORED [mac:%pM]",
-		  adapter->nud_tracking.gw_mac_addr.bytes);
+	hdd_debug("NUD_FAILURE_NOT_HONORED [mac:"QDF_MAC_ADDR_FMT"]",
+		  QDF_MAC_ADDR_REF(adapter->nud_tracking.gw_mac_addr.bytes));
 	hdd_nud_stats_info(adapter);
 	return false;
 }
@@ -231,25 +227,98 @@ static void hdd_nud_set_tracking(struct hdd_adapter *adapter,
 	adapter->nud_tracking.is_gw_rx_pkt_track_enabled = capture_enabled;
 }
 
+static void
+hdd_handle_nud_fail_sta(struct hdd_context *hdd_ctx,
+			struct hdd_adapter *adapter)
+{
+	struct reject_ap_info ap_info;
+	struct hdd_station_ctx *sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
+
+	qdf_mutex_acquire(&adapter->disconnection_status_lock);
+	if (adapter->disconnection_in_progress) {
+		qdf_mutex_release(&adapter->disconnection_status_lock);
+		hdd_debug("Disconnect is in progress");
+		return;
+	}
+	qdf_mutex_release(&adapter->disconnection_status_lock);
+
+	if (hdd_is_roaming_in_progress(hdd_ctx)) {
+		hdd_debug("Roaming already in progress, cannot trigger roam.");
+		return;
+	}
+
+	hdd_debug("nud fail detected, try roaming to better BSSID, vdev id: %d",
+		  adapter->vdev_id);
+
+	ap_info.bssid = sta_ctx->conn_info.bssid;
+	ap_info.reject_ap_type = DRIVER_AVOID_TYPE;
+	ap_info.reject_reason = REASON_NUD_FAILURE;
+	ap_info.source = ADDED_BY_DRIVER;
+	ucfg_blm_add_bssid_to_reject_list(hdd_ctx->pdev, &ap_info);
+
+	if (roaming_offload_enabled(hdd_ctx))
+		sme_roam_invoke_nud_fail(hdd_ctx->mac_handle,
+					 adapter->vdev_id);
+}
+
+static void
+hdd_handle_nud_fail_non_sta(struct hdd_adapter *adapter)
+{
+	int status;
+
+	qdf_mutex_acquire(&adapter->disconnection_status_lock);
+	if (adapter->disconnection_in_progress) {
+		qdf_mutex_release(&adapter->disconnection_status_lock);
+		hdd_debug("Disconnect is in progress");
+		return;
+	}
+
+	adapter->disconnection_in_progress = true;
+	qdf_mutex_release(&adapter->disconnection_status_lock);
+
+	hdd_debug("Disconnecting vdev with vdev id: %d",
+		  adapter->vdev_id);
+	/* Issue Disconnect */
+	status = wlan_hdd_disconnect(adapter, eCSR_DISCONNECT_REASON_DEAUTH,
+				     eSIR_MAC_GATEWAY_REACHABILITY_FAILURE);
+	if (0 != status) {
+		hdd_err("wlan_hdd_disconnect failed, status: %d",
+			status);
+		hdd_set_disconnect_status(adapter, false);
+	}
+}
+
+#ifdef WLAN_NUD_TRACKING
+static bool
+hdd_is_roam_after_nud_enabled(struct hdd_config *config)
+{
+	if (config->enable_nud_tracking == ROAM_AFTER_NUD_FAIL ||
+	    config->enable_nud_tracking == DISCONNECT_AFTER_ROAM_FAIL)
+		return true;
+
+	return false;
+}
+#else
+static bool
+hdd_is_roam_after_nud_enabled(struct hdd_config *config)
+{
+	return false;
+}
+#endif
+
 /**
  * __hdd_nud_failure_work() - work for nud event
- * @data: Pointer to hdd_adapter
+ * @adapter: Pointer to hdd_adapter
  *
  * Return: None
  */
-static void __hdd_nud_failure_work(void *data)
+static void __hdd_nud_failure_work(struct hdd_adapter *adapter)
 {
-	struct hdd_adapter *adapter;
 	struct hdd_context *hdd_ctx;
 	eConnectionState conn_state;
 	int status;
 
 	hdd_enter();
-
-	if (!data)
-		return;
-
-	adapter = (struct hdd_adapter *)data;
 
 	status = hdd_validate_adapter(adapter);
 	if (status)
@@ -261,7 +330,7 @@ static void __hdd_nud_failure_work(void *data)
 		return;
 
 	conn_state = (WLAN_HDD_GET_STATION_CTX_PTR(adapter))
-		      ->conn_info.connState;
+		      ->conn_info.conn_state;
 
 	if (eConnectionState_Associated != conn_state) {
 		hdd_debug("Not in Connected State");
@@ -272,24 +341,12 @@ static void __hdd_nud_failure_work(void *data)
 		return;
 	}
 
-	qdf_mutex_acquire(&adapter->disconnection_status_lock);
-	if (adapter->disconnection_in_progress) {
-		qdf_mutex_release(&adapter->disconnection_status_lock);
-		hdd_debug("Disconnect is already in progress");
+	if (adapter->device_mode == QDF_STA_MODE &&
+	    hdd_is_roam_after_nud_enabled(hdd_ctx->config)) {
+		hdd_handle_nud_fail_sta(hdd_ctx, adapter);
 		return;
 	}
-	adapter->disconnection_in_progress = true;
-	qdf_mutex_release(&adapter->disconnection_status_lock);
-
-	hdd_debug("Disconnecting STA with session id: %d",
-		  adapter->session_id);
-	/* Issue Disconnect */
-	status = wlan_hdd_disconnect(adapter, eCSR_DISCONNECT_REASON_DEAUTH,
-				     eSIR_MAC_GATEWAY_REACHABILITY_FAILURE);
-	if (0 != status) {
-		hdd_err("wlan_hdd_disconnect failed, status: %d", status);
-		hdd_set_disconnect_status(adapter, false);
-	}
+	hdd_handle_nud_fail_non_sta(adapter);
 
 	hdd_exit();
 }
@@ -302,9 +359,15 @@ static void __hdd_nud_failure_work(void *data)
  */
 static void hdd_nud_failure_work(void *data)
 {
-	cds_ssr_protect(__func__);
-	__hdd_nud_failure_work(data);
-	cds_ssr_unprotect(__func__);
+	struct hdd_adapter *adapter = data;
+	struct osif_vdev_sync *vdev_sync;
+
+	if (osif_vdev_sync_op_start(adapter->dev, &vdev_sync))
+		return;
+
+	__hdd_nud_failure_work(adapter);
+
+	osif_vdev_sync_op_stop(vdev_sync);
 }
 
 void hdd_nud_init_tracking(struct hdd_adapter *adapter)
@@ -328,8 +391,7 @@ void hdd_nud_init_tracking(struct hdd_adapter *adapter)
 		qdf_atomic_init(&adapter
 				->nud_tracking.tx_rx_stats.gw_rx_packets);
 		qdf_create_work(0, &adapter->nud_tracking.nud_event_work,
-				hdd_nud_failure_work,
-				(void *)adapter);
+				hdd_nud_failure_work, adapter);
 	}
 }
 
@@ -351,7 +413,9 @@ static void hdd_nud_process_failure_event(struct hdd_adapter *adapter)
 			qdf_sched_work(0, &adapter
 					->nud_tracking.nud_event_work);
 		} else {
-			hdd_nud_set_tracking(adapter, NUD_NONE, false);
+			hdd_debug("NUD_START [0x%x]", NUD_INCOMPLETE);
+			hdd_nud_capture_stats(adapter, NUD_INCOMPLETE);
+			hdd_nud_set_tracking(adapter, NUD_INCOMPLETE, true);
 		}
 	} else {
 		hdd_debug("NUD FAILED -> Current State [0x%x]", curr_state);
@@ -400,7 +464,7 @@ static void hdd_nud_filter_netevent(struct neighbour *neigh)
 		return;
 
 	conn_state = (WLAN_HDD_GET_STATION_CTX_PTR(adapter))
-		->conn_info.connState;
+		->conn_info.conn_state;
 
 	if (eConnectionState_Associated != conn_state) {
 		hdd_debug("Not in Connected State");
@@ -440,20 +504,14 @@ static void hdd_nud_filter_netevent(struct neighbour *neigh)
 
 /**
  * __hdd_nud_netevent_cb() - netevent callback
- * @nb: Pointer to notifier block
- * @event: Net Event triggered
- * @data: Pointer to neighbour struct
- *
- * Callback for netevent
+ * @neighbor: neighbor used in the nud event
  *
  * Return: None
  */
-static void __hdd_nud_netevent_cb(struct notifier_block *nb,
-				  unsigned long event,
-				  void *data)
+static void __hdd_nud_netevent_cb(struct neighbour *neighbor)
 {
 	hdd_enter();
-	hdd_nud_filter_netevent(data);
+	hdd_nud_filter_netevent(neighbor);
 	hdd_exit();
 }
 
@@ -470,16 +528,24 @@ static void __hdd_nud_netevent_cb(struct notifier_block *nb,
 static int hdd_nud_netevent_cb(struct notifier_block *nb, unsigned long event,
 			       void *data)
 {
+	struct neighbour *neighbor = data;
+	struct osif_vdev_sync *vdev_sync;
+	int errno;
+
+	errno = osif_vdev_sync_op_start(neighbor->dev, &vdev_sync);
+	if (errno)
+		return errno;
+
 	switch (event) {
 	case NETEVENT_NEIGH_UPDATE:
-		cds_ssr_protect(__func__);
-		__hdd_nud_netevent_cb(nb, event, data);
-		cds_ssr_unprotect(__func__);
+		__hdd_nud_netevent_cb(neighbor);
 		break;
-	case NETEVENT_REDIRECT:
 	default:
 		break;
 	}
+
+	osif_vdev_sync_op_stop(vdev_sync);
+
 	return 0;
 }
 

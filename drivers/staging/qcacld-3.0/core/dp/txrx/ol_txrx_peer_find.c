@@ -22,7 +22,7 @@
 #include <qdf_mem.h>         /* qdf_mem_malloc, etc. */
 #include <qdf_types.h>          /* qdf_device_t, qdf_print */
 /* header files for utilities */
-#include <cds_queue.h>          /* TAILQ */
+#include "queue.h"         /* TAILQ */
 
 /* header files for configuration API */
 #include <ol_cfg.h>             /* ol_cfg_max_peer_id */
@@ -183,7 +183,7 @@ struct ol_txrx_peer_t *ol_txrx_peer_vdev_find_hash(struct ol_txrx_pdev_t *pdev,
 		mac_addr = (union ol_txrx_align_mac_addr_t *)peer_mac_addr;
 	} else {
 		qdf_mem_copy(&local_mac_addr_aligned.raw[0],
-			     peer_mac_addr, OL_TXRX_MAC_ADDR_LEN);
+			     peer_mac_addr, QDF_MAC_ADDR_SIZE);
 		mac_addr = &local_mac_addr_aligned;
 	}
 	index = ol_txrx_peer_find_hash_index(pdev, mac_addr);
@@ -218,7 +218,7 @@ struct ol_txrx_peer_t *
 		mac_addr = (union ol_txrx_align_mac_addr_t *)peer_mac_addr;
 	} else {
 		qdf_mem_copy(&local_mac_addr_aligned.raw[0],
-			     peer_mac_addr, OL_TXRX_MAC_ADDR_LEN);
+			     peer_mac_addr, QDF_MAC_ADDR_SIZE);
 		mac_addr = &local_mac_addr_aligned;
 	}
 	index = ol_txrx_peer_find_hash_index(pdev, mac_addr);
@@ -393,9 +393,8 @@ static inline void ol_txrx_peer_find_add_id(struct ol_txrx_pdev_t *pdev,
 		 * If the peer ID is for a vdev, then we will fail to find a
 		 * peer with a matching MAC address.
 		 */
-		ol_txrx_err(
-			  "%s: peer not found or peer ID is %d invalid",
-			  __func__, peer_id);
+		ol_txrx_err("peer not found or peer ID is %d invalid",
+			    peer_id);
 		wlan_roam_debug_log(DEBUG_INVALID_VDEV_ID,
 				    DEBUG_PEER_MAP_EVENT,
 				    peer_id, peer_mac_addr,
@@ -622,7 +621,7 @@ void ol_rx_peer_unmap_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 
 	if (peer_id == HTT_INVALID_PEER) {
 		ol_txrx_err(
-		   "%s: invalid peer ID %d\n", __func__, peer_id);
+		   "invalid peer ID %d\n", peer_id);
 		wlan_roam_debug_log(DEBUG_INVALID_VDEV_ID,
 				    DEBUG_PEER_UNMAP_EVENT,
 				    peer_id, NULL, NULL, 0, 0x100);
@@ -647,23 +646,20 @@ void ol_rx_peer_unmap_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 		wlan_roam_debug_log(DEBUG_INVALID_VDEV_ID,
 				    DEBUG_PEER_UNMAP_EVENT,
 				    peer_id, NULL, NULL, ref_cnt, 0x101);
-		ol_txrx_dbg(
-			   "%s: peer already deleted, peer_id %d del_peer_id_ref_cnt %d",
-			   __func__, peer_id, ref_cnt);
+		ol_txrx_dbg("peer already deleted, peer_id %d del_peer_id_ref_cnt %d",
+			    peer_id, ref_cnt);
 		return;
 	}
 	peer = pdev->peer_id_to_obj_map[peer_id].peer;
 
-	if (peer == NULL) {
+	if (!peer) {
 		/*
 		 * Currently peer IDs are assigned for vdevs as well as peers.
 		 * If the peer ID is for a vdev, then the peer pointer stored
 		 * in peer_id_to_obj_map will be NULL.
 		 */
 		qdf_spin_unlock_bh(&pdev->peer_map_unmap_lock);
-		ol_txrx_info(
-			   "%s: peer not found for peer_id %d",
-			   __func__, peer_id);
+		ol_txrx_info("peer not found for peer_id %d", peer_id);
 		wlan_roam_debug_log(DEBUG_INVALID_VDEV_ID,
 				    DEBUG_PEER_UNMAP_EVENT,
 				    peer_id, NULL, NULL, 0, 0x102);
@@ -728,7 +724,7 @@ void ol_txrx_peer_remove_obj_map_entries(ol_txrx_pdev_handle pdev,
 		peer_id = peer->peer_ids[i];
 		save_peer_ids[i] = HTT_INVALID_PEER;
 		if (peer_id == HTT_INVALID_PEER ||
-			pdev->peer_id_to_obj_map[peer_id].peer == NULL) {
+			!pdev->peer_id_to_obj_map[peer_id].peer) {
 			/* unused peer_id, or object is already dereferenced */
 			continue;
 		}
@@ -836,14 +832,9 @@ void ol_txrx_peer_find_display(ol_txrx_pdev_handle pdev, int indent)
 				      hash_list_elem) {
 				QDF_TRACE(QDF_MODULE_ID_TXRX,
 					  QDF_TRACE_LEVEL_INFO_LOW,
-					  "%*shash idx %d -> %pK (%02x:%02x:%02x:%02x:%02x:%02x)\n",
+					  "%*shash idx %d -> %pK ("QDF_MAC_ADDR_FMT")\n",
 					indent + 4, " ", i, peer,
-					peer->mac_addr.raw[0],
-					peer->mac_addr.raw[1],
-					peer->mac_addr.raw[2],
-					peer->mac_addr.raw[3],
-					peer->mac_addr.raw[4],
-					peer->mac_addr.raw[5]);
+					QDF_MAC_ADDR_REF(peer->mac_addr.raw));
 			}
 		}
 	}

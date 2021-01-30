@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -25,225 +25,31 @@
 
 #include "wlan_hdd_main.h"
 #include "wlan_hdd_he.h"
+#include "osif_sync.h"
 #include "wma_he.h"
 #include "wlan_utility.h"
-
-/**
- * hdd_he_set_wni_cfg() - Update WNI CFG
- * @hdd_ctx: HDD context
- * @cfg_id: CFG to be updated
- * @new_value: Value to be updated
- *
- * Update WNI CFG with the value passed.
- *
- * Return: 0 on success and errno on failure
- */
-static int hdd_he_set_wni_cfg(struct hdd_context *hdd_ctx,
-				     uint16_t cfg_id, uint32_t new_value)
-{
-	QDF_STATUS status;
-
-	status = sme_cfg_set_int(hdd_ctx->mac_handle, cfg_id, new_value);
-	if (QDF_IS_STATUS_ERROR(status))
-		hdd_err("could not set %s", cfg_get_string(cfg_id));
-
-	return qdf_status_to_os_return(status);
-}
+#include "wlan_mlme_ucfg_api.h"
 
 void hdd_update_tgt_he_cap(struct hdd_context *hdd_ctx,
 			   struct wma_tgt_cfg *cfg)
 {
-	uint8_t chan_width;
 	QDF_STATUS status;
-	tDot11fIEhe_cap *he_cap = &cfg->he_cap;
-	struct hdd_config *config = hdd_ctx->config;
+	tDot11fIEhe_cap he_cap_ini = {0};
+	uint8_t value = 0;
 
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_CONTROL, he_cap->htc_he);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_TWT_REQUESTOR,
-			   he_cap->twt_request);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_TWT_RESPONDER,
-			   he_cap->twt_responder);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_FRAGMENTATION,
-			QDF_MIN(he_cap->fragmentation,
-				hdd_ctx->config->he_dynamic_frag_support));
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MAX_FRAG_MSDU,
-			   he_cap->max_num_frag_msdu);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MIN_FRAG_SIZE,
-			   he_cap->min_frag_size);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_TRIG_PAD,
-			   he_cap->trigger_frm_mac_pad);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MTID_AGGR,
-			   he_cap->multi_tid_aggr);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_LINK_ADAPTATION,
-			   he_cap->he_link_adaptation);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_ALL_ACK, he_cap->all_ack);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_UL_MU_RSP_SCHEDULING,
-			   he_cap->ul_mu_rsp_sched);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_BUFFER_STATUS_RPT,
-			   he_cap->a_bsr);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_BCAST_TWT,
-			   he_cap->broadcast_twt);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_BA_32BIT,
-			   he_cap->ba_32bit_bitmap);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MU_CASCADING,
-			   he_cap->mu_cascade);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MULTI_TID,
-			   he_cap->ack_enabled_multitid);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_DL_MU_BA, he_cap->dl_mu_ba);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_OMI, he_cap->omi_a_ctrl);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_OFDMA_RA, he_cap->ofdma_ra);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MAX_AMPDU_LEN,
-			   he_cap->max_ampdu_len);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_AMSDU_FRAG, he_cap->amsdu_frag);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_FLEX_TWT_SCHED,
-			   he_cap->flex_twt_sched);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_RX_CTRL, he_cap->rx_ctrl_frame);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_BSRP_AMPDU_AGGR,
-			   he_cap->bsrp_ampdu_aggr);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_QTP, he_cap->qtp);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_A_BQR, he_cap->a_bqr);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_SR_RESPONDER,
-			   he_cap->sr_responder);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_NDP_FEEDBACK_SUPP,
-			   he_cap->ndp_feedback_supp);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_OPS_SUPP,
-			   he_cap->ops_supp);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_AMSDU_IN_AMPDU,
-			   he_cap->amsdu_in_ampdu);
+	ucfg_mlme_update_tgt_he_cap(hdd_ctx->psoc, cfg);
 
-	he_cap->dual_band = ((cfg->band_cap == BAND_ALL) &&
-			     (hdd_ctx->config->nBandCapability == BAND_ALL));
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_DUAL_BAND, he_cap->dual_band);
-	chan_width = HE_CH_WIDTH_COMBINE(he_cap->chan_width_0,
-				he_cap->chan_width_1, he_cap->chan_width_2,
-				he_cap->chan_width_3, he_cap->chan_width_4,
-				he_cap->chan_width_5, he_cap->chan_width_6);
+	status = ucfg_mlme_cfg_get_vht_tx_bfee_ant_supp(hdd_ctx->psoc,
+							&value);
+	if (!QDF_IS_STATUS_SUCCESS(status))
+		hdd_err("unable to get tx_bfee_ant_supp");
 
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_CHAN_WIDTH, chan_width);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_RX_PREAM_PUNC,
-			   he_cap->rx_pream_puncturing);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_CLASS_OF_DEVICE,
-			   he_cap->device_class);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_LDPC, he_cap->ldpc_coding);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_LTF_PPDU,
-			   he_cap->he_1x_ltf_800_gi_ppdu);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MIDAMBLE_RX_MAX_NSTS,
-			   he_cap->midamble_rx_max_nsts);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_LTF_NDP,
-			   he_cap->he_4x_ltf_3200_gi_ndp);
-	if (config->enableRxSTBC) {
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_RX_STBC_LT80,
-				   he_cap->rx_stbc_lt_80mhz);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_RX_STBC_GT80,
-				   he_cap->rx_stbc_gt_80mhz);
-	} else {
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_RX_STBC_LT80, 0);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_RX_STBC_GT80, 0);
-	}
-	if (config->enableTxSTBC) {
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_TX_STBC_LT80,
-				   he_cap->tx_stbc_lt_80mhz);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_TX_STBC_GT80,
-				   he_cap->tx_stbc_gt_80mhz);
-	} else {
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_TX_STBC_LT80, 0);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_TX_STBC_GT80, 0);
-	}
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_DOPPLER, he_cap->doppler);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_UL_MUMIMO, he_cap->ul_mu);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_DCM_TX, he_cap->dcm_enc_tx);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_DCM_RX, he_cap->dcm_enc_rx);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MU_PPDU, he_cap->ul_he_mu);
-
-	if (config->enable_su_tx_bformer) {
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_SU_BEAMFORMER,
-				he_cap->su_beamformer);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_NUM_SOUND_LT80,
-				he_cap->num_sounding_lt_80);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_NUM_SOUND_GT80,
-				he_cap->num_sounding_gt_80);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MU_BEAMFORMER,
-				he_cap->mu_beamformer);
-	} else {
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_SU_BEAMFORMER, 0);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_NUM_SOUND_LT80, 0);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_NUM_SOUND_GT80, 0);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MU_BEAMFORMER, 0);
-	}
-
-	if (config->enableTxBF) {
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_SU_BEAMFORMEE,
-				he_cap->su_beamformee);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_BFEE_STS_LT80,
-				he_cap->bfee_sts_lt_80);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_BFEE_STS_GT80,
-				he_cap->bfee_sts_gt_80);
-	} else {
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_SU_BEAMFORMEE, 0);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_BFEE_STS_LT80, 0);
-		hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_BFEE_STS_GT80, 0);
-	}
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_SU_FEED_TONE16,
-			   he_cap->su_feedback_tone16);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MU_FEED_TONE16,
-			   he_cap->mu_feedback_tone16);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_CODEBOOK_SU,
-			   he_cap->codebook_su);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_CODEBOOK_MU,
-			   he_cap->codebook_mu);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_BFRM_FEED,
-			   he_cap->beamforming_feedback);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_ER_SU_PPDU,
-			   he_cap->he_er_su_ppdu);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_DL_PART_BW,
-			   he_cap->dl_mu_mimo_part_bw);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_PPET_PRESENT,
-			   he_cap->ppet_present);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_SRP, he_cap->srp);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_POWER_BOOST,
-			   he_cap->power_boost);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_4x_LTF_GI,
-			   he_cap->he_ltf_800_gi_4x);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MAX_NC, he_cap->max_nc);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_ER_4x_LTF_GI,
-			   he_cap->er_he_ltf_800_gi_4x);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_PPDU_20_IN_40MHZ_2G,
-			   he_cap->he_ppdu_20_in_40Mhz_2G);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_PPDU_20_IN_160_80P80MHZ,
-			   he_cap->he_ppdu_20_in_160_80p80Mhz);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_PPDU_80_IN_160_80P80MHZ,
-			   he_cap->he_ppdu_80_in_160_80p80Mhz);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_ER_1X_HE_LTF_GI,
-			   he_cap->er_1x_he_ltf_gi);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_MIDAMBLE_RX_1X_HE_LTF,
-			   he_cap->midamble_rx_1x_he_ltf);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_RX_MCS_MAP_LT_80,
-			he_cap->rx_he_mcs_map_lt_80);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_TX_MCS_MAP_LT_80,
-			he_cap->tx_he_mcs_map_lt_80);
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_RX_MCS_MAP_160,
-		*((uint16_t *)he_cap->rx_he_mcs_map_160));
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_TX_MCS_MAP_160,
-		*((uint16_t *)he_cap->tx_he_mcs_map_160));
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_RX_MCS_MAP_80_80,
-		*((uint16_t *)he_cap->rx_he_mcs_map_80_80));
-	hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_TX_MCS_MAP_80_80,
-		*((uint16_t *)he_cap->tx_he_mcs_map_80_80));
-
-	/* PPET can not be configured by user - Set per band values from FW */
-	status = sme_cfg_set_str(hdd_ctx->mac_handle, WNI_CFG_HE_PPET_2G,
-				 cfg->ppet_2g, HE_MAX_PPET_SIZE);
-	if (status == QDF_STATUS_E_FAILURE)
-		hdd_alert("could not set 2G HE PPET");
-
-	status = sme_cfg_set_str(hdd_ctx->mac_handle, WNI_CFG_HE_PPET_5G,
-				 cfg->ppet_5g, HE_MAX_PPET_SIZE);
-	if (status == QDF_STATUS_E_FAILURE)
-		hdd_alert("could not set 5G HE PPET");
+	he_cap_ini.bfee_sts_lt_80 = value;
+	sme_update_tgt_he_cap(hdd_ctx->mac_handle, cfg, &he_cap_ini);
 }
 
 void wlan_hdd_check_11ax_support(struct hdd_beacon_data *beacon,
-				 tsap_config_t *config)
+				 struct sap_config *config)
 {
 	const uint8_t *ie;
 
@@ -253,34 +59,17 @@ void wlan_hdd_check_11ax_support(struct hdd_beacon_data *beacon,
 		config->SapHw_mode = eCSR_DOT11_MODE_11ax;
 }
 
-void hdd_he_print_ini_config(struct hdd_context *hdd_ctx)
-{
-	hdd_info("Name = [%s] Value = [%d]", CFG_ENABLE_UL_MIMO_NAME,
-		hdd_ctx->config->enable_ul_mimo);
-	hdd_info("Name = [%s] Value = [%d]", CFG_ENABLE_UL_OFDMA_NAME,
-		hdd_ctx->config->enable_ul_ofdma);
-	hdd_info("Name = [%s] Value = [%d]", CFG_HE_STA_OBSSPD_NAME,
-		hdd_ctx->config->he_sta_obsspd);
-	hdd_info("Name = [%s] Value = [%d]", CFG_HE_DYNAMIC_FRAGMENTATION_NAME,
-		hdd_ctx->config->he_dynamic_frag_support);
-}
-
 int hdd_update_he_cap_in_cfg(struct hdd_context *hdd_ctx)
 {
-	uint32_t val, val1 = 0;
+	uint32_t val;
+	uint32_t val1 = 0;
 	QDF_STATUS status;
 	int ret;
-	struct hdd_config *config = hdd_ctx->config;
+	uint8_t enable_ul_ofdma, enable_ul_mimo;
 
-	ret = hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_STA_OBSSPD,
-				 config->he_sta_obsspd);
-	if (ret)
-		return ret;
-
-	status = sme_cfg_get_int(hdd_ctx->mac_handle,
-				 WNI_CFG_HE_UL_MUMIMO, &val);
+	status = ucfg_mlme_cfg_get_he_ul_mumimo(hdd_ctx->psoc, &val);
 	if (QDF_IS_STATUS_ERROR(status)) {
-		hdd_err("could not get WNI_CFG_HE_UL_MUMIMO");
+		hdd_err("could not get CFG_HE_UL_MUMIMO");
 		return qdf_status_to_os_return(status);
 	}
 
@@ -288,22 +77,23 @@ int hdd_update_he_cap_in_cfg(struct hdd_context *hdd_ctx)
 	 * Bit 1 - corresponds to UL MIMO
 	 * Bit 2 - corresponds to UL OFDMA
 	 */
-	if (val & 0x1)
-		val1 = config->enable_ul_mimo & 0x1;
+	ret = ucfg_mlme_cfg_get_enable_ul_mimo(hdd_ctx->psoc,
+					       &enable_ul_mimo);
+	if (ret)
+		return ret;
+	ret = ucfg_mlme_cfg_get_enable_ul_ofdm(hdd_ctx->psoc,
+					       &enable_ul_ofdma);
+	if (ret)
+		return ret;
+	if (val & 0x1 || (val >> 1) & 0x1)
+		val1 = enable_ul_mimo & 0x1;
 
 	if ((val >> 1) & 0x1)
-		val1 |= ((config->enable_ul_ofdma & 0x1) << 1);
+		val1 |= ((enable_ul_ofdma & 0x1) << 1);
 
-	ret = hdd_he_set_wni_cfg(hdd_ctx, WNI_CFG_HE_UL_MUMIMO, val1);
+	ret = ucfg_mlme_cfg_set_he_ul_mumimo(hdd_ctx->psoc, val1);
 
 	return ret;
-}
-
-void hdd_he_set_sme_config(tSmeConfigParams *sme_config,
-			   struct hdd_config *config)
-{
-	sme_config->csrConfig.enable_ul_ofdma = config->enable_ul_ofdma;
-	sme_config->csrConfig.enable_ul_mimo = config->enable_ul_mimo;
 }
 
 /*
@@ -412,11 +202,16 @@ int wlan_hdd_cfg80211_get_he_cap(struct wiphy *wiphy,
 				 const void *data,
 				 int data_len)
 {
-	int ret;
+	struct osif_psoc_sync *psoc_sync;
+	int errno;
 
-	cds_ssr_protect(__func__);
-	ret = __wlan_hdd_cfg80211_get_he_cap(wiphy, wdev, data, data_len);
-	cds_ssr_unprotect(__func__);
+	errno = osif_psoc_sync_op_start(wiphy_dev(wiphy), &psoc_sync);
+	if (errno)
+		return errno;
 
-	return ret;
+	errno = __wlan_hdd_cfg80211_get_he_cap(wiphy, wdev, data, data_len);
+
+	osif_psoc_sync_op_stop(psoc_sync);
+
+	return errno;
 }

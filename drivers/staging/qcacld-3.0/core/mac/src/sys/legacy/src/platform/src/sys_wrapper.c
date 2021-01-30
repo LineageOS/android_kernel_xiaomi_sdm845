@@ -63,28 +63,6 @@
 #endif
 
 /**---------------------------------------------------------------------
- * tx_time_get()
- *
- * FUNCTION:
- *
- * LOGIC:
- *
- * ASSUMPTIONS:
- *
- * NOTE:
- *
- * @param
- *
- * @return current system time in units of miliseconds
- *
- */
-uint64_t tx_time_get(void)
-{
-	return qdf_mc_timer_get_system_ticks();
-
-} /* * tx_time_get() */
-
-/**---------------------------------------------------------------------
  * tx_timer_activate()
  *
  * FUNCTION:
@@ -108,12 +86,12 @@ uint32_t tx_timer_activate(TX_TIMER *timer_ptr)
 	/* following anomalous cnditions. */
 
 	/* Assert that the timer structure pointer passed, is not NULL */
-	/* dbgAssert(NULL != timer_ptr); */
+	/* dbgAssert(timer_ptr); */
 
 	/* If the NIC is halting just spoof a successful timer activation, so that all */
 	/* the timers can be cleaned up. */
 
-	if (NULL == timer_ptr)
+	if (!timer_ptr)
 		return TX_TIMER_ERROR;
 
 	/* Put a check for the free builds */
@@ -237,19 +215,19 @@ static void tx_main_timer_func(void *functionContext)
 {
 	TX_TIMER *timer_ptr = (TX_TIMER *) functionContext;
 
-	if (NULL == timer_ptr) {
+	if (!timer_ptr) {
 		QDF_ASSERT(0);
 		return;
 	}
 
-	if (NULL == timer_ptr->pExpireFunc) {
+	if (!timer_ptr->pExpireFunc) {
 		QDF_ASSERT(0);
 		return;
 	}
 
 	/* Now call the actual timer function, taking the function pointer, */
 	/* from the timer structure. */
-	(*timer_ptr->pExpireFunc)(timer_ptr->pMac, timer_ptr->expireInput);
+	(*timer_ptr->pExpireFunc)(timer_ptr->mac, timer_ptr->expireInput);
 
 	/* check if this needs to be rescheduled */
 	if (0 != timer_ptr->rescheduleTimeInMsecs) {
@@ -280,14 +258,14 @@ uint32_t tx_timer_create_intern_debug(void *pMacGlobal,
 {
 	QDF_STATUS status;
 
-	if (NULL == expiration_function) {
+	if (!expiration_function) {
 		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 			  "NULL timer expiration");
 		QDF_ASSERT(0);
 		return TX_TIMER_ERROR;
 	}
 
-	if (NULL == name_ptr) {
+	if (!name_ptr) {
 
 		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 			  "NULL name pointer for timer");
@@ -307,7 +285,7 @@ uint32_t tx_timer_create_intern_debug(void *pMacGlobal,
 		TX_MSECS_IN_1_TICK * initScheduleTimeInTicks;
 	timer_ptr->rescheduleTimeInMsecs =
 		TX_MSECS_IN_1_TICK * rescheduleTimeInTicks;
-	timer_ptr->pMac = pMacGlobal;
+	timer_ptr->mac = pMacGlobal;
 
 	/* Set the flag indicating that the timer was created */
 	timer_ptr->tmrSignature = TX_AIRGO_TMR_SIGNATURE;
@@ -351,7 +329,7 @@ uint32_t tx_timer_create_intern(void *pMacGlobal, TX_TIMER *timer_ptr,
 {
 	QDF_STATUS status;
 
-	if ((NULL == name_ptr) || (NULL == expiration_function))
+	if ((!name_ptr) || (!expiration_function))
 		return TX_TIMER_ERROR;
 
 	if (!initScheduleTimeInTicks)
@@ -367,7 +345,7 @@ uint32_t tx_timer_create_intern(void *pMacGlobal, TX_TIMER *timer_ptr,
 		TX_MSECS_IN_1_TICK * initScheduleTimeInTicks;
 	timer_ptr->rescheduleTimeInMsecs =
 		TX_MSECS_IN_1_TICK * rescheduleTimeInTicks;
-	timer_ptr->pMac = pMacGlobal;
+	timer_ptr->mac = pMacGlobal;
 
 	/* Set the flag indicating that the timer was created */
 	timer_ptr->tmrSignature = TX_AIRGO_TMR_SIGNATURE;

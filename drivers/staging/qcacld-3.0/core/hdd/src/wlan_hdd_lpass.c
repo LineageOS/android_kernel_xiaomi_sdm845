@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -34,33 +34,32 @@
  * wlan_hdd_get_channel_info() - Get channel info
  * @hdd_ctx: HDD context
  * @chan_info: Pointer to the structure that stores channel info
- * @chan_id: Channel ID
+ * @chan_freq: Channel freq
  *
  * Fill in the channel info to chan_info structure.
  */
 static void wlan_hdd_get_channel_info(struct hdd_context *hdd_ctx,
 				      struct svc_channel_info *chan_info,
-				      uint32_t chan_id)
+				      uint32_t chan_freq)
 {
 	uint32_t reg_info_1;
 	uint32_t reg_info_2;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 
-	status = sme_get_reg_info(hdd_ctx->mac_handle, chan_id,
+	status = sme_get_reg_info(hdd_ctx->mac_handle, chan_freq,
 				  &reg_info_1, &reg_info_2);
 	if (status != QDF_STATUS_SUCCESS)
 		return;
 
-	chan_info->mhz = cds_chan_to_freq(chan_id);
+	chan_info->mhz = chan_freq;
 	chan_info->band_center_freq1 = chan_info->mhz;
 	chan_info->band_center_freq2 = 0;
 	chan_info->info = 0;
 	if (CHANNEL_STATE_DFS ==
-	    wlan_reg_get_channel_state(hdd_ctx->pdev,
-				       chan_id))
+	    wlan_reg_get_channel_state_for_freq(hdd_ctx->pdev, chan_freq))
 		WMI_SET_CHANNEL_FLAG(chan_info,
 				     WMI_CHAN_FLAG_DFS);
-	hdd_update_channel_bw_info(hdd_ctx, chan_id,
+	hdd_update_channel_bw_info(hdd_ctx, chan_freq,
 				   chan_info);
 	chan_info->reg_info_1 = reg_info_1;
 	chan_info->reg_info_2 = reg_info_2;
@@ -88,7 +87,10 @@ static int wlan_hdd_gen_wlan_status_pack(struct wlan_status_data *data,
 	uint8_t buflen = WLAN_SVC_COUNTRY_CODE_LEN;
 	int i;
 	uint32_t chan_id;
+	uint32_t *chan_freq_list, chan_freq_len;
 	struct svc_channel_info *chan_info;
+	bool lpass_support;
+	QDF_STATUS status;
 
 	if (!data) {
 		hdd_err("invalid data pointer");
@@ -105,43 +107,62 @@ static int wlan_hdd_gen_wlan_status_pack(struct wlan_status_data *data,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_session_id(adapter->session_id))
+	if (wlan_hdd_validate_vdev_id(adapter->vdev_id))
 		return -EINVAL;
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	if (hdd_ctx->lpss_support && hdd_ctx->config->enable_lpass_support)
+
+	status = ucfg_mlme_get_lpass_support(hdd_ctx->psoc, &lpass_support);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_err("Failed to get LPASS support config");
+		return -EIO;
+	}
+
+	if (hdd_ctx->lpss_support && lpass_support)
 		data->lpss_support = 1;
 	else
 		data->lpss_support = 0;
-	data->numChannels = WLAN_SVC_MAX_NUM_CHAN;
-	sme_get_cfg_valid_channels(data->channel_list,
-				   &data->numChannels);
+
+	chan_freq_list =
+		qdf_mem_malloc(sizeof(uint32_t) * WLAN_SVC_MAX_NUM_CHAN);
+	if (!chan_freq_list)
+		return -ENOMEM;
+
+	chan_freq_len = WLAN_SVC_MAX_NUM_CHAN;
+	sme_get_cfg_valid_channels(chan_freq_list, &chan_freq_len);
+
+	data->numChannels = chan_freq_len;
 
 	for (i = 0; i < data->numChannels; i++) {
 		chan_info = &data->channel_info[i];
+		data->channel_list[i] =
+			wlan_reg_freq_to_chan(hdd_ctx->pdev, chan_freq_list[i]);
 		chan_id = data->channel_list[i];
 		chan_info->chan_id = chan_id;
-		wlan_hdd_get_channel_info(hdd_ctx, chan_info, chan_id);
+		wlan_hdd_get_channel_info(hdd_ctx,
+					  chan_info,
+					  chan_freq_list[i]);
 	}
+
+	qdf_mem_free(chan_freq_list);
 
 	sme_get_country_code(hdd_ctx->mac_handle, data->country_code, &buflen);
 	data->is_on = is_on;
-	data->vdev_id = adapter->session_id;
+	data->vdev_id = adapter->vdev_id;
 	data->vdev_mode = adapter->device_mode;
 	if (sta_ctx) {
 		data->is_connected = is_connected;
 		data->rssi = adapter->rssi;
-		data->freq =
-			cds_chan_to_freq(sta_ctx->conn_info.operationChannel);
+		data->freq = sta_ctx->conn_info.chan_freq;
 		if (WLAN_SVC_MAX_SSID_LEN >=
-		    sta_ctx->conn_info.SSID.SSID.length) {
-			data->ssid_len = sta_ctx->conn_info.SSID.SSID.length;
+		    sta_ctx->conn_info.ssid.SSID.length) {
+			data->ssid_len = sta_ctx->conn_info.ssid.SSID.length;
 			memcpy(data->ssid,
-			       sta_ctx->conn_info.SSID.SSID.ssId,
-			       sta_ctx->conn_info.SSID.SSID.length);
+			       sta_ctx->conn_info.ssid.SSID.ssId,
+			       sta_ctx->conn_info.ssid.SSID.length);
 		}
-		if (QDF_MAC_ADDR_SIZE >= sizeof(sta_ctx->conn_info.bssId))
-			memcpy(data->bssid, sta_ctx->conn_info.bssId.bytes,
+		if (QDF_MAC_ADDR_SIZE >= sizeof(sta_ctx->conn_info.bssid))
+			memcpy(data->bssid, sta_ctx->conn_info.bssid.bytes,
 			       QDF_MAC_ADDR_SIZE);
 	}
 	return 0;
@@ -301,7 +322,14 @@ void hdd_lpass_target_config(struct hdd_context *hdd_ctx,
 void hdd_lpass_populate_cds_config(struct cds_config_info *cds_config,
 				   struct hdd_context *hdd_ctx)
 {
-	cds_config->is_lpass_enabled = hdd_ctx->config->enable_lpass_support;
+	bool lpass_support = false;
+	QDF_STATUS status;
+
+	status = ucfg_mlme_get_lpass_support(hdd_ctx->psoc, &lpass_support);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("Failed to get LPASS support config");
+
+	cds_config->is_lpass_enabled = lpass_support;
 }
 
 /*
@@ -311,7 +339,14 @@ void hdd_lpass_populate_cds_config(struct cds_config_info *cds_config,
 void hdd_lpass_populate_pmo_config(struct pmo_psoc_cfg *pmo_config,
 				   struct hdd_context *hdd_ctx)
 {
-	pmo_config->lpass_enable = hdd_ctx->config->enable_lpass_support;
+	bool lpass_support = false;
+	QDF_STATUS status;
+
+	status = ucfg_mlme_get_lpass_support(hdd_ctx->psoc, &lpass_support);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("Failed to get LPASS support config");
+
+	pmo_config->lpass_enable = lpass_support;
 }
 
 /*
@@ -404,5 +439,12 @@ void hdd_lpass_notify_stop(struct hdd_context *hdd_ctx)
  */
 bool hdd_lpass_is_supported(struct hdd_context *hdd_ctx)
 {
-	return hdd_ctx->config->enable_lpass_support;
+	bool lpass_support = false;
+	QDF_STATUS status;
+
+	status = ucfg_mlme_get_lpass_support(hdd_ctx->psoc, &lpass_support);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("Failed to get LPASS support config");
+
+	return lpass_support;
 }

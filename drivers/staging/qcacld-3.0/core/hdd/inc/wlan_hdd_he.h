@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -94,14 +94,6 @@ void wlan_hdd_check_11ax_support(struct hdd_beacon_data *beacon,
 				 struct sap_config *config);
 
 /**
- * hdd_he_print_ini_config()- Print 11AX(HE) specific INI configuration
- * @hdd_ctx: handle to hdd context
- *
- * Return: None
- */
-void hdd_he_print_ini_config(struct hdd_context *hdd_ctx);
-
-/**
  * hdd_update_he_cap_in_cfg() - update HE cap in global CFG
  * @hdd_ctx: pointer to hdd context
  *
@@ -111,16 +103,6 @@ void hdd_he_print_ini_config(struct hdd_context *hdd_ctx);
  * Return: 0 on success and errno on failure
  */
 int hdd_update_he_cap_in_cfg(struct hdd_context *hdd_ctx);
-
-/**
- * hdd_he_set_sme_config() - set HE related SME config param
- * @sme_config: pointer to SME config
- * @config: pointer to INI config
- *
- * Return: None
- */
-void hdd_he_set_sme_config(tSmeConfigParams *sme_config,
-			   struct hdd_config *config);
 
 /**
  * wlan_hdd_cfg80211_get_he_cap() - get HE Capabilities
@@ -154,18 +136,9 @@ static inline void wlan_hdd_check_11ax_support(struct hdd_beacon_data *beacon,
 {
 }
 
-static inline void hdd_he_print_ini_config(struct hdd_context *hdd_ctx)
-{
-}
-
 static inline int hdd_update_he_cap_in_cfg(struct hdd_context *hdd_ctx)
 {
 	return 0;
-}
-
-static inline void hdd_he_set_sme_config(tSmeConfigParams *sme_config,
-					 struct hdd_config *config)
-{
 }
 
 /* dummy definition */
