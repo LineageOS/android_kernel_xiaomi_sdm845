@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -27,61 +27,6 @@
 
 /* Alpha2 code for world reg domain */
 #define REG_WORLD_ALPHA2 "00"
-
-#define REGULATORY_CHAN_DISABLED     (1<<0)
-#define REGULATORY_CHAN_NO_IR        (1<<1)
-#define REGULATORY_CHAN_RADAR        (1<<3)
-#define REGULATORY_CHAN_NO_OFDM      (1<<6)
-#define REGULATORY_CHAN_INDOOR_ONLY  (1<<9)
-
-#define REGULATORY_CHAN_NO_HT40      (1<<4)
-#define REGULATORY_CHAN_NO_80MHZ     (1<<7)
-#define REGULATORY_CHAN_NO_160MHZ    (1<<8)
-#define REGULATORY_CHAN_NO_20MHZ     (1<<11)
-#define REGULATORY_CHAN_NO_10MHZ     (1<<12)
-
-#define REGULATORY_PHYMODE_NO11A     (1<<0)
-#define REGULATORY_PHYMODE_NO11B     (1<<1)
-#define REGULATORY_PHYMODE_NO11G     (1<<2)
-#define REGULATORY_CHAN_NO11N        (1<<3)
-#define REGULATORY_PHYMODE_NO11AC    (1<<4)
-#define REGULATORY_PHYMODE_NO11AX    (1<<5)
-
-#define MAX_REG_RULES 10
-#define REG_ALPHA2_LEN 2
-
-/**
- * enum dfs_reg - DFS region
- * @DFS_UNINIT_REG: un-initialized region
- * @DFS_FCC_REG: FCC region
- * @DFS_ETSI_REG: ETSI region
- * @DFS_MKK_REG: MKK region
- * @DFS_CN_REG: China region
- * @DFS_KR_REG: Korea region
- * @DFS_UNDEF_REG: Undefined region
- */
-enum dfs_reg {
-	DFS_UNINIT_REG = 0,
-	DFS_FCC_REG = 1,
-	DFS_ETSI_REG = 2,
-	DFS_MKK_REG = 3,
-	DFS_CN_REG = 4,
-	DFS_KR_REG = 5,
-	DFS_UNDEF_REG = 0xFFFF,
-};
-
-/** enum op_class_table_num
- * OP_CLASS_US- Class corresponds to US
- * OP_CLASS_EU- Class corresponds to EU
- * OP_CLASS_JAPAN- Class corresponds to JAPAN
- * OP_CLASS_GLOBAL- Class corresponds to GLOBAL
- */
-enum op_class_table_num {
-	OP_CLASS_US = 1,
-	OP_CLASS_EU,
-	OP_CLASS_JAPAN,
-	OP_CLASS_GLOBAL
-};
 
 /**
  * struct regulatory_rule
@@ -146,26 +91,6 @@ struct reg_domain_pair {
 	uint8_t dmn_id_2g;
 };
 
-/**
- * enum ctl_value - CTL value
- * @CTL_FCC: CTL FCC
- * @CTL_MKK: CTL MKK
- * @CTL_ETSI: CTL ETSI
- * @CTL_KOR: CTL KOR
- * @CTL_CHN: CTL CHINA
- * @CTL_USER_DEF: CTL USER_DEF
- * @CTL_NONE: CTL NONE
- */
-enum ctl_value {
-	CTL_FCC = 0x10,
-	CTL_ETSI = 0x30,
-	CTL_MKK = 0x40,
-	CTL_KOR = 0x50,
-	CTL_CHN = 0x60,
-	CTL_USER_DEF = 0x70,
-	CTL_NONE = 0xff
-};
-
 QDF_STATUS reg_get_num_countries(int *num_countries);
 
 QDF_STATUS reg_get_num_reg_dmn_pairs(int *num_reg_dmn);
@@ -179,4 +104,12 @@ QDF_STATUS reg_get_default_country(uint16_t *default_country);
  * Return: true or false
  */
 bool reg_etsi13_regdmn(uint8_t reg_dmn);
+
+/**
+ * reg_en302_502_regdmn() - Check if the reg domain is en302_502 applicable.
+ * @reg_dmn: Regulatory domain pair ID.
+ *
+ * Return: True if EN302_502 applicable, else false.
+ */
+bool reg_en302_502_regdmn(uint16_t reg_dmn);
 #endif

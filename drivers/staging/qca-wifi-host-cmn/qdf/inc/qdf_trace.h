@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -54,10 +54,7 @@
  */
 #define QDF_WMI_MTRACE_CMD_ID(message_id) ((message_id) & 0x7F)
 
-#ifdef CONFIG_MCL
-#define QDF_DEFAULT_TRACE_LEVEL \
-	((1 << QDF_TRACE_LEVEL_FATAL) | (1 << QDF_TRACE_LEVEL_ERROR))
-#else
+#ifdef QDF_TRACE_PRINT_ENABLE
 #define QDF_DEFAULT_TRACE_LEVEL (1 << QDF_TRACE_LEVEL_INFO)
 #endif
 
@@ -109,8 +106,11 @@ typedef int (qdf_abstract_print)(void *priv, const char *fmt, ...);
 /* Preprocessor definitions and constants */
 #define ASSERT_BUFFER_SIZE (512)
 
-#define QDF_TRACE_DEFAULT_PDEV_ID 0xff
+#ifndef MAX_QDF_TRACE_RECORDS
 #define MAX_QDF_TRACE_RECORDS 4000
+#endif
+
+#define QDF_TRACE_DEFAULT_PDEV_ID 0xff
 #define INVALID_QDF_TRACE_ADDR 0xffffffff
 #define DEFAULT_QDF_TRACE_DUMP_COUNT 0
 #define QDF_TRACE_DEFAULT_MSDU_ID 0
@@ -181,6 +181,7 @@ typedef struct s_qdf_trace_data {
 #ifndef MAX_QDF_DP_TRACE_RECORDS
 #define MAX_QDF_DP_TRACE_RECORDS       2000
 #endif
+
 #define QDF_DP_TRACE_RECORD_SIZE       40
 #define INVALID_QDF_DP_TRACE_ADDR      0xffffffff
 #define QDF_DP_TRACE_VERBOSITY_HIGH		4
@@ -203,6 +204,7 @@ typedef struct s_qdf_trace_data {
  * @QDF_DP_TRACE_ICMPv6_PACKET_RECORD - record ICMPv6 packet
  * @QDF_DP_TRACE_HDD_TX_TIMEOUT - HDD tx timeout
  * @QDF_DP_TRACE_HDD_SOFTAP_TX_TIMEOUT- SOFTAP HDD tx timeout
+ * @QDF_DP_TRACE_TX_CREDIT_RECORD - credit update record
  * @QDF_DP_TRACE_ULTRA_LOW_VERBOSITY - Below this is not logged for >4PPS
  * @QDF_DP_TRACE_TX_PACKET_RECORD - record 32 bytes of tx pkt at any layer
  * @QDF_DP_TRACE_RX_PACKET_RECORD - record 32 bytes of rx pkt at any layer
@@ -249,6 +251,7 @@ enum  QDF_DP_TRACE_ID {
 	QDF_DP_TRACE_ICMPv6_PACKET_RECORD,
 	QDF_DP_TRACE_HDD_TX_TIMEOUT,
 	QDF_DP_TRACE_HDD_SOFTAP_TX_TIMEOUT,
+	QDF_DP_TRACE_TX_CREDIT_RECORD,
 	QDF_DP_TRACE_ULTRA_LOW_VERBOSITY,
 	QDF_DP_TRACE_TX_PACKET_RECORD,
 	QDF_DP_TRACE_RX_PACKET_RECORD,
@@ -294,6 +297,36 @@ enum qdf_proto_dir {
 };
 
 /**
+ * QDF_CREDIT_UPDATE_SOURCE - source of credit record
+ * @QDF_TX_SCHED: Tx scheduler
+ * @QDF_TX_COMP: TX completion
+ * @QDF_TX_CREDIT_UPDATE: credit update indication
+ * @QDF_HTT_ATTACH: HTT attach
+ * @QDF_TX_HTT_MSG: HTT TX message
+ */
+enum QDF_CREDIT_UPDATE_SOURCE {
+	QDF_TX_SCHED,
+	QDF_TX_COMP,
+	QDF_TX_CREDIT_UPDATE,
+	QDF_HTT_ATTACH,
+	QDF_TX_HTT_MSG
+};
+
+/**
+ * QDF_CREDIT_OPERATION - operation on credit
+ * @QDF_CREDIT_INC: credit increment
+ * @QDF_CREDIT_DEC: credit decrement
+ * @QDF_CREDIT_ABS: Abosolute credit
+ * @QDF_OP_NA: Not applicable
+ */
+enum QDF_CREDIT_OPERATION {
+	QDF_CREDIT_INC,
+	QDF_CREDIT_DEC,
+	QDF_CREDIT_ABS,
+	QDF_OP_NA
+};
+
+/**
  * struct qdf_dp_trace_ptr_buf - pointer record buffer
  * @cookie: cookie value
  * @msdu_id: msdu_id
@@ -333,6 +366,24 @@ struct qdf_dp_trace_mgmt_buf {
 	uint8_t vdev_id;
 	uint8_t type;
 	uint8_t subtype;
+};
+
+/**
+ * struct qdf_dp_trace_credit_record - tx credit record
+ * @source: credit record source
+ * @operation: credit operation
+ * @delta: delta of credit
+ * @total_credits: total credit
+ * @g0_credit: group 0 credit
+ * @g1_credit: group 1 credit
+ */
+struct qdf_dp_trace_credit_record {
+	enum QDF_CREDIT_UPDATE_SOURCE source;
+	enum QDF_CREDIT_OPERATION operation;
+	int delta;
+	int total_credits;
+	int g0_credit;
+	int g1_credit;
 };
 
 /**
@@ -425,7 +476,7 @@ struct s_qdf_dp_trace_data {
 	uint32_t head;
 	uint32_t tail;
 	uint32_t num;
-	uint8_t proto_bitmap;
+	uint32_t proto_bitmap;
 	uint8_t no_of_record;
 	uint16_t num_records_to_dump;
 	uint16_t dump_counter;
@@ -483,41 +534,6 @@ enum qdf_dpt_debugfs_state {
 	QDF_DPT_DEBUGFS_STATE_SHOW_COMPLETE,
 };
 
-/* Function declarations and documenation */
-
-/**
- * qdf_trace_set_level() - Set the trace level for a particular module
- * @level : trace level
- *
- * Trace level is a member of the QDF_TRACE_LEVEL enumeration indicating
- * the severity of the condition causing the trace message to be issued.
- * More severe conditions are more likely to be logged.
- *
- * This is an external API that allows trace levels to be set for each module.
- *
- * Return:  nothing
- */
-void qdf_trace_set_level(QDF_MODULE_ID module, QDF_TRACE_LEVEL level);
-
-/**
- * qdf_trace_get_level() - get the trace level
- * @level : trace level
- *
- * This is an external API that returns a bool value to signify if a
- * particular trace level is set for the specified module.
- * A member of the QDF_TRACE_LEVEL enumeration indicating the severity
- * of the condition causing the trace message to be issued.
- *
- * Note that individual trace levels are the only valid values
- * for this API.  QDF_TRACE_LEVEL_NONE and QDF_TRACE_LEVEL_ALL
- * are not valid input and will return false
- *
- * Return:
- *  false - the specified trace level for the specified module is OFF
- *  true - the specified trace level for the specified module is ON
- */
-bool qdf_trace_get_level(QDF_MODULE_ID module, QDF_TRACE_LEVEL level);
-
 typedef void (*tp_qdf_trace_cb)(void *p_mac, tp_qdf_trace_record, uint16_t);
 typedef void (*tp_qdf_state_info_cb) (char **buf, uint16_t *size);
 #ifdef WLAN_FEATURE_MEMDUMP_ENABLE
@@ -535,14 +551,20 @@ static inline void qdf_register_debugcb_init(void)
 #ifdef TRACE_RECORD
 void qdf_trace_register(QDF_MODULE_ID, tp_qdf_trace_cb);
 void qdf_trace_init(void);
+void qdf_trace_deinit(void);
 void qdf_trace(uint8_t module, uint8_t code, uint16_t session, uint32_t data);
 void qdf_trace_enable(uint32_t, uint8_t enable);
 void qdf_trace_dump_all(void *, uint8_t, uint8_t, uint32_t, uint32_t);
 QDF_STATUS qdf_trace_spin_lock_init(void);
 #else
-#ifdef CONFIG_MCL
+#ifndef QDF_TRACE_PRINT_ENABLE
 static inline
 void qdf_trace_init(void)
+{
+}
+
+static inline
+void qdf_trace_deinit(void)
 {
 }
 
@@ -565,7 +587,7 @@ void qdf_trace_dump_all(void *p_mac, uint8_t code, uint8_t session,
 static inline
 QDF_STATUS qdf_trace_spin_lock_init(void)
 {
-	return QDF_STATUS_E_INVAL;
+	return QDF_STATUS_SUCCESS;
 }
 #endif
 #endif
@@ -635,14 +657,25 @@ void qdf_dp_set_no_of_record(uint32_t val);
 #define QDF_DP_TRACE_RECORD_INFO_LIVE (0x1)
 #define QDF_DP_TRACE_RECORD_INFO_THROTTLED (0x1 << 1)
 
-bool qdf_dp_trace_log_pkt(uint8_t session_id, struct sk_buff *skb,
-				enum qdf_proto_dir dir, uint8_t pdev_id);
+/**
+ * qdf_dp_trace_log_pkt() - log packet type enabled through iwpriv
+ * @vdev_id: vdev_id
+ * @skb: skb pointer
+ * @dir: direction
+ * @pdev_id: pdev_id
+ *
+ * Return: true: some protocol was logged, false: no protocol was logged.
+ */
+bool qdf_dp_trace_log_pkt(uint8_t vdev_id, struct sk_buff *skb,
+			  enum qdf_proto_dir dir, uint8_t pdev_id);
+
 void qdf_dp_trace_init(bool live_mode_config, uint8_t thresh,
 				uint16_t time_limit, uint8_t verbosity,
-				uint8_t proto_bitmap);
+				uint32_t proto_bitmap);
+void qdf_dp_trace_deinit(void);
 void qdf_dp_trace_spin_lock_init(void);
-void qdf_dp_trace_set_value(uint8_t proto_bitmap, uint8_t no_of_records,
-			 uint8_t verbosity);
+void qdf_dp_trace_set_value(uint32_t proto_bitmap, uint8_t no_of_records,
+			    uint8_t verbosity);
 void qdf_dp_trace_set_track(qdf_nbuf_t nbuf, enum qdf_proto_dir dir);
 void qdf_dp_trace(qdf_nbuf_t nbuf, enum QDF_DP_TRACE_ID code, uint8_t pdev_id,
 			uint8_t *data, uint8_t size, enum qdf_proto_dir dir);
@@ -715,8 +748,7 @@ void qdf_dp_display_ptr_record(struct qdf_dp_trace_record_s *record,
 			       uint8_t info);
 
 /**
- * qdf_dp_display_proto_pkt_debug() - display proto packet only
- * for debug.
+ * qdf_dp_display_proto_pkt() - display proto packet
  * @record: dptrace record
  * @index: index
  * @pdev_id: pdev id for the mgmt pkt
@@ -724,24 +756,9 @@ void qdf_dp_display_ptr_record(struct qdf_dp_trace_record_s *record,
  *
  * Return: none
  */
-void qdf_dp_display_proto_pkt_debug(struct qdf_dp_trace_record_s *record,
+void qdf_dp_display_proto_pkt(struct qdf_dp_trace_record_s *record,
 			      uint16_t index, uint8_t pdev_id,
 			      uint8_t info);
-
-/**
- * qdf_dp_display_proto_pkt_always() - display proto packets all
- * the time.
- * @record: dptrace record
- * @index: index
- * @pdev_id: pdev id for the mgmt pkt
- * @info: info used to display pkt (live mode, throttling)
- *
- * Return: none
- */
-void qdf_dp_display_proto_pkt_always(struct qdf_dp_trace_record_s *record,
-			      uint16_t index, uint8_t pdev_id,
-			      uint8_t info);
-
 /**
  * qdf_dp_display_data_pkt_record() - Displays a data packet in DP trace
  * @record: pointer to a record in DP trace
@@ -783,7 +800,7 @@ void qdf_dp_trace_data_pkt(qdf_nbuf_t nbuf, uint8_t pdev_id,
 			   enum QDF_DP_TRACE_ID code, uint16_t msdu_id,
 			   enum qdf_proto_dir dir);
 
-uint8_t qdf_dp_get_proto_bitmap(void);
+uint32_t qdf_dp_get_proto_bitmap(void);
 uint8_t qdf_dp_get_verbosity(void);
 uint8_t qdf_dp_get_no_of_record(void);
 
@@ -825,6 +842,20 @@ void qdf_dp_trace_mgmt_pkt(enum QDF_DP_TRACE_ID code, uint8_t vdev_id,
 			   enum qdf_proto_subtype subtype);
 
 /**
+ * qdf_dp_trace_credit_record() - record credit update
+ * @source: source of record
+ * @operation: credit operation
+ * @delta: credit delta
+ * @total_credits: total credit
+ * @g0_credit: group 0 credit
+ * @g1_credit: group 1 credit
+ */
+void qdf_dp_trace_credit_record(enum QDF_CREDIT_UPDATE_SOURCE source,
+				enum QDF_CREDIT_OPERATION operation,
+				int delta, int total_credits,
+				int g0_credit, int g1_credit);
+
+/**
  * qdf_dp_display_mgmt_pkt() - display proto packet
  * @record: dptrace record
  * @index: index
@@ -835,6 +866,17 @@ void qdf_dp_trace_mgmt_pkt(enum QDF_DP_TRACE_ID code, uint8_t vdev_id,
  */
 void qdf_dp_display_mgmt_pkt(struct qdf_dp_trace_record_s *record,
 			     uint16_t index, uint8_t pdev_id, uint8_t info);
+
+/**
+ * qdf_dp_display_credit_record() - display credit record
+ * @record: dptrace record
+ * @index: index
+ * @pdev_id: pdev id
+ * @info: metadeta info
+ */
+void qdf_dp_display_credit_record(struct qdf_dp_trace_record_s *record,
+				  uint16_t index, uint8_t pdev_id,
+				  uint8_t info);
 
 /**
  * qdf_dp_display_event_record() - display event records
@@ -880,26 +922,42 @@ void qdf_dp_set_proto_event_bitmap(uint32_t value);
 void qdf_dp_log_proto_pkt_info(uint8_t *sa, uint8_t *da, uint8_t type,
 			       uint8_t subtype, uint8_t dir, uint16_t msdu_id,
 			       uint8_t status);
+
+/**
+ * qdf_dp_track_noack_check() - Check if no ack count should be tracked for
+ *  the configured protocol packet types
+ * @nbuf: nbuf
+ * @subtype: subtype of packet to be tracked
+ *
+ * Return: none
+ */
+void qdf_dp_track_noack_check(qdf_nbuf_t nbuf, enum qdf_proto_subtype *subtype);
 #else
 static inline
-bool qdf_dp_trace_log_pkt(uint8_t session_id, struct sk_buff *skb,
-				enum qdf_proto_dir dir, uint8_t pdev_id)
+bool qdf_dp_trace_log_pkt(uint8_t vdev_id, struct sk_buff *skb,
+			  enum qdf_proto_dir dir, uint8_t pdev_id)
 {
 	return false;
 }
 static inline
 void qdf_dp_trace_init(bool live_mode_config, uint8_t thresh,
 				uint16_t time_limit, uint8_t verbosity,
-				uint8_t proto_bitmap)
+				uint32_t proto_bitmap)
 {
 }
+
+static inline
+void qdf_dp_trace_deinit(void)
+{
+}
+
 static inline
 void qdf_dp_trace_set_track(qdf_nbuf_t nbuf, enum qdf_proto_dir dir)
 {
 }
 static inline
-void qdf_dp_trace_set_value(uint8_t proto_bitmap, uint8_t no_of_records,
-			 uint8_t verbosity)
+void qdf_dp_trace_set_value(uint32_t proto_bitmap, uint8_t no_of_records,
+			    uint8_t verbosity)
 {
 }
 
@@ -953,6 +1011,11 @@ void qdf_dp_trace_clear_buffer(void)
 }
 
 static inline
+void qdf_dp_trace_apply_tput_policy(bool is_data_traffic)
+{
+}
+
+static inline
 void qdf_dp_trace_data_pkt(qdf_nbuf_t nbuf, uint8_t pdev_id,
 			   enum QDF_DP_TRACE_ID code, uint16_t msdu_id,
 			   enum qdf_proto_dir dir)
@@ -965,14 +1028,14 @@ void qdf_dp_log_proto_pkt_info(uint8_t *sa, uint8_t *da, uint8_t type,
 			       uint8_t status)
 {
 }
+
+static inline
+void qdf_dp_track_noack_check(qdf_nbuf_t nbuf, enum qdf_proto_subtype *subtype)
+{
+}
 #endif
 
 void qdf_trace_display(void);
-
-void qdf_trace_set_value(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
-			 uint8_t on);
-
-void qdf_trace_set_module_trace_level(QDF_MODULE_ID module, uint32_t level);
 
 void __printf(3, 4) qdf_snprintf(char *str_buffer, unsigned int size,
 		  char *str_format, ...);
@@ -1102,8 +1165,39 @@ qdf_tso_seg_dbg_zero(struct qdf_tso_seg_elem_t *tsoseg)
 
 #endif /* TSOSEG_DEBUG */
 
+/**
+ * qdf_trace_hex_dump() - externally called hex dump function
+ * @module: Module identifier a member of the QDF_MODULE_ID enumeration that
+ * identifies the module issuing the trace message.
+ * @level: Trace level a member of the QDF_TRACE_LEVEL enumeration indicating
+ * the severity of the condition causing the trace message to be
+ * issued. More severe conditions are more likely to be logged.
+ * @data: The base address of the buffer to be logged.
+ * @buf_len: The size of the buffer to be logged.
+ *
+ * Checks the level of severity and accordingly prints the trace messages
+ *
+ * Return:  None
+ */
 void qdf_trace_hex_dump(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 			void *data, int buf_len);
+
+/**
+ * qdf_trace_hex_ascii_dump() - externally called hex and ascii dump function
+ * @module: Module identifier a member of the QDF_MODULE_ID enumeration that
+ * identifies the module issuing the trace message.
+ * @level: Trace level a member of the QDF_TRACE_LEVEL enumeration indicating
+ * the severity of the condition causing the trace message to be
+ * issued. More severe conditions are more likely to be logged.
+ * @data: The base address of the buffer to be logged.
+ * @buf_len: The size of the buffer to be logged.
+ *
+ * Checks the level of severity and accordingly prints the trace messages
+ *
+ * Return:  None
+ */
+void qdf_trace_hex_ascii_dump(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
+			      void *data, int buf_len);
 
 #define ERROR_CODE                      -1
 #define QDF_MAX_NAME_SIZE               32
@@ -1293,6 +1387,31 @@ QDF_STATUS qdf_print_set_category_verbose(unsigned int idx,
 					  bool is_set);
 
 /**
+ * qdf_log_dump_at_kernel_level() - Enable/Disable printk call
+ * @enable: Indicates whether printk is enabled in QDF_TRACE
+ *
+ * Return: void
+ */
+void qdf_log_dump_at_kernel_level(bool enable);
+
+/**
+ * qdf_logging_set_flush_timer() - Set the time period in which host logs
+ *                                 should be flushed out to user-space
+ * @milliseconds: milliseconds after which the logs should be flushed out to
+ *                 user-space
+ *
+ * Return: QDF_STATUS_SUCCESS for success and QDF_STATUS_E_FAILURE for failure
+ */
+int qdf_logging_set_flush_timer(uint32_t milliseconds);
+
+/**
+ * qdf_logging_flush_logs() - Flush out the logs to user-space one time
+ *
+ * Return: void
+ */
+void qdf_logging_flush_logs(void);
+
+/**
  * qdf_print_is_category_enabled() - Get category information for the
  *                                   print control object
  *
@@ -1377,5 +1496,27 @@ void qdf_logging_exit(void);
  * Return: number of characters printed
  */
 int qdf_sprint_symbol(char *buffer, void *addr);
+
+/**
+ * qdf_minidump_log() - Log memory address to be included in minidump
+ * @start_addr: Start address of the memory to be dumped
+ * @size: Size in bytes
+ * @name: String to identify this entry
+ */
+static inline
+void qdf_minidump_log(void *start_addr, size_t size, const char *name)
+{
+	__qdf_minidump_log(start_addr, size, name);
+}
+
+/**
+ * qdf_minidump_remove() - Remove memory address from minidump
+ * @addr: Start address of the memory previously added
+ */
+static inline
+void qdf_minidump_remove(void *addr)
+{
+	__qdf_minidump_remove(addr);
+}
 
 #endif /* __QDF_TRACE_H */

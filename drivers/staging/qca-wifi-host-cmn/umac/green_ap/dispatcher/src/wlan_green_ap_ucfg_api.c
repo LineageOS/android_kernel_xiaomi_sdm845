@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -23,37 +23,6 @@
 #include <qdf_status.h>
 #include <wlan_green_ap_ucfg_api.h>
 #include <../../core/src/wlan_green_ap_main_i.h>
-
-QDF_STATUS ucfg_green_ap_update_user_config(
-			struct wlan_objmgr_pdev *pdev,
-			struct green_ap_user_cfg *green_ap_cfg)
-{
-	struct wlan_pdev_green_ap_ctx *green_ap_ctx;
-	struct wlan_green_ap_egap_params *egap_params;
-
-	if (!pdev) {
-		green_ap_err("pdev context passed is NULL");
-		return QDF_STATUS_E_INVAL;
-	}
-
-	green_ap_ctx = wlan_objmgr_pdev_get_comp_private_obj(
-			pdev, WLAN_UMAC_COMP_GREEN_AP);
-	if (!green_ap_ctx) {
-		green_ap_err("green ap context obtained is NULL");
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	qdf_spin_lock_bh(&green_ap_ctx->lock);
-	egap_params = &green_ap_ctx->egap_params;
-
-	egap_params->host_enable_egap = green_ap_cfg->host_enable_egap;
-	egap_params->egap_inactivity_time = green_ap_cfg->egap_inactivity_time;
-	egap_params->egap_wait_time = green_ap_cfg->egap_wait_time;
-	egap_params->egap_feature_flags = green_ap_cfg->egap_feature_flags;
-	qdf_spin_unlock_bh(&green_ap_ctx->lock);
-
-	return QDF_STATUS_SUCCESS;
-}
 
 QDF_STATUS ucfg_green_ap_enable_egap(struct wlan_objmgr_pdev *pdev)
 {
@@ -110,6 +79,11 @@ QDF_STATUS ucfg_green_ap_set_ps_config(struct wlan_objmgr_pdev *pdev,
 	}
 
 	green_ap_ctx->ps_enable = value;
+	if (value == WLAN_GREEN_AP_MODE_NUM_STREAM)
+		green_ap_ctx->ps_mode = WLAN_GREEN_AP_MODE_NUM_STREAM;
+	else
+		green_ap_ctx->ps_mode = WLAN_GREEN_AP_MODE_NO_STA;
+
 	qdf_spin_unlock_bh(&green_ap_ctx->lock);
 
 	return QDF_STATUS_SUCCESS;
@@ -238,7 +212,7 @@ QDF_STATUS ucfg_green_ap_config(struct wlan_objmgr_pdev *pdev, uint8_t val)
 
 		ucfg_green_ap_set_ps_config(pdev, val);
 
-		if (wlan_util_is_vap_active(pdev, WLAN_GREEN_AP_ID) ==
+		if (wlan_util_is_vdev_active(pdev, WLAN_GREEN_AP_ID) ==
 					    QDF_STATUS_SUCCESS)
 			wlan_green_ap_start(pdev);
 	} else {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -36,23 +36,29 @@
 #define WLAN_GREEN_AP_PS_ON_TIME        (0)
 #define WLAN_GREEN_AP_PS_TRANS_TIME     (20)
 
-#define green_ap_log(level, args...) \
-			QDF_TRACE(QDF_MODULE_ID_GREEN_AP, level, ## args)
-#define green_ap_logfl(level, format, args...) \
-			green_ap_log(level, FL(format), ## args)
+#define green_ap_alert(params...) \
+	QDF_TRACE_FATAL(QDF_MODULE_ID_GREEN_AP, params)
+#define green_ap_err(params...) \
+	QDF_TRACE_ERROR(QDF_MODULE_ID_GREEN_AP, params)
+#define green_ap_warn(params...) \
+	QDF_TRACE_WARN(QDF_MODULE_ID_GREEN_AP, params)
+#define green_ap_notice(params...) \
+	QDF_TRACE_INFO(QDF_MODULE_ID_GREEN_AP, params)
+#define green_ap_info(params...) \
+	QDF_TRACE_INFO(QDF_MODULE_ID_GREEN_AP, params)
+#define green_ap_debug(params...) \
+	QDF_TRACE_DEBUG(QDF_MODULE_ID_GREEN_AP, params)
 
-#define green_ap_alert(format, args...) \
-		green_ap_logfl(QDF_TRACE_LEVEL_FATAL, format, ## args)
-#define green_ap_err(format, args...) \
-		green_ap_logfl(QDF_TRACE_LEVEL_ERROR, format, ## args)
-#define green_apwarn(format, args...) \
-		green_ap_logfl(QDF_TRACE_LEVEL_WARN, format, ## args)
-#define green_ap_notice(format, args...) \
-		green_ap_logfl(QDF_TRACE_LEVEL_INFO, format, ## args)
-#define green_ap_info(format, args...) \
-		green_ap_logfl(QDF_TRACE_LEVEL_INFO_HIGH, format, ## args)
-#define green_ap_debug(format, args...) \
-		green_ap_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
+#define greenap_nofl_alert(params...) \
+	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_GREEN_AP, params)
+#define greenap_nofl_err(params...) \
+	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_GREEN_AP, params)
+#define greenap_nofl_warn(params...) \
+	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_GREEN_AP, params)
+#define greenap_nofl_info(params...) \
+	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_GREEN_AP, params)
+#define greenap_nofl_debug(params...) \
+	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_GREEN_AP, params)
 
 #define WLAN_GREEN_AP_PS_DISABLE 0
 #define WLAN_GREEN_AP_PS_ENABLE 1
@@ -77,6 +83,8 @@ enum wlan_green_ap_ps_state {
  * @WLAN_GREEN_AP_PS_STOP_EVENT  - Stop
  * @WLAN_GREEN_AP_ADD_STA_EVENT  - Sta assoc
  * @WLAN_GREEN_AP_DEL_STA_EVENT  - Sta disassoc
+ * @WLAN_GREEN_AP_ADD_MULTISTREAM_STA_EVENT - Multistream sta assoc
+ * @WLAN_GREEN_AP_DEL_MULTISTREAM_STA_EVENT - Multistream sta disassoc
  * @WLAN_GREEN_AP_PS_ON_EVENT    - PS on
  * @WLAN_GREEN_AP_PS_OFF_EVENT   - PS off
  */
@@ -85,6 +93,8 @@ enum wlan_green_ap_ps_event {
 	WLAN_GREEN_AP_PS_STOP_EVENT,
 	WLAN_GREEN_AP_ADD_STA_EVENT,
 	WLAN_GREEN_AP_DEL_STA_EVENT,
+	WLAN_GREEN_AP_ADD_MULTISTREAM_STA_EVENT,
+	WLAN_GREEN_AP_DEL_MULTISTREAM_STA_EVENT,
 	WLAN_GREEN_AP_PS_ON_EVENT,
 	WLAN_GREEN_AP_PS_WAIT_EVENT,
 };
@@ -93,9 +103,11 @@ enum wlan_green_ap_ps_event {
  * struct wlan_pdev_green_ap_ctx - green ap context
  * @pdev - Pdev pointer
  * @ps_enable  - Enable PS
+ * @ps_mode - No sta or Multistream sta mode
  * @ps_on_time - PS on time, once enabled
  * @ps_trans_time - PS transition time
  * @num_nodes - Number of nodes associated to radio
+ * @num_nodes_multistream - Multistream nodes associated to radio
  * @ps_state - PS state
  * @ps_event - PS event
  * @ps_timer - Timer
@@ -105,9 +117,11 @@ enum wlan_green_ap_ps_event {
 struct wlan_pdev_green_ap_ctx {
 	struct wlan_objmgr_pdev *pdev;
 	uint8_t ps_enable;
+	uint8_t ps_mode;
 	uint8_t ps_on_time;
 	uint32_t ps_trans_time;
 	uint32_t num_nodes;
+	uint32_t num_nodes_multistream;
 	enum wlan_green_ap_ps_state ps_state;
 	enum wlan_green_ap_ps_event ps_event;
 	qdf_timer_t ps_timer;

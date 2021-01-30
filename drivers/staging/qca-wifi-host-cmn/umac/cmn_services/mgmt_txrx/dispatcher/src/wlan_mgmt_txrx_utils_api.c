@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -58,7 +58,6 @@ static QDF_STATUS wlan_mgmt_txrx_psoc_obj_create_notification(
 
 	mgmt_txrx_psoc_ctx = qdf_mem_malloc(sizeof(*mgmt_txrx_psoc_ctx));
 	if (!mgmt_txrx_psoc_ctx) {
-		mgmt_txrx_err("Failed to allocate mgmt txrx context");
 		status = QDF_STATUS_E_NOMEM;
 		goto err_return;
 	}
@@ -76,7 +75,7 @@ static QDF_STATUS wlan_mgmt_txrx_psoc_obj_create_notification(
 		goto err_psoc_attach;
 	}
 
-	mgmt_txrx_info("Mgmt txrx creation successful, mgmt txrx ctx: %pK, psoc: %pK",
+	mgmt_txrx_debug("Mgmt txrx creation successful, mgmt txrx ctx: %pK, psoc: %pK",
 			mgmt_txrx_psoc_ctx, psoc);
 
 	return QDF_STATUS_SUCCESS;
@@ -117,7 +116,7 @@ static QDF_STATUS wlan_mgmt_txrx_psoc_obj_destroy_notification(
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	mgmt_txrx_info("deleting mgmt txrx psoc obj, mgmt txrx ctx: %pK, psoc: %pK",
+	mgmt_txrx_debug("deleting mgmt txrx psoc obj, mgmt txrx ctx: %pK, psoc: %pK",
 			mgmt_txrx_psoc_ctx, psoc);
 	if (wlan_objmgr_psoc_component_obj_detach(psoc,
 				WLAN_UMAC_COMP_MGMT_TXRX, mgmt_txrx_psoc_ctx)
@@ -129,7 +128,7 @@ static QDF_STATUS wlan_mgmt_txrx_psoc_obj_destroy_notification(
 	qdf_spinlock_destroy(&mgmt_txrx_psoc_ctx->mgmt_txrx_psoc_ctx_lock);
 	qdf_mem_free(mgmt_txrx_psoc_ctx);
 
-	mgmt_txrx_info("mgmt txrx deletion successful, psoc: %pK", psoc);
+	mgmt_txrx_debug("mgmt txrx deletion successful");
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -162,7 +161,6 @@ static QDF_STATUS wlan_mgmt_txrx_pdev_obj_create_notification(
 
 	mgmt_txrx_pdev_ctx = qdf_mem_malloc(sizeof(*mgmt_txrx_pdev_ctx));
 	if (!mgmt_txrx_pdev_ctx) {
-		mgmt_txrx_err("Failed to allocate mgmt txrx context");
 		status = QDF_STATUS_E_NOMEM;
 		goto err_return;
 	}
@@ -179,8 +177,6 @@ static QDF_STATUS wlan_mgmt_txrx_pdev_obj_create_notification(
 
 	mgmt_txrx_stats = qdf_mem_malloc(sizeof(*mgmt_txrx_stats));
 	if (!mgmt_txrx_stats) {
-		mgmt_txrx_err(
-			"Failed to allocate memory for mgmt txrx stats structure");
 		status = QDF_STATUS_E_NOMEM;
 		goto err_mgmt_txrx_stats;
 	}
@@ -188,6 +184,7 @@ static QDF_STATUS wlan_mgmt_txrx_pdev_obj_create_notification(
 
 	qdf_wake_lock_create(&mgmt_txrx_pdev_ctx->wakelock_tx_cmp,
 			     "mgmt_txrx tx_cmp");
+	qdf_runtime_lock_init(&mgmt_txrx_pdev_ctx->wakelock_tx_runtime_cmp);
 
 	if (wlan_objmgr_pdev_component_obj_attach(pdev,
 			WLAN_UMAC_COMP_MGMT_TXRX,
@@ -198,13 +195,14 @@ static QDF_STATUS wlan_mgmt_txrx_pdev_obj_create_notification(
 		goto err_pdev_attach;
 	}
 
-	mgmt_txrx_info(
+	mgmt_txrx_debug(
 		"Mgmt txrx creation successful, mgmt txrx ctx: %pK, pdev: %pK",
 		mgmt_txrx_pdev_ctx, pdev);
 
 	return QDF_STATUS_SUCCESS;
 
 err_pdev_attach:
+	qdf_runtime_lock_deinit(&mgmt_txrx_pdev_ctx->wakelock_tx_runtime_cmp);
 	qdf_wake_lock_destroy(&mgmt_txrx_pdev_ctx->wakelock_tx_cmp);
 	qdf_mem_free(mgmt_txrx_stats);
 err_mgmt_txrx_stats:
@@ -244,7 +242,7 @@ static QDF_STATUS wlan_mgmt_txrx_pdev_obj_destroy_notification(
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	mgmt_txrx_info("deleting mgmt txrx pdev obj, mgmt txrx ctx: %pK, pdev: %pK",
+	mgmt_txrx_debug("deleting mgmt txrx pdev obj, mgmt txrx ctx: %pK, pdev: %pK",
 			mgmt_txrx_pdev_ctx, pdev);
 	if (wlan_objmgr_pdev_component_obj_detach(pdev,
 				WLAN_UMAC_COMP_MGMT_TXRX, mgmt_txrx_pdev_ctx)
@@ -255,10 +253,11 @@ static QDF_STATUS wlan_mgmt_txrx_pdev_obj_destroy_notification(
 
 	wlan_mgmt_txrx_desc_pool_deinit(mgmt_txrx_pdev_ctx);
 	qdf_mem_free(mgmt_txrx_pdev_ctx->mgmt_txrx_stats);
+	qdf_runtime_lock_deinit(&mgmt_txrx_pdev_ctx->wakelock_tx_runtime_cmp);
 	qdf_wake_lock_destroy(&mgmt_txrx_pdev_ctx->wakelock_tx_cmp);
 	qdf_mem_free(mgmt_txrx_pdev_ctx);
 
-	mgmt_txrx_info("mgmt txrx deletion successful, pdev: %pK", pdev);
+	mgmt_txrx_debug("mgmt txrx deletion successful, pdev: %pK", pdev);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -304,7 +303,7 @@ QDF_STATUS wlan_mgmt_txrx_init(void)
 		goto err_pdev_delete;
 	}
 
-	mgmt_txrx_info("Successfully registered create and destroy handlers with objmgr");
+	mgmt_txrx_debug("Successfully registered create and destroy handlers with objmgr");
 	return QDF_STATUS_SUCCESS;
 
 err_pdev_delete:
@@ -353,7 +352,7 @@ QDF_STATUS wlan_mgmt_txrx_deinit(void)
 	}
 
 
-	mgmt_txrx_info("Successfully unregistered create and destroy handlers with objmgr");
+	mgmt_txrx_debug("Successfully unregistered create and destroy handlers with objmgr");
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -540,10 +539,8 @@ static QDF_STATUS wlan_mgmt_txrx_create_rx_handler(
 	struct mgmt_rx_handler *rx_handler;
 
 	rx_handler = qdf_mem_malloc(sizeof(*rx_handler));
-	if (!rx_handler) {
-		mgmt_txrx_err("Couldn't allocate memory for rx handler");
+	if (!rx_handler)
 		return QDF_STATUS_E_NOMEM;
-	}
 
 	rx_handler->comp_id = comp_id;
 	rx_handler->rx_cb = mgmt_rx_cb;
@@ -553,7 +550,7 @@ static QDF_STATUS wlan_mgmt_txrx_create_rx_handler(
 	mgmt_txrx_psoc_ctx->mgmt_rx_comp_cb[frm_type] = rx_handler;
 	qdf_spin_unlock_bh(&mgmt_txrx_psoc_ctx->mgmt_txrx_psoc_ctx_lock);
 
-	mgmt_txrx_info("Callback registered for comp_id: %d, frm_type: %d",
+	mgmt_txrx_debug("Callback registered for comp_id: %d, frm_type: %d",
 			comp_id, frm_type);
 	return QDF_STATUS_SUCCESS;
 }
@@ -607,7 +604,7 @@ static QDF_STATUS wlan_mgmt_txrx_delete_rx_handler(
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	mgmt_txrx_info("Callback deregistered for comp_id: %d, frm_type: %d",
+	mgmt_txrx_debug("Callback deregistered for comp_id: %d, frm_type: %d",
 			comp_id, frm_type);
 	return QDF_STATUS_SUCCESS;
 }
@@ -767,7 +764,7 @@ QDF_STATUS wlan_mgmt_txrx_pdev_close(struct wlan_objmgr_pdev *pdev)
 
 	for (index = 0; index < pool_size; index++) {
 		if (mgmt_txrx_pdev_ctx->mgmt_desc_pool.pool[index].in_use) {
-			mgmt_txrx_info(
+			mgmt_txrx_debug(
 				"mgmt descriptor with desc id: %d not in freelist",
 				index);
 			mgmt_desc = &mgmt_txrx_pdev_ctx->mgmt_desc_pool.pool[index];

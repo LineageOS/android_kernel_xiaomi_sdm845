@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -68,13 +68,13 @@ static inline void dfs_host_wait_timer_init(struct wlan_dfs *dfs)
 #endif
 
 /**
- * dfs_host_wait_timer_free() - Free dfs host status wait timer.
+ * dfs_host_wait_timer_detach() - Free dfs host status wait timer.
  * @dfs: Pointer to wlan_dfs structure.
  */
 #if defined(WLAN_DFS_PARTIAL_OFFLOAD) && defined(HOST_DFS_SPOOF_TEST)
-void dfs_host_wait_timer_free(struct wlan_dfs *dfs);
+void dfs_host_wait_timer_detach(struct wlan_dfs *dfs);
 #else
-static inline void dfs_host_wait_timer_free(struct wlan_dfs *dfs)
+static inline void dfs_host_wait_timer_detach(struct wlan_dfs *dfs)
 {
 }
 #endif
@@ -189,4 +189,64 @@ static inline void dfs_action_on_fw_radar_status_check(struct wlan_dfs *dfs,
 {
 }
 #endif
+
+#if defined(WLAN_DFS_PARTIAL_OFFLOAD)
+void dfs_false_radarfound_reset_vars(struct wlan_dfs *dfs);
+#else
+static inline void dfs_false_radarfound_reset_vars(struct wlan_dfs *dfs)
+{
+}
+#endif
+
+#if defined(WLAN_DFS_PARTIAL_OFFLOAD) && defined(WLAN_DFS_SYNTHETIC_RADAR)
+/**
+ * dfs_allow_hw_pulses() - Set or unset dfs_allow_hw_pulses
+ * which allow or disallow HW pulses.
+ * @dfs: Pointer to DFS pdev object.
+ * @allow_hw_pulses: allow/disallow synthetic pulse detection true/false.
+ *
+ * Return: void
+ */
+void dfs_allow_hw_pulses(struct wlan_dfs *dfs, bool allow_hw_pulses);
+#else
+static inline void dfs_allow_hw_pulses(struct wlan_dfs *dfs,
+				       bool allow_hw_pulses)
+{
+}
+#endif
+
+#if defined(WLAN_DFS_PARTIAL_OFFLOAD) && defined(WLAN_DFS_SYNTHETIC_RADAR)
+/**
+ * dfs_is_hw_pulses_allowed() - Check if HW pulses are allowed or not.
+ * @pdev: Pointer to DFS pdev object.
+ *
+ * Return: bool
+ */
+bool dfs_is_hw_pulses_allowed(struct wlan_dfs *dfs);
+#else
+static inline bool dfs_is_hw_pulses_allowed(struct wlan_dfs *dfs)
+{
+	return true;
+}
+#endif
+
+/**
+ * dfs_inject_synthetic_pulse_sequence() - Inject the synthetic pulse to the
+ * phyerror processing algorithm.
+ * @dfs: Pointer to wlan_dfs structure.
+ * @buf: Pointer to buffer of pulses.
+ *
+ * Return: QDF_STATUS
+ */
+#if defined(WLAN_DFS_PARTIAL_OFFLOAD) && defined(WLAN_DFS_SYNTHETIC_RADAR)
+QDF_STATUS dfs_inject_synthetic_pulse_sequence(struct wlan_dfs *dfs,
+					       unsigned char *buf);
+#else
+static inline
+QDF_STATUS dfs_inject_synthetic_pulse_sequence(struct wlan_dfs *dfs,
+					       unsigned char *buf)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif /* WLAN_DFS_PARTIAL_OFFLOAD && WLAN_DFS_SYNTHETIC_RADAR */
 #endif /*  _DFS_PARTIAL_OFFLOAD_RADAR_H_ */

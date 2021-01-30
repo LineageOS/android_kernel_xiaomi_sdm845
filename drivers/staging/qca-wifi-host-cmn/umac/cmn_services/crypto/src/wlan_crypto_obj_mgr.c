@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -34,16 +34,10 @@
 #include "wlan_crypto_def_i.h"
 #include "wlan_crypto_main_i.h"
 #include "wlan_crypto_obj_mgr_i.h"
+#ifdef WLAN_CRYPTO_SUPPORT_FILS
 #include "wlan_crypto_fils_api.h"
+#endif
 
-
-extern const struct wlan_crypto_cipher *wep_register(void);
-extern const struct wlan_crypto_cipher *tkip_register(void);
-extern const struct wlan_crypto_cipher *ccmp_register(void);
-extern const struct wlan_crypto_cipher *ccmp256_register(void);
-extern const struct wlan_crypto_cipher *gcmp_register(void);
-extern const struct wlan_crypto_cipher *gcmp256_register(void);
-extern const struct wlan_crypto_cipher *wapi_register(void);
 
 extern const struct wlan_crypto_cipher
 				*wlan_crypto_cipher_ops[WLAN_CRYPTO_CIPHER_MAX];
@@ -79,20 +73,6 @@ static QDF_STATUS wlan_crypto_register_all_ciphers(
 							= fils_register();
 	}
 
-	return QDF_STATUS_SUCCESS;
-}
-
-static QDF_STATUS wlan_crypto_psoc_obj_create_handler(
-						struct wlan_objmgr_psoc *psoc,
-						void *arg)
-{
-	return QDF_STATUS_SUCCESS;
-}
-
-static QDF_STATUS wlan_crypto_pdev_obj_create_handler(
-						struct wlan_objmgr_pdev *pdev,
-						void *arg)
-{
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -185,26 +165,11 @@ static QDF_STATUS wlan_crypto_peer_obj_create_handler(
 					wlan_peer_get_vdev(peer), peer);
 		}
 	} else {
-		qdf_print("%s[%d] peer obj failed status %d\n",
-					__func__, __LINE__, status);
+		crypto_err("peer obj failed status %d", status);
 		qdf_mem_free(crypto_priv);
 	}
 
 	return status;
-}
-
-static QDF_STATUS wlan_crypto_psoc_obj_destroy_handler(
-						struct wlan_objmgr_psoc *psoc,
-						void *arg){
-
-	return QDF_STATUS_COMP_DISABLED;
-}
-
-static QDF_STATUS wlan_crypto_pdev_obj_destroy_handler(
-						struct wlan_objmgr_pdev *pdev,
-						void *arg){
-
-	return QDF_STATUS_SUCCESS;
 }
 
 static void wlan_crypto_free_key(struct wlan_crypto_comp_priv *crypto_priv)
@@ -212,7 +177,7 @@ static void wlan_crypto_free_key(struct wlan_crypto_comp_priv *crypto_priv)
 	uint8_t i;
 
 	if (!crypto_priv) {
-		qdf_print("%s[%d] crypto_priv NULL\n", __func__, __LINE__);
+		crypto_err("crypto_priv NULL");
 		return;
 	}
 
@@ -232,13 +197,29 @@ static void wlan_crypto_free_key(struct wlan_crypto_comp_priv *crypto_priv)
 
 }
 
+#ifdef CRYPTO_SET_KEY_CONVERGED
+void wlan_crypto_free_vdev_key(struct wlan_objmgr_vdev *vdev)
+{
+	struct wlan_crypto_comp_priv *crypto_priv;
+
+	crypto_debug("free key for vdev %d", wlan_vdev_get_id(vdev));
+	crypto_priv = wlan_get_vdev_crypto_obj(vdev);
+	if (!crypto_priv) {
+		crypto_err("crypto_priv NULL");
+		return;
+	}
+
+	wlan_crypto_free_key(crypto_priv);
+}
+#endif
+
 static QDF_STATUS wlan_crypto_vdev_obj_destroy_handler(
 						struct wlan_objmgr_vdev *vdev,
 						void *arg){
 	struct wlan_crypto_comp_priv *crypto_priv;
 
 	if (!vdev) {
-		qdf_print("%s[%d] Vdev NULL\n", __func__, __LINE__);
+		crypto_err("Vdev NULL");
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -246,12 +227,15 @@ static QDF_STATUS wlan_crypto_vdev_obj_destroy_handler(
 				wlan_get_vdev_crypto_obj(vdev);
 
 	if (!crypto_priv) {
-		qdf_print("%s[%d] crypto_priv NULL\n", __func__, __LINE__);
+		crypto_err("crypto_priv NULL");
 		return QDF_STATUS_E_INVAL;
 	}
+
 	wlan_objmgr_vdev_component_obj_detach(vdev,
 						WLAN_UMAC_COMP_CRYPTO,
 						(void *)crypto_priv);
+
+	wlan_crypto_pmksa_flush(&crypto_priv->crypto_params);
 	wlan_crypto_free_key(crypto_priv);
 	qdf_mem_free(crypto_priv);
 
@@ -264,13 +248,13 @@ static QDF_STATUS wlan_crypto_peer_obj_destroy_handler(
 	struct wlan_crypto_comp_priv *crypto_priv;
 
 	if (!peer) {
-		qdf_print("%s[%d] Peer NULL\n", __func__, __LINE__);
+		crypto_err("Peer NULL");
 		return QDF_STATUS_E_INVAL;
 	}
 	crypto_priv = (struct wlan_crypto_comp_priv *)
 				wlan_get_peer_crypto_obj(peer);
 	if (!crypto_priv) {
-		qdf_print("%s[%d] crypto_priv NULL\n", __func__, __LINE__);
+		crypto_err("crypto_priv NULL");
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -296,7 +280,7 @@ QDF_STATUS __wlan_crypto_init(void)
 				WLAN_UMAC_COMP_CRYPTO,
 				wlan_crypto_vdev_obj_create_handler, NULL);
 	if (status != QDF_STATUS_SUCCESS)
-		goto err_vdev_create;
+		return status;
 
 	status = wlan_objmgr_register_peer_create_handler(
 				WLAN_UMAC_COMP_CRYPTO,
@@ -326,9 +310,7 @@ err_vdev_delete:
 err_peer_create:
 	wlan_objmgr_unregister_vdev_create_handler(WLAN_UMAC_COMP_CRYPTO,
 			wlan_crypto_vdev_obj_create_handler, NULL);
-err_vdev_create:
-	wlan_objmgr_unregister_pdev_create_handler(WLAN_UMAC_COMP_CRYPTO,
-			wlan_crypto_pdev_obj_create_handler, NULL);
+
 register_success:
 	return status;
 }

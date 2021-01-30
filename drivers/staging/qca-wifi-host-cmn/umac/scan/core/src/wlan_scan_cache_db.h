@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -65,13 +65,25 @@ struct scan_bcn_probe_event {
 
 /**
  * scm_handle_bcn_probe() - Process beacon and probe rsp
- * @bcn: beacon info;
+ * @msg: schedular msg with bcn info;
  *
- * API to handle the beacon/probe resp
+ * API to handle the beacon/probe resp. msg->bodyptr will be consumed and freed
+ * by this func
  *
  * Return: QDF status.
  */
 QDF_STATUS scm_handle_bcn_probe(struct scheduler_msg *msg);
+
+/**
+ * __scm_handle_bcn_probe() - Process beacon and probe rsp
+ * @bcn: beacon info;
+ *
+ * API to handle the beacon/probe resp. bcn will be consumed and freed by this
+ * func
+ *
+ * Return: QDF status.
+ */
+QDF_STATUS __scm_handle_bcn_probe(struct scan_bcn_probe_event *bcn);
 
 /**
  * scm_age_out_entries() - Age out entries older than aging time
@@ -133,7 +145,7 @@ QDF_STATUS scm_flush_results(struct wlan_objmgr_pdev *pdev,
  * scm_filter_valid_channel() - The Public API to filter scan result
  * based on valid channel list
  * @pdev: pdev object
- * @chan_list: valid channel list
+ * @chan_freq_list: valid channel frequency (in MHz) list
  * @num_chan: number of valid channels
  *
  * The Public API to to filter scan result
@@ -142,7 +154,7 @@ QDF_STATUS scm_flush_results(struct wlan_objmgr_pdev *pdev,
  * Return: void.
  */
 void scm_filter_valid_channel(struct wlan_objmgr_pdev *pdev,
-	uint8_t *chan_list, uint32_t num_chan);
+	uint32_t *chan_freq_list, uint32_t num_chan);
 
 /**
  * scm_iterate_scan_db() - function to iterate scan table
@@ -186,6 +198,71 @@ QDF_STATUS scm_db_init(struct wlan_objmgr_psoc *psoc);
  * Return: QDF_STATUS
  */
 QDF_STATUS scm_db_deinit(struct wlan_objmgr_psoc *psoc);
+
+#ifdef FEATURE_6G_SCAN_CHAN_SORT_ALGO
+
+/**
+ * scm_get_rnr_channel_db() - API to get rnr db
+ * @psoc: psoc
+ *
+ * Return: rnr db
+ */
+struct channel_list_db *scm_get_rnr_channel_db(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * scm_get_chan_meta() - API to return channel meta
+ * @psoc: psoc
+ * @freq: channel frequency
+ *
+ * Return: channel meta information
+ */
+struct meta_rnr_channel *scm_get_chan_meta(struct wlan_objmgr_psoc *psoc,
+					   uint32_t chan_freq);
+
+/**
+ * scm_channel_list_db_init() - API to init scan list priority list db
+ * @psoc: psoc
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS scm_channel_list_db_init(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * scm_channel_list_db_deinit() - API to deinit scan list priority list db
+ * @psoc: psoc
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS scm_channel_list_db_deinit(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * scm_rnr_db_flush() - API to flush rnr entries
+ * @psoc: psoc
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS scm_rnr_db_flush(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * scm_update_rnr_from_scan_cache() - API to update rnr info from scan cache
+ * @pdev: pdev
+ *
+ * Return: void
+ */
+void scm_update_rnr_from_scan_cache(struct wlan_objmgr_pdev *pdev);
+
+#else
+static inline QDF_STATUS scm_channel_list_db_init(struct wlan_objmgr_psoc *psoc)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline
+QDF_STATUS scm_channel_list_db_deinit(struct wlan_objmgr_psoc *psoc)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 
 /**
  * scm_validate_scoring_config() - validate score config

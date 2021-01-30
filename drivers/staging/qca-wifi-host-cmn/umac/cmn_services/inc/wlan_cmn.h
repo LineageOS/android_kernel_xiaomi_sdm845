@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -26,16 +26,34 @@
 
 /* Max no of UMAC components */
 #define WLAN_UMAC_MAX_COMPONENTS WLAN_UMAC_COMP_ID_MAX
+
 /* Max no. of radios, a pSoc/Device can support */
+#ifdef WLAN_MAX_PDEVS
+#define WLAN_UMAC_MAX_PDEVS WLAN_MAX_PDEVS
+#else
 #define WLAN_UMAC_MAX_PDEVS 3
+#endif
+
 /* Max no. of VDEV per PSOC */
+#ifdef WLAN_PSOC_MAX_VDEVS
+#define WLAN_UMAC_PSOC_MAX_VDEVS WLAN_PSOC_MAX_VDEVS
+#else
 #define WLAN_UMAC_PSOC_MAX_VDEVS 51
+#endif
+
 /* Max no. of VDEVs, a PDEV can support */
+#ifdef WLAN_PDEV_MAX_VDEVS
+#define WLAN_UMAC_PDEV_MAX_VDEVS WLAN_PDEV_MAX_VDEVS
+#else
 #define WLAN_UMAC_PDEV_MAX_VDEVS 17
+#endif
+
 /* Max no. of Peers, a device can support */
-#define WLAN_UMAC_PSOC_MAX_PEERS (1024 + WLAN_UMAC_PSOC_MAX_VDEVS)
+#define WLAN_UMAC_PSOC_MAX_PEERS (1536 + WLAN_UMAC_PSOC_MAX_VDEVS)
+
 /* Max no. of Temporary Peers, a pdev can support */
 #define WLAN_MAX_PDEV_TEMP_PEERS 128
+
 /* Max no. of Temporary Peers, a psoc can support */
 #define WLAN_MAX_PSOC_TEMP_PEERS \
 		(WLAN_MAX_PDEV_TEMP_PEERS * WLAN_UMAC_MAX_PDEVS)
@@ -43,11 +61,14 @@
 /* Max length of a SSID */
 #define WLAN_SSID_MAX_LEN 32
 
+#define WLAN_CACHE_ID_LEN 2
+
 /* Max sequence number */
-#define WLAN_MAX_SEQ_NUM    4096
+#define WLAN_MAX_SEQ_NUM 4096
 
 /* Max no. of peers for STA vap */
 #define WLAN_UMAC_MAX_STA_PEERS 2
+
 /* Max vdev_id */
 #define WLAN_UMAC_VDEV_ID_MAX 0xFF
 
@@ -250,6 +271,10 @@
  * @WLAN_UMAC_COMP_IPA:           IPA
  * @WLAN_UMAC_COMP_CP_STATS:      Control Plane Statistics
  * @WLAN_UMAC_COMP_ACTION_OUI:    ACTION OUI
+ * @WLAN_UMAC_COMP_FWOL           FW Offload
+ * @WLAN_UMAC_COMP_INTEROP_ISSUES_AP       interop issues ap component
+ * @WLAN_UMAC_COMP_BLACKLIST_MGR:      Blacklist mgr component
+ * @WLAN_UMAC_COMP_COEX:          Coex config component
  * @WLAN_UMAC_COMP_FTM_TIME_SYNC: WLAN FTM TIMESYNC
  * @WLAN_UMAC_COMP_PKT_CAPTURE:   Packet capture component
  * @WLAN_UMAC_COMP_ID_MAX:        Maximum components in UMAC
@@ -287,8 +312,13 @@ enum wlan_umac_comp_id {
 	WLAN_UMAC_COMP_IPA                = 26,
 	WLAN_UMAC_COMP_CP_STATS           = 27,
 	WLAN_UMAC_COMP_ACTION_OUI         = 28,
-	WLAN_UMAC_COMP_FTM_TIME_SYNC      = 29,
-	WLAN_UMAC_COMP_PKT_CAPTURE        = 30,
+	WLAN_UMAC_COMP_FWOL               = 29,
+	WLAN_UMAC_COMP_CFR                = 30,
+	WLAN_UMAC_COMP_INTEROP_ISSUES_AP  = 31,
+	WLAN_UMAC_COMP_BLACKLIST_MGR      = 32,
+	WLAN_UMAC_COMP_COEX               = 33,
+	WLAN_UMAC_COMP_FTM_TIME_SYNC      = 34,
+	WLAN_UMAC_COMP_PKT_CAPTURE        = 35,
 	WLAN_UMAC_COMP_ID_MAX,
 };
 
@@ -433,27 +463,27 @@ enum wlan_phymode {
 	((mode) == WLAN_PHYMODE_11AXA_HE80_80); })
 
 /**
- * enum wlan_phy_ch_width - channel width
- * @WLAN_CH_WIDTH_20MHZ: 20 mhz width
- * @WLAN_CH_WIDTH_40MHZ: 40 mhz width
- * @WLAN_CH_WIDTH_80MHZ: 80 mhz width
- * @WLAN_CH_WIDTH_160MHZ: 160 mhz width
- * @WLAN_CH_WIDTH_80P80HZ: 80+80 mhz width
- * @WLAN_CH_WIDTH_5MHZ: 5 mhz width
- * @WLAN_CH_WIDTH_10MHZ: 10 mhz width
- * @WLAN_CH_WIDTH_INVALID: invalid width
- * @WLAN_CH_WIDTH_MAX: max possible width
+ * enum phy_ch_width - channel width
+ * @CH_WIDTH_20MHZ: 20 mhz width
+ * @CH_WIDTH_40MHZ: 40 mhz width
+ * @CH_WIDTH_80MHZ: 80 mhz width
+ * @CH_WIDTH_160MHZ: 160 mhz width
+ * @CH_WIDTH_80P80HZ: 80+80 mhz width
+ * @CH_WIDTH_5MHZ: 5 mhz width
+ * @CH_WIDTH_10MHZ: 10 mhz width
+ * @CH_WIDTH_INVALID: invalid width
+ * @CH_WIDTH_MAX: max possible width
  */
-enum wlan_phy_ch_width {
-	WLAN_CH_WIDTH_20MHZ = 0,
-	WLAN_CH_WIDTH_40MHZ,
-	WLAN_CH_WIDTH_80MHZ,
-	WLAN_CH_WIDTH_160MHZ,
-	WLAN_CH_WIDTH_80P80MHZ,
-	WLAN_CH_WIDTH_5MHZ,
-	WLAN_CH_WIDTH_10MHZ,
-	WLAN_CH_WIDTH_INVALID,
-	WLAN_CH_WIDTH_MAX
+enum phy_ch_width {
+	CH_WIDTH_20MHZ = 0,
+	CH_WIDTH_40MHZ,
+	CH_WIDTH_80MHZ,
+	CH_WIDTH_160MHZ,
+	CH_WIDTH_80P80MHZ,
+	CH_WIDTH_5MHZ,
+	CH_WIDTH_10MHZ,
+	CH_WIDTH_INVALID,
+	CH_WIDTH_MAX
 };
 
 /**
@@ -504,12 +534,14 @@ enum wlan_peer_type {
  * @WLAN_BAND_2_4_GHZ: 2.4 GHz band
  * @WLAN_BAND_5_GHZ: 5 GHz band
  * @WLAN_BAND_4_9_GHZ: 4.9 GHz band
+ * @WLAN_BAND_NUM_MAX: Max num band
  */
 enum wlan_band {
 	WLAN_BAND_ALL,
 	WLAN_BAND_2_4_GHZ,
 	WLAN_BAND_5_GHZ,
 	WLAN_BAND_4_9_GHZ,
+	WLAN_BAND_NUM_MAX,
 };
 
 /**
@@ -645,8 +677,6 @@ struct wlan_ssid {
 	uint8_t ssid[WLAN_SSID_MAX_LEN];
 };
 
-/* depreciated; use QDF_MAC_ADDR_SIZE instead */
-#define WLAN_MACADDR_LEN QDF_MAC_ADDR_SIZE
 /* Util API to copy the MAC address */
 #define WLAN_ADDR_COPY(dst, src)    qdf_mem_copy(dst, src, QDF_MAC_ADDR_SIZE)
 /* Util API to compare the MAC address */
@@ -655,7 +685,8 @@ struct wlan_ssid {
 #define PSOC_SERVICE_BM_SIZE ((128 + sizeof(uint32_t) - 1) / sizeof(uint32_t))
 #define PSOC_HOST_MAX_NUM_SS (8)
 #define PSOC_HOST_MAX_PHY_SIZE (3)
-#define PSOC_MAX_HW_MODE (2)
+#define PSOC_HOST_MAX_MAC_SIZE (2)
+#define PSOC_MAX_HW_MODE (3)
 #define PSOC_MAX_MAC_PHY_CAP (5)
 #define PSOC_MAX_PHY_REG_CAP (3)
 #define PSOC_MAX_CHAINMASK_TABLES (5)

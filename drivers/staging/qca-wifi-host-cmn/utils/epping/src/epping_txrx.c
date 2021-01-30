@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -50,14 +50,14 @@ static void epping_timer_expire(void *data)
 	struct net_device *dev = (struct net_device *)data;
 	epping_adapter_t *adapter;
 
-	if (dev == NULL) {
+	if (!dev) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: netdev = NULL", __func__);
 		return;
 	}
 
 	adapter = netdev_priv(dev);
-	if (adapter == NULL) {
+	if (!adapter) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: adapter = NULL", __func__);
 		return;
@@ -82,7 +82,7 @@ static int epping_ndev_stop(struct net_device *dev)
 	int ret = 0;
 
 	adapter = netdev_priv(dev);
-	if (NULL == adapter) {
+	if (!adapter) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: EPPING adapter context is Null", __func__);
 		ret = -ENODEV;
@@ -98,7 +98,7 @@ static void epping_ndev_uninit(struct net_device *dev)
 	epping_adapter_t *adapter;
 
 	adapter = netdev_priv(dev);
-	if (NULL == adapter) {
+	if (!adapter) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: EPPING adapter context is Null", __func__);
 		goto end;
@@ -113,7 +113,7 @@ static void epping_tx_queue_timeout(struct net_device *dev)
 	epping_adapter_t *adapter;
 
 	adapter = netdev_priv(dev);
-	if (NULL == adapter) {
+	if (!adapter) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: EPPING adapter context is Null", __func__);
 		goto end;
@@ -142,13 +142,14 @@ static netdev_tx_t epping_hard_start_xmit(struct sk_buff *skb,
 	int ret = 0;
 
 	adapter = netdev_priv(dev);
-	if (NULL == adapter) {
+	if (!adapter) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: EPPING adapter context is Null", __func__);
 		kfree_skb(skb);
 		ret = -ENODEV;
 		goto end;
 	}
+	qdf_net_buf_debug_acquire_skb(skb, __FILE__, __LINE__);
 	ret = epping_tx_send(skb, adapter);
 end:
 	return NETDEV_TX_OK;
@@ -158,7 +159,7 @@ static struct net_device_stats *epping_get_stats(struct net_device *dev)
 {
 	epping_adapter_t *adapter = netdev_priv(dev);
 
-	if (NULL == adapter) {
+	if (!adapter) {
 		EPPING_LOG(QDF_TRACE_LEVEL_ERROR, "%s: adapter = NULL",
 			   __func__);
 		return NULL;
@@ -173,7 +174,7 @@ static int epping_ndev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	int ret = 0;
 
 	adapter = netdev_priv(dev);
-	if (NULL == adapter) {
+	if (!adapter) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: EPPING adapter context is Null", __func__);
 		ret = -ENODEV;
@@ -268,11 +269,14 @@ static int epping_start_adapter(epping_adapter_t *adapter)
 	return 0;
 }
 
-static int epping_register_adapter(epping_adapter_t *adapter)
+static int epping_register_adapter(epping_adapter_t *adapter, bool rtnl_held)
 {
 	int ret = 0;
 
-	ret = register_netdev(adapter->dev);
+	if (!rtnl_held)
+		ret = register_netdev(adapter->dev);
+	else
+		ret = register_netdevice(adapter->dev);
 	if (ret != 0) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: unable to register device\n",
@@ -348,7 +352,8 @@ static struct net_device_ops epping_drv_ops = {
 
 epping_adapter_t *epping_add_adapter(epping_context_t *pEpping_ctx,
 				     tSirMacAddr macAddr,
-				     enum QDF_OPMODE device_mode)
+				     enum QDF_OPMODE device_mode,
+				     bool rtnl_held)
 {
 	struct net_device *dev;
 	epping_adapter_t *adapter;
@@ -358,7 +363,7 @@ epping_adapter_t *epping_add_adapter(epping_context_t *pEpping_ctx,
 			   NET_NAME_UNKNOWN,
 #endif
 			   ether_setup);
-	if (dev == NULL) {
+	if (!dev) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "%s: Cannot allocate epping_adapter_t\n", __func__);
 		return NULL;
@@ -378,10 +383,11 @@ epping_adapter_t *epping_add_adapter(epping_context_t *pEpping_ctx,
 	qdf_timer_init(epping_get_qdf_ctx(), &adapter->epping_timer,
 		epping_timer_expire, dev, QDF_TIMER_TYPE_SW);
 	dev->type = ARPHRD_IEEE80211;
+	dev->needed_headroom += 24;
 	dev->netdev_ops = &epping_drv_ops;
 	dev->watchdog_timeo = 5 * HZ;   /* XXX */
 	dev->tx_queue_len = EPPING_TXBUF - 1;      /* 1 for mgmt frame */
-	if (epping_register_adapter(adapter) == 0) {
+	if (epping_register_adapter(adapter, rtnl_held) == 0) {
 		EPPING_LOG(LOG1, FL("Disabling queues"));
 		netif_tx_disable(dev);
 		netif_carrier_off(dev);
@@ -413,7 +419,8 @@ int epping_connect_service(epping_context_t *pEpping_ctx)
 	connect.EpCallbacks.EpRecvRefill = epping_refill;
 	connect.EpCallbacks.EpSendFull =
 		epping_tx_queue_full /* ar6000_tx_queue_full */;
-#elif defined(HIF_USB) || defined(HIF_PCI)
+#elif defined(HIF_USB) || defined(HIF_PCI) || defined(HIF_SNOC) || \
+      defined(HIF_IPCI)
 	connect.EpCallbacks.EpRecvRefill = NULL /* provided by HIF */;
 	connect.EpCallbacks.EpSendFull = NULL /* provided by HIF */;
 	/* disable flow control for hw flow control */
@@ -423,7 +430,7 @@ int epping_connect_service(epping_context_t *pEpping_ctx)
 	/* connect to service */
 	connect.service_id = WMI_DATA_BE_SVC;
 	status = htc_connect_service(pEpping_ctx->HTCHandle, &connect, &response);
-	if (status != EOK) {
+	if (QDF_IS_STATUS_ERROR(status)) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "Failed to connect to Endpoint Ping BE service status:%d\n",
 			   status);
@@ -434,10 +441,11 @@ int epping_connect_service(epping_context_t *pEpping_ctx)
 	}
 	pEpping_ctx->EppingEndpoint[0] = response.Endpoint;
 
-#if defined(HIF_PCI) || defined(HIF_USB)
+#if defined(HIF_PCI) || defined(HIF_USB) || defined(HIF_SNOC) || \
+    defined(HIF_IPCI)
 	connect.service_id = WMI_DATA_BK_SVC;
 	status = htc_connect_service(pEpping_ctx->HTCHandle, &connect, &response);
-	if (status != EOK) {
+	if (QDF_IS_STATUS_ERROR(status)) {
 		EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
 			   "Failed to connect to Endpoint Ping BK service status:%d\n",
 			   status);

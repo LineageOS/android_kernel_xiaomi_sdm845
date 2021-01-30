@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -28,6 +28,7 @@
 #include <wlan_objmgr_pdev_obj.h>
 #include <wlan_objmgr_vdev_obj.h>
 #include <wlan_scan_public_structs.h>
+#include "wlan_scan_api.h"
 
 /**
  * ucfg_scan_register_requester() - assigns requester ID to caller and
@@ -147,32 +148,6 @@ QDF_STATUS
 ucfg_scan_get_pno_def_params(struct wlan_objmgr_vdev *vdev,
 	struct pno_scan_req_params *req);
 
-/**
- * ucfg_scan_is_dfs_chnl_scan_enabled() - Check if PNO dfs channel scan support
- * is enabled
- * @psoc: pointer to psoc object
- *
- * Return: dfs_chnl_scan_enabled flag
- */
-bool ucfg_scan_is_dfs_chnl_scan_enabled(struct wlan_objmgr_psoc *psoc);
-
-/**
-* ucfg_scan_get_scan_timer_repeat_value() - API to get PNO scan timer repeat
-* value
-* @psoc: pointer to psoc object
-*
-* Return: scan_timer_repeat_value
-*/
-uint32_t ucfg_scan_get_scan_timer_repeat_value(struct wlan_objmgr_psoc *psoc);
-
-/**
- * ucfg_scan_get_slow_scan_multiplier() - API to get PNO slow scan multiplier
- * value
- * @psoc: pointer to psoc object
- *
- * Return: slow_scan_multiplier value
- */
-uint32_t ucfg_scan_get_slow_scan_multiplier(struct wlan_objmgr_psoc *psoc);
 #else
 
 static inline bool
@@ -207,21 +182,46 @@ QDF_STATUS
 ucfg_scan_start(struct scan_start_request *req);
 
 /**
- * ucfg_scan_set_enable() - Public API to disable/enable scans
+ * ucfg_scan_set_psoc_enable() - Public API to enable scans for psoc
  * @psoc: psoc on which scans need to be disabled
- * @enable: enable scan if true disable is false
+ * @reason: reason for enable/disabled
  *
  * Return: QDF_STATUS.
  */
-QDF_STATUS ucfg_scan_set_enable(struct wlan_objmgr_psoc *psoc, bool enable);
+QDF_STATUS ucfg_scan_psoc_set_enable(struct wlan_objmgr_psoc *psoc,
+				     enum scan_disable_reason reason);
 
 /**
- * ucfg_scan_get_enable() - Public API to get if scan is enabled or disabled
- * @psoc: psoc on which scans status need to be checked
+ * ucfg_scan_psoc_set_disable() - Public API to disable scans for psoc
+ * @psoc: psoc on which scans need to be disabled
+ * @reason: reason for enable/disabled
  *
- * Return: true if enabled else false.
+ * Return: QDF_STATUS.
  */
-bool ucfg_scan_get_enable(struct wlan_objmgr_psoc *psoc);
+QDF_STATUS ucfg_scan_psoc_set_disable(struct wlan_objmgr_psoc *psoc,
+				      enum scan_disable_reason reason);
+
+/**
+ * ucfg_scan_vdev_set_enable() - Public API to enable scans for vdev
+ * @psoc: psoc on which scans need to be disabled
+ * @reason: reason for enable/disabled
+ *
+ * Return: QDF_STATUS.
+ */
+QDF_STATUS ucfg_scan_vdev_set_enable(struct wlan_objmgr_vdev *vdev,
+				     enum scan_disable_reason reason);
+
+/**
+ * ucfg_scan_vdev_set_disable() - Public API to disable scans for vdev
+ * @psoc: psoc on which scans need to be disabled
+ * @reason: reason for enable/disabled
+ *
+ * Return: QDF_STATUS.
+ */
+QDF_STATUS ucfg_scan_vdev_set_disable(struct wlan_objmgr_vdev *vdev,
+				      enum scan_disable_reason reason);
+
+
 
 /**
  * ucfg_scan_set_miracast() - Public API to disable/enable miracast flag
@@ -286,7 +286,29 @@ bool ucfg_scan_get_wide_band_scan(struct wlan_objmgr_pdev *pdev);
  */
 QDF_STATUS ucfg_scan_set_custom_scan_chan_list(
 		struct wlan_objmgr_pdev *pdev, struct chan_list *chan_list);
-
+/**
+ * ucfg_scan_set_ssid_bssid_hidden_ssid_beacon() - API to configure
+ * ssid, bssid of hidden beacon
+ * @pdev: psoc on which ssid bssid need to configure
+ * @bssid: bssid of the hidden AP
+ * @ssid: desired ssid
+ *
+ * Return: QDF_STATUS.
+ */
+#ifdef WLAN_DFS_CHAN_HIDDEN_SSID
+QDF_STATUS
+ucfg_scan_config_hidden_ssid_for_bssid(struct wlan_objmgr_pdev *pdev,
+				       uint8_t *bssid,
+				       struct wlan_ssid *ssid);
+#else
+static inline QDF_STATUS
+ucfg_scan_config_hidden_ssid_for_bssid(struct wlan_objmgr_pdev *pdev,
+				       uint8_t *bssid,
+				       struct wlan_ssid *ssid)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif /* WLAN_DFS_CHAN_HIDDEN_SSID */
 /**
  * ucfg_scan_cancel() - Public API to stop a scan
  * @req: stop scan request params
@@ -349,7 +371,7 @@ QDF_STATUS ucfg_scan_flush_results(struct wlan_objmgr_pdev *pdev,
  * ucfg_scan_filter_valid_channel() - The Public API to filter scan result
  * based on valid channel list
  * @pdev: pdev object
- * @chan_list: valid channel list
+ * @chan_freq_list: valid channel frequency (in MHz) list
  * @num_chan: number of valid channels
  *
  * The Public API to to filter scan result
@@ -358,7 +380,7 @@ QDF_STATUS ucfg_scan_flush_results(struct wlan_objmgr_pdev *pdev,
  * Return: void.
  */
 void ucfg_scan_filter_valid_channel(struct wlan_objmgr_pdev *pdev,
-	uint8_t *chan_list, uint32_t num_chan);
+	uint32_t *chan_freq_list, uint32_t num_chan);
 
 /**
  * ucfg_scan_db_iterate() - function to iterate scan table
@@ -517,16 +539,6 @@ QDF_STATUS ucfg_scan_register_bcn_cb(struct wlan_objmgr_psoc *psoc,
 QDF_STATUS ucfg_scan_update_user_config(struct wlan_objmgr_psoc *psoc,
 	struct scan_user_cfg *scan_cfg);
 
-/**
- * ucfg_scan_update_roam_params() - Store/Update the roam params
- * @psoc: psoc
- * @roam_params: roam params
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS ucfg_scan_update_roam_params(struct wlan_objmgr_psoc *psoc,
-	struct roam_filter_params *roam_params);
-
 /*
  * ucfg_scan_init() - Scan module initialization API
  *
@@ -626,28 +638,189 @@ void ucfg_scan_set_bt_activity(struct wlan_objmgr_psoc *psoc,
 bool ucfg_scan_get_bt_activity(struct wlan_objmgr_psoc *psoc);
 
 /**
- * ucfg_scan_set_vdev_del_in_progress() - API to mark vdev delete in progress
- * @vdev: pointer to vdev object
- *
- * Return: none
- */
-void ucfg_scan_set_vdev_del_in_progress(struct wlan_objmgr_vdev *vdev);
-/**
- * ucfg_scan_clear_vdev_del_in_progress() - API to reset vdev delete in progress
- * @vdev: pointer to vdev object
- *
- * Return: none
- */
-void ucfg_scan_clear_vdev_del_in_progress(struct wlan_objmgr_vdev *vdev);
-
-/**
- * ucfg_scan_cfg_honour_nl_scan_policy_flags() - API to get nl scan policy
- * flags honoured.
+ * ucfg_scan_is_mac_spoofing_enabled() - API to check if mac spoofing is enabled
  * @psoc: pointer to psoc object
  *
- * Return: nl scan flags is honoured or not
+ * Return: true if enabled else false.
  */
-bool ucfg_scan_cfg_honour_nl_scan_policy_flags(struct wlan_objmgr_psoc *psoc);
+bool ucfg_scan_is_mac_spoofing_enabled(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * ucfg_scan_get_extscan_adaptive_dwell_mode() - API to get the adaptive dwell
+ * mode during ext scan
+ * @psoc: pointer to psoc object
+ *
+ * Return: value of type enum scan_dwelltime_adaptive_mode
+ */
+enum scan_dwelltime_adaptive_mode
+ucfg_scan_get_extscan_adaptive_dwell_mode(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * ucfg_scan_cfg_set_active_dwelltime() - API to set scan active dwelltime
+ * @psoc: pointer to psoc object
+ * @dwell_time: scan active dwell time
+ *
+ * Return: none
+ */
+static inline
+void ucfg_scan_cfg_set_active_dwelltime(struct wlan_objmgr_psoc *psoc,
+					uint32_t dwell_time)
+{
+	return wlan_scan_cfg_set_active_dwelltime(psoc, dwell_time);
+}
+
+/**
+ * ucfg_scan_cfg_set_active_2g_dwelltime() - API to set scan active 2g dwelltime
+ * @psoc: pointer to psoc object
+ * @dwell_time: scan active dwell time
+ *
+ * Return: none
+ */
+static inline
+void ucfg_scan_cfg_set_active_2g_dwelltime(struct wlan_objmgr_psoc *psoc,
+					   uint32_t dwell_time)
+{
+	return wlan_scan_cfg_set_active_2g_dwelltime(psoc, dwell_time);
+}
+
+/**
+ * ucfg_scan_cfg_get_active_dwelltime() - API to get active dwelltime
+ * @psoc: pointer to psoc object
+ * @dwell_time: scan active dwelltime
+ *
+ * Return: scan active dwell time
+ */
+static inline
+void ucfg_scan_cfg_get_active_dwelltime(struct wlan_objmgr_psoc *psoc,
+					uint32_t *dwell_time)
+{
+	return wlan_scan_cfg_get_active_dwelltime(psoc, dwell_time);
+}
+
+/**
+ * ucfg_scan_cfg_set_passive_dwelltime() - API to set scan passive dwelltime
+ * @psoc: pointer to psoc object
+ * @dwell_time: scan passive dwell time
+ *
+ * Return: none
+ */
+static inline
+void ucfg_scan_cfg_set_passive_dwelltime(struct wlan_objmgr_psoc *psoc,
+					 uint32_t dwell_time)
+{
+	return wlan_scan_cfg_set_passive_dwelltime(psoc, dwell_time);
+}
+/**
+ * ucfg_scan_cfg_get_passive_dwelltime() - API to get passive dwelltime
+ * @psoc: pointer to psoc object
+ * @dwell_time: scan passive dwelltime
+ *
+ * Return: scan passive dwell time
+ */
+static inline
+void ucfg_scan_cfg_get_passive_dwelltime(struct wlan_objmgr_psoc *psoc,
+					 uint32_t *dwell_time)
+{
+	return wlan_scan_cfg_get_passive_dwelltime(psoc, dwell_time);
+}
+
+/**
+ * ucfg_scan_cfg_get_active_2g_dwelltime() - API to get active 2g dwelltime
+ * @psoc: pointer to psoc object
+ * @dwell_time: scan active 2g dwelltime
+ *
+ * Return: scan active 2g dwelltime
+ */
+static inline
+void ucfg_scan_cfg_get_active_2g_dwelltime(struct wlan_objmgr_psoc *psoc,
+					   uint32_t *dwell_time)
+{
+	return wlan_scan_cfg_get_active_2g_dwelltime(psoc, dwell_time);
+}
+
+/**
+ * ucfg_scan_cfg_get_conc_active_dwelltime() - Get concurrent active dwelltime
+ * @psoc: pointer to psoc object
+ * @dwell_time: scan active dwelltime
+ *
+ * Return: scan concurrent active dwell time
+ */
+static inline
+void ucfg_scan_cfg_get_conc_active_dwelltime(struct wlan_objmgr_psoc *psoc,
+					     uint32_t *dwell_time)
+{
+	return wlan_scan_cfg_get_conc_active_dwelltime(psoc, dwell_time);
+}
+
+/**
+ * ucfg_scan_cfg_set_conc_active_dwelltime() - Set concurrent active dwelltime
+ * @psoc: pointer to psoc object
+ * @dwell_time: scan active dwelltime
+ *
+ * Return: scan concurrent active dwell time
+ */
+static inline
+void ucfg_scan_cfg_set_conc_active_dwelltime(struct wlan_objmgr_psoc *psoc,
+					     uint32_t dwell_time)
+{
+	return wlan_scan_cfg_set_conc_active_dwelltime(psoc, dwell_time);
+}
+
+/**
+ * ucfg_scan_cfg_get_conc_passive_dwelltime() - Get passive concurrent dwelltime
+ * @psoc: pointer to psoc object
+ * @dwell_time: scan passive dwelltime
+ *
+ * Return: scan concurrent passive dwell time
+ */
+static inline
+void ucfg_scan_cfg_get_conc_passive_dwelltime(struct wlan_objmgr_psoc *psoc,
+					      uint32_t *dwell_time)
+{
+	return wlan_scan_cfg_get_conc_passive_dwelltime(psoc, dwell_time);
+}
+
+/**
+ * ucfg_scan_cfg_set_conc_passive_dwelltime() - Set passive concurrent dwelltime
+ * @psoc: pointer to psoc object
+ * @dwell_time: scan passive dwelltime
+ *
+ * Return: scan concurrent passive dwell time
+ */
+static inline
+void ucfg_scan_cfg_set_conc_passive_dwelltime(struct wlan_objmgr_psoc *psoc,
+					      uint32_t dwell_time)
+{
+	return wlan_scan_cfg_set_conc_passive_dwelltime(psoc, dwell_time);
+}
+
+/**
+ * ucfg_scan_cfg_get_dfs_chan_scan_allowed() - API to get dfs scan enabled
+ * @psoc: pointer to psoc object
+ * @enable_dfs_scan: DFS scan enabled or not.
+ *
+ * Return: None
+ */
+static inline
+void ucfg_scan_cfg_get_dfs_chan_scan_allowed(struct wlan_objmgr_psoc *psoc,
+					     bool *dfs_scan_enable)
+{
+	return wlan_scan_cfg_get_dfs_chan_scan_allowed(psoc, dfs_scan_enable);
+}
+
+/**
+ * ucfg_scan_cfg_set_dfs_channel_scan() - API to set dfs scan enabled
+ * @psoc: pointer to psoc object
+ * @enable_dfs_scan: Set DFS scan enabled or not.
+ *
+ * Return: None
+ */
+static inline
+void ucfg_scan_cfg_set_dfs_chan_scan_allowed(struct wlan_objmgr_psoc *psoc,
+					     bool dfs_scan_enable)
+{
+	return wlan_scan_cfg_set_dfs_chan_scan_allowed(psoc, dfs_scan_enable);
+}
 
 /**
  * ucfg_scan_wake_lock_in_user_scan() - API to determine if wake lock in user
@@ -659,77 +832,201 @@ bool ucfg_scan_cfg_honour_nl_scan_policy_flags(struct wlan_objmgr_psoc *psoc);
 bool ucfg_scan_wake_lock_in_user_scan(struct wlan_objmgr_psoc *psoc);
 
 /**
- * ucfg_scan_get_max_cmd_allowed() - API To get max no. of scan commands allowed
- *
- * Return: Max Scan commands allowed count
- */
-uint32_t ucfg_scan_get_max_cmd_allowed(void);
-
-/**
- * wlan_scan_get_aging_time  - Get the scan aging time config
- * @psoc: psoc context
- *
- * Return: Scan aging time config
- */
-qdf_time_t ucfg_scan_get_aging_time(struct wlan_objmgr_psoc *psoc);
-
-/**
- * ucfg_scan_cfg_set_active_dwelltime() - API to set scan active dwelltime
+ * ucfg_scan_cfg_honour_nl_scan_policy_flags() - API to get nl scan policy
+ * flags honoured.
  * @psoc: pointer to psoc object
- * @dwell_time: scan active dwell time
  *
- * Return: none
+ * Return: nl scan flags is honoured or not
  */
-void ucfg_scan_cfg_set_active_dwelltime(struct wlan_objmgr_psoc *psoc,
-					uint32_t dwell_time);
+static inline
+bool ucfg_scan_cfg_honour_nl_scan_policy_flags(struct wlan_objmgr_psoc *psoc)
+{
+	return wlan_scan_cfg_honour_nl_scan_policy_flags(psoc);
+}
 
 /**
- * ucfg_scan_cfg_set_passive_dwelltime() - API to set scan passive dwelltime
+ * ucfg_scan_cfg_get_conc_max_resttime() - API to get max rest time
  * @psoc: pointer to psoc object
- * @dwell_time: scan passive dwell time
+ * @rest_time: scan concurrent max resttime
  *
- * Return: none
+ * Return: scan concurrent max rest time
  */
-void ucfg_scan_cfg_set_passive_dwelltime(struct wlan_objmgr_psoc *psoc,
-					 uint32_t dwell_time);
+static inline
+void ucfg_scan_cfg_get_conc_max_resttime(struct wlan_objmgr_psoc *psoc,
+					 uint32_t *rest_time)
+{
+	return wlan_scan_cfg_get_conc_max_resttime(psoc, rest_time);
+}
 
 /**
- * ucfg_scan_cfg_set_conc_active_dwelltime() - Set concurrent active dwelltime
+ * ucfg_scan_cfg_get_conc_min_resttime() - API to get concurrent min rest time
  * @psoc: pointer to psoc object
- * @dwell_time: scan active dwelltime
+ * @rest_time: scan concurrent min rest time
  *
- * Return: scan concurrent active dwell time
+ * Return: scan concurrent min rest time
  */
-void ucfg_scan_cfg_set_conc_active_dwelltime(struct wlan_objmgr_psoc *psoc,
-					     uint32_t dwell_time);
+static inline
+void ucfg_scan_cfg_get_conc_min_resttime(struct wlan_objmgr_psoc *psoc,
+					 uint32_t *rest_time)
+{
+	return wlan_scan_cfg_get_conc_min_resttime(psoc, rest_time);
+}
+
+#ifdef FEATURE_WLAN_SCAN_PNO
+/**
+ * ucfg_scan_is_pno_offload_enabled() - Check if pno offload is enabled
+ * @psoc: pointer to psoc object
+ *
+ * Return: pno_offload_enabled flag
+ */
+bool ucfg_scan_is_pno_offload_enabled(struct wlan_objmgr_psoc *psoc);
 
 /**
- * ucfg_scan_cfg_set_conc_passive_dwelltime() - Set passive concurrent dwelltime
+ * ucfg_scan_set_pno_offload() - API to set pno offload flag based on the
+ * capability received from the firmware.
  * @psoc: pointer to psoc object
- * @dwell_time: scan passive dwelltime
+ * @rest_time: scan concurrent min rest time
  *
- * Return: scan concurrent passive dwell time
+ * Return: scan concurrent min rest time
  */
-void ucfg_scan_cfg_set_conc_passive_dwelltime(struct wlan_objmgr_psoc *psoc,
-					      uint32_t dwell_time);
+void ucfg_scan_set_pno_offload(struct wlan_objmgr_psoc *psoc, bool value);
 
 /**
- * ucfg_scan_cfg_get_active_2g_dwelltime() - API to get active 2g dwelltime
+ * ucfg_scan_get_pno_scan_support() - Check if pno scan support is enabled
  * @psoc: pointer to psoc object
- * @dwell_time: scan active 2g dwelltime
  *
- * Return: scan active 2g dwelltime
+ * Return: scan_support_enabled flag
  */
-void ucfg_scan_cfg_get_active_2g_dwelltime(struct wlan_objmgr_psoc *psoc,
-					   uint32_t *dwell_time);
+bool ucfg_scan_get_pno_scan_support(struct wlan_objmgr_psoc *psoc);
 
 /**
- * ucfg_scan_cfg_set_active_2g_dwelltime() - API to set scan active 2g dwelltime
+ * ucfg_get_scan_backoff_multiplier() - get scan backoff multiplier value
  * @psoc: pointer to psoc object
- * @dwell_time: scan active dwell time
  *
- * Return: none
+ * Return: scan_support_enabled flag
  */
-void ucfg_scan_cfg_set_active_2g_dwelltime(struct wlan_objmgr_psoc *psoc,
-					   uint32_t dwell_time);
+uint8_t ucfg_get_scan_backoff_multiplier(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * ucfg_scan_is_dfs_chnl_scan_enabled() - Check if PNO dfs channel scan support
+ * is enabled
+ * @psoc: pointer to psoc object
+ *
+ * Return: dfs_chnl_scan_enabled flag
+ */
+bool ucfg_scan_is_dfs_chnl_scan_enabled(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * ucfg_scan_get_scan_timer_repeat_value() - API to get PNO scan timer repeat
+ * value
+ * @psoc: pointer to psoc object
+ *
+ * Return: scan_timer_repeat_value
+ */
+uint32_t ucfg_scan_get_scan_timer_repeat_value(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * ucfg_scan_get_slow_scan_multiplier() - API to get PNO slow scan multiplier
+ * value
+ * @psoc: pointer to psoc object
+ *
+ * Return: slow_scan_multiplier value
+ */
+uint32_t ucfg_scan_get_slow_scan_multiplier(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * ucfg_scan_get_max_sched_scan_plan_interval() - API to get maximum scheduled
+ * scan plan interval
+ * @psoc: pointer to psoc object
+ *
+ * Return: max_sched_scan_plan_interval value.
+ */
+uint32_t
+ucfg_scan_get_max_sched_scan_plan_interval(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * ucfg_scan_get_max_sched_scan_plan_iterations() - API to get maximum scheduled
+ * scan plan iterations
+ * @psoc: pointer to psoc object
+ *
+ * Return: value.
+ */
+uint32_t
+ucfg_scan_get_max_sched_scan_plan_iterations(struct wlan_objmgr_psoc *psoc);
+
+#else
+static inline
+bool ucfg_scan_is_pno_offload_enabled(struct wlan_objmgr_psoc *psoc)
+{
+	return 0;
+}
+
+static inline
+void ucfg_scan_set_pno_offload(struct wlan_objmgr_psoc *psoc, bool value)
+{
+}
+
+static inline
+bool ucfg_scan_get_pno_scan_support(struct wlan_objmgr_psoc *psoc)
+{
+	return 0;
+}
+
+static inline
+uint8_t ucfg_get_scan_backoff_multiplier(struct wlan_objmgr_psoc *psoc)
+{
+	return 0;
+}
+
+static inline
+bool ucfg_scan_is_dfs_chnl_scan_enabled(struct wlan_objmgr_psoc *psoc)
+{
+	return 0;
+}
+
+static inline
+uint32_t ucfg_scan_get_scan_timer_repeat_value(struct wlan_objmgr_psoc *psoc)
+{
+	return 0;
+}
+
+static inline
+uint32_t ucfg_scan_get_slow_scan_multiplier(struct wlan_objmgr_psoc *psoc)
+{
+	return 0;
+}
+
+static inline uint32_t
+ucfg_scan_get_max_sched_scan_plan_interval(struct wlan_objmgr_psoc *psoc)
+{
+	return 0;
+}
+
+static inline uint32_t
+ucfg_scan_get_max_sched_scan_plan_iterations(struct wlan_objmgr_psoc *psoc)
+{
+	return 0;
+}
+
+#endif /* FEATURE_WLAN_SCAN_PNO */
+
+/**
+ * ucfg_scan_is_connected_scan_enabled() - API to get scan enabled after connect
+ * @psoc: pointer to psoc object
+ *
+ * Return: value.
+ */
+bool ucfg_scan_is_connected_scan_enabled(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * ucfg_scan_is_snr_monitor_enabled() - API to get SNR monitoring enabled or not
+ * @psoc: pointer to psoc object
+ *
+ * Return: value.
+ */
+static inline
+bool ucfg_scan_is_snr_monitor_enabled(struct wlan_objmgr_psoc *psoc)
+{
+	return wlan_scan_is_snr_monitor_enabled(psoc);
+}
 #endif

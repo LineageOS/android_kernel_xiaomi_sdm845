@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -97,7 +97,8 @@
 #define AR6320_RX_MPDU_START_0_SEQ_NUM_MASK             0x0fff0000
 #define AR6320_RX_MPDU_START_2_TID_LSB                  28
 #define AR6320_RX_MPDU_START_2_TID_MASK                 0xf0000000
-#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB)
+#if (defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB) || \
+     defined(HIF_IPCI))
 #define AR6320_SOC_PCIE_BASE_ADDRESS                    0x00038000
 #define AR6320_CE_WRAPPER_BASE_ADDRESS                  0x00034000
 #define AR6320_CE0_BASE_ADDRESS                         0x00034400
@@ -204,6 +205,7 @@
 #define AR6320_CPU_INTR_ADDRESS                         0x0010
 #define AR6320_SOC_LF_TIMER_CONTROL0_ADDRESS            0x00000050
 #define AR6320_SOC_LF_TIMER_CONTROL0_ENABLE_MASK        0x00000004
+#define AR6320_SOC_LF_TIMER_STATUS0_ADDRESS             0x00000054
 #define AR6320_SOC_RESET_CONTROL_ADDRESS                0x00000000
 #define AR6320_SOC_RESET_CONTROL_CPU_WARM_RST_MASK      0x00000040
 #define AR6320_CORE_CTRL_ADDRESS                        0x0000
@@ -217,7 +219,8 @@
 #define AR6320_SOC_CHIP_ID_VERSION_LSB                  18
 #define AR6320_SOC_CHIP_ID_REVISION_MASK                0x00000f00
 #define AR6320_SOC_CHIP_ID_REVISION_LSB                 8
-#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB)
+#if (defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB) || \
+     defined(HIF_IPCI))
 #define AR6320_SOC_POWER_REG_OFFSET                     0x0000010c
 /* Copy Engine Debug */
 #define AR6320_WLAN_DEBUG_INPUT_SEL_OFFSET              0x0000010c
@@ -451,7 +454,8 @@ struct targetdef_s ar6320_targetdef = {
 	.d_DRAM_BASE_ADDRESS = AR6320_DRAM_BASE_ADDRESS,
 	.d_SOC_CORE_BASE_ADDRESS = AR6320_SOC_CORE_BASE_ADDRESS,
 	.d_CORE_CTRL_ADDRESS = AR6320_CORE_CTRL_ADDRESS,
-#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB)
+#if (defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB) || \
+     defined(HIF_IPCI))
 	.d_MSI_NUM_REQUEST = MSI_NUM_REQUEST,
 	.d_MSI_ASSIGN_FW = MSI_ASSIGN_FW,
 #endif
@@ -512,7 +516,8 @@ struct targetdef_s ar6320_targetdef = {
 		AR6320_RX_ATTENTION_0_MSDU_DONE_MASK,
 	.d_RX_ATTENTION_0_TCP_UDP_CHKSUM_FAIL_MASK =
 		AR6320_RX_ATTENTION_0_TCP_UDP_CHKSUM_FAIL_MASK,
-#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB)
+#if (defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB) || \
+     defined(HIF_IPCI))
 	.d_CE_COUNT = AR6320_CE_COUNT,
 	.d_MSI_ASSIGN_CE_INITIAL = MSI_ASSIGN_CE_INITIAL,
 	.d_PCIE_INTR_ENABLE_ADDRESS = AR6320_PCIE_INTR_ENABLE_ADDRESS,
@@ -599,6 +604,8 @@ struct targetdef_s ar6320_targetdef = {
 		AR6320_SOC_LF_TIMER_CONTROL0_ADDRESS,
 	.d_SOC_LF_TIMER_CONTROL0_ENABLE_MASK =
 		AR6320_SOC_LF_TIMER_CONTROL0_ENABLE_MASK,
+	.d_SOC_LF_TIMER_STATUS0_ADDRESS =
+		AR6320_SOC_LF_TIMER_STATUS0_ADDRESS,
 
 	.d_WLAN_DEBUG_INPUT_SEL_OFFSET = AR6320_WLAN_DEBUG_INPUT_SEL_OFFSET,
 	.d_WLAN_DEBUG_INPUT_SEL_SRC_MSB = AR6320_WLAN_DEBUG_INPUT_SEL_SRC_MSB,
@@ -693,7 +700,8 @@ struct hostdef_s ar6320_hostdef = {
 	.d_SOC_GLOBAL_RESET_ADDRESS = AR6320_SOC_GLOBAL_RESET_ADDRESS,
 	.d_RTC_STATE_ADDRESS = AR6320_RTC_STATE_ADDRESS,
 	.d_RTC_STATE_COLD_RESET_MASK = AR6320_RTC_STATE_COLD_RESET_MASK,
-#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB)
+#if (defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB) || \
+     defined(HIF_IPCI))
 	.d_PCIE_LOCAL_BASE_ADDRESS = AR6320_PCIE_LOCAL_BASE_ADDRESS,
 	.d_PCIE_SOC_WAKE_RESET = AR6320_PCIE_SOC_WAKE_RESET,
 	.d_PCIE_SOC_WAKE_ADDRESS = AR6320_PCIE_SOC_WAKE_ADDRESS,
@@ -722,7 +730,8 @@ struct hostdef_s ar6320_hostdef = {
 #endif
 };
 
-#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB)
+#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB) || \
+    defined(HIF_IPCI)
 struct ce_reg_def ar6320_ce_targetdef = {
 	/* copy_engine.c  */
 	.d_DST_WR_INDEX_ADDRESS = AR6320_DST_WR_INDEX_ADDRESS,

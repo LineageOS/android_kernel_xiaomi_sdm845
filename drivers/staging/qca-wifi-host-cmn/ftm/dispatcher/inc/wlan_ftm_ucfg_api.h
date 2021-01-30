@@ -30,27 +30,40 @@
 #define FTM_DEBUG       0
 
 #if FTM_DEBUG
-#define ftm_log(level, args...) \
-	QDF_TRACE(QDF_MODULE_ID_FTM, level, ## args)
-#define ftm_logfl(level, format, args...) \
-	ftm_log(level, FL(format), ## args)
+#define ftm_alert(params...) \
+	QDF_TRACE_FATAL(QDF_MODULE_ID_FTM, params)
+#define ftm_err(params...) \
+	QDF_TRACE_ERROR(QDF_MODULE_ID_FTM, params)
+#define ftm_warn(params...) \
+	QDF_TRACE_WARN(QDF_MODULE_ID_FTM, params)
+#define ftm_notice(params...) \
+	QDF_TRACE_INFO(QDF_MODULE_ID_FTM, params)
+#define ftm_debug(params...) \
+	QDF_TRACE_DEBUG(QDF_MODULE_ID_FTM, params)
 
-#define ftm_alert(format, args...) \
-	ftm_logfl(QDF_TRACE_LEVEL_FATAL, format, ## args)
-#define ftm_err(format, args...) \
-	ftm_logfl(QDF_TRACE_LEVEL_ERROR, format, ## args)
-#define ftm_warn(format, args...) \
-	ftm_logfl(QDF_TRACE_LEVEL_WARN, format, ## args)
-#define ftm_notice(format, args...) \
-	ftm_logfl(QDF_TRACE_LEVEL_INFO, format, ## args)
-#define ftm_debug(format, args...) \
-	ftm_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
+#define ftm_nofl_alert(params...) \
+	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_FTM, params)
+#define ftm_nofl_err(params...) \
+	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_FTM, params)
+#define ftm_nofl_warn(params...) \
+	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_FTM, params)
+#define ftm_nofl_notice(params...) \
+	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_FTM, params)
+#define ftm_nofl_debug(params...) \
+	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_FTM, params)
+
 #else
-#define ftm_alert(format, args...)
-#define ftm_err(format, args...)
-#define ftm_warn(format, args...)
-#define ftm_notice(format, args...)
-#define ftm_debug(format, args...)
+#define ftm_alert(params...)
+#define ftm_err(params...)
+#define ftm_warn(params...)
+#define ftm_notice(params...)
+#define ftm_debug(params...)
+
+#define ftm_nofl_alert(params...)
+#define ftm_nofl_err(params...)
+#define ftm_nofl_warn(params...)
+#define ftm_nofl_notice(params...)
+#define ftm_nofl_debug(params...)
 #endif
 
 #define FTM_IOCTL_UNIFIED_UTF_CMD		0x1000

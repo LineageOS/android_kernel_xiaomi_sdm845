@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -24,6 +24,7 @@
 #ifndef _I_QDF_TIME_H
 #define _I_QDF_TIME_H
 
+#include <linux/version.h>
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/ktime.h>
@@ -35,10 +36,6 @@
 #ifdef MSM_PLATFORM
 #include <asm/arch_timer.h>
 #endif
-#ifdef CONFIG_CNSS
-#include <net/cnss.h>
-#endif
-#include <linux/version.h>
 
 typedef unsigned long __qdf_time_t;
 typedef ktime_t  __qdf_ktime_t;
@@ -121,6 +118,8 @@ static inline __qdf_time_t __qdf_system_ticks(void)
 {
 	return jiffies;
 }
+
+#define __qdf_system_ticks_per_sec HZ
 
 /**
  * __qdf_system_ticks_to_msecs() - convert system ticks into milli seconds
@@ -250,24 +249,25 @@ static inline bool __qdf_system_time_after_eq(__qdf_time_t a, __qdf_time_t b)
  */
 static inline uint64_t __qdf_get_monotonic_boottime(void)
 {
-	struct timespec ts;
-
-	get_monotonic_boottime(&ts);
-
-	return ((uint64_t) ts.tv_sec * 1000000) + (ts.tv_nsec / 1000);
+	return (uint64_t)ktime_to_us(ktime_get_boottime());
 }
 
-#if defined (QCA_WIFI_3_0_ADRASTEA) && defined (MSM_PLATFORM)
+#if defined (MSM_PLATFORM)
 
 /**
- * __qdf_get_log_timestamp() - get QTIMER ticks
+ * __qdf_get_log_timestamp() - get msm timer ticks
  *
  * Returns QTIMER(19.2 MHz) clock ticks. To convert it into seconds
  * divide it by 19200.
  *
  * Return: QTIMER(19.2 MHz) clock ticks
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0))
+static inline uint64_t __qdf_get_log_timestamp(void)
+{
+	return __arch_counter_get_cntvct();
+}
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
 static inline uint64_t __qdf_get_log_timestamp(void)
 {
 	return arch_counter_get_cntvct();
@@ -282,13 +282,8 @@ static inline uint64_t __qdf_get_log_timestamp(void)
 
 /**
  * __qdf_get_log_timestamp - get time stamp for logging
- * For adrastea this API returns QTIMER tick which is needed to synchronize
- * host and fw log timestamps
- * For ROME and other discrete solution this API returns system boot time stamp
  *
- * Return:
- * QTIMER ticks(19.2MHz) for adrastea
- * System tick for rome and other future discrete solutions
+ * Return: system tick for non MSM platfroms
  */
 static inline uint64_t __qdf_get_log_timestamp(void)
 {
@@ -298,7 +293,7 @@ static inline uint64_t __qdf_get_log_timestamp(void)
 
 	return ((uint64_t) ts.tv_sec * 1000000) + (ts.tv_nsec / 1000);
 }
-#endif /* QCA_WIFI_3_0_ADRASTEA */
+#endif
 
 /**
  * __qdf_get_bootbased_boottime_ns() - Get the bootbased time in nanoseconds
@@ -311,7 +306,13 @@ static inline uint64_t __qdf_get_log_timestamp(void)
  * The time since system booted in nanoseconds
  */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
+static inline uint64_t __qdf_get_bootbased_boottime_ns(void)
+{
+	return ktime_get_boottime_ns();
+}
+
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0))
 static inline uint64_t __qdf_get_bootbased_boottime_ns(void)
 {
 	return ktime_get_boot_ns();

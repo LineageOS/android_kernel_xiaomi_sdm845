@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -51,19 +51,54 @@ typedef __in6_addr_t in6_addr_t;
 #define QDF_NET_ETH_LEN          QDF_NET_MAC_ADDR_MAX_LEN
 #define QDF_NET_MAX_MCAST_ADDR   64
 #define QDF_NET_IPV4_LEN         4
-
+#define QDF_TID_VI 5
+#define QDF_TID_VO 6
+#define QDF_TID_BE 0
+#define QDF_TID_BK 1
 /* Extended Traffic ID  passed to target if the TID is unknown */
 #define QDF_NBUF_TX_EXT_TID_INVALID    0x1f
 
 #define QDF_ETH_TYPE_IPV4              0x0800  /* IPV4 */
 #define QDF_ETH_TYPE_IPV6              0x86dd  /* IPV6 */
+#define QDF_ETH_TYPE_8021Q             0x8100  /* 802.1Q vlan protocol */
+#define QDF_ETH_TYPE_8021AD            0x88a8  /* 802.1AD vlan protocol */
 #define QDF_IEEE80211_4ADDR_HDR_LEN     30
 #define QDF_IEEE80211_3ADDR_HDR_LEN     24
 #define QDF_IEEE80211_FC0_SUBTYPE_QOS   0x80
 #define QDF_IEEE80211_FC1_TODS          0x01
 #define QDF_IEEE80211_FC1_FROMDS        0x02
 
+#define QDF_IEEE80211_FC0_TYPE_MASK     0x0c
+#define QDF_IEEE80211_FC0_SUBTYPE_MASK  0xf0
+
+#define QDF_IEEE80211_FC0_TYPE_DATA     0x08
+#define QDF_IEEE80211_FC0_SUBTYPE_DATA  0x00
+#define QDF_IEEE80211_FC0_SUBTYPE_QOS   0x80
+
+#define QDF_IEEE80211_FC0_SUBTYPE_QOS_NULL   0xC0
+#define QDF_IEEE80211_FC0_SUBTYPE_NODATA   0x40
+
+#define QDF_IEEE80211_FC0_TYPE_CTL      0x04
+#define QDF_IEEE80211_FC0_SUBTYPE_BEAM_REPORT_POLL 0x40
+#define QDF_IEEE80211_FC0_SUBTYPE_VHT_NDP_AN 0x50
+#define QDF_IEEE80211_FC0_SUBTYPE_CTL_FRAME_EXTN 0x60
+#define QDF_IEEE80211_FC0_SUBTYPE_CTL_WRAPPER   0x70
+#define QDF_IEEE80211_FC0_SUBTYPE_BAR   0x80
+#define QDF_IEEE80211_FC0_SUBTYPE_BA    0x90
+#define QDF_IEEE80211_FC0_SUBTYPE_PSPOLL  0xA0
+#define QDF_IEEE80211_FC0_SUBTYPE_RTS   0xB0
+#define QDF_IEEE80211_FC0_SUBTYPE_ACK   0xD0
+#define QDF_IEEE80211_FC0_SUBTYPE_CF_END 0xE0
+#define QDF_IEEE80211_FC0_SUBTYPE_CF_END_CF_ACK 0xF0
+
 #define QDF_NET_IS_MAC_MULTICAST(_a)   (*(_a) & 0x01)
+
+/**
+ * In LLC header individual LSAP address 0x42 in
+ * DSAP and SSAP signifies IEEE 802.1 Bridge
+ * Spanning Tree Protocol
+ */
+#define QDF_LLC_STP 0x4242
 
 typedef struct qdf_net_ethaddr {
 	uint8_t addr[QDF_NET_ETH_LEN];

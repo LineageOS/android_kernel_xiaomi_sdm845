@@ -387,7 +387,7 @@ static int32_t scm_calculate_bandwidth_score(
 
 	bw_weight_per_idx = score_config->bandwidth_weight_per_index;
 
-	if (WLAN_CHAN_IS_2GHZ(entry->channel.chan_idx)) {
+	if (WLAN_REG_IS_24GHZ_CH_FREQ(entry->channel.chan_freq)) {
 		cbmode = score_config->cb_mode_24G;
 		if (score_config->vht_24G_cap)
 			is_vht = true;
@@ -649,7 +649,8 @@ static uint32_t scm_get_sta_nss(struct wlan_objmgr_psoc *psoc,
 	 * NSS as 2*2.
 	 */
 
-	if (policy_mgr_is_chnl_in_diff_band(psoc, bss_channel) &&
+	if (policy_mgr_is_chnl_in_diff_band(
+	    psoc, wlan_chan_to_freq(bss_channel)) &&
 	    policy_mgr_is_hw_dbs_capable(psoc) &&
 	    !(policy_mgr_is_hw_dbs_2x2_capable(psoc)))
 		return 1;
@@ -699,6 +700,7 @@ int scm_calculate_bss_score(struct wlan_objmgr_psoc *psoc,
 	struct weight_config *weight_config;
 	struct wlan_scan_obj *scan_obj;
 	uint32_t sta_nss;
+	struct wlan_objmgr_pdev *pdev = NULL;
 
 	scan_obj = wlan_psoc_get_scan_obj(psoc);
 	if (!scan_obj) {
@@ -726,7 +728,7 @@ int scm_calculate_bss_score(struct wlan_objmgr_psoc *psoc,
 				weight_config->ht_caps_weightage;
 	score += ht_score;
 
-	if (WLAN_CHAN_IS_2GHZ(entry->channel.chan_idx)) {
+	if (WLAN_REG_IS_24GHZ_CH_FREQ(entry->channel.chan_freq)) {
 		if (score_config->vht_24G_cap)
 			is_vht = true;
 	} else if (score_config->vht_cap) {
@@ -783,13 +785,14 @@ int scm_calculate_bss_score(struct wlan_objmgr_psoc *psoc,
 		 */
 		if ((entry->rssi_raw > rssi_pref_5g_rssi_thresh) &&
 		    !same_bucket) {
-			if (WLAN_CHAN_IS_5GHZ(entry->channel.chan_idx))
+			if (WLAN_REG_IS_5GHZ_CH_FREQ(entry->channel.chan_freq))
 				band_score =
 					weight_config->chan_band_weightage *
 					    WLAN_GET_SCORE_PERCENTAGE(
 					    score_config->band_weight_per_index,
 					    SCM_BAND_5G_INDEX);
-		} else if (WLAN_CHAN_IS_2GHZ(entry->channel.chan_idx)) {
+		} else if (WLAN_REG_IS_24GHZ_CH_FREQ(
+						entry->channel.chan_freq)) {
 			band_score = weight_config->chan_band_weightage *
 					WLAN_GET_SCORE_PERCENTAGE(
 					score_config->band_weight_per_index,
@@ -802,10 +805,20 @@ int scm_calculate_bss_score(struct wlan_objmgr_psoc *psoc,
 		score += oce_wan_score;
 	}
 
-	sta_nss = scm_get_sta_nss(psoc, entry->channel.chan_idx,
+	pdev = wlan_objmgr_get_pdev_by_id(psoc, entry->pdev_id, WLAN_SCAN_ID);
+	if (!pdev) {
+		scm_err("pdev is NULL");
+		return 0;
+	}
+
+	sta_nss = scm_get_sta_nss(psoc,
+				  wlan_reg_freq_to_chan(
+						pdev,
+						entry->channel.chan_freq),
 				  score_config->vdev_nss_24g,
 				  score_config->vdev_nss_5g);
 
+	wlan_objmgr_pdev_release_ref(pdev, WLAN_SCAN_ID);
 	/*
 	 * If station support nss as 2*2 but AP support NSS as 1*1,
 	 * this AP will be given half weight compare to AP which are having
@@ -821,8 +834,9 @@ int scm_calculate_bss_score(struct wlan_objmgr_psoc *psoc,
 		       score_config->beamformee_cap, score_config->cb_mode_24G,
 		       score_config->cb_mode_5G, sta_nss);
 
-	scm_nofl_debug("Candidate(%pM chan %d): rssi %d HT %d VHT %d HE %d su bfer %d phy %d  air time frac %d qbss %d cong_pct %d NSS %d",
-		       entry->bssid.bytes, entry->channel.chan_idx,
+	scm_nofl_debug("Candidate("QDF_MAC_ADDR_FMT" freq %d): rssi %d HT %d VHT %d HE %d su bfer %d phy %d  air time frac %d qbss %d cong_pct %d NSS %d",
+		       QDF_MAC_ADDR_REF(entry->bssid.bytes),
+		       entry->channel.chan_freq,
 		       entry->rssi_raw, util_scan_entry_htcap(entry) ? 1 : 0,
 		       util_scan_entry_vhtcap(entry) ? 1 : 0,
 		       util_scan_entry_hecap(entry) ? 1 : 0, ap_su_beam_former,
@@ -839,10 +853,10 @@ int scm_calculate_bss_score(struct wlan_objmgr_psoc *psoc,
 	return score;
 }
 
-bool scm_get_pcl_weight_of_channel(int channel_id,
-		struct scan_filter *filter,
-		int *pcl_chan_weight,
-		uint8_t *weight_list)
+bool scm_get_pcl_weight_of_channel(uint32_t chan_freq,
+				   struct scan_filter *filter,
+				   int *pcl_chan_weight,
+				   uint8_t *weight_list)
 {
 	int i;
 	bool found = false;
@@ -851,7 +865,7 @@ bool scm_get_pcl_weight_of_channel(int channel_id,
 		return found;
 
 	for (i = 0; i < filter->num_of_pcl_channels; i++) {
-		if (filter->pcl_channel_list[i] == channel_id) {
+		if (filter->pcl_freq_list[i] == chan_freq) {
 			*pcl_chan_weight = filter->pcl_weight_list[i];
 			found = true;
 			break;

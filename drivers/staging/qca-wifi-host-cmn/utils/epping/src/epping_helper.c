@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -53,12 +53,8 @@ int epping_cookie_init(epping_context_t *pEpping_ctx)
 		pEpping_ctx->s_cookie_mem[i] =
 			qdf_mem_malloc(sizeof(struct epping_cookie) *
 				       MAX_COOKIE_SLOT_SIZE);
-		if (pEpping_ctx->s_cookie_mem[i] == NULL) {
-			EPPING_LOG(QDF_TRACE_LEVEL_FATAL,
-				   "%s: no mem for cookie (idx = %d)", __func__,
-				   i);
+		if (!pEpping_ctx->s_cookie_mem[i])
 			goto error;
-		}
 	}
 	qdf_spinlock_create(&pEpping_ctx->cookie_lock);
 
@@ -111,7 +107,7 @@ struct epping_cookie *epping_alloc_cookie(epping_context_t *pEpping_ctx)
 
 	qdf_spin_lock_bh(&pEpping_ctx->cookie_lock);
 	cookie = pEpping_ctx->cookie_list;
-	if (cookie != NULL) {
+	if (cookie) {
 		pEpping_ctx->cookie_list = cookie->next;
 		pEpping_ctx->cookie_count--;
 	}
@@ -131,24 +127,11 @@ void epping_get_dummy_mac_addr(tSirMacAddr macAddr)
 
 void epping_hex_dump(void *data, int buf_len, const char *str)
 {
-	char *buf = (char *)data;
-	int i;
+	EPPING_LOG(QDF_TRACE_LEVEL_FATAL, "%s: E, %s", __func__, str);
 
-	printk("%s: E, %s\n", __func__, str);
-	for (i = 0; (i + 7) < buf_len; i += 8) {
-		printk("%02x %02x %02x %02x %02x %02x %02x %02x\n",
-		       buf[i],
-		       buf[i + 1],
-		       buf[i + 2],
-		       buf[i + 3],
-		       buf[i + 4], buf[i + 5], buf[i + 6], buf[i + 7]);
-	}
+	EPPING_HEX_DUMP(QDF_TRACE_LEVEL_INFO, data, buf_len);
 
-	/* Dump the bytes in the last line */
-	for (; i < buf_len; i++) {
-		printk("%02x ", buf[i]);
-	}
-	printk("\n%s: X %s\n", __func__, str);
+	EPPING_LOG(QDF_TRACE_LEVEL_FATAL, "%s: X %s", __func__, str);
 }
 
 void *epping_get_qdf_ctx(void)

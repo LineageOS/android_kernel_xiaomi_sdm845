@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -21,15 +21,7 @@
 
 #include "qdf_types.h"
 #include "hal_internal.h"
-
-#define HAL_RX_OFFSET(block, field) block##_##field##_OFFSET
-#define HAL_RX_LSB(block, field) block##_##field##_LSB
-#define HAL_RX_MASk(block, field) block##_##field##_MASK
-
-#define HAL_RX_GET(_ptr, block, field) \
-	(((*((volatile uint32_t *)_ptr + (HAL_RX_OFFSET(block, field)>>2))) & \
-	HAL_RX_MASk(block, field)) >> \
-	HAL_RX_LSB(block, field))
+#include <target_type.h>
 
 #define HAL_RX_PHY_DATA_RADAR 0x01
 #define HAL_SU_MU_CODING_LDPC 0x01
@@ -69,11 +61,17 @@
 		HAL_RX_USER_TLV32_USERID_MASK) >> \
 		HAL_RX_USER_TLV32_USERID_LSB)
 
-#define HAL_TLV_STATUS_PPDU_NOT_DONE		0
-#define HAL_TLV_STATUS_PPDU_DONE		1
-#define HAL_TLV_STATUS_BUF_DONE			2
+#define HAL_TLV_STATUS_PPDU_NOT_DONE 0
+#define HAL_TLV_STATUS_PPDU_DONE 1
+#define HAL_TLV_STATUS_BUF_DONE 2
+#define HAL_TLV_STATUS_PPDU_NON_STD_DONE 3
+#define HAL_TLV_STATUS_PPDU_START 4
+#define HAL_TLV_STATUS_HEADER 5
+#define HAL_TLV_STATUS_MPDU_END 6
+#define HAL_TLV_STATUS_MSDU_START 7
+#define HAL_TLV_STATUS_MSDU_END 8
 
-#define HAL_MAX_UL_MU_USERS			8
+#define HAL_MAX_UL_MU_USERS	37
 
 #define HAL_RX_PKT_TYPE_11A	0
 #define HAL_RX_PKT_TYPE_11B	1
@@ -106,16 +104,28 @@
 #define HAL_11A_RATE_6MCS	18*2
 #define HAL_11A_RATE_7MCS	9*2
 
+#define HAL_LEGACY_MCS0  0
+#define HAL_LEGACY_MCS1  1
+#define HAL_LEGACY_MCS2  2
+#define HAL_LEGACY_MCS3  3
+#define HAL_LEGACY_MCS4  4
+#define HAL_LEGACY_MCS5  5
+#define HAL_LEGACY_MCS6  6
+#define HAL_LEGACY_MCS7  7
+
 #define HE_GI_0_8 0
-#define HE_GI_1_6 1
-#define HE_GI_3_2 2
+#define HE_GI_0_4 1
+#define HE_GI_1_6 2
+#define HE_GI_3_2 3
 
 #define HT_SGI_PRESENT 0x80
 
 #define HE_LTF_1_X 0
 #define HE_LTF_2_X 1
 #define HE_LTF_4_X 2
+#define HE_LTF_UNKNOWN 3
 #define VHT_SIG_SU_NSS_MASK	0x7
+#define HT_SIG_SU_NSS_SHIFT	0x3
 
 #define HAL_TID_INVALID 31
 #define HAL_AST_IDX_INVALID 0xFFFF
@@ -138,24 +148,31 @@
 #define HAL_RX_GET_MSDU_AGGREGATION(rx_desc, rs)
 #endif
 
-enum {
-	HAL_HW_RX_DECAP_FORMAT_RAW = 0,
-	HAL_HW_RX_DECAP_FORMAT_NWIFI,
-	HAL_HW_RX_DECAP_FORMAT_ETH2,
-	HAL_HW_RX_DECAP_FORMAT_8023,
+/* Max MPDUs per status buffer */
+#define HAL_RX_MAX_MPDU 256
+#define HAL_RX_NUM_WORDS_PER_PPDU_BITMAP (HAL_RX_MAX_MPDU >> 5)
+
+/* Max pilot count */
+#define HAL_RX_MAX_SU_EVM_COUNT 32
+
+/*
+ * Struct hal_rx_su_evm_info - SU evm info
+ * @number_of_symbols: number of symbols
+ * @nss_count:         nss count
+ * @pilot_count:       pilot count
+ * @pilot_evm:         Array of pilot evm values
+ */
+struct hal_rx_su_evm_info {
+	uint32_t number_of_symbols;
+	uint8_t  nss_count;
+	uint8_t  pilot_count;
+	uint32_t pilot_evm[HAL_RX_MAX_SU_EVM_COUNT];
 };
 
 enum {
 	DP_PPDU_STATUS_START,
 	DP_PPDU_STATUS_DONE,
 };
-
-static inline
-uint32_t HAL_RX_MON_HW_RX_DESC_SIZE(void)
-{
-	/* return the HW_RX_DESC size */
-	return sizeof(struct rx_pkt_tlvs);
-}
 
 static inline
 uint8_t *HAL_RX_MON_DEST_GET_DESC(uint8_t *data)
@@ -167,7 +184,8 @@ static inline
 uint32_t HAL_RX_DESC_GET_MPDU_LENGTH_ERR(void *hw_desc_addr)
 {
 	struct rx_attention *rx_attn;
-	struct rx_pkt_tlvs *rx_desc = (struct rx_pkt_tlvs *)hw_desc_addr;
+	struct rx_mon_pkt_tlvs *rx_desc =
+		(struct rx_mon_pkt_tlvs *)hw_desc_addr;
 
 	rx_attn = &rx_desc->attn_tlv.rx_attn;
 
@@ -178,56 +196,36 @@ static inline
 uint32_t HAL_RX_DESC_GET_MPDU_FCS_ERR(void *hw_desc_addr)
 {
 	struct rx_attention *rx_attn;
-	struct rx_pkt_tlvs *rx_desc = (struct rx_pkt_tlvs *)hw_desc_addr;
+	struct rx_mon_pkt_tlvs *rx_desc =
+		(struct rx_mon_pkt_tlvs *)hw_desc_addr;
 
 	rx_attn = &rx_desc->attn_tlv.rx_attn;
 
 	return HAL_RX_GET(rx_attn, RX_ATTENTION_1, FCS_ERR);
 }
 
+/*
+ * HAL_RX_HW_DESC_MPDU_VALID() - check MPDU start TLV tag in MPDU
+ *			start TLV of Hardware TLV descriptor
+ * @hw_desc_addr: Hardware desciptor address
+ *
+ * Return: bool: if TLV tag match
+ */
 static inline
-uint32_t
-HAL_RX_DESC_GET_DECAP_FORMAT(void *hw_desc_addr) {
-	struct rx_msdu_start *rx_msdu_start;
-	struct rx_pkt_tlvs *rx_desc = (struct rx_pkt_tlvs *)hw_desc_addr;
-
-	rx_msdu_start = &rx_desc->msdu_start_tlv.rx_msdu_start;
-
-	return HAL_RX_GET(rx_msdu_start, RX_MSDU_START_2, DECAP_FORMAT);
-}
-
-static inline
-uint8_t *
-HAL_RX_DESC_GET_80211_HDR(void *hw_desc_addr) {
-	uint8_t *rx_pkt_hdr;
-	struct rx_pkt_tlvs *rx_desc = (struct rx_pkt_tlvs *)hw_desc_addr;
-
-	rx_pkt_hdr = &rx_desc->pkt_hdr_tlv.rx_pkt_hdr[0];
-
-	return rx_pkt_hdr;
-}
-
-static inline
-uint32_t HAL_RX_HW_DESC_GET_PPDUID_GET(void *hw_desc_addr)
+bool HAL_RX_HW_DESC_MPDU_VALID(void *hw_desc_addr)
 {
-	struct rx_mpdu_info *rx_mpdu_info;
-	struct rx_pkt_tlvs *rx_desc = (struct rx_pkt_tlvs *)hw_desc_addr;
+	struct rx_mon_pkt_tlvs *rx_desc =
+		(struct rx_mon_pkt_tlvs *)hw_desc_addr;
+	uint32_t tlv_tag;
 
-	rx_mpdu_info =
-		&rx_desc->mpdu_start_tlv.rx_mpdu_start.rx_mpdu_info_details;
+	tlv_tag = HAL_RX_GET_USER_TLV32_TYPE(
+		&rx_desc->mpdu_start_tlv);
 
-	return HAL_RX_GET(rx_mpdu_info, RX_MPDU_INFO_0, PHY_PPDU_ID);
+	return tlv_tag == WIFIRX_MPDU_START_E ? true : false;
 }
+
 
 /* TODO: Move all Rx descriptor functions to hal_rx.h to avoid duplication */
-static inline
-uint32_t hal_rx_desc_is_first_msdu(void *hw_desc_addr)
-{
-	struct rx_pkt_tlvs *rx_tlvs = (struct rx_pkt_tlvs *)hw_desc_addr;
-	struct rx_msdu_end *msdu_end = &rx_tlvs->msdu_end_tlv.rx_msdu_end;
-
-	return HAL_RX_GET(msdu_end, RX_MSDU_END_5, FIRST_MSDU);
-}
 
 #define HAL_RX_BUFFER_ADDR_31_0_GET(buff_addr_info)		\
 	(_HAL_MS((*_OFFSET_TO_WORD_PTR(buff_addr_info,		\
@@ -261,10 +259,9 @@ uint32_t hal_rx_desc_is_first_msdu(void *hw_desc_addr)
  * Return: void
  */
 static inline
-void hal_rx_reo_ent_buf_paddr_get(void *rx_desc,
-	struct hal_buf_info *buf_info,
-	void **pp_buf_addr_info,
-	uint32_t *msdu_cnt
+void hal_rx_reo_ent_buf_paddr_get(hal_rxdma_desc_t rx_desc,
+				  struct hal_buf_info *buf_info,
+				  uint32_t *msdu_cnt
 )
 {
 	struct reo_entrance_ring *reo_ent_ring =
@@ -290,18 +287,17 @@ void hal_rx_reo_ent_buf_paddr_get(void *rx_desc,
 		(HAL_RX_BUFFER_ADDR_39_32_GET(buf_addr_info)) << 32));
 
 	buf_info->sw_cookie = HAL_RX_BUF_COOKIE_GET(buf_addr_info);
+	buf_info->rbm = HAL_RX_BUF_RBM_GET(buf_addr_info);
 
 	QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-		"[%s][%d] ReoAddr=%pK, addrInfo=%pK, paddr=0x%llx, loopcnt=%d\n",
+		"[%s][%d] ReoAddr=%pK, addrInfo=%pK, paddr=0x%llx, loopcnt=%d",
 		__func__, __LINE__, reo_ent_ring, buf_addr_info,
 	(unsigned long long)buf_info->paddr, loop_cnt);
-
-	*pp_buf_addr_info = (void *)buf_addr_info;
 }
 
 static inline
 void hal_rx_mon_next_link_desc_get(void *rx_msdu_link_desc,
-	struct hal_buf_info *buf_info, void **pp_buf_addr_info)
+			struct hal_buf_info *buf_info)
 {
 	struct rx_msdu_link *msdu_link =
 		(struct rx_msdu_link *)rx_msdu_link_desc;
@@ -315,8 +311,7 @@ void hal_rx_mon_next_link_desc_get(void *rx_msdu_link_desc,
 		(HAL_RX_BUFFER_ADDR_39_32_GET(buf_addr_info)) << 32));
 
 	buf_info->sw_cookie = HAL_RX_BUF_COOKIE_GET(buf_addr_info);
-
-	*pp_buf_addr_info = (void *)buf_addr_info;
+	buf_info->rbm = HAL_RX_BUF_RBM_GET(buf_addr_info);
 }
 
 /**
@@ -329,8 +324,10 @@ void hal_rx_mon_next_link_desc_get(void *rx_msdu_link_desc,
  * Return: void
  */
 
-static inline void hal_rx_mon_msdu_link_desc_set(struct hal_soc *soc,
-			void *src_srng_desc, void *buf_addr_info)
+static inline
+void hal_rx_mon_msdu_link_desc_set(hal_soc_handle_t hal_soc_hdl,
+				   void *src_srng_desc,
+				   hal_buff_addrinfo_t buf_addr_info)
 {
 	struct buffer_addr_info *wbm_srng_buffer_addr_info =
 			(struct buffer_addr_info *)src_srng_desc;
@@ -344,7 +341,7 @@ static inline void hal_rx_mon_msdu_link_desc_set(struct hal_soc *soc,
 		(HAL_RX_BUFFER_ADDR_39_32_GET(buf_addr_info)) << 32));
 
 	QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-		"[%s][%d] src_srng_desc=%pK, buf_addr=0x%llx, cookie=0x%llx\n",
+		"[%s][%d] src_srng_desc=%pK, buf_addr=0x%llx, cookie=0x%llx",
 		__func__, __LINE__, src_srng_desc, (unsigned long long)paddr,
 		(unsigned long long)p_buffer_addr_info->sw_buffer_cookie);
 
@@ -398,71 +395,194 @@ enum {
 	HAL_RX_MON_PPDU_END,
 };
 
-/**
- * hal_rx_mon_hw_desc_get_mpdu_status: Retrieve MPDU status
- *
- * @ hw_desc_addr: Start address of Rx HW TLVs
- * @ rs: Status for monitor mode
- *
- * Return: void
+/* struct hal_rx_ppdu_common_info  - common ppdu info
+ * @ppdu_id - ppdu id number
+ * @ppdu_timestamp - timestamp at ppdu received
+ * @mpdu_cnt_fcs_ok - mpdu count in ppdu with fcs ok
+ * @mpdu_cnt_fcs_err - mpdu count in ppdu with fcs err
+ * @mpdu_fcs_ok_bitmap - fcs ok mpdu count in ppdu bitmap
+ * @last_ppdu_id - last received ppdu id
+ * @mpdu_cnt - total mpdu count
+ * @num_users - num users
  */
-static inline
-void hal_rx_mon_hw_desc_get_mpdu_status(void *hw_desc_addr,
-		struct mon_rx_status *rs)
-{
-	struct rx_msdu_start *rx_msdu_start;
-	struct rx_pkt_tlvs *rx_desc = (struct rx_pkt_tlvs *)hw_desc_addr;
-	uint32_t reg_value;
-	static uint32_t sgi_hw_to_cdp[] = {
-		CDP_SGI_0_8_US,
-		CDP_SGI_0_4_US,
-		CDP_SGI_1_6_US,
-		CDP_SGI_3_2_US,
-	};
-
-	rx_msdu_start = &rx_desc->msdu_start_tlv.rx_msdu_start;
-	HAL_RX_GET_MSDU_AGGREGATION(rx_desc, rs);
-
-	rs->ant_signal_db = HAL_RX_GET(rx_msdu_start,
-					RX_MSDU_START_5, USER_RSSI);
-	rs->is_stbc = HAL_RX_GET(rx_msdu_start, RX_MSDU_START_5, STBC);
-
-	reg_value = HAL_RX_GET(rx_msdu_start, RX_MSDU_START_5, SGI);
-	rs->sgi = sgi_hw_to_cdp[reg_value];
-#if !defined(QCA_WIFI_QCA6290_11AX)
-	rs->nr_ant = HAL_RX_GET(rx_msdu_start, RX_MSDU_START_5, NSS);
-#endif
-
-	reg_value = HAL_RX_GET(rx_msdu_start, RX_MSDU_START_5, RECEPTION_TYPE);
-	rs->beamformed = (reg_value == HAL_RX_RECEPTION_TYPE_MU_MIMO) ? 1 : 0;
-	/* TODO: rs->beamformed should be set for SU beamforming also */
-	hal_rx_dump_pkt_tlvs((uint8_t *)rx_desc, QDF_TRACE_LEVEL_DEBUG);
-}
-
-struct hal_rx_ppdu_user_info {
-
-};
-
 struct hal_rx_ppdu_common_info {
 	uint32_t ppdu_id;
-	uint32_t last_ppdu_id;
 	uint32_t ppdu_timestamp;
 	uint32_t mpdu_cnt_fcs_ok;
 	uint32_t mpdu_cnt_fcs_err;
+	uint32_t mpdu_fcs_ok_bitmap[HAL_RX_NUM_WORDS_PER_PPDU_BITMAP];
+	uint32_t last_ppdu_id;
+	uint32_t mpdu_cnt;
+	uint8_t num_users;
 };
 
+/**
+ * struct hal_rx_msdu_payload_info - msdu payload info
+ * @first_msdu_payload: pointer to first msdu payload
+ * @payload_len: payload len
+ * @nbuf: status network buffer to which msdu belongs to
+ */
 struct hal_rx_msdu_payload_info {
 	uint8_t *first_msdu_payload;
 	uint32_t payload_len;
+	qdf_nbuf_t nbuf;
+};
+
+/**
+ * struct hal_rx_nac_info - struct for neighbour info
+ * @fc_valid: flag indicate if it has valid frame control information
+ * @frame_control: frame control from each MPDU
+ * @to_ds_flag: flag indicate to_ds bit
+ * @mac_addr2_valid: flag indicate if mac_addr2 is valid
+ * @mac_addr2: mac address2 in wh
+ * @mcast_bcast: multicast/broadcast
+ */
+struct hal_rx_nac_info {
+	uint8_t fc_valid;
+	uint16_t frame_control;
+	uint8_t to_ds_flag;
+	uint8_t mac_addr2_valid;
+	uint8_t mac_addr2[QDF_MAC_ADDR_SIZE];
+	uint8_t mcast_bcast;
+};
+
+/**
+ * struct hal_rx_ppdu_msdu_info - struct for msdu info from HW TLVs
+ * @cce_metadata: cached CCE metadata value received in the MSDU_END TLV
+ * @is_flow_idx_timeout: flag to indicate if flow search timeout occurred
+ * @is_flow_idx_invalid: flag to indicate if flow idx is valid or not
+ * @fse_metadata: cached FSE metadata value received in the MSDU END TLV
+ * @flow_idx: flow idx matched in FSE received in the MSDU END TLV
+ */
+struct hal_rx_ppdu_msdu_info {
+	uint16_t cce_metadata;
+	bool is_flow_idx_timeout;
+	bool is_flow_idx_invalid;
+	uint32_t fse_metadata;
+	uint32_t flow_idx;
+};
+
+#if defined(WLAN_CFR_ENABLE) && defined(WLAN_ENH_CFR_ENABLE)
+/**
+ * struct hal_rx_ppdu_cfr_user_info - struct for storing peer info extracted
+ * from HW TLVs, this will be used for correlating CFR data with multiple peers
+ * in MU PPDUs
+ *
+ * @peer_macaddr: macaddr of the peer
+ * @ast_index: AST index of the peer
+ */
+struct hal_rx_ppdu_cfr_user_info {
+	uint8_t peer_macaddr[QDF_MAC_ADDR_SIZE];
+	uint32_t ast_index;
+};
+
+/**
+ * struct hal_rx_ppdu_cfr_info - struct for storing ppdu info extracted from HW
+ * TLVs, this will be used for CFR correlation
+ *
+ * @bb_captured_channel : Set by RXPCU when MACRX_FREEZE_CAPTURE_CHANNEL TLV is
+ * sent to PHY, SW checks it to correlate current PPDU TLVs with uploaded
+ * channel information.
+ *
+ * @bb_captured_timeout : Set by RxPCU to indicate channel capture condition is
+ * met, but MACRX_FREEZE_CAPTURE_CHANNEL is not sent to PHY due to AST delay,
+ * which means the rx_frame_falling edge to FREEZE TLV ready time exceeds
+ * the threshold time defined by RXPCU register FREEZE_TLV_DELAY_CNT_THRESH.
+ * Bb_captured_reason is still valid in this case.
+ *
+ * @rx_location_info_valid: Indicates whether CFR DMA address in the PPDU TLV
+ * is valid
+ * <enum 0 rx_location_info_is_not_valid>
+ * <enum 1 rx_location_info_is_valid>
+ * <legal all>
+ *
+ * @bb_captured_reason : Copy capture_reason of MACRX_FREEZE_CAPTURE_CHANNEL
+ * TLV to here for FW usage. Valid when bb_captured_channel or
+ * bb_captured_timeout is set.
+ * <enum 0 freeze_reason_TM>
+ * <enum 1 freeze_reason_FTM>
+ * <enum 2 freeze_reason_ACK_resp_to_TM_FTM>
+ * <enum 3 freeze_reason_TA_RA_TYPE_FILTER>
+ * <enum 4 freeze_reason_NDPA_NDP>
+ * <enum 5 freeze_reason_ALL_PACKET>
+ * <legal 0-5>
+ *
+ * @rtt_che_buffer_pointer_low32 : The low 32 bits of the 40 bits pointer to
+ * external RTT channel information buffer
+ *
+ * @rtt_che_buffer_pointer_high8 : The high 8 bits of the 40 bits pointer to
+ * external RTT channel information buffer
+ *
+ * @chan_capture_status : capture status reported by ucode
+ * a. CAPTURE_IDLE: FW has disabled "REPETITIVE_CHE_CAPTURE_CTRL"
+ * b. CAPTURE_BUSY: previous PPDU’s channel capture upload DMA ongoing. (Note
+ * that this upload is triggered after receiving freeze_channel_capture TLV
+ * after last PPDU is rx)
+ * c. CAPTURE_ACTIVE: channel capture is enabled and no previous channel
+ * capture ongoing
+ * d. CAPTURE_NO_BUFFER: next buffer in IPC ring not available
+ *
+ * @cfr_user_info: Peer mac for upto 4 MU users
+ */
+
+struct hal_rx_ppdu_cfr_info {
+	bool bb_captured_channel;
+	bool bb_captured_timeout;
+	uint8_t bb_captured_reason;
+	bool rx_location_info_valid;
+	uint8_t chan_capture_status;
+	uint8_t rtt_che_buffer_pointer_high8;
+	uint32_t rtt_che_buffer_pointer_low32;
+	struct hal_rx_ppdu_cfr_user_info cfr_user_info[HAL_MAX_UL_MU_USERS];
+};
+#else
+struct hal_rx_ppdu_cfr_info {};
+#endif
+
+struct mon_rx_info {
+	uint8_t  qos_control_info_valid;
+	uint16_t qos_control;
+	uint8_t mac_addr1_valid;
+	uint8_t mac_addr1[QDF_MAC_ADDR_SIZE];
+};
+
+struct mon_rx_user_info {
+	uint16_t qos_control;
+	uint8_t qos_control_info_valid;
+	uint32_t bar_frame:1;
 };
 
 struct hal_rx_ppdu_info {
 	struct hal_rx_ppdu_common_info com_info;
-	struct hal_rx_ppdu_user_info user_info[HAL_MAX_UL_MU_USERS];
 	struct mon_rx_status rx_status;
+	struct mon_rx_user_status rx_user_status[HAL_MAX_UL_MU_USERS];
+	struct mon_rx_info rx_info;
+	struct mon_rx_user_info rx_user_info[HAL_MAX_UL_MU_USERS];
 	struct hal_rx_msdu_payload_info msdu_info;
+	struct hal_rx_msdu_payload_info fcs_ok_msdu_info;
+	struct hal_rx_nac_info nac_info;
 	/* status ring PPDU start and end state */
 	uint32_t rx_state;
+	/* MU user id for status ring TLV */
+	uint32_t user_id;
+	/* MPDU/MSDU truncated to 128 bytes header start addr in status skb */
+	unsigned char *data;
+	/* MPDU/MSDU truncated to 128 bytes header real length */
+	uint32_t hdr_len;
+	/* MPDU FCS error */
+	bool fcs_err;
+	/* Id to indicate how to process mpdu */
+	uint8_t sw_frame_group_id;
+	struct hal_rx_ppdu_msdu_info rx_msdu_info[HAL_MAX_UL_MU_USERS];
+	/* first msdu payload for all mpdus in ppdu */
+	struct hal_rx_msdu_payload_info ppdu_msdu_info[HAL_RX_MAX_MPDU];
+	/* evm info */
+	struct hal_rx_su_evm_info evm_info;
+	/**
+	 * Will be used to store ppdu info extracted from HW TLVs,
+	 * and for CFR correlation as well
+	 */
+	struct hal_rx_ppdu_cfr_info cfr_info;
 };
 
 static inline uint32_t
@@ -490,889 +610,48 @@ hal_rx_status_get_next_tlv(uint8_t *rx_tlv) {
 			HAL_RX_TLV32_HDR_SIZE + 3)) & (~((unsigned long)3)));
 }
 
-#ifdef QCA_WIFI_QCA6290_11AX
 /**
- * hal_rx_proc_phyrx_other_receive_info_tlv() - process other receive info TLV
+ * hal_rx_proc_phyrx_other_receive_info_tlv()
+ *				    - process other receive info TLV
  * @rx_tlv_hdr: pointer to TLV header
  * @ppdu_info: pointer to ppdu_info
  *
  * Return: None
  */
-static void hal_rx_proc_phyrx_other_receive_info_tlv(void *rx_tlv_hdr,
-					     struct hal_rx_ppdu_info *ppdu_info)
+static inline void hal_rx_proc_phyrx_other_receive_info_tlv(struct hal_soc *hal_soc,
+						     void *rx_tlv_hdr,
+						     struct hal_rx_ppdu_info
+						     *ppdu_info)
 {
-	uint32_t tlv_tag, tlv_len;
-	uint32_t temp_len, other_tlv_len, other_tlv_tag;
-	void *rx_tlv = (uint8_t *)rx_tlv_hdr + HAL_RX_TLV32_HDR_SIZE;
-	void *other_tlv_hdr = NULL;
-	void *other_tlv = NULL;
-	uint32_t ru_details_channel_0;
-
-	tlv_tag = HAL_RX_GET_USER_TLV32_TYPE(rx_tlv_hdr);
-	tlv_len = HAL_RX_GET_USER_TLV32_LEN(rx_tlv_hdr);
-	temp_len = 0;
-
-	other_tlv_hdr = rx_tlv + HAL_RX_TLV32_HDR_SIZE;
-
-	other_tlv_tag = HAL_RX_GET_USER_TLV32_TYPE(other_tlv_hdr);
-	other_tlv_len = HAL_RX_GET_USER_TLV32_LEN(other_tlv_hdr);
-	temp_len += other_tlv_len;
-	other_tlv = other_tlv_hdr + HAL_RX_TLV32_HDR_SIZE;
-
-	switch (other_tlv_tag) {
-	case WIFIPHYRX_OTHER_RECEIVE_INFO_RU_DETAILS_E:
-		ru_details_channel_0 =
-				HAL_RX_GET(other_tlv,
-					  PHYRX_OTHER_RECEIVE_INFO_RU_DETAILS_0,
-					  RU_DETAILS_CHANNEL_0);
-
-		qdf_mem_copy(ppdu_info->rx_status.he_RU,
-			     &ru_details_channel_0,
-			     sizeof(ppdu_info->rx_status.he_RU));
-
-		if (ppdu_info->rx_status.bw >= HAL_FULL_RX_BW_20)
-			ppdu_info->rx_status.he_sig_b_common_known |=
-				QDF_MON_STATUS_HE_SIG_B_COMMON_KNOWN_RU0;
-
-		if (ppdu_info->rx_status.bw >= HAL_FULL_RX_BW_40)
-			ppdu_info->rx_status.he_sig_b_common_known |=
-				QDF_MON_STATUS_HE_SIG_B_COMMON_KNOWN_RU1;
-
-		if (ppdu_info->rx_status.bw >= HAL_FULL_RX_BW_80)
-			ppdu_info->rx_status.he_sig_b_common_known |=
-				QDF_MON_STATUS_HE_SIG_B_COMMON_KNOWN_RU2;
-
-		if (ppdu_info->rx_status.bw >= HAL_FULL_RX_BW_160)
-			ppdu_info->rx_status.he_sig_b_common_known |=
-				QDF_MON_STATUS_HE_SIG_B_COMMON_KNOWN_RU3;
-			break;
-	default:
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-			  "%s unhandled TLV type: %d, TLV len:%d",
-			  __func__, other_tlv_tag, other_tlv_len);
-		break;
-	}
-
+	hal_soc->ops->hal_rx_proc_phyrx_other_receive_info_tlv(rx_tlv_hdr,
+							(void *)ppdu_info);
 }
-#else
-static inline void
-hal_rx_proc_phyrx_other_receive_info_tlv(void *rx_tlv_hdr,
-					 struct hal_rx_ppdu_info *ppdu_info)
-{
-}
-#endif /* QCA_WIFI_QCA6290_11AX */
 
 /**
  * hal_rx_status_get_tlv_info() - process receive info TLV
  * @rx_tlv_hdr: pointer to TLV header
  * @ppdu_info: pointer to ppdu_info
+ * @hal_soc: HAL soc handle
+ * @nbuf: PPDU status netowrk buffer
  *
  * Return: HAL_TLV_STATUS_PPDU_NOT_DONE or HAL_TLV_STATUS_PPDU_DONE from tlv
  */
 static inline uint32_t
-hal_rx_status_get_tlv_info(void *rx_tlv_hdr, struct hal_rx_ppdu_info *ppdu_info)
+hal_rx_status_get_tlv_info(void *rx_tlv_hdr, void *ppdu_info,
+			   hal_soc_handle_t hal_soc_hdl,
+			   qdf_nbuf_t nbuf)
 {
-	uint32_t tlv_tag, user_id, tlv_len, value;
-	uint8_t group_id = 0;
-	uint8_t he_dcm = 0;
-	uint8_t he_stbc = 0;
-	uint16_t he_gi = 0;
-	uint16_t he_ltf = 0;
-	void *rx_tlv;
-	bool unhandled = false;
-
-
-	tlv_tag = HAL_RX_GET_USER_TLV32_TYPE(rx_tlv_hdr);
-	user_id = HAL_RX_GET_USER_TLV32_USERID(rx_tlv_hdr);
-	tlv_len = HAL_RX_GET_USER_TLV32_LEN(rx_tlv_hdr);
-
-	rx_tlv = (uint8_t *)rx_tlv_hdr + HAL_RX_TLV32_HDR_SIZE;
-	switch (tlv_tag) {
-
-	case WIFIRX_PPDU_START_E:
-		ppdu_info->com_info.ppdu_id =
-			HAL_RX_GET(rx_tlv, RX_PPDU_START_0,
-				PHY_PPDU_ID);
-		/* channel number is set in PHY meta data */
-		ppdu_info->rx_status.chan_num =
-			HAL_RX_GET(rx_tlv, RX_PPDU_START_1,
-				SW_PHY_META_DATA);
-		ppdu_info->com_info.ppdu_timestamp =
-			HAL_RX_GET(rx_tlv, RX_PPDU_START_2,
-				PPDU_START_TIMESTAMP);
-		ppdu_info->rx_state = HAL_RX_MON_PPDU_START;
-		break;
-
-	case WIFIRX_PPDU_START_USER_INFO_E:
-		break;
-
-	case WIFIRX_PPDU_END_E:
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-			"[%s][%d] ppdu_end_e len=%d",
-				__func__, __LINE__, tlv_len);
-		/* This is followed by sub-TLVs of PPDU_END */
-		ppdu_info->rx_state = HAL_RX_MON_PPDU_END;
-		break;
-
-	case WIFIRXPCU_PPDU_END_INFO_E:
-		ppdu_info->rx_status.tsft =
-			HAL_RX_GET(rx_tlv, RXPCU_PPDU_END_INFO_1,
-				WB_TIMESTAMP_UPPER_32);
-		ppdu_info->rx_status.tsft = (ppdu_info->rx_status.tsft << 32) |
-			HAL_RX_GET(rx_tlv, RXPCU_PPDU_END_INFO_0,
-				WB_TIMESTAMP_LOWER_32);
-		ppdu_info->rx_status.duration =
-			HAL_RX_GET(rx_tlv, RXPCU_PPDU_END_INFO_8,
-				RX_PPDU_DURATION);
-		break;
-
-	case WIFIRX_PPDU_END_USER_STATS_E:
-	{
-		unsigned long tid = 0;
-		uint16_t seq = 0;
-
-		ppdu_info->rx_status.ast_index =
-				HAL_RX_GET(rx_tlv, RX_PPDU_END_USER_STATS_4,
-						AST_INDEX);
-
-		tid = HAL_RX_GET(rx_tlv, RX_PPDU_END_USER_STATS_12,
-				RECEIVED_QOS_DATA_TID_BITMAP);
-		ppdu_info->rx_status.tid = qdf_find_first_bit(&tid, sizeof(tid)*8);
-
-		if (ppdu_info->rx_status.tid == (sizeof(tid) * 8))
-			ppdu_info->rx_status.tid = HAL_TID_INVALID;
-
-		ppdu_info->rx_status.tcp_msdu_count =
-			HAL_RX_GET(rx_tlv, RX_PPDU_END_USER_STATS_9,
-					TCP_MSDU_COUNT) +
-			HAL_RX_GET(rx_tlv, RX_PPDU_END_USER_STATS_10,
-					TCP_ACK_MSDU_COUNT);
-		ppdu_info->rx_status.udp_msdu_count =
-			HAL_RX_GET(rx_tlv, RX_PPDU_END_USER_STATS_9,
-						UDP_MSDU_COUNT);
-		ppdu_info->rx_status.other_msdu_count =
-			HAL_RX_GET(rx_tlv, RX_PPDU_END_USER_STATS_10,
-					OTHER_MSDU_COUNT);
-
-		ppdu_info->rx_status.frame_control_info_valid =
-			HAL_RX_GET(rx_tlv, RX_PPDU_END_USER_STATS_3,
-					DATA_SEQUENCE_CONTROL_INFO_VALID);
-
-		seq = HAL_RX_GET(rx_tlv, RX_PPDU_END_USER_STATS_5,
-					FIRST_DATA_SEQ_CTRL);
-		if (ppdu_info->rx_status.frame_control_info_valid)
-			ppdu_info->rx_status.first_data_seq_ctrl = seq;
-
-		ppdu_info->rx_status.preamble_type =
-			HAL_RX_GET(rx_tlv, RX_PPDU_END_USER_STATS_3,
-						HT_CONTROL_FIELD_PKT_TYPE);
-		switch (ppdu_info->rx_status.preamble_type) {
-		case HAL_RX_PKT_TYPE_11N:
-			ppdu_info->rx_status.ht_flags = 1;
-			ppdu_info->rx_status.rtap_flags |= HT_SGI_PRESENT;
-			break;
-		case HAL_RX_PKT_TYPE_11AC:
-			ppdu_info->rx_status.vht_flags = 1;
-			break;
-		case HAL_RX_PKT_TYPE_11AX:
-			ppdu_info->rx_status.he_flags = 1;
-			break;
-		default:
-			break;
-		}
-
-		ppdu_info->com_info.mpdu_cnt_fcs_ok =
-			HAL_RX_GET(rx_tlv, RX_PPDU_END_USER_STATS_3,
-					MPDU_CNT_FCS_OK);
-		ppdu_info->com_info.mpdu_cnt_fcs_err =
-			HAL_RX_GET(rx_tlv, RX_PPDU_END_USER_STATS_2,
-					MPDU_CNT_FCS_ERR);
-		if ((ppdu_info->com_info.mpdu_cnt_fcs_ok |
-			ppdu_info->com_info.mpdu_cnt_fcs_err) > 1)
-			ppdu_info->rx_status.rs_flags |= IEEE80211_AMPDU_FLAG;
-		else
-			ppdu_info->rx_status.rs_flags &=
-				(~IEEE80211_AMPDU_FLAG);
-		break;
-	}
-
-	case WIFIRX_PPDU_END_USER_STATS_EXT_E:
-		break;
-
-	case WIFIRX_PPDU_END_STATUS_DONE_E:
-		return HAL_TLV_STATUS_PPDU_DONE;
-
-	case WIFIDUMMY_E:
-		return HAL_TLV_STATUS_BUF_DONE;
-
-	case WIFIPHYRX_HT_SIG_E:
-	{
-		uint8_t *ht_sig_info = (uint8_t *)rx_tlv +
-				HAL_RX_OFFSET(PHYRX_HT_SIG_0,
-				HT_SIG_INFO_PHYRX_HT_SIG_INFO_DETAILS);
-		value = HAL_RX_GET(ht_sig_info, HT_SIG_INFO_1,
-				FEC_CODING);
-		ppdu_info->rx_status.ldpc = (value == HAL_SU_MU_CODING_LDPC) ?
-			1 : 0;
-		ppdu_info->rx_status.mcs = HAL_RX_GET(ht_sig_info,
-				HT_SIG_INFO_0, MCS);
-		ppdu_info->rx_status.bw = HAL_RX_GET(ht_sig_info,
-				HT_SIG_INFO_0, CBW);
-		ppdu_info->rx_status.sgi = HAL_RX_GET(ht_sig_info,
-				HT_SIG_INFO_1, SHORT_GI);
-		break;
-	}
-
-	case WIFIPHYRX_L_SIG_B_E:
-	{
-		uint8_t *l_sig_b_info = (uint8_t *)rx_tlv +
-				HAL_RX_OFFSET(PHYRX_L_SIG_B_0,
-				L_SIG_B_INFO_PHYRX_L_SIG_B_INFO_DETAILS);
-
-		value = HAL_RX_GET(l_sig_b_info, L_SIG_B_INFO_0, RATE);
-		switch (value) {
-		case 1:
-			ppdu_info->rx_status.rate = HAL_11B_RATE_3MCS;
-			break;
-		case 2:
-			ppdu_info->rx_status.rate = HAL_11B_RATE_2MCS;
-			break;
-		case 3:
-			ppdu_info->rx_status.rate = HAL_11B_RATE_1MCS;
-			break;
-		case 4:
-			ppdu_info->rx_status.rate = HAL_11B_RATE_0MCS;
-			break;
-		case 5:
-			ppdu_info->rx_status.rate = HAL_11B_RATE_6MCS;
-			break;
-		case 6:
-			ppdu_info->rx_status.rate = HAL_11B_RATE_5MCS;
-			break;
-		case 7:
-			ppdu_info->rx_status.rate = HAL_11B_RATE_4MCS;
-			break;
-		default:
-			break;
-		}
-		ppdu_info->rx_status.cck_flag = 1;
-	break;
-	}
-
-	case WIFIPHYRX_L_SIG_A_E:
-	{
-		uint8_t *l_sig_a_info = (uint8_t *)rx_tlv +
-				HAL_RX_OFFSET(PHYRX_L_SIG_A_0,
-				L_SIG_A_INFO_PHYRX_L_SIG_A_INFO_DETAILS);
-
-		value = HAL_RX_GET(l_sig_a_info, L_SIG_A_INFO_0, RATE);
-		switch (value) {
-		case 8:
-			ppdu_info->rx_status.rate = HAL_11A_RATE_0MCS;
-			break;
-		case 9:
-			ppdu_info->rx_status.rate = HAL_11A_RATE_1MCS;
-			break;
-		case 10:
-			ppdu_info->rx_status.rate = HAL_11A_RATE_2MCS;
-			break;
-		case 11:
-			ppdu_info->rx_status.rate = HAL_11A_RATE_3MCS;
-			break;
-		case 12:
-			ppdu_info->rx_status.rate = HAL_11A_RATE_4MCS;
-			break;
-		case 13:
-			ppdu_info->rx_status.rate = HAL_11A_RATE_5MCS;
-			break;
-		case 14:
-			ppdu_info->rx_status.rate = HAL_11A_RATE_6MCS;
-			break;
-		case 15:
-			ppdu_info->rx_status.rate = HAL_11A_RATE_7MCS;
-			break;
-		default:
-			break;
-		}
-		ppdu_info->rx_status.ofdm_flag = 1;
-	break;
-	}
-
-	case WIFIPHYRX_VHT_SIG_A_E:
-	{
-		uint8_t *vht_sig_a_info = (uint8_t *)rx_tlv +
-				HAL_RX_OFFSET(PHYRX_VHT_SIG_A_0,
-				VHT_SIG_A_INFO_PHYRX_VHT_SIG_A_INFO_DETAILS);
-
-		value = HAL_RX_GET(vht_sig_a_info, VHT_SIG_A_INFO_1,
-				SU_MU_CODING);
-		ppdu_info->rx_status.ldpc = (value == HAL_SU_MU_CODING_LDPC) ?
-			1 : 0;
-		group_id = HAL_RX_GET(vht_sig_a_info, VHT_SIG_A_INFO_0, GROUP_ID);
-		ppdu_info->rx_status.vht_flag_values5 = group_id;
-		ppdu_info->rx_status.mcs = HAL_RX_GET(vht_sig_a_info,
-				VHT_SIG_A_INFO_1, MCS);
-		ppdu_info->rx_status.sgi = HAL_RX_GET(vht_sig_a_info,
-				VHT_SIG_A_INFO_1, GI_SETTING);
-#if !defined(QCA_WIFI_QCA6290_11AX)
-		value =  HAL_RX_GET(vht_sig_a_info,
-				VHT_SIG_A_INFO_0, N_STS);
-		ppdu_info->rx_status.nss = ((value & VHT_SIG_SU_NSS_MASK) + 1);
-#else
-		ppdu_info->rx_status.nss = 0;
-#endif
-		ppdu_info->rx_status.vht_flag_values3[0] =
-				(((ppdu_info->rx_status.mcs) << 4)
-				| ppdu_info->rx_status.nss);
-		ppdu_info->rx_status.bw = HAL_RX_GET(vht_sig_a_info,
-				VHT_SIG_A_INFO_0, BANDWIDTH);
-		ppdu_info->rx_status.vht_flag_values2 =
-			ppdu_info->rx_status.bw;
-		ppdu_info->rx_status.vht_flag_values4 =
-			HAL_RX_GET(vht_sig_a_info,
-				  VHT_SIG_A_INFO_1, SU_MU_CODING);
-
-		ppdu_info->rx_status.beamformed = HAL_RX_GET(vht_sig_a_info,
-				VHT_SIG_A_INFO_1, BEAMFORMED);
-
-		break;
-	}
-	case WIFIPHYRX_HE_SIG_A_SU_E:
-	{
-		uint8_t *he_sig_a_su_info = (uint8_t *)rx_tlv +
-			HAL_RX_OFFSET(PHYRX_HE_SIG_A_SU_0,
-			HE_SIG_A_SU_INFO_PHYRX_HE_SIG_A_SU_INFO_DETAILS);
-		ppdu_info->rx_status.he_flags = 1;
-		value = HAL_RX_GET(he_sig_a_su_info, HE_SIG_A_SU_INFO_0,
-			FORMAT_INDICATION);
-		if (value == 0) {
-			ppdu_info->rx_status.he_data1 =
-				QDF_MON_STATUS_HE_TRIG_FORMAT_TYPE;
-		} else {
-			 ppdu_info->rx_status.he_data1 =
-				 QDF_MON_STATUS_HE_SU_FORMAT_TYPE;
-		}
-
-		/* data1 */
-		ppdu_info->rx_status.he_data1 |=
-			QDF_MON_STATUS_HE_BSS_COLOR_KNOWN |
-			QDF_MON_STATUS_HE_BEAM_CHANGE_KNOWN |
-			QDF_MON_STATUS_HE_DL_UL_KNOWN |
-			QDF_MON_STATUS_HE_MCS_KNOWN |
-			QDF_MON_STATUS_HE_DCM_KNOWN |
-			QDF_MON_STATUS_HE_CODING_KNOWN |
-			QDF_MON_STATUS_HE_LDPC_EXTRA_SYMBOL_KNOWN |
-			QDF_MON_STATUS_HE_STBC_KNOWN |
-			QDF_MON_STATUS_HE_DATA_BW_RU_KNOWN |
-			QDF_MON_STATUS_HE_DOPPLER_KNOWN;
-
-		/* data2 */
-		ppdu_info->rx_status.he_data2 =
-			QDF_MON_STATUS_HE_GI_KNOWN;
-		ppdu_info->rx_status.he_data2 |=
-			QDF_MON_STATUS_TXBF_KNOWN |
-			QDF_MON_STATUS_PE_DISAMBIGUITY_KNOWN |
-			QDF_MON_STATUS_TXOP_KNOWN |
-			QDF_MON_STATUS_LTF_SYMBOLS_KNOWN |
-			QDF_MON_STATUS_PRE_FEC_PADDING_KNOWN |
-			QDF_MON_STATUS_MIDABLE_PERIODICITY_KNOWN;
-
-		/* data3 */
-		value = HAL_RX_GET(he_sig_a_su_info,
-				HE_SIG_A_SU_INFO_0, BSS_COLOR_ID);
-		ppdu_info->rx_status.he_data3 = value;
-		value = HAL_RX_GET(he_sig_a_su_info,
-				HE_SIG_A_SU_INFO_0, BEAM_CHANGE);
-		value = value << QDF_MON_STATUS_BEAM_CHANGE_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-		value = HAL_RX_GET(he_sig_a_su_info,
-				HE_SIG_A_SU_INFO_0, DL_UL_FLAG);
-		value = value << QDF_MON_STATUS_DL_UL_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-
-		value = HAL_RX_GET(he_sig_a_su_info,
-				HE_SIG_A_SU_INFO_0, TRANSMIT_MCS);
-		ppdu_info->rx_status.mcs = value;
-		value = value << QDF_MON_STATUS_TRANSMIT_MCS_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-
-		value = HAL_RX_GET(he_sig_a_su_info,
-				HE_SIG_A_SU_INFO_0, DCM);
-		he_dcm = value;
-		value = value << QDF_MON_STATUS_DCM_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-		value = HAL_RX_GET(he_sig_a_su_info,
-				HE_SIG_A_SU_INFO_1, CODING);
-		value = value << QDF_MON_STATUS_CODING_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-		value = HAL_RX_GET(he_sig_a_su_info,
-				HE_SIG_A_SU_INFO_1,
-				LDPC_EXTRA_SYMBOL);
-		value = value << QDF_MON_STATUS_LDPC_EXTRA_SYMBOL_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-		value = HAL_RX_GET(he_sig_a_su_info,
-				HE_SIG_A_SU_INFO_1, STBC);
-		he_stbc = value;
-		value = value << QDF_MON_STATUS_STBC_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-
-		/* data4 */
-		value = HAL_RX_GET(he_sig_a_su_info, HE_SIG_A_SU_INFO_0,
-							SPATIAL_REUSE);
-		ppdu_info->rx_status.he_data4 = value;
-
-		/* data5 */
-		value = HAL_RX_GET(he_sig_a_su_info,
-				HE_SIG_A_SU_INFO_0, TRANSMIT_BW);
-		ppdu_info->rx_status.he_data5 = value;
-		ppdu_info->rx_status.bw = value;
-		value = HAL_RX_GET(he_sig_a_su_info,
-				HE_SIG_A_SU_INFO_0, CP_LTF_SIZE);
-		switch (value) {
-		case 0:
-				he_gi = HE_GI_0_8;
-				he_ltf = HE_LTF_1_X;
-				break;
-		case 1:
-				he_gi = HE_GI_0_8;
-				he_ltf = HE_LTF_2_X;
-				break;
-		case 2:
-				he_gi = HE_GI_1_6;
-				he_ltf = HE_LTF_2_X;
-				break;
-		case 3:
-				if (he_dcm && he_stbc) {
-					he_gi = HE_GI_0_8;
-					he_ltf = HE_LTF_4_X;
-				} else {
-					he_gi = HE_GI_3_2;
-					he_ltf = HE_LTF_4_X;
-				}
-				break;
-		}
-		ppdu_info->rx_status.sgi = he_gi;
-		value = he_gi << QDF_MON_STATUS_GI_SHIFT;
-		ppdu_info->rx_status.he_data5 |= value;
-		value = he_ltf << QDF_MON_STATUS_HE_LTF_SHIFT;
-		ppdu_info->rx_status.he_data5 |= value;
-		value = HAL_RX_GET(he_sig_a_su_info, HE_SIG_A_SU_INFO_1,
-							PACKET_EXTENSION_A_FACTOR);
-		value = value << QDF_MON_STATUS_PRE_FEC_PAD_SHIFT;
-		ppdu_info->rx_status.he_data5 |= value;
-
-		value = HAL_RX_GET(he_sig_a_su_info, HE_SIG_A_SU_INFO_1, TXBF);
-		value = value << QDF_MON_STATUS_TXBF_SHIFT;
-		ppdu_info->rx_status.he_data5 |= value;
-		value = HAL_RX_GET(he_sig_a_su_info, HE_SIG_A_SU_INFO_1,
-							PACKET_EXTENSION_PE_DISAMBIGUITY);
-		value = value << QDF_MON_STATUS_PE_DISAMBIGUITY_SHIFT;
-		ppdu_info->rx_status.he_data5 |= value;
-
-		/* data6 */
-		value = HAL_RX_GET(he_sig_a_su_info, HE_SIG_A_SU_INFO_0, NSTS);
-		value++;
-		ppdu_info->rx_status.nss = value;
-		ppdu_info->rx_status.he_data6 = value;
-		value = HAL_RX_GET(he_sig_a_su_info, HE_SIG_A_SU_INFO_1,
-							DOPPLER_INDICATION);
-		value = value << QDF_MON_STATUS_DOPPLER_SHIFT;
-		ppdu_info->rx_status.he_data6 |= value;
-		value = HAL_RX_GET(he_sig_a_su_info, HE_SIG_A_SU_INFO_1,
-							TXOP_DURATION);
-		value = value << QDF_MON_STATUS_TXOP_SHIFT;
-		ppdu_info->rx_status.he_data6 |= value;
-
-		ppdu_info->rx_status.beamformed = HAL_RX_GET(he_sig_a_su_info,
-					HE_SIG_A_SU_INFO_1, TXBF);
-		break;
-	}
-	case WIFIPHYRX_HE_SIG_A_MU_DL_E:
-	{
-		uint8_t *he_sig_a_mu_dl_info = (uint8_t *)rx_tlv +
-			HAL_RX_OFFSET(PHYRX_HE_SIG_A_MU_DL_0,
-			HE_SIG_A_MU_DL_INFO_PHYRX_HE_SIG_A_MU_DL_INFO_DETAILS);
-
-		ppdu_info->rx_status.he_mu_flags = 1;
-
-		/* HE Flags */
-		/*data1*/
-		ppdu_info->rx_status.he_data1 =
-					QDF_MON_STATUS_HE_MU_FORMAT_TYPE;
-		ppdu_info->rx_status.he_data1 |=
-			QDF_MON_STATUS_HE_BSS_COLOR_KNOWN |
-			QDF_MON_STATUS_HE_DL_UL_KNOWN |
-			QDF_MON_STATUS_HE_LDPC_EXTRA_SYMBOL_KNOWN |
-			QDF_MON_STATUS_HE_STBC_KNOWN |
-			QDF_MON_STATUS_HE_DATA_BW_RU_KNOWN |
-			QDF_MON_STATUS_HE_DOPPLER_KNOWN;
-
-		/* data2 */
-		ppdu_info->rx_status.he_data2 =
-			QDF_MON_STATUS_HE_GI_KNOWN;
-		ppdu_info->rx_status.he_data2 |=
-			QDF_MON_STATUS_LTF_SYMBOLS_KNOWN |
-			QDF_MON_STATUS_PRE_FEC_PADDING_KNOWN |
-			QDF_MON_STATUS_PE_DISAMBIGUITY_KNOWN |
-			QDF_MON_STATUS_TXOP_KNOWN |
-			QDF_MON_STATUS_MIDABLE_PERIODICITY_KNOWN;
-
-		/*data3*/
-		value = HAL_RX_GET(he_sig_a_mu_dl_info,
-				HE_SIG_A_MU_DL_INFO_0, BSS_COLOR_ID);
-		ppdu_info->rx_status.he_data3 = value;
-
-		value = HAL_RX_GET(he_sig_a_mu_dl_info,
-				HE_SIG_A_MU_DL_INFO_0, DL_UL_FLAG);
-		value = value << QDF_MON_STATUS_DL_UL_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-
-		value = HAL_RX_GET(he_sig_a_mu_dl_info,
-				HE_SIG_A_MU_DL_INFO_1,
-				LDPC_EXTRA_SYMBOL);
-		value = value << QDF_MON_STATUS_LDPC_EXTRA_SYMBOL_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-
-		value = HAL_RX_GET(he_sig_a_mu_dl_info,
-				HE_SIG_A_MU_DL_INFO_1, STBC);
-		he_stbc = value;
-		value = value << QDF_MON_STATUS_STBC_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-
-		/*data4*/
-		value = HAL_RX_GET(he_sig_a_mu_dl_info, HE_SIG_A_MU_DL_INFO_0,
-							SPATIAL_REUSE);
-		ppdu_info->rx_status.he_data4 = value;
-
-		/*data5*/
-		value = HAL_RX_GET(he_sig_a_mu_dl_info,
-				HE_SIG_A_MU_DL_INFO_0, TRANSMIT_BW);
-		ppdu_info->rx_status.he_data5 = value;
-		ppdu_info->rx_status.bw = value;
-
-		value = HAL_RX_GET(he_sig_a_mu_dl_info,
-				HE_SIG_A_MU_DL_INFO_0, CP_LTF_SIZE);
-		switch (value) {
-		case 0:
-			he_gi = HE_GI_0_8;
-			he_ltf = HE_LTF_4_X;
-			break;
-		case 1:
-			he_gi = HE_GI_0_8;
-			he_ltf = HE_LTF_2_X;
-			break;
-		case 2:
-			he_gi = HE_GI_1_6;
-			he_ltf = HE_LTF_2_X;
-			break;
-		case 3:
-			he_gi = HE_GI_3_2;
-			he_ltf = HE_LTF_4_X;
-			break;
-		}
-		ppdu_info->rx_status.sgi = he_gi;
-		value = he_gi << QDF_MON_STATUS_GI_SHIFT;
-		ppdu_info->rx_status.he_data5 |= value;
-
-		value = he_ltf << QDF_MON_STATUS_HE_LTF_SHIFT;
-		ppdu_info->rx_status.he_data5 |= value;
-
-		value = HAL_RX_GET(he_sig_a_mu_dl_info, HE_SIG_A_MU_DL_INFO_1,
-				   PACKET_EXTENSION_A_FACTOR);
-		value = value << QDF_MON_STATUS_PRE_FEC_PAD_SHIFT;
-		ppdu_info->rx_status.he_data5 |= value;
-
-
-		value = HAL_RX_GET(he_sig_a_mu_dl_info, HE_SIG_A_MU_DL_INFO_1,
-				   PACKET_EXTENSION_PE_DISAMBIGUITY);
-		value = value << QDF_MON_STATUS_PE_DISAMBIGUITY_SHIFT;
-		ppdu_info->rx_status.he_data5 |= value;
-
-		/*data6*/
-		value = HAL_RX_GET(he_sig_a_mu_dl_info, HE_SIG_A_MU_DL_INFO_0,
-							DOPPLER_INDICATION);
-		value = value << QDF_MON_STATUS_DOPPLER_SHIFT;
-		ppdu_info->rx_status.he_data6 |= value;
-
-		value = HAL_RX_GET(he_sig_a_mu_dl_info, HE_SIG_A_MU_DL_INFO_1,
-							TXOP_DURATION);
-		value = value << QDF_MON_STATUS_TXOP_SHIFT;
-		ppdu_info->rx_status.he_data6 |= value;
-
-		/* HE-MU Flags */
-		/* HE-MU-flags1 */
-		ppdu_info->rx_status.he_flags1 =
-			QDF_MON_STATUS_SIG_B_MCS_KNOWN |
-			QDF_MON_STATUS_SIG_B_DCM_KNOWN |
-			QDF_MON_STATUS_SIG_B_COMPRESSION_FLAG_1_KNOWN |
-			QDF_MON_STATUS_SIG_B_SYM_NUM_KNOWN |
-			QDF_MON_STATUS_RU_0_KNOWN;
-
-		value = HAL_RX_GET(he_sig_a_mu_dl_info,
-				HE_SIG_A_MU_DL_INFO_0, MCS_OF_SIG_B);
-		ppdu_info->rx_status.he_flags1 |= value;
-		value = HAL_RX_GET(he_sig_a_mu_dl_info,
-				HE_SIG_A_MU_DL_INFO_0, DCM_OF_SIG_B);
-		value = value << QDF_MON_STATUS_DCM_FLAG_1_SHIFT;
-		ppdu_info->rx_status.he_flags1 |= value;
-
-		/* HE-MU-flags2 */
-		ppdu_info->rx_status.he_flags2 =
-			QDF_MON_STATUS_BW_KNOWN;
-
-		value = HAL_RX_GET(he_sig_a_mu_dl_info,
-				HE_SIG_A_MU_DL_INFO_0, TRANSMIT_BW);
-		ppdu_info->rx_status.he_flags2 |= value;
-		value = HAL_RX_GET(he_sig_a_mu_dl_info,
-				HE_SIG_A_MU_DL_INFO_0, COMP_MODE_SIG_B);
-		value = value << QDF_MON_STATUS_SIG_B_COMPRESSION_FLAG_2_SHIFT;
-		ppdu_info->rx_status.he_flags2 |= value;
-		value = HAL_RX_GET(he_sig_a_mu_dl_info,
-				HE_SIG_A_MU_DL_INFO_0, NUM_SIG_B_SYMBOLS);
-		value = value - 1;
-		value = value << QDF_MON_STATUS_NUM_SIG_B_SYMBOLS_SHIFT;
-		ppdu_info->rx_status.he_flags2 |= value;
-		break;
-	}
-	case WIFIPHYRX_HE_SIG_B1_MU_E:
-	{
-
-		uint8_t *he_sig_b1_mu_info = (uint8_t *)rx_tlv +
-			HAL_RX_OFFSET(PHYRX_HE_SIG_B1_MU_0,
-			HE_SIG_B1_MU_INFO_PHYRX_HE_SIG_B1_MU_INFO_DETAILS);
-
-		ppdu_info->rx_status.he_sig_b_common_known |=
-			QDF_MON_STATUS_HE_SIG_B_COMMON_KNOWN_RU0;
-		/* TODO: Check on the availability of other fields in
-		 * sig_b_common
-		 */
-
-		value = HAL_RX_GET(he_sig_b1_mu_info,
-				HE_SIG_B1_MU_INFO_0, RU_ALLOCATION);
-		ppdu_info->rx_status.he_RU[0] = value;
-		break;
-	}
-	case WIFIPHYRX_HE_SIG_B2_MU_E:
-	{
-		uint8_t *he_sig_b2_mu_info = (uint8_t *)rx_tlv +
-			HAL_RX_OFFSET(PHYRX_HE_SIG_B2_MU_0,
-			HE_SIG_B2_MU_INFO_PHYRX_HE_SIG_B2_MU_INFO_DETAILS);
-		/*
-		 * Not all "HE" fields can be updated from
-		 * WIFIPHYRX_HE_SIG_A_MU_DL_E TLV. Use WIFIPHYRX_HE_SIG_B2_MU_E
-		 * to populate rest of the "HE" fields for MU scenarios.
-		 */
-
-		/* HE-data1 */
-		ppdu_info->rx_status.he_data1 |=
-			QDF_MON_STATUS_HE_MCS_KNOWN |
-			QDF_MON_STATUS_HE_CODING_KNOWN;
-
-		/* HE-data2 */
-
-		/* HE-data3 */
-		value = HAL_RX_GET(he_sig_b2_mu_info,
-				HE_SIG_B2_MU_INFO_0, STA_MCS);
-		ppdu_info->rx_status.mcs = value;
-		value = value << QDF_MON_STATUS_TRANSMIT_MCS_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-
-
-		value = HAL_RX_GET(he_sig_b2_mu_info,
-				HE_SIG_B2_MU_INFO_0, STA_CODING);
-		value = value << QDF_MON_STATUS_CODING_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-
-		/* HE-data4 */
-		value = HAL_RX_GET(he_sig_b2_mu_info,
-				HE_SIG_B2_MU_INFO_0, STA_ID);
-		value = value << QDF_MON_STATUS_STA_ID_SHIFT;
-		ppdu_info->rx_status.he_data4 |= value;
-
-		/* HE-data5 */
-
-		/* HE-data6 */
-		value = HAL_RX_GET(he_sig_b2_mu_info,
-				   HE_SIG_B2_MU_INFO_0, NSTS);
-		/* value n indicates n+1 spatial streams */
-		value++;
-		ppdu_info->rx_status.nss = value;
-		ppdu_info->rx_status.he_data6 |= value;
-
-		break;
-
-	}
-	case WIFIPHYRX_HE_SIG_B2_OFDMA_E:
-	{
-		uint8_t *he_sig_b2_ofdma_info =
-		(uint8_t *)rx_tlv +
-		HAL_RX_OFFSET(PHYRX_HE_SIG_B2_OFDMA_0,
-		HE_SIG_B2_OFDMA_INFO_PHYRX_HE_SIG_B2_OFDMA_INFO_DETAILS);
-
-		/*
-		 * Not all "HE" fields can be updated from
-		 * WIFIPHYRX_HE_SIG_A_MU_DL_E TLV. Use WIFIPHYRX_HE_SIG_B2_MU_E
-		 * to populate rest of "HE" fields for MU OFDMA scenarios.
-		 */
-
-		/* HE-data1 */
-		ppdu_info->rx_status.he_data1 |=
-			QDF_MON_STATUS_HE_MCS_KNOWN |
-			QDF_MON_STATUS_HE_DCM_KNOWN |
-			QDF_MON_STATUS_HE_CODING_KNOWN;
-
-		/* HE-data2 */
-		ppdu_info->rx_status.he_data2 |=
-					QDF_MON_STATUS_TXBF_KNOWN;
-
-		/* HE-data3 */
-		value = HAL_RX_GET(he_sig_b2_ofdma_info,
-				HE_SIG_B2_OFDMA_INFO_0, STA_MCS);
-		ppdu_info->rx_status.mcs = value;
-		value = value << QDF_MON_STATUS_TRANSMIT_MCS_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-
-		value = HAL_RX_GET(he_sig_b2_ofdma_info,
-				HE_SIG_B2_OFDMA_INFO_0, STA_DCM);
-		he_dcm = value;
-		value = value << QDF_MON_STATUS_DCM_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-
-		value = HAL_RX_GET(he_sig_b2_ofdma_info,
-				HE_SIG_B2_OFDMA_INFO_0, STA_CODING);
-		value = value << QDF_MON_STATUS_CODING_SHIFT;
-		ppdu_info->rx_status.he_data3 |= value;
-
-		/* HE-data4 */
-		value = HAL_RX_GET(he_sig_b2_ofdma_info,
-				HE_SIG_B2_OFDMA_INFO_0, STA_ID);
-		value = value << QDF_MON_STATUS_STA_ID_SHIFT;
-		ppdu_info->rx_status.he_data4 |= value;
-
-		/* HE-data5 */
-		value = HAL_RX_GET(he_sig_b2_ofdma_info,
-				   HE_SIG_B2_OFDMA_INFO_0, TXBF);
-		value = value << QDF_MON_STATUS_TXBF_SHIFT;
-		ppdu_info->rx_status.he_data5 |= value;
-
-		/* HE-data6 */
-		value = HAL_RX_GET(he_sig_b2_ofdma_info,
-				   HE_SIG_B2_OFDMA_INFO_0, NSTS);
-		/* value n indicates n+1 spatial streams */
-		value++;
-		ppdu_info->rx_status.nss = value;
-		ppdu_info->rx_status.he_data6 |= value;
-
-		break;
-	}
-	case WIFIPHYRX_RSSI_LEGACY_E:
-	{
-		uint8_t *rssi_info_tlv = (uint8_t *)rx_tlv +
-			HAL_RX_OFFSET(PHYRX_RSSI_LEGACY_3,
-			RECEIVE_RSSI_INFO_PRE_RSSI_INFO_DETAILS);
-
-		ppdu_info->rx_status.rssi_comb = HAL_RX_GET(rx_tlv,
-			PHYRX_RSSI_LEGACY_35, RSSI_COMB);
-		ppdu_info->rx_status.bw = HAL_RX_GET(rx_tlv,
-#if !defined(QCA_WIFI_QCA6290_11AX)
-			PHYRX_RSSI_LEGACY_35, RECEIVE_BANDWIDTH);
-#else
-			PHYRX_RSSI_LEGACY_0, RECEIVE_BANDWIDTH);
-#endif
-		ppdu_info->rx_status.he_re = 0;
-
-		ppdu_info->rx_status.reception_type = HAL_RX_GET(rx_tlv,
-				PHYRX_RSSI_LEGACY_0, RECEPTION_TYPE);
-
-		value = HAL_RX_GET(rssi_info_tlv,
-			RECEIVE_RSSI_INFO_0, RSSI_PRI20_CHAIN0);
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-			"RSSI_PRI20_CHAIN0: %d\n", value);
-
-		value = HAL_RX_GET(rssi_info_tlv,
-			RECEIVE_RSSI_INFO_0, RSSI_EXT20_CHAIN0);
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-			"RSSI_EXT20_CHAIN0: %d\n", value);
-
-		value = HAL_RX_GET(rssi_info_tlv,
-			RECEIVE_RSSI_INFO_0, RSSI_EXT40_LOW20_CHAIN0);
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-			"RSSI_EXT40_LOW20_CHAIN0: %d\n", value);
-
-		value = HAL_RX_GET(rssi_info_tlv,
-			RECEIVE_RSSI_INFO_0, RSSI_EXT40_HIGH20_CHAIN0);
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-			"RSSI_EXT40_HIGH20_CHAIN0: %d\n", value);
-
-		value = HAL_RX_GET(rssi_info_tlv,
-			RECEIVE_RSSI_INFO_1, RSSI_EXT80_LOW20_CHAIN0);
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-			"RSSI_EXT80_LOW20_CHAIN0: %d\n", value);
-
-		value = HAL_RX_GET(rssi_info_tlv,
-			RECEIVE_RSSI_INFO_1, RSSI_EXT80_LOW_HIGH20_CHAIN0);
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-			"RSSI_EXT80_LOW_HIGH20_CHAIN0: %d\n", value);
-
-		value = HAL_RX_GET(rssi_info_tlv,
-			RECEIVE_RSSI_INFO_1, RSSI_EXT80_HIGH_LOW20_CHAIN0);
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-			"RSSI_EXT80_HIGH_LOW20_CHAIN0: %d\n", value);
-
-		value = HAL_RX_GET(rssi_info_tlv,
-			RECEIVE_RSSI_INFO_1, RSSI_EXT80_HIGH20_CHAIN0);
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-			"RSSI_EXT80_HIGH20_CHAIN0: %d\n", value);
-		break;
-	}
-	case WIFIPHYRX_OTHER_RECEIVE_INFO_E:
-		hal_rx_proc_phyrx_other_receive_info_tlv(rx_tlv_hdr, ppdu_info);
-		break;
-	case WIFIRX_HEADER_E:
-		ppdu_info->msdu_info.first_msdu_payload = rx_tlv;
-		ppdu_info->msdu_info.payload_len = tlv_len;
-		break;
-	case WIFIRX_MPDU_START_E:
-	{
-		uint8_t *rx_mpdu_start =
-			(uint8_t *)rx_tlv + HAL_RX_OFFSET(RX_MPDU_START_0,
-					RX_MPDU_INFO_RX_MPDU_INFO_DETAILS);
-		uint32_t ppdu_id = HAL_RX_GET(rx_mpdu_start, RX_MPDU_INFO_0,
-					      PHY_PPDU_ID);
-
-		if (ppdu_info->rx_status.prev_ppdu_id != ppdu_id) {
-			ppdu_info->rx_status.prev_ppdu_id = ppdu_id;
-			ppdu_info->rx_status.ppdu_len =
-				HAL_RX_GET(rx_mpdu_start, RX_MPDU_INFO_13,
-					   MPDU_LENGTH);
-		} else {
-			ppdu_info->rx_status.ppdu_len +=
-				HAL_RX_GET(rx_mpdu_start, RX_MPDU_INFO_13,
-				MPDU_LENGTH);
-		}
-		break;
-	}
-	case 0:
-		return HAL_TLV_STATUS_PPDU_DONE;
-
-	default:
-		unhandled = true;
-		break;
-	}
-
-	if (!unhandled)
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
-			  "%s TLV type: %d, TLV len:%d %s",
-			  __func__, tlv_tag, tlv_len,
-			  unhandled == true ? "unhandled" : "");
-
-	qdf_trace_hex_dump(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG, rx_tlv, tlv_len);
-
-	return HAL_TLV_STATUS_PPDU_NOT_DONE;
+	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
+
+	return hal_soc->ops->hal_rx_status_get_tlv_info(
+						rx_tlv_hdr,
+						ppdu_info,
+						hal_soc_hdl,
+						nbuf);
 }
 
 static inline
-uint32_t hal_get_rx_status_done_tlv_size(void *hal_soc)
+uint32_t hal_get_rx_status_done_tlv_size(hal_soc_handle_t hal_soc_hdl)
 {
 	return HAL_RX_TLV32_HDR_SIZE;
 }

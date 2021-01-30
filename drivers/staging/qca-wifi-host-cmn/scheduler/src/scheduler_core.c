@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -22,10 +22,6 @@
 
 static struct scheduler_ctx g_sched_ctx;
 static struct scheduler_ctx *gp_sched_ctx;
-
-#ifndef WLAN_SCHED_REDUCTION_LIMIT
-#define WLAN_SCHED_REDUCTION_LIMIT 0
-#endif
 
 DEFINE_QDF_FLEX_MEM_POOL(sched_pool, sizeof(struct scheduler_msg),
 			 WLAN_SCHED_REDUCTION_LIMIT);
@@ -146,6 +142,7 @@ static void scheduler_mq_deinit(struct scheduler_mq_type *msg_q)
 }
 
 static qdf_atomic_t __sched_queue_depth;
+static qdf_atomic_t __sched_dup_fail_count;
 
 static QDF_STATUS scheduler_all_queues_init(struct scheduler_ctx *sched_ctx)
 {
@@ -279,10 +276,15 @@ struct scheduler_msg *scheduler_core_msg_dup(struct scheduler_msg *msg)
 
 	qdf_mem_copy(dup, msg, sizeof(*dup));
 
+	qdf_atomic_set(&__sched_dup_fail_count, 0);
+
 	return dup;
 
 buffer_full:
-	QDF_DEBUG_PANIC("Scheduler buffer is full");
+	if (qdf_atomic_inc_return(&__sched_dup_fail_count) >
+	    SCHEDULER_WRAPPER_MAX_FAIL_COUNT)
+		QDF_DEBUG_PANIC("Scheduler buffer is full");
+
 
 dec_queue_count:
 	qdf_atomic_dec(&__sched_queue_depth);
@@ -449,7 +451,5 @@ void scheduler_queues_flush(struct scheduler_ctx *sched_ctx)
 		mq = &sched_ctx->queue_ctx.sch_msg_q[i];
 		scheduler_flush_single_queue(mq);
 	}
-
-	qdf_flex_mem_release(&sched_pool);
 }
 

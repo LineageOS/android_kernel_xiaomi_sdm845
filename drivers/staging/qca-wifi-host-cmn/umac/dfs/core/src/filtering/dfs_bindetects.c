@@ -24,6 +24,7 @@
  */
 
 #include "../dfs.h"
+#include "../dfs_process_radar_found_ind.h"
 
 /**
  * dfs_find_first_index_within_window() - Find first index within window
@@ -169,8 +170,16 @@ static inline int dfs_pulses_within_window(
 					refpri, index, dur, &numpulses))
 				break;
 		}
+		if (dfs->dfs_min_sidx > pl->pl_elems[*index].p_sidx)
+			dfs->dfs_min_sidx = pl->pl_elems[*index].p_sidx;
+
+		if (dfs->dfs_max_sidx < pl->pl_elems[*index].p_sidx)
+			dfs->dfs_max_sidx = pl->pl_elems[*index].p_sidx;
 	}
 
+	dfs->dfs_freq_offset =
+		DFS_SIDX_TO_FREQ_OFFSET((dfs->dfs_min_sidx +
+					 dfs->dfs_min_sidx) / 2);
 	return numpulses;
 }
 
@@ -313,6 +322,7 @@ void dfs_add_pulse(
 			dl->dl_numelems = n+1;
 		}
 	}
+
 	dfs_debug(dfs, WLAN_DEBUG_DFS2, "dl firstElem = %d  lastElem = %d",
 			dl->dl_firstelem, dl->dl_lastelem);
 }
@@ -885,6 +895,8 @@ static void dfs_count_the_other_delay_elements(
 				break;
 			}
 		}
+	} else if (rf->rf_patterntype == 2) {
+		primatch = 1;
 	} else {
 		for (k = 1; k <= dfs->dfs_pri_multiplier; k++) {
 			deltapri = DFS_DIFF(searchpri, k * refpri);
@@ -955,11 +967,8 @@ int dfs_bin_pri_check(
 	uint32_t averagerefpri = 0, MatchCount = 0;
 	uint32_t prev_good_timestamp = 0;
 	int dindex;
-	uint32_t i, primargin, durmargin;
-#ifdef WLAN_DEBUG
-	uint32_t highscore = score;
+	uint32_t i, primargin, durmargin, highscore = score;
 	uint32_t highscoreindex = 0;
-#endif
 	/*
 	 * First pulse in the burst is most likely being filtered out based on
 	 * maxfilterlen.

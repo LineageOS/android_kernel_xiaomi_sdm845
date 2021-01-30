@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -109,12 +109,8 @@ void host_diag_log_submit(void *plog_hdr_ptr)
 	uint16_t data_len;
 	uint16_t total_len;
 
-	if (cds_is_load_or_unload_in_progress()) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
-			  "%s: Unloading/Loading in Progress. Ignore!!!",
-			  __func__);
+	if (cds_is_load_or_unload_in_progress())
 		return;
-	}
 
 	if (nl_srv_is_initialized() != 0)
 		return;
@@ -126,11 +122,8 @@ void host_diag_log_submit(void *plog_hdr_ptr)
 
 		pBuf = (uint8_t *) qdf_mem_malloc(total_len);
 
-		if (!pBuf) {
-			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
-				  "qdf_mem_malloc failed");
+		if (!pBuf)
 			return;
-		}
 
 		wmsg = (tAniHdr *) pBuf;
 		wmsg->type = PTT_MSG_DIAG_CMDS_TYPE;
@@ -204,12 +197,8 @@ void host_diag_event_report_payload(uint16_t event_Id, uint16_t length,
 	event_report_t *pEvent_report;
 	uint16_t total_len;
 
-	if (cds_is_load_or_unload_in_progress()) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO,
-			  "%s: Unloading/Loading in Progress. Ignore!!!",
-			  __func__);
+	if (cds_is_load_or_unload_in_progress())
 		return;
-	}
 
 	if (nl_srv_is_initialized() != 0)
 		return;
@@ -219,11 +208,9 @@ void host_diag_event_report_payload(uint16_t event_Id, uint16_t length,
 
 		pBuf = (uint8_t *) qdf_mem_malloc(total_len);
 
-		if (!pBuf) {
-			QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
-				  "qdf_mem_malloc failed");
+		if (!pBuf)
 			return;
-		}
+
 		wmsg = (tAniHdr *) pBuf;
 		wmsg->type = PTT_MSG_DIAG_CMDS_TYPE;
 		wmsg->length = total_len;
@@ -292,6 +279,21 @@ void host_log_rsn_info(uint8_t *ucast_cipher, uint8_t *mcast_cipher,
 
 	WLAN_HOST_DIAG_EVENT_REPORT(&wlan_diag_event,
 				    EVENT_WLAN_RSN_INFO);
+}
+
+void
+host_log_wlan_auth_info(uint16_t auth_algo_num, uint16_t auth_tx_seq_num,
+			uint16_t auth_status_code)
+{
+	WLAN_HOST_DIAG_EVENT_DEF(wlan_diag_event,
+				 struct event_wlan_lim_auth_info);
+
+	wlan_diag_event.auth_algo_num = auth_algo_num;
+	wlan_diag_event.auth_transaction_seq_num = auth_tx_seq_num;
+	wlan_diag_event.auth_status_code = auth_status_code;
+
+	WLAN_HOST_DIAG_EVENT_REPORT(&wlan_diag_event,
+				    EVENT_WLAN_AUTH_INFO);
 }
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT

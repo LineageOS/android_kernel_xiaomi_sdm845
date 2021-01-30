@@ -26,11 +26,6 @@
 #ifndef __WLAN_REG_UCFG_API_H
 #define __WLAN_REG_UCFG_API_H
 
-#include <qdf_types.h>
-#include <qdf_status.h>
-#include "../../core/src/reg_services.h"
-#include <reg_services_public_struct.h>
-
 typedef QDF_STATUS (*reg_event_cb)(void *status_struct);
 
 /**
@@ -71,7 +66,7 @@ QDF_STATUS ucfg_reg_notify_sap_event(struct wlan_objmgr_pdev *pdev,
  *
  * Return: QDF_STATUS
  */
-#ifdef DISABLE_CHANNEL_LIST
+#if defined(DISABLE_CHANNEL_LIST) && defined(CONFIG_CHAN_NUM_API)
 void ucfg_reg_cache_channel_state(struct wlan_objmgr_pdev *pdev,
 				  uint32_t *channel_list,
 				  uint32_t num_channels);
@@ -82,7 +77,29 @@ void ucfg_reg_cache_channel_state(struct wlan_objmgr_pdev *pdev,
 				  uint32_t num_channels)
 {
 }
-#endif
+#endif /* CONFIG_CHAN_NUM_API */
+
+/**
+ * ucfg_reg_cache_channel_freq_state() - Cache the current state of the
+ * channels based on the channel center frequency.
+ * @pdev: Pointer to pdev.
+ * @channel_list: List of the channels for which states need to be cached.
+ * @num_channels: Number of channels in the list.
+ *
+ * Return: QDF_STATUS
+ */
+#if defined(DISABLE_CHANNEL_LIST) && defined(CONFIG_CHAN_FREQ_API)
+void ucfg_reg_cache_channel_freq_state(struct wlan_objmgr_pdev *pdev,
+				       uint32_t *channel_list,
+				       uint32_t num_channels);
+#else
+static inline
+void ucfg_reg_cache_channel_freq_state(struct wlan_objmgr_pdev *pdev,
+				       uint32_t *channel_list,
+				       uint32_t num_channels)
+{
+}
+#endif /* CONFIG_CHAN_FREQ_API */
 
 /**
  * ucfg_reg_restore_cached_channels() - Cache the current state of the channles
@@ -284,8 +301,7 @@ QDF_STATUS ucfg_reg_get_regd_rules(struct wlan_objmgr_pdev *pdev,
  * Return: void
  */
 void ucfg_reg_register_chan_change_callback(struct wlan_objmgr_psoc *psoc,
-					    reg_chan_change_callback cbk,
-					    void *arg);
+					    void *cbk, void *arg);
 
 /**
  * ucfg_reg_unregister_chan_change_callback () - remove chan change cbk
@@ -295,7 +311,7 @@ void ucfg_reg_register_chan_change_callback(struct wlan_objmgr_psoc *psoc,
  * Return: void
  */
 void ucfg_reg_unregister_chan_change_callback(struct wlan_objmgr_psoc *psoc,
-					      reg_chan_change_callback cbk);
+					      void *cbk);
 
 /**
  * ucfg_reg_get_cc_and_src () - get country code and src
@@ -363,5 +379,24 @@ QDF_STATUS ucfg_reg_set_hal_reg_cap(struct wlan_objmgr_psoc *psoc,
  * Return: QDF_STATUS
  */
 QDF_STATUS ucfg_set_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * ucfg_reg_get_unii_5g_bitmap() - get unii_5g_bitmap value
+ * @pdev: pdev pointer
+ * @bitmap: Pointer to retrieve unii_5g_bitmap of enum reg_unii_band.
+ *
+ * Return: QDF_STATUS
+ */
+#ifdef DISABLE_UNII_SHARED_BANDS
+QDF_STATUS
+ucfg_reg_get_unii_5g_bitmap(struct wlan_objmgr_pdev *pdev, uint8_t *bitmap);
+#else
+static inline QDF_STATUS
+ucfg_reg_get_unii_5g_bitmap(struct wlan_objmgr_pdev *pdev, uint8_t *bitmap)
+{
+	*bitmap = 0;
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 
 #endif

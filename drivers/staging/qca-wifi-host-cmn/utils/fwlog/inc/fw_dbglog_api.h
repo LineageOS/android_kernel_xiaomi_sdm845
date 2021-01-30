@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -49,7 +49,7 @@ int fwdbg_fw_handler(struct common_dbglog_handle *dbg_handle, ol_scn_t sc,
 /**
  * fwdbg_parse_debug_logs() - API to parse firmware debug logs
  * @dbg_handle: Debug module handle
- * @name: device name
+ * @soc: soc handle
  * @datap: Reference to log data
  * @len: length of data
  * @context: log context
@@ -59,7 +59,7 @@ int fwdbg_fw_handler(struct common_dbglog_handle *dbg_handle, ol_scn_t sc,
  * Return: 0 success
  */
 int fwdbg_parse_debug_logs(struct common_dbglog_handle *dbg_handle,
-				const char *name, uint8_t *datap,
+				ol_scn_t soc, uint8_t *datap,
 				uint16_t len, void *context);
 
 /**
@@ -169,4 +169,34 @@ void fwdbg_free(struct common_dbglog_handle *dbg_handle, void *soc);
 void fwdbg_set_report_size(struct common_dbglog_handle *dbg_handle,
 				ol_scn_t scn, uint16_t size);
 
+/**
+ * fwdbg_smartlog_init() - initialize smart logging feature
+ * @dbg_handle: Debug module handle
+ * @ic: ic handler
+ *
+ * Return: 0 Success
+ */
+int fwdbg_smartlog_init(struct common_dbglog_handle *dbg_handle, void *icp);
+
+/**
+ * fwdbg_smartlog_deinit() - uninitializes smart logging feature
+ * @dbg_handle: Debug module handle
+ * @sc: sc handler
+ *
+ * Return: None
+ */
+void fwdbg_smartlog_deinit(struct common_dbglog_handle *dbg_handle, void *sc);
+
+/**
+ * fwdbg_smartlog_dump() - dumps smart logs
+ * @dev: dev handler
+ * @dbg_handle: Debug module handle
+ * @attr: dev handler attributes
+ * @buf: destination buffer to dump smart logs
+ *
+ * Return: 0 success
+ */
+ssize_t fwdbg_smartlog_dump(struct common_dbglog_handle *dbg_handle,
+			    struct device *dev,
+			    struct device_attribute *attr, char *buf);
 #endif /* _FW_DBGLOG_API_H_ */

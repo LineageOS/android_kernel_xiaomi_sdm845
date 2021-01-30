@@ -24,8 +24,16 @@
 
 #include <qdf_status.h>
 #include <qdf_types.h>
+#include <wlan_cmn.h>
+#include <reg_services_public_struct.h>
 #include <wlan_reg_tgt_api.h>
-#include "../../core/src/reg_services.h"
+#include <wlan_objmgr_psoc_obj.h>
+#include <../../core/src/reg_priv_objs.h>
+#include <../../core/src/reg_utils.h>
+#include <../../core/src/reg_services_common.h>
+#include <../../core/src/reg_lte.h>
+#include <../../core/src/reg_build_chan_list.h>
+#include <../../core/src/reg_offload_11d_scan.h>
 
 /**
  * tgt_process_master_chan_list() - process master channel list
@@ -66,4 +74,10 @@ QDF_STATUS tgt_reg_process_ch_avoid_event(struct wlan_objmgr_psoc *psoc,
 bool tgt_reg_ignore_fw_reg_offload_ind(struct wlan_objmgr_psoc *psoc)
 {
 	return reg_get_ignore_fw_reg_offload_ind(psoc);
+}
+
+QDF_STATUS tgt_reg_set_6ghz_supported(struct wlan_objmgr_psoc *psoc,
+				      bool val)
+{
+	return reg_set_6ghz_supported(psoc, val);
 }

@@ -22,6 +22,7 @@ bool wmi_get_action_oui_id(enum action_oui_id action_id,
 			   wmi_vendor_oui_action_id *id)
 {
 	switch (action_id) {
+
 	case ACTION_OUI_CONNECT_1X1:
 		*id = WMI_VENDOR_OUI_ACTION_CONNECTION_1X1;
 		return true;
@@ -112,6 +113,7 @@ void wmi_fill_oui_extensions(struct action_oui_extension *extension,
 		cmd_ext++;
 		extension++;
 	}
+
 }
 
 QDF_STATUS

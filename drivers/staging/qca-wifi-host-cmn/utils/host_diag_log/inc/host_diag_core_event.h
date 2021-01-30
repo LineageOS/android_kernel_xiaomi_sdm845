@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -316,6 +316,7 @@ typedef struct {
  * @est_link_speed: link speed of connection, units in Mbps
  * @result_code: result code of connection success or failure
  * @reason_code: if failed then what is the reason
+ * @op_freq: channel frequency in MHz on which AP is connected
  */
 struct host_event_wlan_connection_stats {
 	int8_t rssi;
@@ -333,6 +334,7 @@ struct host_event_wlan_connection_stats {
 	uint32_t est_link_speed;
 	uint16_t result_code;
 	uint16_t reason_code;
+	uint32_t op_freq;
 } qdf_packed;
 
 /*-------------------------------------------------------------------------
@@ -580,6 +582,26 @@ struct event_wlan_csr_rsn_info {
 	uint8_t   ucast_cipher[RSN_OUI_SIZE];
 	uint8_t   mcast_cipher[RSN_OUI_SIZE];
 	uint8_t   group_mgmt[RSN_OUI_SIZE];
+};
+
+/*-------------------------------------------------------------------------
+  Event ID: EVENT_WLAN_AUTH_INFO
+  -------------------------------------------------------------------------
+ */
+/**
+ * struct event_wlan_lim_auth_info - Structure holding the
+ * algo num, seq num and status code for auth request
+ * @auth_algo_num: Gives information about algo num used in auth request
+ * @auth_transaction_seq_num: seq num of auth request
+ * @auth_status_code: status code of auth request
+ *
+ * This structure will hold the algo num, seq num and status code
+ * for auth request
+ */
+struct event_wlan_lim_auth_info {
+	uint16_t   auth_algo_num;
+	uint16_t   auth_transaction_seq_num;
+	uint16_t   auth_status_code;
 };
 
 /*-------------------------------------------------------------------------
@@ -875,6 +897,8 @@ enum wifi_connectivity_events {
  * @WIFI_POWER_EVENT_WAKELOCK_CONNECT: connection in progress
  * @WIFI_POWER_EVENT_WAKELOCK_IFACE_CHANGE_TIMER: iface change timer running
  * @WIFI_POWER_EVENT_WAKELOCK_MONITOR_MODE: Montitor mode wakelock
+ * @WIFI_POWER_EVENT_WAKELOCK_DRIVER_IDLE_RESTART: Wakelock for Idle Restart
+ * @WIFI_POWER_EVENT_WAKELOCK_TDLS: Wakelock for TDLS
  *
  * Indicates the reason for which the wakelock was taken/released
  */
@@ -901,6 +925,8 @@ enum wake_lock_reason {
 	WIFI_POWER_EVENT_WAKELOCK_CONNECT,
 	WIFI_POWER_EVENT_WAKELOCK_IFACE_CHANGE_TIMER,
 	WIFI_POWER_EVENT_WAKELOCK_MONITOR_MODE,
+	WIFI_POWER_EVENT_WAKELOCK_DRIVER_IDLE_RESTART,
+	WIFI_POWER_EVENT_WAKELOCK_TDLS,
 };
 
 /* The length of interface name should >= IFNAMSIZ */

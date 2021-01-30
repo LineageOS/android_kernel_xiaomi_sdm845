@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -158,11 +158,17 @@ QDF_STATUS ucfg_mc_cp_stats_set_pending_req(struct wlan_objmgr_psoc *psoc,
  * ucfg_mc_cp_stats_reset_pending_req() - API to reset pending request
  * @psoc: pointer to psoc object
  * @type: request to update
+ * @last_req: last request
+ * @pending: pending request present
+ *
+ * The function is an atomic operation of "reset" and "get" last request.
  *
  * Return: status of operation
  */
 QDF_STATUS ucfg_mc_cp_stats_reset_pending_req(struct wlan_objmgr_psoc *psoc,
-					      enum stats_req_type type);
+					      enum stats_req_type type,
+					      struct request_info *last_req,
+					      bool *pending);
 
 /**
  * ucfg_mc_cp_stats_get_pending_req() - API to get pending request
@@ -216,5 +222,68 @@ void ucfg_mc_cp_stats_register_lost_link_info_cb(
 		struct wlan_objmgr_psoc *psoc,
 		void (*lost_link_cp_stats_info_cb)(void *stats_ev));
 
+#ifdef WLAN_POWER_MANAGEMENT_OFFLOAD
+/**
+ * ucfg_mc_cp_stats_register_pmo_handler() - API to register pmo handler
+ *
+ * Return: none
+ */
+void ucfg_mc_cp_stats_register_pmo_handler(void);
+#else
+void static inline ucfg_mc_cp_stats_register_pmo_handler(void) { };
+#endif /* WLAN_POWER_MANAGEMENT_OFFLOAD */
+#else
+void static inline ucfg_mc_cp_stats_register_pmo_handler(void) { };
+static inline QDF_STATUS ucfg_mc_cp_stats_send_stats_request(
+				struct wlan_objmgr_vdev *vdev,
+				enum stats_req_type type,
+				struct request_info *info)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS ucfg_mc_cp_stats_set_rate_flags(
+				struct wlan_objmgr_vdev *vdev,
+				enum tx_rate_info flags)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS ucfg_mc_cp_stats_get_psoc_wake_lock_stats(
+						struct wlan_objmgr_psoc *psoc,
+						struct wake_lock_stats *stats)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS ucfg_mc_cp_stats_inc_wake_lock_stats_by_protocol(
+					struct wlan_objmgr_psoc *psoc,
+					uint8_t vdev_id,
+					enum qdf_proto_subtype protocol)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS ucfg_mc_cp_stats_inc_wake_lock_stats(
+				struct wlan_objmgr_psoc *psoc,
+				uint8_t vdev_id,
+				uint32_t reason)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS ucfg_mc_cp_stats_inc_wake_lock_stats_by_dst_addr(
+					struct wlan_objmgr_psoc *psoc,
+					uint8_t vdev_id, uint8_t *dest_mac)
+{
+	return QDF_STATUS_SUCCESS;
+}
+
+static inline QDF_STATUS ucfg_mc_cp_stats_get_vdev_wake_lock_stats(
+						struct wlan_objmgr_vdev *vdev,
+						struct wake_lock_stats *stats)
+{
+	return QDF_STATUS_SUCCESS;
+}
 #endif /* QCA_SUPPORT_CP_STATS */
 #endif /* __WLAN_CP_STATS_MC_UCFG_API_H__ */

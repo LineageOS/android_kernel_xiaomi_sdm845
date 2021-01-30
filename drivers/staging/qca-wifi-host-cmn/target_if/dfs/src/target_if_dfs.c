@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
- /**
+/**
  * DOC: target_if_dfs.c
  * This file contains dfs target interface
  */
@@ -111,7 +111,7 @@ static bool target_if_is_dfs_3(uint32_t target_type)
  * @datalen: radar event buffer length
  *
  * Return: 0 on success; error code otherwise
-*/
+ */
 static int target_if_radar_event_handler(
 	ol_scn_t scn, uint8_t *data, uint32_t datalen)
 {
@@ -172,9 +172,7 @@ static int target_if_radar_event_handler(
 static QDF_STATUS target_if_reg_phyerr_events_dfs2(
 				struct wlan_objmgr_psoc *psoc)
 {
-	int ret = -1;
-	struct wlan_lmac_if_dfs_rx_ops *dfs_rx_ops;
-	bool is_phyerr_filter_offload;
+	int ret;
 	wmi_unified_t wmi_handle;
 
 	wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
@@ -183,17 +181,9 @@ static QDF_STATUS target_if_reg_phyerr_events_dfs2(
 		return QDF_STATUS_E_INVAL;
 	}
 
-	dfs_rx_ops = target_if_dfs_get_rx_ops(psoc);
-	if (dfs_rx_ops && dfs_rx_ops->dfs_is_phyerr_filter_offload)
-		if (QDF_IS_STATUS_SUCCESS(
-			dfs_rx_ops->dfs_is_phyerr_filter_offload(psoc,
-						&is_phyerr_filter_offload)))
-			if (is_phyerr_filter_offload)
-				ret = wmi_unified_register_event(
-						wmi_handle,
-						wmi_dfs_radar_event_id,
-						target_if_radar_event_handler);
-
+	ret = wmi_unified_register_event(wmi_handle,
+					 wmi_dfs_radar_event_id,
+					 target_if_radar_event_handler);
 	if (ret) {
 		target_if_err("failed to register wmi_dfs_radar_event_id");
 		return QDF_STATUS_E_FAILURE;
@@ -226,7 +216,7 @@ static bool target_if_dfs_offload(struct wlan_objmgr_psoc *psoc)
 static QDF_STATUS target_if_dfs_get_target_type(struct wlan_objmgr_pdev *pdev,
 						uint32_t *target_type)
 {
-	struct wlan_objmgr_psoc *psoc = NULL;
+	struct wlan_objmgr_psoc *psoc;
 	struct target_psoc_info *tgt_psoc_info;
 
 	psoc = wlan_pdev_get_psoc(pdev);
@@ -316,7 +306,7 @@ static QDF_STATUS target_if_dfs_set_phyerr_filter_offload(
 					bool dfs_phyerr_filter_offload)
 {
 	QDF_STATUS status;
-	void *wmi_handle;
+	wmi_unified_t wmi_handle;
 
 	if (!pdev) {
 		target_if_err("null pdev");
@@ -397,6 +387,10 @@ QDF_STATUS target_if_register_dfs_tx_ops(struct wlan_lmac_if_tx_ops *tx_ops)
 
 	dfs_tx_ops->dfs_process_emulate_bang_radar_cmd =
 				&target_process_bang_radar_cmd;
+	dfs_tx_ops->dfs_agile_ch_cfg_cmd =
+				&target_send_agile_ch_cfg_cmd;
+	dfs_tx_ops->dfs_ocac_abort_cmd =
+				&target_send_ocac_abort_cmd;
 	dfs_tx_ops->dfs_is_pdev_5ghz = &target_if_dfs_is_pdev_5ghz;
 	dfs_tx_ops->dfs_send_offload_enable_cmd =
 		&target_send_dfs_offload_enable_cmd;
@@ -408,7 +402,11 @@ QDF_STATUS target_if_register_dfs_tx_ops(struct wlan_lmac_if_tx_ops *tx_ops)
 	dfs_tx_ops->dfs_send_avg_radar_params_to_fw =
 		&target_if_dfs_send_avg_params_to_fw;
 	dfs_tx_ops->dfs_is_tgt_offload = &target_if_dfs_offload;
-	dfs_tx_ops->dfs_get_target_type = &target_if_dfs_get_target_type;
 
+	dfs_tx_ops->dfs_send_usenol_pdev_param =
+		&target_send_usenol_pdev_param;
+	dfs_tx_ops->dfs_send_subchan_marking_pdev_param =
+		&target_send_subchan_marking_pdev_param;
+	dfs_tx_ops->dfs_get_target_type = &target_if_dfs_get_target_type;
 	return QDF_STATUS_SUCCESS;
 }
