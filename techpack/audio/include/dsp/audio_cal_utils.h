@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014, 2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -104,4 +104,6 @@ int32_t cal_utils_get_cal_type_version(void *cal_type_data);
 void cal_utils_mark_cal_used(struct cal_block_data *cal_block);
 
 bool cal_utils_is_cal_stale(struct cal_block_data *cal_block);
+
+int cal_utils_init(void);
 #endif
