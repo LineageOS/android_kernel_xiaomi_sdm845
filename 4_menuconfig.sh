@@ -11,7 +11,7 @@ DEFCONFIG=malakas_beryllium_defconfig
 export ARCH=arm64 && export SUBARCH=arm64 $DEFCONFIG
 make $DEFCONFIG
 make menuconfig
-cp .config arch/arm64/configs/malakas_beryllium_defconfig
+cp .config arch/arm64/configs/$DEFCONFIG
 clear
 echo -e "${green}"
 echo done

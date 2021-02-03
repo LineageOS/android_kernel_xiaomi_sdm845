@@ -15,6 +15,9 @@ export PREBUILT_CACHE_DIR=~/.ccache
 export CCACHE_DIR=~/.ccache
 ccache -M 30G
 
+sudo aptitude -f install -y  libomp-12-dev llvm-12 llvm llvm-12 clang-12 lld-12 gcc clang binutils make flex bison bc build-essential libncurses-dev libssl-dev libelf-dev qt5-default libclang-common-12-dev gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu
+
+
 #export KBUILD_BUILD_USER=thanas
 #export KBUILD_BUILD_HOST=MLX
 
@@ -23,9 +26,10 @@ MLX="$(pwd)"
 AK=$MLX/AnyKernel3
 OUT=$MLX/out/arch/arm64/boot
 KERNEL=~/Desktop/MLX
-TC=~/TOOLCHAIN
+#TC=~/TOOLCHAIN
 ###
-CLANG=$TC/clang/bin
+#unhash for external tc
+#CLANG=$TC/clang/bin
 ###
 
 ### update stuff
@@ -57,12 +61,12 @@ CLANG_FLAGS="CC=clang"
 ###
 export ARCH=arm64 && export SUBARCH=arm64 $DEFCONFIG
 
-export CROSS_COMPILE=$CLANG/aarch64-linux-gnu-
-export CROSS_COMPILE_ARM32=$CLANG/arm-linux-gnueabi-
+export CROSS_COMPILE=aarch64-linux-gnu-
+export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
 #export CLANG_TRIPLE=aarch64-linux-gnu-
-export LD_LIBRARY_PATH="$CLANG/../lib:$CLANG/../lib64:$LD_LIBRARY_PATH"
-export PATH="$CLANG:$PATH"
+#export LD_LIBRARY_PATH="$CLANG/../lib:$CLANG/../lib64:$LD_LIBRARY_PATH"
+#export PATH="$CLANG:$PATH"
 #make menuconfig
 #cp .config arch/arm64/configs/malakas_beryllium_defconfig
 ###start compilation
