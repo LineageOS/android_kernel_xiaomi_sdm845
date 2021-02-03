@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -56,12 +56,12 @@ struct radar_found_info {
 /**
  * struct dfs_acs_info - acs info, ch range
  * @acs_mode: to enable/disable acs 1/0.
- * @channel_list: channel list in acs config
+ * @chan_freq_list: channel frequency list
  * @num_of_channel: number of channel in ACS channel list
  */
 struct dfs_acs_info {
 	uint8_t acs_mode;
-	uint8_t *channel_list;
+	uint32_t *chan_freq_list;
 	uint8_t num_of_channel;
 };
 
@@ -123,5 +123,21 @@ struct dfs_radar_found_params {
 	u_int32_t duration_max;
 	u_int32_t sidx_min;
 	u_int32_t sidx_max;
+};
+
+/**
+ * struct dfs_agile_cac_params - Agile DFS-CAC parameters.
+ * @precac_chan:        Agile preCAC channel.
+ * @precac_chan_freq:   Agile preCAC channel frequency in MHZ.
+ * @precac_chwidth:     Agile preCAC channel width.
+ * @min_precac_timeout: Minimum agile preCAC timeout.
+ * @max_precac_timeout: Maximum agile preCAC timeout.
+ */
+struct dfs_agile_cac_params {
+	uint8_t precac_chan;
+	uint16_t precac_chan_freq;
+	enum phy_ch_width precac_chwidth;
+	uint32_t min_precac_timeout;
+	uint32_t max_precac_timeout;
 };
 #endif

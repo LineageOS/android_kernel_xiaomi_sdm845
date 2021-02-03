@@ -30,19 +30,27 @@
 #include <wlan_ipa_public_struct.h>
 #include <wlan_ipa_priv.h>
 
-#define ipa_log(level, args...) QDF_TRACE(QDF_MODULE_ID_IPA, level, ## args)
-#define ipa_logfl(level, format, args...) ipa_log(level, FL(format), ## args)
+#define ipa_fatal(params...) \
+	QDF_TRACE_FATAL(QDF_MODULE_ID_IPA, params)
+#define ipa_err(params...) \
+	QDF_TRACE_ERROR(QDF_MODULE_ID_IPA, params)
+#define ipa_warn(params...) \
+	QDF_TRACE_WARN(QDF_MODULE_ID_IPA, params)
+#define ipa_info(params...) \
+	QDF_TRACE_INFO(QDF_MODULE_ID_IPA, params)
+#define ipa_debug(params...) \
+	QDF_TRACE_DEBUG(QDF_MODULE_ID_IPA, params)
 
-#define ipa_fatal(format, args...) \
-		ipa_logfl(QDF_TRACE_LEVEL_FATAL, format, ## args)
-#define ipa_err(format, args...) \
-		ipa_logfl(QDF_TRACE_LEVEL_ERROR, format, ## args)
-#define ipa_warn(format, args...) \
-		ipa_logfl(QDF_TRACE_LEVEL_WARN, format, ## args)
-#define ipa_info(format, args...) \
-		ipa_logfl(QDF_TRACE_LEVEL_INFO, format, ## args)
-#define ipa_debug(format, args...) \
-		ipa_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
+#define ipa_nofl_fatal(params...) \
+	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_IPA, params)
+#define ipa_nofl_err(params...) \
+	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_IPA, params)
+#define ipa_nofl_warn(params...) \
+	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_IPA, params)
+#define ipa_nofl_info(params...) \
+	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_IPA, params)
+#define ipa_nofl_debug(params...) \
+	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_IPA, params)
 
 #define ipa_fatal_rl(params...) QDF_TRACE_FATAL_RL(QDF_MODULE_ID_IPA, params)
 #define ipa_err_rl(params...) QDF_TRACE_ERROR_RL(QDF_MODULE_ID_IPA, params)
@@ -50,8 +58,10 @@
 #define ipa_info_rl(params...) QDF_TRACE_INFO_RL(QDF_MODULE_ID_IPA, params)
 #define ipa_debug_rl(params...) QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_IPA, params)
 
-#define IPA_ENTER() ipa_debug("enter")
-#define IPA_EXIT() ipa_debug("exit")
+#define IPA_ENTER() \
+	QDF_TRACE_ENTER(QDF_MODULE_ID_IPA, "enter")
+#define IPA_EXIT() \
+	QDF_TRACE_EXIT(QDF_MODULE_ID_IPA, "exit")
 
 /**
  * ipa_check_hw_present() - get IPA hw status
@@ -105,14 +115,6 @@ QDF_STATUS ipa_config_mem_alloc(void);
 void ipa_config_mem_free(void);
 
 /**
- * ipa_config_update() - IPA component config update
- * @config: IPA config
- *
- * Return: None
- */
-void ipa_config_update(struct wlan_ipa_config *config);
-
-/**
  * ipa_config_is_enabled() - Is IPA config enabled?
  *
  * Return: true if IPA is enabled in IPA config
@@ -162,13 +164,13 @@ QDF_STATUS ipa_send_uc_offload_enable_disable(struct wlan_objmgr_pdev *pdev,
 void ipa_set_dp_handle(struct wlan_objmgr_psoc *psoc, void *dp_soc);
 
 /**
- * ipa_set_txrx_handle() - set dp txrx handle
+ * ipa_set_pdev_id() - set dp pdev id
  * @psoc: psoc handle
- * @txrx_handle: dp txrx handle
+ * @pdev_id: dp txrx physical device id
  *
  * Return: None
  */
-void ipa_set_txrx_handle(struct wlan_objmgr_psoc *psoc, void *txrx_handle);
+void ipa_set_pdev_id(struct wlan_objmgr_psoc *psoc, uint8_t pdev_id);
 
 /**
  * ipa_rm_set_perf_level() - set ipa rm perf level
@@ -332,6 +334,14 @@ QDF_STATUS ipa_uc_ol_init(struct wlan_objmgr_pdev *pdev,
 QDF_STATUS ipa_uc_ol_deinit(struct wlan_objmgr_pdev *pdev);
 
 /**
+ * ipa_is_tx_pending() - Check if IPA WLAN TX completions are pending
+ * @pdev: pdev obj
+ *
+ * Return: bool if pending TX for IPA.
+ */
+bool ipa_is_tx_pending(struct wlan_objmgr_pdev *pdev);
+
+/**
  * ipa_send_mcc_scc_msg() - Send IPA WLAN_SWITCH_TO_MCC/SCC message
  * @pdev: pdev obj
  * @mcc_mode: 0=MCC/1=SCC
@@ -346,7 +356,6 @@ QDF_STATUS ipa_send_mcc_scc_msg(struct wlan_objmgr_pdev *pdev,
  * @pdev: pdev obj
  * @net_dev: Interface net device
  * @device_mode: Net interface device mode
- * @sta_id: station id for the event
  * @session_id: session id for the event
  * @type: event enum of type ipa_wlan_event
  * @mac_address: MAC address associated with the event
@@ -354,7 +363,7 @@ QDF_STATUS ipa_send_mcc_scc_msg(struct wlan_objmgr_pdev *pdev,
  * Return: QDF_STATUS
  */
 QDF_STATUS ipa_wlan_evt(struct wlan_objmgr_pdev *pdev, qdf_netdev_t net_dev,
-			uint8_t device_mode, uint8_t sta_id, uint8_t session_id,
+			uint8_t device_mode, uint8_t session_id,
 			enum wlan_ipa_wlan_event ipa_event_type,
 			uint8_t *mac_addr);
 
@@ -426,6 +435,42 @@ void ipa_uc_ssr_cleanup(struct wlan_objmgr_pdev *pdev);
  * Return: None
  */
 void ipa_fw_rejuvenate_send_msg(struct wlan_objmgr_pdev *pdev);
+
+/**
+ * ipa_component_config_update() - update ipa config from psoc
+ * @psoc: psoc obj
+ *
+ * Return: None
+ */
+void ipa_component_config_update(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * ipa_get_tx_buf_count() - get IPA config tx buffer count
+ *
+ * Return: IPA config tx buffer count
+ */
+uint32_t ipa_get_tx_buf_count(void);
+
+/**
+ * ipa_update_tx_stats() - Update embedded tx traffic in bytes to IPA
+ * @pdev: pdev obj
+ * @sta_tx: tx in bytes on sta vdev
+ * @ap_tx: tx in bytes on sap vdev
+ *
+ * Return: None
+ */
+void ipa_update_tx_stats(struct wlan_objmgr_pdev *pdev, uint64_t sta_tx,
+			 uint64_t ap_tx);
+
+/**
+ * ipa_flush_pending_vdev_events() - flush pending vdev wlan ipa events
+ * @pdev: pdev obj
+ * @vdev_id: vdev id
+ *
+ * Return: None
+ */
+void ipa_flush_pending_vdev_events(struct wlan_objmgr_pdev *pdev,
+				   uint8_t vdev_id);
 
 #else /* Not IPA_OFFLOAD */
 typedef QDF_STATUS (*wlan_ipa_softap_xmit)(qdf_nbuf_t nbuf, qdf_netdev_t dev);

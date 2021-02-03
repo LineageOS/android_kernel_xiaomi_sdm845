@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -48,6 +48,12 @@
 #define QDF_NBUF_CB_TX_FCTX(skb) \
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.tx.dev.priv_cb_w.fctx)
 
+#define QDF_NBUF_CB_RX_PEER_ID(skb) \
+	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_w.peer_id)
+
+#define QDF_NBUF_CB_RX_PKT_LEN(skb) \
+	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_w.msdu_len)
+
 #define __qdf_nbuf_set_rx_fctx_type(skb, ctx, type) \
 	do { \
 		QDF_NBUF_CB_RX_FCTX((skb)) = (ctx); \
@@ -66,7 +72,38 @@
 #define __qdf_nbuf_get_tx_fctx(skb) \
 		 QDF_NBUF_CB_TX_FCTX((skb))
 
+#define QDF_NBUF_CB_RX_PROTOCOL_TAG(skb) \
+		(((struct qdf_nbuf_cb *) \
+		((skb)->cb))->u.rx.dev.priv_cb_w.protocol_tag)
 
+#define __qdf_nbuf_set_rx_protocol_tag(skb, val) \
+		((QDF_NBUF_CB_RX_PROTOCOL_TAG((skb))) = val)
+
+#define __qdf_nbuf_get_rx_protocol_tag(skb) \
+		(QDF_NBUF_CB_RX_PROTOCOL_TAG((skb)))
+
+#define QDF_NBUF_CB_RX_FLOW_TAG(skb) \
+		(((struct qdf_nbuf_cb *) \
+		((skb)->cb))->u.rx.dev.priv_cb_w.flow_tag)
+
+#define __qdf_nbuf_set_rx_flow_tag(skb, val) \
+		((QDF_NBUF_CB_RX_FLOW_TAG((skb))) = val)
+
+#define __qdf_nbuf_get_rx_flow_tag(skb) \
+		(QDF_NBUF_CB_RX_FLOW_TAG((skb)))
+
+/**
+ * qdf_nbuf_cb_update_vdev_id() - update vdev id in skb cb
+ * @skb: skb pointer whose cb is updated with vdev id information
+ * @vdev_id: vdev id to be updated in cb
+ *
+ * Return: void
+ */
+static inline void
+qdf_nbuf_cb_update_vdev_id(struct sk_buff *skb, uint8_t vdev_id)
+{
+	/* Does not apply to WIN */
+}
 
 /**
  * __qdf_nbuf_push_head() - Push data in the front

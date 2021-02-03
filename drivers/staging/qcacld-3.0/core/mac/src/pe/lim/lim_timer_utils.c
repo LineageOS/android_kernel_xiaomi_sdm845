@@ -30,6 +30,7 @@
 #include "lim_utils.h"
 #include "lim_assoc_utils.h"
 #include "lim_security_utils.h"
+#include "wlan_mlme_public_struct.h"
 #include <lim_api.h>
 
 /* channel Switch Timer in ticks */
@@ -51,11 +52,11 @@
  */
 #define LIM_AUTH_SAE_TIMER_MS 5000
 
-static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
+static bool lim_create_non_ap_timers(struct mac_context *mac)
 {
 	uint32_t cfgValue;
 	/* Create Channel Switch Timer */
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimChannelSwitchTimer,
+	if (tx_timer_create(mac, &mac->lim.lim_timers.gLimChannelSwitchTimer,
 			    "CHANNEL SWITCH TIMER",
 			    lim_channel_switch_timer_handler, 0,
 			    LIM_CHANNEL_SWITCH_TIMER_TICKS,
@@ -63,36 +64,11 @@ static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
 		pe_err("failed to create Ch Switch timer");
 		return false;
 	}
-	/* Create Quiet Timer
-	 * This is used on the STA to go and shut-off Tx/Rx "after" the
-	 * specified quiteInterval
-	 */
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimQuietTimer,
-			    "QUIET TIMER", lim_quiet_timer_handler,
-			    SIR_LIM_QUIET_TIMEOUT, LIM_QUIET_TIMER_TICKS,
-			    0, TX_NO_ACTIVATE) != TX_SUCCESS) {
-		pe_err("failed to create Quiet Begin Timer");
-		return false;
-	}
-	/* Create Quiet BSS Timer
-	 * After the specified quiteInterval, determined by gLimQuietTimer, this
-	 * timer, gLimQuietBssTimer, trigger and put the STA to sleep for the
-	 * specified gLimQuietDuration
-	 */
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimQuietBssTimer,
-			    "QUIET BSS TIMER", lim_quiet_bss_timer_handler,
-			    SIR_LIM_QUIET_BSS_TIMEOUT, LIM_QUIET_BSS_TIMER_TICK,
-			    0, TX_NO_ACTIVATE) != TX_SUCCESS) {
-		pe_err("failed to create Quiet Bss Timer");
-		return false;
-	}
 
-	if (wlan_cfg_get_int(pMac, WNI_CFG_JOIN_FAILURE_TIMEOUT,
-			     &cfgValue) != QDF_STATUS_SUCCESS)
-		pe_err("could not retrieve JoinFailureTimeout value");
-	cfgValue = SYS_MS_TO_TICKS(cfgValue);
+	cfgValue = SYS_MS_TO_TICKS(
+			mac->mlme_cfg->timeouts.join_failure_timeout);
 	/* Create Join failure timer and activate it later */
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimJoinFailureTimer,
+	if (tx_timer_create(mac, &mac->lim.lim_timers.gLimJoinFailureTimer,
 			    "JOIN FAILURE TIMEOUT",
 			    lim_timer_handler, SIR_LIM_JOIN_FAIL_TIMEOUT,
 			    cfgValue, 0,
@@ -103,8 +79,8 @@ static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
 		return false;
 	}
 	/* Send unicast probe req frame every 200 ms */
-	if (tx_timer_create(pMac,
-			    &pMac->lim.limTimers.gLimPeriodicJoinProbeReqTimer,
+	if (tx_timer_create(mac,
+			    &mac->lim.lim_timers.gLimPeriodicJoinProbeReqTimer,
 			    "Periodic Join Probe Request Timer",
 			    lim_timer_handler,
 			    SIR_LIM_PERIODIC_JOIN_PROBE_REQ_TIMEOUT,
@@ -115,8 +91,8 @@ static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
 	}
 
 	/* Send Auth frame every 60 ms */
-	if ((tx_timer_create(pMac,
-		&pMac->lim.limTimers.g_lim_periodic_auth_retry_timer,
+	if ((tx_timer_create(mac,
+		&mac->lim.lim_timers.g_lim_periodic_auth_retry_timer,
 		"Periodic AUTH Timer",
 		lim_timer_handler, SIR_LIM_AUTH_RETRY_TIMEOUT,
 		SYS_MS_TO_TICKS(LIM_AUTH_RETRY_TIMER_MS), 0,
@@ -125,13 +101,10 @@ static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
 		return false;
 	}
 
-	if (wlan_cfg_get_int(pMac, WNI_CFG_ASSOCIATION_FAILURE_TIMEOUT,
-			     &cfgValue) != QDF_STATUS_SUCCESS)
-		pe_err("could not retrieve AssocFailureTimeout value");
-
-	cfgValue = SYS_MS_TO_TICKS(cfgValue);
+	cfgValue = SYS_MS_TO_TICKS(
+			mac->mlme_cfg->timeouts.assoc_failure_timeout);
 	/* Create Association failure timer and activate it later */
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimAssocFailureTimer,
+	if (tx_timer_create(mac, &mac->lim.lim_timers.gLimAssocFailureTimer,
 			    "ASSOC FAILURE TIMEOUT",
 			    lim_assoc_failure_timer_handler, LIM_ASSOC,
 			    cfgValue, 0, TX_NO_ACTIVATE) != TX_SUCCESS) {
@@ -139,14 +112,10 @@ static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
 		return false;
 	}
 
-	if (wlan_cfg_get_int(pMac, WNI_CFG_ADDTS_RSP_TIMEOUT, &cfgValue)
-			     != QDF_STATUS_SUCCESS)
-		pe_err("Fail to get WNI_CFG_ADDTS_RSP_TIMEOUT");
-
-	cfgValue = SYS_MS_TO_TICKS(cfgValue);
+	cfgValue = SYS_MS_TO_TICKS(mac->mlme_cfg->timeouts.addts_rsp_timeout);
 
 	/* Create Addts response timer and activate it later */
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimAddtsRspTimer,
+	if (tx_timer_create(mac, &mac->lim.lim_timers.gLimAddtsRspTimer,
 			    "ADDTS RSP TIMEOUT",
 			    lim_addts_response_timer_handler,
 			    SIR_LIM_ADDTS_RSP_TIMEOUT,
@@ -155,13 +124,10 @@ static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
 		return false;
 	}
 
-	if (wlan_cfg_get_int(pMac, WNI_CFG_AUTHENTICATE_FAILURE_TIMEOUT,
-			     &cfgValue) != QDF_STATUS_SUCCESS)
-		pe_err("could not retrieve AuthFailureTimeout value");
-
-	cfgValue = SYS_MS_TO_TICKS(cfgValue);
+	cfgValue = SYS_MS_TO_TICKS(
+			mac->mlme_cfg->timeouts.auth_failure_timeout);
 	/* Create Auth failure timer and activate it later */
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimAuthFailureTimer,
+	if (tx_timer_create(mac, &mac->lim.lim_timers.gLimAuthFailureTimer,
 			    "AUTH FAILURE TIMEOUT",
 			    lim_timer_handler,
 			    SIR_LIM_AUTH_FAIL_TIMEOUT,
@@ -170,13 +136,10 @@ static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
 		return false;
 	}
 
-	if (wlan_cfg_get_int(pMac, WNI_CFG_PROBE_AFTER_HB_FAIL_TIMEOUT,
-			     &cfgValue) != QDF_STATUS_SUCCESS)
-		pe_err("could not retrieve PROBE_AFTER_HB_FAIL_TIMEOUT value");
-
 	/* Change timer to reactivate it in future */
-	cfgValue = SYS_MS_TO_TICKS(cfgValue);
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimProbeAfterHBTimer,
+	cfgValue = SYS_MS_TO_TICKS(
+		mac->mlme_cfg->timeouts.probe_after_hb_fail_timeout);
+	if (tx_timer_create(mac, &mac->lim.lim_timers.gLimProbeAfterHBTimer,
 			    "Probe after Heartbeat TIMEOUT",
 			    lim_timer_handler,
 			    SIR_LIM_PROBE_HB_FAILURE_TIMEOUT,
@@ -189,8 +152,8 @@ static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
 	 * SAE auth timer of 5secs. This is required for duration of entire SAE
 	 * authentication.
 	 */
-	if ((tx_timer_create(pMac,
-		&pMac->lim.limTimers.sae_auth_timer,
+	if ((tx_timer_create(mac,
+		&mac->lim.lim_timers.sae_auth_timer,
 		"SAE AUTH Timer",
 		lim_timer_handler, SIR_LIM_AUTH_SAE_TIMEOUT,
 		SYS_MS_TO_TICKS(LIM_AUTH_SAE_TIMER_MS), 0,
@@ -204,7 +167,7 @@ static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
 /**
  * lim_create_timers()
  *
- * @pMac : Pointer to Global MAC structure
+ * @mac : Pointer to Global MAC structure
  *
  * This function is called upon receiving
  * 1. SME_START_REQ for STA in ESS role
@@ -213,30 +176,25 @@ static bool lim_create_non_ap_timers(tpAniSirGlobal pMac)
  * @return : status of operation
  */
 
-uint32_t lim_create_timers(tpAniSirGlobal pMac)
+uint32_t lim_create_timers(struct mac_context *mac)
 {
 	uint32_t cfgValue, i = 0;
 
 	pe_debug("Creating Timers used by LIM module in Role: %d",
-	       pMac->lim.gLimSystemRole);
+	       mac->lim.gLimSystemRole);
 	/* Create timers required for host roaming feature */
-	if (TX_SUCCESS != lim_create_timers_host_roam(pMac))
+	if (TX_SUCCESS != lim_create_timers_host_roam(mac))
 		return TX_TIMER_ERROR;
 
-	if (pMac->lim.gLimSystemRole != eLIM_AP_ROLE)
-		if (false == lim_create_non_ap_timers(pMac))
+	if (mac->lim.gLimSystemRole != eLIM_AP_ROLE)
+		if (false == lim_create_non_ap_timers(mac))
 			goto err_timer;
 
-	/* Create all CNF_WAIT Timers upfront */
-	if (wlan_cfg_get_int(pMac, WNI_CFG_WT_CNF_TIMEOUT, &cfgValue)
-		!= QDF_STATUS_SUCCESS) {
-		pe_err("could not retrieve CNF timeout value");
-	}
-
+	cfgValue = mac->mlme_cfg->sta.wait_cnf_timeout;
 	cfgValue = SYS_MS_TO_TICKS(cfgValue);
-	for (i = 0; i < (pMac->lim.maxStation + 1); i++) {
-		if (tx_timer_create(pMac,
-				    &pMac->lim.limTimers.gpLimCnfWaitTimer[i],
+	for (i = 0; i < (mac->lim.maxStation + 1); i++) {
+		if (tx_timer_create(mac,
+				    &mac->lim.lim_timers.gpLimCnfWaitTimer[i],
 				    "CNF_MISS_TIMEOUT",
 				    lim_cnf_wait_tmer_handler,
 				    (uint32_t) i, cfgValue,
@@ -247,37 +205,29 @@ uint32_t lim_create_timers(tpAniSirGlobal pMac)
 	}
 
 	/* Alloc and init table for the preAuth timer list */
-	if (wlan_cfg_get_int(pMac, WNI_CFG_MAX_NUM_PRE_AUTH,
-			     &cfgValue) != QDF_STATUS_SUCCESS)
-		pe_err("could not retrieve mac preauth value");
-	pMac->lim.gLimPreAuthTimerTable.numEntry = cfgValue;
-	pMac->lim.gLimPreAuthTimerTable.pTable =
+	cfgValue = mac->mlme_cfg->lfr.max_num_pre_auth;
+	mac->lim.gLimPreAuthTimerTable.numEntry = cfgValue;
+	mac->lim.gLimPreAuthTimerTable.pTable =
 		qdf_mem_malloc(cfgValue * sizeof(tLimPreAuthNode *));
 
-	if (pMac->lim.gLimPreAuthTimerTable.pTable == NULL) {
-		pe_err("AllocateMemory failed!");
+	if (!mac->lim.gLimPreAuthTimerTable.pTable)
 		goto err_timer;
-	}
 
 	for (i = 0; i < cfgValue; i++) {
-		pMac->lim.gLimPreAuthTimerTable.pTable[i] =
+		mac->lim.gLimPreAuthTimerTable.pTable[i] =
 					qdf_mem_malloc(sizeof(tLimPreAuthNode));
-		if (pMac->lim.gLimPreAuthTimerTable.pTable[i] == NULL) {
-			pMac->lim.gLimPreAuthTimerTable.numEntry = 0;
-			pe_err("AllocateMemory failed!");
+		if (!mac->lim.gLimPreAuthTimerTable.pTable[i]) {
+			mac->lim.gLimPreAuthTimerTable.numEntry = 0;
 			goto err_timer;
 		}
 	}
 
-	lim_init_pre_auth_timer_table(pMac, &pMac->lim.gLimPreAuthTimerTable);
+	lim_init_pre_auth_timer_table(mac, &mac->lim.gLimPreAuthTimerTable);
 	pe_debug("alloc and init table for preAuth timers");
 
-	if (wlan_cfg_get_int(pMac, WNI_CFG_OLBC_DETECT_TIMEOUT,
-			     &cfgValue) != QDF_STATUS_SUCCESS)
-		pe_err("could not retrieve OLBD detect timeout value");
-
-	cfgValue = SYS_MS_TO_TICKS(cfgValue);
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimUpdateOlbcCacheTimer,
+	cfgValue = SYS_MS_TO_TICKS(
+			mac->mlme_cfg->timeouts.olbc_detect_timeout);
+	if (tx_timer_create(mac, &mac->lim.lim_timers.gLimUpdateOlbcCacheTimer,
 			    "OLBC UPDATE CACHE TIMEOUT",
 			    lim_update_olbc_cache_timer_handler,
 			    SIR_LIM_UPDATE_OLBC_CACHEL_TIMEOUT, cfgValue,
@@ -288,7 +238,7 @@ uint32_t lim_create_timers(tpAniSirGlobal pMac)
 
 	cfgValue = 1000;
 	cfgValue = SYS_MS_TO_TICKS(cfgValue);
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimDisassocAckTimer,
+	if (tx_timer_create(mac, &mac->lim.lim_timers.gLimDisassocAckTimer,
 			    "DISASSOC ACK TIMEOUT",
 			    lim_timer_handler, SIR_LIM_DISASSOC_ACK_TIMEOUT,
 			    cfgValue, 0, TX_NO_ACTIVATE) != TX_SUCCESS) {
@@ -298,7 +248,7 @@ uint32_t lim_create_timers(tpAniSirGlobal pMac)
 
 	cfgValue = 1000;
 	cfgValue = SYS_MS_TO_TICKS(cfgValue);
-	if (tx_timer_create(pMac, &pMac->lim.limTimers.gLimDeauthAckTimer,
+	if (tx_timer_create(mac, &mac->lim.lim_timers.gLimDeauthAckTimer,
 			    "DISASSOC ACK TIMEOUT",
 			    lim_timer_handler, SIR_LIM_DEAUTH_ACK_TIMEOUT,
 			    cfgValue, 0, TX_NO_ACTIVATE) != TX_SUCCESS) {
@@ -309,30 +259,28 @@ uint32_t lim_create_timers(tpAniSirGlobal pMac)
 	return TX_SUCCESS;
 
 err_timer:
-	lim_delete_timers_host_roam(pMac);
-	tx_timer_delete(&pMac->lim.limTimers.gLimDeauthAckTimer);
-	tx_timer_delete(&pMac->lim.limTimers.gLimDisassocAckTimer);
-	tx_timer_delete(&pMac->lim.limTimers.gLimUpdateOlbcCacheTimer);
+	lim_delete_timers_host_roam(mac);
+	tx_timer_delete(&mac->lim.lim_timers.gLimDeauthAckTimer);
+	tx_timer_delete(&mac->lim.lim_timers.gLimDisassocAckTimer);
+	tx_timer_delete(&mac->lim.lim_timers.gLimUpdateOlbcCacheTimer);
 	while (((int32_t)-- i) >= 0) {
-		tx_timer_delete(&pMac->lim.limTimers.gpLimCnfWaitTimer[i]);
+		tx_timer_delete(&mac->lim.lim_timers.gpLimCnfWaitTimer[i]);
 	}
-	tx_timer_delete(&pMac->lim.limTimers.gLimProbeAfterHBTimer);
-	tx_timer_delete(&pMac->lim.limTimers.gLimAuthFailureTimer);
-	tx_timer_delete(&pMac->lim.limTimers.gLimAddtsRspTimer);
-	tx_timer_delete(&pMac->lim.limTimers.gLimAssocFailureTimer);
-	tx_timer_delete(&pMac->lim.limTimers.gLimJoinFailureTimer);
-	tx_timer_delete(&pMac->lim.limTimers.gLimPeriodicJoinProbeReqTimer);
-	tx_timer_delete(&pMac->lim.limTimers.g_lim_periodic_auth_retry_timer);
-	tx_timer_delete(&pMac->lim.limTimers.gLimQuietBssTimer);
-	tx_timer_delete(&pMac->lim.limTimers.gLimQuietTimer);
-	tx_timer_delete(&pMac->lim.limTimers.gLimChannelSwitchTimer);
-	tx_timer_delete(&pMac->lim.limTimers.sae_auth_timer);
+	tx_timer_delete(&mac->lim.lim_timers.gLimProbeAfterHBTimer);
+	tx_timer_delete(&mac->lim.lim_timers.gLimAuthFailureTimer);
+	tx_timer_delete(&mac->lim.lim_timers.gLimAddtsRspTimer);
+	tx_timer_delete(&mac->lim.lim_timers.gLimAssocFailureTimer);
+	tx_timer_delete(&mac->lim.lim_timers.gLimJoinFailureTimer);
+	tx_timer_delete(&mac->lim.lim_timers.gLimPeriodicJoinProbeReqTimer);
+	tx_timer_delete(&mac->lim.lim_timers.g_lim_periodic_auth_retry_timer);
+	tx_timer_delete(&mac->lim.lim_timers.gLimChannelSwitchTimer);
+	tx_timer_delete(&mac->lim.lim_timers.sae_auth_timer);
 
-	if (NULL != pMac->lim.gLimPreAuthTimerTable.pTable) {
-		for (i = 0; i < pMac->lim.gLimPreAuthTimerTable.numEntry; i++)
-			qdf_mem_free(pMac->lim.gLimPreAuthTimerTable.pTable[i]);
-		qdf_mem_free(pMac->lim.gLimPreAuthTimerTable.pTable);
-		pMac->lim.gLimPreAuthTimerTable.pTable = NULL;
+	if (mac->lim.gLimPreAuthTimerTable.pTable) {
+		for (i = 0; i < mac->lim.gLimPreAuthTimerTable.numEntry; i++)
+			qdf_mem_free(mac->lim.gLimPreAuthTimerTable.pTable[i]);
+		qdf_mem_free(mac->lim.gLimPreAuthTimerTable.pTable);
+		mac->lim.gLimPreAuthTimerTable.pTable = NULL;
 	}
 	return TX_TIMER_ERROR;
 } /****** end lim_create_timers() ******/
@@ -367,7 +315,7 @@ void lim_timer_handler(void *pMacGlobal, uint32_t param)
 {
 	QDF_STATUS status;
 	struct scheduler_msg msg = {0};
-	tpAniSirGlobal pMac = (tpAniSirGlobal) pMacGlobal;
+	struct mac_context *mac = (struct mac_context *) pMacGlobal;
 
 	/* Prepare and post message to LIM Message Queue */
 
@@ -375,7 +323,7 @@ void lim_timer_handler(void *pMacGlobal, uint32_t param)
 	msg.bodyptr = NULL;
 	msg.bodyval = 0;
 
-	status = lim_post_msg_high_priority(pMac, &msg);
+	status = lim_post_msg_high_priority(mac, &msg);
 	if (status != QDF_STATUS_SUCCESS)
 		pe_err("posting message: %X to LIM failed, reason: %d",
 			msg.type, status);
@@ -405,7 +353,7 @@ void lim_timer_handler(void *pMacGlobal, uint32_t param)
 void lim_addts_response_timer_handler(void *pMacGlobal, uint32_t param)
 {
 	struct scheduler_msg msg = {0};
-	tpAniSirGlobal pMac = (tpAniSirGlobal) pMacGlobal;
+	struct mac_context *mac = (struct mac_context *) pMacGlobal;
 
 	/* Prepare and post message to LIM Message Queue */
 
@@ -413,7 +361,7 @@ void lim_addts_response_timer_handler(void *pMacGlobal, uint32_t param)
 	msg.bodyval = param;
 	msg.bodyptr = NULL;
 
-	lim_post_msg_api(pMac, &msg);
+	lim_post_msg_api(mac, &msg);
 } /****** end lim_auth_response_timer_handler() ******/
 
 /**
@@ -440,7 +388,7 @@ void lim_addts_response_timer_handler(void *pMacGlobal, uint32_t param)
 void lim_auth_response_timer_handler(void *pMacGlobal, uint32_t param)
 {
 	struct scheduler_msg msg = {0};
-	tpAniSirGlobal pMac = (tpAniSirGlobal) pMacGlobal;
+	struct mac_context *mac = (struct mac_context *) pMacGlobal;
 
 	/* Prepare and post message to LIM Message Queue */
 
@@ -448,7 +396,7 @@ void lim_auth_response_timer_handler(void *pMacGlobal, uint32_t param)
 	msg.bodyptr = NULL;
 	msg.bodyval = (uint32_t) param;
 
-	lim_post_msg_api(pMac, &msg);
+	lim_post_msg_api(mac, &msg);
 } /****** end lim_auth_response_timer_handler() ******/
 
 /**
@@ -466,11 +414,11 @@ void lim_auth_response_timer_handler(void *pMacGlobal, uint32_t param)
 void lim_assoc_failure_timer_handler(void *mac_global, uint32_t param)
 {
 	struct scheduler_msg msg = {0};
-	tpAniSirGlobal mac_ctx = (tpAniSirGlobal) mac_global;
-	tpPESession session = NULL;
+	struct mac_context *mac_ctx = (struct mac_context *) mac_global;
+	struct pe_session *session = NULL;
 
-	session = mac_ctx->lim.pSessionEntry;
-	if (LIM_REASSOC == param && NULL != session
+	session = mac_ctx->lim.pe_session;
+	if (LIM_REASSOC == param && session
 	    && session->limMlmState == eLIM_MLM_WT_FT_REASSOC_RSP_STATE) {
 		pe_err("Reassoc timeout happened");
 		if (mac_ctx->lim.reAssocRetryAttempt <
@@ -484,7 +432,7 @@ void lim_assoc_failure_timer_handler(void *mac_global, uint32_t param)
 		} else {
 			pe_warn("Reassoc request retry MAX: %d reached",
 				LIM_MAX_REASSOC_RETRY_LIMIT);
-			if (NULL != session->pLimMlmReassocRetryReq) {
+			if (session->pLimMlmReassocRetryReq) {
 				qdf_mem_free(session->pLimMlmReassocRetryReq);
 				session->pLimMlmReassocRetryReq = NULL;
 			}
@@ -521,7 +469,7 @@ void lim_assoc_failure_timer_handler(void *mac_global, uint32_t param)
 void lim_update_olbc_cache_timer_handler(void *pMacGlobal, uint32_t param)
 {
 	struct scheduler_msg msg = {0};
-	tpAniSirGlobal pMac = (tpAniSirGlobal) pMacGlobal;
+	struct mac_context *mac = (struct mac_context *) pMacGlobal;
 
 	/* Prepare and post message to LIM Message Queue */
 
@@ -529,7 +477,7 @@ void lim_update_olbc_cache_timer_handler(void *pMacGlobal, uint32_t param)
 	msg.bodyval = 0;
 	msg.bodyptr = NULL;
 
-	lim_post_msg_api(pMac, &msg);
+	lim_post_msg_api(mac, &msg);
 } /****** end lim_update_olbc_cache_timer_handler() ******/
 
 /**
@@ -547,27 +495,27 @@ void lim_update_olbc_cache_timer_handler(void *pMacGlobal, uint32_t param)
  ***NOTE:
  * NA
  *
- * @param  pMac    - Pointer to Global MAC structure
+ * @param  mac    - Pointer to Global MAC structure
  * @param  timerId - enum of timer to be deactivated and changed
  *                   This enum is defined in lim_utils.h file
  *
  * @return None
  */
 
-void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
+void lim_deactivate_and_change_timer(struct mac_context *mac, uint32_t timerId)
 {
 	uint32_t val = 0;
-	tpPESession  session_entry;
+	struct pe_session * session_entry;
 
 	switch (timerId) {
 	case eLIM_REASSOC_FAIL_TIMER:
 	case eLIM_FT_PREAUTH_RSP_TIMER:
-		lim_deactivate_and_change_timer_host_roam(pMac, timerId);
+		lim_deactivate_and_change_timer_host_roam(mac, timerId);
 		break;
 
 	case eLIM_ADDTS_RSP_TIMER:
-		pMac->lim.gLimAddtsRspTimerCount++;
-		if (tx_timer_deactivate(&pMac->lim.limTimers.gLimAddtsRspTimer)
+		mac->lim.gLimAddtsRspTimerCount++;
+		if (tx_timer_deactivate(&mac->lim.lim_timers.gLimAddtsRspTimer)
 		    != TX_SUCCESS) {
 			/* Could not deactivate AddtsRsp Timer */
 			/* Log error */
@@ -577,7 +525,7 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 
 	case eLIM_JOIN_FAIL_TIMER:
 		if (tx_timer_deactivate
-			    (&pMac->lim.limTimers.gLimJoinFailureTimer)
+			    (&mac->lim.lim_timers.gLimJoinFailureTimer)
 		    != TX_SUCCESS) {
 			/**
 			 * Could not deactivate Join Failure
@@ -586,17 +534,10 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 			pe_err("Unable to deactivate Join Failure timer");
 		}
 
-		if (wlan_cfg_get_int(pMac, WNI_CFG_JOIN_FAILURE_TIMEOUT,
-				     &val) != QDF_STATUS_SUCCESS) {
-			/**
-			 * Could not get JoinFailureTimeout value
-			 * from CFG. Log error.
-			 */
-			pe_err("could not retrieve JoinFailureTimeout value");
-		}
-		val = SYS_MS_TO_TICKS(val);
+		val = SYS_MS_TO_TICKS(
+				mac->mlme_cfg->timeouts.join_failure_timeout);
 
-		if (tx_timer_change(&pMac->lim.limTimers.gLimJoinFailureTimer,
+		if (tx_timer_change(&mac->lim.lim_timers.gLimJoinFailureTimer,
 				    val, 0) != TX_SUCCESS) {
 			/**
 			 * Could not change Join Failure
@@ -609,7 +550,7 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 
 	case eLIM_PERIODIC_JOIN_PROBE_REQ_TIMER:
 		if (tx_timer_deactivate
-			    (&pMac->lim.limTimers.gLimPeriodicJoinProbeReqTimer)
+			    (&mac->lim.lim_timers.gLimPeriodicJoinProbeReqTimer)
 		    != TX_SUCCESS) {
 			/* Could not deactivate periodic join req Times. */
 			pe_err("Unable to deactivate periodic join request timer");
@@ -617,8 +558,8 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 
 		val = SYS_MS_TO_TICKS(LIM_JOIN_PROBE_REQ_TIMER_MS);
 		if (tx_timer_change
-			    (&pMac->lim.limTimers.gLimPeriodicJoinProbeReqTimer, val,
-			    0) != TX_SUCCESS) {
+			    (&mac->lim.lim_timers.gLimPeriodicJoinProbeReqTimer,
+			     val, 0) != TX_SUCCESS) {
 			/* Could not change periodic join req times. */
 			/* Log error */
 			pe_err("Unable to change periodic join request timer");
@@ -628,24 +569,17 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 
 	case eLIM_AUTH_FAIL_TIMER:
 		if (tx_timer_deactivate
-			    (&pMac->lim.limTimers.gLimAuthFailureTimer)
+			    (&mac->lim.lim_timers.gLimAuthFailureTimer)
 		    != TX_SUCCESS) {
 			/* Could not deactivate Auth failure timer. */
 			/* Log error */
 			pe_err("Unable to deactivate auth failure timer");
 		}
 		/* Change timer to reactivate it in future */
-		if (wlan_cfg_get_int(pMac, WNI_CFG_AUTHENTICATE_FAILURE_TIMEOUT,
-				     &val) != QDF_STATUS_SUCCESS) {
-			/**
-			 * Could not get AuthFailureTimeout value
-			 * from CFG. Log error.
-			 */
-			pe_err("could not retrieve AuthFailureTimeout value");
-		}
-		val = SYS_MS_TO_TICKS(val);
+		val = SYS_MS_TO_TICKS(
+				mac->mlme_cfg->timeouts.auth_failure_timeout);
 
-		if (tx_timer_change(&pMac->lim.limTimers.gLimAuthFailureTimer,
+		if (tx_timer_change(&mac->lim.lim_timers.gLimAuthFailureTimer,
 				    val, 0) != TX_SUCCESS) {
 			/* Could not change Authentication failure timer. */
 			/* Log error */
@@ -657,17 +591,17 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 	case eLIM_AUTH_RETRY_TIMER:
 
 		if (tx_timer_deactivate
-			  (&pMac->lim.limTimers.g_lim_periodic_auth_retry_timer)
+			  (&mac->lim.lim_timers.g_lim_periodic_auth_retry_timer)
 							 != TX_SUCCESS) {
 			/* Could not deactivate Auth Retry Timer. */
 			pe_err("Unable to deactivate Auth Retry timer");
 		}
-		session_entry = pe_find_session_by_session_id(pMac,
-			pMac->lim.limTimers.
+		session_entry = pe_find_session_by_session_id(mac,
+			mac->lim.lim_timers.
 				g_lim_periodic_auth_retry_timer.sessionId);
-		if (NULL == session_entry) {
+		if (!session_entry) {
 			pe_debug("session does not exist for given SessionId : %d",
-				 pMac->lim.limTimers.
+				 mac->lim.lim_timers.
 				 g_lim_periodic_auth_retry_timer.sessionId);
 			break;
 		}
@@ -675,7 +609,7 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 		val = (session_entry->beaconParams.beaconInterval * 3) / 5;
 		val = SYS_MS_TO_TICKS(val);
 		if (tx_timer_change
-			 (&pMac->lim.limTimers.g_lim_periodic_auth_retry_timer,
+			 (&mac->lim.lim_timers.g_lim_periodic_auth_retry_timer,
 							val, 0) != TX_SUCCESS) {
 			/* Could not change Auth Retry timer. */
 			pe_err("Unable to change Auth Retry timer");
@@ -684,24 +618,17 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 
 	case eLIM_ASSOC_FAIL_TIMER:
 		if (tx_timer_deactivate
-			    (&pMac->lim.limTimers.gLimAssocFailureTimer) !=
+			    (&mac->lim.lim_timers.gLimAssocFailureTimer) !=
 		    TX_SUCCESS) {
 			/* Could not deactivate Association failure timer. */
 			/* Log error */
 			pe_err("unable to deactivate Association failure timer");
 		}
 		/* Change timer to reactivate it in future */
-		if (wlan_cfg_get_int(pMac, WNI_CFG_ASSOCIATION_FAILURE_TIMEOUT,
-				     &val) != QDF_STATUS_SUCCESS) {
-			/**
-			 * Could not get AssocFailureTimeout value
-			 * from CFG. Log error.
-			 */
-			pe_err("could not retrieve AssocFailureTimeout value");
-		}
-		val = SYS_MS_TO_TICKS(val);
+		val = SYS_MS_TO_TICKS(
+				mac->mlme_cfg->timeouts.assoc_failure_timeout);
 
-		if (tx_timer_change(&pMac->lim.limTimers.gLimAssocFailureTimer,
+		if (tx_timer_change(&mac->lim.lim_timers.gLimAssocFailureTimer,
 				    val, 0) != TX_SUCCESS) {
 			/* Could not change Association failure timer. */
 			/* Log error */
@@ -712,7 +639,7 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 
 	case eLIM_PROBE_AFTER_HB_TIMER:
 		if (tx_timer_deactivate
-			    (&pMac->lim.limTimers.gLimProbeAfterHBTimer) !=
+			    (&mac->lim.lim_timers.gLimProbeAfterHBTimer) !=
 		    TX_SUCCESS) {
 			/* Could not deactivate Heartbeat timer. */
 			/* Log error */
@@ -721,18 +648,11 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 			pe_debug("Deactivated probe after hb timer");
 		}
 
-		if (wlan_cfg_get_int(pMac, WNI_CFG_PROBE_AFTER_HB_FAIL_TIMEOUT,
-				     &val) != QDF_STATUS_SUCCESS) {
-			/**
-			 * Could not get PROBE_AFTER_HB_FAILURE
-			 * value from CFG. Log error.
-			 */
-			pe_err("could not retrieve PROBE_AFTER_HB_FAIL_TIMEOUT value");
-		}
 		/* Change timer to reactivate it in future */
-		val = SYS_MS_TO_TICKS(val);
+		val = SYS_MS_TO_TICKS(
+			mac->mlme_cfg->timeouts.probe_after_hb_fail_timeout);
 
-		if (tx_timer_change(&pMac->lim.limTimers.gLimProbeAfterHBTimer,
+		if (tx_timer_change(&mac->lim.lim_timers.gLimProbeAfterHBTimer,
 				    val, 0) != TX_SUCCESS) {
 			/* Could not change HeartBeat timer. */
 			/* Log error */
@@ -744,12 +664,10 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 
 		break;
 
-	case eLIM_LEARN_DURATION_TIMER:
-		break;
-
 	case eLIM_DISASSOC_ACK_TIMER:
-		if (tx_timer_deactivate
-			    (&pMac->lim.limTimers.gLimDisassocAckTimer) != TX_SUCCESS) {
+		if (tx_timer_deactivate(
+			&mac->lim.lim_timers.gLimDisassocAckTimer) !=
+		    TX_SUCCESS) {
 			/**
 			** Could not deactivate Join Failure
 			** timer. Log error.
@@ -759,7 +677,7 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 		}
 		val = 1000;
 		val = SYS_MS_TO_TICKS(val);
-		if (tx_timer_change(&pMac->lim.limTimers.gLimDisassocAckTimer,
+		if (tx_timer_change(&mac->lim.lim_timers.gLimDisassocAckTimer,
 				    val, 0) != TX_SUCCESS) {
 			/**
 			 * Could not change Join Failure
@@ -771,7 +689,7 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 		break;
 
 	case eLIM_DEAUTH_ACK_TIMER:
-		if (tx_timer_deactivate(&pMac->lim.limTimers.gLimDeauthAckTimer)
+		if (tx_timer_deactivate(&mac->lim.lim_timers.gLimDeauthAckTimer)
 		    != TX_SUCCESS) {
 			/**
 			** Could not deactivate Join Failure
@@ -782,7 +700,7 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 		}
 		val = 1000;
 		val = SYS_MS_TO_TICKS(val);
-		if (tx_timer_change(&pMac->lim.limTimers.gLimDeauthAckTimer,
+		if (tx_timer_change(&mac->lim.lim_timers.gLimDeauthAckTimer,
 				    val, 0) != TX_SUCCESS) {
 			/**
 			 * Could not change Join Failure
@@ -795,14 +713,14 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 
 	case eLIM_AUTH_SAE_TIMER:
 		if (tx_timer_deactivate
-		   (&pMac->lim.limTimers.sae_auth_timer)
+		   (&mac->lim.lim_timers.sae_auth_timer)
 		    != TX_SUCCESS)
 			pe_err("Unable to deactivate SAE auth timer");
 
 		/* Change timer to reactivate it in future */
 		val = SYS_MS_TO_TICKS(LIM_AUTH_SAE_TIMER_MS);
 
-		if (tx_timer_change(&pMac->lim.limTimers.sae_auth_timer,
+		if (tx_timer_change(&mac->lim.lim_timers.sae_auth_timer,
 				    val, 0) != TX_SUCCESS)
 			pe_err("unable to change SAE auth timer");
 
@@ -828,7 +746,7 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
  *
  * @note   staId for eLIM_AUTH_RSP_TIMER is auth Node Index.
  *
- * @param  pMac    - Pointer to Global MAC structure
+ * @param  mac    - Pointer to Global MAC structure
  * @param  timerId - enum of timer to be deactivated and changed
  *                   This enum is defined in lim_utils.h file
  * @param  staId   - staId
@@ -837,7 +755,7 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
  */
 
 void
-lim_deactivate_and_change_per_sta_id_timer(tpAniSirGlobal pMac, uint32_t timerId,
+lim_deactivate_and_change_per_sta_id_timer(struct mac_context *mac, uint32_t timerId,
 					   uint16_t staId)
 {
 	uint32_t val;
@@ -846,24 +764,16 @@ lim_deactivate_and_change_per_sta_id_timer(tpAniSirGlobal pMac, uint32_t timerId
 	case eLIM_CNF_WAIT_TIMER:
 
 		if (tx_timer_deactivate
-			    (&pMac->lim.limTimers.gpLimCnfWaitTimer[staId])
+			    (&mac->lim.lim_timers.gpLimCnfWaitTimer[staId])
 		    != TX_SUCCESS) {
 			pe_err("unable to deactivate CNF wait timer");
 		}
 		/* Change timer to reactivate it in future */
-
-		if (wlan_cfg_get_int(pMac, WNI_CFG_WT_CNF_TIMEOUT,
-				     &val) != QDF_STATUS_SUCCESS) {
-			/**
-			 * Could not get cnf timeout value
-			 * from CFG. Log error.
-			 */
-			pe_err("could not retrieve cnf timeout value");
-		}
+		val = mac->mlme_cfg->sta.wait_cnf_timeout;
 		val = SYS_MS_TO_TICKS(val);
 
 		if (tx_timer_change
-			    (&pMac->lim.limTimers.gpLimCnfWaitTimer[staId], val,
+			    (&mac->lim.lim_timers.gpLimCnfWaitTimer[staId], val,
 			    val) != TX_SUCCESS) {
 			/* Could not change cnf timer. */
 			/* Log error */
@@ -877,12 +787,12 @@ lim_deactivate_and_change_per_sta_id_timer(tpAniSirGlobal pMac, uint32_t timerId
 		tLimPreAuthNode *pAuthNode;
 
 		pAuthNode =
-			lim_get_pre_auth_node_from_index(pMac,
-							 &pMac->lim.
+			lim_get_pre_auth_node_from_index(mac,
+							 &mac->lim.
 							 gLimPreAuthTimerTable,
 							 staId);
 
-		if (pAuthNode == NULL) {
+		if (!pAuthNode) {
 			pe_err("Invalid Pre Auth Index passed :%d",
 				staId);
 			break;
@@ -895,18 +805,8 @@ lim_deactivate_and_change_per_sta_id_timer(tpAniSirGlobal pMac, uint32_t timerId
 			pe_err("unable to deactivate auth response timer");
 		}
 		/* Change timer to reactivate it in future */
-
-		if (wlan_cfg_get_int
-			    (pMac, WNI_CFG_AUTHENTICATE_RSP_TIMEOUT,
-			    &val) != QDF_STATUS_SUCCESS) {
-			/**
-			 * Could not get auth rsp timeout value
-			 * from CFG. Log error.
-			 */
-			pe_err("could not retrieve auth response timeout value");
-		}
-
-		val = SYS_MS_TO_TICKS(val);
+		val = SYS_MS_TO_TICKS(
+				mac->mlme_cfg->timeouts.auth_rsp_timeout);
 
 		if (tx_timer_change(&pAuthNode->timer, val, 0) !=
 		    TX_SUCCESS) {
@@ -938,18 +838,18 @@ lim_deactivate_and_change_per_sta_id_timer(tpAniSirGlobal pMac, uint32_t timerId
  ***NOTE:
  * NA
  *
- * @param  pMac    - Pointer to Global MAC structure
+ * @param  mac    - Pointer to Global MAC structure
  * @param  StaId   - staId
  *
  * @return None
  */
 
-void lim_activate_cnf_timer(tpAniSirGlobal pMac, uint16_t staId,
-			    tpPESession psessionEntry)
+void lim_activate_cnf_timer(struct mac_context *mac, uint16_t staId,
+			    struct pe_session *pe_session)
 {
-	pMac->lim.limTimers.gpLimCnfWaitTimer[staId].sessionId =
-		psessionEntry->peSessionId;
-	if (tx_timer_activate(&pMac->lim.limTimers.gpLimCnfWaitTimer[staId])
+	mac->lim.lim_timers.gpLimCnfWaitTimer[staId].sessionId =
+		pe_session->peSessionId;
+	if (tx_timer_activate(&mac->lim.lim_timers.gpLimCnfWaitTimer[staId])
 	    != TX_SUCCESS) {
 		pe_err("could not activate cnf wait timer");
 	}
@@ -969,13 +869,13 @@ void lim_activate_cnf_timer(tpAniSirGlobal pMac, uint16_t staId,
  ***NOTE:
  * NA
  *
- * @param  pMac    - Pointer to Global MAC structure
+ * @param  mac    - Pointer to Global MAC structure
  * @param  id      - id
  *
  * @return None
  */
 
-void lim_activate_auth_rsp_timer(tpAniSirGlobal pMac, tLimPreAuthNode *pAuthNode)
+void lim_activate_auth_rsp_timer(struct mac_context *mac, tLimPreAuthNode *pAuthNode)
 {
 	if (tx_timer_activate(&pAuthNode->timer) != TX_SUCCESS) {
 		/* / Could not activate auth rsp timer. */
@@ -1005,23 +905,23 @@ void lim_activate_auth_rsp_timer(tpAniSirGlobal pMac, tLimPreAuthNode *pAuthNode
 void lim_cnf_wait_tmer_handler(void *pMacGlobal, uint32_t param)
 {
 	struct scheduler_msg msg = {0};
-	uint32_t statusCode;
-	tpAniSirGlobal pMac = (tpAniSirGlobal) pMacGlobal;
+	uint32_t status_code;
+	struct mac_context *mac = (struct mac_context *) pMacGlobal;
 
 	msg.type = SIR_LIM_CNF_WAIT_TIMEOUT;
 	msg.bodyval = (uint32_t) param;
 	msg.bodyptr = NULL;
 
-	statusCode = lim_post_msg_api(pMac, &msg);
-	if (statusCode != QDF_STATUS_SUCCESS)
-		pe_err("posting to LIM failed, reason: %d", statusCode);
+	status_code = lim_post_msg_api(mac, &msg);
+	if (status_code != QDF_STATUS_SUCCESS)
+		pe_err("posting to LIM failed, reason: %d", status_code);
 
 }
 
 void lim_channel_switch_timer_handler(void *pMacGlobal, uint32_t param)
 {
 	struct scheduler_msg msg = {0};
-	tpAniSirGlobal pMac = (tpAniSirGlobal) pMacGlobal;
+	struct mac_context *mac = (struct mac_context *) pMacGlobal;
 
 	pe_debug("ChannelSwitch Timer expired.  Posting msg to LIM");
 
@@ -1029,31 +929,5 @@ void lim_channel_switch_timer_handler(void *pMacGlobal, uint32_t param)
 	msg.bodyval = (uint32_t) param;
 	msg.bodyptr = NULL;
 
-	lim_post_msg_api(pMac, &msg);
+	lim_post_msg_api(mac, &msg);
 }
-
-void lim_quiet_timer_handler(void *pMacGlobal, uint32_t param)
-{
-	struct scheduler_msg msg = {0};
-	tpAniSirGlobal pMac = (tpAniSirGlobal) pMacGlobal;
-
-	msg.type = SIR_LIM_QUIET_TIMEOUT;
-	msg.bodyval = (uint32_t) param;
-	msg.bodyptr = NULL;
-
-	pe_debug("Post SIR_LIM_QUIET_TIMEOUT msg");
-	lim_post_msg_api(pMac, &msg);
-}
-
-void lim_quiet_bss_timer_handler(void *pMacGlobal, uint32_t param)
-{
-	struct scheduler_msg msg = {0};
-	tpAniSirGlobal pMac = (tpAniSirGlobal) pMacGlobal;
-
-	msg.type = SIR_LIM_QUIET_BSS_TIMEOUT;
-	msg.bodyval = (uint32_t) param;
-	msg.bodyptr = NULL;
-	pe_debug("Post SIR_LIM_QUIET_BSS_TIMEOUT msg");
-	lim_post_msg_api(pMac, &msg);
-}
-

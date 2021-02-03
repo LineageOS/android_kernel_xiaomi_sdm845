@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -38,6 +38,7 @@
 #include <cds_api.h>
 #include "hif.h"
 #include <cdp_txrx_handle.h>
+#include <ol_txrx_peer_find.h>
 
 #define HTT_HTC_PKT_POOL_INIT_SIZE 100  /* enough for a large A-MPDU */
 
@@ -69,13 +70,12 @@ struct htt_htc_pkt *htt_htc_pkt_alloc(struct htt_pdev_t *pdev)
 	}
 	HTT_TX_MUTEX_RELEASE(&pdev->htt_tx_mutex);
 
-	if (pkt == NULL)
+	if (!pkt)
 		pkt = qdf_mem_malloc(sizeof(*pkt));
 
-	if (!pkt) {
-		qdf_print("%s: HTC packet allocation failed\n", __func__);
+	if (!pkt)
 		return NULL;
-	}
+
 	htc_packet_set_magic_cookie(&(pkt->u.pkt.htc_pkt), 0);
 	return &pkt->u.pkt;     /* not actually a dereference */
 }
@@ -85,7 +85,7 @@ void htt_htc_pkt_free(struct htt_pdev_t *pdev, struct htt_htc_pkt *pkt)
 	struct htt_htc_pkt_union *u_pkt = (struct htt_htc_pkt_union *)pkt;
 
 	if (!u_pkt) {
-		qdf_print("%s: HTC packet is NULL\n", __func__);
+		qdf_print("HTC packet is NULL");
 		return;
 	}
 
@@ -325,6 +325,31 @@ void htt_clear_bundle_stats(htt_pdev_handle pdev)
  *
  * Return: 0 for success or error code.
  */
+
+#if defined(QCN7605_SUPPORT) && defined(IPA_OFFLOAD)
+
+/* In case of QCN7605 with IPA offload only 2 CE
+ * are used for RFS
+ */
+static int
+htt_htc_attach_all(struct htt_pdev_t *pdev)
+{
+	if (htt_htc_attach(pdev, HTT_DATA_MSG_SVC))
+		goto flush_endpoint;
+
+	if (htt_htc_attach(pdev, HTT_DATA2_MSG_SVC))
+		goto flush_endpoint;
+
+	return 0;
+
+flush_endpoint:
+	htc_flush_endpoint(pdev->htc_pdev, ENDPOINT_0, HTC_TX_PACKET_TAG_ALL);
+
+	return -EIO;
+}
+
+#else
+
 static int
 htt_htc_attach_all(struct htt_pdev_t *pdev)
 {
@@ -344,6 +369,9 @@ flush_endpoint:
 
 	return -EIO;
 }
+
+#endif
+
 #else
 /**
  * htt_htc_attach_all() - Connect to HTC service for HTT
@@ -394,6 +422,16 @@ htt_pdev_alloc(ol_txrx_pdev_handle txrx_pdev,
 
 	/* for efficiency, store a local copy of the is_high_latency flag */
 	pdev->cfg.is_high_latency = ol_cfg_is_high_latency(pdev->ctrl_pdev);
+	/*
+	 * Credit reporting through HTT_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND
+	 * enabled or not.
+	 */
+	pdev->cfg.credit_update_enabled =
+		ol_cfg_is_credit_update_enabled(pdev->ctrl_pdev);
+
+	pdev->cfg.request_tx_comp = cds_is_ptp_rx_opt_enabled() ||
+		cds_is_packet_log_enabled();
+
 	pdev->cfg.default_tx_comp_req =
 			!ol_cfg_tx_free_at_download(pdev->ctrl_pdev);
 
@@ -501,7 +539,8 @@ htt_attach(struct htt_pdev_t *pdev, int desc_pool_size)
 		 */
 		pdev->download_len = 5000;
 
-		if (ol_cfg_tx_free_at_download(pdev->ctrl_pdev))
+		if (ol_cfg_tx_free_at_download(pdev->ctrl_pdev) &&
+		    !pdev->cfg.request_tx_comp)
 			pdev->tx_send_complete_part2 =
 						ol_tx_download_done_hl_free;
 		else
@@ -532,6 +571,13 @@ htt_attach(struct htt_pdev_t *pdev, int desc_pool_size)
 		ol_tx_target_credit_update(
 				pdev->txrx_pdev, ol_cfg_target_tx_credit(
 					pdev->ctrl_pdev));
+		DPTRACE(qdf_dp_trace_credit_record(QDF_HTT_ATTACH,
+			QDF_CREDIT_INC,
+			ol_cfg_target_tx_credit(pdev->ctrl_pdev),
+			qdf_atomic_read(&pdev->txrx_pdev->target_tx_credit),
+			qdf_atomic_read(&pdev->txrx_pdev->txq_grps[0].credit),
+			qdf_atomic_read(&pdev->txrx_pdev->txq_grps[1].credit)));
+
 	} else {
 		enum wlan_frm_fmt frm_type;
 
@@ -712,8 +758,8 @@ int htt_update_endpoint(struct htt_pdev_t *pdev,
 	int     rc = 0;
 
 	hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
-	if (qdf_unlikely(NULL == hif_ctx)) {
-		QDF_ASSERT(NULL != hif_ctx);
+	if (qdf_unlikely(!hif_ctx)) {
+		QDF_ASSERT(hif_ctx);
 		QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_ERROR,
 			  "%s:%d: assuming non-tx service.",
 			  __func__, __LINE__);
@@ -756,6 +802,8 @@ int htt_htc_attach(struct htt_pdev_t *pdev, uint16_t service_id)
 	connect.EpCallbacks.EpTxCompleteMultiple = NULL;
 	connect.EpCallbacks.EpRecv = htt_t2h_msg_handler;
 	connect.EpCallbacks.ep_resume_tx_queue = htt_tx_resume_handler;
+	connect.EpCallbacks.ep_padding_credit_update =
+					htt_tx_padding_credit_update_handler;
 
 	/* rx buffers currently are provided by HIF, not by EpRecvRefill */
 	connect.EpCallbacks.EpRecvRefill = NULL;
@@ -807,13 +855,8 @@ void htt_log_rx_ring_info(htt_pdev_handle pdev)
 		  "%s: Data Stall Detected with reason 4 (=FW_RX_REFILL_FAILED)."
 		  "src htt rx ring:  space for %d elements, filled with %d buffers, buffers in the ring %d, refill debt %d",
 		  __func__, pdev->rx_ring.size, pdev->rx_ring.fill_level,
-		  qdf_atomic_read(&pdev->rx_ring.fill_cnt),
+		  pdev->rx_ring.fill_cnt,
 		  qdf_atomic_read(&pdev->rx_ring.refill_debt));
-}
-
-void htt_rx_refill_failure(htt_pdev_handle pdev)
-{
-	QDF_BUG(qdf_atomic_read(&pdev->rx_ring.refill_debt));
 }
 
 #if HTT_DEBUG_LEVEL > 5

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -79,25 +79,6 @@
 #define HAL_OFFSET_DW(_block, _field) (HAL_OFFSET(_block, _field) >> 2)
 /* dword offsets in REO cmd TLV */
 #define CMD_HEADER_DW_OFFSET	0
-
-#define HAL_REO_STATUS_GET_HEADER(d, b, h) do {				\
-	uint32_t val1 = d[HAL_OFFSET_DW(b ##_STATUS_0,			\
-			UNIFORM_REO_STATUS_HEADER_STATUS_HEADER)];	\
-	h.cmd_num =							\
-		HAL_GET_FIELD(						\
-			      UNIFORM_REO_STATUS_HEADER_0, REO_STATUS_NUMBER, \
-			      val1);					\
-	h.exec_time =							\
-		HAL_GET_FIELD(UNIFORM_REO_STATUS_HEADER_0,		\
-			      CMD_EXECUTION_TIME, val1);		\
-	h.status =							\
-		HAL_GET_FIELD(UNIFORM_REO_STATUS_HEADER_0,		\
-			      REO_CMD_EXECUTION_STATUS, val1);		\
-	val1 = d[HAL_OFFSET_DW(b ##_STATUS_1,				\
-			   UNIFORM_REO_STATUS_HEADER_STATUS_HEADER)];   \
-	h.tstamp =							\
-		HAL_GET_FIELD(UNIFORM_REO_STATUS_HEADER_1, TIMESTAMP, val1); \
-} while (0)
 
 /**
  * enum reo_unblock_cache_type: Enum for unblock type in REO unblock command
@@ -322,7 +303,7 @@ struct hal_reo_cmd_update_queue_params {
 		pn_uneven:1,
 		pn_hand_enab:1,
 		ignore_ampdu:1;
-	uint32_t ba_window_size:8,
+	uint32_t ba_window_size:9,
 		pn_size:8,
 		svld:1,
 		ssn:12,
@@ -511,37 +492,55 @@ union hal_reo_status {
 
 /* Prototypes */
 /* REO command ring routines */
-int hal_reo_cmd_queue_stats(void *reo_ring, struct hal_soc *soc,
+void hal_reo_cmd_set_descr_addr(uint32_t *reo_desc,
+				enum hal_reo_cmd_type type,
+				uint32_t paddr_lo,
+				uint8_t paddr_hi);
+int hal_reo_cmd_queue_stats(hal_ring_handle_t hal_ring_hdl,
+			    hal_soc_handle_t hal_soc_hdl,
 			    struct hal_reo_cmd_params *cmd);
-int hal_reo_cmd_flush_queue(void *reo_ring, struct hal_soc *soc,
+int hal_reo_cmd_flush_queue(hal_ring_handle_t hal_ring_hdl,
+			    hal_soc_handle_t hal_soc_hdl,
 			    struct hal_reo_cmd_params *cmd);
-int hal_reo_cmd_flush_cache(void *reo_ring, struct hal_soc *soc,
+int hal_reo_cmd_flush_cache(hal_ring_handle_t hal_ring_hdl,
+			    hal_soc_handle_t hal_soc_hdl,
 			    struct hal_reo_cmd_params *cmd);
-int hal_reo_cmd_unblock_cache(void *reo_ring, struct hal_soc *soc,
+int hal_reo_cmd_unblock_cache(hal_ring_handle_t hal_ring_hdl,
+			      hal_soc_handle_t hal_soc_hdl,
 			      struct hal_reo_cmd_params *cmd);
-int hal_reo_cmd_flush_timeout_list(void *reo_ring, struct hal_soc *soc,
+int hal_reo_cmd_flush_timeout_list(hal_ring_handle_t hal_ring_hdl,
+				   hal_soc_handle_t hal_soc_hdl,
 				   struct hal_reo_cmd_params *cmd);
-int hal_reo_cmd_update_rx_queue(void *reo_ring, struct hal_soc *soc,
+int hal_reo_cmd_update_rx_queue(hal_ring_handle_t hal_ring_hdl,
+				hal_soc_handle_t hal_soc_hdl,
 				struct hal_reo_cmd_params *cmd);
 
 /* REO status ring routines */
 void hal_reo_queue_stats_status(uint32_t *reo_desc,
-				struct hal_reo_queue_status *st);
+				struct hal_reo_queue_status *st,
+				hal_soc_handle_t hal_soc_hdl);
 void hal_reo_flush_queue_status(uint32_t *reo_desc,
-				    struct hal_reo_flush_queue_status *st);
-void hal_reo_flush_cache_status(uint32_t *reo_desc, struct hal_soc *soc,
-				    struct hal_reo_flush_cache_status *st);
-void hal_reo_unblock_cache_status(uint32_t *reo_desc, struct hal_soc *soc,
-				      struct hal_reo_unblk_cache_status *st);
+				struct hal_reo_flush_queue_status *st,
+				hal_soc_handle_t hal_soc_hdl);
+void hal_reo_flush_cache_status(uint32_t *reo_desc,
+				struct hal_reo_flush_cache_status *st,
+				hal_soc_handle_t hal_soc_hdl);
+void hal_reo_unblock_cache_status(uint32_t *reo_desc,
+				  hal_soc_handle_t hal_soc_hdl,
+				  struct hal_reo_unblk_cache_status *st);
 void hal_reo_flush_timeout_list_status(
 			   uint32_t *reo_desc,
-			   struct hal_reo_flush_timeout_list_status *st);
+			   struct hal_reo_flush_timeout_list_status *st,
+			   hal_soc_handle_t hal_soc_hdl);
 void hal_reo_desc_thres_reached_status(
 				uint32_t *reo_desc,
-				struct hal_reo_desc_thres_reached_status *st);
+				struct hal_reo_desc_thres_reached_status *st,
+				hal_soc_handle_t hal_soc_hdl);
 void hal_reo_rx_update_queue_status(uint32_t *reo_desc,
-				    struct hal_reo_update_rx_queue_status *st);
+				    struct hal_reo_update_rx_queue_status *st,
+				    hal_soc_handle_t hal_soc_hdl);
 
-void hal_reo_init_cmd_ring(struct hal_soc *soc, void *hal_srng);
+void hal_reo_init_cmd_ring(hal_soc_handle_t hal_soc_hdl,
+			   hal_ring_handle_t hal_ring_hdl);
 
 #endif /* _HAL_REO_H */

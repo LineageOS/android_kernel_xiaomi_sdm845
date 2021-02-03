@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -227,13 +227,67 @@ ol_tx_queue_discard(
 }
 #endif /* defined(CONFIG_HL_SUPPORT) */
 
-void ol_txrx_vdev_flush(struct cdp_vdev *pvdev);
+#if (!defined(QCA_LL_LEGACY_TX_FLOW_CONTROL)) && (!defined(CONFIG_HL_SUPPORT))
+static inline
+void ol_txrx_vdev_flush(struct cdp_soc_t *soc_hdl, uint8_t vdev_id)
+{
+}
+#else
+/**
+ * ol_txrx_vdev_flush() - Drop all tx data for the specified virtual device
+ * @soc_hdl: soc handle
+ * @vdev_id: vdev id
+ *
+ * Returns: none
+ *
+ * This function applies primarily to HL systems, but also applies to
+ * LL systems that use per-vdev tx queues for MCC or thermal throttling.
+ * This function would typically be used by the ctrl SW after it parks
+ * a STA vdev and then resumes it, but to a new AP.  In this case, though
+ * the same vdev can be used, any old tx frames queued inside it would be
+ * stale, and would need to be discarded.
+ */
+void ol_txrx_vdev_flush(struct cdp_soc_t *soc_hdl, uint8_t vdev_id);
+#endif
 
 #if defined(QCA_LL_LEGACY_TX_FLOW_CONTROL) || \
-   (defined(QCA_LL_TX_FLOW_CONTROL_V2) && !defined(CONFIG_ICNSS)) || \
+   (defined(QCA_LL_TX_FLOW_CONTROL_V2)) || \
    defined(CONFIG_HL_SUPPORT)
-void ol_txrx_vdev_pause(struct cdp_vdev *pvdev, uint32_t reason);
-void ol_txrx_vdev_unpause(struct cdp_vdev *pvdev, uint32_t reason);
+/**
+ * ol_txrx_vdev_pause- Suspend all tx data for the specified virtual device
+ * soc_hdl: Datapath soc handle
+ * @vdev_id: id of vdev
+ * @reason: the reason for which vdev queue is getting paused
+ * @pause_type: type of pause
+ *
+ * Return: none
+ *
+ * This function applies primarily to HL systems, but also
+ * applies to LL systems that use per-vdev tx queues for MCC or
+ * thermal throttling. As an example, this function could be
+ * used when a single-channel physical device supports multiple
+ * channels by jumping back and forth between the channels in a
+ * time-shared manner.  As the device is switched from channel A
+ * to channel B, the virtual devices that operate on channel A
+ * will be paused.
+ */
+void ol_txrx_vdev_pause(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
+			uint32_t reason, uint32_t pause_type);
+
+/**
+ * ol_txrx_vdev_unpause - Resume tx for the specified virtual device
+ * soc_hdl: Datapath soc handle
+ * @vdev_id: id of vdev being unpaused
+ * @reason: the reason for which vdev queue is getting unpaused
+ * @pause_type: type of pause
+ *
+ * Return: none
+ *
+ * This function applies primarily to HL systems, but also applies to
+ * LL systems that use per-vdev tx queues for MCC or thermal throttling.
+ */
+void ol_txrx_vdev_unpause(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
+			  uint32_t reason, uint32_t pause_type);
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
 
 #if defined(CONFIG_HL_SUPPORT) && defined(QCA_BAD_PEER_TX_FLOW_CL)
@@ -427,8 +481,10 @@ ol_tx_queues_display(struct ol_txrx_pdev_t *pdev)
 #define ol_tx_queue_decs_reinit(peer, peer_id)  /* no-op */
 
 #ifdef QCA_SUPPORT_TX_THROTTLE
-void ol_tx_throttle_set_level(struct cdp_pdev *ppdev, int level);
-void ol_tx_throttle_init_period(struct cdp_pdev *ppdev, int period,
+void ol_tx_throttle_set_level(struct cdp_soc_t *soc_hdl,
+			      uint8_t pdev_id, int level);
+void ol_tx_throttle_init_period(struct cdp_soc_t *soc_hdl,
+				uint8_t pdev_id, int period,
 				uint8_t *dutycycle_level);
 
 /**
@@ -438,15 +494,24 @@ void ol_tx_throttle_init_period(struct cdp_pdev *ppdev, int period,
 void ol_tx_throttle_init(struct ol_txrx_pdev_t *pdev);
 #else
 static inline void ol_tx_throttle_init(struct ol_txrx_pdev_t *pdev) {}
+
+static inline void ol_tx_throttle_set_level(struct cdp_soc_t *soc_hdl,
+					    uint8_t pdev_id, int level)
+{}
+
+static inline void
+ol_tx_throttle_init_period(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
+			   int period, uint8_t *dutycycle_level)
+{}
 #endif
 
 #ifdef FEATURE_HL_GROUP_CREDIT_FLOW_CONTROL
 
 static inline bool
-ol_tx_is_txq_last_serviced_queue(struct ol_txrx_pdev_t *pdev,
-				 struct ol_tx_frms_queue_t *txq)
+ol_tx_if_iterate_next_txq(struct ol_tx_frms_queue_t *first,
+			  struct ol_tx_frms_queue_t *txq)
 {
-	return txq == pdev->tx_sched.last_used_txq;
+	return (first != txq);
 }
 
 /**
@@ -526,8 +591,8 @@ ol_tx_set_peer_group_ptr(
 #else
 
 static inline bool
-ol_tx_is_txq_last_serviced_queue(struct ol_txrx_pdev_t *pdev,
-				 struct ol_tx_frms_queue_t *txq)
+ol_tx_if_iterate_next_txq(struct ol_tx_frms_queue_t *first,
+			  struct ol_tx_frms_queue_t *txq)
 {
 	return 0;
 }
@@ -565,5 +630,37 @@ ol_tx_set_peer_group_ptr(
 {
 }
 #endif
+
+#if defined(FEATURE_HL_GROUP_CREDIT_FLOW_CONTROL) && \
+	defined(FEATURE_HL_DBS_GROUP_CREDIT_SHARING)
+/**
+ * @brief: Update group frame count
+ * @details: This function is used to maintain the count of frames
+ * enqueued in a particular group.
+ *
+ * @param: txq - The txq to which the frame is getting enqueued.
+ * @param: num_frms - Number of frames to be added/removed from the group.
+ */
+void ol_tx_update_grp_frm_count(struct ol_tx_frms_queue_t *txq, int num_frms);
+
+u32 ol_tx_txq_update_borrowed_group_credits(struct ol_txrx_pdev_t *pdev,
+					    struct ol_tx_frms_queue_t *txq,
+					    u32 credits_used);
+#else
+static inline void ol_tx_update_grp_frm_count(struct ol_tx_frms_queue_t *txq,
+					      int num_frms)
+{}
+
+static inline u32
+ol_tx_txq_update_borrowed_group_credits(struct ol_txrx_pdev_t *pdev,
+					struct ol_tx_frms_queue_t *txq,
+					u32 credits_used)
+{
+	return credits_used;
+}
+#endif /*
+	* FEATURE_HL_GROUP_CREDIT_FLOW_CONTROL &&
+	*  FEATURE_HL_DBS_GROUP_CREDIT_SHARING
+	*/
 
 #endif /* _OL_TX_QUEUE__H_ */

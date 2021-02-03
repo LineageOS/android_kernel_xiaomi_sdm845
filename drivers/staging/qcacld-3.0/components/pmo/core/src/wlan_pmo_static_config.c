@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -36,7 +36,6 @@ void pmo_register_wow_wakeup_events(struct wlan_objmgr_vdev *vdev)
 	uint32_t event_bitmap[PMO_WOW_MAX_EVENT_BM_LEN] = {0};
 	uint8_t vdev_id;
 	enum QDF_OPMODE  vdev_opmode;
-	const char *iface_type;
 	struct pmo_psoc_priv_obj *psoc_ctx;
 	pmo_is_device_in_low_pwr_mode is_low_pwr_mode;
 
@@ -65,12 +64,10 @@ void pmo_register_wow_wakeup_events(struct wlan_objmgr_vdev *vdev)
 	case QDF_P2P_DEVICE_MODE:
 	case QDF_OCB_MODE:
 	case QDF_MONITOR_MODE:
-		iface_type = "STA";
 		pmo_set_sta_wow_bitmask(event_bitmap, PMO_WOW_MAX_EVENT_BM_LEN);
 		break;
 
 	case QDF_IBSS_MODE:
-		iface_type = "IBSS";
 		pmo_set_sta_wow_bitmask(event_bitmap, PMO_WOW_MAX_EVENT_BM_LEN);
 		pmo_set_wow_event_bitmap(WOW_BEACON_EVENT,
 					 PMO_WOW_MAX_EVENT_BM_LEN,
@@ -79,22 +76,11 @@ void pmo_register_wow_wakeup_events(struct wlan_objmgr_vdev *vdev)
 
 	case QDF_P2P_GO_MODE:
 	case QDF_SAP_MODE:
-		iface_type = "SAP";
 		pmo_set_sap_wow_bitmask(event_bitmap, PMO_WOW_MAX_EVENT_BM_LEN);
 		break;
 
 	case QDF_NDI_MODE:
-#ifdef WLAN_FEATURE_NAN_DATAPATH
-		iface_type = "NAN";
-		/* wake up host when Nan Management Frame is received */
-		pmo_set_wow_event_bitmap(WOW_NAN_DATA_EVENT,
-					 PMO_WOW_MAX_EVENT_BM_LEN,
-					 event_bitmap);
-		/* wake up host when NDP data packet is received */
-		pmo_set_wow_event_bitmap(WOW_PATTERN_MATCH_EVENT,
-					 WMI_WOW_MAX_EVENT_BM_LEN,
-					 event_bitmap);
-#endif
+		pmo_set_ndp_wow_bitmask(event_bitmap, PMO_WOW_MAX_EVENT_BM_LEN);
 		break;
 
 	default:
@@ -118,7 +104,7 @@ static QDF_STATUS pmo_configure_wow_ap(struct wlan_objmgr_vdev *vdev)
 {
 	QDF_STATUS ret;
 	uint8_t arp_offset = 20;
-	uint8_t mac_mask[PMO_80211_ADDR_LEN];
+	uint8_t mac_mask[QDF_MAC_ADDR_SIZE];
 	struct pmo_vdev_priv_obj *vdev_ctx;
 
 	vdev_ctx = pmo_vdev_get_priv(vdev);
@@ -128,12 +114,12 @@ static QDF_STATUS pmo_configure_wow_ap(struct wlan_objmgr_vdev *vdev)
 	 * WoW pattern id should be unique for each vdev
 	 * WoW pattern id can be same on 2 different VDEVs
 	 */
-	qdf_mem_set(&mac_mask, PMO_80211_ADDR_LEN, 0xFF);
+	qdf_mem_set(&mac_mask, QDF_MAC_ADDR_SIZE, 0xFF);
 	ret = pmo_tgt_send_wow_patterns_to_fw(vdev,
 			pmo_get_and_increment_wow_default_ptrn(vdev_ctx),
 			wlan_vdev_mlme_get_macaddr(vdev),
-			PMO_80211_ADDR_LEN, 0, mac_mask,
-			PMO_80211_ADDR_LEN, false);
+			QDF_MAC_ADDR_SIZE, 0, mac_mask,
+			QDF_MAC_ADDR_SIZE, false);
 	if (ret != QDF_STATUS_SUCCESS) {
 		pmo_err("Failed to add WOW unicast pattern ret %d", ret);
 		return ret;
@@ -254,13 +240,13 @@ static QDF_STATUS pmo_configure_ssdp(struct wlan_objmgr_vdev *vdev)
 static QDF_STATUS pmo_configure_wow_sta(struct wlan_objmgr_vdev *vdev)
 {
 	uint8_t arp_offset = 12;
-	uint8_t mac_mask[PMO_80211_ADDR_LEN];
+	uint8_t mac_mask[QDF_MAC_ADDR_SIZE];
 	QDF_STATUS ret = QDF_STATUS_SUCCESS;
 	struct pmo_vdev_priv_obj *vdev_ctx;
 
 	vdev_ctx = pmo_vdev_get_priv(vdev);
 
-	qdf_mem_set(&mac_mask, PMO_80211_ADDR_LEN, 0xFF);
+	qdf_mem_set(&mac_mask, QDF_MAC_ADDR_SIZE, 0xFF);
 	/*
 	 * Set up unicast wow pattern
 	 * WoW pattern ID should be unique for each vdev
@@ -269,8 +255,8 @@ static QDF_STATUS pmo_configure_wow_sta(struct wlan_objmgr_vdev *vdev)
 	ret = pmo_tgt_send_wow_patterns_to_fw(vdev,
 			pmo_get_and_increment_wow_default_ptrn(vdev_ctx),
 			wlan_vdev_mlme_get_macaddr(vdev),
-			PMO_80211_ADDR_LEN, 0, mac_mask,
-			PMO_80211_ADDR_LEN, false);
+			QDF_MAC_ADDR_SIZE, 0, mac_mask,
+			QDF_MAC_ADDR_SIZE, false);
 	if (ret != QDF_STATUS_SUCCESS) {
 		pmo_err("Failed to add WOW unicast pattern ret %d", ret);
 		return ret;
@@ -332,8 +318,7 @@ void pmo_register_wow_default_patterns(struct wlan_objmgr_vdev *vdev)
 	}
 
 	vdev_opmode = pmo_get_vdev_opmode(vdev);
-	if (vdev_opmode == QDF_MAX_NO_OF_MODE ||
-	    vdev_opmode == QDF_NAN_DISC_MODE) {
+	if (vdev_opmode == QDF_MAX_NO_OF_MODE) {
 		pmo_err("Invalid vdev opmode %d", vdev_id);
 		return;
 	}
@@ -399,17 +384,25 @@ static void set_action_id_drop_pattern_for_public_action(
 				= DROP_PUBLIC_ACTION_FRAME_BITMAP;
 }
 
-void pmo_register_action_frame_patterns(struct wlan_objmgr_vdev *vdev)
+QDF_STATUS
+pmo_register_action_frame_patterns(struct wlan_objmgr_vdev *vdev,
+				   enum qdf_suspend_type suspend_type)
 {
 
 	struct pmo_action_wakeup_set_params cmd = {0};
 	int i = 0;
-	QDF_STATUS status;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	cmd.vdev_id = pmo_vdev_get_id(vdev);
 	cmd.operation = pmo_action_wakeup_set;
 
-	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP0;
+	if (suspend_type == QDF_SYSTEM_SUSPEND)
+		cmd.action_category_map[i++] =
+			SYSTEM_SUSPEND_ALLOWED_ACTION_FRAMES_BITMAP0;
+	else
+		cmd.action_category_map[i++] =
+				RUNTIME_PM_ALLOWED_ACTION_FRAMES_BITMAP0;
+
 	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP1;
 	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP2;
 	cmd.action_category_map[i++] = ALLOWED_ACTION_FRAMES_BITMAP3;
@@ -439,5 +432,24 @@ void pmo_register_action_frame_patterns(struct wlan_objmgr_vdev *vdev)
 	if (status != QDF_STATUS_SUCCESS)
 		pmo_err("Failed to config wow action frame map, ret %d",
 			status);
+
+	return status;
 }
 
+QDF_STATUS
+pmo_clear_action_frame_patterns(struct wlan_objmgr_vdev *vdev)
+{
+	struct pmo_action_wakeup_set_params cmd = {0};
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	cmd.vdev_id = pmo_vdev_get_id(vdev);
+	cmd.operation = pmo_action_wakeup_reset;
+
+	/*  clear action frame pattern */
+	status = pmo_tgt_send_action_frame_pattern_req(vdev, &cmd);
+	if (QDF_IS_STATUS_ERROR(status))
+		pmo_err("Failed to clear wow action frame map, ret %d",
+			status);
+
+	return status;
+}

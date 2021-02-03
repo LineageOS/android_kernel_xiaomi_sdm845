@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017, 2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -76,7 +76,7 @@ void epping_refill(void *ctx, HTC_ENDPOINT_ID Endpoint)
 	for (RxBuffers = 0; RxBuffers < buffersToRefill; RxBuffers++) {
 		osBuf = qdf_nbuf_alloc(NULL, AR6000_BUFFER_SIZE,
 				       AR6000_MIN_HEAD_ROOM, 4, false);
-		if (NULL == osBuf) {
+		if (!osBuf) {
 			break;
 		}
 		/* the HTC packet wrapper is at the head of the reserved area
@@ -104,9 +104,7 @@ void epping_rx(void *ctx, HTC_PACKET *pPacket)
 	epping_adapter_t *adapter = pEpping_ctx->epping_adapter;
 	struct net_device *dev = adapter->dev;
 	QDF_STATUS status = pPacket->Status;
-#ifdef WLAN_DEBUG
 	HTC_ENDPOINT_ID eid = pPacket->Endpoint;
-#endif
 	struct sk_buff *pktSkb = (struct sk_buff *)pPacket->pPktContext;
 
 	EPPING_LOG(QDF_TRACE_LEVEL_INFO,
@@ -116,7 +114,8 @@ void epping_rx(void *ctx, HTC_PACKET *pPacket)
 
 	if (status != QDF_STATUS_SUCCESS) {
 		if (status != QDF_STATUS_E_CANCELED) {
-			printk("%s: RX ERR (%d)\n", __func__, status);
+			EPPING_LOG(QDF_TRACE_LEVEL_ERROR, "%s: RX ERR (%d)",
+				   __func__, status);
 		}
 		qdf_nbuf_free(pktSkb);
 		return;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -80,6 +80,9 @@ struct hif_bus_ops {
 	int (*hif_map_ce_to_irq)(struct hif_softc *hif_sc, int ce_id);
 	int (*hif_addr_in_boundary)(struct hif_softc *scn, uint32_t offset);
 	bool (*hif_needs_bmi)(struct hif_softc *hif_sc);
+	void (*hif_config_irq_affinity)(struct hif_softc *hif_sc);
+	void (*hif_log_bus_info)(struct hif_softc *scn, uint8_t *data,
+				 unsigned int *offset);
 };
 
 #ifdef HIF_SNOC
@@ -121,6 +124,39 @@ static inline int hif_pci_get_context_size(void)
 	return 0;
 }
 #endif /* HIF_PCI */
+
+#ifdef HIF_IPCI
+/**
+ * hif_initialize_ipci_ops() - initialize the pci ops
+ * @hif_sc: pointer to hif context
+ *
+ * Return: QDF_STATUS_SUCCESS
+ */
+QDF_STATUS hif_initialize_ipci_ops(struct hif_softc *hif_sc);
+
+/**
+ * hif_ipci_get_context_size() - return the size of the ipci context
+ *
+ * Return the size of the context.  (0 for invalid bus)
+ */
+int hif_ipci_get_context_size(void);
+#else
+static inline QDF_STATUS hif_initialize_ipci_ops(struct hif_softc *hif_sc)
+{
+	HIF_ERROR("%s: not supported", __func__);
+	return QDF_STATUS_E_NOSUPPORT;
+}
+
+/**
+ * hif_ipci_get_context_size() - dummy when ipci isn't supported
+ *
+ * Return: 0 as an invalid size to indicate no support
+ */
+static inline int hif_ipci_get_context_size(void)
+{
+	return 0;
+}
+#endif /* HIF_IPCI */
 
 #ifdef HIF_AHB
 QDF_STATUS hif_initialize_ahb_ops(struct hif_bus_ops *bus_ops);
@@ -196,4 +232,34 @@ static inline int hif_usb_get_context_size(void)
 	return 0;
 }
 #endif /* HIF_USB */
+
+/**
+ * hif_config_irq_affinity() - Set IRQ affinity for WLAN IRQs
+ * @hif_sc - hif context
+ *
+ * Set IRQ affinity hint for WLAN IRQs in order to affine to
+ * gold cores.
+ *
+ * Return: None
+ */
+void hif_config_irq_affinity(struct hif_softc *hif_sc);
+
+#ifdef HIF_BUS_LOG_INFO
+/**
+ * hif_log_bus_info() - API to log bus related info
+ * @scn: hif handle
+ * @data: hang event data buffer
+ * @offset: offset at which data needs to be written
+ *
+ * Return:  None
+ */
+void hif_log_bus_info(struct hif_softc *scn, uint8_t *data,
+		      unsigned int *offset);
+#else
+static inline
+void hif_log_bus_info(struct hif_softc *scn, uint8_t *data,
+		      unsigned int *offset)
+{
+}
+#endif
 #endif /* _MULTIBUS_H_ */

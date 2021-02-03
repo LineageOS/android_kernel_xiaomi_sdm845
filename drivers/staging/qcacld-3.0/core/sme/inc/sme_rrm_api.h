@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -37,17 +37,15 @@
 #include "sme_internal.h"
 #include "sme_rrm_internal.h"
 
-QDF_STATUS sme_rrm_msg_processor(tpAniSirGlobal pMac, uint16_t msg_type,
-		void *pMsgBuf);
-QDF_STATUS rrm_close(tpAniSirGlobal pMac);
-QDF_STATUS rrm_open(tpAniSirGlobal pMac);
-QDF_STATUS rrm_change_default_config_param(tpAniSirGlobal pMac,
-		struct rrm_config_param *rrm_config);
-QDF_STATUS sme_rrm_neighbor_report_request(tpAniSirGlobal pMac,
+QDF_STATUS sme_rrm_msg_processor(struct mac_context *mac, uint16_t msg_type,
+		void *msg_buf);
+QDF_STATUS rrm_close(struct mac_context *mac);
+QDF_STATUS rrm_open(struct mac_context *mac);
+QDF_STATUS sme_rrm_neighbor_report_request(struct mac_context *mac,
 		uint8_t sessionId, tpRrmNeighborReq pNeighborReq,
 		tpRrmNeighborRspCallbackInfo callbackInfo);
-QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
-		void *pMsgBuf);
+QDF_STATUS sme_rrm_process_beacon_report_req_ind(struct mac_context *mac,
+		void *msg_buf);
 
 /**
  * rrm_start() - start the RRM module
@@ -56,7 +54,7 @@ QDF_STATUS sme_rrm_process_beacon_report_req_ind(tpAniSirGlobal pMac,
  * Return: QDF_STATUS
  *           QDF_STATUS_SUCCESS  success
  */
-QDF_STATUS rrm_start(tpAniSirGlobal mac_ctx);
+QDF_STATUS rrm_start(struct mac_context *mac_ctx);
 
 /**
  * rrm_stop() - stop the RRM module
@@ -65,6 +63,6 @@ QDF_STATUS rrm_start(tpAniSirGlobal mac_ctx);
  * Return: QDF_STATUS
  *           QDF_STATUS_SUCCESS  success
  */
-QDF_STATUS rrm_stop(tpAniSirGlobal mac_ctx);
+QDF_STATUS rrm_stop(struct mac_context *mac_ctx);
 
 #endif

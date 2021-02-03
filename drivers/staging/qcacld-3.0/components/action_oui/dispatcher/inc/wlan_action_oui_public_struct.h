@@ -88,6 +88,7 @@
  * @ACTION_OUI_SWITCH_TO_11N_MODE: connect in 11n
  * @ACTION_OUI_CONNECT_1X1_WITH_1_CHAIN: connect in 1x1 & disable diversity gain
  * @ACTION_OUI_DISABLE_AGGRESSIVE_TX: disable aggressive TX in firmware
+ * @ACTION_OUI_FORCE_MAX_NSS: Force Max NSS connection with few IOT APs
  * @ACTION_OUI_DISABLE_AGGRESSIVE_EDCA: disable aggressive EDCA with the ap
  * @ACTION_OUI_HOST_ONLY: host only action id start - placeholder.
  * New Firmware related "ACTION" needs to be added before this placeholder.
@@ -103,7 +104,8 @@ enum action_oui_id {
 	ACTION_OUI_SWITCH_TO_11N_MODE = 4,
 	ACTION_OUI_CONNECT_1X1_WITH_1_CHAIN = 5,
 	ACTION_OUI_DISABLE_AGGRESSIVE_TX = 6,
-	ACTION_OUI_DISABLE_AGGRESSIVE_EDCA = 7,
+	ACTION_OUI_FORCE_MAX_NSS = 7,
+	ACTION_OUI_DISABLE_AGGRESSIVE_EDCA = 8,
 	ACTION_OUI_HOST_ONLY,
 	ACTION_OUI_HOST_RECONN = ACTION_OUI_HOST_ONLY,
 	ACTION_OUI_MAXIMUM_ID

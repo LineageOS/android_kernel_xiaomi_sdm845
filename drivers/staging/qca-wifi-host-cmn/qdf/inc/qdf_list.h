@@ -137,7 +137,17 @@ static inline void qdf_list_destroy(qdf_list_t *list)
  */
 static inline uint32_t qdf_list_size(qdf_list_t *list)
 {
-	return list->count;
+	return __qdf_list_size(list);
+}
+
+/**
+ * qdf_list_max_size() - gives the max size of the list
+ * @list: object of list
+ * Return: max size of the list
+ */
+static inline uint32_t qdf_list_max_size(qdf_list_t *list)
+{
+	return __qdf_list_max_size(list);
 }
 
 QDF_STATUS qdf_list_insert_back(qdf_list_t *list, qdf_list_node_t *node);
@@ -150,5 +160,26 @@ QDF_STATUS qdf_list_remove_node(qdf_list_t *list,
 				qdf_list_node_t *node_to_remove);
 
 bool qdf_list_empty(qdf_list_t *list);
+
+/**
+ * qdf_list_has_node() - check if a node is in a list
+ * @list: pointer to the list being searched
+ * @node: pointer to the node to search for
+ *
+ * This API has a time complexity of O(n).
+ *
+ * Return: true if the node is in the list
+ */
+bool qdf_list_has_node(qdf_list_t *list, qdf_list_node_t *node);
+
+/**
+ * qdf_list_node_in_any_list() - ensure @node is a member of a list
+ * @node: list node to check
+ *
+ * This API has a time complexity of O(1). See also qdf_list_has_node().
+ *
+ * Return: true, if @node appears to be in a list
+ */
+bool qdf_list_node_in_any_list(const qdf_list_node_t *node);
 
 #endif /* __QDF_LIST_H */

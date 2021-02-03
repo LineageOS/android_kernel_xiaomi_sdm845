@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -74,7 +74,6 @@ static QDF_STATUS ocb_set_chan_info(void *dp_soc,
 				    uint32_t vdev_id,
 				    struct ocb_config *config)
 {
-	struct cdp_vdev *dp_vdev;
 	struct ol_txrx_ocb_set_chan ocb_set_chan;
 	struct ol_txrx_ocb_chan_info *ocb_channel_info;
 
@@ -83,16 +82,10 @@ static QDF_STATUS ocb_set_chan_info(void *dp_soc,
 		return QDF_STATUS_E_INVAL;
 	}
 
-	dp_vdev = cdp_get_vdev_from_vdev_id(dp_soc, dp_pdev, vdev_id);
-	if (!dp_vdev) {
-		ocb_err("DP vdev handle is NULL");
-		return QDF_STATUS_E_FAILURE;
-	}
-
 	ocb_set_chan.ocb_channel_count = config->channel_count;
 
 	/* release old settings */
-	ocb_channel_info = cdp_get_ocb_chan_info(dp_soc, dp_vdev);
+	ocb_channel_info = cdp_get_ocb_chan_info(dp_soc, vdev_id);
 	if (ocb_channel_info)
 		qdf_mem_free(ocb_channel_info);
 
@@ -118,7 +111,7 @@ static QDF_STATUS ocb_set_chan_info(void *dp_soc,
 		ocb_set_chan.ocb_channel_info = NULL;
 	}
 	ocb_debug("Sync channel config to dp");
-	cdp_set_ocb_chan_info(dp_soc, dp_vdev, ocb_set_chan);
+	cdp_set_ocb_chan_info(dp_soc, vdev_id, ocb_set_chan);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -167,7 +160,7 @@ static QDF_STATUS ocb_channel_config_status(struct ocb_rx_event *evt)
 		/* Sync channel status to data path */
 		if (config_rsp.status == OCB_CHANNEL_CONFIG_SUCCESS)
 			ocb_set_chan_info(ocb_obj->dp_soc,
-					  ocb_obj->dp_pdev,
+					  ocb_obj->pdev,
 					  vdev_id,
 					  ocb_obj->channel_config);
 		qdf_mem_free(ocb_obj->channel_config);
@@ -430,8 +423,6 @@ QDF_STATUS ocb_vdev_start(struct ocb_pdev_obj *ocb_obj)
 	status = scheduler_post_message(QDF_MODULE_ID_OCB,
 					QDF_MODULE_ID_OCB,
 					QDF_MODULE_ID_TARGET_IF, &msg);
-	if (QDF_IS_STATUS_ERROR(status))
-		ocb_err("Failed to post vdev start message");
 
 	return status;
 }

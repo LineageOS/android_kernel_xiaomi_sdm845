@@ -86,7 +86,6 @@ static bool action_oui_string_to_hex(uint8_t *token, uint8_t *hex,
  *
  * Return: converted string
  */
-#ifdef WLAN_DEBUG
 static
 uint8_t *action_oui_token_string(enum action_oui_token_type token_id)
 {
@@ -104,7 +103,6 @@ uint8_t *action_oui_token_string(enum action_oui_token_type token_id)
 
 	return (uint8_t *) "UNKNOWN";
 }
-#endif
 
 /**
  * validate_and_convert_oui() - validate and convert OUI str to hex array

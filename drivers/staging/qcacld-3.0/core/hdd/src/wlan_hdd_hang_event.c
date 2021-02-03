@@ -21,13 +21,15 @@
 #include <qdf_types.h>
 
 struct hdd_hang_event_fixed_param  {
-	uint32_t tlv_header;
+	uint16_t tlv_header;
 	uint8_t vdev_id;
 	uint8_t vdev_opmode;
+	uint8_t vdev_state;
+	uint8_t vdev_substate;
 } qdf_packed;
 
 struct hdd_scan_fixed_param {
-	uint32_t tlv_header;
+	uint16_t tlv_header;
 	uint8_t last_scan_reject_vdev_id;
 	enum scan_reject_states last_scan_reject_reason;
 	unsigned long last_scan_reject_timestamp;
@@ -56,18 +58,17 @@ static int wlan_hdd_recovery_notifier_call(struct notifier_block *block,
 	if (!hdd_ctx)
 		return NOTIFY_STOP_MASK;
 
-	if (hdd_hang_data->offset >= QDF_WLAN_MAX_HOST_OFFSET)
-		return NOTIFY_STOP_MASK;
-
 	if (state == QDF_SCAN_ATTEMPT_FAILURES) {
 		total_len = sizeof(*cmd_scan);
 		hdd_buf_ptr = hdd_hang_data->hang_data + hdd_hang_data->offset;
+		if (hdd_hang_data->offset + total_len > QDF_WLAN_HANG_FW_OFFSET)
+			return NOTIFY_STOP_MASK;
 		cmd_scan = (struct hdd_scan_fixed_param *)hdd_buf_ptr;
 		QDF_HANG_EVT_SET_HDR(&cmd_scan->tlv_header,
 				     HANG_EVT_TAG_OS_IF_SCAN,
 		QDF_HANG_GET_STRUCT_TLVLEN(struct hdd_scan_fixed_param));
 		cmd_scan->last_scan_reject_vdev_id =
-					hdd_ctx->last_scan_reject_session_id;
+					hdd_ctx->last_scan_reject_vdev_id;
 		cmd_scan->last_scan_reject_reason =
 					hdd_ctx->last_scan_reject_reason;
 		cmd_scan->scan_reject_cnt =
@@ -83,12 +84,20 @@ static int wlan_hdd_recovery_notifier_call(struct notifier_block *block,
 		}
 		total_len = sizeof(*cmd);
 		hdd_buf_ptr = hdd_hang_data->hang_data + hdd_hang_data->offset;
+		if (hdd_hang_data->offset + total_len >
+				QDF_WLAN_HANG_FW_OFFSET) {
+			hdd_objmgr_put_vdev(vdev);
+			dev_put(adapter->dev);
+			return NOTIFY_STOP_MASK;
+		}
 		cmd = (struct hdd_hang_event_fixed_param *)hdd_buf_ptr;
 		QDF_HANG_EVT_SET_HDR(&cmd->tlv_header,
 				     HANG_EVT_TAG_OS_IF,
 		QDF_HANG_GET_STRUCT_TLVLEN(struct hdd_hang_event_fixed_param));
 		cmd->vdev_id = wlan_vdev_get_id(vdev);
 		cmd->vdev_opmode = wlan_vdev_mlme_get_opmode(vdev);
+		cmd->vdev_state = wlan_vdev_mlme_get_state(vdev);
+		cmd->vdev_substate = wlan_vdev_mlme_get_substate(vdev);
 		hdd_hang_data->offset += total_len;
 		hdd_objmgr_put_vdev(vdev);
 		dev_put(adapter->dev);

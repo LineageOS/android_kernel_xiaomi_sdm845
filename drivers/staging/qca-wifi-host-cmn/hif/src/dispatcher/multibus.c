@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -23,7 +23,8 @@
 #include "hif_io32.h"
 #include "multibus.h"
 #include "dummy.h"
-#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB)
+#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB) || \
+    defined(HIF_IPCI)
 #include "ce_main.h"
 #include "ce_api.h"
 #include "ce_internal.h"
@@ -57,6 +58,8 @@ static void hif_initialize_default_ops(struct hif_softc *hif_sc)
 	bus_ops->hif_bus_late_resume = &hif_dummy_bus_resume;
 	bus_ops->hif_map_ce_to_irq = &hif_dummy_map_ce_to_irq;
 	bus_ops->hif_grp_irq_configure = &hif_dummy_grp_irq_configure;
+	bus_ops->hif_config_irq_affinity =
+		&hif_dummy_config_irq_affinity;
 }
 
 #define NUM_OPS (sizeof(struct hif_bus_ops) / sizeof(void *))
@@ -96,6 +99,8 @@ int hif_bus_get_context_size(enum qdf_bus_type bus_type)
 	switch (bus_type) {
 	case QDF_BUS_TYPE_PCI:
 		return hif_pci_get_context_size();
+	case QDF_BUS_TYPE_IPCI:
+		return hif_ipci_get_context_size();
 	case QDF_BUS_TYPE_AHB:
 		return hif_ahb_get_context_size();
 	case QDF_BUS_TYPE_SNOC:
@@ -126,6 +131,9 @@ QDF_STATUS hif_bus_open(struct hif_softc *hif_sc,
 	switch (bus_type) {
 	case QDF_BUS_TYPE_PCI:
 		status = hif_initialize_pci_ops(hif_sc);
+		break;
+	case QDF_BUS_TYPE_IPCI:
+		status = hif_initialize_ipci_ops(hif_sc);
 		break;
 	case QDF_BUS_TYPE_SNOC:
 		status = hif_initialize_snoc_ops(&hif_sc->bus_ops);
@@ -510,9 +518,26 @@ int hif_apps_wake_irq_enable(struct hif_opaque_softc *hif_ctx)
 	return 0;
 }
 
+#ifdef WLAN_FEATURE_BMI
 bool hif_needs_bmi(struct hif_opaque_softc *scn)
 {
 	struct hif_softc *hif_sc = HIF_GET_SOFTC(scn);
 
 	return hif_sc->bus_ops.hif_needs_bmi(hif_sc);
 }
+qdf_export_symbol(hif_needs_bmi);
+#endif /* WLAN_FEATURE_BMI */
+
+void hif_config_irq_affinity(struct hif_softc *hif_sc)
+{
+	hif_sc->bus_ops.hif_config_irq_affinity(hif_sc);
+}
+
+#ifdef HIF_BUS_LOG_INFO
+void hif_log_bus_info(struct hif_softc *hif_sc, uint8_t *data,
+		      unsigned int *offset)
+{
+	if (hif_sc->bus_ops.hif_log_bus_info)
+		hif_sc->bus_ops.hif_log_bus_info(hif_sc, data, offset);
+}
+#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -27,10 +27,29 @@
 #ifndef __WLAN_SERIALIZATION_API_H
 #define __WLAN_SERIALIZATION_API_H
 
-#include "qdf_status.h"
-#include "wlan_objmgr_cmn.h"
+#include <qdf_status.h>
+#include <wlan_objmgr_cmn.h>
 
 /* Preprocessor Definitions and Constants */
+
+/**
+ * enum ser_queue_reason- reason for changes to serialization queue
+ * @: SER_REQUEST: queue updated for serialization request
+ * @: SER_REMOVE : queue updated for serialization remove request
+ * @: SER_CANCEL : queue updated for serialization cancel request
+ * @: SER_TIMEOUT : queue updated for command timeout
+ * @: SER_ACTIVATION_FAILED : queue updated since command activation failed
+ * @: SER_PENDING_TO_ACTIVE : queue updated for pending to active movement
+ */
+enum ser_queue_reason {
+	SER_REQUEST,
+	SER_REMOVE,
+	SER_CANCEL,
+	SER_TIMEOUT,
+	SER_ACTIVATION_FAILED,
+	SER_PENDING_TO_ACTIVE,
+	SER_QUEUE_ACTION_MAX,
+};
 
 /*
  * struct wlan_serialization_queued_cmd_info member queue_type specifies the
@@ -60,6 +79,7 @@ enum wlan_serialization_cb_reason {
  * struct wlan_serialization_scan_info - Information needed for scan cmd
  * @is_cac_in_progress: boolean to check the cac status
  * @is_tdls_in_progress: boolean to check the tdls status
+ * @is_mlme_op_in_progress: boolean to check the mlme op status
  *
  * This information is needed for scan command from other components
  * to apply the rules and check whether the cmd is allowed or not
@@ -67,6 +87,7 @@ enum wlan_serialization_cb_reason {
 struct wlan_serialization_scan_info {
 	bool is_cac_in_progress;
 	bool is_tdls_in_progress;
+	bool is_mlme_op_in_progress;
 };
 
 /**
@@ -125,24 +146,64 @@ typedef bool (*wlan_serialization_apply_rules_cb)(
 		uint8_t comp_id);
 
 /**
+ * wlan_ser_umac_cmd_cb() - callback to validate umac_cmd
+ * @umac_cmd: umac data associated with the serialization cmd
+ *
+ * This callback can be called at run time for a command in active queue to
+ * fetch the required information from the umac cmd data stored in serialization
+ * command buffer.
+ *
+ * Return: QDF_STATUS_SUCCESS or QDF_STATUS_E_FAILURE
+ */
+typedef QDF_STATUS (*wlan_ser_umac_cmd_cb)(void *umac_cmd);
+
+/**
  * enum wlan_umac_cmd_id - Command Type
- * @WLAN_SER_CMD_SCAN:     Scan command
+ * @WLAN_SER_CMD_SCAN: Scan command
+ * @WLAN_SER_CMD_NONSCAN: Non-scan command
+ * @WLAN_SER_CMD_HDD_ISSUE_REASSOC_SAME_AP: HDD Reassoc cmd
+ * @WLAN_SER_CMD_SME_ISSUE_REASSOC_SAME_AP: SME Reassoc cmd
+ * @WLAN_SER_CMD_SME_ISSUE_DISASSOC_FOR_HANDOFF: SME Disassoc cmd
+ * @WLAN_SER_CMD_SME_ISSUE_ASSOC_TO_SIMILAR_AP: SME Assoc cmd
+ * @WLAN_SER_CMD_FORCE_IBSS_LEAVE: IBSS leave AP cmd
+ * @WLAN_SER_CMD_SME_ISSUE_FT_REASSOC: SME reassoc cmd
+ * @WLAN_SER_CMD_FORCE_DISASSOC_STA: Force diassoc for STA vap
+ * @WLAN_SER_CMD_FORCE_DEAUTH_STA: Force deauth for STA vap
+ * @WLAN_SER_CMD_PERFORM_PRE_AUTH: Pre auth ops cmd
+ * @WLAN_SER_CMD_WM_STATUS_CHANGE: WM status modification cmd
+ * @WLAN_SER_CMD_NDP_INIT_REQ: NDP init request cmd
+ * @WLAN_SER_CMD_NDP_RESP_REQ: NDP response to request cmd
+ * @WLAN_SER_CMD_NDP_DATA_END_INIT_REQ: NDP data end init request
+ * @WLAN_SER_CMD_NDP_END_ALL_REQ: NDP close all request
+ * @WLAN_SER_CMD_ADDTS: ADD Ts cmd
+ * @WLAN_SER_CMD_DELTS: Del Ts cmd
+ * @WLAN_SER_CMD_TDLS_SEND_MGMT: TDLS mgmt send cmd
+ * @WLAN_SER_CMD_TDLS_ADD_PEER: TDLS cmd to add peer
+ * @WLAN_SER_CMD_TDLS_DEL_PEER: TDLS cmd to del peer
+ * @WLAN_SER_CMD_SET_HW_MODE: Cmd to set hardware mode change
+ * @WLAN_SER_CMD_NSS_UPDATE: Cmd to update NSS config
+ * @WLAN_SER_CMD_SET_DUAL_MAC_CONFIG: Cmd to set dual mac
+ * @WLAN_SER_CMD_SET_ANTENNA_MODE: Set antenna mode
+ * @WLAN_SER_CMD_VDEV_DELETE: Cmd to del vdev
+ * @WLAN_SER_CMD_VDEV_START_BSS: Cmd to start a AP VDEV
+ * @WLAN_SER_CMD_VDEV_STOP_BSS: Cmd to stop a AP VDEV
+ * @WLAN_SER_CMD_VDEV_CONNECT: Cmd to start a STA VDEV
+ * @WLAN_SER_CMD_VDEV_DISCONNECT: Cmd to stop a STA VDEV
+ * @WLAN_SER_CMD_VDEV_RESTART: Cmd to restart a VDEV
+ * @WLAN_SER_CMD_PDEV_RESTART: Cmd to restart all VDEVs of a PDEV
+ * @WLAN_SER_CMD_PDEV_CSA_RESTART: Cmd to CSA restart all AP VDEVs of a PDEV
+ * @WLAN_SER_CMD_GET_DISCONNECT_STATS: Cmd to get peer stats on disconnection
  */
 enum wlan_serialization_cmd_type {
 	/* all scan command before non-scan */
 	WLAN_SER_CMD_SCAN,
 	/* all non-scan command below */
 	WLAN_SER_CMD_NONSCAN,
-	WLAN_SER_CMD_FORCE_DISASSOC,
-	WLAN_SER_CMD_HDD_ISSUED,
-	WLAN_SER_CMD_FORCE_DISASSOC_MIC_FAIL,
 	WLAN_SER_CMD_HDD_ISSUE_REASSOC_SAME_AP,
 	WLAN_SER_CMD_SME_ISSUE_REASSOC_SAME_AP,
-	WLAN_SER_CMD_FORCE_DEAUTH,
 	WLAN_SER_CMD_SME_ISSUE_DISASSOC_FOR_HANDOFF,
 	WLAN_SER_CMD_SME_ISSUE_ASSOC_TO_SIMILAR_AP,
 	WLAN_SER_CMD_FORCE_IBSS_LEAVE,
-	WLAN_SER_CMD_STOP_BSS,
 	WLAN_SER_CMD_SME_ISSUE_FT_REASSOC,
 	WLAN_SER_CMD_FORCE_DISASSOC_STA,
 	WLAN_SER_CMD_FORCE_DEAUTH_STA,
@@ -151,6 +212,7 @@ enum wlan_serialization_cmd_type {
 	WLAN_SER_CMD_NDP_INIT_REQ,
 	WLAN_SER_CMD_NDP_RESP_REQ,
 	WLAN_SER_CMD_NDP_DATA_END_INIT_REQ,
+	WLAN_SER_CMD_NDP_END_ALL_REQ,
 	WLAN_SER_CMD_ADDTS,
 	WLAN_SER_CMD_DELTS,
 	WLAN_SER_CMD_TDLS_SEND_MGMT,
@@ -160,7 +222,15 @@ enum wlan_serialization_cmd_type {
 	WLAN_SER_CMD_NSS_UPDATE,
 	WLAN_SER_CMD_SET_DUAL_MAC_CONFIG,
 	WLAN_SER_CMD_SET_ANTENNA_MODE,
-	WLAN_SER_CMD_DEL_STA_SESSION,
+	WLAN_SER_CMD_VDEV_DELETE,
+	WLAN_SER_CMD_VDEV_START_BSS,
+	WLAN_SER_CMD_VDEV_STOP_BSS,
+	WLAN_SER_CMD_VDEV_CONNECT,
+	WLAN_SER_CMD_VDEV_DISCONNECT,
+	WLAN_SER_CMD_VDEV_RESTART,
+	WLAN_SER_CMD_PDEV_RESTART,
+	WLAN_SER_CMD_PDEV_CSA_RESTART,
+	WLAN_SER_CMD_GET_DISCONNECT_STATS,
 	WLAN_SER_CMD_MAX
 };
 
@@ -170,6 +240,12 @@ enum wlan_serialization_cmd_type {
  * @WLAN_SER_CANCEL_PDEV_SCANS: Cancel all the scans on a given pdev
  * @WLAN_SER_CANCEL_VDEV_SCANS: Cancel all the scans on given vdev
  * @WLAN_SER_CANCEL_VDEV_HOST_SCANS: Cancel all host scans on given vdev
+ * @WLAN_SER_CANCEL_PDEV_NON_SCAN_CMD: Cancel all non scans on a given pdev
+ * @WLAN_SER_CANCEL_VDEV_NON_SCAN_CMD: Cancel all non scans on a given vdev
+ * @WLAN_SER_CANCEL_VDEV_NON_SCAN_CMD_TYPE: Cancel all non scans on a given vdev
+ * and matching cmd type
+ * @WLAN_SER_CANCEL_VDEV_NON_SCAN_NB_CMD: Cancel all non-blocking,
+ * non-scan commands of a given vdev
  * @WLAN_SER_CANCEL_NON_SCAN_CMD: Cancel the given non scan command
  */
 enum wlan_serialization_cancel_type {
@@ -177,6 +253,10 @@ enum wlan_serialization_cancel_type {
 	WLAN_SER_CANCEL_PDEV_SCANS,
 	WLAN_SER_CANCEL_VDEV_SCANS,
 	WLAN_SER_CANCEL_VDEV_HOST_SCANS,
+	WLAN_SER_CANCEL_PDEV_NON_SCAN_CMD,
+	WLAN_SER_CANCEL_VDEV_NON_SCAN_CMD,
+	WLAN_SER_CANCEL_VDEV_NON_SCAN_CMD_TYPE,
+	WLAN_SER_CANCEL_VDEV_NON_SCAN_NB_CMD,
 	WLAN_SER_CANCEL_NON_SCAN_CMD,
 	WLAN_SER_CANCEL_MAX,
 };
@@ -187,6 +267,8 @@ enum wlan_serialization_cancel_type {
  * @WLAN_SER_CMD_ACTIVE: Command is activated and put in active queue
  * @WLAN_SER_CMD_DENIED_RULES_FAILED: Command denied as the rules fail
  * @WLAN_SER_CMD_DENIED_LIST_FULL: Command denied as the pending list is full
+ * @WLAN_SER_CMD_QUEUE_DISABLED: Command denied as the queue is disabled
+ * @WLAN_SER_CMD_ALREADY_EXISTS: Command already exists in the queue
  * @WLAN_SER_CMD_DENIED_UNSPECIFIED: Command denied due to unknown reason
  */
 enum wlan_serialization_status {
@@ -194,6 +276,8 @@ enum wlan_serialization_status {
 	WLAN_SER_CMD_ACTIVE,
 	WLAN_SER_CMD_DENIED_RULES_FAILED,
 	WLAN_SER_CMD_DENIED_LIST_FULL,
+	WLAN_SER_CMD_QUEUE_DISABLED,
+	WLAN_SER_CMD_ALREADY_EXISTS,
 	WLAN_SER_CMD_DENIED_UNSPECIFIED,
 };
 
@@ -209,7 +293,20 @@ enum wlan_serialization_cmd_status {
 	WLAN_SER_CMD_IN_PENDING_LIST,
 	WLAN_SER_CMD_IN_ACTIVE_LIST,
 	WLAN_SER_CMDS_IN_ALL_LISTS,
+	WLAN_SER_CMD_MARKED_FOR_ACTIVATION,
 	WLAN_SER_CMD_NOT_FOUND,
+};
+
+/**
+ * enum wlan_ser_cmd_attr - Serialization cmd attribute
+ * @WLAN_SER_CMD_ATTR_NONE - No attribuate associated
+ * @WLAN_SER_CMD_ATTR_BLOCK - Blocking attribute
+ * @WLAN_SER_CMD_ATTR_NONBLOCK - Non-blocking attribute
+ */
+enum wlan_ser_cmd_attr {
+	WLAN_SER_CMD_ATTR_NONE,
+	WLAN_SER_CMD_ATTR_BLOCK,
+	WLAN_SER_CMD_ATTR_NONBLOCK,
 };
 
 /**
@@ -219,6 +316,9 @@ enum wlan_serialization_cmd_status {
  * @cmd_cb: Command callback
  * @source: component ID of the source of the command
  * @is_high_priority: Normal/High Priority at which the cmd has to be queued
+ * @is_blocking: Is the command blocking
+ * @queue_disable: Should the command disable the queues
+ * @activation_reason: reason the activation cb was called
  * @cmd_timeout_cb: Command timeout callback
  * @cmd_timeout_duration: Timeout duration in milliseconds
  * @vdev: VDEV object associated to the command
@@ -233,8 +333,11 @@ struct wlan_serialization_command {
 	uint32_t cmd_id;
 	wlan_serialization_cmd_callback cmd_cb;
 	enum wlan_umac_comp_id source;
-	bool is_high_priority;
-	uint16_t cmd_timeout_duration;
+	uint8_t is_high_priority:1,
+		is_blocking:1,
+		queue_disable:1,
+		activation_reason:3;
+	uint32_t cmd_timeout_duration;
 	union {
 		struct wlan_objmgr_vdev *vdev;
 	};
@@ -289,6 +392,15 @@ void wlan_serialization_remove_cmd(
 		struct wlan_serialization_queued_cmd_info *cmd);
 
 /**
+ * wlan_serialization_update_timer() -Update timer for an active command
+ * @cmd: Command information
+ *
+ * Return: Status of the timer update
+ */
+QDF_STATUS
+wlan_serialization_update_timer(struct wlan_serialization_command *cmd);
+
+/**
  * wlan_serialization_request() - Request to serialize a command
  * @cmd: Command information
  *
@@ -298,8 +410,7 @@ enum wlan_serialization_status
 wlan_serialization_request(struct wlan_serialization_command *cmd);
 
 /**
- * wlan_serialization_register_comp_info_cb() - Register component's info
- * 						callback
+ * wlan_serialization_register_comp_info_cb() - Register component's info cb
  * @psoc: PSOC object information
  * @comp_id: Component ID
  * @cmd_type: Command Type
@@ -311,7 +422,8 @@ wlan_serialization_request(struct wlan_serialization_command *cmd);
  * Return: QDF Status
  */
 QDF_STATUS
-wlan_serialization_register_comp_info_cb(struct wlan_objmgr_psoc *psoc,
+wlan_serialization_register_comp_info_cb(
+		struct wlan_objmgr_psoc *psoc,
 		enum wlan_umac_comp_id comp_id,
 		enum wlan_serialization_cmd_type cmd_type,
 		wlan_serialization_comp_info_cb cb);
@@ -328,7 +440,8 @@ wlan_serialization_register_comp_info_cb(struct wlan_objmgr_psoc *psoc,
  * Return: QDF Status
  */
 QDF_STATUS
-wlan_serialization_deregister_comp_info_cb(struct wlan_objmgr_psoc *psoc,
+wlan_serialization_deregister_comp_info_cb(
+		struct wlan_objmgr_psoc *psoc,
 		enum wlan_umac_comp_id comp_id,
 		enum wlan_serialization_cmd_type cmd_type);
 
@@ -345,7 +458,8 @@ wlan_serialization_deregister_comp_info_cb(struct wlan_objmgr_psoc *psoc,
  * Return: QDF Status
  */
 QDF_STATUS
-wlan_serialization_register_apply_rules_cb(struct wlan_objmgr_psoc *psoc,
+wlan_serialization_register_apply_rules_cb(
+		struct wlan_objmgr_psoc *psoc,
 		enum wlan_serialization_cmd_type cmd_type,
 		wlan_serialization_apply_rules_cb apply_rules_cb);
 
@@ -360,7 +474,8 @@ wlan_serialization_register_apply_rules_cb(struct wlan_objmgr_psoc *psoc,
  * Return: QDF Status
  */
 QDF_STATUS
-wlan_serialization_deregister_apply_rules_cb(struct wlan_objmgr_psoc *psoc,
+wlan_serialization_deregister_apply_rules_cb(
+		struct wlan_objmgr_psoc *psoc,
 		enum wlan_serialization_cmd_type cmd_type);
 
 /**
@@ -378,14 +493,14 @@ QDF_STATUS wlan_serialization_init(void);
 QDF_STATUS wlan_serialization_deinit(void);
 
 /**
- * wlan_serialization_psoc_enable() - Serialization component enable routine
+ * @wlan_serialization_psoc_enable() - Serialization component enable routine
  *
  * Return - QDF Status
  */
 QDF_STATUS wlan_serialization_psoc_enable(struct wlan_objmgr_psoc *psoc);
 
 /**
- * wlan_serialization_psoc_disable() - Serialization component disable routine
+ * @wlan_serialization_psoc_disable() - Serialization component disable routine
  *
  * Return - QDF Status
  */
@@ -408,6 +523,17 @@ wlan_serialization_vdev_scan_status(struct wlan_objmgr_vdev *vdev);
  */
 enum wlan_serialization_cmd_status
 wlan_serialization_pdev_scan_status(struct wlan_objmgr_pdev *pdev);
+
+/**
+ * wlan_serialization_non_scan_cmd_status() - Return status of pdev non-scan cmd
+ * @pdev: PDEV Object
+ * @cmd_id: ID of the command for which the status has to be checked
+ *
+ * Return: Status of the command for the corresponding pdev
+ */
+enum wlan_serialization_cmd_status
+wlan_serialization_non_scan_cmd_status(struct wlan_objmgr_pdev *pdev,
+				       enum wlan_serialization_cmd_type cmd_id);
 
 /**
  * wlan_serialization_is_cmd_present_in_pending_queue() - Return if the command
@@ -435,22 +561,6 @@ bool wlan_serialization_is_cmd_present_in_pending_queue(
 bool wlan_serialization_is_cmd_present_in_active_queue(
 		struct wlan_objmgr_psoc *psoc,
 		struct wlan_serialization_command *cmd);
-
-/**
- * wlan_serialization_purge_all_pdev_cmd() - purge all command for given pdev
- * @pdev: objmgr pdev pointer
- *
- * Return: void
- */
-void wlan_serialization_purge_all_pdev_cmd(struct wlan_objmgr_pdev *pdev);
-
-/**
- * wlan_serialization_purge_all_cmd() - purge all command for psoc
- * @psoc: objmgr psoc pointer
- *
- * Return: void
- */
-void wlan_serialization_purge_all_cmd(struct wlan_objmgr_psoc *psoc);
 
 /**
  * wlan_serialization_get_scan_cmd_using_scan_id() - Return command which
@@ -485,7 +595,110 @@ wlan_serialization_get_scan_cmd_using_scan_id(
  * Return: Pointer to umac command. NULL is returned if active command of given
  *  type is not found.
  */
-void *wlan_serialization_get_active_cmd(struct wlan_objmgr_psoc *psoc,
-				     uint8_t vdev_id,
-				     enum wlan_serialization_cmd_type cmd_type);
+void *wlan_serialization_get_active_cmd(
+		struct wlan_objmgr_psoc *psoc,
+		uint8_t vdev_id,
+		enum wlan_serialization_cmd_type cmd_type);
+
+/**
+ * wlan_serialization_get_vdev_active_cmd_type() - Return cmd type of the
+ *  active command for the given vdev
+ * @vdev: vdev object
+ *
+ * This API fetches command type of the command in the vdev active queue
+ *
+ * Return: command type of the command in the vdev active queue
+ */
+
+enum wlan_serialization_cmd_type
+wlan_serialization_get_vdev_active_cmd_type(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * wlan_ser_get_cmd_activation_status() - Return active command status
+ * @vdev: vdev object
+ *
+ * This API fetches active command state in the vdev active queue
+ *
+ * Return: success if CMD_MARKED_FOR_ACTIVATION bit is set, else fail
+ */
+
+QDF_STATUS
+wlan_ser_get_cmd_activation_status(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * wlan_ser_is_vdev_queue_enabled() - Return vdev queue status
+ * @vdev: vdev object
+ *
+ * This API return vdev queue enable status
+ *
+ * Return: true if vdev queue is enabled
+ */
+bool wlan_ser_is_vdev_queue_enabled(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * wlan_ser_validate_umac_cmd() - validate umac cmd data
+ * @vdev: objmgr vdev pointer
+ * @cmd_type: cmd type to match
+ * @umac_cmd_cb: Callback to be called to validate the data
+ *
+ * This API returns the validation status of the umac cmd cb.
+ * The umac_cmd_cb callback is called with serialization lock held, and hence
+ * only atomic operations are allowed in the callback.
+ *
+ * Return: QDF_STATUS_SUCCESS or QDF_STATUS_E_FAILURE
+ */
+QDF_STATUS
+wlan_ser_validate_umac_cmd(struct wlan_objmgr_vdev *vdev,
+			   enum wlan_serialization_cmd_type cmd_type,
+			   wlan_ser_umac_cmd_cb umac_cmd_cb);
+
+/**
+ * wlan_serialization_purge_all_pdev_cmd() - purge all command for given pdev
+ * @pdev: objmgr pdev pointer
+ *
+ * Return: void
+ */
+void wlan_serialization_purge_all_pdev_cmd(struct wlan_objmgr_pdev *pdev);
+
+/**
+ * wlan_serialization_purge_all_cmd() - purge all command for psoc
+ * @psoc: objmgr psoc pointer
+ *
+ * Return: void
+ */
+void wlan_serialization_purge_all_cmd(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * wlan_serialization_purge_all_pending_cmd_by_vdev_id() - Purge all pending
+ * scan and non scan commands for vdev id
+ * @pdev: pointer to pdev
+ * @vdev_id: vdev_id variable
+ *
+ * Return: none
+ */
+void wlan_serialization_purge_all_pending_cmd_by_vdev_id(
+					struct wlan_objmgr_pdev *pdev,
+					uint8_t vdev_id);
+
+/**
+ * wlan_serialization_purge_all_scan_cmd_by_vdev_id() - Purge all pending/active
+ * scan commands for vdev id
+ * @pdev: pointer to pdev
+ * @vdev_id: vdev_id variable
+ *
+ * Return: none
+ */
+void wlan_serialization_purge_all_scan_cmd_by_vdev_id(
+					struct wlan_objmgr_pdev *pdev,
+					uint8_t vdev_id);
+
+/**
+ * wlan_ser_vdev_queue_disable -Disable vdev specific serialization queue
+ * @vdev: Vdev Object
+ *
+ * This function disables the serialization for the vdev queue
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS wlan_ser_vdev_queue_disable(struct wlan_objmgr_vdev *vdev);
 #endif

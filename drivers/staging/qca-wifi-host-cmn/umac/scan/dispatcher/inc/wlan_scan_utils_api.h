@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -30,6 +30,7 @@
 #include <wlan_objmgr_vdev_obj.h>
 #include <wlan_scan_public_structs.h>
 #include<wlan_mgmt_txrx_utils_api.h>
+#include <wlan_reg_services_api.h>
 
 #define ASCII_SPACE_CHARACTER 32
 
@@ -63,6 +64,24 @@ qdf_list_t *util_scan_unpack_beacon_frame(
 	struct wlan_objmgr_pdev *pdev,
 	uint8_t *frame, qdf_size_t frame_len, uint32_t frm_subtype,
 	struct mgmt_rx_event_params *rx_param);
+
+/**
+ * util_scan_add_hidden_ssid() - func to add hidden ssid
+ * @pdev: pdev pointer
+ * @frame: beacon buf
+ *
+ * Return:
+ */
+#ifdef WLAN_DFS_CHAN_HIDDEN_SSID
+QDF_STATUS
+util_scan_add_hidden_ssid(struct wlan_objmgr_pdev *pdev, qdf_nbuf_t bcnbuf);
+#else
+static inline QDF_STATUS
+util_scan_add_hidden_ssid(struct wlan_objmgr_pdev *pdev, qdf_nbuf_t bcnbuf)
+{
+	return  QDF_STATUS_SUCCESS;
+}
+#endif /* WLAN_DFS_CHAN_HIDDEN_SSID */
 
 /**
  * util_scan_get_ev_type_name() - converts enum event to printable string
@@ -189,7 +208,7 @@ util_scan_entry_reset_timestamp(struct scan_cache_entry *scan_entry)
 
 #define WLAN_RSSI_EP_MULTIPLIER (1<<7)  /* pow2 to optimize out * and / */
 
-#define WLAN_RSSI_LPF_LEN       10
+#define WLAN_RSSI_LPF_LEN       0
 #define WLAN_RSSI_DUMMY_MARKER  0x127
 
 #define WLAN_EP_MUL(x, mul) ((x) * (mul))
@@ -212,13 +231,31 @@ util_scan_entry_reset_timestamp(struct scan_cache_entry *scan_entry)
 	((x != WLAN_RSSI_DUMMY_MARKER) ? ((((x) << 3) + (y) - (x)) >> 3) : (y))
 
 #define WLAN_RSSI_LPF(x, y) do { \
-	if ((y) >= RSSI_LPF_THRESHOLD) \
+	if ((y) < RSSI_LPF_THRESHOLD) \
 		x = WLAN_LPF_RSSI((x), WLAN_RSSI_IN((y)), WLAN_RSSI_LPF_LEN); \
 	} while (0)
 
 #define WLAN_ABS_RSSI_LPF(x, y) do { \
 	if ((y) >= (RSSI_LPF_THRESHOLD + WLAN_DEFAULT_NOISE_FLOOR)) \
 		x = WLAN_LPF_RSSI((x), WLAN_RSSI_IN((y)), WLAN_RSSI_LPF_LEN); \
+	} while (0)
+
+#define WLAN_SNR_EP_MULTIPLIER BIT(7) /* pow2 to optimize out * and / */
+#define WLAN_SNR_DUMMY_MARKER  0x127
+#define SNR_LPF_THRESHOLD      0
+#define WLAN_SNR_LPF_LEN       10
+
+#define WLAN_SNR_OUT(x) (((x) != WLAN_SNR_DUMMY_MARKER) ?     \
+	(WLAN_EP_RND((x), WLAN_SNR_EP_MULTIPLIER)) :  WLAN_SNR_DUMMY_MARKER)
+
+#define WLAN_SNR_IN(x)         (WLAN_EP_MUL((x), WLAN_SNR_EP_MULTIPLIER))
+
+#define WLAN_LPF_SNR(x, y, len) \
+	((x != WLAN_SNR_DUMMY_MARKER) ? ((((x) << 3) + (y) - (x)) >> 3) : (y))
+
+#define WLAN_SNR_LPF(x, y) do { \
+	if ((y) > SNR_LPF_THRESHOLD) \
+		x = WLAN_LPF_SNR((x), WLAN_SNR_IN((y)), WLAN_SNR_LPF_LEN); \
 	} while (0)
 
 /**
@@ -229,20 +266,33 @@ util_scan_entry_reset_timestamp(struct scan_cache_entry *scan_entry)
  *
  * Return: rssi
  */
-static inline uint8_t
+static inline int32_t
 util_scan_entry_rssi(struct scan_cache_entry *scan_entry)
 {
-	uint32_t rssi = WLAN_RSSI_OUT(scan_entry->avg_rssi);
+	return WLAN_RSSI_OUT(scan_entry->avg_rssi);
+}
+
+/**
+ * util_scan_entry_snr() - function to read snr of scan entry
+ * @scan_entry: scan entry
+ *
+ * API, function to read snr value of scan entry
+ *
+ * Return: snr
+ */
+static inline uint8_t
+util_scan_entry_snr(struct scan_cache_entry *scan_entry)
+{
+	uint32_t snr = WLAN_SNR_OUT(scan_entry->avg_snr);
 	/*
 	 * An entry is in the BSS list means we've received at least one beacon
-	 * from the corresponding AP, so the rssi must be initialized.
+	 * from the corresponding AP, so the snr must be initialized.
 	 *
-	 * If the RSSI is not initialized, return 0 (i.e. RSSI == Noise Floor).
-	 * Once se_avgrssi field has been initialized, ATH_RSSI_OUT always
-	 * returns values that fit in an 8-bit variable
-	 * (RSSI values are typically 0-90).
+	 * If the SNR is not initialized, return 0 (i.e. SNR == Noise Floor).
+	 * Once se_avgsnr field has been initialized, ATH_SNR_OUT always
+	 * returns values that fit in an 8-bit variable.
 	 */
-	return (rssi >= WLAN_RSSI_DUMMY_MARKER) ? 0 : (uint8_t) rssi;
+	return (snr >= WLAN_SNR_DUMMY_MARKER) ? 0 : (uint8_t)snr;
 }
 
 /**
@@ -528,7 +578,7 @@ util_scan_entry_copy_ie_data(struct scan_cache_entry *scan_entry,
 	u_int16_t    buff_len;
 
 	/* iebuf can be NULL, ie_len must be a valid pointer. */
-	QDF_ASSERT(ie_len != NULL);
+	QDF_ASSERT(ie_len);
 	if (!ie_len)
 		return QDF_STATUS_E_NULL_VALUE;
 
@@ -539,7 +589,7 @@ util_scan_entry_copy_ie_data(struct scan_cache_entry *scan_entry,
 	 * it's large enough.
 	 * If no buffer is passed, just return the length of the IE blob.
 	 */
-	if (iebuf != NULL) {
+	if (iebuf) {
 		if (*ie_len >= buff_len) {
 			qdf_mem_copy(iebuf, buff, buff_len);
 			*ie_len = buff_len;
@@ -573,7 +623,7 @@ util_scan_free_cache_entry(struct scan_cache_entry *scan_entry)
 }
 
 #define conv_ptr(_address, _base1, _base2) \
-	((_address != NULL) ? (((u_int8_t *) (_address) - \
+	((_address) ? (((u_int8_t *) (_address) - \
 	(u_int8_t *) (_base1)) + (u_int8_t *) (_base2)) : NULL)
 
 /**
@@ -618,6 +668,7 @@ util_scan_copy_beacon_data(struct scan_cache_entry *new_entry,
 	ie_lst->ds_param = conv_ptr(ie_lst->ds_param, old_ptr, new_ptr);
 	ie_lst->csa = conv_ptr(ie_lst->csa, old_ptr, new_ptr);
 	ie_lst->xcsa = conv_ptr(ie_lst->xcsa, old_ptr, new_ptr);
+	ie_lst->mcst = conv_ptr(ie_lst->mcst, old_ptr, new_ptr);
 	ie_lst->secchanoff = conv_ptr(ie_lst->secchanoff, old_ptr, new_ptr);
 	ie_lst->wpa = conv_ptr(ie_lst->wpa, old_ptr, new_ptr);
 	ie_lst->wcn = conv_ptr(ie_lst->wcn, old_ptr, new_ptr);
@@ -653,6 +704,9 @@ util_scan_copy_beacon_data(struct scan_cache_entry *new_entry,
 					   old_ptr, new_ptr);
 	ie_lst->esp = conv_ptr(ie_lst->esp, old_ptr, new_ptr);
 	ie_lst->mbo_oce = conv_ptr(ie_lst->mbo_oce, old_ptr, new_ptr);
+	ie_lst->muedca = conv_ptr(ie_lst->muedca, old_ptr, new_ptr);
+	ie_lst->rnrie = conv_ptr(ie_lst->rnrie, old_ptr, new_ptr);
+	ie_lst->extender = conv_ptr(ie_lst->extender, old_ptr, new_ptr);
 	ie_lst->adaptive_11r = conv_ptr(ie_lst->adaptive_11r, old_ptr, new_ptr);
 	ie_lst->single_pmk = conv_ptr(ie_lst->single_pmk, old_ptr, new_ptr);
 
@@ -722,17 +776,17 @@ util_scan_entry_channel(struct scan_cache_entry *scan_entry)
 }
 
 /**
- * util_scan_entry_channel_num() - function to read channel number
+ * util_scan_entry_channel_frequency() - function to read channel number
  * @scan_entry: scan entry
  *
  * API, function to read channel number
  *
  * Return: channel number
  */
-static inline uint8_t
-util_scan_entry_channel_num(struct scan_cache_entry *scan_entry)
+static inline uint32_t
+util_scan_entry_channel_frequency(struct scan_cache_entry *scan_entry)
 {
-	return scan_entry->channel.chan_idx;
+	return scan_entry->channel.chan_freq;
 }
 
 /**
@@ -809,14 +863,14 @@ util_scan_entry_adaptive_11r(struct scan_cache_entry *scan_entry)
  * util_scan_entry_single_pmk()- function to read single pmk Vendor IE
  * @scan_entry: scan entry
  *
- * API, function to read adaptive 11r IE
+ * API, function to read sae single pmk IE
  *
  * Return: true if single_pmk ie is present or false if ie is not present
  */
 static inline bool
 util_scan_entry_single_pmk(struct scan_cache_entry *scan_entry)
 {
-	if(scan_entry->ie_list.single_pmk)
+	if (scan_entry->ie_list.single_pmk)
 		return true;
 
 	return false;
@@ -1138,10 +1192,10 @@ util_scan_entry_wmeparam(struct scan_cache_entry *scan_entry)
  *
  * Return: age in ms
  */
-static inline uint32_t
+static inline qdf_time_t
 util_scan_entry_age(struct scan_cache_entry *scan_entry)
 {
-	unsigned long ts = scan_entry->scan_entry_time;
+	qdf_time_t ts = scan_entry->scan_entry_time;
 
 	return qdf_mc_timer_get_system_time() - ts;
 }
@@ -1321,6 +1375,42 @@ util_scan_entry_extcaps(struct scan_cache_entry *scan_entry)
 }
 
 /**
+ * util_scan_entry_get_extcap() - function to read extended capability field ie
+ * @scan_entry: scan entry
+ * @extcap_bit_field: extended capability bit field
+ * @extcap_value: pointer to fill extended capability field value
+ *
+ * API, function to read extended capability field
+ *
+ * Return: QDF_STATUS_SUCCESS if extended capability field is found
+ *         QDF_STATUS_E_NOMEM if extended capability field is not found
+ */
+static inline QDF_STATUS
+util_scan_entry_get_extcap(struct scan_cache_entry *scan_entry,
+			   enum ext_cap_bit_field extcap_bit_field,
+			   uint8_t *extcap_value)
+{
+	struct wlan_ext_cap_ie *ext_cap =
+		(struct wlan_ext_cap_ie *)util_scan_entry_extcaps(scan_entry);
+
+	uint8_t ext_caps_byte = (extcap_bit_field >> 3);
+	uint8_t ext_caps_bit_pos = extcap_bit_field & 0x7;
+
+	*extcap_value = 0;
+
+	if (!ext_cap)
+		return QDF_STATUS_E_NULL_VALUE;
+
+	if (ext_cap->ext_cap_len < ext_caps_byte)
+		return QDF_STATUS_E_NULL_VALUE;
+
+	*extcap_value =
+		((ext_cap->ext_caps[ext_caps_byte] >> ext_caps_bit_pos) & 0x1);
+
+	return QDF_STATUS_SUCCESS;
+}
+
+/**
  * util_scan_entry_athcaps() - function to read ath caps vendor ie
  * @scan_entry: scan entry
  *
@@ -1332,6 +1422,20 @@ static inline struct mlme_info*
 util_scan_entry_mlme_info(struct scan_cache_entry *scan_entry)
 {
 	return &(scan_entry->mlme_info);
+}
+
+/**
+* util_scan_entry_mcst() - function to read mcst IE
+* @scan_entry:scan entry
+*
+* API, function to read mcst IE
+*
+* Return: mcst or NULL if ie is not present
+*/
+static inline uint8_t*
+util_scan_entry_mcst(struct scan_cache_entry *scan_entry)
+{
+	return scan_entry->ie_list.mcst;
 }
 
 /**
@@ -1348,6 +1452,19 @@ util_scan_entry_hecap(struct scan_cache_entry *scan_entry)
 	return scan_entry->ie_list.hecap;
 }
 
+/**
+ * util_scan_entry_he_6g_cap() - function to read  he 6GHz caps vendor ie
+ * @scan_entry: scan entry
+ *
+ * API, function to read he 6GHz caps vendor ie
+ *
+ * Return: he caps vendorie or NULL if ie is not present
+ */
+static inline uint8_t*
+util_scan_entry_he_6g_cap(struct scan_cache_entry *scan_entry)
+{
+	return scan_entry->ie_list.hecap_6g;
+}
 
 /**
  * util_scan_entry_heop() - function to read heop vendor ie
@@ -1509,6 +1626,34 @@ enum wlan_band util_scan_scm_freq_to_band(uint16_t freq);
  * Return: true if scan complete, false otherwise
  */
 bool util_is_scan_completed(struct scan_event *event, bool *success);
+
+/**
+ * util_scan_entry_extenderie() - function to read extender IE
+ * @scan_entry: scan entry
+ *
+ * API, function to read extender IE
+ *
+ * Return: extenderie or NULL if ie is not present
+ */
+static inline uint8_t*
+util_scan_entry_extenderie(struct scan_cache_entry *scan_entry)
+{
+	return scan_entry->ie_list.extender;
+}
+
+/**
+ * util_scan_entry_mdie() - function to read Mobility Domain IE
+ * @scan_entry: scan entry
+ *
+ * API, function to read Mobility Domain IE
+ *
+ * Return: MDIE or NULL if IE is not present
+ */
+static inline uint8_t*
+util_scan_entry_mdie(struct scan_cache_entry *scan_entry)
+{
+	return scan_entry->ie_list.mdie;
+}
 
 /**
  * util_scan_is_null_ssid() - to check for NULL ssid

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -58,7 +58,6 @@
  * Preprocessor Definitions and Constants
  * -------------------------------------------------------------------------*/
 #define AAD_LEN 20
-#define IV_SIZE_AES_128 16
 #define CMAC_IPN_LEN 6
 #define CMAC_TLEN 8             /* CMAC TLen = 64 bits (8 octets) */
 #define GMAC_NONCE_LEN 12
@@ -182,90 +181,6 @@ static void cds_cmac_calc_mic(struct crypto_cipher *tfm,
 }
 #endif
 
-/*--------------------------------------------------------------------------
-
-   \brief cds_crypto_init() - Initializes Crypto module
-
-   The cds_crypto_init() function initializes Crypto module.
-
-   \param phCryptProv - pointer to the Crypt handle
-
-   \return QDF_STATUS_SUCCESS - Successfully generated random memory.
-
-   QDF_STATUS_E_FAULT  - pbBuf is an invalid pointer.
-
-   QDF_STATUS_E_FAILURE - default return value if it fails due to
-   unknown reasons
-
-   ***QDF_STATUS_E_RESOURCES - System resources (other than memory)
-   are unavailable
-   \sa
-
-    ( *** return value not considered yet )
-   --------------------------------------------------------------------------*/
-QDF_STATUS cds_crypto_init(uint32_t *phCryptProv)
-{
-	QDF_STATUS uResult = QDF_STATUS_E_FAILURE;
-
-	/* This implementation doesn't require a crypto context */
-	*phCryptProv = 0;
-	uResult = QDF_STATUS_SUCCESS;
-	return uResult;
-}
-
-QDF_STATUS cds_crypto_deinit(uint32_t hCryptProv)
-{
-	QDF_STATUS uResult = QDF_STATUS_E_FAILURE;
-
-	/* CryptReleaseContext succeeded */
-	uResult = QDF_STATUS_SUCCESS;
-
-	return uResult;
-}
-
-/*--------------------------------------------------------------------------
-
-   \brief cds_rand_get_bytes() - Generates random byte
-
-   The cds_rand_get_bytes() function generate random bytes.
-
-   Buffer should be allocated before calling cds_rand_get_bytes().
-
-   Attempting to initialize an already initialized lock results in
-   a failure.
-
-   \param lock - pointer to the opaque lock object to initialize
-
-   \return QDF_STATUS_SUCCESS - Successfully generated random memory.
-
-   QDF_STATUS_E_FAULT  - pbBuf is an invalid pointer.
-
-   QDF_STATUS_E_FAILURE - default return value if it fails due to
-   unknown reasons
-
-  ***QDF_STATUS_E_RESOURCES - System resources (other than memory)
-  are unavailable
-   \sa
-
-    ( *** return value not considered yet )
-   --------------------------------------------------------------------------*/
-QDF_STATUS
-cds_rand_get_bytes(uint32_t cryptHandle, uint8_t *pbBuf, uint32_t numBytes)
-{
-	QDF_STATUS uResult = QDF_STATUS_E_FAILURE;
-
-	/* check for invalid pointer */
-	if (NULL == pbBuf) {
-		uResult = QDF_STATUS_E_FAULT;
-		return uResult;
-	}
-
-	get_random_bytes(pbBuf, numBytes);
-	/* "Random sequence generated." */
-	uResult = QDF_STATUS_SUCCESS;
-	return uResult;
-}
-
 #ifdef WLAN_FEATURE_11W
 uint8_t cds_get_mmie_size(void)
 {
@@ -354,7 +269,7 @@ cds_attach_mmie(uint8_t *igtk, uint8_t *ipn, uint16_t key_id,
 	mmie = (struct ieee80211_mmie *)(efrm - sizeof(*mmie));
 
 	/* Copy Element id */
-	mmie->element_id = IEEE80211_ELEMID_MMIE;
+	mmie->element_id = WLAN_ELEMID_MMIE;
 
 	/* Copy Length */
 	mmie->length = sizeof(*mmie) - 2;
@@ -398,12 +313,12 @@ cds_attach_mmie(uint8_t *igtk, uint8_t *ipn, uint16_t key_id,
 	aad[1] = wh->i_fc[1] & ~(IEEE80211_FC1_RETRY | IEEE80211_FC1_PWR_MGT |
 				 IEEE80211_FC1_MORE_DATA);
 	/* A1 || A2 || A3 */
-	qdf_mem_copy(aad + 2, wh->i_addr_all, 3 * IEEE80211_ADDR_LEN);
+	qdf_mem_copy(aad + 2, wh->i_addr_all, 3 * QDF_MAC_ADDR_SIZE);
 
 	/* MIC = AES-128-CMAC(IGTK, AAD || Management Frame Body || MMIE, 64) */
 	nBytes = AAD_LEN + (frmLen - sizeof(struct ieee80211_frame));
 	input = (uint8_t *) qdf_mem_malloc(nBytes);
-	if (NULL == input) {
+	if (!input) {
 		cds_err("Memory allocation failed");
 		ret = QDF_STATUS_E_NOMEM;
 		goto err_tfm;
@@ -457,7 +372,7 @@ cds_is_mmie_valid(uint8_t *igtk, uint8_t *ipn, uint8_t *frm, uint8_t *efrm)
 	mmie = (struct ieee80211_mmie *)(efrm - sizeof(*mmie));
 
 	/* Check Element ID */
-	if ((mmie->element_id != IEEE80211_ELEMID_MMIE) ||
+	if ((mmie->element_id != WLAN_ELEMID_MMIE) ||
 	    (mmie->length != (sizeof(*mmie) - 2))) {
 		cds_err("IE is not Mgmt MIC IE or Invalid length");
 		/* IE is not Mgmt MIC IE or invalid length */
@@ -466,7 +381,7 @@ cds_is_mmie_valid(uint8_t *igtk, uint8_t *ipn, uint8_t *frm, uint8_t *efrm)
 
 	/* Validate IPN */
 	rx_ipn = mmie->sequence_number;
-	if (OS_MEMCMP(rx_ipn, ipn, CMAC_IPN_LEN) <= 0) {
+	if (qdf_mem_cmp(rx_ipn, ipn, CMAC_IPN_LEN) <= 0) {
 		/* Replay error */
 		cds_err("Replay error mmie ipn %02X %02X %02X %02X %02X %02X"
 			  " drvr ipn %02X %02X %02X %02X %02X %02X",
@@ -500,12 +415,12 @@ cds_is_mmie_valid(uint8_t *igtk, uint8_t *ipn, uint8_t *frm, uint8_t *efrm)
 	aad[1] = wh->i_fc[1] & ~(IEEE80211_FC1_RETRY | IEEE80211_FC1_PWR_MGT |
 				 IEEE80211_FC1_MORE_DATA);
 	/* A1 || A2 || A3 */
-	qdf_mem_copy(aad + 2, wh->i_addr_all, 3 * IEEE80211_ADDR_LEN);
+	qdf_mem_copy(aad + 2, wh->i_addr_all, 3 * QDF_MAC_ADDR_SIZE);
 
 	/* MIC = AES-128-CMAC(IGTK, AAD || Management Frame Body || MMIE, 64) */
 	nBytes = AAD_LEN + (efrm - (uint8_t *) (wh + 1));
 	input = (uint8_t *) qdf_mem_malloc(nBytes);
-	if (NULL == input) {
+	if (!input) {
 		cds_err("Memory allocation failed");
 		ret = QDF_STATUS_E_NOMEM;
 		goto err_tfm;
@@ -523,7 +438,7 @@ cds_is_mmie_valid(uint8_t *igtk, uint8_t *ipn, uint8_t *frm, uint8_t *efrm)
 		mic[0], mic[1], mic[2], mic[3],
 		mic[4], mic[5], mic[6], mic[7]);
 
-	if (OS_MEMCMP(mic, mmie->mic, CMAC_TLEN) != 0) {
+	if (qdf_mem_cmp(mic, mmie->mic, CMAC_TLEN) != 0) {
 		/* MMIE MIC mismatch */
 		cds_err("BC/MC MGMT frame MMIE MIC check Failed"
 			  " rmic %02X %02X %02X %02X %02X %02X %02X %02X"
@@ -596,7 +511,7 @@ bool cds_is_gmac_mmie_valid(uint8_t *igtk, uint8_t *ipn, uint8_t *frm,
 	mmie = (struct ieee80211_mmie_16 *)(efrm - sizeof(*mmie));
 
 	/* Check Element ID */
-	if ((mmie->element_id != IEEE80211_ELEMID_MMIE) ||
+	if ((mmie->element_id != WLAN_ELEMID_MMIE) ||
 	    (mmie->length != (sizeof(*mmie) - 2))) {
 		cds_err("IE is not Mgmt MIC IE or Invalid length");
 		/* IE is not Mgmt MIC IE or invalid length */
@@ -625,13 +540,13 @@ bool cds_is_gmac_mmie_valid(uint8_t *igtk, uint8_t *ipn, uint8_t *frm,
 	aad[1] = wh->i_fc[1] & ~(IEEE80211_FC1_RETRY | IEEE80211_FC1_PWR_MGT |
 				 IEEE80211_FC1_MORE_DATA);
 	/* A1 || A2 || A3 */
-	qdf_mem_copy(aad + 2, wh->i_addr_all, 3 * IEEE80211_ADDR_LEN);
+	qdf_mem_copy(aad + 2, wh->i_addr_all, 3 * QDF_MAC_ADDR_SIZE);
 
 	data_len = efrm - (uint8_t *) (wh + 1) - IEEE80211_MMIE_GMAC_MICLEN;
 
 	/* IV */
-	qdf_mem_copy(gmac_nonce, wh->i_addr2, IEEE80211_ADDR_LEN);
-	qdf_mem_copy(gmac_nonce + IEEE80211_ADDR_LEN, rx_ipn,
+	qdf_mem_copy(gmac_nonce, wh->i_addr2, QDF_MAC_ADDR_SIZE);
+	qdf_mem_copy(gmac_nonce + QDF_MAC_ADDR_SIZE, rx_ipn,
 		     IEEE80211_MMIE_IPNLEN);
 	qdf_mem_copy(iv, gmac_nonce, GMAC_NONCE_LEN);
 	iv[AES_BLOCK_SIZE - 1] = 0x01;
@@ -701,16 +616,6 @@ uint8_t cds_freq_to_chan(uint32_t freq)
 	else
 		chan = (freq - CDS_5_GHZ_BASE_FREQ) / CDS_CHAN_SPACING_5MHZ;
 	return chan;
-}
-
-void cds_upper_to_lower(uint8_t *txt, uint32_t length)
-{
-	int i;
-
-	for (i = 0; i < length; i++) {
-		if (txt[i] >= 'A' && txt[i] <= 'Z')
-			txt[i] = txt[i] + 32;
-	}
 }
 
 enum cds_band_type cds_chan_to_band(uint32_t chan)

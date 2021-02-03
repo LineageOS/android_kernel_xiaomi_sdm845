@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -27,6 +27,9 @@
 /* Include files */
 #include "wlan_hdd_assoc.h"
 #include "wlan_hdd_power.h"
+
+#ifdef WLAN_FEATURE_PACKET_FILTERING
+
 /**
  * hdd_enable_default_pkt_filters() - Enable default packet filters based
  * on, filters bit map provided in INI, when target goes to suspend mode
@@ -34,7 +37,7 @@
  *
  * Return: zero if success, non-zero otherwise
  */
-int hdd_enable_default_pkt_filters(struct hdd_adapter *pAadapter);
+int hdd_enable_default_pkt_filters(struct hdd_adapter *adapter);
 
 /**
  * hdd_disable_default_pkt_filters() - Disable default packet filters based
@@ -49,11 +52,27 @@ int hdd_disable_default_pkt_filters(struct hdd_adapter *adapter);
  * wlan_hdd_set_filter() - Set packet filter
  * @hdd_ctx: Global HDD context
  * @request: Packet filter request struct
- * @sessionId: Target session for the request
+ * @vdev_id: Target vdev for the request
  *
  * Return: 0 on success, non-zero on error
  */
 int wlan_hdd_set_filter(struct hdd_context *hdd_ctx,
 			struct pkt_filter_cfg *request,
-			uint8_t sessionId);
+			uint8_t vdev_id);
+
+#else /* WLAN_FEATURE_PACKET_FILTERING */
+
+static inline int
+hdd_enable_default_pkt_filters(struct hdd_adapter *adapter)
+{
+	return 0;
+}
+
+static inline int
+hdd_disable_default_pkt_filters(struct hdd_adapter *adapter)
+{
+	return 0;
+}
+
+#endif /* WLAN_FEATURE_PACKET_FILTERING */
 #endif

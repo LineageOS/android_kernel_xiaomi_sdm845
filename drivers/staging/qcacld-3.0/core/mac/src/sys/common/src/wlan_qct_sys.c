@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -39,19 +39,10 @@
 #define SYS_STOP_TIMEOUT (30000)
 static qdf_event_t g_stop_evt;
 
-/**
- * sys_build_message_header() - to build the sys message header
- * @umac_stop_msgId: message id
- * @pMsg: pointer to message context
- *
- * This API is used to build the sys message header.
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS sys_build_message_header(SYS_MSG_ID umac_stop_msg_id,
+QDF_STATUS sys_build_message_header(SYS_MSG_ID msg_id,
 				    struct scheduler_msg *msg)
 {
-	msg->type = umac_stop_msg_id;
+	msg->type = msg_id;
 	msg->reserved = SYS_MSG_COOKIE;
 
 	return QDF_STATUS_SUCCESS;
@@ -72,7 +63,6 @@ static void umac_stop_complete_cb(void *user_data)
 	QDF_STATUS qdf_status = qdf_event_set(stop_evt);
 
 	QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
-
 }
 #else
 static void umac_stop_complete_cb(void *user_data)
@@ -80,6 +70,11 @@ static void umac_stop_complete_cb(void *user_data)
 	return;
 }
 #endif
+
+static inline QDF_STATUS umac_stop_flush_cb(struct scheduler_msg *msg)
+{
+	return QDF_STATUS_SUCCESS;
+}
 
 /**
  * umac_stop() - To post stop message to system module
@@ -105,6 +100,7 @@ QDF_STATUS umac_stop(void)
 	/* Save the user callback and user data */
 	umac_stop_msg.callback = umac_stop_complete_cb;
 	umac_stop_msg.bodyptr = (void *)&g_stop_evt;
+	umac_stop_msg.flush_callback = umac_stop_flush_cb;
 
 	/* post the message.. */
 	qdf_status = scheduler_post_message(QDF_MODULE_ID_SYS,
@@ -124,7 +120,6 @@ QDF_STATUS umac_stop(void)
 
 /**
  * sys_mc_process_msg() - to process system mc thread messages
- * @p_cds_context: pointer to cds context
  * @pMsg: message pointer
  *
  * This API is used to process the message
@@ -135,9 +130,9 @@ static QDF_STATUS sys_mc_process_msg(struct scheduler_msg *pMsg)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	data_stall_detect_cb data_stall_detect_callback;
-	void *hHal;
+	mac_handle_t mac_handle;
 
-	if (NULL == pMsg) {
+	if (!pMsg) {
 		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 			  "%s: NULL pointer to struct scheduler_msg", __func__);
 		QDF_ASSERT(0);
@@ -157,16 +152,16 @@ static QDF_STATUS sys_mc_process_msg(struct scheduler_msg *pMsg)
 		case SYS_MSG_ID_UMAC_STOP:
 			QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
 				"Processing SYS MC STOP");
-			hHal = cds_get_context(QDF_MODULE_ID_PE);
-			if (NULL == hHal) {
+			mac_handle = cds_get_context(QDF_MODULE_ID_PE);
+			if (!mac_handle) {
 				QDF_TRACE(QDF_MODULE_ID_SYS,
 					QDF_TRACE_LEVEL_ERROR,
-					"%s: Invalid hHal", __func__);
+					"%s: Invalid mac_handle", __func__);
 				break;
 			}
-			qdf_status = sme_stop(hHal);
+			qdf_status = sme_stop(mac_handle);
 			QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
-			qdf_status = mac_stop(hHal);
+			qdf_status = mac_stop(mac_handle);
 			QDF_ASSERT(QDF_IS_STATUS_SUCCESS(qdf_status));
 			((sys_rsp_cb) pMsg->callback)(pMsg->bodyptr);
 			qdf_status = QDF_STATUS_SUCCESS;
@@ -174,7 +169,7 @@ static QDF_STATUS sys_mc_process_msg(struct scheduler_msg *pMsg)
 
 		case SYS_MSG_ID_DATA_STALL_MSG:
 			data_stall_detect_callback = pMsg->callback;
-			if (NULL != data_stall_detect_callback)
+			if (data_stall_detect_callback)
 				data_stall_detect_callback(pMsg->bodyptr);
 			qdf_mem_free(pMsg->bodyptr);
 			break;
@@ -204,80 +199,30 @@ QDF_STATUS sys_mc_process_handler(struct scheduler_msg *msg)
 	return sys_mc_process_msg(msg);
 }
 
-/**
- * sys_process_mmh_msg() - this api to process mmh message
- * @pMac: pointer to mac context
- * @pMsg: pointer to message
- *
- * This API is used to process mmh message
- *
- * Return: none
- */
-void sys_process_mmh_msg(tpAniSirGlobal pMac, struct scheduler_msg *pMsg)
+void sys_process_mmh_msg(struct mac_context *mac, struct scheduler_msg *msg)
 {
-	QDF_MODULE_ID targetMQ = QDF_MODULE_ID_SYS;
+	QDF_MODULE_ID dest_module = QDF_MODULE_ID_SYS;
 
-	/*
-	 * The body of this pMsg is a tSirMbMsg
-	 * Contrary to previous generation, we cannot free it here!
-	 * It is up to the callee to free it
-	 */
-	if (NULL == pMsg) {
-		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
-				"NULL Message Pointer");
+	if (!msg) {
 		QDF_ASSERT(0);
 		return;
 	}
 
-	switch (pMsg->type) {
-	/*
-	 * Following messages are routed to SYS
-	 */
-	case WNI_CFG_DNLD_REQ:
-	case WNI_CFG_DNLD_CNF:
-		/* Forward this message to the SYS module */
-		targetMQ = QDF_MODULE_ID_SYS;
-		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
-			"Handling for the Message ID %d is removed in SYS",
-			pMsg->type);
-		QDF_ASSERT(0);
-		break;
-
-		/*
-		 * Following messages are routed to HAL
-		 */
-	case WNI_CFG_DNLD_RSP:
-		/* Forward this message to the HAL module */
-		targetMQ = QDF_MODULE_ID_WMA;
-		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
-			"Handling for the Message ID %d is removed as no HAL",
-			pMsg->type);
-
-		QDF_ASSERT(0);
-		break;
-
-	case WNI_CFG_GET_REQ:
+	switch (msg->type) {
 	case eWNI_SME_SYS_READY_IND:
 		/* Forward this message to the PE module */
-		targetMQ = QDF_MODULE_ID_PE;
+		dest_module = QDF_MODULE_ID_PE;
 		break;
-
-	case WNI_CFG_GET_RSP:
-	case WNI_CFG_SET_CNF:
-		/* Forward this message to the SME module */
-		targetMQ = QDF_MODULE_ID_SME;
-		break;
-
 	default:
-		if ((pMsg->type >= eWNI_SME_MSG_TYPES_BEGIN)
-				&& (pMsg->type <= eWNI_SME_MSG_TYPES_END)) {
-			targetMQ = QDF_MODULE_ID_SME;
+		if ((msg->type >= eWNI_SME_MSG_TYPES_BEGIN) &&
+		    (msg->type <= eWNI_SME_MSG_TYPES_END)) {
+			dest_module = QDF_MODULE_ID_SME;
 			break;
 		}
 
 		QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_ERROR,
-			"Message of ID %d is not yet handled by SYS",
-			pMsg->type);
+			  "Message of ID %d is not yet handled by SYS",
+			  msg->type);
 		QDF_ASSERT(0);
 	}
 
@@ -286,15 +231,7 @@ void sys_process_mmh_msg(tpAniSirGlobal pMac, struct scheduler_msg *pMsg)
 	 */
 	if (QDF_STATUS_SUCCESS != scheduler_post_message(QDF_MODULE_ID_SYS,
 							 QDF_MODULE_ID_SYS,
-							 targetMQ,
-							 pMsg)) {
-		/*
-		 * Caller doesn't allocate memory for the pMsg.
-		 * It allocate memory for bodyptr free the mem and return
-		 */
-		if (pMsg->bodyptr)
-			qdf_mem_free(pMsg->bodyptr);
-	}
-
+							 dest_module,
+							 msg))
+		qdf_mem_free(msg->bodyptr);
 }
-

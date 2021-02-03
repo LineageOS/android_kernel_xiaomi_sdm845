@@ -23,6 +23,7 @@
 #include "wlan_ipa_main.h"
 #include "wlan_ipa_core.h"
 #include "wlan_ipa_tgt_api.h"
+#include "cfg_ucfg_api.h"
 
 static struct wlan_ipa_config *g_ipa_config;
 static bool g_ipa_hw_support;
@@ -67,16 +68,6 @@ void ipa_config_mem_free(void)
 bool ipa_is_hw_support(void)
 {
 	return g_ipa_hw_support;
-}
-
-void ipa_config_update(struct wlan_ipa_config *config)
-{
-	if (!g_ipa_config) {
-		ipa_err("IPA config already freed");
-		return;
-	}
-
-	qdf_mem_copy(g_ipa_config, config, sizeof(*g_ipa_config));
 }
 
 bool ipa_config_is_enabled(void)
@@ -134,7 +125,7 @@ void ipa_set_dp_handle(struct wlan_objmgr_psoc *psoc, void *dp_soc)
 	wlan_objmgr_pdev_release_ref(pdev, WLAN_IPA_ID);
 }
 
-void ipa_set_txrx_handle(struct wlan_objmgr_psoc *psoc, void *txrx_handle)
+void ipa_set_pdev_id(struct wlan_objmgr_psoc *psoc, uint8_t pdev_id)
 {
 	struct wlan_objmgr_pdev *pdev;
 	struct wlan_ipa_priv *ipa_obj;
@@ -159,7 +150,7 @@ void ipa_set_txrx_handle(struct wlan_objmgr_psoc *psoc, void *txrx_handle)
 		return;
 	}
 
-	ipa_obj->dp_pdev = txrx_handle;
+	ipa_obj->dp_pdev_id = pdev_id;
 	wlan_objmgr_pdev_release_ref(pdev, WLAN_IPA_ID);
 }
 
@@ -386,6 +377,11 @@ void ipa_uc_force_pipe_shutdown(struct wlan_objmgr_pdev *pdev)
 {
 	struct wlan_ipa_priv *ipa_obj;
 
+	if (!pdev) {
+		ipa_debug("objmgr pdev is null!");
+		return;
+	}
+
 	if (!ipa_config_is_enabled()) {
 		ipa_debug("ipa is disabled");
 		return;
@@ -397,7 +393,7 @@ void ipa_uc_force_pipe_shutdown(struct wlan_objmgr_pdev *pdev)
 		return;
 	}
 
-	wlan_ipa_uc_disable_pipes(ipa_obj);
+	wlan_ipa_uc_disable_pipes(ipa_obj, true);
 }
 
 void ipa_flush(struct wlan_objmgr_pdev *pdev)
@@ -473,6 +469,20 @@ QDF_STATUS ipa_uc_ol_init(struct wlan_objmgr_pdev *pdev,
 	return wlan_ipa_uc_ol_init(ipa_obj, osdev);
 }
 
+bool ipa_is_tx_pending(struct wlan_objmgr_pdev *pdev)
+{
+	struct wlan_ipa_priv *ipa_obj;
+
+	if (!ipa_config_is_enabled()) {
+		ipa_debug("ipa is disabled");
+		return QDF_STATUS_SUCCESS;
+	}
+
+	ipa_obj = ipa_pdev_get_priv_obj(pdev);
+
+	return wlan_ipa_is_tx_pending(ipa_obj);
+}
+
 QDF_STATUS ipa_uc_ol_deinit(struct wlan_objmgr_pdev *pdev)
 {
 	struct wlan_ipa_priv *ipa_obj;
@@ -511,7 +521,7 @@ QDF_STATUS ipa_send_mcc_scc_msg(struct wlan_objmgr_pdev *pdev,
 }
 
 QDF_STATUS ipa_wlan_evt(struct wlan_objmgr_pdev *pdev, qdf_netdev_t net_dev,
-			uint8_t device_mode, uint8_t sta_id, uint8_t session_id,
+			uint8_t device_mode, uint8_t session_id,
 			enum wlan_ipa_wlan_event ipa_event_type,
 			uint8_t *mac_addr)
 {
@@ -523,7 +533,7 @@ QDF_STATUS ipa_wlan_evt(struct wlan_objmgr_pdev *pdev, qdf_netdev_t net_dev,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	return wlan_ipa_wlan_evt(net_dev, device_mode, sta_id, session_id,
+	return wlan_ipa_wlan_evt(net_dev, device_mode, session_id,
 				 ipa_event_type, mac_addr);
 }
 
@@ -609,6 +619,11 @@ void ipa_fw_rejuvenate_send_msg(struct wlan_objmgr_pdev *pdev)
 {
 	struct wlan_ipa_priv *ipa_obj;
 
+	if (!pdev) {
+		ipa_debug("objmgr pdev is null!");
+		return;
+	}
+
 	ipa_obj = ipa_pdev_get_priv_obj(pdev);
 	if (!ipa_obj) {
 		ipa_err("IPA object is NULL");
@@ -616,4 +631,73 @@ void ipa_fw_rejuvenate_send_msg(struct wlan_objmgr_pdev *pdev)
 	}
 
 	return wlan_ipa_fw_rejuvenate_send_msg(ipa_obj);
+}
+
+void ipa_component_config_update(struct wlan_objmgr_psoc *psoc)
+{
+	if (!g_ipa_config) {
+		ipa_err("g_ipa_config is NULL");
+		return;
+	}
+
+	g_ipa_config->ipa_config =
+		cfg_get(psoc, CFG_DP_IPA_OFFLOAD_CONFIG);
+	g_ipa_config->desc_size =
+		cfg_get(psoc, CFG_DP_IPA_DESC_SIZE);
+	g_ipa_config->txbuf_count =
+		qdf_rounddown_pow_of_two(cfg_get(psoc,
+						 CFG_DP_IPA_UC_TX_BUF_COUNT));
+	g_ipa_config->ipa_bw_high =
+		cfg_get(psoc, CFG_DP_IPA_HIGH_BANDWIDTH_MBPS);
+	g_ipa_config->ipa_bw_medium =
+		cfg_get(psoc, CFG_DP_IPA_MEDIUM_BANDWIDTH_MBPS);
+	g_ipa_config->ipa_bw_low =
+		cfg_get(psoc, CFG_DP_IPA_LOW_BANDWIDTH_MBPS);
+	g_ipa_config->bus_bw_high =
+		cfg_get(psoc, CFG_DP_BUS_BANDWIDTH_HIGH_THRESHOLD);
+	g_ipa_config->bus_bw_medium =
+		cfg_get(psoc, CFG_DP_BUS_BANDWIDTH_MEDIUM_THRESHOLD);
+	g_ipa_config->bus_bw_low =
+		cfg_get(psoc, CFG_DP_BUS_BANDWIDTH_LOW_THRESHOLD);
+	g_ipa_config->ipa_force_voting =
+		cfg_get(psoc, CFG_DP_IPA_ENABLE_FORCE_VOTING);
+}
+
+uint32_t ipa_get_tx_buf_count(void)
+{
+	return g_ipa_config ? g_ipa_config->txbuf_count : 0;
+}
+
+void ipa_update_tx_stats(struct wlan_objmgr_pdev *pdev, uint64_t sta_tx,
+			 uint64_t ap_tx)
+{
+	struct wlan_ipa_priv *ipa_obj;
+
+	if (!ipa_config_is_enabled())
+		return;
+
+	ipa_obj = ipa_pdev_get_priv_obj(pdev);
+	if (!ipa_obj) {
+		ipa_err("IPA object is NULL");
+		return;
+	}
+
+	wlan_ipa_update_tx_stats(ipa_obj, sta_tx, ap_tx);
+}
+
+void ipa_flush_pending_vdev_events(struct wlan_objmgr_pdev *pdev,
+				   uint8_t vdev_id)
+{
+	struct wlan_ipa_priv *ipa_obj;
+
+	if (!ipa_config_is_enabled())
+		return;
+
+	ipa_obj = ipa_pdev_get_priv_obj(pdev);
+	if (!ipa_obj) {
+		ipa_err("IPA object is NULL");
+		return;
+	}
+
+	wlan_ipa_flush_pending_vdev_events(ipa_obj, vdev_id);
 }

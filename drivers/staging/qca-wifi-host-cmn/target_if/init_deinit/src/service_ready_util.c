@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -51,7 +51,7 @@ QDF_STATUS init_deinit_chainmask_table_alloc(
 			 ser_ext_par->chainmask_table[i].num_valid_chainmasks);
 
 		ser_ext_par->chainmask_table[i].cap_list =
-			qdf_mem_alloc_outline(NULL, alloc_size);
+			qdf_mem_malloc(alloc_size);
 		if (!ser_ext_par->chainmask_table[i].cap_list) {
 			init_deinit_chainmask_table_free(ser_ext_par);
 			status = QDF_STATUS_E_NOMEM;
@@ -83,8 +83,9 @@ QDF_STATUS init_deinit_chainmask_table_free(
 
 qdf_export_symbol(init_deinit_chainmask_table_free);
 
-int init_deinit_populate_service_bitmap(void *wmi_handle, uint8_t *event,
-				      uint32_t *service_bitmap)
+int init_deinit_populate_service_bitmap(
+		wmi_unified_t wmi_handle, uint8_t *event,
+		uint32_t *service_bitmap)
 {
 	QDF_STATUS status;
 
@@ -97,7 +98,8 @@ int init_deinit_populate_service_bitmap(void *wmi_handle, uint8_t *event,
 	return 0;
 }
 
-int init_deinit_populate_fw_version_cmd(void *wmi_handle, uint8_t *event)
+int init_deinit_populate_fw_version_cmd(wmi_unified_t wmi_handle,
+					uint8_t *event)
 {
 	QDF_STATUS status;
 
@@ -108,8 +110,9 @@ int init_deinit_populate_fw_version_cmd(void *wmi_handle, uint8_t *event)
 	return 0;
 }
 
-int init_deinit_populate_target_cap(void *wmi_handle, uint8_t *event,
-			       struct wlan_psoc_target_capability_info *cap)
+int init_deinit_populate_target_cap(
+		wmi_unified_t wmi_handle, uint8_t *event,
+		struct wlan_psoc_target_capability_info *cap)
 {
 	QDF_STATUS status;
 
@@ -122,8 +125,9 @@ int init_deinit_populate_target_cap(void *wmi_handle, uint8_t *event,
 	return 0;
 }
 
-int init_deinit_populate_service_ready_ext_param(void *handle, uint8_t *evt,
-			struct wlan_psoc_host_service_ext_param *param)
+int init_deinit_populate_service_ready_ext_param(
+		wmi_unified_t handle, uint8_t *evt,
+		struct wlan_psoc_host_service_ext_param *param)
 {
 	QDF_STATUS status;
 
@@ -136,7 +140,24 @@ int init_deinit_populate_service_ready_ext_param(void *handle, uint8_t *evt,
 	return 0;
 }
 
-int init_deinit_populate_chainmask_tables(void *handle, uint8_t *evt,
+int init_deinit_populate_service_ready_ext2_param(
+		wmi_unified_t handle, uint8_t *evt,
+		struct tgt_info *info)
+{
+	QDF_STATUS status;
+
+	status = wmi_extract_service_ready_ext2(handle, evt,
+						&info->service_ext2_param);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		target_if_err("failed to parse wmi service ready ext param");
+		return qdf_status_to_os_return(status);
+	}
+
+	return 0;
+}
+
+int init_deinit_populate_chainmask_tables(
+		wmi_unified_t handle, uint8_t *evt,
 		struct wlan_psoc_host_chainmask_table *param)
 {
 	QDF_STATUS status;
@@ -150,7 +171,8 @@ int init_deinit_populate_chainmask_tables(void *handle, uint8_t *evt,
 	return 0;
 }
 
-int init_deinit_populate_mac_phy_capability(void *handle, uint8_t *evt,
+int init_deinit_populate_mac_phy_capability(
+	wmi_unified_t handle, uint8_t *evt,
 	struct wlan_psoc_host_hw_mode_caps *hw_cap, struct tgt_info *info)
 {
 	QDF_STATUS status;
@@ -189,8 +211,8 @@ int init_deinit_populate_mac_phy_capability(void *handle, uint8_t *evt,
 	return 0;
 }
 
-static int get_hw_mode(void *handle, uint8_t *evt, uint8_t hw_idx,
-			struct wlan_psoc_host_hw_mode_caps *cap)
+static int get_hw_mode(wmi_unified_t handle, uint8_t *evt, uint8_t hw_idx,
+		       struct wlan_psoc_host_hw_mode_caps *cap)
 {
 	QDF_STATUS status;
 
@@ -204,7 +226,7 @@ static int get_hw_mode(void *handle, uint8_t *evt, uint8_t hw_idx,
 	return 0;
 }
 
-static int get_sar_version(void *handle, uint8_t *evt,
+static int get_sar_version(wmi_unified_t handle, uint8_t *evt,
 			   struct wlan_psoc_host_service_ext_param *ext_param)
 {
 	QDF_STATUS status;
@@ -218,14 +240,85 @@ static int get_sar_version(void *handle, uint8_t *evt,
 	return 0;
 }
 
-int init_deinit_populate_hw_mode_capability(void *wmi_handle,
-		uint8_t *event, struct target_psoc_info *tgt_hdl)
+static bool new_hw_mode_preferred(uint32_t current_hw_mode,
+				  uint32_t new_hw_mode)
+{
+	uint8_t hw_mode_id_precedence[WMI_HOST_HW_MODE_MAX + 1] = { 5, 1, 4,
+								    3, 0, 2,
+								    6 };
+
+	if (current_hw_mode > WMI_HOST_HW_MODE_MAX ||
+	    new_hw_mode > WMI_HOST_HW_MODE_MAX)
+		return false;
+
+	/* Above precedence is defined by low to high, lower the value
+	 * higher the precedence
+	 */
+	if (hw_mode_id_precedence[current_hw_mode] >
+	    hw_mode_id_precedence[new_hw_mode])
+		return true;
+
+	return false;
+}
+
+/**
+ * select_preferred_mode() - Select preferred hw mode based on current mode.
+ * @tgt_hdl: target_psoc_info object
+ * @hw_mode_caps: HW mode caps of new mode id that needs to checked for
+ *                selection.
+ * @current_mode: Current mode.
+ *
+ * API to select preferred hw mode based on the current config.
+ * Based on host config for preferred mode, final mode selected as follows-
+ * 1) If preferred_mode == WMI_HOST_HW_MODE_DETECT, Then select mode from FW
+ *    supported modes such that it is a super set of all modes FW advertises.
+ *    For e.g., If FW supports DBS(2 radio) and DBS_SBS(3 radio)- Choose DBS_SBS
+ * 2) If preferred_mode == WMI_HOST_HW_MODE_MAX, Then do not select any mode
+ *    from FW advertised modes. Host needs to maintain all modes supported in FW
+ *    and can switch dynamically.
+ * 3) Else, A valid preferred_mode is set, Hence check if this is part of FW
+ *    supported modes. If it is found, then use it to bring up the device.
+ *
+ * Return: selected_mode based on the above criteria.
+ */
+static uint32_t
+select_preferred_hw_mode(struct target_psoc_info *tgt_hdl,
+			 struct wlan_psoc_host_hw_mode_caps *hw_mode_caps,
+			 uint32_t current_mode)
+{
+	uint32_t preferred_mode, selected_mode = current_mode;
+	struct tgt_info *info;
+
+	info = &tgt_hdl->info;
+	preferred_mode = target_psoc_get_preferred_hw_mode(tgt_hdl);
+	if (preferred_mode == WMI_HOST_HW_MODE_DETECT) {
+		uint32_t new_mode = hw_mode_caps->hw_mode_id;
+
+		/* Choose hw_mode_id based on precedence */
+		if (new_hw_mode_preferred(selected_mode, new_mode)) {
+			selected_mode = new_mode;
+			qdf_mem_copy(&info->hw_mode_cap, hw_mode_caps,
+				     sizeof(info->hw_mode_cap));
+		}
+	} else if ((preferred_mode != WMI_HOST_HW_MODE_MAX) &&
+		   (preferred_mode == hw_mode_caps->hw_mode_id)) {
+		selected_mode = preferred_mode;
+		qdf_mem_copy(&info->hw_mode_cap, hw_mode_caps,
+			     sizeof(info->hw_mode_cap));
+	}
+
+	return selected_mode;
+}
+
+int init_deinit_populate_hw_mode_capability(
+		wmi_unified_t wmi_handle, uint8_t *event,
+		struct target_psoc_info *tgt_hdl)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	uint8_t hw_idx;
 	uint32_t num_hw_modes;
 	struct wlan_psoc_host_hw_mode_caps hw_mode_caps[PSOC_MAX_HW_MODE];
-	uint32_t preferred_mode;
+	uint32_t preferred_mode, selected_mode = WMI_HOST_HW_MODE_MAX;
 	struct tgt_info *info;
 
 	info = &tgt_hdl->info;
@@ -237,6 +330,8 @@ int init_deinit_populate_hw_mode_capability(void *wmi_handle,
 	target_if_debug("num_hw_modes %d", num_hw_modes);
 
 	qdf_mem_zero(&hw_mode_caps, sizeof(hw_mode_caps));
+	info->hw_modes.num_modes = 0;
+	info->hw_mode_cap.hw_mode_id = WMI_HOST_HW_MODE_MAX;
 
 	preferred_mode = target_psoc_get_preferred_hw_mode(tgt_hdl);
 	for (hw_idx = 0; hw_idx < num_hw_modes; hw_idx++) {
@@ -245,21 +340,28 @@ int init_deinit_populate_hw_mode_capability(void *wmi_handle,
 		if (status)
 			goto return_exit;
 
-		if ((preferred_mode != WMI_HOST_HW_MODE_MAX) &&
-		    (hw_mode_caps[hw_idx].hw_mode_id != preferred_mode))
-			continue;
+		if (hw_idx < WMI_HOST_HW_MODE_MAX) {
+			info->hw_modes.hw_mode_ids[hw_idx] =
+				hw_mode_caps[hw_idx].hw_mode_id;
+			info->hw_modes.num_modes++;
+		}
 
 		status = init_deinit_populate_mac_phy_capability(wmi_handle,
 				event, &hw_mode_caps[hw_idx], info);
 		if (status)
 			goto return_exit;
 
-		if ((preferred_mode != WMI_HOST_HW_MODE_MAX) &&
-		    (hw_mode_caps[hw_idx].hw_mode_id == preferred_mode)) {
-			info->num_radios = info->total_mac_phy_cnt;
-			target_if_debug("num radios is %d\n", info->num_radios);
-		}
+		selected_mode = select_preferred_hw_mode(tgt_hdl,
+							 &hw_mode_caps[hw_idx],
+							 selected_mode);
 	}
+
+	if (preferred_mode == WMI_HOST_HW_MODE_DETECT) {
+		target_if_info("Preferred mode is not set, use mode id %d\n",
+			       selected_mode);
+		target_psoc_set_preferred_hw_mode(tgt_hdl, selected_mode);
+	}
+
 	status = get_sar_version(wmi_handle, event, &info->service_ext_param);
 	target_if_debug("sar version %d", info->service_ext_param.sar_version);
 
@@ -268,7 +370,8 @@ return_exit:
 }
 
 int init_deinit_populate_dbr_ring_cap(struct wlan_objmgr_psoc *psoc,
-			void *handle, uint8_t *event, struct tgt_info *info)
+				      wmi_unified_t handle, uint8_t *event,
+				      struct tgt_info *info)
 
 {
 	uint8_t cap_idx;
@@ -276,7 +379,6 @@ int init_deinit_populate_dbr_ring_cap(struct wlan_objmgr_psoc *psoc,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
 	num_dbr_ring_caps = info->service_ext_param.num_dbr_ring_caps;
-
 	target_if_debug("Num DMA Capabilities = %d", num_dbr_ring_caps);
 
 	if (!num_dbr_ring_caps)
@@ -286,10 +388,8 @@ int init_deinit_populate_dbr_ring_cap(struct wlan_objmgr_psoc *psoc,
 				sizeof(struct wlan_psoc_host_dbr_ring_caps) *
 				num_dbr_ring_caps);
 
-	if (!info->dbr_ring_cap) {
-		target_if_err("Mem alloc for DMA cap failed");
+	if (!info->dbr_ring_cap)
 		return -EINVAL;
-	}
 
 	for (cap_idx = 0; cap_idx < num_dbr_ring_caps; cap_idx++) {
 		status = wmi_extract_dbr_ring_cap_service_ready_ext(handle,
@@ -310,6 +410,103 @@ free_and_return:
 	return qdf_status_to_os_return(status);
 }
 
+int init_deinit_populate_dbr_ring_cap_ext2(struct wlan_objmgr_psoc *psoc,
+					   wmi_unified_t handle, uint8_t *event,
+					   struct tgt_info *info)
+
+{
+	uint8_t cap_idx;
+	uint32_t num_dbr_ring_caps;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	struct wlan_psoc_host_dbr_ring_caps *param;
+
+	/*
+	 * If FW had already sent this info as part of EXT event,
+	 * we need to discard the same and use the info from EXT2.
+	 */
+	if (info->service_ext_param.num_dbr_ring_caps) {
+		target_if_debug("dbr_ring_caps already populated");
+		info->service_ext_param.num_dbr_ring_caps = 0;
+		qdf_mem_free(info->dbr_ring_cap);
+		info->dbr_ring_cap = NULL;
+	}
+
+	num_dbr_ring_caps = info->service_ext2_param.num_dbr_ring_caps;
+	target_if_debug("Num DMA Capabilities = %d", num_dbr_ring_caps);
+
+	if (!num_dbr_ring_caps)
+		return 0;
+
+	info->dbr_ring_cap = qdf_mem_malloc(
+				sizeof(struct wlan_psoc_host_dbr_ring_caps) *
+				num_dbr_ring_caps);
+
+	if (!info->dbr_ring_cap)
+		return -EINVAL;
+
+	for (cap_idx = 0; cap_idx < num_dbr_ring_caps; cap_idx++) {
+		param = &info->dbr_ring_cap[cap_idx];
+		status = wmi_extract_dbr_ring_cap_service_ready_ext2(handle,
+								     event,
+								     cap_idx,
+								     param);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			target_if_err("Extraction of DMA cap failed");
+			goto free_and_return;
+		}
+	}
+
+	return 0;
+
+free_and_return:
+	qdf_mem_free(info->dbr_ring_cap);
+	info->dbr_ring_cap = NULL;
+
+	return qdf_status_to_os_return(status);
+}
+int init_deinit_populate_spectral_bin_scale_params(
+			struct wlan_objmgr_psoc *psoc, wmi_unified_t handle,
+			uint8_t *event, struct tgt_info *info)
+
+{
+	uint8_t param_idx;
+	uint32_t num_bin_scaling_params;
+	QDF_STATUS status = QDF_STATUS_SUCCESS;
+
+	num_bin_scaling_params = info->service_ext_param.num_bin_scaling_params;
+
+	if (!num_bin_scaling_params)
+		return 0;
+
+	info->scaling_params = qdf_mem_malloc(
+		sizeof(struct wlan_psoc_host_spectral_scaling_params) *
+		num_bin_scaling_params);
+
+	if (!info->scaling_params) {
+		target_if_err("Mem alloc for bin scaling params failed");
+		return -EINVAL;
+	}
+
+	for (param_idx = 0; param_idx < num_bin_scaling_params; param_idx++) {
+		status = wmi_extract_spectral_scaling_params_service_ready_ext(
+				handle,
+				event, param_idx,
+				&info->scaling_params[param_idx]);
+		if (QDF_IS_STATUS_ERROR(status)) {
+			target_if_err("Extraction of scaling params failed");
+			goto free_and_return;
+		}
+	}
+
+	return 0;
+
+free_and_return:
+	qdf_mem_free(info->scaling_params);
+	info->scaling_params = NULL;
+
+	return qdf_status_to_os_return(status);
+}
+
 QDF_STATUS init_deinit_dbr_ring_cap_free(
 		struct target_psoc_info *tgt_psoc_info)
 {
@@ -324,9 +521,86 @@ QDF_STATUS init_deinit_dbr_ring_cap_free(
 }
 qdf_export_symbol(init_deinit_dbr_ring_cap_free);
 
+QDF_STATUS init_deinit_spectral_scaling_params_free(
+		struct target_psoc_info *tgt_psoc_info)
+{
+	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+
+	if (tgt_psoc_info->info.scaling_params) {
+		qdf_mem_free(tgt_psoc_info->info.scaling_params);
+		tgt_psoc_info->info.scaling_params = NULL;
+		status = QDF_STATUS_SUCCESS;
+	}
+
+	return status;
+}
+
+qdf_export_symbol(init_deinit_spectral_scaling_params_free);
+
+#ifdef DBS_SBS_BAND_LIMITATION_WAR
+#define phy0               0
+#define phy2               2
+#define NUM_RF_MODES       2 /* (DBS + DBS_SBS) */
+/**
+ * init_deinit_update_phy_reg_cap() - Update the low/high frequency for phy0.
+ * @psoc: PSOC common object
+ * @info: FW or lower layer related info
+ * @wlan_psoc_host_hal_reg_capabilities_ext: Reg caps per PHY
+ *
+ * For the DBS_SBS capable board, update the low or high frequency
+ * for phy0 by leveraging the frequency populated for phy2
+ * depending on whether it is mapped to upper or lower 5G band by
+ * FW/HAL-PHY.
+ */
+static void init_deinit_update_phy_reg_cap(struct wlan_objmgr_psoc *psoc,
+					struct tgt_info *info,
+					struct wlan_psoc_host_hal_reg_capabilities_ext *reg_cap)
+{
+	struct target_psoc_info *tgt_hdl;
+	enum wmi_host_hw_mode_config_type mode;
+	uint32_t num_hw_modes;
+	uint8_t idx;
+
+	tgt_hdl = (struct target_psoc_info *)wlan_psoc_get_tgt_if_handle(
+						psoc);
+	if (!tgt_hdl) {
+		target_if_err("target_psoc_info is null in service ready ev");
+		return;
+	}
+
+	mode = target_psoc_get_preferred_hw_mode(tgt_hdl);
+
+	num_hw_modes = info->hw_modes.num_modes;
+
+	if ((mode != WMI_HOST_HW_MODE_DBS) || (num_hw_modes < NUM_RF_MODES))
+		return;
+
+	for (idx = 0; idx < num_hw_modes; idx++)
+		if (info->hw_modes.hw_mode_ids[idx] ==
+			WMI_HOST_HW_MODE_DBS_SBS) {
+			if (reg_cap[phy0].low_5ghz_chan >
+					reg_cap[phy2].low_5ghz_chan)
+				reg_cap[phy0].low_5ghz_chan =
+				    reg_cap[phy2].low_5ghz_chan;
+			else if (reg_cap[phy0].high_5ghz_chan <
+					reg_cap[phy2].high_5ghz_chan)
+				reg_cap[phy0].high_5ghz_chan =
+				    reg_cap[phy2].high_5ghz_chan;
+			break;
+		}
+}
+#else
+static void init_deinit_update_phy_reg_cap(struct wlan_objmgr_psoc *psoc,
+					struct tgt_info *info,
+					struct wlan_psoc_host_hal_reg_capabilities_ext *reg_cap)
+{
+}
+#endif
+
 int init_deinit_populate_phy_reg_cap(struct wlan_objmgr_psoc *psoc,
-				void *handle, uint8_t *event,
-				struct tgt_info *info, bool service_ready)
+				     wmi_unified_t handle, uint8_t *event,
+				     struct tgt_info *info,
+				     bool service_ready)
 {
 	uint8_t reg_idx;
 	uint32_t num_phy_reg_cap;
@@ -367,6 +641,7 @@ int init_deinit_populate_phy_reg_cap(struct wlan_objmgr_psoc *psoc,
 		}
 	}
 
+	init_deinit_update_phy_reg_cap(psoc, info, reg_cap);
 	status = ucfg_reg_set_hal_reg_cap(psoc, reg_cap, num_phy_reg_cap);
 
 	return qdf_status_to_os_return(status);
@@ -412,7 +687,7 @@ QDF_STATUS init_deinit_validate_160_80p80_fw_caps(
 	bool vhtcap_160mhz_sgi = false;
 	bool valid = false;
 	struct wlan_psoc_host_hal_reg_capabilities_ext *reg_cap;
-	struct common_wmi_handle *wmi_handle;
+	struct wmi_unified *wmi_handle;
 
 	if (!tgt_hdl) {
 		target_if_err(
@@ -423,6 +698,7 @@ QDF_STATUS init_deinit_validate_160_80p80_fw_caps(
 	wmi_handle = target_psoc_get_wmi_hdl(tgt_hdl);
 
 	if ((tgt_hdl->info.target_type == TARGET_TYPE_QCA8074) ||
+	    (tgt_hdl->info.target_type == TARGET_TYPE_QCA8074V2) ||
 	    (tgt_hdl->info.target_type == TARGET_TYPE_QCA6290)) {
 		/**
 		 * Return true for now. This is not available in
@@ -432,7 +708,7 @@ QDF_STATUS init_deinit_validate_160_80p80_fw_caps(
 	}
 
 	reg_cap = ucfg_reg_get_hal_reg_cap(psoc);
-	if (reg_cap == NULL) {
+	if (!reg_cap) {
 		target_if_err("reg cap is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -526,7 +802,7 @@ QDF_STATUS init_deinit_is_service_ext_msg(
 		 struct wlan_objmgr_psoc *psoc,
 		 struct target_psoc_info *tgt_hdl)
 {
-	struct common_wmi_handle *wmi_handle;
+	struct wmi_unified *wmi_handle;
 
 	if (!tgt_hdl) {
 		target_if_err(
@@ -559,6 +835,15 @@ bool init_deinit_is_preferred_hw_mode_supported(
 
 	if (info->preferred_hw_mode == WMI_HOST_HW_MODE_MAX)
 		return TRUE;
+
+	if (wlan_psoc_nif_feat_cap_get(psoc, WLAN_SOC_F_DYNAMIC_HW_MODE)) {
+		if (!wlan_psoc_nif_fw_ext_cap_get(psoc,
+					WLAN_SOC_CEXT_DYNAMIC_HW_MODE)) {
+			target_if_err(
+			"WMI service bit for DYNAMIC HW mode is not set!");
+			return FALSE;
+		}
+	}
 
 	for (i = 0; i < target_psoc_get_total_mac_phy_cnt(tgt_hdl); i++) {
 		if (info->mac_phy_cap[i].hw_mode_id == info->preferred_hw_mode)

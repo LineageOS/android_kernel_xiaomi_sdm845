@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -196,7 +196,7 @@ int nl_srv_unregister(tWlanNlModTypes msg_type, nl_srv_msg_callback msg_handler)
 		return ret;
 
 	if ((msg_type >= WLAN_NL_MSG_BASE) && (msg_type < WLAN_NL_MSG_MAX) &&
-	    msg_handler != NULL) {
+	    msg_handler) {
 		ret = cnss_logger_event_unregister(radio_idx, msg_type,
 						   msg_handler);
 	} else {
@@ -227,7 +227,7 @@ int nl_srv_register(tWlanNlModTypes msg_type, nl_srv_msg_callback msg_handler)
 		return ret;
 
 	if ((msg_type >= WLAN_NL_MSG_BASE) && (msg_type < WLAN_NL_MSG_MAX) &&
-	    msg_handler != NULL) {
+	    msg_handler) {
 		ret = cnss_logger_event_register(radio_idx, msg_type,
 						 msg_handler);
 	} else {
@@ -267,6 +267,54 @@ qdf_export_symbol(nl_srv_is_initialized);
 #include <net/genetlink.h>
 #include <net/cnss_nl.h>
 
+void cld80211_oem_send_reply(struct sk_buff *msg, void *hdr,
+				    struct nlattr *nest, int flags)
+{
+	struct genl_family *cld80211_fam = cld80211_get_genl_family();
+
+	nla_nest_end(msg, nest);
+	genlmsg_end(msg, hdr);
+
+	genlmsg_multicast_netns(cld80211_fam, &init_net, msg, 0,
+				CLD80211_MCGRP_OEM_MSGS, flags);
+}
+
+struct sk_buff *
+cld80211_oem_rsp_alloc_skb(uint32_t portid, void **hdr, struct nlattr **nest,
+			   int *flags)
+{
+	static struct sk_buff *msg;
+
+	if (in_interrupt() || irqs_disabled() || in_atomic())
+		*flags = GFP_ATOMIC;
+
+	msg = nlmsg_new(WLAN_CLD80211_MAX_SIZE, *flags);
+	if (!msg) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+					"nlmsg malloc fails");
+		return NULL;
+	}
+
+	*hdr = nl80211hdr_put(msg, portid, 0, *flags, WLAN_NL_MSG_OEM);
+	if (*hdr == NULL) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+					"nl80211 hdr put failed");
+		goto nla_put_failure;
+	}
+
+	*nest = nla_nest_start(msg, CLD80211_ATTR_VENDOR_DATA);
+	if (*nest == NULL) {
+		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
+					"nla_nest_start failed");
+		goto nla_put_failure;
+	}
+	return msg;
+nla_put_failure:
+	genlmsg_cancel(msg, *hdr);
+	nlmsg_free(msg);
+	return NULL;
+}
+
 /* For CNSS_GENL netlink sockets will be initialized by CNSS Kernel Module */
 int nl_srv_init(void *wiphy, int proto)
 {
@@ -293,21 +341,8 @@ int nl_srv_unregister(tWlanNlModTypes msg_type, nl_srv_msg_callback msg_handler)
 	return 0;
 }
 
-
-/**
- * nl80211hdr_put() - API to fill genlmsg header
- * @skb: Sk buffer
- * @portid: Port ID
- * @seq: Sequence number
- * @flags: Flags
- * @cmd: Command id
- *
- * API to fill genl message header for brodcast events to user space
- *
- * Return: Pointer to user specific header/payload
- */
-static inline void *nl80211hdr_put(struct sk_buff *skb, uint32_t portid,
-					uint32_t seq, int flags, uint8_t cmd)
+void *nl80211hdr_put(struct sk_buff *skb, uint32_t portid,
+		     uint32_t seq, int flags, uint8_t cmd)
 {
 	struct genl_family *cld80211_fam = cld80211_get_genl_family();
 
@@ -509,7 +544,7 @@ int nl_srv_init(void *wiphy, int proto)
 	nl_srv_sock = netlink_kernel_create(&init_net, proto,
 					    &cfg);
 
-	if (nl_srv_sock != NULL) {
+	if (nl_srv_sock) {
 		memset(nl_srv_msg_handler, 0, sizeof(nl_srv_msg_handler));
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_ERROR,
@@ -541,7 +576,7 @@ int nl_srv_register(tWlanNlModTypes msg_type, nl_srv_msg_callback msg_handler)
 	int retcode = 0;
 
 	if ((msg_type >= WLAN_NL_MSG_BASE) && (msg_type < WLAN_NL_MSG_MAX) &&
-	    msg_handler != NULL) {
+	    msg_handler) {
 		nl_srv_msg_handler[msg_type - WLAN_NL_MSG_BASE] = msg_handler;
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_WARN,
@@ -552,6 +587,8 @@ int nl_srv_register(tWlanNlModTypes msg_type, nl_srv_msg_callback msg_handler)
 
 	return retcode;
 }
+
+qdf_export_symbol(nl_srv_register);
 
 /*
  * Unregister the message handler for a specified module.
@@ -709,7 +746,7 @@ static void nl_srv_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	type -= WLAN_NL_MSG_BASE;
 
 	/* dispatch to handler */
-	if (nl_srv_msg_handler[type] != NULL) {
+	if (nl_srv_msg_handler[type]) {
 		(nl_srv_msg_handler[type])(skb);
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_HDD, QDF_TRACE_LEVEL_WARN,
@@ -798,4 +835,6 @@ void nl_srv_ucast_oem(struct sk_buff *skb, int dst_pid, int flag)
 {
 	nl_srv_ucast(skb, dst_pid, flag);
 }
+
+qdf_export_symbol(nl_srv_ucast_oem);
 #endif

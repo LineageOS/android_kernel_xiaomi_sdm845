@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -35,20 +35,19 @@
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS csr_msg_processor(tpAniSirGlobal mac_ctx, void *msg_buf)
+QDF_STATUS csr_msg_processor(struct mac_context *mac_ctx, void *msg_buf)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tSirSmeRsp *sme_rsp = (tSirSmeRsp *) msg_buf;
-	uint8_t session_id = sme_rsp->sessionId;
+	uint8_t vdev_id = sme_rsp->vdev_id;
 	enum csr_roam_state cur_state;
 
-	cur_state = sme_get_current_roam_state(MAC_HANDLE(mac_ctx), session_id);
+	cur_state = sme_get_current_roam_state(MAC_HANDLE(mac_ctx), vdev_id);
 	sme_debug("msg %d[0x%04X] recvd in curstate %s & substate %s id(%d)",
 		sme_rsp->messageType, sme_rsp->messageType,
 		mac_trace_getcsr_roam_state(cur_state),
 		mac_trace_getcsr_roam_sub_state(
-			mac_ctx->roam.curSubState[session_id]),
-		session_id);
+			mac_ctx->roam.curSubState[vdev_id]), vdev_id);
 
 	/* Process the message based on the state of the roaming states... */
 	switch (cur_state) {
@@ -62,10 +61,15 @@ QDF_STATUS csr_msg_processor(tpAniSirGlobal mac_ctx, void *msg_buf)
 		break;
 
 	default:
+
 		if (sme_rsp->messageType ==
-		    eWNI_SME_GET_STATISTICS_RSP) {
-			csr_roam_joined_state_msg_processor(mac_ctx,
-							    msg_buf);
+		    eWNI_SME_UPPER_LAYER_ASSOC_CNF) {
+			tSirSmeAssocIndToUpperLayerCnf *upper_layer_assoc_cnf =
+				(tSirSmeAssocIndToUpperLayerCnf *)msg_buf;
+			if (upper_layer_assoc_cnf->ies) {
+				qdf_mem_free(upper_layer_assoc_cnf->ies);
+				sme_debug("free ies");
+			}
 			break;
 		}
 
@@ -83,60 +87,25 @@ QDF_STATUS csr_msg_processor(tpAniSirGlobal mac_ctx, void *msg_buf)
 				sme_rsp->messageType, cur_state);
 			csr_roam_check_for_link_status_change(mac_ctx,
 					sme_rsp);
-		} else if (eWNI_SME_GET_RSSI_REQ ==
-				sme_rsp->messageType) {
-			tAniGetRssiReq *pGetRssiReq =
-				(tAniGetRssiReq *) msg_buf;
-			if (NULL == pGetRssiReq->rssiCallback) {
-				sme_err("rssiCallback is NULL");
-				return status;
-			}
-			((tCsrRssiCallback)(pGetRssiReq->rssiCallback))(
-					pGetRssiReq->lastRSSI,
-					pGetRssiReq->staId,
-					pGetRssiReq->pDevContext);
-		} else if (sme_rsp->messageType ==
-			   eWNI_SME_PURGE_ALL_PDEV_CMDS_REQ) {
-			csr_purge_pdev_all_ser_cmd_list_sync(mac_ctx, msg_buf);
 		} else {
 			sme_err("Message 0x%04X is not handled by CSR state is %d session Id %d",
 				sme_rsp->messageType, cur_state,
-				session_id);
+				vdev_id);
 
 			if (eWNI_SME_FT_PRE_AUTH_RSP ==
 					sme_rsp->messageType) {
 				sme_err("Dequeue eSmeCommandRoam command with reason eCsrPerformPreauth");
 				csr_dequeue_roam_command(mac_ctx,
-					eCsrPerformPreauth, session_id);
+					eCsrPerformPreauth, vdev_id);
 			} else if (eWNI_SME_REASSOC_RSP ==
 					sme_rsp->messageType) {
 				sme_err("Dequeue eSmeCommandRoam command with reason eCsrSmeIssuedFTReassoc");
 				csr_dequeue_roam_command(mac_ctx,
 					eCsrSmeIssuedFTReassoc,
-					session_id);
+					vdev_id);
 			}
 		}
 		break;
 	} /* switch */
 	return status;
 }
-
-bool csr_check_ps_ready(void *pv)
-{
-	tpAniSirGlobal pMac = PMAC_STRUCT(pv);
-
-	if (pMac->roam.sPendingCommands < 0) {
-		QDF_ASSERT(pMac->roam.sPendingCommands >= 0);
-		return 0;
-	}
-	return pMac->roam.sPendingCommands == 0;
-}
-
-bool csr_check_ps_offload_ready(void *pv, uint32_t sessionId)
-{
-	tpAniSirGlobal pMac = PMAC_STRUCT(pv);
-
-	QDF_ASSERT(pMac->roam.sPendingCommands >= 0);
-	return pMac->roam.sPendingCommands == 0;
-}
-

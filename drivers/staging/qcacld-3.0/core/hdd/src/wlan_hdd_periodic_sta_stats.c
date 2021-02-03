@@ -22,7 +22,17 @@
  */
 
 #include "wlan_hdd_main.h"
+#include "cfg_ucfg_api.h"
 #include "wlan_hdd_periodic_sta_stats.h"
+
+void hdd_periodic_sta_stats_config(struct hdd_config *config,
+				   struct wlan_objmgr_psoc *psoc)
+{
+	config->periodic_stats_timer_interval =
+		cfg_get(psoc, CFG_PERIODIC_STATS_TIMER_INTERVAL);
+	config->periodic_stats_timer_duration =
+		cfg_get(psoc, CFG_PERIODIC_STATS_TIMER_DURATION);
+}
 
 void hdd_periodic_sta_stats_init(struct hdd_adapter *adapter)
 {

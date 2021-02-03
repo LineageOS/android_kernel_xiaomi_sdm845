@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -45,6 +45,16 @@ typedef __qdf_wait_queue_head_t qdf_wait_queue_head_t;
  * @_expr: expression to be checked
  */
 #define qdf_likely(_expr)       __qdf_likely(_expr)
+
+/**
+ * qdf_wmb - write memory barrier.
+ */
+#define qdf_wmb()                 __qdf_wmb()
+
+/**
+ * qdf_rmb - read memory barrier.
+ */
+#define qdf_rmb()                 __qdf_rmb()
 
 /**
  * qdf_mb - read + write memory barrier.
@@ -108,28 +118,30 @@ typedef __qdf_wait_queue_head_t qdf_wait_queue_head_t;
 	 (_a)[4] == 0xff &&        \
 	 (_a)[5] == 0xff)
 
-/**
- * qdf_status_to_os_return - returns the status to OS.
- * @status: enum QDF_STATUS
- *
- * returns: int status success/failure
- */
-static inline int qdf_status_to_os_return(QDF_STATUS status)
-{
-	return __qdf_status_to_os_return(status);
-}
+#define QDF_DECLARE_EWMA(name, factor, weight) \
+	__QDF_DECLARE_EWMA(name, factor, weight)
 
-/**
- * qdf_status_from_os_return() - map OS specific return code to a QDF_STATUS
- * @rc: the input return code to map
- *
- * Return: QDF_STATUS
- */
-static inline QDF_STATUS qdf_status_from_os_return(int rc)
-{
-	return __qdf_status_from_os_return(rc);
-}
+#define qdf_ewma_tx_lag __qdf_ewma_tx_lag
 
+#define qdf_ewma_tx_lag_init(tx_lag) \
+	__qdf_ewma_tx_lag_init(tx_lag)
+
+#define qdf_ewma_tx_lag_add(tx_lag, value) \
+	__qdf_ewma_tx_lag_add(tx_lag, value)
+
+#define qdf_ewma_tx_lag_read(tx_lag) \
+	 __qdf_ewma_tx_lag_read(tx_lag)
+
+#define qdf_ewma_rx_rssi __qdf_ewma_rx_rssi
+
+#define qdf_ewma_rx_rssi_init(rx_rssi) \
+	__qdf_ewma_rx_rssi_init(rx_rssi)
+
+#define qdf_ewma_rx_rssi_add(rx_rssi, value) \
+	__qdf_ewma_rx_rssi_add(rx_rssi, value)
+
+#define qdf_ewma_rx_rssi_read(rx_rssi) \
+	__qdf_ewma_rx_rssi_read(rx_rssi)
 /**
  * qdf_set_bit() - set bit in address
  * @nr: bit number to be set
@@ -550,6 +562,13 @@ static inline uint8_t *qdf_get_u32(uint8_t *ptr, uint32_t *value)
 #define qdf_ffz(mask) __qdf_ffz(mask)
 
 /**
+ * qdf_prefetch - prefetches the cacheline for read
+ *
+ * @x: address to be prefetched
+ */
+#define qdf_prefetch(x)                   __qdf_prefetch(x)
+
+/**
  * qdf_get_pwr2() - get next power of 2 integer from input value
  * @value: input value to find next power of 2 integer
  *
@@ -750,6 +769,19 @@ static inline
 int qdf_hex_str_to_binary(u8 *dst, const char *src, size_t count)
 {
 	return __qdf_hex_str_to_binary(dst, src, count);
+}
+
+/**
+ * qdf_fls() - find last set bit in a given 32 bit input
+ * @x: 32 bit mask
+ *
+ * Return: zero if the input is zero, otherwise returns the bit
+ * position of the last set bit, where the LSB is 1 and MSB is 32.
+ */
+static inline
+int qdf_fls(uint32_t x)
+{
+	return __qdf_fls(x);
 }
 
 #endif /*_QDF_UTIL_H*/

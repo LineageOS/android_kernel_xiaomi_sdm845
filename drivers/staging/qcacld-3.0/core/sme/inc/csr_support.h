@@ -169,7 +169,7 @@ typedef struct tagCsrRSNAuthIe {
 typedef struct tagCsrRSNPMKIe {
 	uint16_t cPMKIDs;
 	struct {
-		uint8_t PMKID[CSR_RSN_PMKID_SIZE];
+		uint8_t PMKID[PMKID_LEN];
 	} qdf_packed PMKIDList[1];
 } qdf_packed tCsrRSNPMKIe;
 
@@ -198,12 +198,17 @@ typedef struct tagCsrWapiIe {
 } qdf_packed tCsrWapiIe;
 #endif /* FEATURE_WLAN_WAPI */
 
-typedef struct tagRoamingTimerInfo {
-	tpAniSirGlobal pMac;
+/**
+ * struct csr_timer_info - CSR-specific timer context
+ * @mac: Global MAC context associated with the timer
+ * @vdev_id: Session associated with the timer
+ */
+struct csr_timer_info {
+	struct mac_context *mac;
 	uint8_t vdev_id;
-} tCsrTimerInfo;
+};
 
-#define CSR_IS_11A_BSS(pBssDesc)    (eSIR_11A_NW_TYPE == (pBssDesc)->nwType)
+#define CSR_IS_11A_BSS(bss_desc)    (eSIR_11A_NW_TYPE == (bss_desc)->nwType)
 #define CSR_IS_BASIC_RATE(rate)     ((rate) & CSR_DOT11_BASIC_RATE_MASK)
 #define CSR_IS_QOS_BSS(pIes)  \
 		((pIes)->WMMParams.present || (pIes)->WMMInfoAp.present)
@@ -212,33 +217,61 @@ typedef struct tagRoamingTimerInfo {
 	 ((pIes)->WMMParams.qosInfo & SME_QOS_AP_SUPPORTS_APSD)) || \
 	 ((pIes)->WMMInfoAp.present && (pIes)->WMMInfoAp.uapsd))
 
-bool csr_get_bss_id_bss_desc(tSirBssDescription *pSirBssDesc,
+bool csr_get_bss_id_bss_desc(struct bss_description *pSirBssDesc,
 			     struct qdf_mac_addr *pBssId);
-bool csr_is_bss_id_equal(tSirBssDescription *pSirBssDesc1,
-			 tSirBssDescription *pSirBssDesc2);
-eCsrMediaAccessType csr_get_qos_from_bss_desc(tpAniSirGlobal mac_ctx,
-					      tSirBssDescription *pSirBssDesc,
-					      tDot11fBeaconIEs *pIes);
+bool csr_is_bss_id_equal(struct bss_description *pSirBssDesc1,
+			 struct bss_description *pSirBssDesc2);
+
+eCsrMediaAccessType
+csr_get_qos_from_bss_desc(struct mac_context *mac_ctx,
+			  struct bss_description *pSirBssDesc,
+			  tDot11fBeaconIEs *pIes);
+
 bool csr_is_nullssid(uint8_t *pBssSsid, uint8_t len);
-bool csr_is_infra_bss_desc(tSirBssDescription *pSirBssDesc);
-bool csr_is_ibss_bss_desc(tSirBssDescription *pSirBssDesc);
-bool csr_is_privacy(tSirBssDescription *pSirBssDesc);
-tSirResultCodes csr_get_disassoc_rsp_status_code(tSirSmeDisassocRsp *
-		pSmeDisassocRsp);
-tSirResultCodes csr_get_de_auth_rsp_status_code(tSirSmeDeauthRsp *pSmeRsp);
-uint32_t csr_get_frag_thresh(tpAniSirGlobal mac_ctx);
-uint32_t csr_get_rts_thresh(tpAniSirGlobal mac_ctx);
-eCsrPhyMode csr_get_phy_mode_from_bssDesc(tSirBssDescription *pSirBssDesc);
-uint32_t csr_get11h_power_constraint(tpAniSirGlobal mac_ctx,
+bool csr_is_infra_bss_desc(struct bss_description *pSirBssDesc);
+
+#ifdef QCA_IBSS_SUPPORT
+/**
+ * csr_is_ibss_bss_desc() - API to check bss desc of ibss type
+ * @pSirBssDesc:  pointer to pSirBssDesc structure
+ *
+ * Return: true if bss desc of ibss type, else false
+ */
+bool csr_is_ibss_bss_desc(struct bss_description *pSirBssDesc);
+
+/**
+ * csr_is_ibss_bss_desc() - API to check bss desc of ibss type
+ * @bssType:  bss type
+ *
+ * Return: true if bss type is ibss type, else false
+ */
+bool csr_is_bss_type_ibss(eCsrRoamBssType bssType);
+#else
+static inline
+bool csr_is_bss_type_ibss(eCsrRoamBssType bssType)
+{
+	return false;
+}
+
+static inline
+bool csr_is_ibss_bss_desc(struct bss_description *pSirBssDesc)
+{
+	return false;
+}
+#endif
+tSirResultCodes csr_get_de_auth_rsp_status_code(struct deauth_rsp *pSmeRsp);
+uint32_t csr_get_frag_thresh(struct mac_context *mac_ctx);
+uint32_t csr_get_rts_thresh(struct mac_context *mac_ctx);
+uint32_t csr_get11h_power_constraint(struct mac_context *mac_ctx,
 				     tDot11fIEPowerConstraints *constraints);
-uint8_t csr_construct_rsn_ie(tpAniSirGlobal pMac, uint32_t sessionId,
+uint8_t csr_construct_rsn_ie(struct mac_context *mac, uint32_t sessionId,
 			     struct csr_roam_profile *pProfile,
-			     tSirBssDescription *pSirBssDesc,
+			     struct bss_description *pSirBssDesc,
 			     tDot11fBeaconIEs *pIes, tCsrRSNIe *pRSNIe);
 
-uint8_t csr_construct_wpa_ie(tpAniSirGlobal pMac,
+uint8_t csr_construct_wpa_ie(struct mac_context *mac, uint8_t session_id,
 			     struct csr_roam_profile *pProfile,
-			     tSirBssDescription *pSirBssDesc,
+			     struct bss_description *pSirBssDesc,
 			     tDot11fBeaconIEs *pIes, tCsrWpaIe *pWpaIe);
 
 #ifdef FEATURE_WLAN_WAPI
@@ -249,14 +282,14 @@ bool csr_is_profile_wapi(struct csr_roam_profile *pProfile);
  * Or else construct one from the BSS Caller allocated memory for pWpaIe and
  * guarrantee it can contain a max length WPA IE
  */
-uint8_t csr_retrieve_wpa_ie(tpAniSirGlobal pMac,
+uint8_t csr_retrieve_wpa_ie(struct mac_context *mac, uint8_t session_id,
 			    struct csr_roam_profile *pProfile,
-			    tSirBssDescription *pSirBssDesc,
+			    struct bss_description *pSirBssDesc,
 			    tDot11fBeaconIEs *pIes, tCsrWpaIe *pWpaIe);
 
-bool csr_is_ssid_equal(tpAniSirGlobal pMac,
-		       tSirBssDescription *pSirBssDesc1,
-		       tSirBssDescription *pSirBssDesc2,
+bool csr_is_ssid_equal(struct mac_context *mac,
+		       struct bss_description *pSirBssDesc1,
+		       struct bss_description *pSirBssDesc2,
 		       tDot11fBeaconIEs *pIes2);
 
 /* Null ssid means match */
@@ -268,9 +301,9 @@ bool csr_is_profile_rsn(struct csr_roam_profile *pProfile);
  * else construct one from the BSS Caller allocated memory for pWpaIe and
  * guarantee it can contain a max length WPA IE
  */
-uint8_t csr_retrieve_rsn_ie(tpAniSirGlobal pMac, uint32_t sessionId,
+uint8_t csr_retrieve_rsn_ie(struct mac_context *mac, uint32_t sessionId,
 			    struct csr_roam_profile *pProfile,
-			    tSirBssDescription *pSirBssDesc,
+			    struct bss_description *pSirBssDesc,
 			    tDot11fBeaconIEs *pIes, tCsrRSNIe *pRsnIe);
 #ifdef FEATURE_WLAN_WAPI
 /*
@@ -278,54 +311,39 @@ uint8_t csr_retrieve_rsn_ie(tpAniSirGlobal pMac, uint32_t sessionId,
  * Or else construct one from the BSS. Caller allocated memory for pWapiIe and
  * guarrantee it can contain a max length WAPI IE
  */
-uint8_t csr_retrieve_wapi_ie(tpAniSirGlobal pMac, uint32_t sessionId,
+uint8_t csr_retrieve_wapi_ie(struct mac_context *mac, uint32_t sessionId,
 			     struct csr_roam_profile *pProfile,
-			     tSirBssDescription *pSirBssDesc,
+			     struct bss_description *pSirBssDesc,
 			     tDot11fBeaconIEs *pIes, tCsrWapiIe *pWapiIe);
 #endif /* FEATURE_WLAN_WAPI */
 bool csr_rates_is_dot11_rate11b_supported_rate(uint8_t dot11Rate);
 bool csr_rates_is_dot11_rate11a_supported_rate(uint8_t dot11Rate);
 tAniEdType csr_translate_encrypt_type_to_ed_type(
 		eCsrEncryptionType EncryptType);
-/*
- * pIes shall contain IEs from pSirBssDesc.
- * It shall be returned from function csr_get_parsed_bss_description_ies
- */
-bool csr_is_security_match(tpAniSirGlobal mac_ctx, tCsrAuthList *authType,
-		tCsrEncryptionList *pUCEncryptionType,
-		tCsrEncryptionList *pMCEncryptionType, bool *pMFPEnabled,
-		uint8_t *pMFPRequired, uint8_t *pMFPCapable,
-		tSirBssDescription *pSirBssDesc, tDot11fBeaconIEs *pIes,
-		eCsrAuthType *negotiatedAuthtype,
-		eCsrEncryptionType *negotiatedUCCipher,
-		eCsrEncryptionType *negotiatedMCCipher);
-bool csr_is_bss_type_match(eCsrRoamBssType bssType1, eCsrRoamBssType bssType2);
-bool csr_is_bss_type_ibss(eCsrRoamBssType bssType);
+
 bool csr_is_bssid_match(struct qdf_mac_addr *pProfBssid,
 			struct qdf_mac_addr *BssBssid);
 void csr_add_rate_bitmap(uint8_t rate, uint16_t *pRateBitmap);
 bool csr_check_rate_bitmap(uint8_t rate, uint16_t RateBitmap);
-bool csr_rates_is_dot11_rate_supported(tpAniSirGlobal mac_ctx, uint8_t rate);
-uint16_t csr_rates_find_best_rate(tSirMacRateSet *pSuppRates,
-		tSirMacRateSet *pExtRates, tSirMacPropRateSet *pPropRates);
-tSirBssType csr_translate_bsstype_to_mac_type(eCsrRoamBssType csrtype);
+bool csr_rates_is_dot11_rate_supported(struct mac_context *mac_ctx, uint8_t rate);
+enum bss_type csr_translate_bsstype_to_mac_type(eCsrRoamBssType csrtype);
 /* Caller allocates memory for pIEStruct */
-QDF_STATUS csr_parse_bss_description_ies(tpAniSirGlobal mac_ctx,
-					 tSirBssDescription *pBssDesc,
+QDF_STATUS csr_parse_bss_description_ies(struct mac_context *mac_ctx,
+					 struct bss_description *bss_desc,
 					 tDot11fBeaconIEs *pIEStruct);
 /*
  * This function will allocate memory for the parsed IEs to the caller.
  * Caller must free the memory. after it is done with the data only if
  * this function succeeds
  */
-QDF_STATUS csr_get_parsed_bss_description_ies(tpAniSirGlobal mac_ctx,
-					      tSirBssDescription *pBssDesc,
+QDF_STATUS csr_get_parsed_bss_description_ies(struct mac_context *mac_ctx,
+					      struct bss_description *bss_desc,
 					      tDot11fBeaconIEs **ppIEStruct);
 
-tSirScanType csr_get_scan_type(tpAniSirGlobal pMac, uint8_t chnId);
-uint8_t csr_to_upper(uint8_t ch);
-QDF_STATUS csr_get_phy_mode_from_bss(tpAniSirGlobal pMac,
-		tSirBssDescription *pBSSDescription,
+tSirScanType csr_get_scan_type(struct mac_context *mac, uint8_t chnId);
+
+QDF_STATUS csr_get_phy_mode_from_bss(struct mac_context *mac,
+		struct bss_description *pBSSDescription,
 		eCsrPhyMode *pPhyMode, tDot11fBeaconIEs *pIes);
 /*
  * fForce -- force reassoc regardless of whether there is any change.
@@ -334,16 +352,30 @@ QDF_STATUS csr_get_phy_mode_from_bss(tpAniSirGlobal pMac,
  * the user wants. There may be discrepency in it. UAPSD-bypass logic should
  * decide if it needs to reassoc
  */
-QDF_STATUS csr_reassoc(tpAniSirGlobal pMac, uint32_t sessionId,
+QDF_STATUS csr_reassoc(struct mac_context *mac, uint32_t sessionId,
 		tCsrRoamModifyProfileFields *pModProfileFields,
 		uint32_t *pRoamId, bool fForce);
 
-/* BeaconInterval validation for MCC support */
-QDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal pMac, uint8_t channelId,
-		uint16_t *beaconInterval, uint32_t cursessionId,
-		enum QDF_OPMODE currBssPersona);
-bool csr_is_profile11r(tpAniSirGlobal mac, struct csr_roam_profile *pProfile);
-bool csr_is_auth_type11r(tpAniSirGlobal mac, eCsrAuthType AuthType,
+/**
+ * csr_validate_mcc_beacon_interval() - to validate the mcc beacon interval
+ * @mac_ctx: pointer to mac context
+ * @ch_freq: channel frequency
+ * @bcn_interval: provided beacon interval
+ * @cur_session_id: current session id
+ * @cur_bss_persona: Current BSS persona
+ *
+ * This API will validate the mcc beacon interval
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS csr_validate_mcc_beacon_interval(struct mac_context *mac_ctx,
+					    uint32_t ch_freq,
+					    uint16_t *bcn_interval,
+					    uint32_t cur_session_id,
+					    enum QDF_OPMODE cur_bss_persona);
+
+bool csr_is_profile11r(struct mac_context *mac, struct csr_roam_profile *pProfile);
+bool csr_is_auth_type11r(struct mac_context *mac, enum csr_akm_type AuthType,
 			 uint8_t mdiePresent);
 #ifdef FEATURE_WLAN_ESE
 bool csr_is_profile_ese(struct csr_roam_profile *pProfile);
@@ -355,6 +387,6 @@ bool csr_is_profile_ese(struct csr_roam_profile *pProfile);
  *
  * Return: true, if auth type is ese, false otherwise
  */
-bool csr_is_auth_type_ese(eCsrAuthType AuthType);
+bool csr_is_auth_type_ese(enum csr_akm_type AuthType);
 
 #endif

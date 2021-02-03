@@ -24,13 +24,13 @@
 
 #include <qdf_notifier.h>
 
-#define QDF_HANG_EVENT_VERSION "1.0"
+#define QDF_HANG_EVENT_VERSION "1"
 /* Max hang event buffer size */
-#define QDF_HANG_EVENT_DATA_SIZE 784
+#define QDF_HANG_EVENT_DATA_SIZE 390
 /* Max offset which host can write */
-#define QDF_WLAN_MAX_HOST_OFFSET 390
+#define QDF_WLAN_MAX_HOST_OFFSET 194
 /* Start of the Firmware Data offset */
-#define QDF_WLAN_HANG_FW_OFFSET 392
+#define QDF_WLAN_HANG_FW_OFFSET 195
 
 /**
  * hang_event_tag: Hang event tag for various modules
@@ -43,6 +43,7 @@
  * @HANG_EVT_TAG_WMI_CMD_HIST: HTC event tag wmi command history hang event tag
  * @HANG_EVT_TAG_DP_PEER_INFO: DP peer info hang event tag
  * @HANG_EVT_TAG_CE_INFO: Copy Engine hang event tag
+ * @HANG_EVT_TAG_BUS_INFO: Bus hang event tag
  */
 enum hang_event_tag {
 	HANG_EVT_TAG_CDS,
@@ -53,16 +54,17 @@ enum hang_event_tag {
 	HANG_EVT_TAG_WMI_CMD_HIST,
 	HANG_EVT_TAG_HTC_CREDIT_HIST,
 	HANG_EVT_TAG_DP_PEER_INFO,
-	HANG_EVT_TAG_CE_INFO
+	HANG_EVT_TAG_CE_INFO,
+	HANG_EVT_TAG_BUS_INFO
 };
 
-#define QDF_HANG_EVENT_TLV_HDR_SIZE   (sizeof(uint32_t))
+#define QDF_HANG_EVENT_TLV_HDR_SIZE   (sizeof(uint16_t))
 
 #define QDF_HANG_EVT_SET_HDR(tlv_buf, tag, len) \
-	(((uint32_t *)(tlv_buf))[0]) = (((tag) << 16) | ((len) & 0x0000FFFF))
+	(((uint16_t *)(tlv_buf))[0]) = (((tag) << 8) | ((len) & 0x000000FF))
 
 #define QDF_HANG_GET_STRUCT_TLVLEN(tlv_struct) \
-	((uint32_t)(sizeof(tlv_struct) - QDF_HANG_EVENT_TLV_HDR_SIZE))
+	((uint16_t)(sizeof(tlv_struct) - QDF_HANG_EVENT_TLV_HDR_SIZE))
 
 /**
  * qdf_notifier_data - Private data for notifier data

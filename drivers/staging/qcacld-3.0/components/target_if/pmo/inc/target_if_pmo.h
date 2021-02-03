@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -172,6 +172,7 @@ QDF_STATUS target_if_pmo_send_action_frame_patterns(
 QDF_STATUS target_if_pmo_conf_hw_filter(struct wlan_objmgr_psoc *psoc,
 					struct pmo_hw_filter_params *req);
 
+#ifdef WLAN_FEATURE_PACKET_FILTERING
 /**
  * target_if_pmo_send_pkt_filter_req() - enable packet filter
  * @vdev: objmgr vdev
@@ -195,6 +196,7 @@ QDF_STATUS target_if_pmo_send_pkt_filter_req(struct wlan_objmgr_vdev *vdev,
  */
 QDF_STATUS target_if_pmo_clear_pkt_filter_req(struct wlan_objmgr_vdev *vdev,
 			struct pmo_rcv_pkt_fltr_clear_param *rcv_clear_param);
+#endif
 
 /**
  * target_if_pmo_send_arp_offload_req() - sends arp request to fwr
@@ -211,6 +213,7 @@ QDF_STATUS target_if_pmo_send_arp_offload_req(
 		struct pmo_arp_offload_params *arp_offload_req,
 		struct pmo_ns_offload_params *ns_offload_req);
 
+#ifdef WLAN_NS_OFFLOAD
 /**
  * target_if_pmo_send_ns_offload_req() - sends ns request to fwr
  * @vdev: objmgr vdev
@@ -225,7 +228,15 @@ QDF_STATUS target_if_pmo_send_ns_offload_req(
 		struct wlan_objmgr_vdev *vdev,
 		struct pmo_arp_offload_params *arp_offload_req,
 		struct pmo_ns_offload_params *ns_offload_req);
-
+#else /* WLAN_NS_OFFLOAD */
+static inline QDF_STATUS
+target_if_pmo_send_ns_offload_req(struct wlan_objmgr_vdev *vdev,
+		struct pmo_arp_offload_params *arp_offload_req,
+		struct pmo_ns_offload_params *ns_offload_req)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif /* WLAN_NS_OFFLOAD */
 /**
  * target_if_pmo_send_gtk_offload_req() - send gtk offload request in fwr
  * @vdev: objmgr vdev handle
@@ -375,6 +386,14 @@ int target_if_pmo_psoc_get_pending_cmnds(struct wlan_objmgr_psoc *psoc);
  */
 void target_if_pmo_update_target_suspend_flag(struct wlan_objmgr_psoc *psoc,
 		uint8_t value);
+
+/**
+ * target_if_pmo_is_target_suspended() - get wmi target suspend flag
+ * @psoc: objmgr psoc
+ *
+ * Return: true if target suspended, false otherwise
+ */
+bool target_if_pmo_is_target_suspended(struct wlan_objmgr_psoc *psoc);
 
 /**
  * target_if_pmo_psoc_send_wow_enable_req() -send wow enable request

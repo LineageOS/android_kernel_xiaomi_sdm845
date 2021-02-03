@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -23,6 +23,7 @@
 
 #include "wlan_dfs_ucfg_api.h"
 #include "wlan_dfs_tgt_api.h"
+#include <wlan_objmgr_vdev_obj.h>
 #include "wlan_dfs_utils_api.h"
 #ifndef QCA_MCL_DFS_SUPPORT
 #include "ieee80211_mlme_dfs_interface.h"
@@ -34,6 +35,9 @@
 #include "a_types.h"
 #include "wlan_serialization_api.h"
 #include <qdf_trace.h>
+#include "wlan_scan_ucfg_api.h"
+#include "wlan_dfs_mlme_api.h"
+#include "../../core/src/dfs_zero_cac.h"
 
 struct dfs_to_mlme global_dfs_to_mlme;
 
@@ -46,6 +50,56 @@ struct wlan_dfs *wlan_pdev_get_dfs_obj(struct wlan_objmgr_pdev *pdev)
 	return dfs;
 }
 
+/*
+ * register_dfs_precac_auto_chan_callbacks_freq() - Register auto chan switch
+ * frequency based APIs callback.
+ * @mlme_callback: Pointer to dfs_to_mlme.
+ */
+#ifndef QCA_MCL_DFS_SUPPORT
+#if defined(WLAN_DFS_PRECAC_AUTO_CHAN_SUPPORT) && defined(CONFIG_CHAN_FREQ_API)
+static inline void
+register_dfs_precac_auto_chan_callbacks_freq(struct dfs_to_mlme *mlme_callback)
+{
+	if (!mlme_callback)
+		return;
+
+	mlme_callback->mlme_precac_chan_change_csa_for_freq =
+		mlme_dfs_precac_chan_change_csa_for_freq;
+}
+#else
+static inline void
+register_dfs_precac_auto_chan_callbacks_freq(struct dfs_to_mlme *mlme_callback)
+{
+}
+#endif
+#endif
+
+/*
+ * register_dfs_callbacks_for_freq() - Register dfs callbacks.
+ * @mlme_callback: Pointer to dfs_to_mlme.
+ */
+#ifndef QCA_MCL_DFS_SUPPORT
+#ifdef CONFIG_CHAN_FREQ_API
+static inline void
+register_dfs_callbacks_for_freq(struct dfs_to_mlme *mlme_callback)
+{
+	if (!mlme_callback)
+		return;
+
+	mlme_callback->mlme_mark_dfs_for_freq = mlme_dfs_mark_dfs_for_freq;
+	mlme_callback->mlme_find_dot11_chan_for_freq =
+		mlme_dfs_find_dot11_chan_for_freq;
+	mlme_callback->mlme_get_dfs_channels_for_freq =
+		mlme_dfs_get_dfs_channels_for_freq;
+	mlme_callback->mlme_get_cac_timeout_for_freq =
+		mlme_dfs_get_cac_timeout_for_freq;
+	mlme_callback->mlme_get_extchan_for_freq =
+		mlme_dfs_get_extchan_for_freq;
+	mlme_callback->mlme_start_csa_for_freq = mlme_dfs_start_csa_for_freq;
+}
+#endif
+#endif
+
 #ifndef QCA_MCL_DFS_SUPPORT
 void register_dfs_callbacks(void)
 {
@@ -55,34 +109,46 @@ void register_dfs_callbacks(void)
 		wlan_objmgr_pdev_component_obj_attach;
 	tmp_dfs_to_mlme->pdev_component_obj_detach =
 		wlan_objmgr_pdev_component_obj_detach;
-	tmp_dfs_to_mlme->pdev_get_comp_private_obj =
-		wlan_pdev_get_dfs_obj;
 
 	tmp_dfs_to_mlme->dfs_start_rcsa = mlme_dfs_start_rcsa;
-	tmp_dfs_to_mlme->mlme_mark_dfs = mlme_dfs_mark_dfs;
-	tmp_dfs_to_mlme->mlme_start_csa = mlme_dfs_start_csa;
 	tmp_dfs_to_mlme->mlme_proc_cac = mlme_dfs_proc_cac;
-	tmp_dfs_to_mlme->mlme_deliver_event_up_afrer_cac =
-		mlme_dfs_deliver_event_up_afrer_cac;
+	tmp_dfs_to_mlme->mlme_deliver_event_up_after_cac =
+		mlme_dfs_deliver_event_up_after_cac;
 	tmp_dfs_to_mlme->mlme_get_dfs_ch_nchans = mlme_dfs_get_dfs_ch_nchans;
-	tmp_dfs_to_mlme->mlme_get_extchan = mlme_dfs_get_extchan;
 	tmp_dfs_to_mlme->mlme_set_no_chans_available =
 		mlme_dfs_set_no_chans_available;
 	tmp_dfs_to_mlme->mlme_ieee2mhz = mlme_dfs_ieee2mhz;
-	tmp_dfs_to_mlme->mlme_find_dot11_channel = mlme_dfs_find_dot11_channel;
-	tmp_dfs_to_mlme->mlme_get_dfs_ch_channels =
-		mlme_dfs_get_dfs_ch_channels;
 	tmp_dfs_to_mlme->mlme_dfs_ch_flags_ext = mlme_dfs_dfs_ch_flags_ext;
 	tmp_dfs_to_mlme->mlme_channel_change_by_precac =
 		mlme_dfs_channel_change_by_precac;
 	tmp_dfs_to_mlme->mlme_nol_timeout_notification =
 		mlme_dfs_nol_timeout_notification;
 	tmp_dfs_to_mlme->mlme_clist_update = mlme_dfs_clist_update;
-	tmp_dfs_to_mlme->mlme_get_cac_timeout = mlme_dfs_get_cac_timeout;
 	tmp_dfs_to_mlme->mlme_rebuild_chan_list_with_non_dfs_channels =
 		mlme_dfs_rebuild_chan_list_with_non_dfs_channels;
 	tmp_dfs_to_mlme->mlme_restart_vaps_with_non_dfs_chan =
 		mlme_dfs_restart_vaps_with_non_dfs_chan;
+	tmp_dfs_to_mlme->mlme_is_opmode_sta =
+		mlme_dfs_is_opmode_sta;
+	tmp_dfs_to_mlme->mlme_check_allowed_prim_chanlist =
+		mlme_dfs_check_allowed_prim_chanlist;
+	tmp_dfs_to_mlme->mlme_update_scan_channel_list =
+		mlme_dfs_update_scan_channel_list;
+	tmp_dfs_to_mlme->mlme_bringdown_vaps =
+		mlme_dfs_bringdown_vaps;
+	tmp_dfs_to_mlme->mlme_dfs_deliver_event =
+		mlme_dfs_deliver_event;
+
+	tmp_dfs_to_mlme->mlme_acquire_radar_mode_switch_lock =
+		mlme_acquire_radar_mode_switch_lock;
+	tmp_dfs_to_mlme->mlme_release_radar_mode_switch_lock =
+		mlme_release_radar_mode_switch_lock;
+	/*
+	 * Register precac auto channel switch feature related callbacks
+	 */
+	register_dfs_precac_auto_chan_callbacks_freq(tmp_dfs_to_mlme);
+	/* Register freq based callbacks */
+	register_dfs_callbacks_for_freq(tmp_dfs_to_mlme);
 }
 #else
 void register_dfs_callbacks(void)
@@ -93,8 +159,6 @@ void register_dfs_callbacks(void)
 		wlan_objmgr_pdev_component_obj_attach;
 	tmp_dfs_to_mlme->pdev_component_obj_detach =
 		wlan_objmgr_pdev_component_obj_detach;
-	tmp_dfs_to_mlme->pdev_get_comp_private_obj =
-		wlan_pdev_get_dfs_obj;
 }
 #endif
 
@@ -112,11 +176,8 @@ static QDF_STATUS dfs_psoc_obj_create_notification(struct wlan_objmgr_psoc *psoc
 	struct dfs_soc_priv_obj *dfs_soc_obj;
 
 	dfs_soc_obj = qdf_mem_malloc(sizeof(*dfs_soc_obj));
-	if (!dfs_soc_obj) {
-		dfs_err(NULL, WLAN_DEBUG_DFS_ALWAYS,
-			"Failed to allocate memory for dfs object");
+	if (!dfs_soc_obj)
 		return QDF_STATUS_E_NOMEM;
-	}
 
 	dfs_soc_obj->psoc = psoc;
 
@@ -131,6 +192,8 @@ static QDF_STATUS dfs_psoc_obj_create_notification(struct wlan_objmgr_psoc *psoc
 		qdf_mem_free(dfs_soc_obj);
 		return status;
 	}
+	/* Initialize precac timer here*/
+	dfs_zero_cac_timer_init(dfs_soc_obj);
 
 	dfs_debug(NULL, WLAN_DEBUG_DFS1,
 		"DFS obj attach to psoc successfully");
@@ -158,6 +221,8 @@ static QDF_STATUS dfs_psoc_obj_destroy_notification(struct wlan_objmgr_psoc *pso
 			"Failed to get dfs obj in psoc");
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	dfs_zero_cac_timer_detach(dfs_soc_obj);
 
 	status = wlan_objmgr_psoc_component_obj_detach(psoc,
 						       WLAN_UMAC_COMP_DFS,
@@ -354,8 +419,8 @@ QDF_STATUS wlan_dfs_pdev_obj_create_notification(struct wlan_objmgr_pdev *pdev,
 	dfs->dfs_is_offload_enabled = dfs_tx_ops->dfs_is_tgt_offload(psoc);
 	dfs_info(dfs, WLAN_DEBUG_DFS_ALWAYS, "dfs_offload %d",
 		 dfs->dfs_is_offload_enabled);
+	dfs_agile_soc_obj_init(dfs, psoc);
 
-	dfs = wlan_pdev_get_dfs_obj(pdev);
 	if (dfs_attach(dfs) == 1) {
 		dfs_err(dfs, WLAN_DEBUG_DFS_ALWAYS,  "dfs_attch failed");
 		dfs_destroy_object(dfs);
@@ -397,10 +462,6 @@ static void dfs_scan_serialization_comp_info_cb(
 {
 	struct wlan_dfs *dfs = NULL;
 	struct wlan_objmgr_pdev *pdev;
-	struct wlan_lmac_if_dfs_tx_ops *dfs_tx_ops;
-	struct wlan_objmgr_psoc *psoc;
-	bool is_5ghz = false;
-	QDF_STATUS status;
 
 	if (!comp_info) {
 		dfs_err(dfs, WLAN_DEBUG_DFS_ALWAYS,  "comp_info is NULL");
@@ -420,25 +481,7 @@ static void dfs_scan_serialization_comp_info_cb(
 
 	comp_info->scan_info.is_cac_in_progress = false;
 
-	psoc = wlan_pdev_get_psoc(pdev);
-	if (!psoc) {
-		dfs_err(dfs, WLAN_DEBUG_DFS_ALWAYS,  "null psoc");
-		return;
-	}
-
-	dfs_tx_ops = wlan_psoc_get_dfs_txops(psoc);
-	if (!(dfs_tx_ops && dfs_tx_ops->dfs_is_pdev_5ghz)) {
-		dfs_err(dfs, WLAN_DEBUG_DFS_ALWAYS,  "dfs_tx_ops is null");
-		return;
-	}
-
-	status = dfs_tx_ops->dfs_is_pdev_5ghz(pdev, &is_5ghz);
-	if (QDF_IS_STATUS_ERROR(status)) {
-		dfs_err(dfs, WLAN_DEBUG_DFS_ALWAYS,  "Failed to get is_5ghz value");
-		return;
-	}
-
-	if (!is_5ghz)
+	if (!tgt_dfs_is_pdev_5ghz(pdev))
 		return;
 
 	dfs = wlan_pdev_get_dfs_obj(pdev);

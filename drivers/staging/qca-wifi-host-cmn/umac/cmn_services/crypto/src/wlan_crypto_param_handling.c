@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -40,6 +40,8 @@ cipher2cap(int cipher)
 {
 	switch (cipher)	{
 	case WLAN_CRYPTO_CIPHER_WEP:  return WLAN_CRYPTO_CAP_WEP;
+	case WLAN_CRYPTO_CIPHER_WEP_40:  return WLAN_CRYPTO_CAP_WEP;
+	case WLAN_CRYPTO_CIPHER_WEP_104:  return WLAN_CRYPTO_CAP_WEP;
 	case WLAN_CRYPTO_CIPHER_AES_OCB:  return WLAN_CRYPTO_CAP_AES;
 	case WLAN_CRYPTO_CIPHER_AES_CCM:  return WLAN_CRYPTO_CAP_AES;
 	case WLAN_CRYPTO_CIPHER_AES_CCM_256:  return WLAN_CRYPTO_CAP_AES;
@@ -103,7 +105,7 @@ QDF_STATUS wlan_crypto_set_mcastcipher(struct wlan_crypto_params *crypto_params,
 
 	for (i = 0; i < WLAN_CRYPTO_CIPHER_MAX; i++) {
 		if (HAS_PARAM(cipher, i)) {
-			cap = cipher2cap(cipher & i);
+			cap = cipher2cap(i);
 			if (cap && HAS_CIPHER_CAP(crypto_params, cap)) {
 				SET_MCAST_CIPHER(crypto_params, i);
 				status = QDF_STATUS_SUCCESS;
@@ -148,7 +150,7 @@ QDF_STATUS wlan_crypto_set_ucastciphers(
 
 	for (i = 0; i < WLAN_CRYPTO_CIPHER_MAX ; i++) {
 		if (HAS_PARAM(cipher, i)) {
-			cap = cipher2cap(cipher & i);
+			cap = cipher2cap(i);
 			if (cap && HAS_CIPHER_CAP(crypto_params, cap)) {
 				SET_UCAST_CIPHER(crypto_params, i);
 				status = QDF_STATUS_SUCCESS;

@@ -16,7 +16,6 @@
 #include <i_qdf_notifier.h>
 #include <qdf_status.h>
 #include <qdf_notifier.h>
-#include <qdf_util.h>
 
 QDF_STATUS qdf_register_blocking_notifier_chain(qdf_blocking_notif_head *head,
 						qdf_notif_block *qnb)

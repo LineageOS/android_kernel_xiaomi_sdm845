@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -29,23 +29,28 @@
 #include <cdp_txrx_misc.h>      /* ol_tx_spec */
 #include <cdp_txrx_handle.h>
 #include <ol_txrx_types.h>      /* ol_tx_desc_t, ol_txrx_msdu_info_t */
+#include <ol_txrx.h>
 #include <hif.h>
 
 #ifdef IPA_OFFLOAD
 /**
  * ol_tx_send_ipa_data_frame() - send IPA data frame
- * @vdev: vdev
+ * @soc_hdl: datapath soc handle
+ * @vdev: virtual interface id
  * @skb: skb
  *
  * Return: skb/ NULL is for success
  */
-qdf_nbuf_t ol_tx_send_ipa_data_frame(struct cdp_vdev *vdev, qdf_nbuf_t skb);
+qdf_nbuf_t ol_tx_send_ipa_data_frame(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
+				     qdf_nbuf_t skb);
 #endif
 
+#ifdef CONFIG_LL_DP_SUPPORT
 struct ol_tx_desc_t *
 ol_tx_prepare_ll(ol_txrx_vdev_handle vdev,
 		 qdf_nbuf_t msdu,
 		 struct ol_txrx_msdu_info_t *msdu_info);
+#endif
 
 qdf_nbuf_t ol_tx_ll_wrapper(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list);
 #ifdef WLAN_FEATURE_FASTPATH
@@ -76,6 +81,31 @@ qdf_nbuf_t ol_tx_ll_queue(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list);
 #define OL_TX_LL ol_tx_ll_wrapper
 #endif
 
+#ifdef WLAN_SUPPORT_TXRX_HL_BUNDLE
+void ol_tx_hl_vdev_bundle_timer(void *context);
+
+void ol_tx_hl_queue_flush_all(struct ol_txrx_vdev_t *vdev);
+qdf_nbuf_t
+ol_tx_hl_pdev_queue_send_all(struct ol_txrx_pdev_t *pdev);
+#else
+static inline
+void ol_tx_hl_vdev_bundle_timer(void *context)
+{
+}
+
+static inline
+void ol_tx_hl_queue_flush_all(struct ol_txrx_vdev_t *vdev)
+{
+}
+
+static inline
+qdf_nbuf_t
+ol_tx_hl_pdev_queue_send_all(struct ol_txrx_pdev_t *pdev)
+{
+	return NULL;
+}
+#endif
+
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
 void ol_tx_vdev_ll_pause_queue_send(void *context);
 void ol_tx_pdev_ll_pause_queue_send_all(struct ol_txrx_pdev_t *pdev);
@@ -89,6 +119,27 @@ void ol_tx_pdev_ll_pause_queue_send_all(struct ol_txrx_pdev_t *pdev)
 }
 #endif
 
+static inline
+int ol_txrx_tx_is_raw(enum ol_tx_spec tx_spec)
+{
+	return	tx_spec &
+		(OL_TX_SPEC_RAW | OL_TX_SPEC_NO_AGGR | OL_TX_SPEC_NO_ENCRYPT);
+}
+
+static inline
+uint8_t ol_txrx_tx_raw_subtype(enum ol_tx_spec tx_spec)
+{
+	uint8_t sub_type = 0x1; /* 802.11 MAC header present */
+
+	if (tx_spec & OL_TX_SPEC_NO_AGGR)
+		sub_type |= 0x1 << HTT_TX_MSDU_DESC_RAW_SUBTYPE_NO_AGGR_S;
+	if (tx_spec & OL_TX_SPEC_NO_ENCRYPT)
+		sub_type |= 0x1 << HTT_TX_MSDU_DESC_RAW_SUBTYPE_NO_ENCRYPT_S;
+	if (tx_spec & OL_TX_SPEC_NWIFI_NO_ENCRYPT)
+		sub_type |= 0x1 << HTT_TX_MSDU_DESC_RAW_SUBTYPE_NO_ENCRYPT_S;
+	return sub_type;
+}
+
 /**
  * ol_tx_hl() - transmit tx frames for a HL system.
  * @vdev: the virtual device transmit the data
@@ -101,7 +152,8 @@ ol_tx_hl(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list);
 
 /**
  * ol_tx_non_std() - Allow the control-path SW to send data frames
- * @data_vdev: which vdev should transmit the tx data frames
+ * @soc_hdl: Datapath soc handle
+ * @vdev_id: id of vdev
  * @tx_spec: what non-standard handling to apply to the tx data frames
  * @msdu_list: NULL-terminated list of tx MSDUs
  *
@@ -120,16 +172,44 @@ ol_tx_hl(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list);
  *
  *  Return: null - success, skb - failure
  */
-qdf_nbuf_t
-ol_tx_non_std(struct cdp_vdev *pvdev,
-	      enum ol_tx_spec tx_spec, qdf_nbuf_t msdu_list);
+#ifdef CONFIG_HL_SUPPORT
+qdf_nbuf_t ol_tx_non_std_hl(struct ol_txrx_vdev_t *vdev,
+			    enum ol_tx_spec tx_spec,
+			    qdf_nbuf_t msdu_list);
+
+static inline qdf_nbuf_t
+ol_tx_non_std(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
+	      enum ol_tx_spec tx_spec, qdf_nbuf_t msdu_list)
+{
+	struct ol_txrx_vdev_t *vdev;
+
+	vdev = (struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
+
+	return ol_tx_non_std_hl(vdev, tx_spec, msdu_list);
+}
+#else
+qdf_nbuf_t ol_tx_non_std_ll(struct ol_txrx_vdev_t *vdev,
+			    enum ol_tx_spec tx_spec, qdf_nbuf_t msdu_list);
+
+static inline qdf_nbuf_t
+ol_tx_non_std(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
+	      enum ol_tx_spec tx_spec, qdf_nbuf_t msdu_list)
+{
+	struct ol_txrx_vdev_t *vdev;
+
+	vdev = (struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
+
+	return ol_tx_non_std_ll(vdev, tx_spec, msdu_list);
+}
+#endif
 
 void ol_txrx_mgmt_tx_complete(void *ctxt, qdf_nbuf_t netbuf, int err);
 
 /**
  * ol_txrx_mgmt_tx_cb_set() - Store a callback for delivery
  *	notifications for management frames.
- * @ppdev: the data physical device object
+ * @soc: Datapath soc handle
+ * @pdev_id: Physical device instance id
  * @type: the type of mgmt frame the callback is used for
  * @download_cb: the callback for notification of delivery to the target
  * @ota_ack_cb: the callback for notification of delivery to the peer
@@ -145,14 +225,15 @@ void ol_txrx_mgmt_tx_complete(void *ctxt, qdf_nbuf_t netbuf, int err);
  * This function is used by the control SW to store a callback pointer
  * for a given type of management frame.
  */
-void
-ol_txrx_mgmt_tx_cb_set(struct cdp_pdev *ppdev, uint8_t type,
+QDF_STATUS
+ol_txrx_mgmt_tx_cb_set(struct cdp_soc_t *soc, uint8_t pdev_id, uint8_t type,
 		       ol_txrx_mgmt_tx_cb download_cb,
 		       ol_txrx_mgmt_tx_cb ota_ack_cb, void *ctxt);
 
 /**
  * ol_txrx_mgmt_send_ext() - Transmit a management frame
- * @pvdev: virtual device transmitting the frame
+ * @soc: Datapath soc handle
+ * @vdev_id: virtual interface id
  * @tx_mgmt_frm: management frame to transmit
  * @type: the type of management frame (determines what callback to use)
  * @use_6mbps: specify whether management frame to transmit should
@@ -168,7 +249,7 @@ ol_txrx_mgmt_tx_cb_set(struct cdp_pdev *ppdev, uint8_t type,
  *         1 - the frame was not accepted
  */
 int
-ol_txrx_mgmt_send_ext(struct cdp_vdev *pvdev,
+ol_txrx_mgmt_send_ext(struct cdp_soc_t *soc, uint8_t vdev_id,
 		      qdf_nbuf_t tx_mgmt_frm,
 		      uint8_t type, uint8_t use_6mbps, uint16_t chanfreq);
 
@@ -224,6 +305,10 @@ static inline void ol_tx_tso_update_stats(struct ol_txrx_pdev_t *pdev,
 					  uint32_t tso_msdu_idx)
 {
 }
+#endif
+
+#ifdef QCA_HL_NETDEV_FLOW_CONTROL
+bool ol_tx_desc_is_high_prio(qdf_nbuf_t msdu);
 #endif
 
 #if defined(HELIUMPLUS)

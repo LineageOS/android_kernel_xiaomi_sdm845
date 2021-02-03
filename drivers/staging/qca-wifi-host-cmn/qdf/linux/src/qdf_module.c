@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -27,6 +27,7 @@
 #include <qdf_nbuf.h>
 #include <qdf_mem.h>
 #include <qdf_event.h>
+#include <qdf_talloc.h>
 
 MODULE_AUTHOR("Qualcomm Atheros Inc.");
 MODULE_DESCRIPTION("Qualcomm Atheros Device Framework Module");
@@ -41,33 +42,48 @@ MODULE_LICENSE("Dual BSD/GPL");
  *
  * Return: int
  */
-static int __init
-qdf_mod_init(void)
+#ifndef QCA_SINGLE_WIFI_3_0
+static int __init qdf_mod_init(void)
+#else
+int qdf_mod_init(void)
+#endif
 {
 	qdf_shared_print_ctrl_init();
+	qdf_debugfs_init();
 	qdf_mem_init();
+	qdf_talloc_feature_init();
 	qdf_logging_init();
 	qdf_perfmod_init();
 	qdf_nbuf_mod_init();
 	qdf_event_list_init();
+
 	return 0;
 }
-module_init(qdf_mod_init);
 
+#ifndef QCA_SINGLE_WIFI_3_0
+module_init(qdf_mod_init);
+#endif
 /**
  * qdf_mod_exit() - module remove
  *
  * Return: int
  */
-static void __exit
-qdf_mod_exit(void)
+#ifndef QCA_SINGLE_WIFI_3_0
+static void __exit qdf_mod_exit(void)
+#else
+void qdf_mod_exit(void)
+#endif
 {
 	qdf_event_list_destroy();
 	qdf_nbuf_mod_exit();
 	qdf_perfmod_exit();
 	qdf_logging_exit();
+	qdf_talloc_feature_deinit();
 	qdf_mem_exit();
+	qdf_debugfs_exit();
 	qdf_shared_print_ctrl_cleanup();
 }
-module_exit(qdf_mod_exit);
 
+#ifndef QCA_SINGLE_WIFI_3_0
+module_exit(qdf_mod_exit);
+#endif

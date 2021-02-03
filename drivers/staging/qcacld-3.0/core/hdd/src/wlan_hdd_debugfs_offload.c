@@ -1,9 +1,5 @@
-
 /*
- * Copyright (c) 2018 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
+ * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -61,7 +57,7 @@ wlan_hdd_mc_addr_list_info_debugfs(struct hdd_context *hdd_ctx,
 	struct pmo_mc_addr_list mc_addr_list = {0};
 	QDF_STATUS status;
 
-	if (!hdd_ctx->config->fEnableMCAddrList) {
+	if (!ucfg_pmo_is_mc_addr_list_enabled(hdd_ctx->psoc)) {
 		ret = scnprintf(buf, buf_avail_len,
 				"\nMC addr ini is disabled\n");
 		if (ret > 0)
@@ -69,8 +65,8 @@ wlan_hdd_mc_addr_list_info_debugfs(struct hdd_context *hdd_ctx,
 		return length;
 	}
 
-	status = pmo_ucfg_get_mc_addr_list(hdd_ctx->psoc,
-					   adapter->session_id,
+	status = ucfg_pmo_get_mc_addr_list(hdd_ctx->psoc,
+					   adapter->vdev_id,
 					   &mc_addr_list);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		ret = scnprintf(buf, buf_avail_len,
@@ -102,8 +98,8 @@ wlan_hdd_mc_addr_list_info_debugfs(struct hdd_context *hdd_ctx,
 		}
 
 		ret = scnprintf(buf + length, buf_avail_len - length,
-				MAC_ADDRESS_STR "\n",
-				MAC_ADDR_ARRAY(mc_addr_list.mc_addr[i].bytes));
+				QDF_FULL_MAC_FMT "\n",
+				QDF_FULL_MAC_REF(mc_addr_list.mc_addr[i].bytes));
 		if (ret <= 0)
 			return length;
 		length += ret;
@@ -142,7 +138,7 @@ wlan_hdd_arp_offload_info_debugfs(struct hdd_context *hdd_ctx,
 	struct pmo_arp_offload_params info = {0};
 	QDF_STATUS status;
 
-	status = pmo_ucfg_get_arp_offload_params(adapter->vdev,
+	status = ucfg_pmo_get_arp_offload_params(adapter->vdev,
 						 &info);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		ret_val = scnprintf(buf, buf_avail_len,
@@ -232,7 +228,7 @@ wlan_hdd_ns_offload_info_debugfs(struct hdd_context *hdd_ctx,
 	QDF_STATUS status;
 	uint32_t i;
 
-	status = pmo_ucfg_get_ns_offload_params(adapter->vdev,
+	status = ucfg_pmo_get_ns_offload_params(adapter->vdev,
 						&info);
 	if (!QDF_IS_STATUS_SUCCESS(status)) {
 		ret = scnprintf(buf, buf_avail_len,
@@ -383,7 +379,7 @@ wlan_hdd_debugfs_update_filters_info(struct hdd_context *hdd_ctx,
 	}
 
 	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
-	if (hdd_sta_ctx->conn_info.connState != eConnectionState_Associated) {
+	if (hdd_sta_ctx->conn_info.conn_state != eConnectionState_Associated) {
 		ret_val = scnprintf(buf + len, buf_avail_len - len,
 				    "\nSTA is not connected\n");
 		if (ret_val <= 0)

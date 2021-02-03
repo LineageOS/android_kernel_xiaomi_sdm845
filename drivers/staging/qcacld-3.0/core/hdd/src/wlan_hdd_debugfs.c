@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -26,12 +26,14 @@
  */
 
 #ifdef WLAN_OPEN_SOURCE
+#include "osif_sync.h"
 #include <wlan_hdd_includes.h>
 #include <wlan_hdd_debugfs.h>
 #include <wlan_osif_request_manager.h>
 #include <wlan_hdd_wowl.h>
 #include <cds_sched.h>
 #include <wlan_hdd_debugfs_llstat.h>
+#include <wlan_hdd_debugfs_mibstat.h>
 
 #define MAX_USER_COMMAND_SIZE_WOWL_ENABLE 8
 #define MAX_USER_COMMAND_SIZE_WOWL_PATTERN 512
@@ -39,6 +41,8 @@
 
 #define MAX_DEBUGFS_WAIT_ITERATIONS 20
 #define DEBUGFS_WAIT_SLEEP_TIME 100
+
+static bool hdd_periodic_pattern_map[MAXNUM_PERIODIC_TX_PTRNS];
 
 static qdf_atomic_t debugfs_thread_count;
 
@@ -84,18 +88,18 @@ bool hdd_wait_for_debugfs_threads_completion(void)
 
 /**
  * __wcnss_wowpattern_write() - wow_pattern debugfs handler
- * @file: debugfs file handle
+ * @net_dev: net_device context used to register the debugfs file
  * @buf: text being written to the debugfs
  * @count: size of @buf
  * @ppos: (unused) offset into the virtual file system
  *
  * Return: number of bytes processed
  */
-static ssize_t __wcnss_wowpattern_write(struct file *file,
-				      const char __user *buf, size_t count,
-				      loff_t *ppos)
+static ssize_t __wcnss_wowpattern_write(struct net_device *net_dev,
+					const char __user *buf, size_t count,
+					loff_t *ppos)
 {
-	struct hdd_adapter *adapter = (struct hdd_adapter *) file->private_data;
+	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(net_dev);
 	struct hdd_context *hdd_ctx;
 	char cmd[MAX_USER_COMMAND_SIZE_WOWL_PATTERN + 1];
 	char *sptr, *token;
@@ -107,7 +111,7 @@ static ssize_t __wcnss_wowpattern_write(struct file *file,
 
 	hdd_enter();
 
-	if ((NULL == adapter) || (WLAN_HDD_ADAPTER_MAGIC != adapter->magic)) {
+	if (adapter->magic != WLAN_HDD_ADAPTER_MAGIC) {
 		hdd_err("Invalid adapter or adapter has invalid magic");
 		return -EINVAL;
 	}
@@ -192,29 +196,35 @@ static ssize_t wcnss_wowpattern_write(struct file *file,
 				      const char __user *buf,
 				      size_t count, loff_t *ppos)
 {
-	ssize_t ret;
+	struct net_device *net_dev = file_inode(file)->i_private;
+	struct osif_vdev_sync *vdev_sync;
+	ssize_t err_size;
 
-	cds_ssr_protect(__func__);
-	ret = __wcnss_wowpattern_write(file, buf, count, ppos);
-	cds_ssr_unprotect(__func__);
+	err_size = osif_vdev_sync_op_start(net_dev, &vdev_sync);
+	if (err_size)
+		return err_size;
 
-	return ret;
+	err_size = __wcnss_wowpattern_write(net_dev, buf, count, ppos);
+
+	osif_vdev_sync_op_stop(vdev_sync);
+
+	return err_size;
 }
 
 /**
  * wcnss_patterngen_write() - pattern_gen debugfs handler
- * @file: debugfs file handle
+ * @net_dev: net_device context used to register the debugfs file
  * @buf: text being written to the debugfs
  * @count: size of @buf
  * @ppos: (unused) offset into the virtual file system
  *
  * Return: number of bytes processed
  */
-static ssize_t __wcnss_patterngen_write(struct file *file,
-				      const char __user *buf, size_t count,
-				      loff_t *ppos)
+static ssize_t __wcnss_patterngen_write(struct net_device *net_dev,
+					const char __user *buf, size_t count,
+					loff_t *ppos)
 {
-	struct hdd_adapter *adapter;
+	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(net_dev);
 	struct hdd_context *hdd_ctx;
 	tSirAddPeriodicTxPtrn *addPeriodicTxPtrnParams;
 	tSirDelPeriodicTxPtrn *delPeriodicTxPtrnParams;
@@ -230,8 +240,7 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 
 	hdd_enter();
 
-	adapter = (struct hdd_adapter *)file->private_data;
-	if ((NULL == adapter) || (WLAN_HDD_ADAPTER_MAGIC != adapter->magic)) {
+	if (adapter->magic != WLAN_HDD_ADAPTER_MAGIC) {
 		hdd_err("Invalid adapter or adapter has invalid magic");
 		return -EINVAL;
 	}
@@ -294,6 +303,14 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 
 	/* Delete pattern using index if duration is 0 */
 	if (!pattern_duration) {
+		if (!hdd_periodic_pattern_map[pattern_idx]) {
+			hdd_debug_rl("WoW pattern %d is not in the table.",
+				     pattern_idx);
+
+			qdf_mem_free(cmd);
+			return -EINVAL;
+		}
+
 		delPeriodicTxPtrnParams =
 			qdf_mem_malloc(sizeof(tSirDelPeriodicTxPtrn));
 		if (!delPeriodicTxPtrnParams) {
@@ -301,8 +318,8 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 			qdf_mem_free(cmd);
 			return -ENOMEM;
 		}
+
 		delPeriodicTxPtrnParams->ucPtrnId = pattern_idx;
-		delPeriodicTxPtrnParams->ucPatternIdBitmap = 1 << pattern_idx;
 		qdf_copy_macaddr(&delPeriodicTxPtrnParams->mac_address,
 				 &adapter->mac_addr);
 
@@ -315,6 +332,9 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 			qdf_mem_free(delPeriodicTxPtrnParams);
 			goto failure;
 		}
+
+		hdd_periodic_pattern_map[pattern_idx] = false;
+
 		qdf_mem_free(cmd);
 		qdf_mem_free(delPeriodicTxPtrnParams);
 		return count;
@@ -387,6 +407,10 @@ static ssize_t __wcnss_patterngen_write(struct file *file,
 		qdf_mem_free(addPeriodicTxPtrnParams);
 		goto failure;
 	}
+
+	if (!hdd_periodic_pattern_map[pattern_idx])
+		hdd_periodic_pattern_map[pattern_idx] = true;
+
 	qdf_mem_free(cmd);
 	qdf_mem_free(addPeriodicTxPtrnParams);
 	hdd_exit();
@@ -411,45 +435,46 @@ static ssize_t wcnss_patterngen_write(struct file *file,
 				      const char __user *buf,
 				      size_t count, loff_t *ppos)
 {
-	ssize_t ret;
+	struct net_device *net_dev = file_inode(file)->i_private;
+	struct osif_vdev_sync *vdev_sync;
+	ssize_t err_size;
 
-	cds_ssr_protect(__func__);
-	ret = __wcnss_patterngen_write(file, buf, count, ppos);
-	cds_ssr_unprotect(__func__);
+	err_size = osif_vdev_sync_op_start(net_dev, &vdev_sync);
+	if (err_size)
+		return err_size;
 
-	return ret;
+	err_size = __wcnss_patterngen_write(net_dev, buf, count, ppos);
+
+	osif_vdev_sync_op_stop(vdev_sync);
+
+	return err_size;
 }
 
 /**
  * __wcnss_debugfs_open() - Generic debugfs open() handler
- * @inode: inode of the debugfs file
- * @file: file handle of the debugfs file
+ * @net_dev: net_device context used to register the debugfs file
  *
- * Return: 0
+ * Return: Errno
  */
-static int __wcnss_debugfs_open(struct inode *inode, struct file *file)
+static int __wcnss_debugfs_open(struct net_device *net_dev)
 {
-	struct hdd_adapter *adapter;
+	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(net_dev);
 	struct hdd_context *hdd_ctx;
-	int ret;
+	int errno;
 
 	hdd_enter();
 
-	if (inode->i_private)
-		file->private_data = inode->i_private;
-
-	adapter = (struct hdd_adapter *)file->private_data;
-	if ((NULL == adapter) || (WLAN_HDD_ADAPTER_MAGIC != adapter->magic)) {
+	if (adapter->magic != WLAN_HDD_ADAPTER_MAGIC) {
 		hdd_err("Invalid adapter or adapter has invalid magic");
 		return -EINVAL;
 	}
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
-		return ret;
+	errno = wlan_hdd_validate_context(hdd_ctx);
+
 	hdd_exit();
-	return 0;
+
+	return errno;
 }
 
 /**
@@ -461,13 +486,19 @@ static int __wcnss_debugfs_open(struct inode *inode, struct file *file)
  */
 static int wcnss_debugfs_open(struct inode *inode, struct file *file)
 {
-	int ret;
+	struct net_device *net_dev = inode->i_private;
+	struct osif_vdev_sync *vdev_sync;
+	int errno;
 
-	cds_ssr_protect(__func__);
-	ret = __wcnss_debugfs_open(inode, file);
-	cds_ssr_unprotect(__func__);
+	errno = osif_vdev_sync_op_start(net_dev, &vdev_sync);
+	if (errno)
+		return errno;
 
-	return ret;
+	errno = __wcnss_debugfs_open(net_dev);
+
+	osif_vdev_sync_op_stop(vdev_sync);
+
+	return errno;
 }
 
 static const struct file_operations fops_wowpattern = {
@@ -498,24 +529,27 @@ static const struct file_operations fops_patterngen = {
  */
 QDF_STATUS hdd_debugfs_init(struct hdd_adapter *adapter)
 {
-	struct net_device *dev = adapter->dev;
+	struct net_device *net_dev = adapter->dev;
 
-	adapter->debugfs_phy = debugfs_create_dir(dev->name, 0);
+	adapter->debugfs_phy = debugfs_create_dir(net_dev->name, 0);
 
-	if (NULL == adapter->debugfs_phy)
+	if (!adapter->debugfs_phy)
 		return QDF_STATUS_E_FAILURE;
 
-	if (NULL == debugfs_create_file("wow_pattern", 00400 | 00200,
-					adapter->debugfs_phy, adapter,
+	if (!debugfs_create_file("wow_pattern", 00400 | 00200,
+					adapter->debugfs_phy, net_dev,
 					&fops_wowpattern))
 		return QDF_STATUS_E_FAILURE;
 
-	if (NULL == debugfs_create_file("pattern_gen", 00400 | 00200,
-					adapter->debugfs_phy, adapter,
+	if (!debugfs_create_file("pattern_gen", 00400 | 00200,
+					adapter->debugfs_phy, net_dev,
 					&fops_patterngen))
 		return QDF_STATUS_E_FAILURE;
 
-	if (0 != wlan_hdd_create_ll_stats_file(adapter))
+	if (wlan_hdd_create_mib_stats_file(adapter))
+		return QDF_STATUS_E_FAILURE;
+
+	if (wlan_hdd_create_ll_stats_file(adapter))
 		return QDF_STATUS_E_FAILURE;
 
 	return QDF_STATUS_SUCCESS;
@@ -532,5 +566,6 @@ QDF_STATUS hdd_debugfs_init(struct hdd_adapter *adapter)
 void hdd_debugfs_exit(struct hdd_adapter *adapter)
 {
 	debugfs_remove_recursive(adapter->debugfs_phy);
+	wlan_hdd_destroy_mib_stats_lock();
 }
 #endif /* #ifdef WLAN_OPEN_SOURCE */

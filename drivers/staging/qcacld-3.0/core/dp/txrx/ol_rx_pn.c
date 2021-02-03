@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2013-2017, 2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -156,14 +156,12 @@ ol_rx_pn_check_base(struct ol_txrx_vdev_t *vdev,
 				last_pncheck_print_time = current_time_ms;
 				ol_txrx_warn(
 				   "PN check failed - TID %d, peer %pK "
-				   "(%02x:%02x:%02x:%02x:%02x:%02x) %s\n"
+				   "("QDF_MAC_ADDR_FMT") %s\n"
 				   "    old PN (u64 x2)= 0x%08llx %08llx (LSBs = %lld)\n"
 				   "    new PN (u64 x2)= 0x%08llx %08llx (LSBs = %lld)\n"
 				   "    new seq num = %d\n",
 				   tid, peer,
-				   peer->mac_addr.raw[0], peer->mac_addr.raw[1],
-				   peer->mac_addr.raw[2], peer->mac_addr.raw[3],
-				   peer->mac_addr.raw[4], peer->mac_addr.raw[5],
+				   QDF_MAC_ADDR_REF(peer->mac_addr.raw),
 				   (index ==
 				    txrx_sec_ucast) ? "ucast" : "mcast",
 				   last_pn->pn128[1], last_pn->pn128[0],
@@ -175,14 +173,12 @@ ol_rx_pn_check_base(struct ol_txrx_vdev_t *vdev,
 			} else {
 				ol_txrx_dbg(
 				   "PN check failed - TID %d, peer %pK "
-				   "(%02x:%02x:%02x:%02x:%02x:%02x) %s\n"
+				   "("QDF_MAC_ADDR_FMT") %s\n"
 				   "    old PN (u64 x2)= 0x%08llx %08llx (LSBs = %lld)\n"
 				   "    new PN (u64 x2)= 0x%08llx %08llx (LSBs = %lld)\n"
 				   "    new seq num = %d\n",
 				   tid, peer,
-				   peer->mac_addr.raw[0], peer->mac_addr.raw[1],
-				   peer->mac_addr.raw[2], peer->mac_addr.raw[3],
-				   peer->mac_addr.raw[4], peer->mac_addr.raw[5],
+				   QDF_MAC_ADDR_REF(peer->mac_addr.raw),
 				   (index ==
 				    txrx_sec_ucast) ? "ucast" : "mcast",
 				   last_pn->pn128[1], last_pn->pn128[0],

@@ -25,7 +25,7 @@
 #ifndef __WLAN_HDD_MPTA_HELPER_H
 #define __WLAN_HDD_MPTA_HELPER_H
 
-#include "wlan_hdd_cfg.h"
+#include "wlan_fw_offload_main.h"
 
 #ifdef FEATURE_MPTA_HELPER
 #include <net/cfg80211.h>
@@ -33,13 +33,15 @@
 /**
  * wlan_hdd_mpta_helper_enable() - enable/disable mpta helper
  * according to cfg from INI
+ * @coex_cfg_params: pointer of coex config command params
  * @config: pointer of BTC config items
  *
  * Return: 0 on success; error number otherwise.
  *
  */
 int
-wlan_hdd_mpta_helper_enable(struct hdd_config *config);
+wlan_hdd_mpta_helper_enable(struct coex_config_params *coex_cfg_params,
+			    struct wlan_fwol_coex_config *config);
 
 /**
  * wlan_hdd_cfg80211_mpta_helper_config() - update
@@ -71,7 +73,8 @@ int wlan_hdd_cfg80211_mpta_helper_config(struct wiphy *wiphy,
 #define FEATURE_MPTA_HELPER_COMMANDS
 
 static inline int
-wlan_hdd_mpta_helper_enable(struct hdd_config *config)
+wlan_hdd_mpta_helper_enable(struct coex_config_params *coex_cfg_params,
+			    struct wlan_fwol_coex_config *config)
 {
 	return 0;
 }

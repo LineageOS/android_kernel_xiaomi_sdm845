@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -32,6 +32,7 @@
 #include "wma_types.h"
 #include "wma.h"
 #include "wma_api.h"
+#include "wlan_policy_mgr_ucfg.h"
 
 #define NUMBER_OF_SCENARIO 300
 #define MAX_ALLOWED_CHAR_IN_REPORT 50
@@ -63,7 +64,7 @@ struct report_t {
 	bool status;
 	char result_code[MAX_ALLOWED_CHAR_IN_REPORT];
 	char reason[MAX_ALLOWED_CHAR_IN_REPORT];
-	char pcl[2 * QDF_MAX_NUM_CHAN];
+	char pcl[2 * NUM_CHANNELS];
 };
 
 static struct report_t report[NUMBER_OF_SCENARIO];
@@ -174,9 +175,13 @@ void fill_report(struct hdd_context *hdd_ctx, char *title,
 {
 	int i;
 	char buf[4] = {0};
+	uint8_t sys_pref = 0;
 
 	if (report_idx >= NUMBER_OF_SCENARIO)
 		return;
+
+	ucfg_policy_mgr_get_sys_pref(hdd_ctx->psoc, &sys_pref);
+
 	snprintf(report[report_idx].title,
 		2 * MAX_ALLOWED_CHAR_IN_REPORT, "pcl for[%s] pcl_type[%s]",
 		title, pcl_type_to_string(pcl_type));
@@ -215,7 +220,7 @@ void fill_report(struct hdd_context *hdd_ctx, char *title,
 		? "enable" : "disable");
 	snprintf(report[report_idx].system_conf,
 		MAX_ALLOWED_CHAR_IN_REPORT, "%s",
-		system_config_to_string(hdd_ctx->config->conc_system_pref));
+		system_config_to_string(sys_pref));
 	snprintf(report[report_idx].result_code,
 		MAX_ALLOWED_CHAR_IN_REPORT, "%s",
 		status ? "PASS" : "FAIL");
@@ -225,7 +230,7 @@ void fill_report(struct hdd_context *hdd_ctx, char *title,
 	if (pcl) {
 		qdf_mem_zero(report[report_idx].pcl,
 				sizeof(report[report_idx].pcl));
-		for (i = 0; i < QDF_MAX_NUM_CHAN; i++) {
+		for (i = 0; i < NUM_CHANNELS; i++) {
 			if (pcl[i] == 0)
 				break;
 			qdf_mem_zero(buf, sizeof(buf));
@@ -617,18 +622,18 @@ static void wlan_hdd_map_subtypes_hdd_wma(enum policy_mgr_con_mode *dst,
 void wlan_hdd_one_connection_scenario(struct hdd_context *hdd_ctx)
 {
 	enum policy_mgr_con_mode sub_type;
-	enum policy_mgr_conc_priority_mode system_pref =
-			hdd_ctx->config->conc_system_pref;
-	uint8_t pcl[QDF_MAX_NUM_CHAN] = {0},
-		weight_list[QDF_MAX_NUM_CHAN] = {0};
-	uint32_t pcl_len = 0;
+	uint8_t pcl[NUM_CHANNELS] = {0},
+		weight_list[NUM_CHANNELS] = {0};
+	uint32_t pcl_len = 0, i, pcl_freqs[NUM_CHANNELS] = {0};
 	bool status = false;
 	enum policy_mgr_pcl_type pcl_type;
 	char reason[20] = {0};
 	QDF_STATUS ret;
 	struct policy_mgr_sme_cbacks sme_cbacks;
+	uint8_t system_pref = 0;
 
-	sme_cbacks.sme_get_valid_channels = sme_get_valid_channels;
+	ucfg_policy_mgr_get_sys_pref(hdd_ctx->psoc, &system_pref);
+
 	sme_cbacks.sme_get_nss_for_vdev = sme_get_vdev_type_nss;
 	/* flush the entire table first */
 	ret = policy_mgr_psoc_enable(hdd_ctx->psoc);
@@ -649,8 +654,11 @@ void wlan_hdd_one_connection_scenario(struct hdd_context *hdd_ctx)
 			sub_type, system_pref);
 
 		/* check PCL value for second connection is correct or no */
-		policy_mgr_get_pcl(hdd_ctx->psoc, sub_type, pcl, &pcl_len,
-				weight_list, QDF_ARRAY_SIZE(weight_list));
+		policy_mgr_get_pcl(hdd_ctx->psoc, sub_type, pcl_freqs, &pcl_len,
+				   weight_list, QDF_ARRAY_SIZE(weight_list));
+		for (i = 0; i < pcl_len; i++)
+			pcl[i] = wlan_freq_to_chan(pcl_freqs[i]);
+
 		status = wlan_hdd_validate_pcl(hdd_ctx,
 				pcl_type, pcl, pcl_len, 0, 0,
 				reason, sizeof(reason));
@@ -670,25 +678,25 @@ void wlan_hdd_two_connections_scenario(struct hdd_context *hdd_ctx,
 {
 	uint8_t vdevid = 0, tx_stream = 2, rx_stream = 2;
 	uint8_t type = WMI_VDEV_TYPE_STA, channel_id = first_chnl, mac_id = 1;
-	uint8_t pcl[QDF_MAX_NUM_CHAN] = {0},
-			weight_list[QDF_MAX_NUM_CHAN] = {0};
-	uint32_t pcl_len = 0;
+	uint8_t pcl[NUM_CHANNELS] = {0},
+			weight_list[NUM_CHANNELS] = {0};
+	uint32_t pcl_len = 0, i, pcl_freqs[NUM_CHANNELS];
 	enum policy_mgr_chain_mode chain_mask = first_chain_mask;
 	enum policy_mgr_con_mode sub_type, next_sub_type, dummy_type;
-	enum policy_mgr_conc_priority_mode system_pref =
-			hdd_ctx->config->conc_system_pref;
 	enum policy_mgr_pcl_type pcl_type;
 	enum policy_mgr_one_connection_mode second_index;
 	char reason[20] = {0};
 	bool status = false;
 	QDF_STATUS ret;
 	struct policy_mgr_sme_cbacks sme_cbacks;
+	uint8_t system_pref = 0;
+
+	ucfg_policy_mgr_get_sys_pref(hdd_ctx->psoc, &system_pref);
 
 	for (sub_type = PM_STA_MODE;
 		sub_type < PM_MAX_NUM_OF_MODE; sub_type++) {
 		type = wlan_hdd_valid_type_of_persona(sub_type);
 
-		sme_cbacks.sme_get_valid_channels = sme_get_valid_channels;
 		sme_cbacks.sme_get_nss_for_vdev = sme_get_vdev_type_nss;
 		/* flush the entire table first */
 		ret = policy_mgr_psoc_enable(hdd_ctx->psoc);
@@ -700,10 +708,10 @@ void wlan_hdd_two_connections_scenario(struct hdd_context *hdd_ctx,
 		/* sub_type mapping between HDD and WMA are different */
 		wlan_hdd_map_subtypes_hdd_wma(&dummy_type, &sub_type);
 		/* add first connection as STA */
-		policy_mgr_incr_connection_count_utfw(hdd_ctx->psoc,
-				vdevid, tx_stream,
-				rx_stream, chain_mask, type, dummy_type,
-				channel_id, mac_id);
+		policy_mgr_incr_connection_count_utfw(
+			hdd_ctx->psoc, vdevid, tx_stream,
+			rx_stream, chain_mask, type, dummy_type,
+			wlan_chan_to_freq(channel_id), mac_id);
 		/* validate one connection is created or no */
 		if (policy_mgr_get_connection_count(hdd_ctx->psoc) != 1) {
 			hdd_err("Test failed - No. of connection is not 1");
@@ -729,8 +737,11 @@ void wlan_hdd_two_connections_scenario(struct hdd_context *hdd_ctx,
 					hdd_ctx->psoc));
 			/* check PCL for second connection is correct or no */
 			policy_mgr_get_pcl(hdd_ctx->psoc,
-				next_sub_type, pcl, &pcl_len,
-				weight_list, QDF_ARRAY_SIZE(weight_list));
+					   next_sub_type, pcl_freqs, &pcl_len,
+					   weight_list,
+					   QDF_ARRAY_SIZE(weight_list));
+			for (i = 0; i < pcl_len; i++)
+				pcl[i] = wlan_freq_to_chan(pcl_freqs[i]);
 			status = wlan_hdd_validate_pcl(hdd_ctx,
 					pcl_type, pcl, pcl_len, channel_id, 0,
 					reason, sizeof(reason));
@@ -756,20 +767,21 @@ void wlan_hdd_three_connections_scenario(struct hdd_context *hdd_ctx,
 	uint8_t channel_id_1 = first_chnl, channel_id_2 = second_chnl;
 	uint8_t mac_id_1, mac_id_2;
 	uint8_t type_1 = WMI_VDEV_TYPE_STA, type_2 = WMI_VDEV_TYPE_STA;
-	uint8_t pcl[MAX_NUM_CHAN] = {0}, weight_list[MAX_NUM_CHAN] = {0};
-	uint32_t pcl_len = 0;
+	uint8_t pcl[NUM_CHANNELS] = {0}, weight_list[NUM_CHANNELS] = {0};
+	uint32_t pcl_len = 0, i, pcl_freqs[NUM_CHANNELS];
 	enum policy_mgr_chain_mode chain_mask_1;
 	enum policy_mgr_chain_mode chain_mask_2;
 	enum policy_mgr_con_mode sub_type_1, sub_type_2, next_sub_type;
 	enum policy_mgr_con_mode dummy_type_1, dummy_type_2;
-	enum policy_mgr_conc_priority_mode system_pref =
-			hdd_ctx->config->conc_system_pref;
 	enum policy_mgr_pcl_type pcl_type;
 	enum policy_mgr_two_connection_mode third_index;
 	char reason[20] = {0};
 	bool status = false;
 	QDF_STATUS ret;
 	struct policy_mgr_sme_cbacks sme_cbacks;
+	uint8_t system_pref = 0;
+
+	ucfg_policy_mgr_get_sys_pref(hdd_ctx->psoc, &system_pref);
 
 	/* let's set the chain_mask, mac_ids*/
 	if (chain_mask == POLICY_MGR_TWO_TWO) {
@@ -794,7 +806,6 @@ void wlan_hdd_three_connections_scenario(struct hdd_context *hdd_ctx,
 
 		type_1 = wlan_hdd_valid_type_of_persona(sub_type_1);
 
-		sme_cbacks.sme_get_valid_channels = sme_get_valid_channels;
 		sme_cbacks.sme_get_nss_for_vdev = sme_get_vdev_type_nss;
 		/* flush the entire table first */
 		ret = policy_mgr_psoc_enable(hdd_ctx->psoc);
@@ -806,9 +817,10 @@ void wlan_hdd_three_connections_scenario(struct hdd_context *hdd_ctx,
 		/* sub_type mapping between HDD and WMA are different */
 		wlan_hdd_map_subtypes_hdd_wma(&dummy_type_1, &sub_type_1);
 		/* add first connection as STA */
-		policy_mgr_incr_connection_count_utfw(hdd_ctx->psoc,
-			vdevid_1, tx_stream_1, rx_stream_1, chain_mask_1,
-			type_1,	dummy_type_1, channel_id_1, mac_id_1);
+		policy_mgr_incr_connection_count_utfw(
+			hdd_ctx->psoc, vdevid_1, tx_stream_1, rx_stream_1,
+			chain_mask_1, type_1, dummy_type_1,
+			wlan_chan_to_freq(channel_id_1), mac_id_1);
 		/* validate one connection is created or no */
 		if (policy_mgr_get_connection_count(hdd_ctx->psoc) != 1) {
 			hdd_err("Test fail - No. of connection not 1");
@@ -821,10 +833,11 @@ void wlan_hdd_three_connections_scenario(struct hdd_context *hdd_ctx,
 			/* sub_type mapping between HDD and WMA are different */
 			wlan_hdd_map_subtypes_hdd_wma(&dummy_type_2,
 					&sub_type_2);
-			policy_mgr_incr_connection_count_utfw(hdd_ctx->psoc,
-				vdevid_2, tx_stream_2, rx_stream_2,
-				chain_mask_2, type_2,
-				dummy_type_2, channel_id_2, mac_id_2);
+			policy_mgr_incr_connection_count_utfw(
+				hdd_ctx->psoc, vdevid_2, tx_stream_2,
+				rx_stream_2, chain_mask_2, type_2,
+				dummy_type_2,
+				wlan_chan_to_freq(channel_id_2), mac_id_2);
 			/* validate two connections are created or no */
 			if (policy_mgr_get_connection_count(hdd_ctx->psoc)
 				!= 2) {
@@ -850,11 +863,13 @@ void wlan_hdd_three_connections_scenario(struct hdd_context *hdd_ctx,
 					system_pref,
 					policy_mgr_is_hw_dbs_capable(
 					hdd_ctx->psoc));
-				policy_mgr_get_pcl(hdd_ctx->psoc,
-					next_sub_type,
-					pcl, &pcl_len,
-					weight_list,
+				policy_mgr_get_pcl(
+					hdd_ctx->psoc, next_sub_type,
+					pcl_freqs, &pcl_len, weight_list,
 					QDF_ARRAY_SIZE(weight_list));
+				for (i = 0; i < pcl_len; i++)
+					pcl[i] =
+						wlan_freq_to_chan(pcl_freqs[i]);
 				status = wlan_hdd_validate_pcl(hdd_ctx,
 					pcl_type, pcl, pcl_len,
 					channel_id_1, channel_id_2,

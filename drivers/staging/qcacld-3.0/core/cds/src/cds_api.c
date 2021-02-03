@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -54,21 +54,31 @@
 #include <cdp_txrx_cmn_reg.h>
 #include <cdp_txrx_cfg.h>
 #include <cdp_txrx_misc.h>
+#include <ol_defines.h>
 #include <dispatcher_init_deinit.h>
 #include <cdp_txrx_handle.h>
+#include <cdp_txrx_host_stats.h>
 #include "target_type.h"
 #include "wlan_ocb_ucfg_api.h"
 #include "wlan_ipa_ucfg_api.h"
-
+#include "dp_txrx.h"
 #ifdef ENABLE_SMMU_S1_TRANSLATION
 #include "pld_common.h"
 #include <asm/dma-iommu.h>
 #include <linux/iommu.h>
 #endif
+
+#ifdef QCA_WIFI_QCA8074
+#include <target_if_dp.h>
+#endif
+#include "wlan_mlme_ucfg_api.h"
+#include "cfg_ucfg_api.h"
+#include "wlan_cp_stats_mc_ucfg_api.h"
 #include <qdf_hang_event_notifier.h>
 #include <qdf_notifier.h>
 #include <qwlan_version.h>
 #include <qdf_trace.h>
+
 /* Preprocessor Definitions and Constants */
 
 /* Preprocessor Definitions and Constants */
@@ -80,22 +90,47 @@ static struct __qdf_device g_qdf_ctx;
 
 static uint8_t cds_multicast_logging;
 
-static struct ol_if_ops  dp_ol_if_ops = {
-	.peer_set_default_routing = wma_peer_set_default_routing,
-	.peer_rx_reorder_queue_setup = wma_peer_rx_reorder_queue_setup,
-	.peer_rx_reorder_queue_remove = wma_peer_rx_reorder_queue_remove,
-	.is_hw_dbs_2x2_capable = policy_mgr_is_hw_dbs_2x2_capable,
-	.lro_hash_config = wma_lro_config_cmd,
-	.rx_mic_error = wma_rx_mic_error_ind
-    /* TODO: Add any other control path calls required to OL_IF/WMA layer */
-};
+#define DRIVER_VER_LEN (11)
+#define HANG_EVENT_VER_LEN (1)
 
 struct cds_hang_event_fixed_param {
-	uint32_t tlv_header;
-	uint32_t recovery_reason;
-	char driver_version[11];
-	char hang_event_version[3];
+	uint16_t tlv_header;
+	uint8_t recovery_reason;
+	char driver_version[DRIVER_VER_LEN];
+	char hang_event_version[HANG_EVENT_VER_LEN];
 } qdf_packed;
+
+#ifdef QCA_WIFI_QCA8074
+static inline int
+cds_send_delba(struct cdp_ctrl_objmgr_psoc *psoc,
+	       uint8_t vdev_id, uint8_t *peer_macaddr,
+	       uint8_t tid, uint8_t reason_code)
+{
+	return wma_dp_send_delba_ind(vdev_id, peer_macaddr, tid, reason_code);
+}
+
+static struct ol_if_ops  dp_ol_if_ops = {
+	.peer_set_default_routing = target_if_peer_set_default_routing,
+	.peer_rx_reorder_queue_setup = target_if_peer_rx_reorder_queue_setup,
+	.peer_rx_reorder_queue_remove = target_if_peer_rx_reorder_queue_remove,
+	.is_hw_dbs_2x2_capable = policy_mgr_is_dp_hw_dbs_2x2_capable,
+	.lro_hash_config = target_if_lro_hash_config,
+	.rx_invalid_peer = wma_rx_invalid_peer_ind,
+	.is_roam_inprogress = wma_is_roam_in_progress,
+	.get_con_mode = cds_get_conparam,
+	.send_delba = cds_send_delba,
+#ifdef DP_MEM_PRE_ALLOC
+	.dp_prealloc_get_consistent = dp_prealloc_get_coherent,
+	.dp_prealloc_put_consistent = dp_prealloc_put_coherent,
+	.dp_get_multi_pages = dp_prealloc_get_multi_pages,
+	.dp_put_multi_pages = dp_prealloc_put_multi_pages,
+#endif
+	.dp_rx_get_pending = dp_rx_tm_get_pending,
+    /* TODO: Add any other control path calls required to OL_IF/WMA layer */
+};
+#else
+static struct ol_if_ops  dp_ol_if_ops;
+#endif
 
 static void cds_trigger_recovery_work(void *param);
 
@@ -120,7 +155,7 @@ static QDF_STATUS cds_recovery_work_init(void)
 			cds_trigger_recovery_work, &__cds_recovery_caller);
 	gp_cds_context->cds_recovery_wq =
 		qdf_create_workqueue("cds_recovery_workqueue");
-	if (NULL == gp_cds_context->cds_recovery_wq) {
+	if (!gp_cds_context->cds_recovery_wq) {
 		cds_err("Failed to create cds_recovery_workqueue");
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -141,89 +176,86 @@ static void cds_recovery_work_deinit(void)
 	}
 }
 
-/** cds_get_datapath_handles - Initialize pdev, vdev and soc
- * @soc - soc handle
- * @vdev - virtual handle
- * @pdev - physical handle
- */
-uint8_t cds_get_datapath_handles(void **soc, struct cdp_pdev **pdev,
-		struct cdp_vdev **vdev, uint8_t sessionId)
+static bool cds_is_drv_connected(void)
 {
+	int ret;
+	qdf_device_t qdf_ctx;
 
-	(*soc) = cds_get_context(QDF_MODULE_ID_SOC);
-
-	if (!(*soc)) {
-		cds_err("soc handle is invalid");
-		return -EINVAL;
+	qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	if (!qdf_ctx) {
+		cds_err("cds context is invalid");
+		return false;
 	}
 
-	(*pdev) = cds_get_context(QDF_MODULE_ID_TXRX);
+	ret = pld_is_drv_connected(qdf_ctx->dev);
 
-	if (!(*pdev)) {
-		cds_err("pdev handle is invalid");
-		return -EINVAL;
-	}
-
-	(*vdev) = cdp_get_vdev_from_vdev_id((*soc), (*pdev),
-					sessionId);
-
-	if (!(*vdev)) {
-		cds_err("vdev handle is invalid");
-		return -EINVAL;
-	}
-	return 0;
+	return ((ret > 0) ? true : false);
 }
 
+static bool cds_is_drv_supported(void)
+{
+	qdf_device_t qdf_ctx;
+	struct pld_platform_cap cap = {0};
+
+	qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	if (!qdf_ctx) {
+		cds_err("cds context is invalid");
+		return false;
+	}
+
+	pld_get_platform_cap(qdf_ctx->dev, &cap);
+
+	return ((cap.cap_flag & PLD_HAS_DRV_SUPPORT) ? true : false);
+}
+
+static QDF_STATUS cds_wmi_send_recv_qmi(void *buf, uint32_t len, void * cb_ctx,
+					qdf_wmi_recv_qmi_cb wmi_rx_cb)
+{
+	qdf_device_t qdf_ctx;
+
+	qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	if (!qdf_ctx) {
+		cds_err("cds context is invalid");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	if (pld_qmi_send(qdf_ctx->dev, 0, buf, len, cb_ctx, wmi_rx_cb))
+		return QDF_STATUS_E_INVAL;
+
+	return QDF_STATUS_SUCCESS;
+}
 
 QDF_STATUS cds_init(void)
 {
-	QDF_STATUS ret;
-
-	ret = qdf_debugfs_init();
-	if (ret != QDF_STATUS_SUCCESS)
-		cds_err("Failed to init debugfs");
-
-	qdf_lock_stats_init();
-	qdf_mem_init();
-	qdf_mc_timer_manager_init();
-	qdf_event_list_init();
-	qdf_cpuhp_init();
-	qdf_register_self_recovery_callback(cds_trigger_recovery_psoc);
-	qdf_register_fw_down_callback(cds_is_fw_down);
-	qdf_register_ssr_protect_callbacks(cds_ssr_protect,
-					   cds_ssr_unprotect);
+	QDF_STATUS status;
 
 	gp_cds_context = &g_cds_context;
 
-	gp_cds_context->qdf_ctx = &g_qdf_ctx;
-	qdf_mem_zero(&g_qdf_ctx, sizeof(g_qdf_ctx));
-
-	qdf_trace_spin_lock_init();
-	qdf_trace_init();
-	qdf_register_recovering_state_query_callback(cds_is_driver_recovering);
-
-	qdf_register_debugcb_init();
-
-	cds_ssr_protect_init();
-
-	ret = cds_recovery_work_init();
-	if (ret != QDF_STATUS_SUCCESS) {
-		cds_err("Failed to init recovery work");
+	status = cds_recovery_work_init();
+	if (QDF_IS_STATUS_ERROR(status)) {
+		cds_err("Failed to init recovery work; status:%u", status);
 		goto deinit;
 	}
 
+	cds_ssr_protect_init();
+
+	gp_cds_context->qdf_ctx = &g_qdf_ctx;
+
+	qdf_register_self_recovery_callback(cds_trigger_recovery_psoc);
+	qdf_register_fw_down_callback(cds_is_fw_down);
+	qdf_register_is_driver_unloading_callback(cds_is_driver_unloading);
+	qdf_register_recovering_state_query_callback(cds_is_driver_recovering);
+	qdf_register_drv_connected_callback(cds_is_drv_connected);
+	qdf_register_drv_supported_callback(cds_is_drv_supported);
+	qdf_register_wmi_send_recv_qmi_callback(cds_wmi_send_recv_qmi);
+
 	return QDF_STATUS_SUCCESS;
+
 deinit:
-	qdf_cpuhp_deinit();
-	qdf_event_list_destroy();
-	qdf_mc_timer_manager_exit();
-	qdf_mem_exit();
-	qdf_lock_stats_deinit();
-	qdf_debugfs_exit();
-	gp_cds_context->qdf_ctx = NULL;
 	gp_cds_context = NULL;
 	qdf_mem_zero(&g_cds_context, sizeof(g_cds_context));
-	return ret;
+
+	return status;
 }
 
 /**
@@ -233,22 +265,25 @@ deinit:
  */
 void cds_deinit(void)
 {
-	if (gp_cds_context == NULL)
+	QDF_BUG(gp_cds_context);
+	if (!gp_cds_context)
 		return;
+
 	qdf_register_recovering_state_query_callback(NULL);
-	cds_recovery_work_deinit();
-	qdf_cpuhp_deinit();
-	qdf_mc_timer_manager_exit();
-	qdf_mem_exit();
-	qdf_lock_stats_deinit();
-	qdf_debugfs_exit();
-	qdf_event_list_destroy();
+	qdf_register_fw_down_callback(NULL);
+	qdf_register_is_driver_unloading_callback(NULL);
+	qdf_register_self_recovery_callback(NULL);
+	qdf_register_wmi_send_recv_qmi_callback(NULL);
 
 	gp_cds_context->qdf_ctx = NULL;
-	gp_cds_context = NULL;
+	qdf_mem_zero(&g_qdf_ctx, sizeof(g_qdf_ctx));
 
+	/* currently, no ssr_protect_deinit */
+
+	cds_recovery_work_deinit();
+
+	gp_cds_context = NULL;
 	qdf_mem_zero(&g_cds_context, sizeof(g_cds_context));
-	return;
 }
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
@@ -294,13 +329,13 @@ cds_cfg_update_ac_specs_params(struct txrx_pdev_cfg_param_t *olcfg,
 {
 	int i;
 
-	if (NULL == olcfg)
+	if (!olcfg)
 		return;
 
-	if (NULL == cds_cfg)
+	if (!cds_cfg)
 		return;
 
-	for (i = 0; i < OL_TX_NUM_WMM_AC; i++) {
+	for (i = 0; i < QCA_WLAN_AC_ALL; i++) {
 		olcfg->ac_specs[i].wrr_skip_weight =
 			cds_cfg->ac_specs[i].wrr_skip_weight;
 		olcfg->ac_specs[i].credit_threshold =
@@ -316,18 +351,56 @@ cds_cfg_update_ac_specs_params(struct txrx_pdev_cfg_param_t *olcfg,
 
 #if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 static inline void
-cds_cdp_set_flow_control_params(struct cds_config_info *cds_cfg,
+cds_cdp_set_flow_control_params(struct wlan_objmgr_psoc *psoc,
 				struct txrx_pdev_cfg_param_t *cdp_cfg)
 {
-	cdp_cfg->tx_flow_stop_queue_th = cds_cfg->tx_flow_stop_queue_th;
+	cdp_cfg->tx_flow_stop_queue_th =
+		cfg_get(psoc, CFG_DP_TX_FLOW_STOP_QUEUE_TH);
 	cdp_cfg->tx_flow_start_queue_offset =
-				 cds_cfg->tx_flow_start_queue_offset;
+		cfg_get(psoc, CFG_DP_TX_FLOW_START_QUEUE_OFFSET);
 }
 #else
 static inline void
-cds_cdp_set_flow_control_params(struct cds_config_info *cds_cfg,
+cds_cdp_set_flow_control_params(struct wlan_objmgr_psoc *psoc,
 				struct txrx_pdev_cfg_param_t *cdp_cfg)
 {}
+#endif
+
+#ifdef QCA_SUPPORT_TXRX_DRIVER_TCP_DEL_ACK
+static inline void
+cds_cdp_update_del_ack_params(struct wlan_objmgr_psoc *psoc,
+			      struct txrx_pdev_cfg_param_t *cdp_cfg)
+{
+	cdp_cfg->del_ack_enable =
+		cfg_get(psoc, CFG_DP_DRIVER_TCP_DELACK_ENABLE);
+	cdp_cfg->del_ack_pkt_count =
+		cfg_get(psoc, CFG_DP_DRIVER_TCP_DELACK_PKT_CNT);
+	cdp_cfg->del_ack_timer_value =
+		cfg_get(psoc, CFG_DP_DRIVER_TCP_DELACK_TIMER_VALUE);
+}
+#else
+static inline void
+cds_cdp_update_del_ack_params(struct wlan_objmgr_psoc *psoc,
+			      struct txrx_pdev_cfg_param_t *cdp_cfg)
+{}
+#endif
+
+#ifdef WLAN_SUPPORT_TXRX_HL_BUNDLE
+static inline void
+cds_cdp_update_bundle_params(struct wlan_objmgr_psoc *psoc,
+			     struct txrx_pdev_cfg_param_t *cdp_cfg)
+{
+	cdp_cfg->bundle_timer_value =
+		cfg_get(psoc, CFG_DP_HL_BUNDLE_TIMER_VALUE);
+	cdp_cfg->bundle_size =
+		cfg_get(psoc, CFG_DP_HL_BUNDLE_SIZE);
+}
+#else
+static inline void
+cds_cdp_update_bundle_params(struct wlan_objmgr_psoc *psoc,
+			     struct txrx_pdev_cfg_param_t *cdp_cfg)
+{
+}
 #endif
 
 /**
@@ -336,23 +409,49 @@ cds_cdp_set_flow_control_params(struct cds_config_info *cds_cfg,
  *
  * Return: none
  */
-static void cds_cdp_cfg_attach(struct cds_config_info *cds_cfg)
+static void cds_cdp_cfg_attach(struct wlan_objmgr_psoc *psoc)
 {
 	struct txrx_pdev_cfg_param_t cdp_cfg = {0};
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+	struct hdd_context *hdd_ctx = gp_cds_context->hdd_context;
 
-	cdp_cfg.is_full_reorder_offload = cds_cfg->reorder_offload;
-	cdp_cfg.is_uc_offload_enabled = cds_cfg->uc_offload_enabled;
-	cdp_cfg.uc_tx_buffer_count = cds_cfg->uc_txbuf_count;
-	cdp_cfg.uc_tx_buffer_size = cds_cfg->uc_txbuf_size;
-	cdp_cfg.uc_rx_indication_ring_count = cds_cfg->uc_rxind_ringcount;
-	cdp_cfg.uc_tx_partition_base = cds_cfg->uc_tx_partition_base;
-	cdp_cfg.enable_rxthread = cds_cfg->enable_rxthread;
+	cdp_cfg.is_full_reorder_offload =
+		cfg_get(psoc, CFG_DP_REORDER_OFFLOAD_SUPPORT);
+	cdp_cfg.is_uc_offload_enabled = ucfg_ipa_uc_is_enabled();
+	cdp_cfg.uc_tx_buffer_count = cfg_get(psoc, CFG_DP_IPA_UC_TX_BUF_COUNT);
+	cdp_cfg.uc_tx_buffer_size =
+			cfg_get(psoc, CFG_DP_IPA_UC_TX_BUF_SIZE);
+	cdp_cfg.uc_rx_indication_ring_count =
+		cfg_get(psoc, CFG_DP_IPA_UC_RX_IND_RING_COUNT);
+	cdp_cfg.uc_tx_partition_base =
+		cfg_get(psoc, CFG_DP_IPA_UC_TX_PARTITION_BASE);
+	cdp_cfg.enable_rxthread = hdd_ctx->enable_rxthread;
 	cdp_cfg.ip_tcp_udp_checksum_offload =
-			cds_cfg->ip_tcp_udp_checksum_offload;
-	cdp_cfg.ce_classify_enabled = cds_cfg->ce_classify_enabled;
+		cfg_get(psoc, CFG_DP_TCP_UDP_CKSUM_OFFLOAD);
+	cdp_cfg.nan_ip_tcp_udp_checksum_offload =
+		cfg_get(psoc, CFG_DP_NAN_TCP_UDP_CKSUM_OFFLOAD);
+	cdp_cfg.p2p_ip_tcp_udp_checksum_offload =
+		cfg_get(psoc, CFG_DP_P2P_TCP_UDP_CKSUM_OFFLOAD);
+	cdp_cfg.legacy_mode_csum_disable =
+		cfg_get(psoc, CFG_DP_LEGACY_MODE_CSUM_DISABLE);
+	cdp_cfg.ce_classify_enabled =
+		cfg_get(psoc, CFG_DP_CE_CLASSIFY_ENABLE);
+	cdp_cfg.tso_enable = cfg_get(psoc, CFG_DP_TSO);
+	cdp_cfg.lro_enable = cfg_get(psoc, CFG_DP_LRO);
+	cdp_cfg.enable_data_stall_detection =
+		cfg_get(psoc, CFG_DP_ENABLE_DATA_STALL_DETECTION);
+	cdp_cfg.gro_enable = cfg_get(psoc, CFG_DP_GRO);
+	cdp_cfg.enable_flow_steering =
+		cfg_get(psoc, CFG_DP_FLOW_STEERING_ENABLED);
+	cdp_cfg.disable_intra_bss_fwd =
+		cfg_get(psoc, CFG_DP_AP_STA_SECURITY_SEPERATION);
+	cdp_cfg.pktlog_buffer_size =
+		cfg_get(psoc, CFG_DP_PKTLOG_BUFFER_SIZE);
 
-	cds_cfg_update_ac_specs_params(&cdp_cfg, cds_cfg);
+	cds_cdp_update_del_ack_params(psoc, &cdp_cfg);
+
+	cds_cdp_update_bundle_params(psoc, &cdp_cfg);
+
 	gp_cds_context->cfg_ctx = cdp_cfg_attach(soc, gp_cds_context->qdf_ctx,
 					(void *)(&cdp_cfg));
 	if (!gp_cds_context->cfg_ctx) {
@@ -362,15 +461,16 @@ static void cds_cdp_cfg_attach(struct cds_config_info *cds_cfg)
 
 	/* Configure Receive flow steering */
 	cdp_cfg_set_flow_steering(soc, gp_cds_context->cfg_ctx,
-				 cds_cfg->flow_steering_enabled);
+				  cfg_get(psoc, CFG_DP_FLOW_STEERING_ENABLED));
 
-	cds_cdp_set_flow_control_params(cds_cfg, &cdp_cfg);
+	cds_cdp_set_flow_control_params(psoc, &cdp_cfg);
 	cdp_cfg_set_flow_control_parameters(soc, gp_cds_context->cfg_ctx,
 					    (void *)&cdp_cfg);
 
 	/* adjust the cfg_ctx default value based on setting */
 	cdp_cfg_set_rx_fwd_disabled(soc, gp_cds_context->cfg_ctx,
-		(uint8_t) cds_cfg->ap_disable_intrabss_fwd);
+				    cfg_get(psoc,
+					    CFG_DP_AP_STA_SECURITY_SEPERATION));
 
 	/*
 	 * adjust the packet log enable default value
@@ -442,7 +542,7 @@ cds_set_ac_specs_params(struct cds_config_info *cds_cfg)
 	int i;
 	struct cds_context *cds_ctx;
 
-	if (NULL == cds_cfg)
+	if (!cds_cfg)
 		return;
 
 	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
@@ -452,7 +552,7 @@ cds_set_ac_specs_params(struct cds_config_info *cds_cfg)
 		return;
 	}
 
-	for (i = 0; i < OL_TX_NUM_WMM_AC; i++) {
+	for (i = 0; i < QCA_WLAN_AC_ALL; i++) {
 		cds_cfg->ac_specs[i] = cds_ctx->ac_specs[i];
 	}
 }
@@ -474,10 +574,9 @@ static int cds_hang_event_notifier_call(struct notifier_block *block,
 	if (!cds_hang_evt_buff)
 		return NOTIFY_STOP_MASK;
 
-	if (cds_hang_data->offset >= QDF_WLAN_MAX_HOST_OFFSET)
-		return NOTIFY_STOP_MASK;
-
 	total_len = sizeof(*cmd);
+	if (cds_hang_data->offset + total_len > QDF_WLAN_HANG_FW_OFFSET)
+		return NOTIFY_STOP_MASK;
 
 	cds_hang_evt_buff = cds_hang_data->hang_data + cds_hang_data->offset;
 	cmd = (struct cds_hang_event_fixed_param *)cds_hang_evt_buff;
@@ -486,9 +585,11 @@ static int cds_hang_event_notifier_call(struct notifier_block *block,
 
 	cmd->recovery_reason = gp_cds_context->recovery_reason;
 
-	qdf_mem_copy(&cmd->driver_version, QWLAN_VERSIONSTR, 11);
+	qdf_mem_copy(&cmd->driver_version, QWLAN_VERSIONSTR,
+		     DRIVER_VER_LEN);
 
-	qdf_mem_copy(&cmd->hang_event_version, QDF_HANG_EVENT_VERSION, 3);
+	qdf_mem_copy(&cmd->hang_event_version, QDF_HANG_EVENT_VERSION,
+		     HANG_EVENT_VER_LEN);
 
 	cds_hang_data->offset += total_len;
 	return NOTIFY_OK;
@@ -584,7 +685,7 @@ QDF_STATUS cds_open(struct wlan_objmgr_psoc *psoc)
 		goto err_sched_close;
 	}
 
-	hdd_enable_fastpath(hdd_ctx->config, scn);
+	hdd_enable_fastpath(hdd_ctx, scn);
 
 	/* Initialize BMI and Download firmware */
 	ol_ctx = cds_get_context(QDF_MODULE_ID_BMI);
@@ -599,9 +700,10 @@ QDF_STATUS cds_open(struct wlan_objmgr_psoc *psoc)
 	htcInfo.pContext = ol_ctx;
 	htcInfo.TargetFailure = ol_target_failure;
 	htcInfo.TargetSendSuspendComplete =
-		pmo_ucfg_psoc_target_suspend_acknowledge;
-	htcInfo.target_initial_wakeup_cb = pmo_ucfg_psoc_handle_initial_wake_up;
+		ucfg_pmo_psoc_target_suspend_acknowledge;
+	htcInfo.target_initial_wakeup_cb = ucfg_pmo_psoc_handle_initial_wake_up;
 	htcInfo.target_psoc = (void *)psoc;
+	htcInfo.cfg_wmi_credit_cnt = hdd_ctx->config->cfg_wmi_credit_cnt;
 	qdf_ctx = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 
 	/* Create HTC */
@@ -613,7 +715,7 @@ QDF_STATUS cds_open(struct wlan_objmgr_psoc *psoc)
 		status = QDF_STATUS_E_FAILURE;
 		goto err_bmi_close;
 	}
-	pmo_ucfg_psoc_update_htc_handle(psoc, (void *)gp_cds_context->htc_ctx);
+	ucfg_pmo_psoc_update_htc_handle(psoc, (void *)gp_cds_context->htc_ctx);
 
 	status = bmi_done(ol_ctx);
 	if (QDF_IS_STATUS_ERROR(status)) {
@@ -639,7 +741,7 @@ QDF_STATUS cds_open(struct wlan_objmgr_psoc *psoc)
 	 * con_mode change happens from FTM mode to any other mode.
 	 */
 	if (QDF_DRIVER_TYPE_PRODUCTION == cds_cfg->driver_type)
-		hdd_ctx->config->maxNumberOfPeers = cds_cfg->max_station;
+		ucfg_mlme_set_sap_max_peers(psoc, cds_cfg->max_station);
 
 	HTCHandle = cds_get_context(QDF_MODULE_ID_HTC);
 	gp_cds_context->cfg_ctx = NULL;
@@ -658,17 +760,25 @@ QDF_STATUS cds_open(struct wlan_objmgr_psoc *psoc)
 		goto err_wma_close;
 	}
 
-	cds_debug("target_type %d 8074:%d 6290:%d", hdd_ctx->target_type,
-		  TARGET_TYPE_QCA8074, TARGET_TYPE_QCA6290);
+	cds_debug("target_type %d 8074:%d 6290:%d 6390: %d 6490: %d 6750: %d",
+		  hdd_ctx->target_type,
+		  TARGET_TYPE_QCA8074,
+		  TARGET_TYPE_QCA6290,
+		  TARGET_TYPE_QCA6390,
+		  TARGET_TYPE_QCA6490,
+		  TARGET_TYPE_QCA6750);
 
-	if (TARGET_TYPE_QCA6290 == hdd_ctx->target_type)
+	if (TARGET_TYPE_QCA6290 == hdd_ctx->target_type ||
+	    TARGET_TYPE_QCA6390 == hdd_ctx->target_type ||
+	    TARGET_TYPE_QCA6490 == hdd_ctx->target_type ||
+	    TARGET_TYPE_QCA6750 == hdd_ctx->target_type)
 		gp_cds_context->dp_soc = cdp_soc_attach(LITHIUM_DP,
-			gp_cds_context->hif_context, psoc,
+			gp_cds_context->hif_context, htcInfo.target_psoc,
 			gp_cds_context->htc_ctx, gp_cds_context->qdf_ctx,
 			&dp_ol_if_ops);
 	else
 		gp_cds_context->dp_soc = cdp_soc_attach(MOB_DRV_LEGACY_DP,
-			gp_cds_context->hif_context, psoc,
+			gp_cds_context->hif_context, htcInfo.target_psoc,
 			gp_cds_context->htc_ctx, gp_cds_context->qdf_ctx,
 			&dp_ol_if_ops);
 
@@ -678,12 +788,13 @@ QDF_STATUS cds_open(struct wlan_objmgr_psoc *psoc)
 	}
 
 	wlan_psoc_set_dp_handle(psoc, gp_cds_context->dp_soc);
-	pmo_ucfg_psoc_update_dp_handle(psoc, gp_cds_context->dp_soc);
+	ucfg_pmo_psoc_update_dp_handle(psoc, gp_cds_context->dp_soc);
 	ucfg_ocb_update_dp_handle(psoc, gp_cds_context->dp_soc);
 
 	cds_set_ac_specs_params(cds_cfg);
-
-	cds_cdp_cfg_attach(cds_cfg);
+	cds_cfg_update_ac_specs_params((struct txrx_pdev_cfg_param_t *)
+				       gp_cds_context->cfg_ctx, cds_cfg);
+	cds_cdp_cfg_attach(psoc);
 
 	bmi_target_ready(scn, gp_cds_context->cfg_ctx);
 
@@ -712,6 +823,7 @@ QDF_STATUS cds_open(struct wlan_objmgr_psoc *psoc)
 		goto deregister_modules;
 	}
 
+	ucfg_mc_cp_stats_register_pmo_handler();
 	qdf_hang_event_register_notifier(&cds_hang_event_notifier);
 
 	return QDF_STATUS_SUCCESS;
@@ -729,7 +841,7 @@ err_soc_detach:
 	gp_cds_context->dp_soc = NULL;
 
 	ucfg_ocb_update_dp_handle(psoc, NULL);
-	pmo_ucfg_psoc_update_dp_handle(psoc, NULL);
+	ucfg_pmo_psoc_update_dp_handle(psoc, NULL);
 	wlan_psoc_set_dp_handle(psoc, NULL);
 
 err_wma_close:
@@ -741,7 +853,7 @@ err_htc_close:
 	if (gp_cds_context->htc_ctx) {
 		htc_destroy(gp_cds_context->htc_ctx);
 		gp_cds_context->htc_ctx = NULL;
-		pmo_ucfg_psoc_update_htc_handle(psoc, NULL);
+		ucfg_pmo_psoc_update_htc_handle(psoc, NULL);
 	}
 
 err_bmi_close:
@@ -763,26 +875,38 @@ err_wma_complete_event:
 
 QDF_STATUS cds_dp_open(struct wlan_objmgr_psoc *psoc)
 {
-	if (cdp_txrx_intr_attach(gp_cds_context->dp_soc)
-				!= QDF_STATUS_SUCCESS) {
-		cds_alert("Failed to attach interrupts");
-		goto close;
-	}
+	QDF_STATUS qdf_status;
+	struct dp_txrx_config dp_config;
 
-	cds_set_context(QDF_MODULE_ID_TXRX,
-		cdp_pdev_attach(cds_get_context(QDF_MODULE_ID_SOC),
-			gp_cds_context->cfg_ctx,
-			gp_cds_context->htc_ctx,
-			gp_cds_context->qdf_ctx, 0));
-	if (!gp_cds_context->pdev_txrx_ctx) {
+	qdf_status = cdp_pdev_attach(cds_get_context(QDF_MODULE_ID_SOC),
+				     gp_cds_context->htc_ctx,
+				     gp_cds_context->qdf_ctx, 0);
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		/* Critical Error ...  Cannot proceed further */
 		cds_alert("Failed to open TXRX");
 		QDF_ASSERT(0);
-		goto intr_close;
+		goto close;
 	}
 
-	pmo_ucfg_psoc_set_txrx_handle(psoc, gp_cds_context->pdev_txrx_ctx);
-	ucfg_ocb_set_txrx_handle(psoc, gp_cds_context->pdev_txrx_ctx);
+	if (cdp_txrx_intr_attach(gp_cds_context->dp_soc)
+				!= QDF_STATUS_SUCCESS) {
+		cds_alert("Failed to attach interrupts");
+		goto pdev_detach;
+	}
+
+	dp_config.enable_rx_threads =
+		(cds_get_conparam() == QDF_GLOBAL_MONITOR_MODE) ?
+		false : gp_cds_context->cds_cfg->enable_dp_rx_threads;
+
+	qdf_status = dp_txrx_init(cds_get_context(QDF_MODULE_ID_SOC),
+				  OL_TXRX_PDEV_ID,
+				  &dp_config);
+
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
+		goto intr_close;
+
+	ucfg_pmo_psoc_set_txrx_pdev_id(psoc, OL_TXRX_PDEV_ID);
+	ucfg_ocb_set_txrx_pdev_id(psoc, OL_TXRX_PDEV_ID);
 
 	cds_debug("CDS successfully Opened");
 
@@ -790,9 +914,34 @@ QDF_STATUS cds_dp_open(struct wlan_objmgr_psoc *psoc)
 
 intr_close:
 	cdp_txrx_intr_detach(gp_cds_context->dp_soc);
+
+pdev_detach:
+	cdp_pdev_detach(gp_cds_context->dp_soc,
+			OL_TXRX_PDEV_ID, false);
+
 close:
 	return QDF_STATUS_E_FAILURE;
 }
+
+#ifdef HIF_USB
+static inline void cds_suspend_target(tp_wma_handle wma_handle)
+{
+	QDF_STATUS status;
+	/* Suspend the target and disable interrupt */
+	status = ucfg_pmo_psoc_suspend_target(wma_handle->psoc, 0);
+	if (status)
+		cds_err("Failed to suspend target, status = %d", status);
+}
+#else
+static inline void cds_suspend_target(tp_wma_handle wma_handle)
+{
+	QDF_STATUS status;
+	/* Suspend the target and disable interrupt */
+	status = ucfg_pmo_psoc_suspend_target(wma_handle->psoc, 1);
+	if (status)
+		cds_err("Failed to suspend target, status = %d", status);
+}
+#endif /* HIF_USB */
 
 /**
  * cds_pre_enable() - pre enable cds
@@ -834,27 +983,14 @@ QDF_STATUS cds_pre_enable(void)
 	/* call Packetlog connect service */
 	if (QDF_GLOBAL_FTM_MODE != cds_get_conparam() &&
 	    QDF_GLOBAL_EPPING_MODE != cds_get_conparam())
-		cdp_pkt_log_con_service(soc, gp_cds_context->pdev_txrx_ctx,
+		cdp_pkt_log_con_service(soc, OL_TXRX_PDEV_ID,
 					scn);
-
-	/* Reset wma wait event */
-	qdf_event_reset(&gp_cds_context->wma_complete_event);
 
 	/*call WMA pre start */
 	status = wma_pre_start();
 	if (QDF_IS_STATUS_ERROR(status)) {
 		cds_err("Failed to WMA prestart");
 		return QDF_STATUS_E_FAILURE;
-	}
-
-	/* Need to update time out of complete */
-	status = qdf_wait_for_event_completion(
-					&gp_cds_context->wma_complete_event,
-					CDS_WMA_TIMEOUT);
-	if (QDF_IS_STATUS_ERROR(status)) {
-		cds_err("Failed to wait for WMA complete; status:%u", status);
-		cds_trigger_recovery(QDF_REASON_UNSPECIFIED);
-		goto exit_with_status;
 	}
 
 	status = htc_start(gp_cds_context->htc_ctx);
@@ -869,7 +1005,7 @@ QDF_STATUS cds_pre_enable(void)
 		goto stop_wmi;
 	}
 
-	errno = cdp_pdev_post_attach(soc, gp_cds_context->pdev_txrx_ctx);
+	errno = cdp_pdev_post_attach(soc, OL_TXRX_PDEV_ID);
 	if (errno) {
 		cds_err("Failed to attach pdev");
 		status = qdf_status_from_os_return(errno);
@@ -879,6 +1015,12 @@ QDF_STATUS cds_pre_enable(void)
 	return QDF_STATUS_SUCCESS;
 
 stop_wmi:
+	/* Send pdev suspend to fw otherwise FW is not aware that
+	 * host is freeing resources.
+	 */
+	if (!(cds_is_driver_recovering() || cds_is_driver_in_bad_state()))
+		cds_suspend_target(gp_cds_context->wma_context);
+
 	hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
 	if (!hif_ctx)
 		cds_err("%s: Failed to get hif_handle!", __func__);
@@ -943,14 +1085,14 @@ QDF_STATUS cds_enable(struct wlan_objmgr_psoc *psoc)
 		goto err_mac_stop;
 	}
 
-	errno = cdp_soc_attach_target(cds_get_context(QDF_MODULE_ID_SOC));
-	if (errno) {
-		cds_err("Failed to attach soc target; errno:%d", errno);
+	qdf_status = cdp_soc_attach_target(cds_get_context(QDF_MODULE_ID_SOC));
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		cds_err("Failed to attach soc target; status:%d", qdf_status);
 		goto err_sme_stop;
 	}
 
 	errno = cdp_pdev_attach_target(cds_get_context(QDF_MODULE_ID_SOC),
-				       cds_get_context(QDF_MODULE_ID_TXRX));
+				       OL_TXRX_PDEV_ID);
 	if (errno) {
 		cds_err("Failed to attach pdev target; errno:%d", errno);
 		goto err_soc_target_detach;
@@ -1044,26 +1186,6 @@ QDF_STATUS cds_disable(struct wlan_objmgr_psoc *psoc)
 	return qdf_status;
 }
 
-#ifdef HIF_USB
-static inline void cds_suspend_target(tp_wma_handle wma_handle)
-{
-	QDF_STATUS status;
-	/* Suspend the target and disable interrupt */
-	status = pmo_ucfg_psoc_suspend_target(wma_handle->psoc, 0);
-	if (status)
-		cds_err("Failed to suspend target, status = %d", status);
-}
-#else
-static inline void cds_suspend_target(tp_wma_handle wma_handle)
-{
-	QDF_STATUS status;
-	/* Suspend the target and disable interrupt */
-	status = pmo_ucfg_psoc_suspend_target(wma_handle->psoc, 1);
-	if (status)
-		cds_err("Failed to suspend target, status = %d", status);
-}
-#endif /* HIF_USB */
-
 /**
  * cds_post_disable() - post disable cds module
  *
@@ -1073,7 +1195,6 @@ QDF_STATUS cds_post_disable(void)
 {
 	tp_wma_handle wma_handle;
 	struct hif_opaque_softc *hif_ctx;
-	struct cdp_pdev *txrx_pdev;
 	struct scheduler_ctx *sched_ctx;
 	QDF_STATUS qdf_status;
 
@@ -1086,12 +1207,6 @@ QDF_STATUS cds_post_disable(void)
 	hif_ctx = cds_get_context(QDF_MODULE_ID_HIF);
 	if (!hif_ctx) {
 		cds_err("Failed to get hif_handle!");
-		return QDF_STATUS_E_INVAL;
-	}
-
-	txrx_pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-	if (!txrx_pdev) {
-		cds_err("Failed to get txrx pdev!");
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -1126,8 +1241,14 @@ QDF_STATUS cds_post_disable(void)
 		return QDF_STATUS_E_INVAL;
 	}
 
+	qdf_status = cds_close_mon_thread();
+	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+		cds_err("Failed to close MON thread!");
+		return QDF_STATUS_E_INVAL;
+	}
+
 	cdp_pdev_pre_detach(cds_get_context(QDF_MODULE_ID_SOC),
-		       (struct cdp_pdev *)txrx_pdev, 1);
+			    OL_TXRX_PDEV_ID, 1);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -1158,6 +1279,8 @@ QDF_STATUS cds_close(struct wlan_objmgr_psoc *psoc)
 
 	dispatcher_psoc_close(psoc);
 
+	qdf_flush_work(&gp_cds_context->cds_recovery_work);
+
 	qdf_status = wma_wmi_work_close();
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 		cds_err("Failed to close wma_wmi_work");
@@ -1166,7 +1289,7 @@ QDF_STATUS cds_close(struct wlan_objmgr_psoc *psoc)
 
 	if (gp_cds_context->htc_ctx) {
 		htc_destroy(gp_cds_context->htc_ctx);
-		pmo_ucfg_psoc_update_htc_handle(psoc, NULL);
+		ucfg_pmo_psoc_update_htc_handle(psoc, NULL);
 		gp_cds_context->htc_ctx = NULL;
 	}
 
@@ -1185,7 +1308,9 @@ QDF_STATUS cds_close(struct wlan_objmgr_psoc *psoc)
 	gp_cds_context->mac_context = NULL;
 
 	cdp_soc_detach(gp_cds_context->dp_soc);
-	pmo_ucfg_psoc_update_dp_handle(psoc, NULL);
+	gp_cds_context->dp_soc = NULL;
+
+	ucfg_pmo_psoc_update_dp_handle(psoc, NULL);
 	wlan_psoc_set_dp_handle(psoc, NULL);
 
 	cds_shutdown_notifier_purge();
@@ -1222,15 +1347,13 @@ QDF_STATUS cds_close(struct wlan_objmgr_psoc *psoc)
 
 QDF_STATUS cds_dp_close(struct wlan_objmgr_psoc *psoc)
 {
-	void *ctx;
-
 	cdp_txrx_intr_detach(gp_cds_context->dp_soc);
 
-	ctx = cds_get_context(QDF_MODULE_ID_TXRX);
-	cdp_pdev_detach(cds_get_context(QDF_MODULE_ID_SOC),
-		       (struct cdp_pdev *)ctx, 1);
-	cds_set_context(QDF_MODULE_ID_TXRX, NULL);
-	pmo_ucfg_psoc_set_txrx_handle(psoc, NULL);
+	dp_txrx_deinit(cds_get_context(QDF_MODULE_ID_SOC));
+
+	cdp_pdev_detach(cds_get_context(QDF_MODULE_ID_SOC), OL_TXRX_PDEV_ID, 1);
+
+	ucfg_pmo_psoc_set_txrx_pdev_id(psoc, OL_TXRX_INVALID_PDEV_ID);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -1252,7 +1375,7 @@ void *cds_get_context(QDF_MODULE_ID module_id)
 {
 	void *context = NULL;
 
-	if (gp_cds_context == NULL) {
+	if (!gp_cds_context) {
 		cds_err("cds context pointer is null");
 		return NULL;
 	}
@@ -1310,12 +1433,6 @@ void *cds_get_context(QDF_MODULE_ID module_id)
 		break;
 	}
 
-	case QDF_MODULE_ID_TXRX:
-	{
-		context = (void *)gp_cds_context->pdev_txrx_ctx;
-		break;
-	}
-
 	case QDF_MODULE_ID_CFG:
 	{
 		context = gp_cds_context->cfg_ctx;
@@ -1354,7 +1471,7 @@ void *cds_get_context(QDF_MODULE_ID module_id)
  */
 void *cds_get_global_context(void)
 {
-	if (gp_cds_context == NULL) {
+	if (!gp_cds_context) {
 		/*
 		 * To avoid recursive call, this should not change to
 		 * QDF_TRACE().
@@ -1374,7 +1491,7 @@ void *cds_get_global_context(void)
  */
 enum cds_driver_state cds_get_driver_state(void)
 {
-	if (gp_cds_context == NULL) {
+	if (!gp_cds_context) {
 		cds_err("global cds context is NULL");
 
 		return CDS_DRIVER_STATE_UNINITIALIZED;
@@ -1395,7 +1512,7 @@ enum cds_driver_state cds_get_driver_state(void)
  */
 void cds_set_driver_state(enum cds_driver_state state)
 {
-	if (gp_cds_context == NULL) {
+	if (!gp_cds_context) {
 		cds_err("global cds context is NULL: %x", state);
 
 		return;
@@ -1415,46 +1532,13 @@ void cds_set_driver_state(enum cds_driver_state state)
  */
 void cds_clear_driver_state(enum cds_driver_state state)
 {
-	if (gp_cds_context == NULL) {
+	if (!gp_cds_context) {
 		cds_err("global cds context is NULL: %x", state);
 
 		return;
 	}
 
 	gp_cds_context->driver_state &= ~state;
-}
-
-enum cds_fw_state cds_get_fw_state(void)
-{
-	if (gp_cds_context == NULL) {
-		cds_err("global cds context is NULL");
-
-		return CDS_FW_STATE_UNINITIALIZED;
-	}
-
-	return gp_cds_context->fw_state;
-}
-
-void cds_set_fw_state(enum cds_fw_state state)
-{
-	if (gp_cds_context == NULL) {
-		cds_err("global cds context is NULL: %d", state);
-
-		return;
-	}
-
-	qdf_atomic_set_bit(state, &gp_cds_context->fw_state);
-}
-
-void cds_clear_fw_state(enum cds_fw_state state)
-{
-	if (gp_cds_context == NULL) {
-		cds_err("global cds context is NULL: %d", state);
-
-		return;
-	}
-
-	qdf_atomic_clear_bit(state, &gp_cds_context->fw_state);
 }
 
 /**
@@ -1552,9 +1636,6 @@ QDF_STATUS cds_set_context(QDF_MODULE_ID module_id, void *context)
 	case QDF_MODULE_ID_HDD:
 		p_cds_context->hdd_context = context;
 		break;
-	case QDF_MODULE_ID_TXRX:
-		p_cds_context->pdev_txrx_ctx = context;
-		break;
 	case QDF_MODULE_ID_HIF:
 		p_cds_context->hif_context = context;
 		break;
@@ -1602,10 +1683,6 @@ QDF_STATUS cds_free_context(QDF_MODULE_ID module_id, void *module_context)
 		cds_mod_context = &gp_cds_context->hif_context;
 		break;
 
-	case QDF_MODULE_ID_TXRX:
-		cds_mod_context = (void **)&gp_cds_context->pdev_txrx_ctx;
-		break;
-
 	case QDF_MODULE_ID_BMI:
 		cds_mod_context = &gp_cds_context->g_ol_context;
 		break;
@@ -1636,81 +1713,6 @@ QDF_STATUS cds_free_context(QDF_MODULE_ID module_id, void *module_context)
 	return QDF_STATUS_SUCCESS;
 } /* cds_free_context() */
 
-/**
- * cds_wma_complete_cback() - wma complete callback
- *
- * Return: none
- */
-void cds_wma_complete_cback(void)
-{
-	if (!gp_cds_context) {
-		cds_err("invalid gp_cds_context");
-		return;
-	}
-
-	if (qdf_event_set(&gp_cds_context->wma_complete_event) !=
-	    QDF_STATUS_SUCCESS) {
-		cds_err("qdf_event_set failed");
-		return;
-	}
-} /* cds_wma_complete_cback() */
-
-/**
- * cds_get_vdev_types() - get vdev type
- * @mode: mode
- * @type: type
- * @sub_type: sub_type
- *
- * Return: WMI vdev type
- */
-QDF_STATUS cds_get_vdev_types(enum QDF_OPMODE mode, uint32_t *type,
-			      uint32_t *sub_type)
-{
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	*type = 0;
-	*sub_type = 0;
-
-	switch (mode) {
-	case QDF_STA_MODE:
-		*type = WMI_VDEV_TYPE_STA;
-		break;
-	case QDF_SAP_MODE:
-		*type = WMI_VDEV_TYPE_AP;
-		break;
-	case QDF_P2P_DEVICE_MODE:
-		*type = WMI_VDEV_TYPE_AP;
-		*sub_type = WMI_UNIFIED_VDEV_SUBTYPE_P2P_DEVICE;
-		break;
-	case QDF_P2P_CLIENT_MODE:
-		*type = WMI_VDEV_TYPE_STA;
-		*sub_type = WMI_UNIFIED_VDEV_SUBTYPE_P2P_CLIENT;
-		break;
-	case QDF_P2P_GO_MODE:
-		*type = WMI_VDEV_TYPE_AP;
-		*sub_type = WMI_UNIFIED_VDEV_SUBTYPE_P2P_GO;
-		break;
-	case QDF_OCB_MODE:
-		*type = WMI_VDEV_TYPE_OCB;
-		break;
-	case QDF_IBSS_MODE:
-		*type = WMI_VDEV_TYPE_IBSS;
-		break;
-	case QDF_MONITOR_MODE:
-		*type = WMI_VDEV_TYPE_MONITOR;
-		break;
-	case QDF_NDI_MODE:
-		*type = WMI_VDEV_TYPE_NDI;
-		break;
-	case QDF_NAN_DISC_MODE:
-		*type = WMI_VDEV_TYPE_NAN;
-		break;
-	default:
-		cds_err("Invalid device mode %d", mode);
-		status = QDF_STATUS_E_INVAL;
-		break;
-	}
-	return status;
-}
 
 /**
  * cds_flush_work() - flush pending works
@@ -1745,30 +1747,12 @@ bool cds_is_packet_log_enabled(void)
 	struct hdd_context *hdd_ctx;
 
 	hdd_ctx = gp_cds_context->hdd_context;
-	if ((NULL == hdd_ctx) || (NULL == hdd_ctx->config)) {
+	if ((!hdd_ctx) || (!hdd_ctx->config)) {
 		cds_alert("Hdd Context is Null");
 		return false;
 	}
-	return hdd_ctx->config->enablePacketLog;
+	return hdd_ctx->config->enable_packet_log;
 }
-
-/**
- * cds_get_packet_log_buffer_size() - get packet log buffer size
- *
- * Return: packet log buffer size in MB
- */
-uint8_t cds_get_packet_log_buffer_size(void)
-{
-	struct hdd_context *hdd_ctx;
-
-	hdd_ctx = gp_cds_context->hdd_context;
-	if ((NULL == hdd_ctx) || (NULL == hdd_ctx->config)) {
-		cds_alert("Hdd Context is Null");
-		return 0;
-	}
-	return hdd_ctx->config->pktlog_buf_size;
-}
-
 #endif
 
 static int cds_force_assert_target_via_pld(qdf_device_t qdf)
@@ -1883,6 +1867,12 @@ static void cds_trigger_recovery_handler(const char *func, const uint32_t line)
 		return;
 	}
 
+	qdf = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
+	if (!qdf) {
+		cds_err("Qdf context is null");
+		return;
+	}
+
 	/* if *wlan* recovery is disabled, crash here for debugging */
 	if (!cds_is_self_recovery_enabled()) {
 		QDF_DEBUG_PANIC("WLAN recovery is not enabled (via %s:%d)",
@@ -1893,12 +1883,6 @@ static void cds_trigger_recovery_handler(const char *func, const uint32_t line)
 	/* ignore recovery if we are unloading; it would be a waste anyway */
 	if (cds_is_driver_unloading()) {
 		cds_info("WLAN is unloading; ignore recovery");
-		return;
-	}
-
-	qdf = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
-	if (!qdf) {
-		cds_err("Qdf context is null");
 		return;
 	}
 
@@ -1942,15 +1926,10 @@ void __cds_trigger_recovery(enum qdf_hang_reason reason, const char *func,
 
 	gp_cds_context->recovery_reason = reason;
 
-	if (in_atomic()) {
-		__cds_recovery_caller.func = func;
-		__cds_recovery_caller.line = line;
-		qdf_queue_work(0, gp_cds_context->cds_recovery_wq,
-			       &gp_cds_context->cds_recovery_work);
-		return;
-	}
-
-	cds_trigger_recovery_handler(func, line);
+	__cds_recovery_caller.func = func;
+	__cds_recovery_caller.line = line;
+	qdf_queue_work(0, gp_cds_context->cds_recovery_wq,
+		       &gp_cds_context->cds_recovery_work);
 }
 
 void cds_trigger_recovery_psoc(void *psoc, enum qdf_hang_reason reason,
@@ -1989,20 +1968,6 @@ void cds_reset_recovery_reason(void)
 	}
 
 	gp_cds_context->recovery_reason = QDF_REASON_UNSPECIFIED;
-}
-
-/**
- * cds_get_monotonic_boottime() - Get kernel boot time.
- *
- * Return: Time in microseconds
- */
-
-uint64_t cds_get_monotonic_boottime(void)
-{
-	struct timespec ts;
-
-	get_monotonic_boottime(&ts);
-	return ((uint64_t) ts.tv_sec * 1000000) + (ts.tv_nsec / 1000);
 }
 
 /**
@@ -2314,7 +2279,7 @@ bool cds_is_ptp_rx_opt_enabled(void)
 	}
 
 	hdd_ctx = (struct hdd_context *)(p_cds_context->hdd_context);
-	if ((NULL == hdd_ctx) || (NULL == hdd_ctx->config)) {
+	if ((!hdd_ctx) || (!hdd_ctx->config)) {
 		cds_err("Hdd Context is Null");
 		return false;
 	}
@@ -2334,7 +2299,7 @@ bool cds_is_ptp_tx_opt_enabled(void)
 	}
 
 	hdd_ctx = (struct hdd_context *)(p_cds_context->hdd_context);
-	if ((NULL == hdd_ctx) || (NULL == hdd_ctx->config)) {
+	if ((!hdd_ctx) || (!hdd_ctx->config)) {
 		cds_err("Hdd Context is Null");
 		return false;
 	}
@@ -2383,7 +2348,8 @@ uint32_t cds_get_log_indicator(void)
  */
 void cds_wlan_flush_host_logs_for_fatal(void)
 {
-	wlan_flush_host_logs_for_fatal();
+	if (cds_is_log_report_in_progress())
+		wlan_flush_host_logs_for_fatal();
 }
 
 /**
@@ -2406,7 +2372,6 @@ QDF_STATUS cds_flush_logs(uint32_t is_fatal,
 		bool dump_mac_trace,
 		bool recovery_needed)
 {
-	uint32_t ret;
 	QDF_STATUS status;
 
 	struct cds_context *p_cds_context;
@@ -2450,8 +2415,8 @@ QDF_STATUS cds_flush_logs(uint32_t is_fatal,
 		return QDF_STATUS_SUCCESS;
 	}
 
-	ret = sme_send_flush_logs_cmd_to_fw(p_cds_context->mac_context);
-	if (0 != ret) {
+	status = sme_send_flush_logs_cmd_to_fw();
+	if (QDF_IS_STATUS_ERROR(status)) {
 		cds_err("Failed to send flush FW log");
 		cds_init_log_completion();
 		return QDF_STATUS_E_FAILURE;
@@ -2471,7 +2436,8 @@ QDF_STATUS cds_flush_logs(uint32_t is_fatal,
  */
 void cds_logging_set_fw_flush_complete(void)
 {
-	wlan_logging_set_fw_flush_complete();
+	if (cds_is_fatal_event_enabled())
+		wlan_logging_set_fw_flush_complete();
 }
 
 /**
@@ -2850,6 +2816,48 @@ void cds_incr_arp_stats_tx_tgt_acked(void)
 		adapter->hdd_stats.hdd_arp_stats.tx_ack_cnt++;
 }
 
+#ifdef FEATURE_ALIGN_STATS_FROM_DP
+/**
+ * cds_get_cdp_vdev_stats() - Function which retrieves cdp vdev stats
+ * @vdev_id: vdev id
+ * @vdev_stats: cdp vdev stats retrieves from DP
+ *
+ * Return: If get cdp vdev stats success return true, otherwise return false
+ */
+static bool
+cds_get_cdp_vdev_stats(uint8_t vdev_id, struct cdp_vdev_stats *vdev_stats)
+{
+	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
+
+	if (!vdev_stats)
+		return false;
+
+	if (cdp_host_get_vdev_stats(soc, vdev_id, vdev_stats, true))
+		return false;
+
+	return true;
+}
+
+bool
+cds_dp_get_vdev_stats(uint8_t vdev_id, struct cds_vdev_dp_stats *stats)
+{
+	struct cdp_vdev_stats *vdev_stats;
+	bool ret = false;
+
+	vdev_stats = qdf_mem_malloc(sizeof(*vdev_stats));
+	if (!vdev_stats)
+		return false;
+
+	if (cds_get_cdp_vdev_stats(vdev_id, vdev_stats)) {
+		stats->tx_retries = vdev_stats->tx.retries;
+		ret = true;
+	}
+
+	qdf_mem_free(vdev_stats);
+	return ret;
+}
+#endif
+
 #ifdef ENABLE_SMMU_S1_TRANSLATION
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 QDF_STATUS cds_smmu_mem_map_setup(qdf_device_t osdev, bool ipa_present)
@@ -2970,7 +2978,6 @@ QDF_STATUS cds_smmu_mem_map_setup(qdf_device_t osdev, bool ipa_present)
 QDF_STATUS cds_smmu_mem_map_setup(qdf_device_t osdev, bool ipa_present)
 {
 	osdev->smmu_s1_enabled = false;
-	osdev->iommu_mapping = NULL;
 	return QDF_STATUS_SUCCESS;
 }
 #endif
@@ -2980,3 +2987,31 @@ int cds_smmu_map_unmap(bool map, uint32_t num_buf, qdf_mem_info_t *buf_arr)
 	return 0;
 }
 #endif
+
+#ifdef WLAN_FEATURE_PKT_CAPTURE
+bool cds_is_pktcapture_enabled(void)
+{
+	struct hdd_context *hdd_ctx;
+
+	hdd_ctx = gp_cds_context->hdd_context;
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return false;
+	}
+
+	return hdd_ctx->enable_pkt_capture_support;
+}
+
+uint8_t cds_get_pktcapture_mode(void)
+{
+	struct hdd_context *hdd_ctx;
+
+	hdd_ctx = gp_cds_context->hdd_context;
+	if (!hdd_ctx) {
+		cds_err("HDD context is NULL");
+		return false;
+	}
+
+	return hdd_ctx->val_pkt_capture_mode;
+}
+#endif /* WLAN_FEATURE_PKT_CAPTURE */

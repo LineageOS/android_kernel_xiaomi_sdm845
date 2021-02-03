@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015, 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -102,48 +102,14 @@ typedef enum {
 #define SAP_40MHZ_MASK_L   0x03
 #define SAP_40MHZ_MASK_H   0x0C
 
-/*
- * structs for holding channel bonding bitmap
- * used for finding new channel when SAP is on
- * DFS channel and radar is detected.
- */
-typedef struct sChannelBondingInfo {
-	uint8_t channelMap:4;
-	uint8_t rsvd:4;
-	uint8_t startChannel;
-} tChannelBondingInfo;
-
-typedef struct __chan_bonding_bitmap {
-	tChannelBondingInfo chanBondingSet[MAX_80MHZ_BANDS];
-} chan_bonding_bitmap;
-
-/**
- * Structure holding information of each channel in the spectrum,
- * it contains the channel number, the computed weight
- */
-typedef struct sChannelInfo {
-	uint8_t channel;
-	bool valid;             /* if the channel is valid to be picked as new channel */
-} tChannelInfo;
-
-typedef struct sAll5GChannelList {
-	uint8_t numChannel;
-	tChannelInfo *channelList;
-} tAll5GChannelList;
-
-typedef struct sSapChannelListInfo {
-	uint8_t numChannel;
-	uint8_t *channelList;
-} tSapChannelListInfo;
-
 typedef struct {
-	uint16_t chNum;         /* Channel Number */
-	uint16_t channelWidth;  /* Channel Width */
+	uint32_t chan_freq;
 	uint16_t bssCount;      /* bss found in scanresult for this channel */
 	int32_t rssiAgr;        /* Max value of rssi among all BSS(es) from scanresult for this channel */
 	uint32_t weight;        /* Weightage of this channel */
 	uint32_t weight_copy;   /* copy of the orignal weight */
 	bool valid;             /* Is this a valid center frequency for regulatory domain */
+	bool weight_calc_done;
 } tSapSpectChInfo;              /* tDfsSpectChInfo; */
 
 /**
@@ -155,13 +121,5 @@ typedef struct {
 	tSapSpectChInfo *pSpectCh;      /* tDfsSpectChInfo *pSpectCh;  // Ptr to the channels in the entire spectrum band */
 	uint8_t numSpectChans;  /* Total num of channels in the spectrum */
 } tSapChSelSpectInfo;           /* tDfsChSelParams; */
-
-/**
- * Structure for channel weight calculation parameters
- */
-typedef struct sSapChSelParams {
-	void *pSpectInfoParams; /**pDfsParams;   // Filled with tSapChSelSpectInfo */
-	uint16_t numChannels;
-} tSapChSelParams;
 
 #endif /* if !defined __SAP_CH_SELECT_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -37,21 +37,16 @@ void *tgt_get_target_handle(struct wlan_objmgr_pdev *pdev);
 
 /**
  * tgt_spectral_control()- handler for demultiplexing requests from higher layer
- * @pdev:    reference to global pdev object
- * @id:      spectral config command id
- * @indata:  reference to input data
- * @insize:  input data size
- * @outdata: reference to output data
- * @outsize: output data size
+ * @pdev: Reference to global pdev object
+ * @sscan_req: pointer to Spectral scan request
  *
  * This function processes the spectral config command
  * and appropriate handlers are invoked.
  *
- * Return: 0 success else failure
+ * Return: QDF_STATUS_SUCCESS/QDF_STATUS_E_FAILURE
  */
-int tgt_spectral_control(struct wlan_objmgr_pdev *pdev,
-			 u_int id, void *indata, u_int32_t insize,
-			 void *outdata, u_int32_t *outsize);
+QDF_STATUS tgt_spectral_control(struct wlan_objmgr_pdev *pdev,
+				struct spectral_cp_request *sscan_req);
 
 /**
  * tgt_pdev_spectral_init() - implementation for spectral init
@@ -72,70 +67,88 @@ void tgt_pdev_spectral_deinit(struct wlan_objmgr_pdev *pdev);
 
 /**
  * tgt_set_spectral_config() - Set spectral config
- * @pdev:       Pointer to pdev object
+ * @pdev: Pointer to pdev object
  * @threshtype: spectral parameter type
- * @value:      value to be configured for the given spectral parameter
+ * @value: Value to be configured for the given spectral parameter
+ * @smode: Spectral scan mode
+ * @err: Spectral control path error code
  *
  * Implementation for setting spectral config
  *
- * Return: 0 on success else failure
+ * Return: QDF_STATUS_SUCCESS on success, else QDF_STATUS_E_FAILURE
  */
-int tgt_set_spectral_config(struct wlan_objmgr_pdev *pdev,
-			    const u_int32_t threshtype,
-			    const u_int32_t value);
+QDF_STATUS tgt_set_spectral_config(struct wlan_objmgr_pdev *pdev,
+				   const u_int32_t threshtype,
+				   const u_int32_t value,
+				   const enum spectral_scan_mode smode,
+				   enum spectral_cp_error_code *err);
 
 /**
  * tgt_get_spectral_config() - Get spectral configuration
  * @pdev: Pointer to pdev object
  * @param: Pointer to spectral_config structure in which the configuration
  * should be returned
+ * @smode: Spectral scan mode
  *
  * Implementation for getting the current spectral configuration
  *
- * Return: None
+ * Return: QDF_STATUS_SUCCESS on success, else QDF_STATUS_E_FAILURE
  */
-void tgt_get_spectral_config(struct wlan_objmgr_pdev *pdev,
-			     struct spectral_config *sptrl_config);
+QDF_STATUS tgt_get_spectral_config(struct wlan_objmgr_pdev *pdev,
+				   struct spectral_config *sptrl_config,
+				   const enum spectral_scan_mode smode);
 
 /**
  * tgt_start_spectral_scan() - Start spectral scan
  * @pdev: Pointer to pdev object
+ * @smode: Spectral scan mode
+ * @err: Spectral control path error code
  *
  * Implementation for starting spectral scan
  *
- * Return: 0 in case of success, -1 on failure
+ * Return: QDF_STATUS_SUCCESS on success, else QDF_STATUS_E_FAILURE
  */
-int tgt_start_spectral_scan(struct wlan_objmgr_pdev *pdev);
+QDF_STATUS tgt_start_spectral_scan(struct wlan_objmgr_pdev *pdev,
+				   enum spectral_scan_mode smode,
+				   enum spectral_cp_error_code *err);
 
 /**
  * tgt_stop_spectral_scan() - Stop spectral scan
  * @pdev: Pointer to pdev object
+ * @smode: Spectral scan mode
+ * @err: Spectral control path error code
  *
  * Implementation for stop spectral scan
  *
- * Return: None
+ * Return: QDF_STATUS_SUCCESS on success, else QDF_STATUS_E_FAILURE
  */
-void tgt_stop_spectral_scan(struct wlan_objmgr_pdev *pdev);
+QDF_STATUS tgt_stop_spectral_scan(struct wlan_objmgr_pdev *pdev,
+				  enum spectral_scan_mode smode,
+				  enum spectral_cp_error_code *err);
 
 /**
  * tgt_is_spectral_active() - Get whether Spectral is active
  * @pdev: Pointer to pdev object
+ * @smode: Spectral scan mode
  *
  * Implementation to get whether Spectral is active
  *
  * Return: True if Spectral is active, false if Spectral is not active
  */
-bool tgt_is_spectral_active(struct wlan_objmgr_pdev *pdev);
+bool tgt_is_spectral_active(struct wlan_objmgr_pdev *pdev,
+			    enum spectral_scan_mode smode);
 
 /**
  * tgt_is_spectral_enabled() - Get whether Spectral is active
  * @pdev: Pointer to pdev object
+ * @smode: Spectral scan mode
  *
  * Implementation to get whether Spectral is active
  *
  * Return: True if Spectral is active, false if Spectral is not active
  */
-bool tgt_is_spectral_enabled(struct wlan_objmgr_pdev *pdev);
+bool tgt_is_spectral_enabled(struct wlan_objmgr_pdev *pdev,
+			     enum spectral_scan_mode smode);
 
 /**
  * tgt_set_debug_level() - Set debug level for Spectral
@@ -144,9 +157,10 @@ bool tgt_is_spectral_enabled(struct wlan_objmgr_pdev *pdev);
  *
  * Implementation to set the debug level for Spectral
  *
- * Return: 0 in case of success
+ * Return: QDF_STATUS_SUCCESS on success, else QDF_STATUS_E_FAILURE
  */
-int tgt_set_debug_level(struct wlan_objmgr_pdev *pdev, u_int32_t debug_level);
+QDF_STATUS tgt_set_debug_level(struct wlan_objmgr_pdev *pdev,
+			       u_int32_t debug_level);
 
 /**
  * tgt_get_debug_level() - Get debug level for Spectral
@@ -161,24 +175,26 @@ uint32_t tgt_get_debug_level(struct wlan_objmgr_pdev *pdev);
 /**
  * tgt_get_spectral_capinfo() - Get Spectral capability information
  * @pdev: Pointer to pdev object
- * @outdata: Buffer into which data should be copied
+ * @scaps: Buffer into which data should be copied
  *
  * Implementation to get the spectral capability information
  *
- * Return: void
+ * Return: QDF_STATUS_SUCCESS on success, else QDF_STATUS_E_FAILURE
  */
-void tgt_get_spectral_capinfo(struct wlan_objmgr_pdev *pdev, void *outdata);
+QDF_STATUS tgt_get_spectral_capinfo(struct wlan_objmgr_pdev *pdev,
+				    struct spectral_caps *scaps);
 
 /**
  * tgt_get_spectral_diagstats() - Get Spectral diagnostic statistics
  * @pdev:  Pointer to pdev object
- * @outdata: Buffer into which data should be copied
+ * @stats: Buffer into which data should be copied
  *
  * Implementation to get the spectral diagnostic statistics
  *
- * Return: void
+ * Return: QDF_STATUS_SUCCESS on success, else QDF_STATUS_E_FAILURE
  */
-void tgt_get_spectral_diagstats(struct wlan_objmgr_pdev *pdev, void *outdata);
+QDF_STATUS tgt_get_spectral_diagstats(struct wlan_objmgr_pdev *pdev,
+				      struct spectral_diag_stats *stats);
 
 /**
  * tgt_register_wmi_spectral_cmd_ops() - Register wmi_spectral_cmd_ops
@@ -232,13 +248,22 @@ tgt_spectral_process_report(struct wlan_objmgr_pdev *pdev,
 			    void *payload);
 
 /**
- * tgt_spectral_register_to_dbr() - Register to direct dma
+ * tgt_spectral_register_to_dbr() - Register to direct DMA
  * @pdev: Pointer to pdev object
  *
  * Return: QDF_STATUS
  */
 QDF_STATUS
 tgt_spectral_register_to_dbr(struct wlan_objmgr_pdev *pdev);
+
+/**
+ * tgt_spectral_unregister_to_dbr() - Register to direct DMA
+ * @pdev: Pointer to pdev object
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS
+tgt_spectral_unregister_to_dbr(struct wlan_objmgr_pdev *pdev);
 
 /**
  * tgt_spectral_get_target_type() - Get target type
@@ -248,4 +273,16 @@ tgt_spectral_register_to_dbr(struct wlan_objmgr_pdev *pdev);
  */
 uint32_t
 tgt_spectral_get_target_type(struct wlan_objmgr_psoc *psoc);
+
+/**
+ * tgt_set_spectral_dma_debug() - Set DMA debug for Spectral
+ * @pdev: Pointer to pdev object
+ * @dma_debug_type: Type of Spectral DMA debug i.e., ring or buffer debug
+ * @dma_debug_enable: Value to be set for @dma_debug_type
+ *
+ * Return: QDF_STATUS of operation
+ */
+QDF_STATUS tgt_set_spectral_dma_debug(struct wlan_objmgr_pdev *pdev,
+				      enum spectral_dma_debug dma_debug_type,
+				      bool dma_debug_enable);
 #endif /* _WLAN_SPECTRAL_TGT_API_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016, 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016, 2018-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -30,7 +30,6 @@
 #include "cds_api.h"
 #include "wni_cfg.h"
 #include "ani_global.h"
-#include "cfg_api.h"
 #include "sir_params.h"
 #include "lim_utils.h"
 #include "lim_timer_utils.h"
@@ -42,8 +41,8 @@
 
 /**
  * lim_init_peer_idxpool() -- initializes peer index pool
- * @pMac: mac context
- * @pSessionEntry: session entry
+ * @mac: mac context
+ * @pe_session: session entry
  *
  * This function is called while starting a BSS at AP
  * to initialize AID pool. This may also be called while
@@ -53,12 +52,12 @@
  * Return: None
  */
 
-void lim_init_peer_idxpool(tpAniSirGlobal pMac, tpPESession pSessionEntry)
+void lim_init_peer_idxpool(struct mac_context *mac, struct pe_session *pe_session)
 {
 	uint8_t i;
-	uint8_t maxAssocSta = pMac->lim.maxStation;
+	uint8_t maxAssocSta = mac->lim.maxStation;
 
-	pSessionEntry->gpLimPeerIdxpool[0] = 0;
+	pe_session->gpLimPeerIdxpool[0] = 0;
 
 #ifdef FEATURE_WLAN_TDLS
 	/*
@@ -67,25 +66,25 @@ void lim_init_peer_idxpool(tpAniSirGlobal pMac, tpPESession pSessionEntry)
 	* and get index starting from (DPH_STA_HASH_INDEX_PEER + 1)
 	* (index 2) for TDLS stations;
 	*/
-	if (LIM_IS_STA_ROLE(pSessionEntry)) {
-		pSessionEntry->freePeerIdxHead = DPH_STA_HASH_INDEX_PEER + 1;
+	if (LIM_IS_STA_ROLE(pe_session)) {
+		pe_session->freePeerIdxHead = DPH_STA_HASH_INDEX_PEER + 1;
 	} else
 #endif
 #ifdef QCA_IBSS_SUPPORT
-	if (LIM_IS_IBSS_ROLE(pSessionEntry)) {
-		pSessionEntry->freePeerIdxHead = LIM_START_PEER_IDX;
+	if (LIM_IS_IBSS_ROLE(pe_session)) {
+		pe_session->freePeerIdxHead = LIM_START_PEER_IDX;
 	} else
 #endif
 	{
-		pSessionEntry->freePeerIdxHead = LIM_START_PEER_IDX;
+		pe_session->freePeerIdxHead = LIM_START_PEER_IDX;
 	}
 
-	for (i = pSessionEntry->freePeerIdxHead; i < maxAssocSta; i++) {
-		pSessionEntry->gpLimPeerIdxpool[i] = i + 1;
+	for (i = pe_session->freePeerIdxHead; i < maxAssocSta; i++) {
+		pe_session->gpLimPeerIdxpool[i] = i + 1;
 	}
-	pSessionEntry->gpLimPeerIdxpool[i] = 0;
+	pe_session->gpLimPeerIdxpool[i] = 0;
 
-	pSessionEntry->freePeerIdxTail = i;
+	pe_session->freePeerIdxTail = i;
 
 }
 
@@ -105,31 +104,32 @@ void lim_init_peer_idxpool(tpAniSirGlobal pMac, tpPESession pSessionEntry)
  *
  ***NOTE:
  *
- * @param  pMac - Pointer to Global MAC structure
+ * @param  mac - Pointer to Global MAC structure
  * @return peerIdx  - assigned peer Station IDx for STA
  */
 
-uint16_t lim_assign_peer_idx(tpAniSirGlobal pMac, tpPESession pSessionEntry)
+uint16_t lim_assign_peer_idx(struct mac_context *mac, struct pe_session *pe_session)
 {
 	uint16_t peerId;
 
 	/* make sure we haven't exceeded the configurable limit on associations */
 	/* This count is global to ensure that it doesn't exceed the hardware limits. */
-	if (pe_get_current_stas_count(pMac) >= pMac->lim.gLimAssocStaLimit) {
+	if (pe_get_current_stas_count(mac) >=
+	    mac->mlme_cfg->sap_cfg.assoc_sta_limit) {
 		/* too many associations already active */
 		return 0;
 	}
 
 	/* return head of free list */
 
-	if (pSessionEntry->freePeerIdxHead) {
-		peerId = pSessionEntry->freePeerIdxHead;
-		pSessionEntry->freePeerIdxHead =
-			pSessionEntry->gpLimPeerIdxpool[pSessionEntry->
+	if (pe_session->freePeerIdxHead) {
+		peerId = pe_session->freePeerIdxHead;
+		pe_session->freePeerIdxHead =
+			pe_session->gpLimPeerIdxpool[pe_session->
 							freePeerIdxHead];
-		if (pSessionEntry->freePeerIdxHead == 0)
-			pSessionEntry->freePeerIdxTail = 0;
-		pSessionEntry->gLimNumOfCurrentSTAs++;
+		if (pe_session->freePeerIdxHead == 0)
+			pe_session->freePeerIdxTail = 0;
+		pe_session->gLimNumOfCurrentSTAs++;
 		return peerId;
 	}
 
@@ -151,27 +151,27 @@ uint16_t lim_assign_peer_idx(tpAniSirGlobal pMac, tpPESession pSessionEntry)
  *
  ***NOTE:
  *
- * @param  pMac - Pointer to Global MAC structure
+ * @param  mac - Pointer to Global MAC structure
  * @param  peerIdx - peer station index that need to return to free pool
  *
  * @return None
  */
 
 void
-lim_release_peer_idx(tpAniSirGlobal pMac, uint16_t peerIdx,
-		     tpPESession pSessionEntry)
+lim_release_peer_idx(struct mac_context *mac, uint16_t peerIdx,
+		     struct pe_session *pe_session)
 {
-	pSessionEntry->gLimNumOfCurrentSTAs--;
+	pe_session->gLimNumOfCurrentSTAs--;
 
 	/* insert at tail of free list */
-	if (pSessionEntry->freePeerIdxTail) {
-		pSessionEntry->gpLimPeerIdxpool[pSessionEntry->
+	if (pe_session->freePeerIdxTail) {
+		pe_session->gpLimPeerIdxpool[pe_session->
 						freePeerIdxTail] =
 			(uint8_t) peerIdx;
-		pSessionEntry->freePeerIdxTail = (uint8_t) peerIdx;
+		pe_session->freePeerIdxTail = (uint8_t) peerIdx;
 	} else {
-		pSessionEntry->freePeerIdxTail =
-			pSessionEntry->freePeerIdxHead = (uint8_t) peerIdx;
+		pe_session->freePeerIdxTail =
+			pe_session->freePeerIdxHead = (uint8_t) peerIdx;
 	}
-	pSessionEntry->gpLimPeerIdxpool[(uint8_t) peerIdx] = 0;
+	pe_session->gpLimPeerIdxpool[(uint8_t) peerIdx] = 0;
 }

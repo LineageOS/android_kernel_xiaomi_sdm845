@@ -27,7 +27,7 @@
 #include "wlan_hdd_mpta_helper.h"
 #include "qca_vendor.h"
 #include "wlan_osif_request_manager.h"
-#include "wlan_hdd_cfg.h"
+#include "osif_sync.h"
 
 static const struct nla_policy
 qca_wlan_vendor_mpta_helper_attr[QCA_MPTA_HELPER_VENDOR_ATTR_MAX + 1] = {
@@ -213,36 +213,42 @@ wlan_hdd_cfg80211_mpta_helper_config(struct wiphy *wiphy,
 				     const void *data,
 				     int data_len)
 {
-	int ret;
+	int errno;
+	struct osif_vdev_sync *vdev_sync;
 
-	cds_ssr_protect(__func__);
-	ret = __wlan_hdd_cfg80211_mpta_helper_config(
+	errno = osif_vdev_sync_op_start(wdev->netdev, &vdev_sync);
+	if (errno)
+		return errno;
+
+	errno = __wlan_hdd_cfg80211_mpta_helper_config(
 					wiphy, wdev, data, data_len);
-	cds_ssr_unprotect(__func__);
 
-	return ret;
+	osif_vdev_sync_op_stop(vdev_sync);
+
+	return errno;
 }
 
 /**
  * wlan_hdd_mpta_helper_enable() - enable/disable mpta helper
  * according to cfg from INI
+ * @coex_cfg_params: pointer of coex config command params
  * @config: pointer of BTC config items
  *
  * Return: 0 on success; error number otherwise.
  *
  */
 int
-wlan_hdd_mpta_helper_enable(struct hdd_config *config)
+wlan_hdd_mpta_helper_enable(struct coex_config_params *coex_cfg_params,
+			    struct wlan_fwol_coex_config *config)
 {
 	QDF_STATUS status;
-	struct coex_config_params coex_cfg_params = {0};
 
-	coex_cfg_params.config_type = WMI_COEX_CONFIG_MPTA_HELPER_ENABLE;
-	coex_cfg_params.config_arg1 = config->set_mpta_helper_enable;
+	coex_cfg_params->config_type = WMI_COEX_CONFIG_MPTA_HELPER_ENABLE;
+	coex_cfg_params->config_arg1 = config->btc_mpta_helper_enable;
 
-	status = sme_send_coex_config_cmd(&coex_cfg_params);
+	status = sme_send_coex_config_cmd(coex_cfg_params);
 	if (QDF_IS_STATUS_ERROR(status)) {
-		hdd_err("Failed to send coex MPTA helper enable");
+		hdd_err("Failed to send coex MPTA Helper Enable");
 		return -EINVAL;
 	}
 

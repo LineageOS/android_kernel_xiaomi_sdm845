@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012, 2014-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012, 2014-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -45,10 +45,11 @@ typedef enum eRrmMsgReqSource {
 	eRRM_MSG_SOURCE_ESE_UPLOAD = 3, /* ese upload approach */
 } tRrmMsgReqSource;
 
-typedef struct sSirChannelInfo {
-	uint8_t regulatoryClass;
-	uint8_t channelNum;
-} tSirChannelInfo, *tpSirChannelInfo;
+struct sir_channel_info {
+	uint8_t reg_class;
+	uint8_t chan_num;
+	uint32_t chan_freq;
+};
 
 typedef struct sSirBeaconReportReqInd {
 	uint16_t messageType;   /* eWNI_SME_BEACON_REPORT_REQ_IND */
@@ -57,14 +58,14 @@ typedef struct sSirBeaconReportReqInd {
 	tSirMacAddr bssId;
 	uint16_t measurementDuration[SIR_ESE_MAX_MEAS_IE_REQS]; /* ms */
 	uint16_t randomizationInterval; /* ms */
-	tSirChannelInfo channelInfo;
+	struct sir_channel_info channel_info;
 	/* 0: wildcard */
 	tSirMacAddr macaddrBssid;
 	/* 0:Passive, 1: Active, 2: table mode */
 	uint8_t fMeasurementtype[SIR_ESE_MAX_MEAS_IE_REQS];
 	tAniSSID ssId;          /* May be wilcard. */
 	uint16_t uDialogToken;
-	tSirChannelList channelList;    /* From AP channel report. */
+	struct report_channel_list channel_list; /* From AP channel report. */
 	tRrmMsgReqSource msgSource;
 } tSirBeaconReportReqInd, *tpSirBeaconReportReqInd;
 
@@ -78,7 +79,7 @@ typedef struct sSirBeaconReportXmitInd {
 	uint16_t duration;
 	uint8_t regClass;
 	uint8_t numBssDesc;
-	tpSirBssDescription pBssDescription[SIR_BCN_REPORT_MAX_BSS_DESC];
+	struct bss_description *pBssDescription[SIR_BCN_REPORT_MAX_BSS_DESC];
 } tSirBeaconReportXmitInd, *tpSirBeaconReportXmitInd;
 
 typedef struct sSirNeighborReportReqInd {
@@ -219,8 +220,9 @@ typedef struct sRrmPEContext {
 	/* Dialog token for the request initiated from station. */
 	uint8_t DialogToken;
 	uint16_t prev_rrm_report_seq_num;
+	uint8_t num_active_request;
 	tpRRMReq pCurrentReq[MAX_MEASUREMENT_REQUEST];
-	uint8_t beacon_rpt_chan_list[MAX_NUM_CHANNELS];
+	uint32_t beacon_rpt_chan_list[MAX_NUM_CHANNELS];
 	uint8_t beacon_rpt_chan_num;
 } tRrmPEContext, *tpRrmPEContext;
 

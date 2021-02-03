@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -68,6 +68,8 @@ ol_tx_queue_vdev_flush(struct ol_txrx_pdev_t *pdev, struct ol_txrx_vdev_t *vdev)
 	struct ol_txrx_peer_t *peer, *peers[PEER_ARRAY_COUNT];
 	int i, j, peer_count;
 
+	ol_tx_hl_queue_flush_all(vdev);
+
 	/* flush VDEV TX queues */
 	for (i = 0; i < OL_TX_VDEV_NUM_QUEUES; i++) {
 		txq = &vdev->txqs[i];
@@ -120,8 +122,7 @@ ol_tx_queue_vdev_flush(struct ol_txrx_pdev_t *pdev, struct ol_txrx_vdev_t *vdev)
 				if (txq->frms)
 					ol_tx_queue_free(pdev, txq, j, true);
 			}
-			ol_txrx_info(
-				   "%s: Delete Peer %pK\n", __func__, peer);
+			ol_txrx_info("Delete Peer %pK", peer);
 			ol_txrx_peer_release_ref(peers[i],
 						 PEER_DEBUG_ID_OL_TXQ_VDEV_FL);
 		}
@@ -161,6 +162,7 @@ ol_tx_queue_discard(
 		num = ol_tx_desc_pool_size_hl(pdev->ctrl_pdev) -
 			qdf_atomic_read(&pdev->tx_queue.rsrc_cnt);
 	else
+		/*TODO: Discard frames for a particular vdev only */
 		num = pdev->tx_queue.rsrc_threshold_hi -
 			pdev->tx_queue.rsrc_threshold_lo;
 
@@ -192,7 +194,7 @@ ol_tx_queue_discard(
 		ol_tx_queue_flush(pdev);
 }
 
-#ifdef CONFIG_PER_VDEV_TX_DESC_POOL
+#ifdef QCA_HL_NETDEV_FLOW_CONTROL
 
 /**
  * is_ol_tx_discard_frames_success() - check whether currently queued tx frames
@@ -202,16 +204,39 @@ ol_tx_queue_discard(
  *
  * Return: Success if available tx descriptors are too few
  */
-static bool
+static inline bool
 is_ol_tx_discard_frames_success(struct ol_txrx_pdev_t *pdev,
 				struct ol_tx_desc_t *tx_desc)
 {
 	ol_txrx_vdev_handle vdev;
+	bool discard_frames;
 
 	vdev = tx_desc->vdev;
-	return qdf_atomic_read(&vdev->tx_desc_count) >
-			((ol_tx_desc_pool_size_hl(pdev->ctrl_pdev) >> 1)
-			- TXRX_HL_TX_FLOW_CTRL_MGMT_RESERVED);
+
+	qdf_spin_lock_bh(&vdev->pdev->tx_mutex);
+	if (vdev->tx_desc_limit == 0) {
+		/* Flow control not enabled */
+		discard_frames = qdf_atomic_read(&pdev->tx_queue.rsrc_cnt) <=
+					pdev->tx_queue.rsrc_threshold_lo;
+	} else {
+	/*
+	 * Discard
+	 * if netbuf is normal priority and tx_desc_count greater than
+	 * queue stop threshold
+	 * AND
+	 * if netbuf is high priority and tx_desc_count greater than
+	 * tx desc limit.
+	 */
+		discard_frames = (!ol_tx_desc_is_high_prio(tx_desc->netbuf) &&
+				  qdf_atomic_read(&vdev->tx_desc_count) >
+				  vdev->queue_stop_th) ||
+				  (ol_tx_desc_is_high_prio(tx_desc->netbuf) &&
+				  qdf_atomic_read(&vdev->tx_desc_count) >
+				  vdev->tx_desc_limit);
+	}
+	qdf_spin_unlock_bh(&vdev->pdev->tx_mutex);
+
+	return discard_frames;
 }
 #else
 
@@ -222,7 +247,7 @@ is_ol_tx_discard_frames_success(struct ol_txrx_pdev_t *pdev,
 	return qdf_atomic_read(&pdev->tx_queue.rsrc_cnt) <=
 				pdev->tx_queue.rsrc_threshold_lo;
 }
-#endif
+#endif /* QCA_HL_NETDEV_FLOW_CONTROL */
 
 void
 ol_tx_enqueue(
@@ -256,6 +281,7 @@ ol_tx_enqueue(
 	bytes = qdf_nbuf_len(tx_desc->netbuf);
 	txq->frms++;
 	txq->bytes += bytes;
+	ol_tx_update_grp_frm_count(txq, 1);
 	ol_tx_queue_log_enqueue(pdev, tx_msdu_info, 1, bytes);
 
 	if (txq->flag != ol_tx_queue_paused) {
@@ -313,6 +339,8 @@ ol_tx_dequeue(
 	}
 	txq->frms -= num_frames;
 	txq->bytes -= bytes_sum;
+	ol_tx_update_grp_frm_count(txq, -credit_sum);
+
 	/* a paused queue remains paused, regardless of whether it has frames */
 	if (txq->frms == 0 && txq->flag == ol_tx_queue_active)
 		txq->flag = ol_tx_queue_empty;
@@ -358,7 +386,7 @@ ol_tx_queue_free(
 	txq->flag = ol_tx_queue_empty;
 	/* txq->head gets reset during the TAILQ_CONCAT call */
 	TAILQ_CONCAT(&tx_tmp_list, &txq->head, tx_desc_list_elem);
-
+	ol_tx_update_grp_frm_count(txq, -frms);
 	qdf_spin_unlock_bh(&pdev->tx_queue_spinlock);
 	/* free tx frames without holding tx_queue_spinlock */
 	qdf_atomic_add(frms, &pdev->tx_queue.rsrc_cnt);
@@ -491,6 +519,25 @@ ol_txrx_peer_tid_unpause_base(
 		}
 	}
 }
+
+/**
+ * ol_txrx_peer_unpause_base() - unpause all txqs for a given peer
+ * @pdev: the physical device object
+ * @peer: peer device object
+ *
+ * Return: None
+ */
+static void
+ol_txrx_peer_unpause_base(
+	struct ol_txrx_pdev_t *pdev,
+	struct ol_txrx_peer_t *peer)
+{
+	int i;
+
+	for (i = 0; i < QDF_ARRAY_SIZE(peer->txqs); i++)
+		ol_txrx_peer_tid_unpause_base(pdev, peer, i);
+}
+
 #ifdef QCA_BAD_PEER_TX_FLOW_CL
 /**
  * ol_txrx_peer_unpause_but_no_mgmt_q_base() - unpause all txqs except
@@ -538,55 +585,37 @@ ol_txrx_peer_tid_unpause(ol_txrx_peer_handle peer, int tid)
 }
 
 void
-ol_txrx_throttle_pause(ol_txrx_pdev_handle pdev)
+ol_txrx_vdev_pause(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
+		   uint32_t reason, uint32_t pause_type)
 {
-#if defined(QCA_SUPPORT_TX_THROTTLE)
-	qdf_spin_lock_bh(&pdev->tx_throttle.mutex);
-
-	if (pdev->tx_throttle.is_paused == true) {
-		qdf_spin_unlock_bh(&pdev->tx_throttle.mutex);
-		return;
-	}
-
-	pdev->tx_throttle.is_paused = true;
-	qdf_spin_unlock_bh(&pdev->tx_throttle.mutex);
-#endif
-	ol_txrx_pdev_pause(pdev, 0);
-}
-
-void
-ol_txrx_throttle_unpause(ol_txrx_pdev_handle pdev)
-{
-#if defined(QCA_SUPPORT_TX_THROTTLE)
-	qdf_spin_lock_bh(&pdev->tx_throttle.mutex);
-
-	if (pdev->tx_throttle.is_paused == false) {
-		qdf_spin_unlock_bh(&pdev->tx_throttle.mutex);
-		return;
-	}
-
-	pdev->tx_throttle.is_paused = false;
-	qdf_spin_unlock_bh(&pdev->tx_throttle.mutex);
-#endif
-	ol_txrx_pdev_unpause(pdev, 0);
-}
-
-void
-ol_txrx_vdev_pause(struct cdp_vdev *pvdev, uint32_t reason)
-{
-	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
-	struct ol_txrx_pdev_t *pdev = vdev->pdev;
+	struct ol_txrx_vdev_t *vdev =
+		(struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
+	struct ol_txrx_pdev_t *pdev;
 	struct ol_txrx_peer_t *peer;
 	/* TO DO: log the queue pause */
 	/* acquire the mutex lock, since we'll be modifying the queues */
 	TX_SCHED_DEBUG_PRINT("Enter %s\n", __func__);
 
+	if (qdf_unlikely(!vdev)) {
+		ol_txrx_err("vdev is NULL");
+		return;
+	}
+
+	pdev = vdev->pdev;
 
 	/* use peer_ref_mutex before accessing peer_list */
 	qdf_spin_lock_bh(&pdev->peer_ref_mutex);
 	qdf_spin_lock_bh(&pdev->tx_queue_spinlock);
 	TAILQ_FOREACH(peer, &vdev->peer_list, peer_list_elem) {
-		ol_txrx_peer_pause_base(pdev, peer);
+		if (pause_type == PAUSE_TYPE_CHOP) {
+			if (!(peer->is_tdls_peer && peer->tdls_offchan_enabled))
+				ol_txrx_peer_pause_base(pdev, peer);
+		} else if (pause_type == PAUSE_TYPE_CHOP_TDLS_OFFCHAN) {
+			if (peer->is_tdls_peer && peer->tdls_offchan_enabled)
+				ol_txrx_peer_pause_base(pdev, peer);
+		} else {
+			ol_txrx_peer_pause_base(pdev, peer);
+		}
 	}
 	qdf_spin_unlock_bh(&pdev->tx_queue_spinlock);
 	qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
@@ -594,28 +623,39 @@ ol_txrx_vdev_pause(struct cdp_vdev *pvdev, uint32_t reason)
 	TX_SCHED_DEBUG_PRINT("Leave %s\n", __func__);
 }
 
-
-void ol_txrx_vdev_unpause(struct cdp_vdev *pvdev, uint32_t reason)
+void ol_txrx_vdev_unpause(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
+			  uint32_t reason, uint32_t pause_type)
 {
-	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
-	struct ol_txrx_pdev_t *pdev = vdev->pdev;
+	struct ol_txrx_vdev_t *vdev =
+		(struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
+	struct ol_txrx_pdev_t *pdev;
 	struct ol_txrx_peer_t *peer;
 
 	/* TO DO: log the queue unpause */
 	/* acquire the mutex lock, since we'll be modifying the queues */
 	TX_SCHED_DEBUG_PRINT("Enter %s\n", __func__);
 
+	if (qdf_unlikely(!vdev)) {
+		ol_txrx_err("vdev is NULL");
+		return;
+	}
 
+	pdev = vdev->pdev;
 
 	/* take peer_ref_mutex before accessing peer_list */
 	qdf_spin_lock_bh(&pdev->peer_ref_mutex);
 	qdf_spin_lock_bh(&pdev->tx_queue_spinlock);
 
 	TAILQ_FOREACH(peer, &vdev->peer_list, peer_list_elem) {
-		int i;
-
-		for (i = 0; i < QDF_ARRAY_SIZE(peer->txqs); i++)
-			ol_txrx_peer_tid_unpause_base(pdev, peer, i);
+		if (pause_type == PAUSE_TYPE_CHOP) {
+			if (!(peer->is_tdls_peer && peer->tdls_offchan_enabled))
+				ol_txrx_peer_unpause_base(pdev, peer);
+		} else if (pause_type == PAUSE_TYPE_CHOP_TDLS_OFFCHAN) {
+			if (peer->is_tdls_peer && peer->tdls_offchan_enabled)
+				ol_txrx_peer_unpause_base(pdev, peer);
+		} else {
+			ol_txrx_peer_unpause_base(pdev, peer);
+		}
 	}
 	qdf_spin_unlock_bh(&pdev->tx_queue_spinlock);
 	qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
@@ -623,9 +663,18 @@ void ol_txrx_vdev_unpause(struct cdp_vdev *pvdev, uint32_t reason)
 	TX_SCHED_DEBUG_PRINT("Leave %s\n", __func__);
 }
 
-void ol_txrx_vdev_flush(struct cdp_vdev *pvdev)
+void ol_txrx_vdev_flush(struct cdp_soc_t *soc_hdl, uint8_t vdev_id)
 {
-	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
+	struct ol_txrx_vdev_t *vdev =
+		(struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
+
+	if (qdf_unlikely(!vdev)) {
+		ol_txrx_err("vdev is NULL");
+		return;
+	}
+
+	if (!vdev)
+		return;
 
 	ol_tx_queue_vdev_flush(vdev->pdev, vdev);
 }
@@ -796,12 +845,12 @@ ol_tx_bad_peer_update_tx_limit(struct ol_txrx_pdev_t *pdev,
 			       u_int16_t frames,
 			       u_int16_t tx_limit_flag)
 {
-	if (unlikely(NULL == pdev)) {
+	if (unlikely(!pdev)) {
 		TX_SCHED_DEBUG_PRINT_ALWAYS("Error: NULL pdev handler\n");
 		return;
 	}
 
-	if (unlikely(NULL == txq)) {
+	if (unlikely(!txq)) {
 		TX_SCHED_DEBUG_PRINT_ALWAYS("Error: NULL txq\n");
 		return;
 	}
@@ -825,10 +874,11 @@ ol_tx_bad_peer_update_tx_limit(struct ol_txrx_pdev_t *pdev,
 }
 
 void
-ol_txrx_bad_peer_txctl_set_setting(struct cdp_pdev *ppdev,
+ol_txrx_bad_peer_txctl_set_setting(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 				   int enable, int period, int txq_limit)
 {
-	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
+	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
+	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
 
 	if (enable)
 		pdev->tx_peer_bal.enabled = ol_tx_peer_bal_enable;
@@ -841,11 +891,12 @@ ol_txrx_bad_peer_txctl_set_setting(struct cdp_pdev *ppdev,
 }
 
 void
-ol_txrx_bad_peer_txctl_update_threshold(struct cdp_pdev *ppdev,
-					int level, int tput_thresh,
-					int tx_limit)
+ol_txrx_bad_peer_txctl_update_threshold(struct cdp_soc_t *soc_hdl,
+					uint8_t pdev_id, int level,
+					int tput_thresh, int tx_limit)
 {
-	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
+	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
+	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
 
 	/* Set the current settingl */
 	pdev->tx_peer_bal.ctl_thresh[level].tput_thresh =
@@ -954,12 +1005,12 @@ ol_txrx_peer_link_status_handler(
 	u_int16_t i = 0;
 	struct ol_txrx_peer_t *peer = NULL;
 
-	if (NULL == pdev) {
+	if (!pdev) {
 		TX_SCHED_DEBUG_PRINT_ALWAYS("Error: NULL pdev handler\n");
 		return;
 	}
 
-	if (NULL == peer_link_status) {
+	if (!peer_link_status) {
 		TX_SCHED_DEBUG_PRINT_ALWAYS(
 			"Error:NULL link report message. peer num %d\n",
 			peer_num);
@@ -1282,19 +1333,14 @@ ol_tx_queue_log_record_display(struct ol_txrx_pdev_t *pdev, int offset)
 		if (record.peer_id != 0xffff) {
 			peer = ol_txrx_peer_find_by_id(pdev,
 						       record.peer_id);
-			if (peer != NULL)
+			if (peer)
 				QDF_TRACE(QDF_MODULE_ID_TXRX,
 					  QDF_TRACE_LEVEL_ERROR,
-					  "Q: %6d  %5d  %3d  %4d (%02x:%02x:%02x:%02x:%02x:%02x)",
+					  "Q: %6d  %5d  %3d  %4d ("QDF_MAC_ADDR_FMT")",
 					  record.num_frms, record.num_bytes,
 					  record.tid,
 					  record.peer_id,
-					  peer->mac_addr.raw[0],
-					  peer->mac_addr.raw[1],
-					  peer->mac_addr.raw[2],
-					  peer->mac_addr.raw[3],
-					  peer->mac_addr.raw[4],
-					  peer->mac_addr.raw[5]);
+					  QDF_MAC_ADDR_REF(peer->mac_addr.raw));
 			else
 				QDF_TRACE(QDF_MODULE_ID_TXRX,
 					  QDF_TRACE_LEVEL_ERROR,
@@ -1321,19 +1367,14 @@ ol_tx_queue_log_record_display(struct ol_txrx_pdev_t *pdev, int offset)
 
 		if (record.peer_id != 0xffff) {
 			peer = ol_txrx_peer_find_by_id(pdev, record.peer_id);
-			if (peer != NULL)
+			if (peer)
 				QDF_TRACE(QDF_MODULE_ID_TXRX,
 					  QDF_TRACE_LEVEL_ERROR,
-					  "DQ: %6d  %5d  %3d  %4d (%02x:%02x:%02x:%02x:%02x:%02x)",
+					  "DQ: %6d  %5d  %3d  %4d ("QDF_MAC_ADDR_FMT")",
 					  record.num_frms, record.num_bytes,
 					  record.tid,
 					  record.peer_id,
-					  peer->mac_addr.raw[0],
-					  peer->mac_addr.raw[1],
-					  peer->mac_addr.raw[2],
-					  peer->mac_addr.raw[3],
-					  peer->mac_addr.raw[4],
-					  peer->mac_addr.raw[5]);
+					  QDF_MAC_ADDR_REF(peer->mac_addr.raw));
 			else
 				QDF_TRACE(QDF_MODULE_ID_TXRX,
 					  QDF_TRACE_LEVEL_ERROR,
@@ -1360,19 +1401,14 @@ ol_tx_queue_log_record_display(struct ol_txrx_pdev_t *pdev, int offset)
 
 		if (record.peer_id != 0xffff) {
 			peer = ol_txrx_peer_find_by_id(pdev, record.peer_id);
-			if (peer != NULL)
+			if (peer)
 				QDF_TRACE(QDF_MODULE_ID_TXRX,
 					  QDF_TRACE_LEVEL_ERROR,
-					  "F: %6d  %5d  %3d  %4d (%02x:%02x:%02x:%02x:%02x:%02x)",
+					  "F: %6d  %5d  %3d  %4d ("QDF_MAC_ADDR_FMT")",
 					  record.num_frms, record.num_bytes,
 					  record.tid,
 					  record.peer_id,
-					  peer->mac_addr.raw[0],
-					  peer->mac_addr.raw[1],
-					  peer->mac_addr.raw[2],
-					  peer->mac_addr.raw[3],
-					  peer->mac_addr.raw[4],
-					  peer->mac_addr.raw[5]);
+					  QDF_MAC_ADDR_REF(peer->mac_addr.raw));
 			else
 				QDF_TRACE(QDF_MODULE_ID_TXRX,
 					  QDF_TRACE_LEVEL_ERROR,
@@ -1465,13 +1501,10 @@ ol_tx_queue_log_display(struct ol_txrx_pdev_t *pdev)
 	 * being changed while in use, but since this is just for debugging,
 	 * don't bother.
 	 */
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-		"Current target credit: %d",
-		 qdf_atomic_read(&pdev->target_tx_credit));
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-		  "Tx queue log:");
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-		  ": Frames  Bytes  TID  PEER");
+	txrx_nofl_info("Current target credit: %d",
+		       qdf_atomic_read(&pdev->target_tx_credit));
+	txrx_nofl_info("Tx queue log:");
+	txrx_nofl_info(": Frames  Bytes  TID  PEER");
 
 	while (unwrap || offset != pdev->txq_log.offset) {
 		int delta = ol_tx_queue_log_record_display(pdev, offset);
@@ -1695,208 +1728,7 @@ ol_tx_queues_display(struct ol_txrx_pdev_t *pdev)
 
 #endif /* defined(CONFIG_HL_SUPPORT) */
 
-#if defined(QCA_LL_LEGACY_TX_FLOW_CONTROL)
-
-/**
- * ol_txrx_vdev_pause- Suspend all tx data for the specified virtual device
- *
- * @data_vdev - the virtual device being paused
- * @reason - the reason for which vdev queue is getting paused
- *
- * This function applies primarily to HL systems, but also
- * applies to LL systems that use per-vdev tx queues for MCC or
- * thermal throttling. As an example, this function could be
- * used when a single-channel physical device supports multiple
- * channels by jumping back and forth between the channels in a
- * time-shared manner.  As the device is switched from channel A
- * to channel B, the virtual devices that operate on channel A
- * will be paused.
- *
- */
-void ol_txrx_vdev_pause(struct cdp_vdev *pvdev, uint32_t reason)
-{
-	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
-
-	/* TO DO: log the queue pause */
-	/* acquire the mutex lock, since we'll be modifying the queues */
-	TX_SCHED_DEBUG_PRINT("Enter %s\n", __func__);
-
-	qdf_spin_lock_bh(&vdev->ll_pause.mutex);
-	vdev->ll_pause.paused_reason |= reason;
-	vdev->ll_pause.q_pause_cnt++;
-	vdev->ll_pause.is_q_paused = true;
-	qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
-
-	TX_SCHED_DEBUG_PRINT("Leave %s\n", __func__);
-}
-
-/**
- * ol_txrx_vdev_unpause - Resume tx for the specified virtual device
- *
- * @data_vdev - the virtual device being unpaused
- * @reason - the reason for which vdev queue is getting unpaused
- *
- * This function applies primarily to HL systems, but also applies to
- * LL systems that use per-vdev tx queues for MCC or thermal throttling.
- *
- */
-void ol_txrx_vdev_unpause(struct cdp_vdev *pvdev, uint32_t reason)
-{
-	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
-	/* TO DO: log the queue unpause */
-	/* acquire the mutex lock, since we'll be modifying the queues */
-	TX_SCHED_DEBUG_PRINT("Enter %s\n", __func__);
-
-	qdf_spin_lock_bh(&vdev->ll_pause.mutex);
-	if (vdev->ll_pause.paused_reason & reason) {
-		vdev->ll_pause.paused_reason &= ~reason;
-		if (!vdev->ll_pause.paused_reason) {
-			vdev->ll_pause.is_q_paused = false;
-			vdev->ll_pause.q_unpause_cnt++;
-			qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
-			ol_tx_vdev_ll_pause_queue_send((unsigned long) vdev);
-		} else {
-			qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
-		}
-	} else {
-		qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
-	}
-	TX_SCHED_DEBUG_PRINT("Leave %s\n", __func__);
-}
-
-/**
- * ol_txrx_vdev_flush - Drop all tx data for the specified virtual device
- *
- * @data_vdev - the virtual device being flushed
- *
- *  This function applies primarily to HL systems, but also applies to
- *  LL systems that use per-vdev tx queues for MCC or thermal throttling.
- *  This function would typically be used by the ctrl SW after it parks
- *  a STA vdev and then resumes it, but to a new AP.  In this case, though
- *  the same vdev can be used, any old tx frames queued inside it would be
- *  stale, and would need to be discarded.
- *
- */
-void ol_txrx_vdev_flush(struct cdp_vdev *pvdev)
-{
-	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
-
-	qdf_spin_lock_bh(&vdev->ll_pause.mutex);
-	qdf_timer_stop(&vdev->ll_pause.timer);
-	vdev->ll_pause.is_q_timer_on = false;
-	while (vdev->ll_pause.txq.head) {
-		qdf_nbuf_t next =
-			qdf_nbuf_next(vdev->ll_pause.txq.head);
-		qdf_nbuf_set_next(vdev->ll_pause.txq.head, NULL);
-		if (QDF_NBUF_CB_PADDR(vdev->ll_pause.txq.head) &&
-			!qdf_nbuf_ipa_owned_get(vdev->ll_pause.txq.head)) {
-			qdf_nbuf_unmap(vdev->pdev->osdev,
-				       vdev->ll_pause.txq.head,
-				       QDF_DMA_TO_DEVICE);
-		}
-		qdf_nbuf_tx_free(vdev->ll_pause.txq.head,
-				 QDF_NBUF_PKT_ERROR);
-		vdev->ll_pause.txq.head = next;
-	}
-	vdev->ll_pause.txq.tail = NULL;
-	vdev->ll_pause.txq.depth = 0;
-	qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
-}
-#endif /* defined(QCA_LL_LEGACY_TX_FLOW_CONTROL) */
-
-#if (!defined(QCA_LL_LEGACY_TX_FLOW_CONTROL)) && (!defined(CONFIG_HL_SUPPORT))
-void ol_txrx_vdev_flush(struct cdp_vdev *data_vdev)
-{
-}
-#endif
-
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
-#ifndef CONFIG_ICNSS
-
-/**
- * ol_txrx_map_to_netif_reason_type() - map to netif_reason_type
- * @reason: reason
- *
- * Return: netif_reason_type
- */
-static enum netif_reason_type
-ol_txrx_map_to_netif_reason_type(uint32_t reason)
-{
-	switch (reason) {
-	case OL_TXQ_PAUSE_REASON_FW:
-		return WLAN_FW_PAUSE;
-	case OL_TXQ_PAUSE_REASON_PEER_UNAUTHORIZED:
-		return WLAN_PEER_UNAUTHORISED;
-	case OL_TXQ_PAUSE_REASON_TX_ABORT:
-		return WLAN_TX_ABORT;
-	case OL_TXQ_PAUSE_REASON_VDEV_STOP:
-		return WLAN_VDEV_STOP;
-	case OL_TXQ_PAUSE_REASON_THERMAL_MITIGATION:
-		return WLAN_THERMAL_MITIGATION;
-	default:
-		ol_txrx_err(
-			   "%s: reason not supported %d\n",
-			   __func__, reason);
-		return WLAN_REASON_TYPE_MAX;
-	}
-}
-
-/**
- * ol_txrx_vdev_pause() - pause vdev network queues
- * @vdev: vdev handle
- * @reason: reason
- *
- * Return: none
- */
-void ol_txrx_vdev_pause(struct cdp_vdev *pvdev, uint32_t reason)
-{
-	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
-	struct ol_txrx_pdev_t *pdev = vdev->pdev;
-	enum netif_reason_type netif_reason;
-
-	if (qdf_unlikely((!pdev) || (!pdev->pause_cb))) {
-		ol_txrx_err("%s: invalid pdev\n", __func__);
-		return;
-	}
-
-	netif_reason = ol_txrx_map_to_netif_reason_type(reason);
-	if (netif_reason == WLAN_REASON_TYPE_MAX)
-		return;
-
-	pdev->pause_cb(vdev->vdev_id, WLAN_STOP_ALL_NETIF_QUEUE, netif_reason);
-}
-
-/**
- * ol_txrx_vdev_unpause() - unpause vdev network queues
- * @vdev: vdev handle
- * @reason: reason
- *
- * Return: none
- */
-void ol_txrx_vdev_unpause(struct cdp_vdev *pvdev, uint32_t reason)
-{
-	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
-	struct ol_txrx_pdev_t *pdev = vdev->pdev;
-	enum netif_reason_type netif_reason;
-
-	if (qdf_unlikely((!pdev) || (!pdev->pause_cb))) {
-		ol_txrx_err(
-				   "%s: invalid pdev\n", __func__);
-		return;
-	}
-
-	netif_reason = ol_txrx_map_to_netif_reason_type(reason);
-	if (netif_reason == WLAN_REASON_TYPE_MAX)
-		return;
-
-	pdev->pause_cb(vdev->vdev_id, WLAN_WAKE_ALL_NETIF_QUEUE,
-			netif_reason);
-
-}
-#endif /* ifndef CONFIG_ICNSS */
-#endif /* ifdef QCA_LL_TX_FLOW_CONTROL_V2 */
-
-#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(CONFIG_HL_SUPPORT)
+#if defined(CONFIG_HL_SUPPORT)
 
 /**
  * ol_txrx_pdev_pause() - pause network queues for each vdev
@@ -1910,9 +1742,8 @@ void ol_txrx_pdev_pause(struct ol_txrx_pdev_t *pdev, uint32_t reason)
 	struct ol_txrx_vdev_t *vdev = NULL, *tmp;
 
 	TAILQ_FOREACH_SAFE(vdev, &pdev->vdev_list, vdev_list_elem, tmp) {
-		cdp_fc_vdev_pause(
-			cds_get_context(QDF_MODULE_ID_SOC),
-			(struct cdp_vdev *)vdev, reason);
+		cdp_fc_vdev_pause(cds_get_context(QDF_MODULE_ID_SOC),
+				  vdev->vdev_id, reason, 0);
 	}
 
 }
@@ -1930,253 +1761,11 @@ void ol_txrx_pdev_unpause(struct ol_txrx_pdev_t *pdev, uint32_t reason)
 
 	TAILQ_FOREACH_SAFE(vdev, &pdev->vdev_list, vdev_list_elem, tmp) {
 		cdp_fc_vdev_unpause(cds_get_context(QDF_MODULE_ID_SOC),
-				    (struct cdp_vdev *)vdev, reason);
+				    vdev->vdev_id, reason, 0);
 	}
 
 }
 #endif
-
-/*--- LL tx throttle queue code --------------------------------------------*/
-#if defined(QCA_SUPPORT_TX_THROTTLE)
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
-/**
- * ol_txrx_thermal_pause() - pause due to thermal mitigation
- * @pdev: pdev handle
- *
- * Return: none
- */
-static inline
-void ol_txrx_thermal_pause(struct ol_txrx_pdev_t *pdev)
-{
-	ol_txrx_pdev_pause(pdev, OL_TXQ_PAUSE_REASON_THERMAL_MITIGATION);
-}
-/**
- * ol_txrx_thermal_unpause() - unpause due to thermal mitigation
- * @pdev: pdev handle
- *
- * Return: none
- */
-static inline
-void ol_txrx_thermal_unpause(struct ol_txrx_pdev_t *pdev)
-{
-	ol_txrx_pdev_unpause(pdev, OL_TXQ_PAUSE_REASON_THERMAL_MITIGATION);
-}
-#else
-/**
- * ol_txrx_thermal_pause() - pause due to thermal mitigation
- * @pdev: pdev handle
- *
- * Return: none
- */
-static inline
-void ol_txrx_thermal_pause(struct ol_txrx_pdev_t *pdev)
-{
-}
-
-/**
- * ol_txrx_thermal_unpause() - unpause due to thermal mitigation
- * @pdev: pdev handle
- *
- * Return: none
- */
-static inline
-void ol_txrx_thermal_unpause(struct ol_txrx_pdev_t *pdev)
-{
-	ol_tx_pdev_ll_pause_queue_send_all(pdev);
-}
-#endif
-
-static void ol_tx_pdev_throttle_phase_timer(void *context)
-{
-	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)context;
-	int ms;
-	enum throttle_level cur_level;
-	enum throttle_phase cur_phase;
-
-	/* update the phase */
-	pdev->tx_throttle.current_throttle_phase++;
-
-	if (pdev->tx_throttle.current_throttle_phase == THROTTLE_PHASE_MAX)
-		pdev->tx_throttle.current_throttle_phase = THROTTLE_PHASE_OFF;
-
-	if (pdev->tx_throttle.current_throttle_phase == THROTTLE_PHASE_OFF) {
-		/* Traffic is stopped */
-		ol_txrx_dbg(
-				   "throttle phase --> OFF\n");
-		ol_txrx_throttle_pause(pdev);
-		ol_txrx_thermal_pause(pdev);
-		cur_level = pdev->tx_throttle.current_throttle_level;
-		cur_phase = pdev->tx_throttle.current_throttle_phase;
-		ms = pdev->tx_throttle.throttle_time_ms[cur_level][cur_phase];
-		if (pdev->tx_throttle.current_throttle_level !=
-				THROTTLE_LEVEL_0) {
-			ol_txrx_dbg(
-					   "start timer %d ms\n", ms);
-			qdf_timer_start(&pdev->tx_throttle.
-							phase_timer, ms);
-		}
-	} else {
-		/* Traffic can go */
-		ol_txrx_dbg(
-					"throttle phase --> ON\n");
-		ol_txrx_throttle_unpause(pdev);
-		ol_txrx_thermal_unpause(pdev);
-		cur_level = pdev->tx_throttle.current_throttle_level;
-		cur_phase = pdev->tx_throttle.current_throttle_phase;
-		ms = pdev->tx_throttle.throttle_time_ms[cur_level][cur_phase];
-		if (pdev->tx_throttle.current_throttle_level !=
-		    THROTTLE_LEVEL_0) {
-			ol_txrx_dbg("start timer %d ms\n",
-				   ms);
-			qdf_timer_start(&pdev->tx_throttle.phase_timer,
-						ms);
-		}
-	}
-}
-
-#ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
-static void ol_tx_pdev_throttle_tx_timer(void *context)
-{
-	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)context;
-
-	ol_tx_pdev_ll_pause_queue_send_all(pdev);
-}
-#endif
-
-#ifdef CONFIG_HL_SUPPORT
-
-/**
- * ol_tx_set_throttle_phase_time() - Set the thermal mitgation throttle phase
- *				     and time
- * @pdev: the peer device object
- * @level: throttle phase level
- * @ms: throttle time
- *
- * Return: None
- */
-static void
-ol_tx_set_throttle_phase_time(struct ol_txrx_pdev_t *pdev, int level, int *ms)
-{
-	qdf_timer_stop(&pdev->tx_throttle.phase_timer);
-
-	/* Set the phase */
-	if (level != THROTTLE_LEVEL_0) {
-		pdev->tx_throttle.current_throttle_phase = THROTTLE_PHASE_OFF;
-		*ms = pdev->tx_throttle.throttle_time_ms[level]
-						[THROTTLE_PHASE_OFF];
-
-		/* pause all */
-		ol_txrx_throttle_pause(pdev);
-	} else {
-		pdev->tx_throttle.current_throttle_phase = THROTTLE_PHASE_ON;
-		*ms = pdev->tx_throttle.throttle_time_ms[level]
-						[THROTTLE_PHASE_ON];
-
-		/* unpause all */
-		ol_txrx_throttle_unpause(pdev);
-	}
-}
-#else
-
-static void
-ol_tx_set_throttle_phase_time(struct ol_txrx_pdev_t *pdev, int level, int *ms)
-{
-	/* Reset the phase */
-	pdev->tx_throttle.current_throttle_phase = THROTTLE_PHASE_OFF;
-
-	/* Start with the new time */
-	*ms = pdev->tx_throttle.
-		throttle_time_ms[level][THROTTLE_PHASE_OFF];
-
-	qdf_timer_stop(&pdev->tx_throttle.phase_timer);
-}
-#endif
-
-void ol_tx_throttle_set_level(struct cdp_pdev *ppdev, int level)
-{
-	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
-	int ms = 0;
-
-	if (level >= THROTTLE_LEVEL_MAX) {
-		ol_txrx_dbg(
-			   "%s invalid throttle level set %d, ignoring\n",
-			   __func__, level);
-		return;
-	}
-
-	ol_txrx_info("Setting throttle level %d\n", level);
-
-	/* Set the current throttle level */
-	pdev->tx_throttle.current_throttle_level = (enum throttle_level) level;
-
-	ol_tx_set_throttle_phase_time(pdev, level, &ms);
-
-	if (level != THROTTLE_LEVEL_0)
-		qdf_timer_start(&pdev->tx_throttle.phase_timer, ms);
-}
-
-void ol_tx_throttle_init_period(struct cdp_pdev *ppdev, int period,
-				uint8_t *dutycycle_level)
-{
-	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
-	int i;
-
-	/* Set the current throttle level */
-	pdev->tx_throttle.throttle_period_ms = period;
-
-	ol_txrx_dbg("level  OFF  ON\n");
-	for (i = 0; i < THROTTLE_LEVEL_MAX; i++) {
-		pdev->tx_throttle.throttle_time_ms[i][THROTTLE_PHASE_ON] =
-			pdev->tx_throttle.throttle_period_ms -
-				((dutycycle_level[i] *
-				  pdev->tx_throttle.throttle_period_ms)/100);
-		pdev->tx_throttle.throttle_time_ms[i][THROTTLE_PHASE_OFF] =
-			pdev->tx_throttle.throttle_period_ms -
-			pdev->tx_throttle.throttle_time_ms[
-				i][THROTTLE_PHASE_ON];
-		ol_txrx_dbg("%d      %d    %d\n", i,
-			   pdev->tx_throttle.
-			   throttle_time_ms[i][THROTTLE_PHASE_OFF],
-			   pdev->tx_throttle.
-			   throttle_time_ms[i][THROTTLE_PHASE_ON]);
-	}
-
-}
-
-void ol_tx_throttle_init(struct ol_txrx_pdev_t *pdev)
-{
-	uint32_t throttle_period;
-	uint8_t dutycycle_level[THROTTLE_LEVEL_MAX];
-	int i;
-
-	pdev->tx_throttle.current_throttle_level = THROTTLE_LEVEL_0;
-	pdev->tx_throttle.current_throttle_phase = THROTTLE_PHASE_OFF;
-	qdf_spinlock_create(&pdev->tx_throttle.mutex);
-
-	throttle_period = ol_cfg_throttle_period_ms(pdev->ctrl_pdev);
-
-	for (i = 0; i < THROTTLE_LEVEL_MAX; i++)
-		dutycycle_level[i] =
-			ol_cfg_throttle_duty_cycle_level(pdev->ctrl_pdev, i);
-
-	ol_tx_throttle_init_period((struct cdp_pdev *)pdev,
-			throttle_period, &dutycycle_level[0]);
-
-	qdf_timer_init(pdev->osdev,
-			       &pdev->tx_throttle.phase_timer,
-			       ol_tx_pdev_throttle_phase_timer, pdev,
-			       QDF_TIMER_TYPE_SW);
-
-#ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
-	qdf_timer_init(pdev->osdev,
-			       &pdev->tx_throttle.tx_timer,
-			       ol_tx_pdev_throttle_tx_timer, pdev,
-			       QDF_TIMER_TYPE_SW);
-#endif
-
-	pdev->tx_throttle.tx_threshold = THROTTLE_TX_THRESHOLD;
-}
-#endif /* QCA_SUPPORT_TX_THROTTLE */
 
 #ifdef FEATURE_HL_GROUP_CREDIT_FLOW_CONTROL
 
@@ -2222,6 +1811,93 @@ ol_tx_ac_has_tx_queue_group(
 	return false;
 }
 
+#ifdef FEATURE_HL_DBS_GROUP_CREDIT_SHARING
+static inline struct ol_tx_queue_group_t *
+ol_tx_txq_find_other_group(struct ol_txrx_pdev_t *pdev,
+			   struct ol_tx_queue_group_t *txq_grp)
+{
+	int i;
+	struct ol_tx_queue_group_t *other_grp = NULL;
+
+	for (i = 0; i < OL_TX_MAX_TXQ_GROUPS; i++) {
+		if (&pdev->txq_grps[i] != txq_grp) {
+			other_grp = &pdev->txq_grps[i];
+			break;
+		}
+	}
+	return other_grp;
+}
+
+u32 ol_tx_txq_group_credit_limit(
+	struct ol_txrx_pdev_t *pdev,
+	struct ol_tx_frms_queue_t *txq,
+	u32 credit)
+{
+	struct ol_tx_queue_group_t *txq_grp = txq->group_ptrs[0];
+	struct ol_tx_queue_group_t *other_grp;
+	u32 ask;
+	u32 updated_credit;
+	u32 credit_oth_grp;
+
+	if (qdf_unlikely(!txq_grp))
+		return credit;
+
+	updated_credit = qdf_atomic_read(&txq_grp->credit);
+
+	if (credit <= updated_credit)
+		/* We have enough credits */
+		return credit;
+
+	ask = credit - updated_credit;
+	other_grp = ol_tx_txq_find_other_group(pdev, txq_grp);
+	if (qdf_unlikely(!other_grp))
+		return credit;
+
+	credit_oth_grp = qdf_atomic_read(&other_grp->credit);
+	if (other_grp->frm_count < credit_oth_grp) {
+		u32 spare = credit_oth_grp - other_grp->frm_count;
+
+		if (pdev->limit_lend) {
+			if (spare > pdev->min_reserve)
+				spare -= pdev->min_reserve;
+			else
+				spare = 0;
+		}
+		updated_credit += min(spare, ask);
+	}
+	return updated_credit;
+}
+
+u32 ol_tx_txq_update_borrowed_group_credits(struct ol_txrx_pdev_t *pdev,
+					    struct ol_tx_frms_queue_t *txq,
+					    u32 credits_used)
+{
+	struct ol_tx_queue_group_t *txq_grp = txq->group_ptrs[0];
+	u32 credits_cur_grp;
+	u32 credits_brwd;
+
+	if (qdf_unlikely(!txq_grp))
+		return credits_used;
+
+	credits_cur_grp = qdf_atomic_read(&txq_grp->credit);
+	if (credits_used > credits_cur_grp) {
+		struct ol_tx_queue_group_t *other_grp =
+			ol_tx_txq_find_other_group(pdev, txq_grp);
+
+		if (qdf_likely(other_grp)) {
+			credits_brwd = credits_used - credits_cur_grp;
+			/*
+			 * All the credits were used from the active txq group.
+			 */
+			credits_used = credits_cur_grp;
+			/* Deduct credits borrowed from other group */
+			ol_txrx_update_group_credit(other_grp, -credits_brwd,
+						    0);
+		}
+	}
+	return credits_used;
+}
+#else /* FEATURE_HL_DBS_GROUP_CREDIT_SHARING */
 u_int32_t ol_tx_txq_group_credit_limit(
 	struct ol_txrx_pdev_t *pdev,
 	struct ol_tx_frms_queue_t *txq,
@@ -2248,6 +1924,7 @@ u_int32_t ol_tx_txq_group_credit_limit(
 
 	return credit;
 }
+#endif /* FEATURE_HL_DBS_GROUP_CREDIT_SHARING */
 
 void ol_tx_txq_group_credit_update(
 	struct ol_txrx_pdev_t *pdev,
@@ -2347,12 +2024,28 @@ void ol_tx_set_peer_group_ptr(
 
 u_int32_t ol_tx_get_max_tx_groups_supported(struct ol_txrx_pdev_t *pdev)
 {
-#ifdef HIF_SDIO
 		return OL_TX_MAX_TXQ_GROUPS;
-#else
-		return 0;
-#endif
 }
 #endif /* FEATURE_HL_GROUP_CREDIT_FLOW_CONTROL */
+
+#if defined(FEATURE_HL_GROUP_CREDIT_FLOW_CONTROL) && \
+	defined(FEATURE_HL_DBS_GROUP_CREDIT_SHARING)
+void ol_tx_update_grp_frm_count(struct ol_tx_frms_queue_t *txq, int num_frms)
+{
+	int i;
+
+	if (!num_frms || !txq) {
+		ol_txrx_dbg("Invalid params\n");
+		return;
+	}
+
+	for (i = 0; i < OL_TX_MAX_GROUPS_PER_QUEUE; i++) {
+		if (txq->group_ptrs[i]) {
+			txq->group_ptrs[i]->frm_count += num_frms;
+			qdf_assert(txq->group_ptrs[i]->frm_count >= 0);
+		}
+	}
+}
+#endif
 
 /*--- End of LL tx throttle queue code ---------------------------------------*/

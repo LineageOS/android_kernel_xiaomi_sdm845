@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -162,15 +162,6 @@ static inline int hdd_get_tsf_cb(void *pcb_cxt, struct stsf *ptsf)
 
 #if defined(WLAN_FEATURE_TSF_PLUS) && defined(WLAN_FEATURE_TSF)
 /**
- * hdd_tsf_is_ptp_enabled() - check ini configuration
- * @hdd: pointer to hdd context
- *
- * This function checks tsf configuration for ptp
- *
- * Return: true on enable, false on disable
- */
-bool hdd_tsf_is_ptp_enabled(struct hdd_context *hdd);
-/**
  * hdd_tsf_is_tx_set() - check ini configuration
  * @hdd: pointer to hdd context
  *
@@ -324,14 +315,6 @@ void hdd_capture_req_timer_expired_handler(void *arg)
 {
 }
 
-/**
- * hdd_tsf_is_tsf64_tx_set() - check ini configuration
- * @hdd: pointer to hdd context
- *
- * This function checks tsf configuration for ptp on tsf64 tx
- *
- * Return: true on enable, false on disable
- */
 static inline
 bool hdd_tsf_is_tsf64_tx_set(struct hdd_context *hdd)
 {
@@ -339,4 +322,15 @@ bool hdd_tsf_is_tsf64_tx_set(struct hdd_context *hdd)
 }
 #endif
 
+#ifdef WLAN_FEATURE_TSF_PTP
+/**
+ * wlan_get_ts_info() - return ts info to uplayer
+ * @dev: pointer to net_device
+ * @info: pointer to ethtool_ts_info
+ *
+ * Return: Describe the execute result of this routine
+ */
+int wlan_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info);
+
+#endif
 #endif

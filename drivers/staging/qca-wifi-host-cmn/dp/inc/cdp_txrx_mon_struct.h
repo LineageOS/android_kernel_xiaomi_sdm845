@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -102,6 +102,8 @@ enum {
 };
 
 struct cdp_mon_status {
+	/* bss color value 1-63 used for update on ppdu_desc bsscolor */
+	uint8_t bsscolor;
 	int rs_numchains;
 	int rs_flags;
 #define IEEE80211_RX_FCS_ERROR      0x01
@@ -201,6 +203,8 @@ enum {
 	CDP_MON_PPDU_END,
 };
 
+#define MAX_PPDU_ID_HIST 128
+
 /**
  * struct cdp_pdev_mon_stats
  * @status_ppdu_state: state on PPDU start and end
@@ -212,6 +216,9 @@ enum {
  * @status_ppdu_done: status ring PPDU done TLV count
  * @dest_ppdu_done: destination ring PPDU count
  * @dest_mpdu_done: destination ring MPDU count
+ * @dup_mon_linkdesc_cnt: duplicate link descriptor indications from HW
+ * @dup_mon_buf_cnt: duplicate buffer indications from HW
+ * @tlv_tag_status_err: status not correct in the tlv tag
  */
 struct cdp_pdev_mon_stats {
 #ifndef REMOVE_MON_DBG_STATS
@@ -226,5 +233,12 @@ struct cdp_pdev_mon_stats {
 	uint32_t dest_ppdu_done;
 	uint32_t dest_mpdu_done;
 	uint32_t dest_mpdu_drop;
+	uint32_t dup_mon_linkdesc_cnt;
+	uint32_t dup_mon_buf_cnt;
+	uint32_t stat_ring_ppdu_id_hist[MAX_PPDU_ID_HIST];
+	uint32_t dest_ring_ppdu_id_hist[MAX_PPDU_ID_HIST];
+	uint32_t ppdu_id_hist_idx;
+	uint32_t mon_rx_dest_stuck;
+	uint32_t tlv_tag_status_err;
 };
 #endif
