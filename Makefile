@@ -254,7 +254,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/x86/ -e s/x86_64/x86/ \
 # "make" in the configured kernel build directory always uses that.
 # Default value for CROSS_COMPILE is not to prefix executables
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
-ARCH		?= $(SUBARCH)
+override ARCH		:= arm64
 CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
 
 # Architecture as present in compile.h
@@ -373,7 +373,7 @@ CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 NOSTDINC_FLAGS  =
 CFLAGS_MODULE   =
 AFLAGS_MODULE   =
-LDFLAGS_MODULE  =
+LDFLAGS_MODULE  = --strip-debug
 CFLAGS_KERNEL	=
 AFLAGS_KERNEL	=
 LDFLAGS_vmlinux =
@@ -717,7 +717,24 @@ KBUILD_CFLAGS	+= $(call cc-option,-fdata-sections,)
 endif
 
 ifdef CONFIG_LTO_CLANG
-lto-clang-flags	:= -flto -fvisibility=hidden
+ifdef CONFIG_THINLTO
+lto-clang-flags := -flto=thin -fsplit-lto-unit -O3
+KBUILD_LDFLAGS += --thinlto-cache-dir=.thinlto-cache
+ifdef THINLTO_CACHE
+ifeq ($(ld-name),lld)
+LDFLAGS		+= --thinlto-cache-dir=$(THINLTO_CACHE)
+LDFLAGS		+= --thinlto-cache-policy=cache_size=5%:cache_size_bytes=5g
+else
+LDFLAGS		+= -plugin-opt,cache-dir=$(THINLTO_CACHE)
+LDFLAGS		+= -plugin-opt,cache-policy=cache_size=5%:cache_size_bytes=5g
+endif
+endif
+else
+lto-clang-flags	:= -flto
+LDFLAGS		+= -plugin-opt=-safestack-use-pointer-address
+endif
+lto-clang-flags += -fvisibility=hidden
+lto-clang-flags	+= -O3
 
 # allow disabling only clang LTO where needed
 DISABLE_LTO_CLANG := -fno-lto -fvisibility=default
@@ -763,15 +780,160 @@ DISABLE_LTO	+= $(DISABLE_CFI)
 export DISABLE_CFI
 endif
 
+ifdef CONFIG_SHADOW_CALL_STACK
+scs-flags	:= -fsanitize=shadow-call-stack
+KBUILD_CFLAGS	+= $(scs-flags)
+DISABLE_SCS	:= -fno-sanitize=shadow-call-stack
+export DISABLE_SCS
+endif
+ifdef CONFIG_SAFESTACK
+safestack-flags	+= -fsanitize=safe-stack
+safestack-extra-flags += -mllvm -safestack-use-pointer-address
+# safestack-flags are re-tested in prepare-compiler-check
+KBUILD_CFLAGS	+= $(call cc-option, $(safestack-flags))
+KBUILD_CFLAGS	+= $(call cc-option, $(safestack-extra-flags))
+DISABLE_SAFESTACK := -fno-sanitize=safe-stack
+export DISABLE_SAFESTACK
+endif
+
+ifdef CONFIG_SAFESTACK_COLORING
+safestack-extra-flags += -mllvm -safe-stack-coloring=1
+KBUILD_CFLAGS   += -O3
+endif
+
+ifdef CONFIG_LTO_CLANG
+#LDFLAGS		+= -plugin-opt=-safestack-use-pointer-address
+endif
+
+ifdef CONFIG_SAFESTACK_COLORING
+LDFLAGS		+= -plugin-opt=-safe-stack-coloring=1
+endif
+
+
+# Initialize all stack variables with a pattern, if desired.
+ifdef CONFIG_INIT_STACK_ALL
+KBUILD_CFLAGS	+= -ftrivial-auto-var-init=pattern
+endif
+
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS   += -Os
 else
-KBUILD_CFLAGS   += -O2
+ifdef CONFIG_PROFILE_ALL_BRANCHES
+KBUILD_CFLAGS	+= -O3 $(call cc-disable-warning,maybe-uninitialized,)
+else
+KBUILD_CFLAGS	+= -O3
+endif
 endif
 
-ifdef CONFIG_CC_WERROR
-KBUILD_CFLAGS	+= -Werror
+#THANAS
+
+# Optimization for gcc sdm845
+
+ifeq ($(cc-name),gcc)
+KBUILD_CFLAGS	+= -O3 -mtune=cortex-a75.cortex-a55 -mcpu=cortex-a75.cortex-a55+crc+crypto+fp16+simd+sve \
+#-fomit-frame-pointer -pipe \
+#-funroll-loops \
+#-fforce-addr  \
+
+#KBUILD_CFLAGS	+= -floop-parallelize-all -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block -floop-optimize -floop-nest-optimize -fprefetch-loop-arrays -ftree-vectorize -ftree-loop-vectorize
 endif
+
+#KBUILD_CFLAGS	+= -fno-gcse
+#KBUILD_CFLAGS	+= -ftracer
+LDFLAGS		+= -O3
+
+
+#LDFLAGS_vmlinux	+= $(call ld-option, --gc-sections,)
+#-fforce-addr -fopenmp -D_GLIBCXX_PARALLEL -ffunction-sections -fdata-sections -fvpt
+#-fprofile-arcs -fauto-profile
+#-fprofile-generate -fprofile-dir=~/TOOLCHAIN/PGO
+#-fprofile-use=~/TOOLCHAIN/PGO -fprofile-correction
+
+#KBUILD_CFLAGS += -Wno-undefined-optimized
+#LDFLAGS	+= -fuse-linker-plugin
+
+
+# This doesn't need 835769/843419 erratum fixes.
+# Some toolchains enable those fixes automatically, so opt-out.
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-835769)
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-843419)
+
+
+KBUILD_CFLAGS	+= $(call cc-option,-mabi=lp64)
+KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)
+
+
+
+
+
+
+ifeq ($(cc-name),clang)
+# Add Some optimization flags for clang
+KBUILD_CFLAGS	+= -O3 -march=armv8.3-a+crc+crypto+fp16+simd+sve -mcpu=cortex-a55+crc+crypto+fp16+simd+sve -mtune=cortex-a55+crc+crypto+fp16+simd+sve \
+-fomit-frame-pointer -pipe \
+-funroll-loops \
+
+
+KBUILD_CFLAGS	+= -fopenmp
+KBUILD_CFLAGS	+= -mllvm -polly \
+		   -mllvm -polly-omp-backend=LLVM \
+		   -mllvm -polly-scheduling=dynamic \
+		   -mllvm -polly-scheduling-chunksize=1 \
+		   -mllvm -polly-vectorizer=polly \
+		   -mllvm -polly-opt-fusion=max \
+		   -mllvm -polly-opt-maximize-bands=yes \
+		   -mllvm -polly-run-dce \
+		   -mllvm -polly-position=after-loopopt \
+		   -mllvm -polly-run-inliner \
+		   -mllvm -polly-opt-fusion=max \
+		   -mllvm -polly-ast-use-context \
+		   -mllvm -polly-detect-keep-going \
+		   -mllvm -polly-vectorizer=stripmine \
+		   -mllvm -polly-opt-simplify-deps=no \
+		   -mllvm -polly-rtc-max-arrays-per-group=40 \
+		   -mllvm -polly-invariant-load-hoisting \
+		   -mllvm -polly-vectorizer=polly \
+		   -mllvm -polly-parallel \
+		   -mllvm -polly-parallel-force \
+			 -mllvm -polly-ast-detect-parallel
+
+
+			 #-mllvm -polly-no-early-exit
+
+# Add EXP New Pass Manager for clang
+KBUILD_CFLAGS	+= -fexperimental-new-pass-manager
+#endif
+
+#### too lazy to remove doubles...
+#-fno-strict-aliasing \
+-fno-trapping-math \
+-fno-stack-protector -pthread -Wall -Wformat-security -fwrapv --param=ssp-buffer-size=32 \
+-D_REENTRANT
+
+#-g
+
+#
+
+
+
+
+
+LDFLAGS		+= -O3
+#####
+endif
+
+
+
+KBUILD_CFLAGS += $(call cc-ifversion, -lt, 0409, \
+			$(call cc-disable-warning,maybe-uninitialized,))
+
+ifdef CONFIG_CC_WERROR
+#KBUILD_CFLAGS	+= -Werror
+endif
+KBUILD_CFLAGS	+= -Wno-error
+
+# Add EXP New Pass Manager for clang
+KBUILD_CFLAGS	+= $(call cc-option,-fexperimental-new-pass-manager)
 
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
