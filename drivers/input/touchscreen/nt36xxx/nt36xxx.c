@@ -786,19 +786,19 @@ static int nvt_parse_dt(struct device *dev)
 
 	retval = of_property_read_string(np, "novatek,vddio-reg-name", &ts->vddio_reg_name);
 	if (retval < 0) {
-		NVT_LOG("Unable to read VDDIO Regulator, rc:%d\n");
+		NVT_LOG("Unable to read VDDIO Regulator, rc:%d\n", retval);
 		return retval;
 	}
 
 	retval = of_property_read_string(np, "novatek,lab-reg-name", &ts->lab_reg_name);
 	if (retval < 0) {
-		NVT_LOG("Unable to read LAB Regulator, rc:%d\n");
+		NVT_LOG("Unable to read LAB Regulator, rc:%d\n", retval);
 		return retval;
 	}
 
 	retval = of_property_read_string(np, "novatek,ibb-reg-name", &ts->ibb_reg_name);
 	if (retval < 0) {
-		NVT_LOG("Unable to read IBB Regulator, rc:%d\n");
+		NVT_LOG("Unable to read IBB Regulator, rc:%d\n", retval);
 		return retval;
 	}
 
