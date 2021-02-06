@@ -1,9 +1,9 @@
 /*
- * Copyright (C) 2010 - 2017 Novatek, Inc.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2010 - 2018 Novatek, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
- * $Revision: 21600 $
- * $Date: 2018-01-12 15:21:45 +0800 (週五, 12 一月 2018) $
+ * $Revision: 47247 $
+ * $Date: 2019-07-10 10:41:36 +0800 (Wed, 10 Jul 2019) $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@
 #define NVT_XIAOMI_CONFIG_INFO "nvt_xiaomi_config_info"
 #define NVT_XIAOMI_LOCKDOWN_INFO "tp_lockdown_info"
 
-#define I2C_TANSFER_LENGTH  64
+#define BUS_TRANSFER_LENGTH  64
 
 #define NORMAL_MODE 0x00
 #define TEST_MODE_1 0x21
@@ -80,13 +80,10 @@ void nvt_change_mode(uint8_t mode)
 {
 	uint8_t buf[8] = {0};
 
-	/*---set xdata index to EVENT BUF ADDR---*/
-	buf[0] = 0xFF;
-	buf[1] = (ts->mmap->EVENT_BUF_ADDR >> 16) & 0xFF;
-	buf[2] = (ts->mmap->EVENT_BUF_ADDR >> 8) & 0xFF;
-	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 3);
+	//---set xdata index to EVENT BUF ADDR---
+	nvt_set_page(I2C_FW_Address, ts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HOST_CMD);
 
-	/*---set mode---*/
+	//---set mode---
 	buf[0] = EVENT_MAP_HOST_CMD;
 	buf[1] = mode;
 	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
@@ -110,18 +107,15 @@ uint8_t nvt_get_fw_pipe(void)
 {
 	uint8_t buf[8] = {0};
 
-	/*---set xdata index to EVENT BUF ADDR---*/
-	buf[0] = 0xFF;
-	buf[1] = (ts->mmap->EVENT_BUF_ADDR >> 16) & 0xFF;
-	buf[2] = (ts->mmap->EVENT_BUF_ADDR >> 8) & 0xFF;
-	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 3);
+	//---set xdata index to EVENT BUF ADDR---
+	nvt_set_page(I2C_FW_Address, ts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE);
 
-	/*---read fw status---*/
+	//---read fw status---
 	buf[0] = EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE;
 	buf[1] = 0x00;
 	CTP_I2C_READ(ts->client, I2C_FW_Address, buf, 2);
 
-	/*NVT_LOG("FW pipe=%d, buf[1]=0x%02X\n", (buf[1]&0x01), buf[1]);*/
+	//NVT_LOG("FW pipe=%d, buf[1]=0x%02X\n", (buf[1]&0x01), buf[1]);
 
 	return (buf[1] & 0x01);
 }
@@ -138,99 +132,75 @@ void nvt_read_mdata(uint32_t xdata_addr, uint32_t xdata_btn_addr)
 	int32_t i = 0;
 	int32_t j = 0;
 	int32_t k = 0;
-	uint8_t buf[I2C_TANSFER_LENGTH + 1] = {0};
+	uint8_t buf[BUS_TRANSFER_LENGTH + 1] = {0};
 	uint32_t head_addr = 0;
 	int32_t dummy_len = 0;
 	int32_t data_len = 0;
 	int32_t residual_len = 0;
 
-	/*---set xdata sector address & length---*/
+	//---set xdata sector address & length---
 	head_addr = xdata_addr - (xdata_addr % XDATA_SECTOR_SIZE);
 	dummy_len = xdata_addr - head_addr;
 	data_len = ts->x_num * ts->y_num * 2;
 	residual_len = (head_addr + dummy_len + data_len) % XDATA_SECTOR_SIZE;
 
-	mutex_lock(&ts->mdata_lock);
-
-	/*printk("head_addr=0x%05X, dummy_len=0x%05X, data_len=0x%05X, residual_len=0x%05X\n", head_addr, dummy_len, data_len, residual_len);*/
-
-	/*read xdata : step 1*/
+	//read xdata : step 1
 	for (i = 0; i < ((dummy_len + data_len) / XDATA_SECTOR_SIZE); i++) {
-		/*---change xdata index---*/
-		buf[0] = 0xFF;
-		buf[1] = ((head_addr + XDATA_SECTOR_SIZE * i) >> 16) & 0xFF;
-		buf[2] = ((head_addr + XDATA_SECTOR_SIZE * i) >> 8) & 0xFF;
-		CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 3);
+		//---change xdata index---
+		nvt_set_page(I2C_FW_Address, head_addr + XDATA_SECTOR_SIZE * i);
 
-		/*---read xdata by I2C_TANSFER_LENGTH---*/
-		for (j = 0; j < (XDATA_SECTOR_SIZE / I2C_TANSFER_LENGTH); j++) {
-			/*---read data---*/
-			msleep(15);
-			buf[0] = I2C_TANSFER_LENGTH * j;
-			CTP_I2C_READ(ts->client, I2C_FW_Address, buf, I2C_TANSFER_LENGTH + 1);
+		//---read xdata by BUS_TRANSFER_LENGTH
+		for (j = 0; j < (XDATA_SECTOR_SIZE / BUS_TRANSFER_LENGTH); j++) {
+			//---read data---
+			buf[0] = BUS_TRANSFER_LENGTH * j;
+			CTP_I2C_READ(ts->client, I2C_FW_Address, buf, BUS_TRANSFER_LENGTH + 1);
 
-			/*---copy buf to xdata_tmp---*/
-			for (k = 0; k < I2C_TANSFER_LENGTH; k++) {
-				xdata_tmp[XDATA_SECTOR_SIZE * i + I2C_TANSFER_LENGTH * j + k] = buf[k + 1];
-				/*printk("0x%02X, 0x%04X\n", buf[k+1], (XDATA_SECTOR_SIZE*i + I2C_TANSFER_LENGTH*j + k));*/
+			//---copy buf to xdata_tmp---
+			for (k = 0; k < BUS_TRANSFER_LENGTH; k++) {
+				xdata_tmp[XDATA_SECTOR_SIZE * i + BUS_TRANSFER_LENGTH * j + k] = buf[k + 1];
 			}
 		}
-		/*printk("addr=0x%05X\n", (head_addr+XDATA_SECTOR_SIZE*i));*/
 	}
 
-	/*read xdata : step2*/
+	//read xdata : step2
 	if (residual_len != 0) {
-		/*---change xdata index---*/
-		buf[0] = 0xFF;
-		buf[1] = ((xdata_addr + data_len - residual_len) >> 16) & 0xFF;
-		buf[2] = ((xdata_addr + data_len - residual_len) >> 8) & 0xFF;
-		CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 3);
+		//---change xdata index---
+		nvt_set_page(I2C_FW_Address, xdata_addr + data_len - residual_len);
 
-		/*---read xdata by I2C_TANSFER_LENGTH---*/
-		for (j = 0; j < (residual_len / I2C_TANSFER_LENGTH + 1); j++) {
-			/*---read data---*/
-			msleep(15);
-			buf[0] = I2C_TANSFER_LENGTH * j;
-			CTP_I2C_READ(ts->client, I2C_FW_Address, buf, I2C_TANSFER_LENGTH + 1);
+		//---read xdata by BUS_TRANSFER_LENGTH
+		for (j = 0; j < (residual_len / BUS_TRANSFER_LENGTH + 1); j++) {
+			//---read data---
+			buf[0] = BUS_TRANSFER_LENGTH * j;
+			CTP_I2C_READ(ts->client, I2C_FW_Address, buf, BUS_TRANSFER_LENGTH + 1);
 
-			/*---copy buf to xdata_tmp---*/
-			for (k = 0; k < I2C_TANSFER_LENGTH; k++) {
-				xdata_tmp[(dummy_len + data_len - residual_len) + I2C_TANSFER_LENGTH * j + k] = buf[k + 1];
-				/*printk("0x%02X, 0x%04x\n", buf[k+1], ((dummy_len+data_len-residual_len) + I2C_TANSFER_LENGTH*j + k));*/
+			//---copy buf to xdata_tmp---
+			for (k = 0; k < BUS_TRANSFER_LENGTH; k++) {
+				xdata_tmp[(dummy_len + data_len - residual_len) + BUS_TRANSFER_LENGTH * j + k] = buf[k + 1];
 			}
 		}
-		/*printk("addr=0x%05X\n", (xdata_addr+data_len-residual_len));*/
 	}
 
-	/*---remove dummy data and 2bytes-to-1data---*/
+	//---remove dummy data and 2bytes-to-1data---
 	for (i = 0; i < (data_len / 2); i++) {
 		xdata[i] = (int16_t)(xdata_tmp[dummy_len + i * 2] + 256 * xdata_tmp[dummy_len + i * 2 + 1]);
 	}
 
 #if TOUCH_KEY_NUM > 0
-	/*read button xdata : step3*/
-	/*---change xdata index---*/
-	buf[0] = 0xFF;
-	buf[1] = (xdata_btn_addr >> 16) & 0xFF;
-	buf[2] = ((xdata_btn_addr >> 8) & 0xFF);
-	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 3);
+	//read button xdata : step3
+	//---change xdata index---
+	nvt_set_page(I2C_FW_Address, xdata_btn_addr);
 
-	/*---read data---*/
+	//---read data---
 	buf[0] = (xdata_btn_addr & 0xFF);
 	CTP_I2C_READ(ts->client, I2C_FW_Address, buf, (TOUCH_KEY_NUM * 2 + 1));
 
-	/*---2bytes-to-1data---*/
+	//---2bytes-to-1data---
 	for (i = 0; i < TOUCH_KEY_NUM; i++) {
 		xdata[ts->x_num * ts->y_num + i] = (int16_t)(buf[1 + i * 2] + 256 * buf[1 + i * 2 + 1]);
 	}
 #endif
-	mutex_unlock(&ts->mdata_lock);
-
-	/*---set xdata index to EVENT BUF ADDR---*/
-	buf[0] = 0xFF;
-	buf[1] = (ts->mmap->EVENT_BUF_ADDR >> 16) & 0xFF;
-	buf[2] = (ts->mmap->EVENT_BUF_ADDR >> 8) & 0xFF;
-	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 3);
+	//---set xdata index to EVENT BUF ADDR---
+	nvt_set_page(I2C_FW_Address, ts->mmap->EVENT_BUF_ADDR);
 }
 
 /*******************************************************
@@ -270,9 +240,7 @@ void nvt_get_mdata(int32_t *buf, uint8_t *m_x_num, uint8_t *m_y_num)
     *m_x_num = ts->x_num;
     *m_y_num = ts->y_num;
 
-	mutex_lock(&ts->mdata_lock);
 	memcpy(buf, xdata, ((ts->x_num * ts->y_num + TOUCH_KEY_NUM) * sizeof(int32_t)));
-	mutex_unlock(&ts->mdata_lock);
 }
 
 /*******************************************************
@@ -386,9 +354,8 @@ return:
 *******************************************************/
 static int32_t nvt_fw_version_open(struct inode *inode, struct file *file)
 {
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (mutex_lock_interruptible(&ts->lock))
 		return -ERESTARTSYS;
-	}
 
 	NVT_LOG("++\n");
 
@@ -425,9 +392,8 @@ return:
 *******************************************************/
 static int32_t nvt_baseline_open(struct inode *inode, struct file *file)
 {
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (mutex_lock_interruptible(&ts->lock))
 		return -ERESTARTSYS;
-	}
 
 	NVT_LOG("++\n");
 
@@ -452,12 +418,7 @@ static int32_t nvt_baseline_open(struct inode *inode, struct file *file)
 		return -EAGAIN;
 	}
 
-	if (ts->carrier_system) {
-		nvt_read_mdata_rss(ts->mmap->BASELINE_ADDR, ts->mmap->BASELINE_Q_ADDR,
-				ts->mmap->BASELINE_BTN_ADDR, ts->mmap->BASELINE_BTN_Q_ADDR);
-	} else {
-		nvt_read_mdata(ts->mmap->BASELINE_ADDR, ts->mmap->BASELINE_BTN_ADDR);
-	}
+	nvt_read_mdata(ts->mmap->BASELINE_ADDR, ts->mmap->BASELINE_BTN_ADDR);
 
 	nvt_change_mode(NORMAL_MODE);
 
@@ -485,9 +446,8 @@ return:
 *******************************************************/
 static int32_t nvt_raw_open(struct inode *inode, struct file *file)
 {
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (mutex_lock_interruptible(&ts->lock))
 		return -ERESTARTSYS;
-	}
 
 	NVT_LOG("++\n");
 
@@ -512,19 +472,10 @@ static int32_t nvt_raw_open(struct inode *inode, struct file *file)
 		return -EAGAIN;
 	}
 
-	if (ts->carrier_system) {
-		if (nvt_get_fw_pipe() == 0)
-			nvt_read_mdata_rss(ts->mmap->RAW_PIPE0_ADDR, ts->mmap->RAW_PIPE0_Q_ADDR,
-				ts->mmap->RAW_BTN_PIPE0_ADDR, ts->mmap->RAW_BTN_PIPE0_Q_ADDR);
-		else
-			nvt_read_mdata_rss(ts->mmap->RAW_PIPE1_ADDR, ts->mmap->RAW_PIPE1_Q_ADDR,
-				ts->mmap->RAW_BTN_PIPE1_ADDR, ts->mmap->RAW_BTN_PIPE1_Q_ADDR);
-	} else {
-		if (nvt_get_fw_pipe() == 0)
-			nvt_read_mdata(ts->mmap->RAW_PIPE0_ADDR, ts->mmap->RAW_BTN_PIPE0_ADDR);
-		else
-			nvt_read_mdata(ts->mmap->RAW_PIPE1_ADDR, ts->mmap->RAW_BTN_PIPE1_ADDR);
-	}
+	if (nvt_get_fw_pipe() == 0)
+		nvt_read_mdata(ts->mmap->RAW_PIPE0_ADDR, ts->mmap->RAW_BTN_PIPE0_ADDR);
+	else
+		nvt_read_mdata(ts->mmap->RAW_PIPE1_ADDR, ts->mmap->RAW_BTN_PIPE1_ADDR);
 
 	nvt_change_mode(NORMAL_MODE);
 
@@ -552,9 +503,8 @@ return:
 *******************************************************/
 static int32_t nvt_diff_open(struct inode *inode, struct file *file)
 {
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (mutex_lock_interruptible(&ts->lock))
 		return -ERESTARTSYS;
-	}
 
 	NVT_LOG("++\n");
 
@@ -579,19 +529,10 @@ static int32_t nvt_diff_open(struct inode *inode, struct file *file)
 		return -EAGAIN;
 	}
 
-	if (ts->carrier_system) {
-		if (nvt_get_fw_pipe() == 0)
-			nvt_read_mdata_rss(ts->mmap->DIFF_PIPE0_ADDR, ts->mmap->DIFF_PIPE0_Q_ADDR,
-				ts->mmap->DIFF_BTN_PIPE0_ADDR, ts->mmap->DIFF_BTN_PIPE0_Q_ADDR);
-		else
-			nvt_read_mdata_rss(ts->mmap->DIFF_PIPE1_ADDR, ts->mmap->DIFF_PIPE1_Q_ADDR,
-				ts->mmap->DIFF_BTN_PIPE1_ADDR, ts->mmap->DIFF_BTN_PIPE1_Q_ADDR);
-	} else {
-		if (nvt_get_fw_pipe() == 0)
-			nvt_read_mdata(ts->mmap->DIFF_PIPE0_ADDR, ts->mmap->DIFF_BTN_PIPE0_ADDR);
-		else
-			nvt_read_mdata(ts->mmap->DIFF_PIPE1_ADDR, ts->mmap->DIFF_BTN_PIPE1_ADDR);
-	}
+	if (nvt_get_fw_pipe() == 0)
+		nvt_read_mdata(ts->mmap->DIFF_PIPE0_ADDR, ts->mmap->DIFF_BTN_PIPE0_ADDR);
+	else
+		nvt_read_mdata(ts->mmap->DIFF_PIPE1_ADDR, ts->mmap->DIFF_BTN_PIPE1_ADDR);
 
 	nvt_change_mode(NORMAL_MODE);
 
@@ -623,9 +564,8 @@ static int32_t nvt_xiaomi_config_info_open(struct inode *inode, struct file *fil
 {
 	uint8_t buf[16] = {0};
 
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (mutex_lock_interruptible(&ts->lock))
 		return -ERESTARTSYS;
-	}
 
 	NVT_LOG("++\n");
 
@@ -690,15 +630,13 @@ get_oem_data_retry:
 
 	/* Step 1: Initial BootLoader */
 	ret = Init_BootLoader();
-	if (ret < 0) {
+	if (ret < 0)
 		goto get_oem_data_out;
-	}
 
 	/* Step 2: Resume PD */
 	ret = Resume_PD();
-	if (ret < 0) {
+	if (ret < 0)
 		goto get_oem_data_out;
-	}
 
 	/* Step 3: Unlock */
 	buf[0] = 0x00;
@@ -746,9 +684,8 @@ get_oem_data_retry:
 		checksum_get = (uint16_t)((tmp_data[1] << 8) | tmp_data[0]);
 		/* calculate checksum of of the 256 bytes data read */
 		checksum_cal = (uint16_t)((cur_flash_addr >> 16) & 0xFF) + (uint16_t)((cur_flash_addr >> 8) & 0xFF) + (cur_flash_addr & 0xFF) + 0x00 + 0xFF;
-		for (j = 0; j < 256; j++) {
+		for (j = 0; j < 256; j++)
 			checksum_cal += tmp_data[j + 2];
-		}
 		checksum_cal = 65535 - checksum_cal + 1;
 		/*NVT_LOG("checksum_get = 0x%04X, checksum_cal = 0x%04X\n", checksum_get, checksum_cal);*/
 		/* compare the checksum got and calculated */
@@ -764,21 +701,11 @@ get_oem_data_retry:
 		}
 
 		/* Step 6: Remapping (Remove 2 Bytes Checksum) */
-		if ((i + 1) * 256 > size) {
+		if ((i + 1) * 256 > size)
 			memcpy(data + i * 256, tmp_data + 2, size - i * 256);
-		} else {
+		else
 			memcpy(data + i * 256, tmp_data + 2, 256);
-		}
 	}
-
-#if 0 /* for debug */
-	for (i = 0; i < size; i++) {
-		if (i % 16 == 0)
-			printk("\n");
-		printk("%02X ", data[i]);
-	}
-	printk("\n");
-#endif
 
 get_oem_data_out:
 	nvt_bootloader_reset();
@@ -834,9 +761,8 @@ static int nvt_xiaomi_lockdown_info_show(struct seq_file *m, void *v)
 
 static int32_t nvt_xiaomi_lockdown_info_open(struct inode *inode, struct file *file)
 {
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (mutex_lock_interruptible(&ts->lock))
 		return -ERESTARTSYS;
-	}
 
 	NVT_LOG("++\n");
 
@@ -874,9 +800,8 @@ int32_t nvt_get_lockdown_info(char *lockdata)
 	if (!lockdata)
 		return -ENOMEM;
 
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (mutex_lock_interruptible(&ts->lock))
 		return -ERESTARTSYS;
-	}
 
 #if NVT_TOUCH_ESD_PROTECT
 	nvt_esd_check_enable(false);
@@ -911,34 +836,34 @@ int32_t nvt_extra_proc_init(void)
 {
 	NVT_proc_fw_version_entry = proc_create(NVT_FW_VERSION, 0444, NULL, &nvt_fw_version_fops);
 	if (NVT_proc_fw_version_entry == NULL) {
-		NVT_ERR("create proc/nvt_fw_version Failed!\n");
+		NVT_ERR("create proc/%s Failed!\n", NVT_FW_VERSION);
 		return -ENOMEM;
 	} else {
-		NVT_LOG("create proc/nvt_fw_version Succeeded!\n");
+		NVT_LOG("create proc/%s Succeeded!\n", NVT_FW_VERSION);
 	}
 
 	NVT_proc_baseline_entry = proc_create(NVT_BASELINE, 0444, NULL, &nvt_baseline_fops);
 	if (NVT_proc_baseline_entry == NULL) {
-		NVT_ERR("create proc/nvt_baseline Failed!\n");
+		NVT_ERR("create proc/%s Failed!\n", NVT_BASELINE);
 		return -ENOMEM;
 	} else {
-		NVT_LOG("create proc/nvt_baseline Succeeded!\n");
+		NVT_LOG("create proc/%s Succeeded!\n", NVT_BASELINE);
 	}
 
 	NVT_proc_raw_entry = proc_create(NVT_RAW, 0444, NULL, &nvt_raw_fops);
 	if (NVT_proc_raw_entry == NULL) {
-		NVT_ERR("create proc/nvt_raw Failed!\n");
+		NVT_ERR("create proc/%s Failed!\n", NVT_RAW);
 		return -ENOMEM;
 	} else {
-		NVT_LOG("create proc/nvt_raw Succeeded!\n");
+		NVT_LOG("create proc/%s Succeeded!\n", NVT_RAW);
 	}
 
 	NVT_proc_diff_entry = proc_create(NVT_DIFF, 0444, NULL, &nvt_diff_fops);
 	if (NVT_proc_diff_entry == NULL) {
-		NVT_ERR("create proc/nvt_diff Failed!\n");
+		NVT_ERR("create proc/%s Failed!\n", NVT_DIFF);
 		return -ENOMEM;
 	} else {
-		NVT_LOG("create proc/nvt_diff Succeeded!\n");
+		NVT_LOG("create proc/%s Succeeded!\n", NVT_DIFF);
 	}
 
 	NVT_proc_xiaomi_config_info_entry = proc_create(NVT_XIAOMI_CONFIG_INFO, 0444, NULL, &nvt_xiaomi_config_info_fops);
@@ -958,5 +883,40 @@ int32_t nvt_extra_proc_init(void)
 	}
 
 	return 0;
+}
+
+/*******************************************************
+Description:
+	Novatek touchscreen extra function proc. file node
+	deinitial function.
+
+return:
+	n.a.
+*******************************************************/
+void nvt_extra_proc_deinit(void)
+{
+	if (NVT_proc_fw_version_entry != NULL) {
+		remove_proc_entry(NVT_FW_VERSION, NULL);
+		NVT_proc_fw_version_entry = NULL;
+		NVT_LOG("Removed /proc/%s\n", NVT_FW_VERSION);
+	}
+
+	if (NVT_proc_baseline_entry != NULL) {
+		remove_proc_entry(NVT_BASELINE, NULL);
+		NVT_proc_baseline_entry = NULL;
+		NVT_LOG("Removed /proc/%s\n", NVT_BASELINE);
+	}
+
+	if (NVT_proc_raw_entry != NULL) {
+		remove_proc_entry(NVT_RAW, NULL);
+		NVT_proc_raw_entry = NULL;
+		NVT_LOG("Removed /proc/%s\n", NVT_RAW);
+	}
+
+	if (NVT_proc_diff_entry != NULL) {
+		remove_proc_entry(NVT_DIFF, NULL);
+		NVT_proc_diff_entry = NULL;
+		NVT_LOG("Removed /proc/%s\n", NVT_DIFF);
+	}
 }
 #endif

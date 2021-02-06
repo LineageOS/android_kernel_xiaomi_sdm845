@@ -1,9 +1,9 @@
 /*
- * Copyright (C) 2010 - 2017 Novatek, Inc.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2010 - 2018 Novatek, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
- * $Revision: 21600 $
- * $Date: 2018-01-12 15:21:45 +0800 (週五, 12 一月 2018) $
+ * $Revision: 47247 $
+ * $Date: 2019-07-10 10:41:36 +0800 (Wed, 10 Jul 2019) $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,12 +19,10 @@
 #ifndef 	_LINUX_NVT_TOUCH_H
 #define		_LINUX_NVT_TOUCH_H
 
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
+#include <linux/uaccess.h>
 
 #include "nt36xxx_mem_map.h"
 
@@ -34,17 +32,18 @@
 
 #define NVT_DEBUG 1
 
-/*---GPIO number---*/
+//---GPIO number---
+#define NVTTOUCH_RST_PIN 980
 #define NVTTOUCH_INT_PIN 943
 
 
-/*---INT trigger mode---*/
-/*#define IRQ_TYPE_EDGE_RISING 1*/
-/*#define IRQ_TYPE_EDGE_FALLING 2*/
+//---INT trigger mode---
+//#define IRQ_TYPE_EDGE_RISING 1
+//#define IRQ_TYPE_EDGE_FALLING 2
 #define INT_TRIGGER_TYPE IRQ_TYPE_EDGE_RISING
 
 
-/*---I2C driver info.---*/
+//---I2C driver info.---
 #define NVT_I2C_NAME "NVT-ts"
 #define I2C_BLDR_Address 0x01
 #define I2C_FW_Address 0x01
@@ -57,11 +56,11 @@
 #endif
 #define NVT_ERR(fmt, args...)    pr_err("[%s] %s %d: " fmt, NVT_I2C_NAME, __func__, __LINE__, ##args)
 
-/*---Input device info.---*/
+//---Input device info.---
 #define NVT_TS_NAME "NVTCapacitiveTouchScreen"
 
 
-/*---Touch info.---*/
+//---Touch info.---
 #define TOUCH_DEFAULT_MAX_WIDTH 1080
 #define TOUCH_DEFAULT_MAX_HEIGHT 2246
 #define TOUCH_MAX_FINGER_NUM 10
@@ -71,7 +70,10 @@ extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 #endif
 #define TOUCH_FORCE_NUM 1000
 
-/*---Customerized func.---*/
+/* Enable only when module have tp reset pin and connected to host */
+#define NVT_TOUCH_SUPPORT_HW_RST 0
+
+//---Customerized func.---
 #define NVT_TOUCH_PROC 1
 #define NVT_TOUCH_EXT_PROC 1
 #define NVT_TOUCH_MP 1
@@ -83,7 +85,7 @@ extern const uint16_t gesture_key_array[];
 #define BOOT_UPDATE_FIRMWARE 1
 #define BOOT_UPDATE_FIRMWARE_NAME "novatek_nt36672_e10.fw"
 
-/*---ESD Protect.---*/
+//---ESD Protect.---
 #define NVT_TOUCH_ESD_PROTECT 0
 #define NVT_TOUCH_ESD_CHECK_PERIOD 1500	/* ms */
 #define NVT_LOCKDOWN_SIZE	8
@@ -122,8 +124,6 @@ struct nvt_ts_data {
 	int8_t phys[32];
 #if defined(CONFIG_DRM)
 	struct notifier_block notifier;
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-	struct early_suspend early_suspend;
 #endif
 	uint8_t fw_ver;
 	uint8_t x_num;
@@ -143,6 +143,9 @@ struct nvt_ts_data {
 	const struct nvt_ts_mem_map *mmap;
 	uint8_t carrier_system;
 	uint16_t nvt_pid;
+	uint8_t xbuf[1025];
+	struct mutex xbuf_lock;
+	bool irq_enabled;
 
 	int gesture_enabled;
 	int glove_enabled;
@@ -159,11 +162,13 @@ struct nvt_ts_data {
 	struct completion dev_pm_suspend_completion;
 };
 
-struct nvt_mode_switch {
+#if WAKEUP_GESTURE
+struct mi_mode_switch {
 	struct nvt_ts_data *nvt_data;
 	unsigned char mode;
 	struct work_struct switch_mode_work;
 };
+#endif
 
 #if NVT_TOUCH_PROC
 struct nvt_flash_data{
@@ -173,10 +178,10 @@ struct nvt_flash_data{
 #endif
 
 typedef enum {
-	RESET_STATE_INIT = 0xA0,/* IC reset */
-	RESET_STATE_REK,		/* ReK baseline */
-	RESET_STATE_REK_FINISH,	/* baseline is ready */
-	RESET_STATE_NORMAL_RUN,	/* normal run */
+	RESET_STATE_INIT = 0xA0,// IC reset
+	RESET_STATE_REK,	// ReK baseline
+	RESET_STATE_REK_FINISH,	// baseline is ready
+	RESET_STATE_NORMAL_RUN,	// normal run
 	RESET_STATE_MAX  = 0xAF
 } RST_COMPLETE_STATE;
 
@@ -188,18 +193,19 @@ typedef enum {
     EVENT_MAP_PROJECTID                     = 0x9A,
 } I2C_EVENT_MAP;
 
-/*---extern structures---*/
+//---extern structures---
 extern struct nvt_ts_data *ts;
 
-/*---extern functions---*/
+//---extern functions---
 extern int32_t CTP_I2C_READ(struct i2c_client *client, uint16_t address, uint8_t *buf, uint16_t len);
 extern int32_t CTP_I2C_WRITE(struct i2c_client *client, uint16_t address, uint8_t *buf, uint16_t len);
-extern int nvt_bootloader_reset(void);
+extern void nvt_bootloader_reset(void);
 extern void nvt_sw_reset_idle(void);
 extern int32_t nvt_check_fw_reset_state(RST_COMPLETE_STATE check_reset_state);
 extern int32_t nvt_get_fw_info(void);
 extern int32_t nvt_clear_fw_status(void);
 extern int32_t nvt_check_fw_status(void);
+extern int32_t nvt_set_page(uint16_t i2c_addr, uint32_t addr);
 #if NVT_TOUCH_ESD_PROTECT
 extern void nvt_esd_check_enable(uint8_t enable);
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
