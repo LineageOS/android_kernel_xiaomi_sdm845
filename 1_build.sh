@@ -15,7 +15,7 @@ export PREBUILT_CACHE_DIR=~/.ccache
 export CCACHE_DIR=~/.ccache
 ccache -M 30G
 
-sudo aptitude -f install -y  libomp-12-dev llvm-12 llvm llvm-12 clang-12 lld-12 gcc clang binutils make flex bison bc build-essential libncurses-dev libssl-dev libelf-dev qt5-default libclang-common-12-dev gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu
+#sudo aptitude -f install -y  libomp-12-dev llvm-12 llvm llvm-12 clang-12 lld-12 gcc clang binutils make flex bison bc build-essential libncurses-dev libssl-dev libelf-dev qt5-default libclang-common-12-dev gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu
 
 
 #export KBUILD_BUILD_USER=thanas
