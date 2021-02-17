@@ -680,6 +680,7 @@ endif
 ifdef CONFIG_LTO_CLANG
 # use GNU gold and LD for vmlinux_link, or LLD for LTO linking
 LDFLAGS		+= -plugin LLVMgold.so
+LDFLAGS		+= -plugin LLVMPolly.so
 LDFLAGS		+= --plugin-opt=O3
 
 LDFLAGS		+= -plugin-opt=-function-sections
@@ -766,7 +767,13 @@ endif
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS   += -Os
 else
-KBUILD_CFLAGS   += -O2
+KBUILD_CFLAGS   += -O3
+KBUILD_CFLAGS	+= -fopenmp
+polly=/usr/lib/llvm-13/lib/LLVMPolly.so
+ldgold=/usr/lib/llvm-13/lib/LLVMgold.so
+KBUILD_CFLAGS	+= -Xclang -load -Xclang $(polly) $(ldgold) \
+			 -mllvm -polly \
+
 endif
 
 ifdef CONFIG_CC_WERROR
