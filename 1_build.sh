@@ -30,8 +30,6 @@ KERNEL=~/Desktop/MLX
 ###
 #unhash for external tc
 #CLANG=$TC/clang/bin
-CLANG=/usr/bin
-POLLY=/usr/lib/llvm-13/bin
 ###
 
 ### update stuff
@@ -55,21 +53,9 @@ VERSION=v2
 KERNELINFO=${VERSION}_${DEVICE}_${HZ}_$(date +"%Y-%m-%d")
 KERNELNAME=mlx_kernel_$KERNELINFO.zip
 THREADS=-j$(nproc --all)
-#FLAGS="AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip"
+FLAGS="AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip"
 #LD="LD=ld.gold"
-#CLANG_FLAGS="CC=clang"
-CLANG_FLAGS="CC=$POLLY/clang
-        HOSTCC=$POLLY/clang
-        AR=$POLLY/llvm-ar
-        NM=$POLLY/llvm-nm
-        OBJCOPY=$POLLY/llvm-objcopy
-        OBJDUMP=$POLLY/llvm-objdump
-        READELF=$POLLY/llvm-readelf
-        OBJSIZE=$POLLY/llvm-size
-        STRIP=$POLLY/llvm-strip
-        LD=$CLANG/ld.gold"
-
-
+CLANG_FLAGS="CC=clang"
 #VERBOSE="V=1"
 #cd $CLANG/.. && git pull && cd $MLX
 ###
@@ -79,8 +65,8 @@ export CROSS_COMPILE=aarch64-linux-gnu-
 export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
 #export CLANG_TRIPLE=aarch64-linux-gnu-
-export LD_LIBRARY_PATH="$CLANG/../lib:$CLANG/../lib64:$POLLY/../lib:$POLLY/../lib64:$LD_LIBRARY_PATH"
-export PATH="$CLANG:$POLLY:$PATH"
+#export LD_LIBRARY_PATH="$CLANG/../lib:$CLANG/../lib64:$LD_LIBRARY_PATH"
+#export PATH="$CLANG:$PATH"
 #make menuconfig
 #cp .config arch/arm64/configs/malakas_beryllium_defconfig
 ###start compilation
