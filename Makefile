@@ -307,7 +307,10 @@ HOSTCFLAGS      := -Wall -Wmissing-prototypes -Wstrict-prototypes -fomit-frame-p
 
 HOSTCXXFLAGS = -O3 -Wall
 HOSTLDFLAGS  := -O3
-#subdir-ccflags-y := -O3 -march=armv8.3-a -mcpu=cortex-a55 -mtune=cortex-a55
+subdir-ccflags-y := -O3 -fassociative-math -fasynchronous-unwind-tables -feliminate-unused-debug-types -fexceptions -fno-semantic-interposition -fno-signed-zeros -D_FORTIFY_SOURCE=2 \
+-fno-strict-aliasing \
+-fno-trapping-math \
+-funroll-loops -fforce-addr -fomit-frame-pointer -mcpu=cortex-a55+crc+crypto+fp16+simd+sve -mtune=cortex-a55+crc+crypto+fp16+simd+sve
 
 ifeq ($(shell $(HOSTCC) -v 2>&1 | grep -c "clang version"), 1)
 HOSTCFLAGS  += -Wno-unused-value -Wno-unused-parameter \
@@ -766,7 +769,7 @@ endif
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS   += -O3
 else
-KBUILD_CFLAGS   += -O3 -funroll-loops
+KBUILD_CFLAGS   += -O3
 endif
 
 KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-835769)
@@ -780,7 +783,8 @@ KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)
 KBUILD_CFLAGS	+= -fexperimental-new-pass-manager
 KBUILD_CFLAGS	+= -fassociative-math -fasynchronous-unwind-tables -feliminate-unused-debug-types -fexceptions -fno-semantic-interposition -fno-signed-zeros -D_FORTIFY_SOURCE=2 \
 -fno-strict-aliasing \
--fno-trapping-math
+-fno-trapping-math \
+-funroll-loops -fforce-addr -fomit-frame-pointer -mcpu=cortex-a55+crc+crypto+fp16+simd+sve -mtune=cortex-a55+crc+crypto+fp16+simd+sve
 LDFLAGS		+= -O3
 
 
