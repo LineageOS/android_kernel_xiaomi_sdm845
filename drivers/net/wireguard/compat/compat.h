@@ -933,11 +933,11 @@ static inline int skb_ensure_writable(struct sk_buff *skb, int write_len)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0)
+#include <linux/icmpv6.h>
+#include <net/icmp.h>
 #if IS_ENABLED(CONFIG_NF_NAT)
 #include <linux/ip.h>
-#include <linux/icmpv6.h>
 #include <net/ipv6.h>
-#include <net/icmp.h>
 #include <net/netfilter/nf_conntrack.h>
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0) && !defined(ISRHEL8)
 #include <net/netfilter/nf_nat_core.h>
@@ -951,6 +951,7 @@ static inline void __compat_icmp_ndo_send(struct sk_buff *skb_in, int type, int 
 
 	ct = nf_ct_get(skb_in, &ctinfo);
 	if (!ct || !(ct->status & IPS_SRC_NAT)) {
+		memset(skb_in->cb, 0, sizeof(skb_in->cb));
 		icmp_send(skb_in, type, code, info);
 		return;
 	}
@@ -966,6 +967,7 @@ static inline void __compat_icmp_ndo_send(struct sk_buff *skb_in, int type, int 
 
 	orig_ip = ip_hdr(skb_in)->saddr;
 	ip_hdr(skb_in)->saddr = ct->tuplehash[0].tuple.src.u3.ip;
+	memset(skb_in->cb, 0, sizeof(skb_in->cb));
 	icmp_send(skb_in, type, code, info);
 	ip_hdr(skb_in)->saddr = orig_ip;
 out:
@@ -980,6 +982,7 @@ static inline void __compat_icmpv6_ndo_send(struct sk_buff *skb_in, u8 type, u8 
 
 	ct = nf_ct_get(skb_in, &ctinfo);
 	if (!ct || !(ct->status & IPS_SRC_NAT)) {
+		memset(skb_in->cb, 0, sizeof(skb_in->cb));
 		icmpv6_send(skb_in, type, code, info);
 		return;
 	}
@@ -995,14 +998,23 @@ static inline void __compat_icmpv6_ndo_send(struct sk_buff *skb_in, u8 type, u8 
 
 	orig_ip = ipv6_hdr(skb_in)->saddr;
 	ipv6_hdr(skb_in)->saddr = ct->tuplehash[0].tuple.src.u3.in6;
+	memset(skb_in->cb, 0, sizeof(skb_in->cb));
 	icmpv6_send(skb_in, type, code, info);
 	ipv6_hdr(skb_in)->saddr = orig_ip;
 out:
 	consume_skb(cloned_skb);
 }
 #else
-#define __compat_icmp_ndo_send icmp_send
-#define __compat_icmpv6_ndo_send icmpv6_send
+static inline void __compat_icmp_ndo_send(struct sk_buff *skb_in, int type, int code, __be32 info)
+{
+	memset(skb_in->cb, 0, sizeof(skb_in->cb));
+	icmp_send(skb_in, type, code, info);
+}
+static inline void __compat_icmpv6_ndo_send(struct sk_buff *skb_in, u8 type, u8 code, __u32 info)
+{
+	memset(skb_in->cb, 0, sizeof(skb_in->cb));
+	icmpv6_send(skb_in, type, code, info);
+}
 #endif
 #define icmp_ndo_send __compat_icmp_ndo_send
 #define icmpv6_ndo_send __compat_icmpv6_ndo_send
