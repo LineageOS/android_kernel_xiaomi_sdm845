@@ -1872,6 +1872,45 @@ int cpu_uclamp_boost_write_u64(struct cgroup_subsys_state *css,
 				   struct cftype *cftype, u64 boost);
 u64 cpu_uclamp_boost_read_u64(struct cgroup_subsys_state *css,
 				  struct cftype *cft);
+
+#if !defined(CONFIG_SCHED_TUNE)
+static u64 st_boost_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft)
+{
+	if (!strlen(css->cgroup->kn->name))
+		return -EINVAL;
+
+	return cpu_uclamp_boost_read_u64(css, cft);
+}
+
+static int st_boost_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 boost)
+{
+	if (!strlen(css->cgroup->kn->name))
+		return -EINVAL;
+
+	return cpu_uclamp_boost_write_u64(css, cft, boost);
+}
+
+static u64 st_prefer_idle_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft)
+{
+	if (!strlen(css->cgroup->kn->name))
+		return -EINVAL;
+
+	return cpu_uclamp_ls_read_u64(css, cft);
+}
+
+static int st_prefer_idle_write(struct cgroup_subsys_state *css,
+			     struct cftype *cft, u64 prefer_idle)
+{
+	if (!strlen(css->cgroup->kn->name))
+		return -EINVAL;
+
+	return cpu_uclamp_ls_write_u64(css, cft, prefer_idle);
+}
+#endif
+
 #endif
 
 /*
@@ -2001,6 +2040,20 @@ static struct cftype files[] = {
 		.read_u64 = cpu_uclamp_boost_read_u64,
 		.write_u64 = cpu_uclamp_boost_write_u64,
 	},
+
+#if !defined(CONFIG_SCHED_TUNE)
+	{
+		.name = "schedtune.boost",
+		.read_u64 = st_boost_read,
+		.write_u64 = st_boost_write,
+	},
+	{
+		.name = "schedtune.prefer_idle",
+		.read_u64 = st_prefer_idle_read,
+		.write_u64 = st_prefer_idle_write,
+	},
+#endif
+
 #endif
 	{ }	/* terminate */
 };
