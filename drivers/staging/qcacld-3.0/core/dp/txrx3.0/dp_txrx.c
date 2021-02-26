@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -167,6 +167,39 @@ struct dp_consistent_prealloc_unaligned {
 	qdf_dma_addr_t pa_unaligned;
 };
 
+/**
+ * struct dp_prealloc_context - element representing DP prealloc context memory
+ * @ctxt_type: DP context type
+ * @size: size of pre-alloc memory
+ * @in_use: check if element is being used
+ * @addr: address of memory allocated
+ */
+struct dp_prealloc_context {
+	enum dp_ctxt_type ctxt_type;
+	uint32_t size;
+	bool in_use;
+	void *addr;
+};
+
+static struct dp_prealloc_context g_dp_context_allocs[] = {
+	{DP_PDEV_TYPE, (sizeof(struct dp_pdev)), false,  NULL},
+#ifdef WLAN_FEATURE_DP_RX_RING_HISTORY
+	/* 4 Rx ring history */
+	{DP_RX_RING_HIST_TYPE, sizeof(struct dp_rx_history), false, NULL},
+	{DP_RX_RING_HIST_TYPE, sizeof(struct dp_rx_history), false, NULL},
+	{DP_RX_RING_HIST_TYPE, sizeof(struct dp_rx_history), false, NULL},
+	{DP_RX_RING_HIST_TYPE, sizeof(struct dp_rx_history), false, NULL},
+	/* 1 Rx error ring history */
+	{DP_RX_ERR_RING_HIST_TYPE, sizeof(struct dp_rx_err_history),
+	 false, NULL},
+#ifndef RX_DEFRAG_DO_NOT_REINJECT
+	/* 1 Rx reinject ring history */
+	{DP_RX_REINJECT_RING_HIST_TYPE, sizeof(struct dp_rx_reinject_history),
+	 false, NULL},
+#endif	/* RX_DEFRAG_DO_NOT_REINJECT */
+#endif	/* WLAN_FEATURE_DP_RX_RING_HISTORY */
+};
+
 static struct  dp_consistent_prealloc g_dp_consistent_allocs[] = {
 	/* 5 REO DST rings */
 	{REO_DST, (sizeof(struct reo_destination_ring)) * REO_DST_RING_SIZE, 0, NULL, NULL, 0, 0},
@@ -292,6 +325,7 @@ static struct dp_consistent_prealloc_unaligned
 void dp_prealloc_deinit(void)
 {
 	int i;
+	struct dp_prealloc_context *cp;
 	struct dp_consistent_prealloc *p;
 	struct dp_multi_page_prealloc *mp;
 	struct dp_consistent_prealloc_unaligned *up;
@@ -351,11 +385,23 @@ void dp_prealloc_deinit(void)
 			qdf_mem_zero(up, sizeof(*up));
 		}
 	}
+
+	for (i = 0; i < QDF_ARRAY_SIZE(g_dp_context_allocs); i++) {
+		cp = &g_dp_context_allocs[i];
+		if (qdf_unlikely(up->in_use))
+			dp_warn("i %d: context in use while free", i);
+
+		if (cp->addr) {
+			qdf_mem_free(cp->addr);
+			cp->addr = NULL;
+		}
+	}
 }
 
 QDF_STATUS dp_prealloc_init(void)
 {
 	int i;
+	struct dp_prealloc_context *cp;
 	struct dp_consistent_prealloc *p;
 	struct dp_multi_page_prealloc *mp;
 	struct dp_consistent_prealloc_unaligned *up;
@@ -365,6 +411,23 @@ QDF_STATUS dp_prealloc_init(void)
 		dp_err("qdf_ctx is NULL");
 		QDF_BUG(0);
 		return QDF_STATUS_E_FAILURE;
+	}
+
+	/*Context pre-alloc*/
+	for (i = 0; i < QDF_ARRAY_SIZE(g_dp_context_allocs); i++) {
+		cp = &g_dp_context_allocs[i];
+		cp->addr = qdf_mem_malloc(cp->size);
+
+		if (qdf_unlikely(!cp->addr)) {
+			dp_warn("i %d: unable to preallocate %d bytes memory!",
+				i, cp->size);
+			break;
+		}
+	}
+
+	if (i != QDF_ARRAY_SIZE(g_dp_context_allocs)) {
+		dp_err("unable to allocate context memory!");
+		goto deinit;
 	}
 
 	for (i = 0; i < QDF_ARRAY_SIZE(g_dp_consistent_allocs); i++) {
@@ -446,6 +509,41 @@ QDF_STATUS dp_prealloc_init(void)
 	return QDF_STATUS_SUCCESS;
 deinit:
 	dp_prealloc_deinit();
+	return QDF_STATUS_E_FAILURE;
+}
+
+void *dp_prealloc_get_context_memory(uint32_t ctxt_type)
+{
+	int i;
+	struct dp_prealloc_context *cp;
+
+	for (i = 0; i < QDF_ARRAY_SIZE(g_dp_context_allocs); i++) {
+		cp = &g_dp_context_allocs[i];
+
+		if ((ctxt_type == cp->ctxt_type) && !cp->in_use) {
+			cp->in_use = true;
+			return cp->addr;
+		}
+	}
+
+	return NULL;
+}
+
+QDF_STATUS dp_prealloc_put_context_memory(uint32_t ctxt_type, void *vaddr)
+{
+	int i;
+	struct dp_prealloc_context *cp;
+
+	for (i = 0; i < QDF_ARRAY_SIZE(g_dp_context_allocs); i++) {
+		cp = &g_dp_context_allocs[i];
+
+		if ((ctxt_type == cp->ctxt_type) && vaddr == cp->addr) {
+			qdf_mem_zero(cp->addr, cp->size);
+			cp->in_use = false;
+			return QDF_STATUS_SUCCESS;
+		}
+	}
+
 	return QDF_STATUS_E_FAILURE;
 }
 
