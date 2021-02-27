@@ -310,7 +310,7 @@ HOSTLDFLAGS  := -O3
 subdir-ccflags-y := -O3 -fassociative-math -fasynchronous-unwind-tables -feliminate-unused-debug-types -fexceptions -fno-semantic-interposition -fno-signed-zeros -D_FORTIFY_SOURCE=2 \
 -fno-strict-aliasing \
 -fno-trapping-math \
--funroll-loops -fforce-addr -fomit-frame-pointer -mcpu=cortex-a55+crc+crypto+fp16+simd+sve -mtune=cortex-a55+crc+crypto+fp16+simd+sve
+-funroll-loops -fforce-addr -fomit-frame-pointer -mtune=cortex-a75.cortex-a55 -mcpu=cortex-a75.cortex-a55+crc+crypto+fp16+simd+sve
 
 ifeq ($(shell $(HOSTCC) -v 2>&1 | grep -c "clang version"), 1)
 HOSTCFLAGS  += -Wno-unused-value -Wno-unused-parameter \
@@ -350,10 +350,7 @@ include scripts/Kbuild.include
 # Make variables (CC, etc...)
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
-CC		= $(CROSS_COMPILE)gcc
-LDGOLD		= $(CROSS_COMPILE)ld.gold
-LDLLD		= ld.lld
-CC		= $(CROSS_COMPILE)gcc
+CC		= $(CROSS_COMPILE)gcc-11
 LDGOLD		= $(CROSS_COMPILE)ld.gold
 LDLLD		= ld.lld
 CPP		= $(CC) -E
@@ -686,7 +683,7 @@ LDFLAGS		+= --plugin-opt=O3
 
 LDFLAGS		+= -plugin-opt=-function-sections
 LDFLAGS		+= -plugin-opt=-data-sections
-LDFLAGS		+= -plugin-opt=new-pass-manager
+#LDFLAGS		+= -plugin-opt=new-pass-manager
 LDFLAGS		+= -plugin-opt=mcpu=kryo
 
 # use llvm-ar for building symbol tables from IR files, and llvm-dis instead
@@ -770,22 +767,46 @@ ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS   += -O3
 else
 KBUILD_CFLAGS   += -O3
+KBUILD_CFLAGS	+= -fopenmp
+#LDFLAGS		+= -plugin LLVMPolly.so
+#polly=/usr/lib/llvm-13/lib/LLVMPolly.so
+#ldgold=/usr/lib/llvm-13/lib/LLVMgold.so
+#KBUILD_CFLAGS	+= -Xclang -load -Xclang $(polly)
+#KBUILD_CFLAGS	+= 			 -mllvm -polly
+
 endif
 
 KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-835769)
 KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-843419)
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-826319)
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-827319)
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-824069)
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-819472)
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a57-832075)
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-845719)
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a53-843419)
+KBUILD_CFLAGS	+= $(call cc-option, -mno-fix-cortex-a55-1024718)
 KBUILD_CFLAGS	+= $(call cc-option,-mabi=lp64)
 KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)
 
 
 #KBUILD_CFLAGS	+= -O3 -march=armv8.3-a -mcpu=cortex-a55 -mtune=cortex-a55 \
 -funroll-loops
-KBUILD_CFLAGS	+= -fexperimental-new-pass-manager
-KBUILD_CFLAGS	+= -fassociative-math -fasynchronous-unwind-tables -feliminate-unused-debug-types -fexceptions -fno-semantic-interposition -fno-signed-zeros -D_FORTIFY_SOURCE=2 \
+#KBUILD_CFLAGS	+= -fexperimental-new-pass-manager
+KBUILD_CFLAGS	+= -O3 -fassociative-math -fasynchronous-unwind-tables -feliminate-unused-debug-types -fexceptions -fno-semantic-interposition -fno-signed-zeros -D_FORTIFY_SOURCE=2 \
 -fno-strict-aliasing \
--fno-trapping-math \
--funroll-loops -fforce-addr -fomit-frame-pointer -mcpu=cortex-a55+crc+crypto+fp16+simd+sve -mtune=cortex-a55+crc+crypto+fp16+simd+sve
+-fno-trapping-math -pipe -ffast-math \
+-funroll-loops -fforce-addr -fomit-frame-pointer -mtune=cortex-a75.cortex-a55 -mcpu=cortex-a75.cortex-a55+crc+crypto+fp16+simd+sve
 LDFLAGS		+= -O3
+
+
+KBUILD_CFLAGS	+= -floop-parallelize-all -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block -floop-optimize -floop-nest-optimize -fprefetch-loop-arrays -ftree-loop-vectorize
+
+
+KBUILD_CFLAGS	+= -ftree-vectorize
+
+
+
 
 
 KBUILD_CFLAGS += $(call cc-ifversion, -lt, 0409, \
@@ -797,7 +818,7 @@ endif
 KBUILD_CFLAGS	+= -Wno-error
 
 # Add EXP New Pass Manager for clang
-KBUILD_CFLAGS	+= $(call cc-option,-fexperimental-new-pass-manager)
+#KBUILD_CFLAGS	+= $(call cc-option,-fexperimental-new-pass-manager)
 
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
@@ -1248,36 +1269,36 @@ prepare-compiler-check: FORCE
 # Make sure we're using a supported toolchain with LTO_CLANG
 ifdef CONFIG_LTO_CLANG
   ifneq ($(call clang-ifversion, -ge, 0500, y), y)
-	@echo Cannot use CONFIG_LTO_CLANG: requires clang 5.0 or later >&2 && exit 1
+	@echo Cannot use CONFIG_LTO_CLANG: requires clang 5.0 or later >&2 && exit 0
   endif
   ifneq ($(call gold-ifversion, -ge, 112000000, y), y)
-	@echo Cannot use CONFIG_LTO_CLANG: requires GNU gold 1.12 or later >&2 && exit 1
+	@echo Cannot use CONFIG_LTO_CLANG: requires GNU gold 1.12 or later >&2 && exit 0
   endif
 endif
 # Make sure compiler supports LTO flags
 ifdef lto-flags
   ifeq ($(call cc-option, $(lto-flags)),)
 	@echo Cannot use CONFIG_LTO: $(lto-flags) not supported by compiler \
-		>&2 && exit 1
+		>&2 && exit 0
   endif
 endif
 # Make sure compiler supports requested stack protector flag.
 ifdef stackp-name
   ifeq ($(call cc-option, $(stackp-flag)),)
 	@echo Cannot use CONFIG_CC_STACKPROTECTOR_$(stackp-name): \
-		  $(stackp-flag) not supported by compiler >&2 && exit 1
+		  $(stackp-flag) not supported by compiler >&2 && exit 0
   endif
 endif
 # Make sure compiler does not have buggy stack-protector support.
 ifdef stackp-check
   ifneq ($(shell $(CONFIG_SHELL) $(stackp-check) $(CC) $(KBUILD_CPPFLAGS) $(biarch)),y)
 	@echo Cannot use CONFIG_CC_STACKPROTECTOR_$(stackp-name): \
-                  $(stackp-flag) available but compiler is broken >&2 && exit 1
+                  $(stackp-flag) available but compiler is broken >&2 && exit 0
   endif
 endif
 ifdef cfi-flags
   ifeq ($(call cc-option, $(cfi-flags)),)
-	@echo Cannot use CONFIG_CFI: $(cfi-flags) not supported by compiler >&2 && exit 1
+	@echo Cannot use CONFIG_CFI: $(cfi-flags) not supported by compiler >&2 && exit 0
   endif
 endif
 	@:
