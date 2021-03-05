@@ -1870,6 +1870,7 @@ static ssize_t cpuset_write_resmask_wrapper(struct kernfs_open_file *of,
 	static struct uc_target uc_targets[] = {
 		{ "top-app",		"10", "max",	1, 1 },
 		{ "foreground",		"0",  "50",	0, 0 },
+		{ "restricted",		"10", "40",	0, 0 },
 		{ "background",		"20", "max",	0, 0 },
 		{ "system-background",	"0",  "40",	0, 0 },
 	};
