@@ -1615,6 +1615,22 @@ static bool dm_table_supports_discards(struct dm_table *t)
 	return false;
 }
 
+static bool dm_table_supports_inlinecrypt(struct dm_table *t)
+{
+	struct dm_target *ti;
+	unsigned i = 0;
+
+	while (i < dm_table_get_num_targets(t)) {
+		ti = dm_table_get_target(t, i++);
+
+		if (!ti->type->iterate_devices ||
+		    !ti->type->iterate_devices(ti,
+		    queue_supports_inline_encryption, NULL))
+			return false;
+	}
+	return true;
+}
+
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			       struct queue_limits *limits)
 {
@@ -1654,7 +1670,7 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	else
 		queue_flag_clear_unlocked(QUEUE_FLAG_NO_SG_MERGE, q);
 
-	if (dm_table_any_dev_attr(t, queue_supports_inline_encryption))
+	if (dm_table_supports_inlinecrypt(t))
 		queue_flag_set_unlocked(QUEUE_FLAG_INLINECRYPT, q);
 	else
 		queue_flag_clear_unlocked(QUEUE_FLAG_INLINECRYPT, q);
