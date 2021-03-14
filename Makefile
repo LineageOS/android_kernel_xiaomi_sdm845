@@ -311,9 +311,10 @@ subdir-ccflags-y := -O3 -fassociative-math -fasynchronous-unwind-tables -felimin
 -fno-strict-aliasing \
 -fno-trapping-math -pipe -ffast-math \
 -funroll-loops -fforce-addr -fomit-frame-pointer -mtune=cortex-a75.cortex-a55 -mcpu=cortex-a75.cortex-a55+crc+crypto+fp16+simd+sve \
--fno-stack-protector -pthread -Wall -Wformat-security -fwrapv --param=ssp-buffer-size=32 -D_REENTRANT \
+-fno-stack-protector -pthread -Wall -fwrapv --param=ssp-buffer-size=32 -D_REENTRANT \
 -floop-parallelize-all -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block -floop-optimize -floop-nest-optimize -fprefetch-loop-arrays -ftree-loop-vectorize \
--ftree-vectorize
+-ftree-vectorize \
+-fPIE
 
 ifeq ($(shell $(HOSTCC) -v 2>&1 | grep -c "clang version"), 1)
 HOSTCFLAGS  += -Wno-unused-value -Wno-unused-parameter \
@@ -800,9 +801,13 @@ KBUILD_CFLAGS	+= -O3 -fassociative-math -fasynchronous-unwind-tables -feliminate
 -fno-strict-aliasing \
 -fno-trapping-math -pipe -ffast-math \
 -funroll-loops -fforce-addr -fomit-frame-pointer -mtune=cortex-a75.cortex-a55 -mcpu=cortex-a75.cortex-a55+crc+crypto+fp16+simd+sve \
--fno-stack-protector -pthread -Wall -Wformat-security -fwrapv --param=ssp-buffer-size=32 -D_REENTRANT \
+-fno-stack-protector -pthread -Wall -fwrapv --param=ssp-buffer-size=32 -D_REENTRANT \
 -floop-parallelize-all -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block -floop-optimize -floop-nest-optimize -fprefetch-loop-arrays -ftree-loop-vectorize \
--ftree-vectorize
+-ftree-vectorize \
+-fPIE
+
+
+
 
 LDFLAGS		+= -O3
 
