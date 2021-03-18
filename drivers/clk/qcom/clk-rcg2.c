@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016-2018, 2020,
+ * Copyright (c) 2013, 2016-2018, 2020-2021
  *
  * The Linux Foundation. All rights reserved.
  *
@@ -980,7 +980,6 @@ EXPORT_SYMBOL_GPL(clk_byte2_ops);
 
 static const struct frac_entry frac_table_pixel[] = {
 	{ 1, 1 },
-	{ 2, 3 },
 	{ 4, 9 },
 	{ 3, 8 },
 	{ 2, 9 },
