@@ -1,6 +1,6 @@
 
 /* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,11 +31,11 @@
 };
 
 &reserved_memory {
-		ramdump_fb_mem: ramdump_fb_region@af000000 {
-			compatible = "removed-dma-pool";
-			no-map;
-			reg = <0 0xaf000000 0 0x1000000>;
-		};
+	ramdump_fb_mem: ramdump_fb_region@af000000 {
+		compatible = "removed-dma-pool";
+		no-map;
+		reg = <0 0xaf000000 0 0x1000000>;
+	};
 };
 
 &vendor {
@@ -105,7 +105,7 @@
 		enable-active-high;
 		regulator-boot-on;
 		gpio = <&tlmm 79 0>;
-     };
+	 };
 
 	fp_vdd_vreg: fp_vdd_vreg {
 		compatible = "regulator-fixed";
@@ -169,7 +169,8 @@
 &dsi_visionox_fhd_r66455_cmd {
 	qcom,panel-supply-entries = <&dsi_amoled_visionox_r66455_panel_pwr_supply>;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-	qcom,mdss-dsi-bl-min-level = <2>;
+	qcom,mdss-dsi-bl-min-level = <256>;
+	qcom,mdss-dsi-bl-typical-level = <267>;
 	qcom,mdss-dsi-bl-max-level = <4095>;
 	qcom,platform-reset-gpio = <&tlmm 6 0>;
 	qcom,platform-te-gpio = <&tlmm 10 0>;
@@ -215,18 +216,18 @@
 };
 
 &pmi8998_haptics {
-       qcom,vmax-mv = <2552>;
-       qcom,lra-auto-mode;
-       qcom,wave-play-rate-us = <4878>;
-       qcom,wave-shape = "sine";
-       qcom,lra-high-z = "opt1";
-       qcom,lra-auto-res-mode = "qwd";
-       qcom,lra-res-cal-period = <4>;
-       qcom,effect-max = <3>;
-       qcom,effect-arry = [3e 88 00 00 00 00 00 00
-       3e 3e be 88 00 00 00 00
-       3e 3e 3e be a0 00 00 00];
-       status = "okay";
+	qcom,vmax-mv = <2552>;
+	qcom,lra-auto-mode;
+	qcom,wave-play-rate-us = <4878>;
+	qcom,wave-shape = "sine";
+	qcom,lra-high-z = "opt1";
+	qcom,lra-auto-res-mode = "qwd";
+	qcom,lra-res-cal-period = <4>;
+	qcom,effect-max = <3>;
+	qcom,effect-arry = [3e 88 00 00 00 00 00 00
+	3e 3e be 88 00 00 00 00
+	3e 3e 3e be a0 00 00 00];
+	status = "okay";
 };
 
 &ufsphy_mem {
@@ -283,9 +284,9 @@
 };
 
 &pmi8998_switch2 {
-       pinctrl-names = "led_enable", "led_disable";
-       pinctrl-0 = <&flash_led3_iris_en>;
-       pinctrl-1 = <&flash_led3_iris_dis>;
+	pinctrl-names = "led_enable", "led_disable";
+	pinctrl-0 = <&flash_led3_iris_en>;
+	pinctrl-1 = <&flash_led3_iris_dis>;
 };
 
 &vendor{
@@ -312,7 +313,8 @@
 	qcom,fcc-hot-temp-delta = <1650000>;
 	qcom,fcc-cool-temp-delta = <2310000>;
 	qcom,auto-recharge-soc;
-        qcom,sw-jeita-enable;
+	 qcom,sw-jeita-enable;
+	qcom,dynamic-fv-enable;
 	qcom,use-ext-boost;
 	qcom,wireless-support;
 	qcom,thermal-mitigation
@@ -362,6 +364,8 @@
 	qcom,fg-esr-clamp-mohms = <60>;
 	qcom,fg-batt-temp-delta = <6>;
 	qcom,battery-data = <&mtp_batterydata>;
+	qcom,slope-limit-temp-threshold = <100>;
+	qcom,slope-limit-coeffs = <10 11 12 13>;
 };
 
 &smb1355_charger_0 {
@@ -397,9 +401,9 @@
 		interrupts = <63 0>;
 		interrupt-names = "nfc_irq";
 		pinctrl-names = "nfc_active", "nfc_suspend";
-                pinctrl-0 = <&nfc_int_active
-                             &nfc_enable_active
-                             &nfc_clk_default>;
+		pinctrl-0 = <&nfc_int_active
+				        &nfc_enable_active
+				        &nfc_clk_default>;
 		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend>;
 		clocks = <&clock_rpmh RPMH_LN_BB_CLK3>;
 		clock-names = "ref_clk";
@@ -407,16 +411,16 @@
 };
 
 &qupv3_se5_i2c {
-       status = "ok";
-       /*smart PA*/
-       tas2557@4c{
-               compatible = "ti,tas2557";
-               reg = <0x4c>;
-               ti,cdc-reset-gpio = <&tlmm 76 0>;
-               ti,irq-gpio = <&tlmm 30 0>;
-               ti,i2s-bits = <16>;
-               ti,bypass-tmax = <0>;
-       };
+	status = "ok";
+	/*smart PA*/
+	tas2557@4c{
+		compatible = "ti,tas2557";
+		reg = <0x4c>;
+		ti,cdc-reset-gpio = <&tlmm 76 0>;
+		ti,irq-gpio = <&tlmm 30 0>;
+		ti,i2s-bits = <16>;
+		ti,bypass-tmax = <0>;
+	};
 };
 
 &qupv3_se10_i2c {
@@ -463,12 +467,47 @@
 		fts,key-num = <2>;
 		fts,key-codes = <158 139>;
 		fts,config-array-size = <1>;
+		fts,check-display-name;
 		fts,default-fw-name = "st_fts_e5.ftb";
+		fts,touch-up-threshold-min = <20>;
+		fts,touch-up-threshold-max = <170>;
+		fts,touch-up-threshold-def = <20>;
+		fts,touch-tolerance-min = <5>;
+		fts,touch-tolerance-max = <35>;
+		fts,touch-tolerance-def = <5>;
+		fts,edgefilter-leftrigt-def = <40>;
+		fts,edgefilter-topbottom-def = <40>;
+		fts,edgefilter-area-step1 = <100>;
+		fts,edgefilter-area-step2 = <150>;
+		fts,edgefilter-area-step3 = <250>;
 		fts,cfg_0 {
 			fts,tp-vendor = <0x52>;
 			fts,fw-name = "st_fts_e5.ftb";
 			fts,limit-name = "stm_fts_production_limits.csv";
 		};
+	};
+	focaltech@38 {
+		compatible = "focaltech,focal";
+		reg = <0x38>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <31 0>;
+		vddio-supply = <&disp_vddio_vreg>;
+		avdd-supply = <&pm8998_l28>;
+
+		focaltech,reset-gpio = <&tlmm 32 0x01>;
+		focaltech,irq-gpio = <&tlmm 31 0x02>;
+		focaltech,max-touch-number = <10>;
+		focaltech,display-coords = <0 0 1080 2340>;
+		focaltech,project-name = "e5";
+		focaltech,lockdown-info-addr = <0x1FFD0>;
+		focaltech,reset-when-resume;
+		focaltech,open-min = <3000>;
+		focaltech,timeout-read-reg = <2000>;
+		focaltech,check-display-name;
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+		pinctrl-0 = <&ts_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		/* focaltech,have-key; */
 	};
 	atmel_mxt_ts_640u@4a {
 		compatible = "atmel,mxt-ts";
@@ -903,29 +942,29 @@
 };
 
 &qupv3_se4_spi {
-    status = "ok";
-    4775_gps@89 {
-            compatible = "ssp,bcm4775";
-            reg = <0>;
-            spi-max-frequency = <12000000>;
-            ssp-host-req = <&tlmm 129 0x00>;
-            ssp-mcu-resp = <&tlmm 132 0x00>;
-            ssp-mcu-req = <&tlmm 143 0x00>;
-            gps,nstandby = <&tlmm 133 0x00>;
-            interrupt-parent = <&tlmm>;
-            interrupts = <129 0>;
-            spi-cpha;
-            spi-cpol;
-            interrupt-names = "gps_irq";
-            gps,power_enable = <&pm8998_gpios 19 GPIO_ACTIVE_HIGH>;
-            pinctrl-names = "gps_active", "gps_suspend";
-            pinctrl-0 = <&gps_int_active
-            &gps_enable_active
-            &gps_clk_default
-            &gps_power_default
-            &gps_resp_active>;
-            pinctrl-1 = <&gps_int_suspend &gps_enable_suspend &gps_resp_suspend>;
-        };
+	status = "ok";
+	4775_gps@89 {
+		compatible = "ssp,bcm4775";
+		reg = <0>;
+		spi-max-frequency = <12000000>;
+		ssp-host-req = <&tlmm 129 0x00>;
+		ssp-mcu-resp = <&tlmm 132 0x00>;
+		ssp-mcu-req = <&tlmm 143 0x00>;
+		gps,nstandby = <&tlmm 133 0x00>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <129 0>;
+		spi-cpha;
+		spi-cpol;
+		interrupt-names = "gps_irq";
+		gps,power_enable = <&pm8998_gpios 19 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "gps_active", "gps_suspend";
+		pinctrl-0 = <&gps_int_active
+			&gps_enable_active
+			&gps_clk_default
+			&gps_power_default
+			&gps_resp_active>;
+		pinctrl-1 = <&gps_int_suspend &gps_enable_suspend &gps_resp_suspend>;
+	};
 };
 
 &soc {

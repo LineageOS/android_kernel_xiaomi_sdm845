@@ -1,6 +1,6 @@
 
 /* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -16,7 +16,6 @@
 #include "sdm845-pmic-overlay.dtsi"
 #include "sdm845-pinctrl-overlay.dtsi"
 #include "sdm845-xiaomi-common.dtsi"
-//#include "beryllium-camera-sensor-mtp.dtsi"
 #include "beryllium-p0-camera-sensor-mtp.dtsi"
 
 &qupv3_se10_i2c {
@@ -32,11 +31,11 @@
 };
 
 &reserved_memory {
-		ramdump_fb_mem: ramdump_fb_region@af000000 {
-			compatible = "removed-dma-pool";
-			no-map;
-			reg = <0 0xaf000000 0 0x1000000>;
-		};
+	ramdump_fb_mem: ramdump_fb_region@af000000 {
+		compatible = "removed-dma-pool";
+		no-map;
+		reg = <0 0xaf000000 0 0x1000000>;
+	};
 };
 
 &vendor {
@@ -187,20 +186,20 @@
 };
 
 &pmi8998_haptics {
-       qcom,vmax-mv = <2812>;
-       qcom,lra-auto-mode;
-       qcom,overdrive;
-       qcom,wave-play-rate-us = <4878>;
-       qcom,wave-shape = "sine";
-       qcom,lra-high-z = "opt1";
-       qcom,lra-auto-res-mode = "qwd";
-       qcom,lra-res-cal-period = <4>;
-       qcom,effect-max = <3>;
-       qcom,effect-arry = [3e 3e be a0 00 00 00 00
-       3e 3e 3e be be 00 00 00
-       3e 3e 3e 3e be be a0 90];
-       qcom,play-mode = "buffer";
-       status = "okay";
+	qcom,vmax-mv = <2812>;
+	qcom,lra-auto-mode;
+	qcom,overdrive;
+	qcom,wave-play-rate-us = <4878>;
+	qcom,wave-shape = "sine";
+	qcom,lra-high-z = "opt1";
+	qcom,lra-auto-res-mode = "qwd";
+	qcom,lra-res-cal-period = <4>;
+	qcom,effect-max = <3>;
+	qcom,effect-arry = [3e 3e be a0 00 00 00 00
+			3e 3e 3e be be 00 00 00
+			3e 3e 3e 3e be be a0 90];
+	qcom,play-mode = "buffer";
+	status = "okay";
 };
 
 &mdss_mdp {
@@ -268,9 +267,9 @@
 };
 
 &pmi8998_switch2 {
-       pinctrl-names = "led_enable", "led_disable";
-       pinctrl-0 = <&flash_led3_iris_en>;
-       pinctrl-1 = <&flash_led3_iris_dis>;
+	pinctrl-names = "led_enable", "led_disable";
+	pinctrl-0 = <&flash_led3_iris_en>;
+	pinctrl-1 = <&flash_led3_iris_dis>;
 };
 
 &vendor{
@@ -292,15 +291,6 @@
 &pmi8998_gpios {
 	lm3644_pwm {
 		lm3644_pwm_default: lm3644_pwm_default {
-				//pins = "gpio2";
-				//function = "func1";
-				//bias-disable;
-				//output-low;
-				//input-disable;
-				//drive-push-pull;
-				//qcom,drive-strength = <2>;
-				//power-source = <0>;
-				//temply disable it
 				pins = "gpio2";
 				function = "normal";
 				bias-high-impedance;
@@ -321,7 +311,8 @@
 	qcom,fcc-hot-temp-delta = <1400000>;
 	qcom,fcc-cool-temp-delta = <1960000>;
 	qcom,auto-recharge-soc;
-        qcom,sw-jeita-enable;
+	qcom,sw-jeita-enable;
+	qcom,dynamic-fv-enable;
 	qcom,thermal-mitigation
 				= <1800000 1600000 1400000 1200000 1000000 1000000 1000000>;
 	qcom,thermal-mitigation-dcp
@@ -356,6 +347,8 @@
 	qcom,fg-esr-clamp-mohms = <60>;
 	qcom,fg-batt-temp-delta = <6>;
 	qcom,battery-data = <&mtp_batterydata>;
+	qcom,slope-limit-temp-threshold = <100>;
+	qcom,slope-limit-coeffs = <10 11 12 13>;
 };
 
 &pmi8998_pwm_1 {
@@ -400,9 +393,9 @@
 		interrupts = <63 0>;
 		interrupt-names = "nfc_irq";
 		pinctrl-names = "nfc_active", "nfc_suspend";
-                pinctrl-0 = <&nfc_int_active
-                             &nfc_enable_active
-                             &nfc_clk_default>;
+		pinctrl-0 = <&nfc_int_active
+				        &nfc_enable_active
+				        &nfc_clk_default>;
 		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend>;
 		clocks = <&clock_rpmh RPMH_LN_BB_CLK3>;
 		clock-names = "ref_clk";
@@ -410,43 +403,26 @@
 };
 
 &qupv3_se5_i2c {
-       status = "ok";
-       /*smart PA*/
-       tas2559@4c{
-               compatible = "ti,tas2559";
-               reg = <0x4c>;
-               ti,tas2559-reset-gpio = <&tlmm 12 0>;
-               ti,tas2560-reset-gpio = <&tlmm 76 0>;
-               ti,tas2559-irq-gpio = <&tlmm 11 0>;
-               ti,tas2560-irq-gpio = <&tlmm 30 0>;
-               ti,tas2559-addr = <0x4c>;
-               ti,tas2560-addr = <0x4d>;
-               ti,tas2559-channel = <0>; /* 0, left; 1, right */
-               ti,tas2560-channel = <1>; /* 0, left; 1, right */
-               ti,ycrc-enable = <1>;           /* 0, disable; non-zero, enable */
-               ti,echo-ref = <0>;              /* 0, left channel; 1, right channel; 2, both */
-               ti,bit-rate = <16>;             /* 16, 20, 24, 32 */
-               status = "ok";
-       };
+	status = "ok";
+	/*smart PA*/
+	tas2559@4c{
+		compatible = "ti,tas2559";
+		reg = <0x4c>;
+		ti,tas2559-reset-gpio = <&tlmm 12 0>;
+		ti,tas2560-reset-gpio = <&tlmm 76 0>;
+		ti,tas2559-irq-gpio = <&tlmm 11 0>;
+		ti,tas2560-irq-gpio = <&tlmm 30 0>;
+		ti,tas2559-addr = <0x4c>;
+		ti,tas2560-addr = <0x4d>;
+		ti,tas2559-channel = <0>; /* 0, left; 1, right */
+		ti,tas2560-channel = <1>; /* 0, left; 1, right */
+		ti,ycrc-enable = <1>;           /* 0, disable; non-zero, enable */
+		ti,echo-ref = <0>;              /* 0, left channel; 1, right channel; 2, both */
+		ti,bit-rate = <16>;             /* 16, 20, 24, 32 */
+		status = "ok";
+	};
 
 };
-/*
-&qupv3_se10_i2c {
-	status = "ok";
-	idtp9220@61 {
-		compatible = "idt,p9220";
-		reg = <0x61>;
-		idt,irq = <&tlmm 78 0x00>;
-		//idt,enable = <&tlmm 36 0x00>;
-		interrupt-parent = <&tlmm>;
-		interrupts = <78 0>;
-		interrupt-names = "idt_irq";
-		pinctrl-names = "idt_active", "idt_suspend";
-		pinctrl-0 = <&idt_int_active &idt_enable_active>;
-		pinctrl-1 = <&idt_int_suspend &idt_enable_suspend>;
-	};
-};
-*/
 
 &qupv3_se10_i2c {
 	status = "ok";
@@ -507,7 +483,7 @@
 		/*novatek,mp-support-dt;*/
 	};
 	focaltech@38 {
-		compatible = "focaltech,fts";
+		compatible = "focaltech,focal";
 		reg = <0x38>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <31 0>;
@@ -520,6 +496,10 @@
 		focaltech,irq-gpio = <&tlmm 31 0x02>;
 		focaltech,max-touch-number = <10>;
 		focaltech,display-coords = <0 0 1080 2246>;
+		focaltech,project-name = "e10";
+		focaltech,lockdown-info-addr = <0x1FA0>;
+		focaltech,timeout-read-reg = <1000>;
+		focaltech,cutoff-power;
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
 		pinctrl-0 = <&ts_int_active &ts_reset_active>;
 		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
