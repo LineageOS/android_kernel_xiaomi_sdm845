@@ -1,6 +1,6 @@
 
 /* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -646,31 +646,31 @@
 };
 
 &cam_sensor_ir_active {
-        /* RESET  AVDD_LDO*/
-        mux {
-                pins = "gpio25", "gpio27";
-                function = "gpio";
-        };
+	/* RESET  AVDD_LDO*/
+	mux {
+		pins = "gpio25", "gpio27";
+		function = "gpio";
+	};
 
-        config {
-                pins = "gpio25", "gpio27";
-                bias-disable; /* No PULL */
-                drive-strength = <2>; /* 2 MA */
-        };
+	config {
+		pins = "gpio25", "gpio27";
+		bias-disable; /* No PULL */
+		drive-strength = <2>; /* 2 MA */
+	};
 };
 
 &cam_sensor_ir_suspend {
-        /* RESET */
-        mux {
-                pins = "gpio25", "gpio27";
-                function = "gpio";
-        };
+	/* RESET */
+	mux {
+		pins = "gpio25", "gpio27";
+		function = "gpio";
+	};
 
-        config {
-                pins = "gpio25", "gpio27";
-                bias-pull-down; /* PULL DOWN */
-                drive-strength = <2>; /* 2 MA */
-        };
+	config {
+		pins = "gpio25", "gpio27";
+		bias-pull-down; /* PULL DOWN */
+		drive-strength = <2>; /* 2 MA */
+	};
 };
 
 &camera_dvdd_en_default {
@@ -688,31 +688,31 @@
 };
 
 &cam_sensor_iris_active {
-        /* RESET  AVDD_LDO*/
-        mux {
-                pins = "gpio25", "gpio27";
-                function = "gpio";
-        };
+	/* RESET  AVDD_LDO*/
+	mux {
+		pins = "gpio25", "gpio27";
+		function = "gpio";
+	};
 
-        config {
-                pins = "gpio25", "gpio27";
-                bias-disable; /* No PULL */
-                drive-strength = <2>; /* 2 MA */
-        };
+	config {
+		pins = "gpio25", "gpio27";
+		bias-disable; /* No PULL */
+		drive-strength = <2>; /* 2 MA */
+	};
 };
 
 &cam_sensor_iris_suspend {
-        /* RESET */
-        mux {
-                pins = "gpio25", "gpio27";
-                function = "gpio";
-        };
+	/* RESET */
+	mux {
+		pins = "gpio25", "gpio27";
+		function = "gpio";
+	};
 
-        config {
-                pins = "gpio25", "gpio27";
-                bias-pull-down; /* PULL DOWN */
-                drive-strength = <2>; /* 2 MA */
-        };
+	config {
+		pins = "gpio25", "gpio27";
+		bias-pull-down; /* PULL DOWN */
+		drive-strength = <2>; /* 2 MA */
+	};
 };
 
 

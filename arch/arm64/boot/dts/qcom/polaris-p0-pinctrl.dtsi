@@ -1,6 +1,6 @@
 
 /* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -172,35 +172,6 @@
 				drive-strength = <2>;
 				bias-disable;
 				output-high;
-			};
-		};
-	};
-
-	subpcb_id_gpio_ctrl {
-		subpcb_id_gpio_active: subpcb_id_gpio_active {
-			mux {
-				pins = "gpio44";
-				function = "gpio";
-			};
-			config {
-				pins = "gpio44";
-				drive-strength = <2>;
-				bias-disable;
-				input-enable;
-			};
-
-		};
-
-		subpcb_id_gpio_idle: subpcb_id_gpio_idle {
-			mux {
-				pins = "gpio44";
-				function = "gpio";
-			};
-			config {
-				pins = "gpio44";
-				drive-strength = <2>;
-				bias-pull-up;
-				input-enable;
 			};
 		};
 	};

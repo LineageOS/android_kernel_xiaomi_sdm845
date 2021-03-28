@@ -1,5 +1,5 @@
 /* Copyright (c) 2015, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -58,13 +58,13 @@
 		qcom,mdss-dsi-panel-blackness-level = <3230>;
 
 		qcom,dispparam-enabled;
-		qcom,mdss-panel-on-dimming-delay = <120>;
+		qcom,mdss-panel-on-dimming-delay = <200>;
 		qcom,disp-doze-backlight-threshold = <8>;
 		/* IRQF_ONESHOT | IRQF_TRIGGER_HIGH */
 		/* qcom,esd-err-irq-gpio = <&tlmm 52 0x2004>; */
 
 		qcom,bl-update-flag = "delay_until_first_frame";
-
+		qcom,mdss-dsi-panel-dc-threshold = <610>;
 		qcom,mdss-dsi-display-timings {
 			timing@0{
 				qcom,mdss-dsi-panel-width = <1080>;
@@ -116,7 +116,14 @@
 					/* Display On */
 					05 01 00 00 00 00 02 29 00];
 				qcom,mdss-dsi-off-command = [
-					05 01 00 00 00 00 02 28 00
+					/* Display Off */
+					05 01 00 00 11 00 02 28 00
+					/* LTPS Off Setting */
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 B0 4F
+					39 00 00 00 00 00 02 B9 58
+					39 01 00 00 11 00 03 F0 A5 A5
+					/* Sleep in */
 					05 01 00 00 78 00 02 10 00];
 				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
@@ -166,7 +173,8 @@
 
 				qcom,mdss-dsi-dispparam-dimmingon-command = [39 01 00 00 01 00 02 53 28];
 				qcom,mdss-dsi-dispparam-dimmingon-command-state = "dsi_lp_mode";
-
+				qcom,mdss-dsi-dispparam-dimmingoff-command = [39 01 00 00 01 00 02 53 20];
+				qcom,mdss-dsi-dispparam-dimmingoff-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-dispparam-crc-srgb-on-command = [
 					/* CRC Enable + sRGB mode */
 					39 01 00 00 00 00 02 81 90
