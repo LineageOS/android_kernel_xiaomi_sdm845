@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -33,13 +33,11 @@
 		"MIC BIAS4", "Analog Mic5";
 
 	qcom,wsa-max-devs = <0>;
+	qcom,euro-us-hw-auto-switch;
 	qcom,hw-auto-sw-en-gpio = <&sbu_mic_oe>;
 	qcom,uart-audio-sw-gpio = <&sbu_uart_en>;
 	qcom,adc2-switch-gpio = <&adc2_switch_gpio>;
-	qcom,subpcb-id-gpio = <&subpcb_id_gpio>;
-	qcom,subpcb-id-gpio-num = <&tlmm 44 0>;
 	qcom,msm-mbhc-usbc-audio-supported = <1>;
-	qcom,usbc-analog-en2-gpio = <&tlmm 43 0>;
 	pinctrl-names = "aud_active", "aud_sleep",
 			"quat-mi2s-active", "quat-mi2s-sleep",
 			"quat-tdm-active", "quat-tdm-sleep";
@@ -75,13 +73,6 @@
 		pinctrl-names = "aud_active", "aud_sleep";
 		pinctrl-0 = <&adc2_switch_gpio_active>;
 		pinctrl-1 = <&adc2_switch_gpio_idle>;
-	};
-
-	subpcb_id_gpio: msm_cdc_pinctrl@44 {
-		compatible = "qcom,msm-cdc-pinctrl";
-		pinctrl-names = "aud_active", "aud_sleep";
-		pinctrl-0 = <&subpcb_id_gpio_active>;
-		pinctrl-1 = <&subpcb_id_gpio_idle>;
 	};
 
 	vreg_pa_p_5p0: vreg_pa_p_5p0 {
