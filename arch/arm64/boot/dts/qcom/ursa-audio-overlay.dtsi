@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -23,14 +23,14 @@
 		"AMIC2_EXT_0", "MIC BIAS2",
 		"MIC BIAS2", "Headset Mic",
 		"AMIC2_EXT_1", "MIC BIAS4",
-                "MIC BIAS4", "Headset Mic2",
+		"MIC BIAS4", "Headset Mic2",
 		"AMIC3", "MIC BIAS1",
 		"MIC BIAS1", "ANCRight Headset Mic",
 		"AMIC1", "MIC BIAS4",
 		"MIC BIAS4", "ANCLeft Headset Mic";
 
 	qcom,wsa-max-devs = <0>;
-        qcom,adc2-switch-gpio = <&adc2_switch_gpio>;
+	qcom,adc2-switch-gpio = <&adc2_switch_gpio>;
 	qcom,msm-mbhc-usbc-audio-supported = <1>;
 	qcom,usbc-analog-en2-gpio = <&tlmm 51 0>;
 	pinctrl-names = "aud_active", "aud_sleep",
@@ -48,10 +48,10 @@
 };
 
 &soc {
-        adc2_switch_gpio: msm_cdc_pinctrl@62 {
-                compatible = "qcom,msm-cdc-pinctrl";
-                pinctrl-names = "aud_active", "aud_sleep";
-                pinctrl-0 = <&adc2_switch_gpio_active>;
-                pinctrl-1 = <&adc2_switch_gpio_idle>;
-        };
+	adc2_switch_gpio: msm_cdc_pinctrl@62 {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&adc2_switch_gpio_active>;
+		pinctrl-1 = <&adc2_switch_gpio_idle>;
+	};
 };
