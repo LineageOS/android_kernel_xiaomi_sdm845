@@ -1,5 +1,5 @@
 /* Copyright (c) 2015, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -36,9 +36,9 @@
 		qcom,mdss-dsi-lane-1-state;
 		qcom,mdss-dsi-lane-2-state;
 		qcom,mdss-dsi-lane-3-state;
-		qcom,mdss-dsi-bl-min-level = <1>;
-		qcom,mdss-dsi-bl-max-level = <4095>;
-		qcom,mdss-brightness-max-level = <4095>;
+		qcom,mdss-brightness-remap;
+		qcom,mdss-doze-brightness-variable;
+		qcom,mdss-brightness-max-level = <2047>;
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
 		qcom,mdss-dsi-mdp-trigger = "none";
 		qcom,mdss-dsi-reset-sequence = <0 2>, <1 10>;
@@ -58,13 +58,14 @@
 
 		qcom,mdss-dsi-bl-dcs-type-ss;
 		/* qcom,mdss-dsi-on-command-tuning; */
-		/* qcom,dispparam-enabled; */
-		/* qcom,mdss-panel-on-dimming-delay = <120>; */
-		/* qcom,disp-doze-backlight-threshold = <8>; */
+		qcom,dispparam-enabled;
+		qcom,mdss-panel-on-dimming-delay = <120>;
+		qcom,disp-doze-backlight-threshold = <8>;/*2047(8), 4096(16) */
 		/* IRQF_ONESHOT | IRQF_TRIGGER_HIGH */
 		/* qcom,esd-err-irq-gpio = <&tlmm 52 0x2004>; */
 
-		/* qcom,bl-update-flag = "delay_until_first_frame"; */
+		qcom,bl-update-flag = "delay_until_first_frame";
+		qcom,bl-update-delay = <28>;
 
 		qcom,mdss-dsi-display-timings {
 			timing@0{
@@ -87,23 +88,64 @@
 					39 01 00 00 00 00 02 B0 00
 					/* mode switch 00:CMD mode 01:VDO mode */
 					39 01 00 00 00 00 02 B3 00
+					39 01 00 00 00 00 02 FA 9F
+					39 01 00 00 00 00 0F C1 F0 61 00 00 00 00 00 20 02 00 00 00 00 81
+					/* SET Column Start Adress */
+					39 01 00 00 00 00 05 2A 00 00 04 37
+					/* SET Row Start Adress */
+					39 01 00 00 00 00 05 2B 00 00 09 23
 					/* Bank 1 */
 					39 01 00 00 00 00 02 B0 80
+					39 01 00 00 00 00 02 E4 FE
 					/* NVM load control */
 					39 01 00 00 00 00 02 E6 00
 					/* brightness control */
-					39 01 00 00 00 00 03 51 04 00
+					39 01 00 00 00 00 03 51 01 00
 					/* TE Control*/
 					39 01 00 00 00 00 02 35 00
+					/* Bank 0 */
+					39 01 00 00 00 00 02 B0 00
 					/* display on */
-					05 01 00 00 78 00 02 29 00
+					05 01 00 00 00 00 02 29 00
 					/* sleep out */
-					05 01 00 00 78 00 02 11 00];
+					05 01 00 00 64 00 02 11 00];
 				qcom,mdss-dsi-off-command = [
 					05 01 00 00 00 00 02 28 00
-					05 01 00 00 55 00 02 10 00];
-				qcom,mdss-dsi-on-command-state = "dsi_hs_mode";
-				qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
+					05 01 00 00 78 00 02 10 00];
+				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
+
+				qcom,mdss-dsi-doze-hbm-command = [
+					/* AOD ON Sequence (Normal To AOD HBM) */
+					05 01 00 00 00 00 02 39 00
+					39 01 00 00 00 00 03 51 00 FF];
+				qcom,mdss-dsi-doze-lbm-command = [
+					/* AOD ON Sequence (Normal To AOD LBM) */
+					05 01 00 00 00 00 02 39 00
+					39 01 00 00 00 00 03 51 00 00];
+				qcom,mdss-dsi-nolp-command = [
+					/* AOD OFF Sequence (AOD To Normal) */
+					05 01 00 00 00 00 02 38 00];
+				qcom,mdss-dsi-doze-hbm-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-doze-lbm-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-nolp-command-state = "dsi_lp_mode";
+
+				qcom,mdss-dsi-dispparam-acl-off-command = [39 01 00 00 00 00 02 55 00];
+				qcom,mdss-dsi-dispparam-acl-off-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-dispparam-acl-l1-command = [39 01 00 00 00 00 02 55 03];/* 40% */
+				qcom,mdss-dsi-dispparam-acl-l1-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-dispparam-acl-l2-command = [39 01 00 00 00 00 02 55 02];/* 30% */
+				qcom,mdss-dsi-dispparam-acl-l2-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-dispparam-acl-l3-command = [39 01 00 00 00 00 02 55 01];/* 15% */
+				qcom,mdss-dsi-dispparam-acl-l3-command-state = "dsi_lp_mode";
+
+				qcom,mdss-dsi-dispparam-hbm-off-command = [39 01 00 00 00 00 02 53 28];
+				qcom,mdss-dsi-dispparam-hbm-off-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-dispparam-hbm-on-command = [39 01 00 00 00 00 02 53 E8];
+				qcom,mdss-dsi-dispparam-hbm-on-command-state = "dsi_lp_mode";
+
+				qcom,mdss-dsi-dispparam-dimmingon-command = [39 01 00 00 00 00 02 53 28];
+				qcom,mdss-dsi-dispparam-dimmingon-command-state = "dsi_lp_mode";
 			};
 		};
 	};
