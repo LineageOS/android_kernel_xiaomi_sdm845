@@ -3,7 +3,7 @@
  * FocalTech TouchScreen driver.
  *
  * Copyright (c) 2010-2017, FocalTech Systems, Ltd., all rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -48,7 +48,6 @@
 *****************************************************************************/
 #define FTS_DRIVER_NAME                     "fts_ts"
 #define INTERVAL_READ_REG                   100	/* unit:ms */
-#define TIMEOUT_READ_REG                    1000	/* unit:ms */
 #if FTS_POWER_SOURCE_CUST_EN
 #define FTS_VTG_MIN_UV                      2600000
 #define FTS_VTG_MAX_UV                      3300000
@@ -86,10 +85,23 @@ static int fts_ts_suspend(struct device *dev);
 static int fts_ts_resume(struct device *dev);
 static void fts_resume_work(struct work_struct *work);
 static void fts_suspend_work(struct work_struct *work);
+extern const char *dsi_get_display_name(void);
 
+#if FTS_CHARGER_EN
+extern int fts_charger_mode_set(struct i2c_client *client, bool on);
+#endif
+
+struct device *fts_get_dev(void)
+{
+	if (!fts_data)
+		return NULL;
+	else
+		return &(fts_data->client->dev);
+}
 /*****************************************************************************
 *  Name: fts_wait_tp_to_valid
 *  Brief: Read chip id until TP FW become valid(Timeout: TIMEOUT_READ_REG),
+*         this threshold is read from devicetree, pdata->timeout_read_reg
 *         need call when reset/power on/resume...
 *  Input:
 *  Output:
@@ -112,7 +124,7 @@ int fts_wait_tp_to_valid(struct i2c_client *client)
 		}
 		cnt++;
 		msleep(INTERVAL_READ_REG);
-	} while ((cnt * INTERVAL_READ_REG) < TIMEOUT_READ_REG);
+	} while ((cnt * INTERVAL_READ_REG) < fts_data->pdata->timeout_read_reg);
 
 	return -EIO;
 }
@@ -189,9 +201,9 @@ static int fts_get_ic_information(struct fts_ts_data *ts_data)
 
 		cnt++;
 		msleep(INTERVAL_READ_REG);
-	} while ((cnt * INTERVAL_READ_REG) < TIMEOUT_READ_REG);
+	} while ((cnt * INTERVAL_READ_REG) < fts_data->pdata->timeout_read_reg);
 
-	if ((cnt * INTERVAL_READ_REG) >= TIMEOUT_READ_REG) {
+	if ((cnt * INTERVAL_READ_REG) >= fts_data->pdata->timeout_read_reg) {
 		FTS_INFO("fw is invalid, need read boot id");
 		if (ts_data->ic_info.hid_supported) {
 			fts_i2c_hid2std(client);
@@ -365,6 +377,13 @@ static int fts_power_source_init(struct fts_ts_data *data)
 		}
 	}
 
+	data->avdd = regulator_get(&data->client->dev, "avdd");
+	if (IS_ERR(data->avdd)) {
+		ret = PTR_ERR(data->avdd);
+		FTS_ERROR("get vddio regulator failed,ret=%d", ret);
+		return ret;
+	}
+
 	data->vsp = regulator_get(&data->client->dev, "lab");
 	if (IS_ERR(data->vsp)) {
 		ret = PTR_ERR(data->vsp);
@@ -412,6 +431,10 @@ static int fts_power_source_ctrl(struct fts_ts_data *data, int enable)
 	FTS_FUNC_ENTER();
 	if (enable) {
 		if (data->power_disabled) {
+			ret = regulator_enable(data->avdd);
+			if (ret) {
+				FTS_ERROR("enable avdd regulator failed,ret=%d", ret);
+			}
 			ret = regulator_enable(data->vddio);
 			if (ret) {
 				FTS_ERROR("enable vddio regulator failed,ret=%d", ret);
@@ -430,6 +453,10 @@ static int fts_power_source_ctrl(struct fts_ts_data *data, int enable)
 		}
 	} else {
 		if (!data->power_disabled) {
+			ret = regulator_disable(data->avdd);
+			if (ret) {
+				FTS_ERROR("disable avdd regulator failed,ret=%d", ret);
+			}
 			ret = regulator_disable(data->vddio);
 			if (ret) {
 				FTS_ERROR("disable vddio regulator failed,ret=%d", ret);
@@ -1252,6 +1279,10 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 	if (ret < 0)
 		FTS_ERROR("Unable to get display-coords");
 
+	ret = of_property_read_u32(np, "focaltech,timeout-read-reg", &pdata->timeout_read_reg);
+	if (ret)
+		FTS_ERROR("timeout-read_reg limit undefined!");
+
 	/* key */
 	pdata->have_key = of_property_read_bool(np, "focaltech,have-key");
 	if (pdata->have_key) {
@@ -1302,6 +1333,23 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 
 	FTS_INFO("max touch number:%d, irq gpio:%d, reset gpio:%d", pdata->max_touch_number, pdata->irq_gpio,
 		 pdata->reset_gpio);
+	ret = of_property_read_string(np, "focaltech,project-name", &pdata->project_name);
+	if (!ret)
+		FTS_ERROR("Unable to get project name");
+	else {
+		FTS_INFO("project name:%s\n", pdata->project_name);
+	}
+	ret = of_property_read_u32(np, "focaltech,lockdown-info-addr", &pdata->lockdown_info_addr);
+	if (!ret)
+		FTS_ERROR("Unable to get lockdown-info-addr");
+	ret = of_property_read_u32(np, "focaltech,open-min", &pdata->open_min);
+	if (ret)
+		FTS_ERROR("selftest open min undefined!");
+
+	pdata->reset_when_resume = of_property_read_bool(np, "focaltech,reset-when-resume");
+	pdata->check_display_name = of_property_read_bool(np, "focaltech,check-display-name");
+	pdata->cutoff_power = of_property_read_bool(np, "focaltech,cutoff-power");
+
 
 	FTS_FUNC_EXIT();
 	return 0;
@@ -1506,6 +1554,36 @@ static const struct file_operations tpdbg_operations = {
 	.release = tpdbg_release,
 };
 
+#ifdef CONFIG_TOUCHSCREEN_FTS_POWER_SUPPLY
+static void fts_power_supply_work(struct work_struct *work)
+{
+	struct fts_ts_data *ts_data = container_of(work, struct fts_ts_data, power_supply_work);
+	int usb_charger;
+
+	usb_charger = !!power_supply_is_system_supplied();
+	if (usb_charger != ts_data->is_usb_exist || ts_data->is_usb_exist < 0) {
+		ts_data->is_usb_exist = usb_charger;
+		FTS_INFO("%s power supply is USB%d\n", __func__, usb_charger);
+		if (usb_charger) {
+			FTS_INFO("%s USB is exist\n", __func__);
+			fts_charger_mode_set(ts_data->client, true);
+		} else {
+			FTS_INFO("%s USB is not exist\n", __func__);
+			fts_charger_mode_set(ts_data->client, false);
+		}
+	}
+}
+
+static int fts_power_supply_event(struct notifier_block *nb, unsigned long event, void *ptr)
+{
+	struct fts_ts_data *ts_data = container_of(nb, struct fts_ts_data, power_supply_notifier);
+	if (!ts_data)
+		return 0;
+	queue_work(ts_data->event_wq, &ts_data->power_supply_work);
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_DRM
 /*****************************************************************************
 *  Name: fb_notifier_callback
@@ -1613,6 +1691,7 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	struct fts_ts_platform_data *pdata;
 	struct fts_ts_data *ts_data;
 	struct dentry *tp_debugfs;
+	const char *display_name;
 
 	FTS_FUNC_ENTER();
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -1636,6 +1715,16 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	if (!pdata) {
 		FTS_ERROR("no ts platform data found");
 		return -EINVAL;
+	}
+	if (pdata->check_display_name) {
+		display_name = dsi_get_display_name();
+		if (display_name) {
+			FTS_INFO("display_name:%s\n", display_name);
+			if (strncmp(display_name, "dsi_visionox", 12)) {
+				FTS_ERROR("not the right display, do not need to do probe\n");
+				return -EINVAL;
+			}
+		}
 	}
 
 	ts_data = devm_kzalloc(&client->dev, sizeof(*ts_data), GFP_KERNEL);
@@ -1700,6 +1789,7 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 			ts_data->fw_forceupdate = true;
 		else {
 			FTS_ERROR("No focal touch found");
+			ret = -ENODEV;
 			goto err_irq_req;
 		}
 	}
@@ -1777,6 +1867,10 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	}
 	INIT_WORK(&ts_data->resume_work, fts_resume_work);
 	INIT_WORK(&ts_data->suspend_work, fts_suspend_work);
+#ifdef CONFIG_TOUCHSCREEN_FTS_POWER_SUPPLY
+	INIT_WORK(&ts_data->power_supply_work, fts_power_supply_work);
+	ts_data->is_usb_exist = -1;
+#endif
 
 	ret = fts_irq_registration(ts_data);
 	if (ret) {
@@ -1793,6 +1887,11 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	device_init_wakeup(&client->dev, 1);
 	ts_data->dev_pm_suspend = false;
 	init_completion(&ts_data->dev_pm_suspend_completion);
+
+#ifdef CONFIG_TOUCHSCREEN_FTS_POWER_SUPPLY
+	ts_data->power_supply_notifier.notifier_call = fts_power_supply_event;
+	power_supply_reg_notifier(&ts_data->power_supply_notifier);
+#endif
 
 #ifdef CONFIG_DRM
 	ts_data->fb_notif.notifier_call = fb_notifier_callback;
@@ -1948,7 +2047,7 @@ static int fts_ts_suspend(struct device *dev)
 #endif
 
 	fts_irq_disable_sync();
-
+	fts_release_all_finger();
 #if FTS_GESTURE_EN
 	if (fts_gesture_suspend(ts_data->client) == 0) {
 		ts_data->suspended = true;
@@ -1958,9 +2057,16 @@ static int fts_ts_suspend(struct device *dev)
 #endif
 
 #if FTS_POWER_SOURCE_CUST_EN
-	ret = fts_power_source_ctrl(ts_data, DISABLE);
-	if (ret < 0) {
-		FTS_ERROR("power off fail, ret=%d", ret);
+	if (ts_data->pdata->cutoff_power) {
+		ret = fts_power_source_ctrl(ts_data, DISABLE);
+		if (ret < 0) {
+			FTS_ERROR("power off fail, ret=%d", ret);
+		}
+	} else {
+		/* TP enter sleep mode */
+		ret = fts_i2c_write_reg(ts_data->client, FTS_REG_POWER_MODE, FTS_REG_POWER_MODE_SLEEP_VALUE);
+		if (ret < 0)
+			FTS_ERROR("set TP to sleep mode fail, ret=%d", ret);
 	}
 #if FTS_PINCTRL_EN
 	fts_pinctrl_select_suspend(ts_data);
@@ -1997,13 +2103,15 @@ static int fts_ts_resume(struct device *dev)
 	fts_release_all_finger();
 
 #if FTS_POWER_SOURCE_CUST_EN
-	fts_power_source_ctrl(ts_data, ENABLE);
+	if (ts_data->pdata->cutoff_power)
+		fts_power_source_ctrl(ts_data, ENABLE);
 #if FTS_PINCTRL_EN
 	fts_pinctrl_select_normal(ts_data);
 #endif
 #endif
 
-	if (!ts_data->ic_info.is_incell) {
+	if (!ts_data->ic_info.is_incell || ts_data->pdata->reset_when_resume) {
+		FTS_INFO("reset when resume");
 		fts_reset_proc(200);
 	}
 
@@ -2096,7 +2204,7 @@ static const struct i2c_device_id fts_ts_id[] = {
 MODULE_DEVICE_TABLE(i2c, fts_ts_id);
 
 static struct of_device_id fts_match_table[] = {
-	{.compatible = "focaltech,fts",},
+	{.compatible = "focaltech,focal",},
 	{},
 };
 

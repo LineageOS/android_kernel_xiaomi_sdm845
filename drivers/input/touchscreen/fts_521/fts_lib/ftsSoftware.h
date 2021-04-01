@@ -290,6 +290,7 @@ typedef enum {
 #define EVT_TYPE_STATUS_FORCE_CAL			0x05	/*Force Calibration has triggered*/
 #define EVT_TYPE_STATUS_WATER				0x06	/*Water Mode*/
 #define EVT_TYPE_STATUS_SS_RAW_SAT			0x07	/*Self Sense data saturated*/
+#define EVT_TYPE_STATUS_POCKET				0x09
 /** @} */
 
 /** @defgroup user_type	 User Event Types
@@ -300,6 +301,8 @@ typedef enum {
 #define EVT_TYPE_USER_KEY					0x00	/*Keys pressed/relesed event report*/
 #define EVT_TYPE_USER_PROXIMITY				0x01	/*Proximity detection event report*/
 #define EVT_TYPE_USER_GESTURE				0x02	/*Gesture detection event report*/
+#define EVT_TYPE_USER_EARDET				0x03	/*ear detection event report*/
+
 /** @}*/
 
 /** @defgroup error_type  Error Event Types

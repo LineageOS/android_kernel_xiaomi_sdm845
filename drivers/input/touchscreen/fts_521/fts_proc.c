@@ -593,7 +593,7 @@ static ssize_t fts_driver_test_write(struct file *file, const char __user *buf,
 				    (u8 *) kmalloc((byteToRead + mess.dummy) *
 						   sizeof(u8), GFP_KERNEL);
 				res =
-				    fts_writeRead(&cmd[1], temp, readData,
+				    fts_writeRead_dma_safe(&cmd[1], temp, readData,
 						  byteToRead + mess.dummy);
 				size += (byteToRead * sizeof(u8));
 
@@ -608,7 +608,7 @@ static ssize_t fts_driver_test_write(struct file *file, const char __user *buf,
 		case CMD_WRITE_BYTE:
 			if (numberParam >= 2) {
 				temp = numberParam - 1;
-				res = fts_write(&cmd[1], temp);
+				res = fts_write_dma_safe(&cmd[1], temp);
 
 			} else {
 				logError(1, "%s Wrong number of parameters! \n",
