@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2011 XiaoMi, Inc.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -14,7 +14,6 @@
  */
 #include <linux/input/ft5x46_ts.h>
 #include <linux/hwinfo.h>
-
 #include "ft8716_pramboot.h"
 
 /* #define FT5X46_DEBUG_PERMISSION */
@@ -196,7 +195,6 @@ struct ft5x46_packet {
 	u16 length;
 	u8  payload[FT5X0X_PACKET_LENGTH];
 };
-
 struct ft5x46_rd_flash_packet {
 	u8 magic;
 	u8 addr_h;
@@ -1299,6 +1297,7 @@ static int ft8716_load_firmware(struct ft5x46_data *ft5x46,
 			ft8716_reset_firmware(ft5x46);
 			return error;
 		}
+
 		update_hardware_info(TYPE_TP_MAKER, ft5x46->lockdown_info[0] - 0x30);
 		ft5x46->lockdown_info_acquired = true;
 		wake_up(&ft5x46->lockdown_info_acquired_wq);
@@ -1763,7 +1762,6 @@ static irqreturn_t ft5x46_interrupt(int irq, void *dev_id)
 	u8 val = 0;
 
 	mutex_lock(&ft5x46->mutex);
-
 	if (ft5x46->wakeup_mode && ft5x46->in_suspend) {
 		error = ft5x46_read_byte(ft5x46, 0xD0, &val);
 		if (error)
@@ -1888,7 +1886,6 @@ out:
 #ifdef CONFIG_TOUCHSCREEN_FT5X46P_PROXIMITY
 	wake_up(&ft5x46->resume_wq);
 #endif
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ft5x46_resume);
@@ -4287,6 +4284,7 @@ struct ft5x46_data *ft5x46_probe(struct device *dev,
 	ft5x46->hw_is_ready = false;
 	init_waitqueue_head(&ft5x46->lockdown_info_acquired_wq);
 	schedule_work(&ft5x46->work);
+
 	return ft5x46;
 
 #ifdef FT5X46_APK_DEBUG_CHANNEL
