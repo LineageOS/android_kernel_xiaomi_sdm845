@@ -1,6 +1,5 @@
 /************************************************************************
 * Copyright (C) 2010-2017, Focaltech Systems (R)£¬All Rights Reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
 *
 * File Name: focaltech_flash.h
 *
@@ -140,6 +139,7 @@ struct fts_upgrade {
 };
 
 struct upgrade_fw {
+	u8 *project_name;
 	u16 vendor_id;
 	u8 *fw_file;
 	u32 fw_len;
@@ -150,6 +150,7 @@ struct upgrade_fw {
 *****************************************************************************/
 extern struct fts_upgrade *fwupgrade;
 extern struct upgrade_func upgrade_func_ft8719;
+extern struct upgrade_func upgrade_func_ft5452;
 
 /*****************************************************************************
 * Static function prototypes
