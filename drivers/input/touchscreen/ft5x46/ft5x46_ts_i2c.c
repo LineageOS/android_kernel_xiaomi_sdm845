@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2011 XiaoMi, Inc.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -18,8 +18,8 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/input/ft5x46_ts.h>
-
-struct i2c_client *fts_i2c_client = NULL;
+#include "focaltech_test.h"
+struct i2c_client *fts_i2c_client;
 static int ft5x46_i2c_recv(struct device *dev,
 				void *buf, int len)
 {
@@ -159,6 +159,7 @@ static int ft5x46_i2c_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, ft5x46);
 	fts_i2c_client = client;
+	fts_test_module_init(client);
 	device_init_wakeup(&client->dev, 1);
 
 	return 0;
@@ -167,6 +168,7 @@ static int ft5x46_i2c_probe(struct i2c_client *client,
 static int ft5x46_i2c_remove(struct i2c_client *client)
 {
 	struct ft5x46_data *ft5x0x = i2c_get_clientdata(client);
+	fts_test_module_exit(client);
 	ft5x46_remove(ft5x0x);
 	return 0;
 }
@@ -174,6 +176,7 @@ static int ft5x46_i2c_remove(struct i2c_client *client)
 static void ft5x46_i2c_shutdown(struct i2c_client *client)
 {
 	struct ft5x46_data *ft5x0x = i2c_get_clientdata(client);
+	fts_test_module_exit(client);
 	ft5x46_remove(ft5x0x);
 	return;
 }
