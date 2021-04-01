@@ -601,8 +601,8 @@ int production_test_main(const char *pathThresholds, int stop_on_fail, int saveI
 
 	if (res < 0) {
 		log_error("%s Error during ITO TEST! ERROR %08X\n", tag, res);
-
-
+		//liuyh add temporary
+//		goto END;
 	} else {
 		log_debug("%s ITO TEST OK!\n", tag);
 	}

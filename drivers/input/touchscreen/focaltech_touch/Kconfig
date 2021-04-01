@@ -1,13 +1,21 @@
 #
 # Focaltech Touchscreen driver configuration
 #
-menuconfig TOUCHSCREEN_FTS
+
+config TOUCHSCREEN_FTS
 	bool "Focaltech Touchscreen"
 	depends on I2C
 	default n
 	help
 	  Say Y here if you have Focaltech touch panel.
 	  If unsure, say N.
+
+config TOUCHSCREEN_FTS_POWER_SUPPLY
+	bool "USB Power Supply"
+	default n
+	help
+	  Say y here if phone type is perseus
+	  If unsure, say N
 
 config TOUCHSCREEN_FTS_DIRECTORY
 	string "Focaltech ts directory name"
