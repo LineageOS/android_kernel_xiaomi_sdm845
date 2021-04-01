@@ -4,7 +4,7 @@
  * FTS Capacitive touch screen controller (FingerTipS)
  *
  * Copyright (C) 2016, STMicroelectronics Limited.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  * Authors: AMG(Analog Mems Group)
  *
  *		marco.cali@st.com
@@ -131,7 +131,7 @@ static const char *fts_get_limit(struct fts_ts_info *info);
 static void fts_clear_point(struct fts_ts_info *info);
 #endif
 #ifdef CONFIG_INPUT_PRESS_NDT
-bool aod_mode = false;
+bool aod_mode;
 #endif
 
 unsigned int le_to_uint(const unsigned char *ptr)
@@ -1443,7 +1443,7 @@ static bool fts_is_in_fodarea(int x, int y)
 		return false;
 }
 #endif
-bool finger_report_flag = false;
+bool finger_report_flag;
 static unsigned char *fts_enter_pointer_event_handler(struct fts_ts_info *info, unsigned char *event)
 {
 	unsigned char touchId, touchcount;
@@ -1920,6 +1920,7 @@ static unsigned char *fts_gesture_event_handler(struct fts_ts_info *info, unsign
 {
 	unsigned char touchId;
 	int value;
+	char ch[64] = {0x0,};
 
 	if (!info->gesture_enabled)
 		return fts_next_event(event);
@@ -3526,6 +3527,7 @@ static int fts_probe(struct i2c_client *client, const struct i2c_device_id *idp)
 #ifdef PHONE_KEY
 	int i = 0;
 #endif
+	u8 *tp_maker;
 	openChannel(client);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -3720,10 +3722,70 @@ static int fts_probe(struct i2c_client *client, const struct i2c_device_id *idp)
 		update_hardware_info(TYPE_TP_MAKER, info->lockdown_info[0] - 0x30);
 	}
 
-#ifdef DRIVER_TEST
-ProbeErrorExit_12:
-	sysfs_remove_group(&info->test_cmd_dev->kobj,  &test_cmd_attr_group);
+	tp_maker = kzalloc(20, GFP_KERNEL);
+	if (tp_maker == NULL)
+		log_error("%s fail to alloc vendor name memory\n", tag);
+
+	dev_set_drvdata(&client->dev, info);
+	device_init_wakeup(&client->dev, 1);
+#ifdef CONFIG_TOUCHSCREEN_ST_DEBUG_FS
+	info->debugfs = debugfs_create_dir("tp_debug", NULL);
+	if (info->debugfs) {
+		debugfs_create_file("switch_state", 0660, info->debugfs, info, &tpdbg_operations);
+	}
 #endif
+	fts_info = info;
+#ifdef SCRIPTLESS
+
+	if (fts_cmd_class == NULL)
+		fts_cmd_class = class_create(THIS_MODULE, FTS_TS_DRV_NAME);
+
+	info->i2c_cmd_dev = device_create(fts_cmd_class, NULL, DCHIP_ID_0, info, "fts_i2c");
+
+	if (IS_ERR(info->i2c_cmd_dev)) {
+		log_error("%s ERROR: Failed to create device for the sysfs!\n", tag);
+		goto ProbeErrorExit_8;
+	}
+
+	dev_set_drvdata(info->i2c_cmd_dev, info);
+	error = sysfs_create_group(&info->i2c_cmd_dev->kobj, &i2c_cmd_attr_group);
+
+	if (error) {
+		log_error("%s ERROR: Failed to create sysfs group!\n", tag);
+		goto ProbeErrorExit_9;
+	}
+
+#endif
+#ifdef DRIVER_TEST
+
+	if (fts_cmd_class == NULL)
+		fts_cmd_class = class_create(THIS_MODULE, FTS_TS_DRV_NAME);
+
+	info->test_cmd_dev = device_create(fts_cmd_class, NULL, DCHIP_ID_1, info, "fts_driver_test");
+
+	if (IS_ERR(info->test_cmd_dev)) {
+		log_error("%s ERROR: Failed to create device for the sysfs!\n", tag);
+		goto ProbeErrorExit_10;
+	}
+
+	dev_set_drvdata(info->test_cmd_dev, info);
+	error = sysfs_create_group(&info->test_cmd_dev->kobj,  &test_cmd_attr_group);
+
+	if (error) {
+		log_error("%s ERROR: Failed to create sysfs group!\n", tag);
+		goto ProbeErrorExit_11;
+	}
+
+#endif
+
+	info->tp_selftest_proc = proc_create("tp_selftest", 0, NULL, &fts_selftest_ops);
+	info->tp_data_dump_proc = proc_create("tp_data_dump", 0, NULL, &fts_datadump_ops);
+	info->tp_fw_version_proc = proc_create("tp_fw_version", 0, NULL, &fts_fw_version_ops);
+	info->tp_lockdown_info_proc = proc_create("tp_lockdown_info", 0, NULL, &fts_lockdown_info_ops);
+	queue_delayed_work(info->fwu_workqueue, &info->fwu_work, msecs_to_jiffies(EXP_FN_WORK_DELAY_MS));
+
+	return OK;
+
 #ifdef DRIVER_TEST
 ProbeErrorExit_11:
 	device_destroy(fts_cmd_class, DCHIP_ID_1);

@@ -824,12 +824,12 @@ int fts_get_lockdown_info(u8 *lockdata)
 				break;
 			}
 		} else {
-			log_error("%s %s: Can not find first lockdown code read reply event! ERROR %08X\n", tag, __func__, ret);
+			log_error( "%s %s: Can not find first lockdown code read reply event! ERROR %08X\n", tag, __func__, ret);
 		}
 	}
 ERROR:
 		if (fts_enableInterrupt() < OK)
-			log_error("%s %s: Error while re-enabling the interrupt!\n", tag, __func__);
+			log_error( "%s %s: Error while re-enabling the interrupt!\n", tag, __func__);
 		return ret;
 }
 
