@@ -1485,4 +1485,11 @@ config INPUT_PRESS_NDT_M65
 	help
 	  Say Y here if you have a press ic ndt.
 
+config SECURE_TOUCH
+	bool "Secure Touch"
+	depends on TOUCHSCREEN_ST_FTS_V521 || TOUCHSCREEN_SYNAPTICS_DSX_FORCE
+
+config I2C_BY_DMA
+	bool "I2C BY DMA"
+
 endif

@@ -252,7 +252,7 @@ int wait_for_flash_ready(u8 type)
 
 	logError(0, "%s Waiting for flash ready ... \n", tag);
 	for (i = 0; i < FLASH_RETRY_COUNT && res != 0; i++) {
-		res = fts_writeRead(cmd, ARRAY_SIZE(cmd), readData, 2);
+		res = fts_writeRead_dma_safe(cmd, ARRAY_SIZE(cmd), readData, 2);
 		if (res < OK) {
 			logError(1, "%s wait_for_flash_ready: ERROR % 08X\n",
 				 tag, ERROR_BUS_W);
@@ -529,7 +529,7 @@ int flash_unlock(void)
 	};
 
 	logError(0, "%s Command unlock ... \n", tag);
-	if (fts_write(cmd, ARRAY_SIZE(cmd)) < OK) {
+	if (fts_write_dma_safe(cmd, ARRAY_SIZE(cmd)) < OK) {
 		logError(1, "%s flash_unlock: ERROR %08X\n", tag, ERROR_BUS_W);
 		return ERROR_BUS_W;
 	}
@@ -554,7 +554,7 @@ int flash_erase_unlock(void)
 	logError(0, "%s Try to erase unlock flash... \n", tag);
 
 	logError(0, "%s Command erase unlock ... \n", tag);
-	if (fts_write(cmd, ARRAY_SIZE(cmd)) < 0) {
+	if (fts_write_dma_safe(cmd, ARRAY_SIZE(cmd)) < 0) {
 		logError(1, "%s flash_erase_unlock: ERROR %08X\n", tag,
 			 ERROR_BUS_W);
 		return ERROR_BUS_W;
@@ -579,14 +579,14 @@ int flash_full_erase(void)
 		FLASH_ERASE_CODE1
 	};
 
-	if (fts_write(cmd1, ARRAY_SIZE(cmd1)) < OK) {
+	if (fts_write_dma_safe(cmd1, ARRAY_SIZE(cmd1)) < OK) {
 		logError(1, "%s flash_erase_page_by_page: ERROR %08X\n", tag,
 			 ERROR_BUS_W);
 		return ERROR_BUS_W;
 	}
 
 	logError(0, "%s Command full erase sent ... \n", tag);
-	if (fts_write(cmd, ARRAY_SIZE(cmd)) < OK) {
+	if (fts_write_dma_safe(cmd, ARRAY_SIZE(cmd)) < OK) {
 		logError(1, "%s flash_full_erase: ERROR %08X\n", tag,
 			 ERROR_BUS_W);
 		return ERROR_BUS_W;
@@ -639,14 +639,14 @@ int flash_erase_page_by_page(ErasePage keep_cx)
 	}
 
 	logError(0, "\n%s Writing page mask... \n", tag);
-	if (fts_write(cmd2, ARRAY_SIZE(cmd2)) < OK) {
+	if (fts_write_dma_safe(cmd2, ARRAY_SIZE(cmd2)) < OK) {
 		logError(1,
 			 "%s flash_erase_page_by_page: Page mask ERROR %08X\n",
 			 tag, ERROR_BUS_W);
 		return ERROR_BUS_W;
 	}
 
-	if (fts_write(cmd1, ARRAY_SIZE(cmd1)) < OK) {
+	if (fts_write_dma_safe(cmd1, ARRAY_SIZE(cmd1)) < OK) {
 		logError(1,
 			 "%s flash_erase_page_by_page: Disable info ERROR %08X\n",
 			 tag, ERROR_BUS_W);
@@ -654,7 +654,7 @@ int flash_erase_page_by_page(ErasePage keep_cx)
 	}
 
 	logError(0, "%s Command erase pages sent ... \n", tag);
-	if (fts_write(cmd, ARRAY_SIZE(cmd)) < OK) {
+	if (fts_write_dma_safe(cmd, ARRAY_SIZE(cmd)) < OK) {
 		logError(1, "%s flash_erase_page_by_page: Erase ERROR %08X\n",
 			 tag, ERROR_BUS_W);
 		return ERROR_BUS_W;
@@ -685,7 +685,7 @@ int start_flash_dma(void)
 	u8 cmd[6] = { FLASH_CMD_WRITE_REGISTER, 0x20, 0x00, 0x00, FLASH_DMA_CODE0, FLASH_DMA_CODE1 };
 
 	logError(0, "%s Command flash DMA ... \n", tag);
-	if (fts_write(cmd, ARRAY_SIZE(cmd)) < OK) {
+	if (fts_write_dma_safe(cmd, ARRAY_SIZE(cmd)) < OK) {
 		logError(1, "%s start_flash_dma: ERROR %08X\n", tag,
 			 ERROR_BUS_W);
 		return ERROR_BUS_W;
@@ -768,7 +768,7 @@ int fillFlash(u32 address, u8 *data, int size)
 			buff[index++] = (u8) (addr & 0x000000FF);
 
 			memcpy(&buff[index], data, toWrite);
-			if (fts_write(buff, index + toWrite) < OK) {
+			if (fts_write_dma_safe(buff, index + toWrite) < OK) {
 				logError(1, "%s fillFlash: ERROR %08X\n", tag,
 					 ERROR_BUS_W);
 				kfree(buff);
@@ -801,7 +801,7 @@ int fillFlash(u32 address, u8 *data, int size)
 			 tag, buff2[0], buff2[8], buff2[7], buff2[10],
 			 buff2[9]);
 
-		if (fts_write(buff2, index) < OK) {
+		if (fts_write_dma_safe(buff2, index) < OK) {
 			logError(1,
 				 "%s   Error during filling Flash! ERROR %08X \n",
 				 tag, ERROR_BUS_W);
