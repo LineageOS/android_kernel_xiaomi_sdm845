@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, 2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -121,7 +121,6 @@ void mdss_dsi_ctrl_init(struct device *ctrl_dev,
 	mutex_init(&ctrl->cmd_mutex);
 	mutex_init(&ctrl->clk_lane_mutex);
 	mutex_init(&ctrl->cmdlist_mutex);
-	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->tx_buf, SZ_4K);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->rx_buf, SZ_4K);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->status_buf, SZ_4K);
 	ctrl->cmdlist_commit = mdss_dsi_cmdlist_commit;
@@ -2145,7 +2144,6 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 					struct dsi_buf *tp)
 {
 	int len, ret = 0;
-	int domain = MDSS_IOMMU_DOMAIN_UNSECURE;
 	char *bp;
 	struct mdss_dsi_ctrl_pdata *mctrl = NULL;
 	int ignored = 0;	/* overflow ignored */
@@ -2155,20 +2153,6 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	len = ALIGN(tp->len, 4);
 	ctrl->dma_size = ALIGN(tp->len, SZ_4K);
 
-	ctrl->mdss_util->iommu_lock();
-	if (ctrl->mdss_util->iommu_attached()) {
-		ret = mdss_smmu_dsi_map_buffer(tp->dmap, domain, ctrl->dma_size,
-			&(ctrl->dma_addr), tp->start, DMA_TO_DEVICE);
-		if (IS_ERR_VALUE((unsigned long)ret)) {
-			pr_err("unable to map dma memory to iommu(%d)\n", ret);
-			ctrl->mdss_util->iommu_unlock();
-			return -ENOMEM;
-		}
-		ctrl->dmap_iommu_map = true;
-	} else {
-		ctrl->dma_addr = tp->dmap;
-	}
-
 	reinit_completion(&ctrl->dma_comp);
 
 	if (ctrl->panel_mode == DSI_VIDEO_MODE)
@@ -2177,7 +2161,7 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	if (mdss_dsi_sync_wait_trigger(ctrl)) {
 		/* broadcast same cmd to other panel */
 		mctrl = mdss_dsi_get_other_ctrl(ctrl);
-		if (mctrl && mctrl->dma_addr == 0) {
+		if (mctrl) {
 			if (ignored) {
 				/* mask out overflow isr */
 				mdss_dsi_set_reg(mctrl, 0x10c,
@@ -2229,6 +2213,7 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 			pr_warn("%s: dma tx done but irq not triggered\n",
 				__func__);
 		} else {
+			MDSS_XLOG(0x909, status);
 			ret = -ETIMEDOUT;
 		}
 	}
@@ -2245,19 +2230,6 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 			if (!(data & BIT(5)))
 				mdss_dsi_set_reg(mctrl, 0x10c, 0x0f0000, 0);
 		}
-		if (mctrl->dmap_iommu_map) {
-			mdss_smmu_dsi_unmap_buffer(mctrl->dma_addr, domain,
-				mctrl->dma_size, DMA_TO_DEVICE);
-			mctrl->dmap_iommu_map = false;
-		}
-		mctrl->dma_addr = 0;
-		mctrl->dma_size = 0;
-	}
-
-	if (ctrl->dmap_iommu_map) {
-		mdss_smmu_dsi_unmap_buffer(ctrl->dma_addr, domain,
-			ctrl->dma_size, DMA_TO_DEVICE);
-		ctrl->dmap_iommu_map = false;
 	}
 
 	if (ignored) {
@@ -2268,10 +2240,9 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 		if (!(data & BIT(5)))
 			mdss_dsi_set_reg(ctrl, 0x10c, 0x0f0000, 0);
 	}
-	ctrl->dma_addr = 0;
-	ctrl->dma_size = 0;
+	MDSS_XLOG(ret);
+
 end:
-	ctrl->mdss_util->iommu_unlock();
 	return ret;
 }
 

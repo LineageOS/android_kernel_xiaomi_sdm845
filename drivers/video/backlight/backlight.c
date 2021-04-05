@@ -24,6 +24,7 @@
 static struct list_head backlight_dev_list;
 static struct mutex backlight_dev_list_mutex;
 static struct blocking_notifier_head backlight_notifier;
+static int bl_event;
 
 static const char *const backlight_types[] = {
 	[BACKLIGHT_RAW] = "raw",
@@ -119,6 +120,7 @@ static void backlight_generate_event(struct backlight_device *bd,
 	envp[1] = NULL;
 	kobject_uevent_env(&bd->dev.kobj, KOBJ_CHANGE, envp);
 	sysfs_notify(&bd->dev.kobj, NULL, "actual_brightness");
+	sysfs_notify(&bd->dev.kobj, NULL, "brightness");
 }
 
 static ssize_t bl_power_show(struct device *dev, struct device_attribute *attr,
@@ -180,7 +182,22 @@ int backlight_device_set_brightness(struct backlight_device *bd,
 		if (brightness > bd->props.max_brightness)
 			rc = -EINVAL;
 		else {
+			if ((!bd->use_count && brightness) || (bd->use_count && !brightness)) {
+				pr_info("%s: set brightness to %lu\n", __func__, brightness);
+				if (!bd->use_count)
+					bd->use_count++;
+				else
+					bd->use_count--;
+			}
+
 			pr_debug("set brightness to %lu\n", brightness);
+			if (!brightness) {
+				bl_event = BACKLIGHT_OFF;
+				blocking_notifier_call_chain(&backlight_notifier, BACKLIGHT_UPDATED, &bl_event);
+			} else if (bl_event != BACKLIGHT_ON) {
+				bl_event = BACKLIGHT_ON;
+				blocking_notifier_call_chain(&backlight_notifier, BACKLIGHT_UPDATED, &bl_event);
+			}
 			bd->props.brightness = brightness;
 			rc = backlight_update_status(bd);
 		}

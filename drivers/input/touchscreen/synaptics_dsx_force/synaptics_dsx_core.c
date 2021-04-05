@@ -50,6 +50,7 @@
 #endif
 
 #if defined(CONFIG_SECURE_TOUCH)
+#include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 #include <linux/errno.h>
 #endif
