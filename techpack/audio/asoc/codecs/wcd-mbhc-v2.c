@@ -1,5 +1,5 @@
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1503,7 +1503,7 @@ static int wcd_mbhc_usb_c_analog_setup_gpios(struct wcd_mbhc *mbhc,
 		mbhc->mbhc_cfg->enable_dual_adc_gpio(mbhc->mbhc_cfg->dual_adc_gpio_node, 0);
 
 		/* using hardware auto switch gnd and mic if support */
-		if (config->euro_us_hw_switch_gpio_p && (subpcb_id_state == SUBPCB_ID_OLD)) {
+		if (config->euro_us_hw_switch_gpio_p) {
 			msm_cdc_pinctrl_select_active_state(config->euro_us_hw_switch_gpio_p);
 			msleep(200);
 			pr_info("hardware auto switch enable\n");
@@ -1525,7 +1525,7 @@ static int wcd_mbhc_usb_c_analog_setup_gpios(struct wcd_mbhc *mbhc,
 			msm_cdc_pinctrl_select_sleep_state(
 				config->usbc_force_gpio_p);
 
-		if (config->euro_us_hw_switch_gpio_p && (subpcb_id_state == SUBPCB_ID_OLD)) {
+		if (config->euro_us_hw_switch_gpio_p) {
 			msm_cdc_pinctrl_select_sleep_state(config->euro_us_hw_switch_gpio_p);
 			pr_info("hardware auto switch disable\n");
 		}
