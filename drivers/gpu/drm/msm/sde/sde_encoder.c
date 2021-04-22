@@ -2208,6 +2208,8 @@ static int sde_encoder_resource_control(struct drm_encoder *drm_enc,
 			SDE_DEBUG_ENC(sde_enc, "sw_event:%d, work cancelled\n",
 					sw_event);
 
+		msm_idle_set_state(drm_enc, true);
+
 		mutex_lock(&sde_enc->rc_lock);
 
 		/* return if the resource control is already in ON state */
@@ -2311,6 +2313,8 @@ static int sde_encoder_resource_control(struct drm_encoder *drm_enc,
 			idle_pc_duration = IDLE_SHORT_TIMEOUT;
 		else
 			idle_pc_duration = IDLE_POWERCOLLAPSE_DURATION;
+
+		msm_idle_set_state(drm_enc, false);
 
 		if (!autorefresh_enabled)
 			kthread_mod_delayed_work(
