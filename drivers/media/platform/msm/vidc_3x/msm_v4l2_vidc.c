@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, 2021 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -627,6 +627,8 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 	vidc_driver->capability_version =
 		msm_vidc_read_efuse_version(
 			pdev, core->resources.pf_cap_tbl, "efuse2");
+	if (vidc_driver->capability_version)
+		core->resources.target_version = 1;
 
 	rc = call_hfi_op(core->device, core_early_init,
 		core->device->hfi_device_data);
