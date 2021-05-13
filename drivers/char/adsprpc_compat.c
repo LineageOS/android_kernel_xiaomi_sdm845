@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -43,6 +43,8 @@
 		_IOWR('R', 14, struct compat_fastrpc_ioctl_mmap_64)
 #define COMPAT_FASTRPC_IOCTL_MUNMAP_64 \
 		_IOWR('R', 15, struct compat_fastrpc_ioctl_munmap_64)
+#define COMPAT_FASTRPC_IOCTL_GET_DSP_INFO \
+		_IOWR('R', 16, struct compat_fastrpc_ioctl_dsp_capabilities)
 
 struct compat_remote_buf {
 	compat_uptr_t pv;	/* buffer pointer */
@@ -149,6 +151,11 @@ struct compat_fastrpc_ioctl_control {
 		struct compat_fastrpc_ctrl_smmu smmu;
 		struct compat_fastrpc_ctrl_kalloc kalloc;
 	};
+};
+
+struct compat_fastrpc_ioctl_dsp_capabilities {
+	compat_uint_t domain;	/* DSP domain to query capabilities */
+	compat_uint_t dsp_attributes[FASTRPC_MAX_DSP_ATTRIBUTES];
 };
 
 static int compat_get_fastrpc_ioctl_invoke(
@@ -389,6 +396,53 @@ static int compat_get_fastrpc_ioctl_init(
 	return err;
 }
 
+static int compat_put_fastrpc_ioctl_get_dsp_info(
+		struct compat_fastrpc_ioctl_dsp_capabilities __user *info32,
+		struct fastrpc_ioctl_dsp_capabilities __user *info)
+{
+	compat_uint_t u;
+	int err, ii;
+
+	for (ii = 0, err = 0; ii < FASTRPC_MAX_DSP_ATTRIBUTES; ii++) {
+		err |= get_user(u, &info->dsp_attributes[ii]);
+		err |= put_user(u, &info32->dsp_attributes[ii]);
+	}
+
+	return err;
+}
+
+
+
+static int compat_fastrpc_get_dsp_info(struct file *filp,
+		unsigned long arg)
+{
+	struct compat_fastrpc_ioctl_dsp_capabilities __user *info32;
+	struct fastrpc_ioctl_dsp_capabilities __user *info;
+	compat_uint_t u;
+	long ret;
+	int err = 0;
+
+	info32 = compat_ptr(arg);
+	VERIFY(err, NULL != (info = compat_alloc_user_space(
+						sizeof(*info))));
+	if (err)
+		return -EFAULT;
+
+	err = get_user(u, &info32->domain);
+	err |= put_user(u, &info->domain);
+	if (err)
+		return err;
+
+	ret = filp->f_op->unlocked_ioctl(filp,
+			FASTRPC_IOCTL_GET_DSP_INFO,
+			(unsigned long)info);
+	if (ret)
+		return ret;
+
+	err = compat_put_fastrpc_ioctl_get_dsp_info(info32, info);
+	return err;
+}
+
 long compat_fastrpc_device_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
@@ -588,6 +642,8 @@ long compat_fastrpc_device_ioctl(struct file *filp, unsigned int cmd,
 		err |= put_user(u, &perf32->numkeys);
 		return err;
 	}
+	case COMPAT_FASTRPC_IOCTL_GET_DSP_INFO:
+		return compat_fastrpc_get_dsp_info(filp, arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
