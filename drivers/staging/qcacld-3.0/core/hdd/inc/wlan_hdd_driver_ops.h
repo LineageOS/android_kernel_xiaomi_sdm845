@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017, 2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -118,41 +118,4 @@ void hdd_hif_close(struct hdd_context *hdd_ctx, void *hif_ctx);
 int hdd_hif_open(struct device *dev, void *bdev, const struct hif_bus_id *bid,
 		 enum qdf_bus_type bus_type, bool reinit);
 
-/**
- * hdd_soc_idle_restart_lock() - Takes wakelock for idle restart
- * @dev: wlan device structure
- *
- * This function takes wakelock to prevent suspend during idle restart
- *
- * Return: 0 for success and non zero for error
- */
-int hdd_soc_idle_restart_lock(struct device *dev);
-
-/**
- * hdd_soc_idle_restart_unlock() - Releases wakelock for idle restart
- *
- * This function releases wakelock to allow suspend after idle restart
- *
- * Return: none
- */
-void hdd_soc_idle_restart_unlock(void);
-
-#ifdef FORCE_WAKE
-/**
- * hdd_set_hif_init_phase() - Enable/disable the
- * init_phase flag
- * @hif_ctx: hif opaque handle
- * @hal_init_phase: init phase flag
- *
- * Return: None
- */
-void hdd_set_hif_init_phase(struct hif_opaque_softc *hif_ctx,
-			    bool init_phase);
-#else
-static inline
-void hdd_set_hif_init_phase(struct hif_opaque_softc *hif_ctx,
-			    bool init_phase)
-{
-}
-#endif /* FORCE_WAKE */
 #endif /* __WLAN_HDD_DRIVER_OPS_H__ */

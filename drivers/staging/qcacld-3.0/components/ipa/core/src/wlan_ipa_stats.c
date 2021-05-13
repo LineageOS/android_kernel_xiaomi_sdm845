@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018,2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -335,10 +335,9 @@ static void wlan_ipa_dump_ipa_ctx(struct wlan_ipa_priv *ipa_ctx)
 	QDF_TRACE(QDF_MODULE_ID_IPA, QDF_TRACE_LEVEL_INFO,
 		"\nassoc_stas_map ----");
 	for (i = 0; i < WLAN_IPA_MAX_STA_COUNT; i++) {
-		ipa_info("\n\t[%d]: is_reserved=%d mac: " QDF_MAC_ADDR_FMT, i,
-			 ipa_ctx->assoc_stas_map[i].is_reserved,
-			 QDF_MAC_ADDR_REF(
-				ipa_ctx->assoc_stas_map[i].mac_addr.bytes));
+		ipa_info("\n\t[%d]: is_reserved=%d, sta_id=%d", i,
+			ipa_ctx->assoc_stas_map[i].is_reserved,
+			ipa_ctx->assoc_stas_map[i].sta_id);
 	}
 }
 
@@ -423,18 +422,20 @@ static void wlan_ipa_dump_iface_context(struct wlan_ipa_priv *ipa_ctx)
 
 		ipa_info("\niface_context[%d]----\n"
 			"\tipa_ctx: %pK\n"
-			"\tsession_id: %d\n"
+			"\ttl_context: %pK\n"
 			"\tcons_client: %d\n"
 			"\tprod_client: %d\n"
 			"\tiface_id: %d\n"
+			"\tsta_id: %d\n"
 			"\tinterface_lock: %pK\n"
 			"\tifa_address: 0x%x\n",
 			i,
 			iface_context->ipa_ctx,
-			iface_context->session_id,
+			iface_context->tl_context,
 			iface_context->cons_client,
 			iface_context->prod_client,
 			iface_context->iface_id,
+			iface_context->sta_id,
 			&iface_context->interface_lock,
 			iface_context->ifa_address);
 	}
@@ -454,7 +455,7 @@ void wlan_ipa_uc_stat_query(struct wlan_ipa_priv *ipa_ctx,
 	*ipa_rx_diff = 0;
 
 	qdf_mutex_acquire(&ipa_ctx->ipa_lock);
-	if (wlan_ipa_is_fw_wdi_activated(ipa_ctx) &&
+	if ((ipa_ctx->activated_fw_pipe == WLAN_IPA_UC_NUM_WDI_PIPE) &&
 	    (false == ipa_ctx->resource_loading)) {
 		*ipa_tx_diff = ipa_ctx->ipa_tx_packets_diff;
 		*ipa_rx_diff = ipa_ctx->ipa_rx_packets_diff;
@@ -465,10 +466,10 @@ void wlan_ipa_uc_stat_query(struct wlan_ipa_priv *ipa_ctx,
 void wlan_ipa_uc_stat_request(struct wlan_ipa_priv *ipa_ctx, uint8_t reason)
 {
 	qdf_mutex_acquire(&ipa_ctx->ipa_lock);
-	if (wlan_ipa_is_fw_wdi_activated(ipa_ctx) &&
+	if ((ipa_ctx->activated_fw_pipe == WLAN_IPA_UC_NUM_WDI_PIPE) &&
 	    (false == ipa_ctx->resource_loading)) {
 		ipa_ctx->stat_req_reason = reason;
-		cdp_ipa_get_stat(ipa_ctx->dp_soc, ipa_ctx->dp_pdev_id);
+		cdp_ipa_get_stat(ipa_ctx->dp_soc, ipa_ctx->dp_pdev);
 		qdf_mutex_release(&ipa_ctx->ipa_lock);
 	} else {
 		qdf_mutex_release(&ipa_ctx->ipa_lock);
@@ -520,11 +521,12 @@ static void wlan_ipa_print_session_info(struct wlan_ipa_priv *ipa_ctx)
 	for (i = 0; i < WLAN_IPA_MAX_IFACE; i++) {
 		iface_context = &ipa_ctx->iface_context[i];
 
-		if (iface_context->session_id == WLAN_IPA_MAX_SESSION)
+		if (!iface_context->tl_context)
 			continue;
 
-		ipa_info("\nIFACE[%d]: mode:%d, offload:%d",
-			 i, iface_context->device_mode,
+		ipa_info("\nIFACE[%d]: sta_id:%d, mode:%d, offload:%d",
+			 i, iface_context->sta_id,
+			 iface_context->device_mode,
 			 ipa_ctx->vdev_offload_enabled[iface_context->
 						       session_id]);
 	}
@@ -536,10 +538,10 @@ static void wlan_ipa_print_session_info(struct wlan_ipa_priv *ipa_ctx)
 	i = 0;
 	qdf_list_peek_front(&ipa_ctx->pending_event,
 			(qdf_list_node_t **)&event);
-	while (event) {
-		ipa_info("PENDING EVENT[%d]: EVT:%s, MAC:"QDF_MAC_ADDR_FMT,
+	while (event != NULL) {
+		ipa_info("PENDING EVENT[%d]: EVT:%s, sta_id:%d, MAC:%pM",
 			 i, wlan_ipa_wlan_event_to_str(event->type),
-			 QDF_MAC_ADDR_REF(event->mac_addr));
+			 event->sta_id, event->mac_addr);
 
 		qdf_list_peek_next(&ipa_ctx->pending_event,
 				   (qdf_list_node_t *)event,
@@ -599,12 +601,12 @@ static void wlan_ipa_print_txrx_stats(struct wlan_ipa_priv *ipa_ctx)
 		ipa_ctx->tx_ref_cnt.counter,
 		ipa_ctx->suspended,
 		&ipa_ctx->pend_desc_head,
-		&ipa_ctx->tx_desc_free_list);
+		&ipa_ctx->tx_desc_list);
 
 	for (i = 0; i < WLAN_IPA_MAX_IFACE; i++) {
 
 		iface_context = &ipa_ctx->iface_context[i];
-		if (iface_context->session_id == WLAN_IPA_MAX_SESSION)
+		if (!iface_context->tl_context)
 			continue;
 
 		ipa_info("IFACE[%d]: TX:%llu, TX DROP:%llu, TX ERR:%llu,"
@@ -748,73 +750,6 @@ void wlan_ipa_uc_stat(struct wlan_ipa_priv *ipa_ctx)
 }
 
 #ifdef FEATURE_METERING
-
-#ifdef WDI3_STATS_UPDATE
-/**
- * wlan_ipa_wdi_meter_notifier_cb() - WLAN to IPA callback handler.
- * IPA calls to get WLAN stats or set quota limit.
- * @priv: pointer to private data registered with IPA (we register a
- *	  pointer to the IPA context)
- * @evt: the IPA event which triggered the callback
- * @data: data associated with the event
- *
- * Return: None
- */
-static void __wlan_ipa_wdi_meter_notifier_cb(qdf_ipa_wdi_meter_evt_type_t evt,
-					     void *data)
-{
-	struct wlan_ipa_priv *ipa_ctx = wlan_ipa_get_obj_context();
-	struct qdf_ipa_inform_wlan_bw *bw_info;
-	uint8_t bw_level_index;
-	uint64_t throughput;
-
-	if (evt != IPA_INFORM_WLAN_BW)
-		return;
-
-	bw_info = data;
-	bw_level_index = QDF_IPA_INFORM_WLAN_BW_INDEX(bw_info);
-	throughput = QDF_IPA_INFORM_WLAN_BW_THROUGHPUT(bw_info);
-	ipa_debug("bw_info idx:%d tp:%llu", bw_level_index, throughput);
-
-	if (bw_level_index == ipa_ctx->curr_bw_level)
-		return;
-
-	if (bw_level_index == WLAN_IPA_BW_LEVEL_LOW) {
-		cdp_ipa_set_perf_level(ipa_ctx->dp_soc,
-				       QDF_IPA_CLIENT_WLAN2_CONS,
-				       ipa_ctx->config->ipa_bw_low);
-		ipa_ctx->curr_bw_level = WLAN_IPA_BW_LEVEL_LOW;
-	} else if (bw_level_index == WLAN_IPA_BW_LEVEL_MEDIUM) {
-		cdp_ipa_set_perf_level(ipa_ctx->dp_soc,
-				       QDF_IPA_CLIENT_WLAN2_CONS,
-				       ipa_ctx->config->ipa_bw_medium);
-		ipa_ctx->curr_bw_level = WLAN_IPA_BW_LEVEL_MEDIUM;
-	} else if (bw_level_index == WLAN_IPA_BW_LEVEL_HIGH) {
-		cdp_ipa_set_perf_level(ipa_ctx->dp_soc,
-				       QDF_IPA_CLIENT_WLAN2_CONS,
-				       ipa_ctx->config->ipa_bw_high);
-		ipa_ctx->curr_bw_level = WLAN_IPA_BW_LEVEL_HIGH;
-	}
-
-	ipa_debug("Requested BW level: %d", ipa_ctx->curr_bw_level);
-}
-
-void wlan_ipa_update_tx_stats(struct wlan_ipa_priv *ipa_ctx, uint64_t sta_tx,
-			      uint64_t ap_tx)
-{
-	qdf_ipa_wdi_tx_info_t tx_stats;
-
-	if (!qdf_atomic_read(&ipa_ctx->stats_quota))
-		return;
-
-	QDF_IPA_WDI_TX_INFO_STA_TX_BYTES(&tx_stats) = sta_tx;
-	QDF_IPA_WDI_TX_INFO_SAP_TX_BYTES(&tx_stats) = ap_tx;
-
-	qdf_ipa_wdi_wlan_stats(&tx_stats);
-}
-
-#else
-
 /**
  * wlan_ipa_uc_sharing_stats_request() - Get IPA stats from IPA.
  * @ipa_ctx: IPA context
@@ -828,7 +763,7 @@ static void wlan_ipa_uc_sharing_stats_request(struct wlan_ipa_priv *ipa_ctx,
 	qdf_mutex_acquire(&ipa_ctx->ipa_lock);
 	if (false == ipa_ctx->resource_loading) {
 		qdf_mutex_release(&ipa_ctx->ipa_lock);
-		cdp_ipa_uc_get_share_stats(ipa_ctx->dp_soc, ipa_ctx->dp_pdev_id,
+		cdp_ipa_uc_get_share_stats(ipa_ctx->dp_soc, ipa_ctx->dp_pdev,
 					   reset_stats);
 	} else {
 		qdf_mutex_release(&ipa_ctx->ipa_lock);
@@ -853,11 +788,61 @@ static void wlan_ipa_uc_set_quota(struct wlan_ipa_priv *ipa_ctx,
 	qdf_mutex_acquire(&ipa_ctx->ipa_lock);
 	if (false == ipa_ctx->resource_loading) {
 		qdf_mutex_release(&ipa_ctx->ipa_lock);
-		cdp_ipa_uc_set_quota(ipa_ctx->dp_soc, ipa_ctx->dp_pdev_id,
+		cdp_ipa_uc_set_quota(ipa_ctx->dp_soc, ipa_ctx->dp_pdev,
 				     quota_bytes);
 	} else {
 		qdf_mutex_release(&ipa_ctx->ipa_lock);
 	}
+}
+
+QDF_STATUS wlan_ipa_uc_op_metering(struct wlan_ipa_priv *ipa_ctx,
+				   struct op_msg_type *op_msg)
+{
+	struct op_msg_type *msg = op_msg;
+	struct ipa_uc_sharing_stats *uc_sharing_stats;
+	struct ipa_uc_quota_rsp *uc_quota_rsp;
+	struct ipa_uc_quota_ind *uc_quota_ind;
+	struct wlan_ipa_iface_context *iface_ctx;
+
+	if (msg->op_code == WLAN_IPA_UC_OPCODE_SHARING_STATS) {
+		/* fill-up ipa_uc_sharing_stats structure from FW */
+		uc_sharing_stats = (struct ipa_uc_sharing_stats *)
+			     ((uint8_t *)op_msg + sizeof(struct op_msg_type));
+
+		memcpy(&(ipa_ctx->ipa_sharing_stats), uc_sharing_stats,
+		       sizeof(struct ipa_uc_sharing_stats));
+
+		qdf_event_set(&ipa_ctx->ipa_uc_sharing_stats_comp);
+	} else if (msg->op_code == WLAN_IPA_UC_OPCODE_QUOTA_RSP) {
+		/* received set quota response */
+		uc_quota_rsp = (struct ipa_uc_quota_rsp *)
+			     ((uint8_t *)op_msg + sizeof(struct op_msg_type));
+
+		memcpy(&(ipa_ctx->ipa_quota_rsp), uc_quota_rsp,
+			   sizeof(struct ipa_uc_quota_rsp));
+
+		qdf_event_set(&ipa_ctx->ipa_uc_set_quota_comp);
+	} else if (msg->op_code == WLAN_IPA_UC_OPCODE_QUOTA_IND) {
+		/* hit quota limit */
+		uc_quota_ind = (struct ipa_uc_quota_ind *)
+			     ((uint8_t *)op_msg + sizeof(struct op_msg_type));
+
+		ipa_ctx->ipa_quota_ind.quota_bytes =
+					uc_quota_ind->quota_bytes;
+
+		/* send quota exceeded indication to IPA */
+		iface_ctx = wlan_ipa_get_iface(ipa_ctx, QDF_STA_MODE);
+		if (iface_ctx)
+			qdf_ipa_broadcast_wdi_quota_reach_ind(
+						iface_ctx->dev->ifindex,
+						uc_quota_ind->quota_bytes);
+		else
+			ipa_err("Failed quota_reach_ind: NULL interface");
+	} else {
+		return QDF_STATUS_E_INVAL;
+	}
+
+	return QDF_STATUS_SUCCESS;
 }
 
 /**
@@ -880,6 +865,11 @@ static void __wlan_ipa_wdi_meter_notifier_cb(qdf_ipa_wdi_meter_evt_type_t evt,
 	QDF_STATUS status;
 
 	ipa_debug("event=%d", evt);
+
+	if (qdf_is_module_state_transitioning()) {
+		ipa_err_rl("Module transition in progress");
+		return;
+	}
 
 	iface_ctx = wlan_ipa_get_iface(ipa_ctx, QDF_STA_MODE);
 	if (!iface_ctx) {
@@ -957,60 +947,6 @@ static void __wlan_ipa_wdi_meter_notifier_cb(qdf_ipa_wdi_meter_evt_type_t evt,
 	}
 }
 
-QDF_STATUS wlan_ipa_uc_op_metering(struct wlan_ipa_priv *ipa_ctx,
-				   struct op_msg_type *op_msg)
-{
-	struct op_msg_type *msg = op_msg;
-	struct ipa_uc_sharing_stats *uc_sharing_stats;
-	struct ipa_uc_quota_rsp *uc_quota_rsp;
-	struct ipa_uc_quota_ind *uc_quota_ind;
-	struct wlan_ipa_iface_context *iface_ctx;
-	uint32_t ifindex;
-	uint64_t quota_bytes;
-
-	if (msg->op_code == WLAN_IPA_UC_OPCODE_SHARING_STATS) {
-		/* fill-up ipa_uc_sharing_stats structure from FW */
-		uc_sharing_stats = (struct ipa_uc_sharing_stats *)
-			     ((uint8_t *)op_msg + sizeof(struct op_msg_type));
-
-		memcpy(&ipa_ctx->ipa_sharing_stats, uc_sharing_stats,
-		       sizeof(struct ipa_uc_sharing_stats));
-
-		qdf_event_set(&ipa_ctx->ipa_uc_sharing_stats_comp);
-	} else if (msg->op_code == WLAN_IPA_UC_OPCODE_QUOTA_RSP) {
-		/* received set quota response */
-		uc_quota_rsp = (struct ipa_uc_quota_rsp *)
-			     ((uint8_t *)op_msg + sizeof(struct op_msg_type));
-
-		memcpy(&ipa_ctx->ipa_quota_rsp, uc_quota_rsp,
-		       sizeof(struct ipa_uc_quota_rsp));
-
-		qdf_event_set(&ipa_ctx->ipa_uc_set_quota_comp);
-	} else if (msg->op_code == WLAN_IPA_UC_OPCODE_QUOTA_IND) {
-		/* hit quota limit */
-		uc_quota_ind = (struct ipa_uc_quota_ind *)
-			     ((uint8_t *)op_msg + sizeof(struct op_msg_type));
-
-		ipa_ctx->ipa_quota_ind.quota_bytes =
-					uc_quota_ind->quota_bytes;
-
-		/* send quota exceeded indication to IPA */
-		iface_ctx = wlan_ipa_get_iface(ipa_ctx, QDF_STA_MODE);
-		ifindex = iface_ctx->dev->ifindex;
-		quota_bytes = uc_quota_ind->quota_bytes;
-		if (iface_ctx)
-			qdf_ipa_broadcast_wdi_quota_reach_ind(ifindex,
-							      quota_bytes);
-		else
-			ipa_err("Failed quota_reach_ind: NULL interface");
-	} else {
-		return QDF_STATUS_E_INVAL;
-	}
-
-	return QDF_STATUS_SUCCESS;
-}
-#endif /* WDI3_STATS_UPDATE */
-
 /**
  * wlan_ipa_wdi_meter_notifier_cb() - SSR wrapper for
  * __wlan_ipa_wdi_meter_notifier_cb
@@ -1024,13 +960,9 @@ QDF_STATUS wlan_ipa_uc_op_metering(struct wlan_ipa_priv *ipa_ctx,
 void wlan_ipa_wdi_meter_notifier_cb(qdf_ipa_wdi_meter_evt_type_t evt,
 				    void *data)
 {
-	struct qdf_op_sync *op_sync;
-
-	if (qdf_op_protect(&op_sync))
-		return;
-
+	qdf_ssr_protect(__func__);
 	__wlan_ipa_wdi_meter_notifier_cb(evt, data);
-
-	qdf_op_unprotect(op_sync);
+	qdf_ssr_unprotect(__func__);
 }
+
 #endif /* FEATURE_METERING */

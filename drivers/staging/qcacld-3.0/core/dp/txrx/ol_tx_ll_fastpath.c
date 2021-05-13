@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -48,8 +48,7 @@
 #include <cdp_txrx_peer_ops.h>
 #include <cdp_txrx_handle.h>
 
-#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB) || \
-    defined(HIF_IPCI)
+#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB)
 #include <ce_api.h>
 #endif
 
@@ -109,6 +108,7 @@ static inline void ol_tx_trace_pkt(qdf_nbuf_t skb, uint16_t msdu_id,
 
 	qdf_dp_trace_log_pkt(vdev_id, skb, QDF_TX, QDF_TRACE_DEFAULT_PDEV_ID);
 
+	qdf_dp_trace_set_track(skb, QDF_TX);
 	DPTRACE(qdf_dp_trace_data_pkt(skb, QDF_TRACE_DEFAULT_PDEV_ID,
 				      QDF_DP_TRACE_TX_PACKET_RECORD,
 				      msdu_id, QDF_TX));
@@ -273,8 +273,8 @@ ol_tx_prepare_ll_fast(struct ol_txrx_pdev_t *pdev,
 			htt_tx_desc_frag(pdev->htt_pdev, tx_desc->htt_frag_desc,
 					 i - 1, frag_paddr, frag_len);
 #if defined(HELIUMPLUS_DEBUG)
-			qdf_debug("htt_fdesc=%pK frag=%d frag_paddr=0x%0llx len=%zu",
-				  tx_desc->htt_frag_desc,
+			qdf_print("%s:%d: htt_fdesc=%pK frag=%d frag_paddr=0x%0llx len=%zu",
+				  __func__, __LINE__, tx_desc->htt_frag_desc,
 				  i - 1, frag_paddr, frag_len);
 			ol_txrx_dump_pkt(netbuf, frag_paddr, 64);
 #endif /* HELIUMPLUS_DEBUG */
@@ -383,15 +383,6 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 		 * pointer before the ce_send call.
 		 */
 		next = qdf_nbuf_next(msdu);
-		/*
-		 * Increment the skb->users count here, for this SKB, to make
-		 * sure it will be freed only after receiving Tx completion
-		 * of the last segment.
-		 * Decrement skb->users count before sending last segment
-		 */
-		if (qdf_nbuf_is_tso(msdu) && segments)
-			qdf_nbuf_inc_users(msdu);
-
 		/* init the current segment to the 1st segment in the list */
 		while (segments) {
 			if (msdu_info.tso_info.curr_seg)
@@ -438,8 +429,7 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 				 * the skb is freed only after receiving tx
 				 * completion for all segments of an nbuf.
 				 */
-				if (segments !=
-					(msdu_info.tso_info.num_segs - 1))
+				if (segments)
 					qdf_nbuf_inc_users(msdu);
 
 				ol_tx_trace_pkt(msdu, tx_desc->id,
@@ -461,13 +451,6 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 					next_seg = NULL;
 				}
 
-				/* Decrement the skb-users count if segment
-				 * is the last segment or the only segment
-				 */
-				if (tx_desc->pkt_type == OL_TX_FRM_TSO &&
-				    segments == 0)
-					qdf_nbuf_tx_free(msdu, 0);
-
 				if ((ce_send_fast(pdev->ce_tx_hdl, msdu,
 						  ep_id,
 						  pkt_download_len) == 0)) {
@@ -482,12 +465,6 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 						tso_info->curr_seg = next_seg;
 						ol_free_remaining_tso_segs(vdev,
 							&msdu_info, true);
-						if (segments ==
-						    (msdu_info.tso_info.num_segs
-						     - 1))
-							qdf_nbuf_tx_free(
-							msdu,
-							QDF_NBUF_PKT_ERROR);
 					}
 
 					/*
@@ -514,14 +491,10 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 				 * If TSO packet, free associated
 				 * remaining TSO segment descriptors
 				 */
-				if (qdf_nbuf_is_tso(msdu)) {
+				if (qdf_nbuf_is_tso(msdu))
 					ol_free_remaining_tso_segs(vdev,
 							&msdu_info, true);
-					if (segments ==
-					    (msdu_info.tso_info.num_segs - 1))
-						qdf_nbuf_tx_free(msdu,
-							 QDF_NBUF_PKT_ERROR);
-				}
+
 				TXRX_STATS_MSDU_LIST_INCR(
 					pdev, tx.dropped.host_reject, msdu);
 				/* the list of unaccepted MSDUs */

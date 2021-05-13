@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -32,10 +32,18 @@
 
 #include "sir_types.h"
 #include "sir_mac_prot_def.h"
-#include "wlan_crypto_global_def.h"
+
+#define ANI_OUI  0x000AF5
+
+/* / Max WDS info length. */
+#define ANI_WDS_INFO_MAX_LENGTH        64
 
 /* This is to force compiler to use the maximum of an int for enum */
 #define SIR_MAX_ENUM_SIZE    0x7FFFFFFF
+
+/* Max key size  including the WAPI and TKIP */
+#define WLAN_MAX_KEY_RSC_LEN         16
+#define WLAN_WAPI_KEY_RSC_LEN        16
 
 #ifndef false
 #undef false
@@ -71,8 +79,10 @@ enum ani_akm_type {
 	ANI_AKM_TYPE_FT_RSN_PSK,
 	ANI_AKM_TYPE_RSN_PSK_SHA256,
 	ANI_AKM_TYPE_RSN_8021X_SHA256,
+#ifdef WLAN_FEATURE_SAE
 	ANI_AKM_TYPE_SAE,
 	ANI_AKM_TYPE_FT_SAE,
+#endif
 	ANI_AKM_TYPE_SUITEB_EAP_SHA256,
 	ANI_AKM_TYPE_SUITEB_EAP_SHA384,
 	ANI_AKM_TYPE_FT_SUITEB_EAP_SHA384,
@@ -114,6 +124,11 @@ typedef enum eAniEdType {
 	eSIR_ED_NOT_IMPLEMENTED = SIR_MAX_ENUM_SIZE
 } tAniEdType;
 
+typedef enum eAniWepType {
+	eSIR_WEP_STATIC,
+	eSIR_WEP_DYNAMIC,
+} tAniWepType;
+
 /* / Enum to specify whether key is used */
 /* / for TX only, RX only or both */
 typedef enum eAniKeyDirection {
@@ -126,18 +141,23 @@ typedef enum eAniKeyDirection {
 
 typedef struct sAniSSID {
 	uint8_t length;
-	uint8_t ssId[WLAN_SSID_MAX_LEN];
+	uint8_t ssId[SIR_MAC_MAX_SSID_LENGTH];
 } tAniSSID, *tpAniSSID;
+
+typedef struct sAniApName {
+	uint8_t length;
+	uint8_t name[SIR_MAC_MAX_SSID_LENGTH];
+} tAniApName, *tpAniApName;
 
 /* / RSN IE information */
 typedef struct sSirRSNie {
 	uint16_t length;
-	uint8_t rsnIEdata[WLAN_MAX_IE_LEN + 2];
+	uint8_t rsnIEdata[SIR_MAC_MAX_IE_LENGTH + 2];
 } tSirRSNie, *tpSirRSNie;
 
 typedef struct sSirWAPIie {
 	uint16_t length;
-	uint8_t wapiIEdata[WLAN_MAX_IE_LEN + 2];
+	uint8_t wapiIEdata[SIR_MAC_MAX_IE_LENGTH + 2];
 } tSirWAPIie, *tpSirWAPIie;
 /* / Additional IE information : */
 /* / This can include WSC IE, P2P IE, and/or FTIE from upper layer. */
@@ -154,7 +174,7 @@ typedef struct sSirAddie {
 /* Join and Reassoc Req. */
 typedef struct sSirCCKMie {
 	uint16_t length;
-	uint8_t cckmIEdata[WLAN_MAX_IE_LEN + 2];
+	uint8_t cckmIEdata[SIR_MAC_MAX_IE_LENGTH + 2];
 } tSirCCKMie, *tpSirCCKMie;
 
 #endif
@@ -164,7 +184,7 @@ typedef struct sSirKeys {
 	uint8_t keyId;
 	uint8_t unicast;        /* 0 for multicast */
 	tAniKeyDirection keyDirection;
-	uint8_t keyRsc[WLAN_CRYPTO_RSC_SIZE];   /* Usage is unknown */
+	uint8_t keyRsc[WLAN_MAX_KEY_RSC_LEN];   /* Usage is unknown */
 	uint8_t paeRole;        /* =1 for authenticator, */
 	/* =0 for supplicant */
 	uint16_t keyLength;

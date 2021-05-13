@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -30,7 +30,6 @@
 #endif
 #include "ol_txrx_ctrl_api.h"   /* txrx_pdev_cfg_param_t */
 #include <cdp_txrx_handle.h>
-#include "qca_vendor.h"
 
 /**
  * @brief format of data frames delivered to/from the WLAN driver by/to the OS
@@ -90,9 +89,6 @@ struct txrx_pdev_cfg_t {
 #endif
 	struct wlan_ipa_uc_rsc_t ipa_uc_rsc;
 	bool ip_tcp_udp_checksum_offload;
-	bool p2p_ip_tcp_udp_checksum_offload;
-	/* IP, TCP and UDP checksum offload for NAN Mode*/
-	bool nan_tcp_udp_checksumoffload;
 	bool enable_rxthread;
 	bool ce_classify_enabled;
 #if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
@@ -100,45 +96,14 @@ struct txrx_pdev_cfg_t {
 	uint32_t tx_flow_start_queue_offset;
 #endif
 	bool flow_steering_enabled;
-	/*
-	 * To track if credit reporting through
-	 * HTT_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND is enabled/disabled.
-	 * In Genoa(QCN7605) credits are reported through
-	 * HTT_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND only.
-	 */
-	u8 credit_update_enabled;
-	struct ol_tx_sched_wrr_ac_specs_t ac_specs[QCA_WLAN_AC_ALL];
-	bool gro_enable;
-	bool tso_enable;
-	bool lro_enable;
-	bool enable_data_stall_detection;
-	bool enable_flow_steering;
-	bool disable_intra_bss_fwd;
-	/* IPA Micro controller data path offload TX buffer size */
-	uint32_t uc_tx_buffer_size;
-	/* IPA Micro controller data path offload RX indication ring count */
-	uint32_t uc_rx_indication_ring_count;
-	/* IPA Micro controller data path offload TX partition base */
-	uint32_t uc_tx_partition_base;
+
+	struct ol_tx_sched_wrr_ac_specs_t ac_specs[TX_WMM_AC_NUM];
+
 	/* Flag to indicate whether new htt format is supported */
 	bool new_htt_format_enabled;
-
-#ifdef QCA_SUPPORT_TXRX_DRIVER_TCP_DEL_ACK
-	/* enable the tcp delay ack feature in the driver */
-	bool  del_ack_enable;
-	/* timeout if no more tcp ack frames, unit is ms */
-	uint16_t del_ack_timer_value;
-	/* the maximum number of replaced tcp ack frames */
-	uint16_t del_ack_pkt_count;
-#endif
-
-#ifdef WLAN_SUPPORT_TXRX_HL_BUNDLE
-	uint16_t bundle_timer_value;
-	uint16_t bundle_size;
-#endif
-	uint8_t pktlog_buffer_size;
 };
 
+#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 /**
  * ol_tx_set_flow_control_parameters() - set flow control parameters
  * @cfg_ctx: cfg context
@@ -146,7 +111,6 @@ struct txrx_pdev_cfg_t {
  *
  * Return: none
  */
-#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 void ol_tx_set_flow_control_parameters(struct cdp_cfg *cfg_ctx,
 				       struct txrx_pdev_cfg_param_t *cfg_param);
 #else
@@ -182,17 +146,6 @@ struct cdp_cfg *ol_pdev_cfg_attach(qdf_device_t osdev, void *pcfg_param);
  * @return 1 -> high-latency -OR- 0 -> low-latency
  */
 int ol_cfg_is_high_latency(struct cdp_cfg *cfg_pdev);
-
-/**
- * @brief Specify whether credit reporting through
- * HTT_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND is enabled by default.
- * In Genoa credits are reported only through
- * HTT_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND
- * @details
- * @param pdev - handle to the physical device
- * @return 1 -> enabled -OR- 0 -> disabled
- */
-int ol_cfg_is_credit_update_enabled(struct cdp_cfg *cfg_pdev);
 
 /**
  * @brief Specify the range of peer IDs.
@@ -739,60 +692,6 @@ ol_cfg_is_htt_new_format_enabled(struct cdp_cfg *cfg_pdev)
 	return cfg->new_htt_format_enabled;
 }
 
-#ifdef QCA_SUPPORT_TXRX_DRIVER_TCP_DEL_ACK
-/**
- * ol_cfg_get_del_ack_timer_value() - get delayed ack timer value
- * @cfg_pdev: pdev handle
- *
- * Return: timer value
- */
-int ol_cfg_get_del_ack_timer_value(struct cdp_cfg *cfg_pdev);
-
-/**
- * ol_cfg_get_del_ack_enable_value() - get delayed ack enable value
- * @cfg_pdev: pdev handle
- *
- * Return: enable/disable
- */
-bool ol_cfg_get_del_ack_enable_value(struct cdp_cfg *cfg_pdev);
-
-/**
- * ol_cfg_get_del_ack_count_value() - get delayed ack count value
- * @cfg_pdev: pdev handle
- *
- * Return: count value
- */
-int ol_cfg_get_del_ack_count_value(struct cdp_cfg *cfg_pdev);
-
-/**
- * ol_cfg_update_del_ack_params() - update delayed ack params
- * @cfg_ctx: cfg context
- * @cfg_param: parameters
- *
- * Return: none
- */
-void ol_cfg_update_del_ack_params(struct txrx_pdev_cfg_t *cfg_ctx,
-				  struct txrx_pdev_cfg_param_t *cfg_param);
-#else
-/**
- * ol_cfg_update_del_ack_params() - update delayed ack params
- * @cfg_ctx: cfg context
- * @cfg_param: parameters
- *
- * Return: none
- */
-static inline
-void ol_cfg_update_del_ack_params(struct txrx_pdev_cfg_t *cfg_ctx,
-				  struct txrx_pdev_cfg_param_t *cfg_param)
-{
-}
-#endif
-
-#ifdef WLAN_SUPPORT_TXRX_HL_BUNDLE
-int ol_cfg_get_bundle_timer_value(struct cdp_cfg *cfg_pdev);
-int ol_cfg_get_bundle_size(struct cdp_cfg *cfg_pdev);
-#else
-#endif
 /**
  * ol_cfg_get_wrr_skip_weight() - brief Query for the param of wrr_skip_weight
  * @pdev: handle to the physical device.

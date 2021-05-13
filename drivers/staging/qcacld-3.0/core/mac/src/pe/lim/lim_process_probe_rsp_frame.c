@@ -52,7 +52,7 @@
  * Return: 0 on success, one on failure
  */
 static QDF_STATUS
-lim_validate_ie_information_in_probe_rsp_frame(struct mac_context *mac_ctx,
+lim_validate_ie_information_in_probe_rsp_frame(tpAniSirGlobal mac_ctx,
 				uint8_t *pRxPacketInfo)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
@@ -98,8 +98,8 @@ lim_validate_ie_information_in_probe_rsp_frame(struct mac_context *mac_ctx,
  * Return: None
  */
 void
-lim_process_probe_rsp_frame(struct mac_context *mac_ctx, uint8_t *rx_Packet_info,
-			    struct pe_session *session_entry)
+lim_process_probe_rsp_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_Packet_info,
+			    tpPESession session_entry)
 {
 	uint8_t *body;
 	uint32_t frame_len = 0;
@@ -108,7 +108,6 @@ lim_process_probe_rsp_frame(struct mac_context *mac_ctx, uint8_t *rx_Packet_info
 	tSirProbeRespBeacon *probe_rsp;
 	uint8_t qos_enabled = false;
 	uint8_t wme_enabled = false;
-	uint32_t chan_freq = 0;
 
 	if (!session_entry) {
 		pe_err("session_entry is NULL");
@@ -116,7 +115,7 @@ lim_process_probe_rsp_frame(struct mac_context *mac_ctx, uint8_t *rx_Packet_info
 	}
 
 	probe_rsp = qdf_mem_malloc(sizeof(tSirProbeRespBeacon));
-	if (!probe_rsp) {
+	if (NULL == probe_rsp) {
 		pe_err("Unable to allocate memory");
 		return;
 	}
@@ -136,9 +135,9 @@ lim_process_probe_rsp_frame(struct mac_context *mac_ctx, uint8_t *rx_Packet_info
 	}
 
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_Packet_info);
-	pe_debug("Probe Resp(len %d): " QDF_MAC_ADDR_FMT " RSSI %d",
+	pe_debug("Probe Resp(len %d): " QDF_MAC_ADDR_STR " RSSI %d",
 		 WMA_GET_RX_MPDU_LEN(rx_Packet_info),
-		 QDF_MAC_ADDR_REF(header->bssId),
+		 QDF_MAC_ADDR_ARRAY(header->bssId),
 		 (uint)abs((int8_t)
 		 WMA_GET_RX_RSSI_NORMALIZED(rx_Packet_info)));
 	/* Get pointer to Probe Response frame body */
@@ -158,7 +157,7 @@ lim_process_probe_rsp_frame(struct mac_context *mac_ctx, uint8_t *rx_Packet_info
 		 * Either Beacon/probe response is required.
 		 * Hence store it in same buffer.
 		 */
-		if (session_entry->beacon) {
+		if (session_entry->beacon != NULL) {
 			qdf_mem_free(session_entry->beacon);
 			session_entry->beacon = NULL;
 			session_entry->bcnLen = 0;
@@ -167,7 +166,7 @@ lim_process_probe_rsp_frame(struct mac_context *mac_ctx, uint8_t *rx_Packet_info
 			WMA_GET_RX_PAYLOAD_LEN(rx_Packet_info);
 			session_entry->beacon =
 			qdf_mem_malloc(session_entry->bcnLen);
-		if (!session_entry->beacon) {
+		if (NULL == session_entry->beacon) {
 			pe_err("No Memory to store beacon");
 		} else {
 			/*
@@ -199,16 +198,14 @@ lim_process_probe_rsp_frame(struct mac_context *mac_ctx, uint8_t *rx_Packet_info
 		}
 		if (!LIM_IS_CONNECTION_ACTIVE(session_entry)) {
 			pe_warn("Recved Probe Resp from AP,AP-alive");
-			if (probe_rsp->HTInfo.present) {
-				chan_freq =
-				    wlan_reg_legacy_chan_to_freq(mac_ctx->pdev,
-								 probe_rsp->HTInfo.primaryChannel);
-				lim_received_hb_handler(mac_ctx, chan_freq,
-							session_entry);
-			} else
+			if (probe_rsp->HTInfo.present)
 				lim_received_hb_handler(mac_ctx,
-							probe_rsp->chan_freq,
-							session_entry);
+					probe_rsp->HTInfo.primaryChannel,
+					session_entry);
+			else
+				lim_received_hb_handler(mac_ctx,
+					(uint8_t)probe_rsp->channelNumber,
+					session_entry);
 		}
 		if (LIM_IS_STA_ROLE(session_entry) &&
 				!wma_is_csa_offload_enabled()) {
@@ -262,7 +259,7 @@ lim_process_probe_rsp_frame(struct mac_context *mac_ctx, uint8_t *rx_Packet_info
 				&probe_rsp->edcaParams,
 				session_entry) != QDF_STATUS_SUCCESS) {
 				pe_err("EDCA param process error");
-			} else if (sta_ds) {
+			} else if (sta_ds != NULL) {
 				/*
 				 * If needed, downgrade the
 				 * EDCA parameters
@@ -273,7 +270,7 @@ lim_process_probe_rsp_frame(struct mac_context *mac_ctx, uint8_t *rx_Packet_info
 						session_entry);
 				lim_send_edca_params(mac_ctx,
 					session_entry->gLimEdcaParamsActive,
-					session_entry->vdev_id, false);
+					sta_ds->bssId, false);
 			} else {
 				pe_err("SelfEntry missing in Hash");
 			}

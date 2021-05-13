@@ -30,6 +30,7 @@
 
 #include "ani_global.h"
 #include "wni_cfg.h"
+#include "cfg_api.h"
 
 #include "sch_api.h"
 #include "utils_api.h"
@@ -44,7 +45,6 @@
 #include "lim_ft_defs.h"
 #include "lim_session.h"
 #include "lim_ser_des_utils.h"
-#include "wlan_blm_api.h"
 
 /**
  * lim_delete_sta_util - utility function for deleting station context
@@ -57,19 +57,20 @@
  *
  * Return: None.
  */
-static void lim_delete_sta_util(struct mac_context *mac_ctx, tpDeleteStaContext msg,
-				struct pe_session *session_entry)
+static void lim_delete_sta_util(tpAniSirGlobal mac_ctx, tpDeleteStaContext msg,
+				tpPESession session_entry)
 {
 	tpDphHashNode stads;
 
-	pe_debug("Deleting station: reasonCode: %d", msg->reasonCode);
+	pe_debug("Deleting station: staId: %d, reasonCode: %d",
+		msg->staId, msg->reasonCode);
 
 	if (LIM_IS_IBSS_ROLE(session_entry)) {
 		return;
 	}
 
-	stads = dph_lookup_hash_entry(mac_ctx, msg->addr2, &msg->assocId,
-				      &session_entry->dph.dphHashTable);
+	stads = dph_lookup_assoc_id(mac_ctx, msg->staId, &msg->assocId,
+				    &session_entry->dph.dphHashTable);
 
 	if (!stads) {
 		pe_err("Invalid STA limSystemRole: %d",
@@ -78,22 +79,32 @@ static void lim_delete_sta_util(struct mac_context *mac_ctx, tpDeleteStaContext 
 	}
 	stads->del_sta_ctx_rssi = msg->rssi;
 
+	/* check and see if same staId. This is to avoid the scenario
+	 * where we're trying to delete a staId we just added.
+	 */
+	if (stads->staIndex != msg->staId) {
+		pe_err("staid mismatch: %d vs %d", stads->staIndex, msg->staId);
+		return;
+	}
+
 	if (LIM_IS_AP_ROLE(session_entry)) {
-		pe_debug("Delete Station assocId: %d", msg->assocId);
+		pe_debug("Delete Station staId: %d, assocId: %d",
+			msg->staId, msg->assocId);
 		/*
 		 * Check if Deauth/Disassoc is triggered from Host.
 		 * If mlmState is in some transient state then
 		 * don't trigger STA deletion to avoid the race
 		 * condition.
 		 */
-		if ((stads &&
+		 if ((stads &&
 		     ((stads->mlmStaContext.mlmState !=
 			eLIM_MLM_LINK_ESTABLISHED_STATE) &&
 		      (stads->mlmStaContext.mlmState !=
 			eLIM_MLM_WT_ASSOC_CNF_STATE) &&
 		      (stads->mlmStaContext.mlmState !=
 			eLIM_MLM_ASSOCIATED_STATE)))) {
-			pe_err("Inv Del STA assocId: %d", msg->assocId);
+			pe_err("Inv Del STA staId: %d, assocId: %d",
+				msg->staId, msg->assocId);
 			return;
 		} else {
 			lim_send_disassoc_mgmt_frame(mac_ctx,
@@ -118,7 +129,8 @@ static void lim_delete_sta_util(struct mac_context *mac_ctx, tpDeleteStaContext 
 		/* TearDownLink with AP */
 		tLimMlmDeauthInd mlm_deauth_ind;
 
-		pe_debug("Delete Station (assocId: %d)", msg->assocId);
+		pe_debug("Delete Station (staId: %d, assocId: %d)",
+			msg->staId, msg->assocId);
 
 		if ((stads &&
 			((stads->mlmStaContext.mlmState !=
@@ -136,8 +148,8 @@ static void lim_delete_sta_util(struct mac_context *mac_ctx, tpDeleteStaContext 
 			pe_debug("Received SIR_LIM_DELETE_STA_CONTEXT_IND for "
 					"STA that either has no context or "
 					"in some transit state, Addr = "
-					QDF_MAC_ADDR_FMT,
-					QDF_MAC_ADDR_REF(msg->bssId));
+					MAC_ADDRESS_STR,
+					MAC_ADDR_ARRAY(msg->bssId));
 			return;
 		}
 
@@ -181,21 +193,20 @@ static void lim_delete_sta_util(struct mac_context *mac_ctx, tpDeleteStaContext 
  *
  * Return: none
  */
-void lim_delete_sta_context(struct mac_context *mac_ctx,
+void lim_delete_sta_context(tpAniSirGlobal mac_ctx,
 			    struct scheduler_msg *lim_msg)
 {
 	tpDeleteStaContext msg = (tpDeleteStaContext) lim_msg->bodyptr;
-	struct pe_session *session_entry;
+	tpPESession session_entry;
 	tpDphHashNode sta_ds;
 	enum eSirMacReasonCodes reason_code;
-	struct reject_ap_info ap_info;
 
-	if (!msg) {
+	if (NULL == msg) {
 		pe_err("Invalid body pointer in message");
 		return;
 	}
-	session_entry = pe_find_session_by_vdev_id(mac_ctx, msg->vdev_id);
-	if (!session_entry) {
+	session_entry = pe_find_session_by_sme_session_id(mac_ctx, msg->vdev_id);
+	if (NULL == session_entry) {
 		pe_err("session not found for given sme session");
 		qdf_mem_free(msg);
 		return;
@@ -223,7 +234,7 @@ void lim_delete_sta_context(struct mac_context *mac_ctx,
 			sta_ds = dph_get_hash_entry(mac_ctx,
 					DPH_STA_HASH_INDEX_PEER,
 					&session_entry->dph.dphHashTable);
-			if (!sta_ds) {
+			if (NULL == sta_ds) {
 				pe_err("Dph entry not found");
 				qdf_mem_free(msg);
 				return;
@@ -243,14 +254,6 @@ void lim_delete_sta_context(struct mac_context *mac_ctx,
 						   session_entry->peSessionId,
 						   reason_code,
 						   eLIM_LINK_MONITORING_DEAUTH);
-			qdf_mem_copy(&ap_info.bssid, msg->addr2,
-				     QDF_MAC_ADDR_SIZE);
-			ap_info.reject_ap_type = DRIVER_AVOID_TYPE;
-			ap_info.reject_reason = REASON_STA_KICKOUT;
-			ap_info.source = ADDED_BY_DRIVER;
-			wlan_blm_add_bssid_to_reject_list(mac_ctx->pdev,
-							  &ap_info);
-
 			/* only break for STA role (non TDLS) */
 			break;
 		}
@@ -302,8 +305,8 @@ void lim_delete_sta_context(struct mac_context *mac_ctx,
  * @return None
  */
 void
-lim_trigger_sta_deletion(struct mac_context *mac_ctx, tpDphHashNode sta_ds,
-			 struct pe_session *session_entry)
+lim_trigger_sta_deletion(tpAniSirGlobal mac_ctx, tpDphHashNode sta_ds,
+			 tpPESession session_entry)
 {
 	tLimMlmDisassocInd mlm_disassoc_ind;
 
@@ -337,7 +340,7 @@ lim_trigger_sta_deletion(struct mac_context *mac_ctx, tpDphHashNode sta_ds,
 	mlm_disassoc_ind.sessionId = session_entry->peSessionId;
 	lim_post_sme_message(mac_ctx, LIM_MLM_DISASSOC_IND,
 			(uint32_t *) &mlm_disassoc_ind);
-	if (mac_ctx->mlme_cfg->gen.fatal_event_trigger)
+	if (mac_ctx->roam.configParam.enable_fatal_event)
 		cds_flush_logs(WLAN_LOG_TYPE_FATAL,
 				WLAN_LOG_INDICATOR_HOST_DRIVER,
 				WLAN_LOG_REASON_HB_FAILURE,
@@ -347,17 +350,17 @@ lim_trigger_sta_deletion(struct mac_context *mac_ctx, tpDphHashNode sta_ds,
 } /*** end lim_trigger_st_adeletion() ***/
 
 void
-lim_tear_down_link_with_ap(struct mac_context *mac, uint8_t sessionId,
+lim_tear_down_link_with_ap(tpAniSirGlobal pMac, uint8_t sessionId,
 			   tSirMacReasonCodes reasonCode,
 			   enum eLimDisassocTrigger trigger)
 {
-	tpDphHashNode sta = NULL;
+	tpDphHashNode pStaDs = NULL;
 
-	/* tear down the following pe_session */
-	struct pe_session *pe_session;
+	/* tear down the following sessionEntry */
+	tpPESession psessionEntry;
 
-	pe_session = pe_find_session_by_session_id(mac, sessionId);
-	if (!pe_session) {
+	psessionEntry = pe_find_session_by_session_id(pMac, sessionId);
+	if (psessionEntry == NULL) {
 		pe_err("Session Does not exist for given sessionID");
 		return;
 	}
@@ -366,25 +369,25 @@ lim_tear_down_link_with_ap(struct mac_context *mac, uint8_t sessionId,
 	 * and AP did not respond for Probe request.
 	 * Trigger link tear down.
 	 */
-	pe_session->pmmOffloadInfo.bcnmiss = false;
+	psessionEntry->pmmOffloadInfo.bcnmiss = false;
 
 	pe_info("Session %d Vdev %d reason code %d trigger %d",
-		pe_session->peSessionId, pe_session->vdev_id, reasonCode,
-		trigger);
+		psessionEntry->peSessionId, psessionEntry->smeSessionId,
+		reasonCode, trigger);
 
 	/* Announce loss of link to Roaming algorithm */
 	/* and cleanup by sending SME_DISASSOC_REQ to SME */
 
-	sta =
-		dph_get_hash_entry(mac, DPH_STA_HASH_INDEX_PEER,
-				   &pe_session->dph.dphHashTable);
+	pStaDs =
+		dph_get_hash_entry(pMac, DPH_STA_HASH_INDEX_PEER,
+				   &psessionEntry->dph.dphHashTable);
 
-	if (sta) {
+	if (pStaDs != NULL) {
 		tLimMlmDeauthInd mlmDeauthInd;
 
-		if ((sta->mlmStaContext.disassocReason ==
+		if ((pStaDs->mlmStaContext.disassocReason ==
 		    eSIR_MAC_DEAUTH_LEAVING_BSS_REASON) ||
-		    (sta->mlmStaContext.cleanupTrigger ==
+		    (pStaDs->mlmStaContext.cleanupTrigger ==
 		    eLIM_HOST_DEAUTH)) {
 			pe_err("Host already issued deauth, do nothing");
 			return;
@@ -392,53 +395,53 @@ lim_tear_down_link_with_ap(struct mac_context *mac, uint8_t sessionId,
 
 #ifdef FEATURE_WLAN_TDLS
 		/* Delete all TDLS peers connected before leaving BSS */
-		lim_delete_tdls_peers(mac, pe_session);
+		lim_delete_tdls_peers(pMac, psessionEntry);
 #endif
 
-		sta->mlmStaContext.disassocReason = reasonCode;
-		sta->mlmStaContext.cleanupTrigger = trigger;
+		pStaDs->mlmStaContext.disassocReason = reasonCode;
+		pStaDs->mlmStaContext.cleanupTrigger = trigger;
 		/* / Issue Deauth Indication to SME. */
 		qdf_mem_copy((uint8_t *) &mlmDeauthInd.peerMacAddr,
-			     sta->staAddr, sizeof(tSirMacAddr));
+			     pStaDs->staAddr, sizeof(tSirMacAddr));
 
 		/*
-		 * if deauth_before_connection is enabled and reasoncode is
+		 * if send_deauth_before_con is enabled and reasoncode is
 		 * Beacon Missed Store the MAC of AP in the flip flop
 		 * buffer. This MAC will be used to send Deauth before
 		 * connection, if we connect to same AP after HB failure.
 		 */
-		if (mac->mlme_cfg->sta.deauth_before_connection &&
+		if (pMac->roam.configParam.send_deauth_before_con &&
 		    eSIR_MAC_BEACON_MISSED == reasonCode) {
-			int apCount = mac->lim.gLimHeartBeatApMacIndex;
+			int apCount = pMac->lim.gLimHeartBeatApMacIndex;
 
-			if (mac->lim.gLimHeartBeatApMacIndex)
-				mac->lim.gLimHeartBeatApMacIndex = 0;
+			if (pMac->lim.gLimHeartBeatApMacIndex)
+				pMac->lim.gLimHeartBeatApMacIndex = 0;
 			else
-				mac->lim.gLimHeartBeatApMacIndex = 1;
+				pMac->lim.gLimHeartBeatApMacIndex = 1;
 
 			pe_debug("HB Failure on MAC "
-				 QDF_MAC_ADDR_FMT" Store it on Index %d",
-				 QDF_MAC_ADDR_REF(sta->staAddr), apCount);
+				 MAC_ADDRESS_STR" Store it on Index %d",
+				 MAC_ADDR_ARRAY(pStaDs->staAddr), apCount);
 
-			sir_copy_mac_addr(mac->lim.gLimHeartBeatApMac[apCount],
-					  sta->staAddr);
+			sir_copy_mac_addr(pMac->lim.gLimHeartBeatApMac[apCount],
+					  pStaDs->staAddr);
 		}
 
 		mlmDeauthInd.reasonCode =
-			(uint8_t) sta->mlmStaContext.disassocReason;
+			(uint8_t) pStaDs->mlmStaContext.disassocReason;
 		mlmDeauthInd.deauthTrigger =
-			sta->mlmStaContext.cleanupTrigger;
+			pStaDs->mlmStaContext.cleanupTrigger;
 
-		if (LIM_IS_STA_ROLE(pe_session))
-			lim_post_sme_message(mac, LIM_MLM_DEAUTH_IND,
+		if (LIM_IS_STA_ROLE(psessionEntry))
+			lim_post_sme_message(pMac, LIM_MLM_DEAUTH_IND,
 				     (uint32_t *) &mlmDeauthInd);
-		if (mac->mlme_cfg->gen.fatal_event_trigger)
+		if (pMac->roam.configParam.enable_fatal_event)
 			cds_flush_logs(WLAN_LOG_TYPE_FATAL,
 					WLAN_LOG_INDICATOR_HOST_DRIVER,
 					WLAN_LOG_REASON_HB_FAILURE,
 					false, false);
 
-		lim_send_sme_deauth_ind(mac, sta, pe_session);
+		lim_send_sme_deauth_ind(pMac, pStaDs, psessionEntry);
 	}
 } /*** lim_tear_down_link_with_ap() ***/
 
@@ -454,8 +457,8 @@ lim_tear_down_link_with_ap(struct mac_context *mac, uint8_t sessionId,
  * Return: None
  */
 
-void lim_handle_heart_beat_failure(struct mac_context *mac_ctx,
-				   struct pe_session *session)
+void lim_handle_heart_beat_failure(tpAniSirGlobal mac_ctx,
+				   tpPESession session)
 {
 	uint8_t curr_chan;
 	tpSirAddie scan_ie = NULL;
@@ -499,8 +502,7 @@ void lim_handle_heart_beat_failure(struct mac_context *mac_ctx,
 		 * DFS channel then only send the probe request otherwise tear
 		 * down the link
 		 */
-		curr_chan = wlan_reg_freq_to_chan(
-					mac_ctx->pdev, session->curr_op_freq);
+		curr_chan = session->currentOperChannel;
 		if (!lim_isconnected_on_dfs_channel(mac_ctx, curr_chan)) {
 			/* Detected continuous Beacon Misses */
 			session->LimHBFailureStatus = true;
@@ -514,19 +516,19 @@ void lim_handle_heart_beat_failure(struct mac_context *mac_ctx,
 			 */
 			pe_debug("HB missed from AP. Sending Probe Req");
 			/* for searching AP, we don't include any more IE */
-			if (session->lim_join_req) {
-				scan_ie = &session->lim_join_req->addIEScan;
+			if (session->pLimJoinReq != NULL) {
+				scan_ie = &session->pLimJoinReq->addIEScan;
 				lim_send_probe_req_mgmt_frame(mac_ctx,
 					&session->ssId,
-					session->bssId, session->curr_op_freq,
-					session->self_mac_addr,
+					session->bssId, curr_chan,
+					session->selfMacAddr,
 					session->dot11mode,
 					&scan_ie->length, scan_ie->addIEdata);
 			} else {
 				lim_send_probe_req_mgmt_frame(mac_ctx,
 					&session->ssId,
-					session->bssId, session->curr_op_freq,
-					session->self_mac_addr,
+					session->bssId, curr_chan,
+					session->selfMacAddr,
 					session->dot11mode, NULL, NULL);
 			}
 		} else {
@@ -560,61 +562,3 @@ hb_handler_fail:
 					 WLAN_CONTROL_PATH);
 }
 
-void lim_rx_invalid_peer_process(struct mac_context *mac_ctx,
-				 struct scheduler_msg *lim_msg)
-{
-	struct ol_rx_inv_peer_params *msg =
-			(struct ol_rx_inv_peer_params *)lim_msg->bodyptr;
-	struct pe_session *session_entry;
-	uint16_t reason_code =
-		eSIR_MAC_CLASS3_FRAME_FROM_NON_ASSOC_STA_REASON;
-
-	if (!msg) {
-		pe_err("Invalid body pointer in message");
-		return;
-	}
-
-	session_entry = pe_find_session_by_vdev_id(mac_ctx, msg->vdev_id);
-	if (!session_entry) {
-		pe_err_rl("session not found for given sme session");
-		qdf_mem_free(msg);
-		return;
-	}
-
-	/* only if SAP mode */
-	if (session_entry->bssType == eSIR_INFRA_AP_MODE) {
-		pe_debug("send deauth frame to non-assoc STA");
-		lim_send_deauth_mgmt_frame(mac_ctx,
-					   reason_code,
-					   msg->ta,
-					   session_entry,
-					   false);
-	}
-
-	qdf_mem_free(msg);
-	lim_msg->bodyptr = NULL;
-}
-
-void lim_req_send_delba_ind_process(struct mac_context *mac_ctx,
-				    struct scheduler_msg *lim_msg)
-{
-	struct lim_delba_req_info *req =
-			(struct lim_delba_req_info *)lim_msg->bodyptr;
-	QDF_STATUS status;
-	void *dp_soc = cds_get_context(QDF_MODULE_ID_SOC);
-
-	if (!req) {
-		pe_err("Invalid body pointer in message");
-		return;
-	}
-
-	status = lim_send_delba_action_frame(mac_ctx, req->vdev_id,
-					     req->peer_macaddr,
-					     req->tid, req->reason_code);
-	if (status != QDF_STATUS_SUCCESS)
-		cdp_delba_tx_completion(dp_soc, req->peer_macaddr,
-					req->vdev_id, req->tid,
-					WMI_MGMT_TX_COMP_TYPE_DISCARD);
-	qdf_mem_free(req);
-	lim_msg->bodyptr = NULL;
-}

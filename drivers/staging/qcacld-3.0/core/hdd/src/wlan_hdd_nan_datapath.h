@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -25,6 +25,7 @@
 #define __WLAN_HDD_NAN_DATAPATH_H
 
 struct hdd_context;
+struct hdd_tgt_cfg;
 struct hdd_config;
 struct hdd_adapter;
 struct wireless_dev;
@@ -36,16 +37,51 @@ struct wireless_dev;
 
 #define NDP_BROADCAST_STAID           (0)
 
-#ifdef WLAN_FEATURE_NAN
-
-#define MAX_NDI_ADAPTERS 2
-
+#ifdef WLAN_FEATURE_NAN_DATAPATH
 #define WLAN_HDD_IS_NDI(adapter) ((adapter)->device_mode == QDF_NDI_MODE)
 
 #define WLAN_HDD_IS_NDI_CONNECTED(adapter) ( \
 	eConnectionState_NdiConnected ==\
-		(adapter)->session.station.conn_info.conn_state)
+		(adapter)->session.station.conn_info.connState)
+#else
+#define WLAN_HDD_IS_NDI(adapter)	(false)
+#define WLAN_HDD_IS_NDI_CONNECTED(adapter) (false)
+#endif /* WLAN_FEATURE_NAN_DATAPATH */
 
+#define NAN_MSG_ID_DISABLE_INDICATION 26
+/**
+ * struct nan_msg_hdr - NAN msg header to be sent to userspace
+ * @msg_version: NAN msg version
+ * @msg_id: NAN message id
+ * @reserved: Reserved for now to avoid padding
+ *
+ * 8-byte control message header used by NAN
+ *
+ */
+struct nan_msg_hdr {
+	uint16_t msg_version:4;
+	uint16_t msg_id:12;
+	uint16_t reserved[3];
+};
+
+#define NAN_STATUS_SUCCESS 0
+#define NAN_STATUS_UNSUPPORTED_CONCURRENCY_NAN_DISABLED 12
+
+/**
+ * struct nan_disable_ind_msg - NAN disable ind params
+ * @msg_hdr: NAN msg header
+ * @reason: NAN disable reason, below are valid reasons for NAN disable ind
+ *          NAN_STATUS_SUCCESS
+ *          NAN_STATUS_UNSUPPORTED_CONCURRENCY_NAN_DISABLED
+ * @reserved: Reserved for now to avoid padding
+ */
+struct nan_disable_ind_msg {
+	struct nan_msg_hdr msg_hdr;
+	uint16_t reason;
+	uint16_t reserved;
+};
+#ifdef WLAN_FEATURE_NAN_DATAPATH
+void hdd_ndp_print_ini_config(struct hdd_context *hdd_ctx);
 void hdd_nan_datapath_target_config(struct hdd_context *hdd_ctx,
 						struct wma_tgt_cfg *cfg);
 void hdd_ndp_event_handler(struct hdd_adapter *adapter,
@@ -77,15 +113,15 @@ void hdd_cleanup_ndi(struct hdd_context *hdd_ctx,
  *                  Framework expects this in the immediate response when
  *                  the NDI is created by it.
  *
- * Create NDI move interface and vdev.
+ * Create NDI mode interface and vdev.
  *
  * Return: 0 upon success
  */
 int hdd_ndi_start(char *iface_name, uint16_t transaction_id);
 #else
-#define WLAN_HDD_IS_NDI(adapter)	(false)
-#define WLAN_HDD_IS_NDI_CONNECTED(adapter) (false)
-
+static inline void hdd_ndp_print_ini_config(struct hdd_context *hdd_ctx)
+{
+}
 static inline void hdd_nan_datapath_target_config(struct hdd_context *hdd_ctx,
 						struct wma_tgt_cfg *cfg)
 {
@@ -119,7 +155,7 @@ static inline int hdd_ndi_start(char *iface_name, uint16_t transaction_id)
 {
 	return 0;
 }
-#endif /* WLAN_FEATURE_NAN */
+#endif /* WLAN_FEATURE_NAN_DATAPATH */
 
 enum nan_datapath_state;
 struct nan_datapath_inf_create_rsp;
@@ -130,6 +166,7 @@ void hdd_ndi_close(uint8_t vdev_id);
 void hdd_ndi_drv_ndi_create_rsp_handler(uint8_t vdev_id,
 			       struct nan_datapath_inf_create_rsp *ndi_rsp);
 void hdd_ndi_drv_ndi_delete_rsp_handler(uint8_t vdev_id);
+int hdd_ndp_get_peer_idx(uint8_t vdev_id, struct qdf_mac_addr *addr);
 int hdd_ndp_new_peer_handler(uint8_t vdev_id, uint16_t sta_id,
 			struct qdf_mac_addr *peer_mac_addr, bool fist_peer);
 void hdd_ndp_peer_departed_handler(uint8_t vdev_id, uint16_t sta_id,

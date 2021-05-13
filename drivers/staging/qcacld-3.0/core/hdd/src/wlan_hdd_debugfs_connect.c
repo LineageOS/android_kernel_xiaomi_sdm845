@@ -323,7 +323,7 @@ wlan_hdd_connect_info_debugfs(struct hdd_adapter *adapter, uint8_t *buf,
 	int ret_val;
 
 	hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
-	if (hdd_sta_ctx->conn_info.conn_state != eConnectionState_Associated) {
+	if (hdd_sta_ctx->conn_info.connState != eConnectionState_Associated) {
 		ret_val = scnprintf(buf, buf_avail_len,
 				    "\nSTA is not connected\n");
 		if (ret_val >= 0)
@@ -360,7 +360,7 @@ wlan_hdd_connect_info_debugfs(struct hdd_adapter *adapter, uint8_t *buf,
 	}
 	ret_val = scnprintf(buf + length, buf_avail_len - length,
 			    "ssid = %s\n"
-			    "bssid = " QDF_FULL_MAC_FMT "\n"
+			    "bssid = " MAC_ADDRESS_STR "\n"
 			    "connect_time = %s\n"
 			    "auth_time = %s\n"
 			    "freq = %u\n"
@@ -369,18 +369,18 @@ wlan_hdd_connect_info_debugfs(struct hdd_adapter *adapter, uint8_t *buf,
 			    "tx_bit_rate = %u\n"
 			    "rx_bit_rate = %u\n"
 			    "last_auth_type = %s\n"
-			    "dot11mode = %s\n",
+			    "dot11Mode = %s\n",
 			    conn_info->last_ssid.SSID.ssId,
-			    QDF_FULL_MAC_REF(conn_info->bssid.bytes),
+			    MAC_ADDR_ARRAY(conn_info->bssId.bytes),
 			    conn_info->connect_time,
 			    conn_info->auth_time,
-			    conn_info->chan_freq,
+			    conn_info->freq,
 			    hdd_ch_width_str(conn_info->ch_width),
 			    conn_info->signal,
 			    tx_bit_rate,
 			    rx_bit_rate,
 			    hdd_auth_type_str(conn_info->last_auth_type),
-			    hdd_dot11_mode_str(conn_info->dot11mode));
+			    hdd_dot11_mode_str(conn_info->dot11Mode));
 
 	if (ret_val <= 0)
 		return length;

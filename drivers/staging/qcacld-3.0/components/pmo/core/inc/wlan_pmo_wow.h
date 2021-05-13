@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -107,8 +107,10 @@
 
 #define PMO_WOW_MAX_EVENT_BM_LEN 4
 
-#define PMO_WOW_FILTERS_ARP_NS		2
+#define PMO_WOW_FILTERS_ARP_NS		3
 #define PMO_WOW_FILTERS_PKT_OR_APF	5
+/* Default Listen Interval */
+#define PMO_DEFAULT_LISTEN_INTERVAL 1
 
 /**
  * pmo_get_and_increment_wow_default_ptrn() -Get and increment wow default ptrn
@@ -298,6 +300,7 @@ static inline uint8_t pmo_get_wow_user_ptrn(
 	return count;
 }
 
+void pmo_dump_wow_ptrn(struct pmo_wow_add_pattern *ptrn);
 /**
  * pmo_core_del_wow_pattern() - Function which will delete the WoWL pattern
  * @vdev: pointer to the vdev
@@ -486,29 +489,35 @@ bool pmo_core_get_wow_enable_cmd_sent(struct pmo_psoc_priv_obj *psoc_ctx)
 /**
  * pmo_core_update_wow_initial_wake_up() - update wow initial wake up
  * @psoc_ctx: Pointer to objmgr psoc handle
- * @value: set to 1 if wow initial wake up is received;
- *         if clean state, reset it to 0;
+ * @value: true if wow initial wake up is received else false
  *
  * Return: None
  */
 static inline
 void pmo_core_update_wow_initial_wake_up(struct pmo_psoc_priv_obj *psoc_ctx,
-	int value)
+	bool value)
 {
-	qdf_atomic_set(&psoc_ctx->wow.wow_initial_wake_up, value);
+	qdf_spin_lock_bh(&psoc_ctx->lock);
+	psoc_ctx->wow.wow_initial_wake_up = value;
+	qdf_spin_unlock_bh(&psoc_ctx->lock);
 }
 
 /**
  * pmo_core_get_wow_initial_wake_up() - Get wow initial wake up
  * @psoc_ctx: Pointer to objmgr psoc handle
  *
- * Return:  1 if wow initial wake up is received;
- *          0 if wow iniital wake up is not received;
+ * Return:  true if wow initial wake up is received else false
  */
 static inline
-int pmo_core_get_wow_initial_wake_up(struct pmo_psoc_priv_obj *psoc_ctx)
+bool pmo_core_get_wow_initial_wake_up(struct pmo_psoc_priv_obj *psoc_ctx)
 {
-	return qdf_atomic_read(&psoc_ctx->wow.wow_initial_wake_up);
+	bool value;
+
+	qdf_spin_lock_bh(&psoc_ctx->lock);
+	value = psoc_ctx->wow.wow_initial_wake_up;
+	qdf_spin_unlock_bh(&psoc_ctx->lock);
+
+	return value;
 }
 
 #ifdef FEATURE_WLAN_EXTSCAN
@@ -624,6 +633,32 @@ bool pmo_core_is_lpass_enabled(struct wlan_objmgr_psoc *psoc)
 #else
 static inline
 bool pmo_core_is_lpass_enabled(struct wlan_objmgr_psoc *psoc)
+{
+	return false;
+}
+#endif
+
+#ifdef WLAN_FEATURE_NAN
+/**
+ * pmo_is_nan_enabled() - check if NaN is enabled
+ * @posc: objmgr psoc object
+ *
+ * WoW is needed if LPASS or NaN feature is enabled in INI because
+ * target can't wake up itself if its put in PDEV suspend when LPASS
+ * or NaN features are supported
+ *
+ * Return: true if NaN is enabled else false
+ */
+static inline
+bool pmo_core_is_nan_enabled(struct wlan_objmgr_psoc *psoc)
+{
+	struct pmo_psoc_priv_obj *pmo_psoc_ctx = pmo_psoc_get_priv(psoc);
+
+	return pmo_psoc_ctx->psoc_cfg.nan_enable;
+}
+#else
+static inline
+bool pmo_core_is_nan_enabled(struct wlan_objmgr_psoc *psoc)
 {
 	return false;
 }

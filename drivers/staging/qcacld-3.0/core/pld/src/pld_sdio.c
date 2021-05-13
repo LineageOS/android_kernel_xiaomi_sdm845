@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -25,14 +25,11 @@
 #ifdef CONFIG_PLD_SDIO_CNSS
 #include <net/cnss.h>
 #endif
-#ifdef CONFIG_PLD_SDIO_CNSS2
-#include <net/cnss2.h>
-#endif
 
 #include "pld_common.h"
 #include "pld_internal.h"
 #include "pld_sdio.h"
-#include "osif_psoc_sync.h"
+
 
 #ifdef CONFIG_SDIO
 /* SDIO manufacturer ID and Codes */
@@ -88,7 +85,7 @@ static int pld_sdio_probe(struct sdio_func *sdio_func,
 	}
 
 	dev = &sdio_func->dev;
-	ret = pld_add_dev(pld_context, dev, NULL, PLD_BUS_TYPE_SDIO);
+	ret = pld_add_dev(pld_context, dev, PLD_BUS_TYPE_SDIO);
 	if (ret)
 		goto out;
 
@@ -112,27 +109,14 @@ static void pld_sdio_remove(struct sdio_func *sdio_func)
 {
 	struct pld_context *pld_context;
 	struct device *dev = &sdio_func->dev;
-	int errno;
-	struct osif_psoc_sync *psoc_sync;
-
-	errno = osif_psoc_sync_trans_start_wait(dev, &psoc_sync);
-	if (errno)
-		return;
-
-	osif_psoc_sync_unregister(dev);
-	osif_psoc_sync_wait_for_ops(psoc_sync);
 
 	pld_context = pld_get_global_context();
 
 	if (!pld_context)
-		goto out;
+		return;
 
 	pld_context->ops->remove(dev, PLD_BUS_TYPE_SDIO);
 	pld_del_dev(pld_context, dev);
-
-out:
-	osif_psoc_sync_trans_stop(psoc_sync);
-	osif_psoc_sync_destroy(psoc_sync);
 }
 
 #ifdef CONFIG_PLD_SDIO_CNSS
@@ -289,79 +273,7 @@ static struct sdio_device_id pld_sdio_id_table[] = {
 	{},
 };
 
-#ifdef CONFIG_PLD_SDIO_CNSS2
-/**
- * pld_sdio_reinit() - SSR re-initialize function for SDIO device
- * @sdio_func: pointer to sdio device function
- * @id: SDIO device ID
- *
- * During subsystem restart(SSR), this function will be called to
- * re-initialize SDIO device.
- *
- * Return: int
- */
-static int pld_sdio_reinit(struct sdio_func *sdio_func,
-			   const struct sdio_device_id *id)
-{
-	/* TODO */
-	return -ENODEV;
-}
-
-/**
- * pld_sdio_shutdown() - SSR shutdown function for SDIO device
- * @sdio_func: pointer to sdio device function
- *
- * During SSR, this function will be called to shutdown SDIO device.
- *
- * Return: void
- */
-static void pld_sdio_shutdown(struct sdio_func *sdio_func)
-{
-	/* TODO */
-}
-
-/**
- * pld_sdio_crash_shutdown() - Crash shutdown function for SDIO device
- * @sdio_func: pointer to sdio device function
- *
- * This function will be called when a crash is detected, it will shutdown
- * the SDIO device.
- *
- * Return: void
- */
-static void pld_sdio_crash_shutdown(struct sdio_func *sdio_func)
-{
-	/* TODO */
-}
-
-static void pld_sdio_uevent(struct sdio_func *sdio_func, uint32_t status)
-{
-	struct pld_context *pld_context;
-	struct device *dev = &sdio_func->dev;
-	struct pld_uevent_data data = {0};
-
-	pld_context = pld_get_global_context();
-
-	if (!pld_context)
-		return;
-
-	switch (status) {
-	case CNSS_RECOVERY:
-		data.uevent = PLD_FW_RECOVERY_START;
-		break;
-	case CNSS_FW_DOWN:
-		data.uevent = PLD_FW_DOWN;
-		break;
-	default:
-		goto out;
-	}
-
-	if (pld_context->ops->uevent)
-		pld_context->ops->uevent(dev, &data);
-out:
-	return;
-}
-
+#ifdef CONFIG_PLD_SDIO_CNSS
 struct cnss_sdio_wlan_driver pld_sdio_ops = {
 	.name       = "pld_sdio",
 	.id_table   = pld_sdio_id_table,
@@ -370,7 +282,6 @@ struct cnss_sdio_wlan_driver pld_sdio_ops = {
 	.reinit     = pld_sdio_reinit,
 	.shutdown   = pld_sdio_shutdown,
 	.crash_shutdown = pld_sdio_crash_shutdown,
-	.update_status  = pld_sdio_uevent,
 #ifdef CONFIG_PM
 	.suspend    = pld_sdio_suspend,
 	.resume     = pld_sdio_resume,
@@ -396,40 +307,6 @@ void pld_sdio_unregister_driver(void)
 {
 	cnss_sdio_wlan_unregister_driver(&pld_sdio_ops);
 }
-
-/**
- * pld_sdio_wlan_enable() - Enable WLAN
- * @dev: device
- * @config: NA
- * @mode: WLAN mode
- * @host_version: host software version
- *
- * This function enables WLAN FW. It passed
- * WLAN mode and host software version to FW.
- *
- * Return: 0 for success
- *         Non zero failure code for errors
- */
-int pld_sdio_wlan_enable(struct device *dev, struct pld_wlan_enable_cfg *config,
-			 enum pld_driver_mode mode, const char *host_version)
-{
-	struct cnss_wlan_enable_cfg cfg;
-	enum cnss_driver_mode cnss_mode;
-
-	switch (mode) {
-	case PLD_FTM:
-		cnss_mode = CNSS_FTM;
-		break;
-	case PLD_EPPING:
-		cnss_mode = CNSS_EPPING;
-		break;
-	default:
-		cnss_mode = CNSS_MISSION;
-		break;
-	}
-	return cnss_wlan_enable(dev, &cfg, cnss_mode, host_version);
-}
-
 #else
 
 #ifdef CONFIG_PM
@@ -492,7 +369,7 @@ int pld_sdio_get_fw_files_for_target(struct pld_fw_files *pfw_files,
 	int ret = 0;
 	struct cnss_fw_files cnss_fw_files;
 
-	if (!pfw_files)
+	if (pfw_files == NULL)
 		return -ENODEV;
 
 	memset(pfw_files, 0, sizeof(*pfw_files));

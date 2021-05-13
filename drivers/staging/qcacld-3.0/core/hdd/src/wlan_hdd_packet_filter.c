@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -33,7 +33,7 @@ int hdd_enable_default_pkt_filters(struct hdd_adapter *adapter)
 	uint8_t filters = 0, i = 0, filter_id = 1;
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	if (!hdd_ctx) {
+	if (hdd_ctx == NULL) {
 		hdd_err("HDD context is Null!!!");
 		return -EINVAL;
 	}
@@ -42,7 +42,7 @@ int hdd_enable_default_pkt_filters(struct hdd_adapter *adapter)
 		return 0;
 	}
 
-	filters = ucfg_pmo_get_pkt_filter_bitmap(hdd_ctx->psoc);
+	filters = hdd_ctx->config->packet_filters_bitmap;
 
 	while (filters != 0) {
 		if (filters & 0x1) {
@@ -51,7 +51,7 @@ int hdd_enable_default_pkt_filters(struct hdd_adapter *adapter)
 			packet_filter_default_rules[i].filter_id = filter_id;
 			wlan_hdd_set_filter(hdd_ctx,
 					    &packet_filter_default_rules[i],
-					    adapter->vdev_id);
+					    adapter->session_id);
 			filter_id++;
 		}
 		filters = filters >> 1;
@@ -69,7 +69,7 @@ int hdd_disable_default_pkt_filters(struct hdd_adapter *adapter)
 	struct pkt_filter_cfg packet_filter_default_rules = {0};
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	if (!hdd_ctx) {
+	if (hdd_ctx == NULL) {
 		hdd_err("HDD context is Null!!!");
 		return -EINVAL;
 	}
@@ -79,7 +79,7 @@ int hdd_disable_default_pkt_filters(struct hdd_adapter *adapter)
 		return 0;
 	}
 
-	filters = ucfg_pmo_get_pkt_filter_bitmap(hdd_ctx->psoc);
+	filters = hdd_ctx->config->packet_filters_bitmap;
 
 	while (filters != 0) {
 		if (filters & 0x1) {
@@ -90,7 +90,7 @@ int hdd_disable_default_pkt_filters(struct hdd_adapter *adapter)
 			packet_filter_default_rules.filter_id = filter_id;
 			wlan_hdd_set_filter(hdd_ctx,
 					    &packet_filter_default_rules,
-					    adapter->vdev_id);
+					    adapter->session_id);
 			filter_id++;
 		}
 		filters = filters >> 1;
@@ -102,14 +102,14 @@ int hdd_disable_default_pkt_filters(struct hdd_adapter *adapter)
 
 int wlan_hdd_set_filter(struct hdd_context *hdd_ctx,
 				struct pkt_filter_cfg *request,
-				uint8_t vdev_id)
+				uint8_t sessionId)
 {
 	struct pmo_rcv_pkt_fltr_cfg *pmo_set_pkt_fltr_req = NULL;
 	struct pmo_rcv_pkt_fltr_clear_param *pmo_clr_pkt_fltr_param = NULL;
 	int i = 0;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
-	if (!ucfg_pmo_is_pkt_filter_enabled(hdd_ctx->psoc)) {
+	if (hdd_ctx->config->disablePacketFilter) {
 		hdd_warn("Packet filtering disabled in ini");
 		return 0;
 	}
@@ -212,11 +212,10 @@ int wlan_hdd_set_filter(struct hdd_context *hdd_ctx,
 				request->params_data[i].data_mask[5]);
 		}
 
-
-		status= ucfg_pmo_set_pkt_filter(hdd_ctx->psoc,
-						pmo_set_pkt_fltr_req,
-						vdev_id);
-		if (QDF_IS_STATUS_ERROR(status)) {
+		if (QDF_STATUS_SUCCESS !=
+			pmo_ucfg_set_pkt_filter(hdd_ctx->psoc,
+				pmo_set_pkt_fltr_req,
+				sessionId)) {
 			hdd_err("Failure to execute Set Filter");
 			status = QDF_STATUS_E_INVAL;
 			goto out;
@@ -236,10 +235,10 @@ int wlan_hdd_set_filter(struct hdd_context *hdd_ctx,
 		}
 
 		pmo_clr_pkt_fltr_param->filter_id = request->filter_id;
-		status = ucfg_pmo_clear_pkt_filter(hdd_ctx->psoc,
-						   pmo_clr_pkt_fltr_param,
-						   vdev_id);
-		if (QDF_IS_STATUS_ERROR(status)) {
+		if (QDF_STATUS_SUCCESS !=
+			pmo_ucfg_clear_pkt_filter(hdd_ctx->psoc,
+			    pmo_clr_pkt_fltr_param,
+			    sessionId)) {
 			hdd_err("Failure to execute Clear Filter");
 			status = QDF_STATUS_E_INVAL;
 			goto out;

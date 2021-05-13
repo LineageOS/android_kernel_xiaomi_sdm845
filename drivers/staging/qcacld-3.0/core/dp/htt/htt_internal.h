@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -25,75 +25,6 @@
 #include <htc_api.h>            /* HTC_PACKET */
 
 #include <htt_types.h>
-
-/* htt_rx.c */
-#define RX_MSDU_END_4_FIRST_MSDU_MASK \
-	(pdev->targetdef->d_RX_MSDU_END_4_FIRST_MSDU_MASK)
-#define RX_MSDU_END_4_FIRST_MSDU_LSB \
-	(pdev->targetdef->d_RX_MSDU_END_4_FIRST_MSDU_LSB)
-#define RX_MPDU_START_0_RETRY_LSB  \
-	(pdev->targetdef->d_RX_MPDU_START_0_RETRY_LSB)
-#define RX_MPDU_START_0_RETRY_MASK  \
-	(pdev->targetdef->d_RX_MPDU_START_0_RETRY_MASK)
-#define RX_MPDU_START_0_SEQ_NUM_MASK \
-	(pdev->targetdef->d_RX_MPDU_START_0_SEQ_NUM_MASK)
-#define RX_MPDU_START_0_SEQ_NUM_LSB \
-	(pdev->targetdef->d_RX_MPDU_START_0_SEQ_NUM_LSB)
-#define RX_MPDU_START_2_PN_47_32_LSB \
-	(pdev->targetdef->d_RX_MPDU_START_2_PN_47_32_LSB)
-#define RX_MPDU_START_2_PN_47_32_MASK \
-	(pdev->targetdef->d_RX_MPDU_START_2_PN_47_32_MASK)
-#define RX_MPDU_START_2_TID_LSB  \
-	(pdev->targetdef->d_RX_MPDU_START_2_TID_LSB)
-#define RX_MPDU_START_2_TID_MASK  \
-	(pdev->targetdef->d_RX_MPDU_START_2_TID_MASK)
-#define RX_MSDU_END_1_KEY_ID_OCT_MASK \
-	(pdev->targetdef->d_RX_MSDU_END_1_KEY_ID_OCT_MASK)
-#define RX_MSDU_END_1_KEY_ID_OCT_LSB \
-	(pdev->targetdef->d_RX_MSDU_END_1_KEY_ID_OCT_LSB)
-#define RX_MSDU_END_1_EXT_WAPI_PN_63_48_MASK \
-	(pdev->targetdef->d_RX_MSDU_END_1_EXT_WAPI_PN_63_48_MASK)
-#define RX_MSDU_END_1_EXT_WAPI_PN_63_48_LSB \
-	(pdev->targetdef->d_RX_MSDU_END_1_EXT_WAPI_PN_63_48_LSB)
-#define RX_MSDU_END_4_LAST_MSDU_MASK \
-	(pdev->targetdef->d_RX_MSDU_END_4_LAST_MSDU_MASK)
-#define RX_MSDU_END_4_LAST_MSDU_LSB \
-	(pdev->targetdef->d_RX_MSDU_END_4_LAST_MSDU_LSB)
-#define RX_ATTENTION_0_MCAST_BCAST_MASK \
-	(pdev->targetdef->d_RX_ATTENTION_0_MCAST_BCAST_MASK)
-#define RX_ATTENTION_0_MCAST_BCAST_LSB \
-	(pdev->targetdef->d_RX_ATTENTION_0_MCAST_BCAST_LSB)
-#define RX_ATTENTION_0_FRAGMENT_MASK \
-	(pdev->targetdef->d_RX_ATTENTION_0_FRAGMENT_MASK)
-#define RX_ATTENTION_0_FRAGMENT_LSB \
-	(pdev->targetdef->d_RX_ATTENTION_0_FRAGMENT_LSB)
-#define RX_ATTENTION_0_MPDU_LENGTH_ERR_MASK \
-	(pdev->targetdef->d_RX_ATTENTION_0_MPDU_LENGTH_ERR_MASK)
-#define RX_FRAG_INFO_0_RING2_MORE_COUNT_MASK \
-	(pdev->targetdef->d_RX_FRAG_INFO_0_RING2_MORE_COUNT_MASK)
-#define RX_FRAG_INFO_0_RING2_MORE_COUNT_LSB \
-	(pdev->targetdef->d_RX_FRAG_INFO_0_RING2_MORE_COUNT_LSB)
-#define RX_MSDU_START_0_MSDU_LENGTH_MASK \
-	(pdev->targetdef->d_RX_MSDU_START_0_MSDU_LENGTH_MASK)
-#define RX_MSDU_START_0_MSDU_LENGTH_LSB \
-	(pdev->targetdef->d_RX_MSDU_START_0_MSDU_LENGTH_LSB)
-#define RX_MPDU_START_0_ENCRYPTED_MASK \
-	(pdev->targetdef->d_RX_MPDU_START_0_ENCRYPTED_MASK)
-#define RX_MPDU_START_0_ENCRYPTED_LSB \
-	(pdev->targetdef->d_RX_MPDU_START_0_ENCRYPTED_LSB)
-#define RX_ATTENTION_0_MORE_DATA_MASK \
-	(pdev->targetdef->d_RX_ATTENTION_0_MORE_DATA_MASK)
-#define RX_ATTENTION_0_MSDU_DONE_MASK \
-	(pdev->targetdef->d_RX_ATTENTION_0_MSDU_DONE_MASK)
-#define RX_ATTENTION_0_TCP_UDP_CHKSUM_FAIL_MASK \
-	(pdev->targetdef->d_RX_ATTENTION_0_TCP_UDP_CHKSUM_FAIL_MASK)
-#define RX_MSDU_START_2_DECAP_FORMAT_OFFSET \
-	(pdev->targetdef->d_RX_MSDU_START_2_DECAP_FORMAT_OFFSET)
-#define RX_MSDU_START_2_DECAP_FORMAT_LSB \
-	(pdev->targetdef->d_RX_MSDU_START_2_DECAP_FORMAT_LSB)
-#define RX_MSDU_START_2_DECAP_FORMAT_MASK \
-	(pdev->targetdef->d_RX_MSDU_START_2_DECAP_FORMAT_MASK)
-/* end */
 
 #ifndef offsetof
 #define offsetof(type, field)   ((size_t)(&((type *)0)->field))
@@ -195,6 +126,9 @@ struct htt_host_rx_desc_base {
 #define HTT_RX_DESC_ALIGN_MASK 7        /* 8-byte alignment */
 
 #ifdef DEBUG_RX_RING_BUFFER
+#define NBUF_MAP_ID(skb) \
+	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_m.map_index)
+
 #ifdef MSM_PLATFORM
 #define HTT_ADDRESS_MASK   0xfffffffffffffffe
 #else
@@ -226,7 +160,11 @@ struct htt_host_rx_desc_base {
  *    @posted: time-stamp when HTT message is recived
  *    @recvd : 0x48545452584D5367 ('HTTRXMSG')
  */
+#ifdef CONFIG_SLUB_DEBUG_ON
 #define HTT_RX_RING_BUFF_DBG_LIST          (8 * 1024)
+#else
+#define HTT_RX_RING_BUFF_DBG_LIST          (4 * 1024)
+#endif
 struct rx_buf_debug {
 	qdf_dma_addr_t paddr;
 	qdf_nbuf_t     nbuf;
@@ -257,31 +195,31 @@ static inline struct htt_host_rx_desc_base *htt_rx_desc(qdf_nbuf_t msdu)
  */
 static inline void htt_print_rx_desc_lro(struct htt_host_rx_desc_base *rx_desc)
 {
-	qdf_nofl_info
+	qdf_print
 		("----------------------RX DESC LRO----------------------\n");
-	qdf_nofl_info("msdu_end.lro_eligible:0x%x\n",
-		      rx_desc->msdu_end.lro_eligible);
-	qdf_nofl_info("msdu_start.tcp_only_ack:0x%x\n",
-		      rx_desc->msdu_start.tcp_only_ack);
-	qdf_nofl_info("msdu_end.tcp_udp_chksum:0x%x\n",
-		      rx_desc->msdu_end.tcp_udp_chksum);
-	qdf_nofl_info("msdu_end.tcp_seq_number:0x%x\n",
-		      rx_desc->msdu_end.tcp_seq_number);
-	qdf_nofl_info("msdu_end.tcp_ack_number:0x%x\n",
-		      rx_desc->msdu_end.tcp_ack_number);
-	qdf_nofl_info("msdu_start.tcp_proto:0x%x\n",
-		      rx_desc->msdu_start.tcp_proto);
-	qdf_nofl_info("msdu_start.ipv6_proto:0x%x\n",
-		      rx_desc->msdu_start.ipv6_proto);
-	qdf_nofl_info("msdu_start.ipv4_proto:0x%x\n",
-		      rx_desc->msdu_start.ipv4_proto);
-	qdf_nofl_info("msdu_start.l3_offset:0x%x\n",
-		      rx_desc->msdu_start.l3_offset);
-	qdf_nofl_info("msdu_start.l4_offset:0x%x\n",
-		      rx_desc->msdu_start.l4_offset);
-	qdf_nofl_info("msdu_start.flow_id_toeplitz:0x%x\n",
-		      rx_desc->msdu_start.flow_id_toeplitz);
-	qdf_nofl_info
+	qdf_print("msdu_end.lro_eligible:0x%x\n",
+		 rx_desc->msdu_end.lro_eligible);
+	qdf_print("msdu_start.tcp_only_ack:0x%x\n",
+		 rx_desc->msdu_start.tcp_only_ack);
+	qdf_print("msdu_end.tcp_udp_chksum:0x%x\n",
+		 rx_desc->msdu_end.tcp_udp_chksum);
+	qdf_print("msdu_end.tcp_seq_number:0x%x\n",
+		 rx_desc->msdu_end.tcp_seq_number);
+	qdf_print("msdu_end.tcp_ack_number:0x%x\n",
+		 rx_desc->msdu_end.tcp_ack_number);
+	qdf_print("msdu_start.tcp_proto:0x%x\n",
+		 rx_desc->msdu_start.tcp_proto);
+	qdf_print("msdu_start.ipv6_proto:0x%x\n",
+		 rx_desc->msdu_start.ipv6_proto);
+	qdf_print("msdu_start.ipv4_proto:0x%x\n",
+		 rx_desc->msdu_start.ipv4_proto);
+	qdf_print("msdu_start.l3_offset:0x%x\n",
+		 rx_desc->msdu_start.l3_offset);
+	qdf_print("msdu_start.l4_offset:0x%x\n",
+		 rx_desc->msdu_start.l4_offset);
+	qdf_print("msdu_start.flow_id_toeplitz:0x%x\n",
+			   rx_desc->msdu_start.flow_id_toeplitz);
+	qdf_print
 		("---------------------------------------------------------\n");
 }
 
@@ -335,67 +273,67 @@ static inline void htt_rx_extract_lro_info(qdf_nbuf_t msdu,
 
 static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
 {
-	qdf_nofl_info
+	qdf_print
 		("----------------------RX DESC----------------------------\n");
-	qdf_nofl_info("attention: %#010x\n",
-		      (unsigned int)(*(uint32_t *)&rx_desc->attention));
-	qdf_nofl_info("frag_info: %#010x\n",
-		      (unsigned int)(*(uint32_t *)&rx_desc->frag_info));
-	qdf_nofl_info("mpdu_start: %#010x %#010x %#010x\n",
-		      (unsigned int)(((uint32_t *)&rx_desc->mpdu_start)[0]),
-		      (unsigned int)(((uint32_t *)&rx_desc->mpdu_start)[1]),
-		      (unsigned int)(((uint32_t *)&rx_desc->mpdu_start)[2]));
-	qdf_nofl_info("msdu_start: %#010x %#010x %#010x\n",
-		      (unsigned int)(((uint32_t *)&rx_desc->msdu_start)[0]),
-		      (unsigned int)(((uint32_t *)&rx_desc->msdu_start)[1]),
-		      (unsigned int)(((uint32_t *)&rx_desc->msdu_start)[2]));
-	qdf_nofl_info("msdu_end: %#010x %#010x %#010x %#010x %#010x\n",
-		      (unsigned int)(((uint32_t *)&rx_desc->msdu_end)[0]),
-		      (unsigned int)(((uint32_t *)&rx_desc->msdu_end)[1]),
-		      (unsigned int)(((uint32_t *)&rx_desc->msdu_end)[2]),
-		      (unsigned int)(((uint32_t *)&rx_desc->msdu_end)[3]),
-		      (unsigned int)(((uint32_t *)&rx_desc->msdu_end)[4]));
-	qdf_nofl_info("mpdu_end: %#010x\n",
-		      (unsigned int)(*(uint32_t *)&rx_desc->mpdu_end));
-	qdf_nofl_info("ppdu_start: %#010x %#010x %#010x %#010x %#010x\n"
-		      "%#010x %#010x %#010x %#010x %#010x\n",
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_start)[0]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_start)[1]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_start)[2]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_start)[3]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_start)[4]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_start)[5]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_start)[6]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_start)[7]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_start)[8]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_start)[9]));
-	qdf_nofl_info("ppdu_end: %#010x %#010x %#010x %#010x %#010x\n"
-		      "%#010x %#010x %#010x %#010x %#010x\n"
-		      "%#010x,%#010x %#010x %#010x %#010x\n"
-		      "%#010x %#010x %#010x %#010x %#010x\n" "%#010x %#010x\n",
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[0]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[1]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[2]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[3]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[4]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[5]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[6]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[7]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[8]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[9]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[10]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[11]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[12]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[13]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[14]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[15]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[16]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[17]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[18]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[19]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[20]),
-		      (unsigned int)(((uint32_t *)&rx_desc->ppdu_end)[21]));
-	qdf_nofl_info
+	qdf_print("attention: %#010x\n",
+		  (unsigned int)(*(uint32_t *) &rx_desc->attention));
+	qdf_print("frag_info: %#010x\n",
+		  (unsigned int)(*(uint32_t *) &rx_desc->frag_info));
+	qdf_print("mpdu_start: %#010x %#010x %#010x\n",
+		  (unsigned int)(((uint32_t *) &rx_desc->mpdu_start)[0]),
+		  (unsigned int)(((uint32_t *) &rx_desc->mpdu_start)[1]),
+		  (unsigned int)(((uint32_t *) &rx_desc->mpdu_start)[2]));
+	qdf_print("msdu_start: %#010x %#010x %#010x\n",
+		  (unsigned int)(((uint32_t *) &rx_desc->msdu_start)[0]),
+		  (unsigned int)(((uint32_t *) &rx_desc->msdu_start)[1]),
+		  (unsigned int)(((uint32_t *) &rx_desc->msdu_start)[2]));
+	qdf_print("msdu_end: %#010x %#010x %#010x %#010x %#010x\n",
+		  (unsigned int)(((uint32_t *) &rx_desc->msdu_end)[0]),
+		  (unsigned int)(((uint32_t *) &rx_desc->msdu_end)[1]),
+		  (unsigned int)(((uint32_t *) &rx_desc->msdu_end)[2]),
+		  (unsigned int)(((uint32_t *) &rx_desc->msdu_end)[3]),
+		  (unsigned int)(((uint32_t *) &rx_desc->msdu_end)[4]));
+	qdf_print("mpdu_end: %#010x\n",
+		  (unsigned int)(*(uint32_t *) &rx_desc->mpdu_end));
+	qdf_print("ppdu_start: %#010x %#010x %#010x %#010x %#010x\n"
+		  "%#010x %#010x %#010x %#010x %#010x\n",
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[0]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[1]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[2]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[3]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[4]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[5]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[6]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[7]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[8]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_start)[9]));
+	qdf_print("ppdu_end: %#010x %#010x %#010x %#010x %#010x\n"
+		  "%#010x %#010x %#010x %#010x %#010x\n"
+		  "%#010x,%#010x %#010x %#010x %#010x\n"
+		  "%#010x %#010x %#010x %#010x %#010x\n" "%#010x %#010x\n",
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[0]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[1]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[2]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[3]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[4]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[5]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[6]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[7]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[8]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[9]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[10]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[11]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[12]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[13]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[14]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[15]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[16]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[17]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[18]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[19]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[20]),
+		  (unsigned int)(((uint32_t *) &rx_desc->ppdu_end)[21]));
+	qdf_print
 		("---------------------------------------------------------\n");
 }
 
@@ -424,6 +362,8 @@ static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
 #define HTT_ASSERT3(condition)
 #endif
 
+#define HTT_MAC_ADDR_LEN 6
+
 /*
  * HTT_MAX_SEND_QUEUE_DEPTH -
  * How many packets HTC should allow to accumulate in a send queue
@@ -448,6 +388,7 @@ static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
  * SKB buffer to the Rx ring.
  */
 #define HTT_RX_PRE_ALLOC_POOL_SIZE 64
+
 /* Max rx MSDU size including L2 headers */
 #define MSDU_SIZE 1560
 /* Rounding up to a cache line size. */
@@ -496,6 +437,11 @@ static inline void htt_print_rx_desc(struct htt_host_rx_desc_base *rx_desc)
 
 #define HTT_TX_MUTEX_DESTROY(_mutex)			\
 	qdf_spinlock_destroy(_mutex)
+
+#define HTT_TX_DESC_PADDR(_pdev, _tx_desc_vaddr)       \
+	((_pdev)->tx_descs.pool_paddr +  (uint32_t)	  \
+	 ((char *)(_tx_desc_vaddr) -			   \
+	  (char *)((_pdev)->tx_descs.pool_vaddr)))
 
 #ifdef ATH_11AC_TXCOMPACT
 
@@ -582,20 +528,18 @@ void htt_h2t_send_complete(void *context, HTC_PACKET *pkt);
 
 QDF_STATUS htt_h2t_ver_req_msg(struct htt_pdev_t *pdev);
 
-int htt_tx_padding_credit_update_handler(void *context, int pad_credit);
-
 #if defined(HELIUMPLUS)
 QDF_STATUS
 htt_h2t_frag_desc_bank_cfg_msg(struct htt_pdev_t *pdev);
 #endif /* defined(HELIUMPLUS) */
 
-QDF_STATUS htt_h2t_rx_ring_cfg_msg_ll(struct htt_pdev_t *pdev);
+extern QDF_STATUS htt_h2t_rx_ring_cfg_msg_ll(struct htt_pdev_t *pdev);
 
-QDF_STATUS htt_h2t_rx_ring_rfs_cfg_msg_ll(struct htt_pdev_t *pdev);
+extern QDF_STATUS htt_h2t_rx_ring_rfs_cfg_msg_ll(struct htt_pdev_t *pdev);
 
-QDF_STATUS htt_h2t_rx_ring_rfs_cfg_msg_hl(struct htt_pdev_t *pdev);
+extern QDF_STATUS htt_h2t_rx_ring_rfs_cfg_msg_hl(struct htt_pdev_t *pdev);
 
-QDF_STATUS htt_h2t_rx_ring_cfg_msg_hl(struct htt_pdev_t *pdev);
+extern QDF_STATUS htt_h2t_rx_ring_cfg_msg_hl(struct htt_pdev_t *pdev);
 
 extern QDF_STATUS (*htt_h2t_rx_ring_cfg_msg)(struct htt_pdev_t *pdev);
 
@@ -616,12 +560,7 @@ htt_htc_misc_pkt_list_add(struct htt_pdev_t *pdev, struct htt_htc_pkt *pkt);
 void htt_htc_misc_pkt_pool_free(struct htt_pdev_t *pdev);
 #endif
 
-#ifdef WLAN_FULL_REORDER_OFFLOAD
-int
-htt_rx_hash_list_insert(struct htt_pdev_t *pdev,
-			qdf_dma_addr_t paddr,
-			qdf_nbuf_t netbuf);
-#else
+#ifdef CONFIG_HL_SUPPORT
 static inline int
 htt_rx_hash_list_insert(struct htt_pdev_t *pdev,
 			qdf_dma_addr_t paddr,
@@ -629,6 +568,11 @@ htt_rx_hash_list_insert(struct htt_pdev_t *pdev,
 {
 	return 0;
 }
+#else
+int
+htt_rx_hash_list_insert(struct htt_pdev_t *pdev,
+			qdf_dma_addr_t paddr,
+			qdf_nbuf_t netbuf);
 #endif
 
 qdf_nbuf_t
@@ -766,32 +710,36 @@ static inline int htt_display_rx_buf_debug(struct htt_pdev_t *pdev)
 	int i;
 	struct rx_buf_debug *buf;
 
-	if ((pdev) &&
-	    (pdev->rx_buff_list)) {
+	if ((pdev != NULL) &&
+	    (pdev->rx_buff_list != NULL)) {
 		buf = pdev->rx_buff_list;
 		for (i = 0; i < HTT_RX_RING_BUFF_DBG_LIST; i++) {
 			if (buf[i].posted != 0)
-				qdf_nofl_info("[%d][0x%x] %pK %lu %pK %llu %llu",
-					      i, buf[i].cpu,
-					      buf[i].nbuf_data,
-					      (unsigned long)buf[i].paddr,
-					      buf[i].nbuf,
-					      buf[i].posted,
-					      buf[i].recved);
+				QDF_TRACE(QDF_MODULE_ID_TXRX,
+					  QDF_TRACE_LEVEL_ERROR,
+					  "[%d][0x%x] %pK %lu %pK %llu %llu",
+					  i, buf[i].cpu,
+					  buf[i].nbuf_data,
+					  (unsigned long)buf[i].paddr,
+					  buf[i].nbuf,
+					  buf[i].posted,
+					  buf[i].recved);
 		}
 
-		qdf_nofl_info("rxbuf_idx %d all_posted: %d all_recvd: %d recv_err: %d",
-			      pdev->rx_buff_index,
-			      pdev->rx_buff_posted_cum,
-			      pdev->rx_buff_recvd_cum,
-			      pdev->rx_buff_recvd_err);
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+		"rxbuf_idx %d all_posted: %d all_recvd: %d recv_err: %d",
+		pdev->rx_buff_index,
+		pdev->rx_buff_posted_cum,
+		pdev->rx_buff_recvd_cum,
+		pdev->rx_buff_recvd_err);
 
-		qdf_nofl_info("timer kicks :%d actual  :%d restarts:%d debtors: %d fill_n: %d",
-			      pdev->refill_retry_timer_starts,
-			      pdev->refill_retry_timer_calls,
-			      pdev->refill_retry_timer_doubles,
-			      pdev->rx_buff_debt_invoked,
-			      pdev->rx_buff_fill_n_invoked);
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+		"timer kicks :%d actual  :%d restarts:%d debtors: %d fill_n: %d",
+		pdev->refill_retry_timer_starts,
+		pdev->refill_retry_timer_calls,
+		pdev->refill_retry_timer_doubles,
+		pdev->rx_buff_debt_invoked,
+		pdev->rx_buff_fill_n_invoked);
 	} else
 		return -EINVAL;
 	return 0;
@@ -821,7 +769,7 @@ void htt_rx_dbg_rxbuf_set(struct htt_pdev_t *pdev, qdf_dma_addr_t paddr,
 		pdev->rx_buff_list[pdev->rx_buff_index].recved = 0;
 		pdev->rx_buff_list[pdev->rx_buff_index].cpu =
 				(1 << qdf_get_cpu());
-		QDF_NBUF_CB_RX_MAP_IDX(rx_netbuf) = pdev->rx_buff_index;
+		NBUF_MAP_ID(rx_netbuf) = pdev->rx_buff_index;
 		if (++pdev->rx_buff_index >=
 				HTT_RX_RING_BUFF_DBG_LIST)
 			pdev->rx_buff_index = 0;
@@ -843,7 +791,7 @@ void htt_rx_dbg_rxbuf_reset(struct htt_pdev_t *pdev,
 
 	if (pdev->rx_buff_list) {
 		qdf_spin_lock_bh(&(pdev->rx_buff_list_lock));
-		index = QDF_NBUF_CB_RX_MAP_IDX(netbuf);
+		index = NBUF_MAP_ID(netbuf);
 		if (index < HTT_RX_RING_BUFF_DBG_LIST) {
 			pdev->rx_buff_list[index].recved =
 				qdf_get_log_timestamp();
@@ -961,19 +909,7 @@ void htt_rx_dbg_rxbuf_deinit(struct htt_pdev_t *pdev)
 }
 #endif
 
-#ifndef HTT_RX_RING_SIZE_MIN
-#define HTT_RX_RING_SIZE_MIN 128        /* slightly > than one large A-MPDU */
-#endif
-
-#ifndef HTT_RX_RING_SIZE_MAX
-#define HTT_RX_RING_SIZE_MAX 2048       /* ~20 ms @ 1 Gbps of 1500B MSDUs */
-#endif
-
-#ifndef HTT_RX_AVG_FRM_BYTES
-#define HTT_RX_AVG_FRM_BYTES 1000
-#endif
-
-#define HTT_FCS_LEN (4)
+#ifndef CONFIG_HL_SUPPORT
 
 #ifdef HTT_DEBUG_DATA
 #define HTT_PKT_DUMP(x) x
@@ -1011,7 +947,6 @@ static inline qdf_dma_addr_t htt_paddr_trim_to_37(qdf_dma_addr_t paddr)
 }
 #endif /* HTT_PADDR64 */
 
-#ifdef WLAN_FULL_REORDER_OFFLOAD
 #ifdef ENABLE_DEBUG_ADDRESS_MARKING
 static inline qdf_dma_addr_t
 htt_rx_paddr_unmark_high_bits(qdf_dma_addr_t paddr)
@@ -1028,8 +963,8 @@ htt_rx_paddr_unmark_high_bits(qdf_dma_addr_t paddr)
 		 * padded (with 0b0) to 8 bits
 		 */
 		if ((markings & 0xFFFF0000) != RX_PADDR_MAGIC_PATTERN) {
-			qdf_print("paddr not marked correctly: 0x%pK!\n",
-				  (void *)paddr);
+			qdf_print("%s: paddr not marked correctly: 0x%pK!\n",
+				  __func__, (void *)paddr);
 			HTT_ASSERT_ALWAYS(0);
 		}
 
@@ -1082,43 +1017,34 @@ qdf_dma_addr_t htt_rx_in_ord_paddr_get(uint32_t *u32p)
 #endif
 #endif /* ENABLE_DEBUG_ADDRESS_MARKING */
 
-static inline
-unsigned int htt_rx_in_order_ring_elems(struct htt_pdev_t *pdev)
-{
-	return (*pdev->rx_ring.alloc_idx.vaddr -
-		*pdev->rx_ring.target_idx.vaddr) &
-		pdev->rx_ring.size_mask;
-}
-
 static inline qdf_nbuf_t
 htt_rx_in_order_netbuf_pop(htt_pdev_handle pdev, qdf_dma_addr_t paddr)
 {
 	HTT_ASSERT1(htt_rx_in_order_ring_elems(pdev) != 0);
-	pdev->rx_ring.fill_cnt--;
+	qdf_atomic_dec(&pdev->rx_ring.fill_cnt);
 	paddr = htt_paddr_trim_to_37(paddr);
 	return htt_rx_hash_list_lookup(pdev, paddr);
 }
 
-#else
-static inline
-qdf_dma_addr_t htt_rx_in_ord_paddr_get(uint32_t *u32p)
-{
-	return 0;
-}
-
-static inline qdf_nbuf_t
-htt_rx_in_order_netbuf_pop(htt_pdev_handle pdev, qdf_dma_addr_t paddr)
-{
-	return NULL;
-}
-#endif
-
-#if defined(FEATURE_MONITOR_MODE_SUPPORT) && defined(WLAN_FULL_REORDER_OFFLOAD)
+#ifdef FEATURE_MONITOR_MODE_SUPPORT
 int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 					qdf_nbuf_t rx_ind_msg,
 					qdf_nbuf_t *head_msdu,
 					qdf_nbuf_t *tail_msdu,
 					uint32_t *replenish_cnt);
+
+/**
+ * htt_rx_mon_get_rx_status() - Update information about the rx status,
+ * which is used later for radiotap updation.
+ * @pdev: Pointer to pdev handle
+ * @rx_desc: Pointer to struct htt_host_rx_desc_base
+ * @rx_status: Return variable updated with rx_status
+ *
+ * Return: None
+ */
+void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
+			      struct htt_host_rx_desc_base *rx_desc,
+			      struct mon_rx_status *rx_status);
 #else
 static inline
 int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
@@ -1129,6 +1055,14 @@ int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 {
 	return 0;
 }
+
+static inline
+void htt_rx_mon_get_rx_status(htt_pdev_handle pdev,
+			      struct htt_host_rx_desc_base *rx_desc,
+			      struct mon_rx_status *rx_status)
+{
+}
+#endif
 #endif
 
 #endif /* _HTT_INTERNAL__H_ */

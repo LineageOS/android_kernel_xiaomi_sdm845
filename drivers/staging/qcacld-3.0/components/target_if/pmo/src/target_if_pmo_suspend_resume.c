@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -74,7 +74,7 @@ QDF_STATUS target_if_pmo_send_vdev_update_param_req(
 		return QDF_STATUS_E_INVAL;
 	}
 
-	param.vdev_id = vdev_id;
+	param.if_id = vdev_id;
 	param.param_id = param_id;
 	param.param_value = param_value;
 	target_if_debug("set vdev param vdev_id: %d value: %d for param_id: %d",
@@ -112,7 +112,7 @@ QDF_STATUS target_if_pmo_send_vdev_ps_param_req(
 	 * result resume right after suspend (WOW_ENABLE).
 	 */
 	switch (param_id) {
-	case pmo_sta_ps_enable_advanced_power:
+	case pmo_sta_ps_enable_qpower:
 		param_id = WMI_STA_PS_ENABLE_QPOWER;
 		break;
 	case pmo_sta_ps_param_inactivity_time:
@@ -127,7 +127,7 @@ QDF_STATUS target_if_pmo_send_vdev_ps_param_req(
 	}
 
 	sta_ps_param.vdev_id = vdev_id;
-	sta_ps_param.param_id = param_id;
+	sta_ps_param.param = param_id;
 	sta_ps_param.value = param_value;
 	target_if_debug("set vdev param vdev_id: %d value: %d for param_id: %d",
 			vdev_id, param_value, param_id);
@@ -197,19 +197,6 @@ void target_if_pmo_update_target_suspend_flag(struct wlan_objmgr_psoc *psoc,
 	}
 
 	wmi_set_target_suspend(wmi_handle, value);
-}
-
-bool target_if_pmo_is_target_suspended(struct wlan_objmgr_psoc *psoc)
-{
-	wmi_unified_t wmi_handle;
-
-	wmi_handle = get_wmi_unified_hdl_from_psoc(psoc);
-	if (!wmi_handle) {
-		target_if_err("Invalid wmi handle");
-		return false;
-	}
-
-	return wmi_is_target_suspended(wmi_handle);
 }
 
 QDF_STATUS target_if_pmo_psoc_send_wow_enable_req(

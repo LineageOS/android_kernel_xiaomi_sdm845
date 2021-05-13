@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -28,9 +28,7 @@
 
 #define _WLAN_PMO_WOW_PUBLIC_STRUCT_H_
 
-#ifndef PMO_WOW_FILTERS_MAX
 #define PMO_WOW_FILTERS_MAX             22
-#endif
 
 #define PMO_WOWL_PTRN_MAX_SIZE          146
 #define PMO_WOWL_PTRN_MASK_MAX_SIZE      19
@@ -66,6 +64,8 @@
 #define PMO_MAC_ACTION_VHT            21
 #define PMO_MAC_ACTION_MAX            256
 
+#define PMO_MAC_ACTION_MEASURE_REQUEST_ID      0
+#define PMO_MAC_ACTION_TPC_REQUEST_ID          2
 /*
  * ALLOWED_ACTION_FRAMES_BITMAP
  *
@@ -96,16 +96,16 @@
  * PMO_ACTION_VHT             21      1
  * ----------------------------+------+-------+
  */
-#define SYSTEM_SUSPEND_ALLOWED_ACTION_FRAMES_BITMAP0 \
-			((1 << PMO_MAC_ACTION_SPECTRUM_MGMT) | \
-			 (1 << PMO_MAC_ACTION_QOS_MGMT) | \
-			 (1 << PMO_MAC_ACTION_PUBLIC_USAGE) | \
-			 (1 << PMO_MAC_ACTION_SA_QUERY) | \
-			 (1 << PMO_MAC_ACTION_PROT_DUAL_PUB) | \
-			 (1 << PMO_MAC_ACTION_WNM) | \
-			 (1 << PMO_MAC_ACTION_WME) | \
-			 (1 << PMO_MAC_ACTION_FST) | \
-			 (1 << PMO_MAC_ACTION_VHT))
+#define ALLOWED_ACTION_FRAMES_BITMAP0 \
+		((1 << PMO_MAC_ACTION_SPECTRUM_MGMT) | \
+		 (1 << PMO_MAC_ACTION_QOS_MGMT) | \
+		 (1 << PMO_MAC_ACTION_PUBLIC_USAGE) | \
+		 (1 << PMO_MAC_ACTION_SA_QUERY) | \
+		 (1 << PMO_MAC_ACTION_PROT_DUAL_PUB) | \
+		 (1 << PMO_MAC_ACTION_WNM) | \
+		 (1 << PMO_MAC_ACTION_WME) | \
+		 (1 << PMO_MAC_ACTION_FST) | \
+		 (1 << PMO_MAC_ACTION_VHT))
 
 #define ALLOWED_ACTION_FRAMES_BITMAP1   0x0
 #define ALLOWED_ACTION_FRAMES_BITMAP2   0x0
@@ -116,18 +116,6 @@
 #define ALLOWED_ACTION_FRAMES_BITMAP7   0x0
 
 #define ALLOWED_ACTION_FRAME_MAP_WORDS (PMO_MAC_ACTION_MAX / 32)
-
-#define RUNTIME_PM_ALLOWED_ACTION_FRAMES_BITMAP0 \
-		((1 << PMO_MAC_ACTION_SPECTRUM_MGMT) | \
-		 (1 << PMO_MAC_ACTION_QOS_MGMT) | \
-		 (1 << PMO_MAC_ACTION_PUBLIC_USAGE) | \
-		 (1 << PMO_MAC_ACTION_RRM) | \
-		 (1 << PMO_MAC_ACTION_SA_QUERY) | \
-		 (1 << PMO_MAC_ACTION_PROT_DUAL_PUB) | \
-		 (1 << PMO_MAC_ACTION_WNM) | \
-		 (1 << PMO_MAC_ACTION_WME) | \
-		 (1 << PMO_MAC_ACTION_FST) | \
-		 (1 << PMO_MAC_ACTION_VHT))
 
 /* Public Action for 20/40 BSS Coexistence */
 #define PMO_MAC_ACTION_MEASUREMENT_PILOT    7
@@ -145,13 +133,13 @@
  * ----------------------------------+-----+------+
  *         Type                      | Bit | Drop |
  * ----------------------------------+-----+------+
- * ACTION_SPCT_MSR_REQ                  0     1
- * ACTION_SPCT_TPC_REQ                  2     1
+ * SIR_MAC_ACTION_MEASURE_REQUEST_ID    0     1
+ * SIR_MAC_ACTION_TPC_REQUEST_ID        2     1
  * ----------------------------------+-----+------+
  */
 #define DROP_SPEC_MGMT_ACTION_FRAME_BITMAP \
-		((1 << ACTION_SPCT_MSR_REQ) |\
-		 (1 << ACTION_SPCT_TPC_REQ))
+		((1 << PMO_MAC_ACTION_MEASURE_REQUEST_ID) |\
+		 (1 << PMO_MAC_ACTION_TPC_REQUEST_ID))
 #else
 /*
  * If 11H support is defined, dont drop the above action category of
@@ -235,7 +223,7 @@ struct pmo_wow {
 	qdf_event_t target_suspend;
 	qdf_event_t target_resume;
 	int wow_nack;
-	atomic_t wow_initial_wake_up;
+	bool wow_initial_wake_up;
 	qdf_wake_lock_t wow_wake_lock;
 	/*
 	 * currently supports only vdev 0.
@@ -259,6 +247,7 @@ struct pmo_wow {
  * @pattern: pattern byte stream
  * @pattern_mask_size: pattern mask size
  * @pattern_mask: pattern mask
+ * @session_id: session id
  */
 struct pmo_wow_add_pattern {
 	uint8_t pattern_id;
@@ -267,6 +256,7 @@ struct pmo_wow_add_pattern {
 	uint8_t pattern[PMO_WOWL_BCAST_PATTERN_MAX_SIZE];
 	uint8_t pattern_mask_size;
 	uint8_t pattern_mask[PMO_WOWL_BCAST_PATTERN_MAX_SIZE];
+	uint8_t session_id;
 };
 
 /**

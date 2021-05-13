@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -36,6 +36,9 @@
 #include "utils_api.h"
 #include "lim_types.h"
 #include "lim_prop_exts_utils.h"
+
+void lim_get_session_info(tpAniSirGlobal pMac, uint8_t *,
+			  uint8_t *, uint16_t *);
 
 /* Byte String <--> uint16_t/uint32_t copy functions */
 static inline void lim_copy_u16(uint8_t *ptr, uint16_t u16Val)
@@ -107,4 +110,9 @@ static inline uint16_t lim_get_u16_be(uint8_t *buf)
 {
 	return (buf[0] << 8) | buf[1];
 }
+
+QDF_STATUS lim_send_disassoc_frm_req_ser_des(tpAniSirGlobal mac_ctx,
+		struct sme_send_disassoc_frm_req *disassoc_frm_req,
+		uint8_t *buf);
+
 #endif /* __LIM_SERDES_UTILS_H */

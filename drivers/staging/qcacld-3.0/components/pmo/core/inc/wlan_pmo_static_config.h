@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -55,25 +55,35 @@ void pmo_register_wow_default_patterns(struct wlan_objmgr_vdev *vdev);
 /**
  * pmo_register_action_frame_patterns() - register action frame map to fw
  * @vdev: objmgr vdev
- * @suspend_type: suspend mode runtime pm suspend or normal suspend.
  *
  * This is called to push action frames wow patterns from local
  * cache to firmware.
  *
- * Return: QDF_STATUS
+ * Return: None
  */
-QDF_STATUS
-pmo_register_action_frame_patterns(struct wlan_objmgr_vdev *vdev,
-				   enum qdf_suspend_type suspend_type);
+void pmo_register_action_frame_patterns(
+		struct wlan_objmgr_vdev *vdev);
 
 /**
- * pmo_clear_action_frame_patterns() - clear the action frame
- * pattern bitmap in firmware
- * @vdev: objmgr vdev
+ * pmo_update_target_service(): API to update wmi target service info to PMO.
+ * @psoc: objmgr psoc
+ * @wmi_service: wmi service number
+ * @value: true when wmi service is enabled in firmware otherwise false.
  *
- * Return: QDF_STATUS
+ * Return void
  */
-QDF_STATUS pmo_clear_action_frame_patterns(struct wlan_objmgr_vdev *vdev);
+void pmo_update_target_service(struct wlan_objmgr_psoc *psoc,
+	WMI_SERVICE service, bool value);
+
+/**
+ * pmo_update_ra_limit() - update ra limit based on apf filter
+ *  enabled or not
+ * @psoc: objmgr psoc
+ * @apf_enabled: true when apf service is enabled else false
+ *
+ * Return: none
+ */
+void pmo_update_ra_limit(struct wlan_objmgr_psoc *psoc, bool apf_enabled);
 
 /**
  * pmo_set_wow_event_bitmap() - Assign bitmask with wow event
@@ -104,22 +114,6 @@ void pmo_set_sta_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmask_size);
  * Return: none
  */
 void pmo_set_sap_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmask_size);
-
-#ifdef WLAN_FEATURE_NAN
-/**
- * pmo_set_ndp_wow_bitmask() - set predefined NDP wow wakeup events
- * @bitmask: bitmask field
- * @wow_bitmask_size: bitmask field size
- *
- * Return: none
- */
-void pmo_set_ndp_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmask_size);
-#else
-static inline
-void pmo_set_ndp_wow_bitmask(uint32_t *bitmask, uint32_t wow_bitmask_size)
-{
-}
-#endif
 
 #endif /* WLAN_POWER_MANAGEMENT_OFFLOAD */
 

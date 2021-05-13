@@ -33,4 +33,71 @@ enum pkt_capture_mode {
 	PACKET_CAPTURE_MODE_DATA_MGMT,
 };
 
+/**
+ * struct pkt_capture_cfg - packet capture cfg to store ini values
+ * @pkt_capture_mode: packet capture mode
+ */
+struct pkt_capture_cfg {
+	enum pkt_capture_mode pkt_capture_mode;
+};
+
+/**
+ * struct mgmt_offload_event_params - Management offload event params
+ * @tsf_l32: The lower 32 bits of the TSF
+ * @chan_freq: channel frequency in MHz
+ * @rate_kbps: Rate kbps
+ * @rssi: combined RSSI, i.e. the sum of the snr + noise floor (dBm units)
+ * @buf_len: length of the frame in bytes
+ * @tx_status: 0: xmit ok
+ *             1: excessive retries
+ *             2: blocked by tx filtering
+ *             4: fifo underrun
+ *             8: swabort
+ * @buf: management frame buffer
+ * @tx_retry_cnt: tx retry count
+ */
+struct mgmt_offload_event_params {
+	uint32_t tsf_l32;
+	uint32_t chan_freq;
+	uint32_t rate_kbps;
+	uint32_t rssi;
+	uint32_t buf_len;
+	uint32_t tx_status;
+	uint8_t *buf;
+	uint8_t tx_retry_cnt;
+};
+
+/**
+ * struct pkt_capture_callbacks - callbacks to non-converged driver
+ * @get_rmf_status: callback to get rmf status
+ */
+struct pkt_capture_callbacks {
+	int (*get_rmf_status)(uint8_t vdev_id);
+};
+
+/**
+ * struct wlan_pkt_capture_tx_ops - structure of tx operation function
+ * pointers for packet capture component
+ * @pkt_capture_send_mode: send packet capture mode
+ *
+ */
+struct wlan_pkt_capture_tx_ops {
+	QDF_STATUS (*pkt_capture_send_mode)(struct wlan_objmgr_psoc *psoc,
+					    uint8_t vdev_id,
+					    enum pkt_capture_mode mode);
+};
+
+/**
+ * struct wlan_pkt_capture_rx_ops - structure of rx operation function
+ * pointers for packet capture component
+ * @pkt_capture_register_ev_handlers: register mgmt offload event
+ * @pkt_capture_unregister_ev_handlers: unregister mgmt offload event
+ */
+struct wlan_pkt_capture_rx_ops {
+	QDF_STATUS (*pkt_capture_register_ev_handlers)
+					(struct wlan_objmgr_psoc *psoc);
+	QDF_STATUS (*pkt_capture_unregister_ev_handlers)
+					(struct wlan_objmgr_psoc *psoc);
+};
+
 #endif /* _WLAN_PKT_CAPTURE_PUBLIC_STRUCTS_H_ */

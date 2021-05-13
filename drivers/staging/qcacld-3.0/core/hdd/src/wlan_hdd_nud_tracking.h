@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2018, 2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -78,6 +78,14 @@ void hdd_nud_set_gateway_addr(struct hdd_adapter *adapter,
 			      struct qdf_mac_addr gw_mac_addr);
 
 /**
+* hdd_nud_cfg_print() - Print nud tracking related parameters
+* @hdd_ctx: Pointer to HDD context
+*
+* Return: None
+*/
+void hdd_nud_cfg_print(struct hdd_context *hdd_ctx);
+
+/**
  * hdd_nud_incr_gw_rx_pkt_cnt() - Increment rx count for gateway
  * @adapter: Pointer to adapter
  * @mac_addr: Gateway mac address
@@ -152,6 +160,10 @@ void hdd_nud_flush_work(struct hdd_adapter *adapter);
 #else
 static inline void hdd_nud_set_gateway_addr(struct hdd_adapter *adapter,
 					    struct qdf_mac_addr gw_mac_addr)
+{
+}
+
+static inline void hdd_nud_cfg_print(struct hdd_context *hdd_ctx)
 {
 }
 

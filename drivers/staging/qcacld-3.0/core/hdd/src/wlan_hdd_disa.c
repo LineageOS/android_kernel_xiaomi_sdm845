@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -24,7 +24,6 @@
  */
 
 #include "wlan_hdd_disa.h"
-#include "osif_sync.h"
 #include "wlan_disa_ucfg_api.h"
 #include "wlan_osif_request_manager.h"
 #include "sme_api.h"
@@ -185,7 +184,7 @@ hdd_fill_encrypt_decrypt_params(struct disa_encrypt_decrypt_req_params
 		return -EINVAL;
 	}
 
-	encrypt_decrypt_params->vdev_id = adapter->vdev_id;
+	encrypt_decrypt_params->vdev_id = adapter->session_id;
 	hdd_debug("vdev_id: %d", encrypt_decrypt_params->vdev_id);
 
 	if (!tb[QCA_WLAN_VENDOR_ATTR_ENCRYPTION_TEST_NEEDS_DECRYPTION]) {
@@ -282,7 +281,7 @@ hdd_fill_encrypt_decrypt_params(struct disa_encrypt_decrypt_req_params
 	fc[0] = *(tmp + 1);
 	if ((fc[0] & 0x03) == 0x03) {
 		hdd_err("Address 4 is present");
-		mac_hdr_len += QDF_MAC_ADDR_SIZE;
+		mac_hdr_len += IEEE80211_ADDR_LEN;
 	}
 
 	/*
@@ -319,7 +318,7 @@ hdd_fill_encrypt_decrypt_params(struct disa_encrypt_decrypt_req_params
 			qdf_mem_malloc(sizeof(uint8_t) *
 				encrypt_decrypt_params->data_len);
 
-		if (!encrypt_decrypt_params->data) {
+		if (encrypt_decrypt_params->data == NULL) {
 			hdd_err("memory allocation failed");
 			return -ENOMEM;
 		}
@@ -436,7 +435,6 @@ static int __wlan_hdd_cfg80211_encrypt_decrypt_msg(struct wiphy *wiphy,
 	struct net_device *dev = wdev->netdev;
 	struct hdd_adapter *adapter = NULL;
 	int ret;
-	bool is_bmps_enabled;
 
 	hdd_enter_dev(dev);
 
@@ -446,8 +444,7 @@ static int __wlan_hdd_cfg80211_encrypt_decrypt_msg(struct wiphy *wiphy,
 
 	adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 
-	ucfg_mlme_is_bmps_enabled(hdd_ctx->psoc, &is_bmps_enabled);
-	if (is_bmps_enabled) {
+	if (hdd_ctx->config->is_ps_enabled) {
 		hdd_debug("DISA is not supported when PS is enabled");
 		return -EINVAL;
 	}
@@ -471,17 +468,12 @@ int wlan_hdd_cfg80211_encrypt_decrypt_msg(struct wiphy *wiphy,
 						const void *data,
 						int data_len)
 {
-	int errno;
-	struct osif_vdev_sync *vdev_sync;
+	int ret;
 
-	errno = osif_vdev_sync_op_start(wdev->netdev, &vdev_sync);
-	if (errno)
-		return errno;
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_encrypt_decrypt_msg(wiphy, wdev,
+						data, data_len);
+	cds_ssr_unprotect(__func__);
 
-	errno = __wlan_hdd_cfg80211_encrypt_decrypt_msg(wiphy, wdev,
-							data, data_len);
-
-	osif_vdev_sync_op_stop(vdev_sync);
-
-	return errno;
+	return ret;
 }

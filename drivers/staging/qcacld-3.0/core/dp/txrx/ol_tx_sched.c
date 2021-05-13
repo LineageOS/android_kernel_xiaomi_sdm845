@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -68,6 +68,10 @@ struct ol_tx_sched_ctx {
 
 typedef TAILQ_HEAD(ol_tx_frms_queue_list_s, ol_tx_frms_queue_t)
 	ol_tx_frms_queue_list;
+
+#define OL_A_MAX(_x, _y) ((_x) > (_y) ? (_x) : (_y))
+
+#define OL_A_MIN(_x, _y) ((_x) < (_y) ? (_x) : (_y))
 
 	/*--- scheduler algorithm selection ---*/
 
@@ -206,7 +210,7 @@ ol_tx_sched_select_batch_rr(
 	next_tq = TAILQ_FIRST(&txq_queue->head);
 	TAILQ_REMOVE(&txq_queue->head, next_tq, list_elem);
 
-	credit = QDF_MIN(credit, TX_SCH_MAX_CREDIT_FOR_THIS_TID(next_tq));
+	credit = OL_A_MIN(credit, TX_SCH_MAX_CREDIT_FOR_THIS_TID(next_tq));
 	frames = next_tq->frms; /* download as many frames as credit allows */
 	tx_limit = ol_tx_bad_peer_dequeue_check(next_tq,
 					frames,
@@ -382,7 +386,7 @@ ol_tx_sched_init_rr(
 	int i;
 
 	scheduler = qdf_mem_malloc(sizeof(struct ol_tx_sched_rr_t));
-	if (!scheduler)
+	if (scheduler == NULL)
 		return scheduler;
 
 	for (i = 0; i < (OL_TX_NUM_TIDS + OL_TX_VDEV_NUM_QUEUES); i++) {
@@ -427,7 +431,7 @@ ol_tx_sched_init_rr(
 }
 
 void
-ol_txrx_set_wmm_param(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
+ol_txrx_set_wmm_param(struct cdp_pdev *data_pdev,
 		      struct ol_tx_wmm_param_t wmm_param)
 {
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
@@ -626,21 +630,22 @@ static void ol_tx_sched_wrr_adv_cat_stat_dump(
 {
 	int i;
 
-	txrx_nofl_info("Scheduler Stats:");
-	txrx_nofl_info("====category(CRR,CRT,WSW): Queued  Discard  Dequeued  frms  wrr===");
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+		  "Scheduler Stats:");
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+		  "====category(CRR,CRT,WSW): Queued  Discard  Dequeued  frms  wrr===");
 	for (i = 0; i < OL_TX_SCHED_WRR_ADV_NUM_CATEGORIES; ++i) {
-		txrx_nofl_info("%12s(%2d, %2d, %2d):  %6d  %7d  %8d  %4d  %3d",
-			       scheduler->categories[i].stat.cat_name,
-			       scheduler->categories[i].specs.credit_reserve,
-			       scheduler->categories[i].specs.
-					credit_threshold,
-			       scheduler->categories[i].
-					specs.wrr_skip_weight,
-			       scheduler->categories[i].stat.queued,
-			       scheduler->categories[i].stat.discard,
-			       scheduler->categories[i].stat.dispatched,
-			       scheduler->categories[i].state.frms,
-			       scheduler->categories[i].state.wrr_count);
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "%12s(%2d, %2d, %2d):  %6d  %7d  %8d  %4d  %3d",
+			  scheduler->categories[i].stat.cat_name,
+			  scheduler->categories[i].specs.credit_reserve,
+			  scheduler->categories[i].specs.credit_threshold,
+			  scheduler->categories[i].specs.wrr_skip_weight,
+			  scheduler->categories[i].stat.queued,
+			  scheduler->categories[i].stat.discard,
+			  scheduler->categories[i].stat.dispatched,
+			  scheduler->categories[i].state.frms,
+			  scheduler->categories[i].state.wrr_count);
 	}
 }
 
@@ -649,20 +654,21 @@ static void ol_tx_sched_wrr_adv_cat_cur_state_dump(
 {
 	int i;
 
-	txrx_nofl_info("Scheduler State Snapshot:");
-	txrx_nofl_info("====category(CRR,CRT,WSW): IS_Active  Pend_Frames  Pend_bytes  wrr===");
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+		  "Scheduler State Snapshot:");
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+		  "====category(CRR,CRT,WSW): IS_Active  Pend_Frames  Pend_bytes  wrr===");
 	for (i = 0; i < OL_TX_SCHED_WRR_ADV_NUM_CATEGORIES; ++i) {
-		txrx_nofl_info("%12s(%2d, %2d, %2d):  %9d  %11d  %10d  %3d",
-			       scheduler->categories[i].stat.cat_name,
-			       scheduler->categories[i].specs.credit_reserve,
-			       scheduler->categories[i].specs.
-					credit_threshold,
-			       scheduler->categories[i].specs.
-					wrr_skip_weight,
-			       scheduler->categories[i].state.active,
-			       scheduler->categories[i].state.frms,
-			       scheduler->categories[i].state.bytes,
-			       scheduler->categories[i].state.wrr_count);
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "%12s(%2d, %2d, %2d):  %9d  %11d  %10d  %3d",
+			  scheduler->categories[i].stat.cat_name,
+			  scheduler->categories[i].specs.credit_reserve,
+			  scheduler->categories[i].specs.credit_threshold,
+			  scheduler->categories[i].specs.wrr_skip_weight,
+			  scheduler->categories[i].state.active,
+			  scheduler->categories[i].state.frms,
+			  scheduler->categories[i].state.bytes,
+			  scheduler->categories[i].state.wrr_count);
 	}
 }
 
@@ -686,6 +692,7 @@ ol_tx_sched_select_init_wrr_adv(struct ol_txrx_pdev_t *pdev)
 	struct ol_tx_sched_wrr_adv_t *scheduler = pdev->tx_sched.scheduler;
 	/* start selection from the front of the ordered list */
 	scheduler->index = 0;
+	pdev->tx_sched.last_used_txq = NULL;
 }
 
 static void
@@ -737,12 +744,11 @@ ol_tx_sched_select_batch_wrr_adv(
 	static int first = 1;
 	int category_index = 0;
 	struct ol_tx_sched_wrr_adv_t *scheduler = pdev->tx_sched.scheduler;
-	struct ol_tx_frms_queue_t *txq, *first_txq = NULL;
+	struct ol_tx_frms_queue_t *txq;
 	int index;
 	struct ol_tx_sched_wrr_adv_category_info_t *category = NULL;
 	int frames, bytes, used_credits = 0, tx_limit;
 	u_int16_t tx_limit_flag;
-	u32 credit_rem = credit;
 
 	/*
 	 * Just for good measure, do a sanity check that the initial credit
@@ -813,11 +819,17 @@ ol_tx_sched_select_batch_wrr_adv(
 	 */
 	txq = TAILQ_FIRST(&category->state.head);
 
-	while (txq) {
+	if (txq) {
 		TAILQ_REMOVE(&category->state.head, txq, list_elem);
 		credit = ol_tx_txq_group_credit_limit(pdev, txq, credit);
 		if (credit > category->specs.credit_reserve) {
 			credit -= category->specs.credit_reserve;
+			/*
+			 * this tx queue will download some frames,
+			 * so update last_used_txq
+			 */
+			pdev->tx_sched.last_used_txq = txq;
+
 			tx_limit = ol_tx_bad_peer_dequeue_check(txq,
 					category->specs.send_limit,
 					&tx_limit_flag);
@@ -830,11 +842,7 @@ ol_tx_sched_select_batch_wrr_adv(
 
 			OL_TX_SCHED_WRR_ADV_CAT_STAT_INC_DISPATCHED(category,
 								    frames);
-			/* Update used global credits */
 			used_credits = credit;
-			credit =
-			ol_tx_txq_update_borrowed_group_credits(pdev, txq,
-								credit);
 			category->state.frms -= frames;
 			category->state.bytes -= bytes;
 			if (txq->frms > 0) {
@@ -846,31 +854,34 @@ ol_tx_sched_select_batch_wrr_adv(
 			}
 			sctx->frms += frames;
 			ol_tx_txq_group_credit_update(pdev, txq, -credit, 0);
-			break;
 		} else {
-			/*
-			 * Current txq belongs to a group which does not have
-			 * enough credits,
-			 * Iterate over to next txq and see if we can download
-			 * packets from that queue.
-			 */
-			if (ol_tx_if_iterate_next_txq(first_txq, txq)) {
-				credit = credit_rem;
-				if (!first_txq)
-					first_txq = txq;
-
-				TAILQ_INSERT_TAIL(&category->state.head,
-						  txq, list_elem);
-
-				txq = TAILQ_FIRST(&category->state.head);
-			} else {
+			if (ol_tx_is_txq_last_serviced_queue(pdev, txq)) {
+				/*
+				 * The scheduler has looked at all the active
+				 * tx queues but none were able to download any
+				 * of their tx frames.
+				 * Nothing is changed, so if none were able
+				 * to download before,
+				 * they wont be able to download now.
+				 * Return that no credit has been used, which
+				 * will cause the scheduler to stop.
+				 */
 				TAILQ_INSERT_HEAD(&category->state.head, txq,
-					  list_elem);
-				break;
+						  list_elem);
+				return 0;
 			}
+			TAILQ_INSERT_TAIL(&category->state.head, txq,
+					  list_elem);
+			if (!pdev->tx_sched.last_used_txq)
+				pdev->tx_sched.last_used_txq = txq;
 		}
-	} /* while(txq) */
-
+		TX_SCHED_DEBUG_PRINT("Leave %s\n", __func__);
+	} else {
+		used_credits = 0;
+		/* TODO: find its reason */
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "ol_tx_sched_select_batch_wrr_adv: error, no TXQ can be popped.");
+	}
 	return used_credits;
 }
 
@@ -1011,7 +1022,7 @@ static void ol_tx_sched_wrr_param_update(struct ol_txrx_pdev_t *pdev,
 		"VO"
 	};
 
-	if (!scheduler)
+	if (NULL == scheduler)
 		return;
 
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
@@ -1065,7 +1076,7 @@ ol_tx_sched_init_wrr_adv(
 
 	scheduler = qdf_mem_malloc(
 			sizeof(struct ol_tx_sched_wrr_adv_t));
-	if (!scheduler)
+	if (scheduler == NULL)
 		return scheduler;
 
 	OL_TX_SCHED_WRR_ADV_CAT_CFG_STORE(VO, scheduler);
@@ -1108,17 +1119,15 @@ ol_tx_sched_init_wrr_adv(
  * settings of the scheduler, ie. VO, VI, BE, or BK.
  */
 void
-ol_txrx_set_wmm_param(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
+ol_txrx_set_wmm_param(struct cdp_pdev *pdev,
 		      struct ol_tx_wmm_param_t wmm_param)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle data_pdev =
-				ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
+	struct ol_txrx_pdev_t *data_pdev = (struct ol_txrx_pdev_t *)pdev;
 	struct ol_tx_sched_wrr_adv_t def_cfg;
 	struct ol_tx_sched_wrr_adv_t *scheduler =
 					data_pdev->tx_sched.scheduler;
 	u_int32_t i, ac_selected;
-	u_int32_t  weight[QCA_WLAN_AC_ALL], default_edca[QCA_WLAN_AC_ALL];
+	u_int32_t  weight[OL_TX_NUM_WMM_AC], default_edca[OL_TX_NUM_WMM_AC];
 
 	OL_TX_SCHED_WRR_ADV_CAT_CFG_STORE(VO, (&def_cfg));
 	OL_TX_SCHED_WRR_ADV_CAT_CFG_STORE(VI, (&def_cfg));
@@ -1136,19 +1145,19 @@ ol_txrx_set_wmm_param(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 		OL_TX_AIFS_DEFAULT_BK + OL_TX_CW_MIN_DEFAULT_BK;
 
 	weight[OL_TX_SCHED_WRR_ADV_CAT_VO] =
-		wmm_param.ac[QCA_WLAN_AC_VO].aifs +
-				wmm_param.ac[QCA_WLAN_AC_VO].cwmin;
+		wmm_param.ac[OL_TX_WMM_AC_VO].aifs +
+				wmm_param.ac[OL_TX_WMM_AC_VO].cwmin;
 	weight[OL_TX_SCHED_WRR_ADV_CAT_VI] =
-		wmm_param.ac[QCA_WLAN_AC_VI].aifs +
-				wmm_param.ac[QCA_WLAN_AC_VI].cwmin;
+		wmm_param.ac[OL_TX_WMM_AC_VI].aifs +
+				wmm_param.ac[OL_TX_WMM_AC_VI].cwmin;
 	weight[OL_TX_SCHED_WRR_ADV_CAT_BK] =
-		wmm_param.ac[QCA_WLAN_AC_BK].aifs +
-				wmm_param.ac[QCA_WLAN_AC_BK].cwmin;
+		wmm_param.ac[OL_TX_WMM_AC_BK].aifs +
+				wmm_param.ac[OL_TX_WMM_AC_BK].cwmin;
 	weight[OL_TX_SCHED_WRR_ADV_CAT_BE] =
-		wmm_param.ac[QCA_WLAN_AC_BE].aifs +
-				wmm_param.ac[QCA_WLAN_AC_BE].cwmin;
+		wmm_param.ac[OL_TX_WMM_AC_BE].aifs +
+				wmm_param.ac[OL_TX_WMM_AC_BE].cwmin;
 
-	for (i = 0; i < QCA_WLAN_AC_ALL; i++) {
+	for (i = 0; i < OL_TX_NUM_WMM_AC; i++) {
 		if (default_edca[OL_TX_SCHED_WRR_ADV_CAT_VO] >= weight[i])
 			ac_selected = OL_TX_SCHED_WRR_ADV_CAT_VO;
 		else if (default_edca[OL_TX_SCHED_WRR_ADV_CAT_VI] >= weight[i])
@@ -1250,7 +1259,7 @@ ol_tx_sched_discard_select(
 	/* then decide which peer within this category to discard from next */
 	txq = ol_tx_sched_discard_select_txq(
 			pdev, ol_tx_sched_category_tx_queues(pdev, cat));
-	if (!txq)
+	if (NULL == txq)
 		/* No More pending Tx Packets in Tx Queue. Exit Discard loop */
 		return 0;
 
@@ -1349,7 +1358,7 @@ ol_tx_sched_notify(
 	}
 }
 
-#define OL_TX_MSDU_ID_STORAGE_ERR(ptr) (!ptr)
+#define OL_TX_MSDU_ID_STORAGE_ERR(ptr) (NULL == ptr)
 
 static void
 ol_tx_sched_dispatch(
@@ -1365,7 +1374,7 @@ ol_tx_sched_dispatch(
 	TX_SCHED_DEBUG_PRINT("Enter %s\n", __func__);
 	while (sctx->frms) {
 		tx_desc = TAILQ_FIRST(&sctx->head);
-		if (!tx_desc) {
+		if (tx_desc == NULL) {
 			/* TODO: find its reason */
 			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 				  "%s: err, no enough tx_desc from stx->head.\n",
@@ -1374,7 +1383,7 @@ ol_tx_sched_dispatch(
 		}
 		msdu = tx_desc->netbuf;
 		TAILQ_REMOVE(&sctx->head, tx_desc, tx_desc_list_elem);
-		if (!head_msdu)
+		if (NULL == head_msdu)
 			head_msdu = msdu;
 
 		if (prev)
@@ -1441,50 +1450,7 @@ ol_tx_sched_dispatch(
 	TX_SCHED_DEBUG_PRINT("Leave %s\n", __func__);
 }
 
-#ifdef QCA_TX_PADDING_CREDIT_SUPPORT
-static void replenish_tx_pad_credit(struct ol_txrx_pdev_t *pdev)
-{
-	int replenish_credit = 0, avail_targ_tx_credit = 0;
-	int cur_tx_pad_credit = 0, grp_credit = 0, i = 0;
-	qdf_atomic_t *tx_grp_credit = NULL;
-
-	cur_tx_pad_credit = qdf_atomic_read(&pdev->pad_reserve_tx_credit);
-	if (cur_tx_pad_credit < MIN_TX_PAD_CREDIT_THRESH) {
-		replenish_credit = MAX_TX_PAD_CREDIT_THRESH - cur_tx_pad_credit;
-		avail_targ_tx_credit = qdf_atomic_read(&pdev->target_tx_credit);
-		replenish_credit = (replenish_credit < avail_targ_tx_credit) ?
-				   replenish_credit : avail_targ_tx_credit;
-		if (replenish_credit < 0) {
-			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_FATAL,
-				  "Tx Pad Credits = %d Target Tx Credits = %d",
-				  cur_tx_pad_credit,
-				  avail_targ_tx_credit);
-			qdf_assert(0);
-		}
-		qdf_atomic_add(replenish_credit, &pdev->pad_reserve_tx_credit);
-		qdf_atomic_add(-replenish_credit, &pdev->target_tx_credit);
-
-		while (replenish_credit > 0) {
-			for (i = 0; i < OL_TX_MAX_TXQ_GROUPS; i++) {
-				tx_grp_credit = &pdev->txq_grps[i].credit;
-				grp_credit = qdf_atomic_read(tx_grp_credit);
-				if (grp_credit) {
-					qdf_atomic_add(-1, tx_grp_credit);
-					replenish_credit--;
-				}
-				if (!replenish_credit)
-					break;
-			}
-		}
-	}
-}
-#else
-static void replenish_tx_pad_credit(struct ol_txrx_pdev_t *pdev)
-{
-}
-#endif
-
-void
+	void
 ol_tx_sched(struct ol_txrx_pdev_t *pdev)
 {
 	struct ol_tx_sched_ctx sctx;
@@ -1503,7 +1469,6 @@ ol_tx_sched(struct ol_txrx_pdev_t *pdev)
 	 *adf_os_print("BEFORE tx sched:\n");
 	 *ol_tx_queues_display(pdev);
 	 */
-	replenish_tx_pad_credit(pdev);
 	qdf_spin_unlock_bh(&pdev->tx_queue_spinlock);
 
 	TAILQ_INIT(&sctx.head);
@@ -1514,7 +1479,6 @@ ol_tx_sched(struct ol_txrx_pdev_t *pdev)
 		int num_credits;
 
 		qdf_spin_lock_bh(&pdev->tx_queue_spinlock);
-		replenish_tx_pad_credit(pdev);
 		credit = qdf_atomic_read(&pdev->target_tx_credit);
 		num_credits = ol_tx_sched_select_batch(pdev, &sctx, credit);
 		if (num_credits > 0) {
@@ -1526,13 +1490,6 @@ ol_tx_sched(struct ol_txrx_pdev_t *pdev)
 				  qdf_atomic_read(&pdev->target_tx_credit) -
 				  num_credits);
 #endif
-			DPTRACE(qdf_dp_trace_credit_record(QDF_TX_SCHED,
-				QDF_CREDIT_DEC, num_credits,
-				qdf_atomic_read(&pdev->target_tx_credit) -
-				num_credits,
-				qdf_atomic_read(&pdev->txq_grps[0].credit),
-				qdf_atomic_read(&pdev->txq_grps[1].credit)));
-
 			qdf_atomic_add(-num_credits, &pdev->target_tx_credit);
 		}
 		qdf_spin_unlock_bh(&pdev->tx_queue_spinlock);

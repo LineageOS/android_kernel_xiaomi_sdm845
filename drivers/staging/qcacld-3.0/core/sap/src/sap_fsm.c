@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -46,6 +46,7 @@
 #include "cds_reg_service.h"
 #include "qdf_util.h"
 #include "wlan_policy_mgr_api.h"
+#include "cfg_api.h"
 #include <wlan_objmgr_pdev_obj.h>
 #include <wlan_objmgr_vdev_obj.h>
 #include <wlan_utility.h>
@@ -54,9 +55,6 @@
 #include <qca_vendor.h>
 #include <wlan_scan_ucfg_api.h>
 #include "wlan_reg_services_api.h"
-#include "wlan_mlme_ucfg_api.h"
-#include "wlan_policy_mgr_ucfg.h"
-#include "cfg_ucfg_api.h"
 
 /*----------------------------------------------------------------------------
  * Preprocessor Definitions and Constants
@@ -81,9 +79,9 @@
  * Static Function Declarations and Definitions
  * -------------------------------------------------------------------------*/
 #ifdef SOFTAP_CHANNEL_RANGE
-static QDF_STATUS sap_get_freq_list(struct sap_context *sap_ctx,
-				    uint32_t **freq_list,
-				    uint8_t *num_ch);
+static QDF_STATUS sap_get_channel_list(struct sap_context *sapContext,
+				    uint8_t **channelList,
+				    uint8_t *numberOfChannels);
 #endif
 
 /*==========================================================================
@@ -97,13 +95,13 @@ static QDF_STATUS sap_get_freq_list(struct sap_context *sap_ctx,
    PARAMETERS
 
     IN
-    sap_ctx: SAP Context
+    sapContext: SAP Context
    RETURN VALUE
     DFS Timer start status
    SIDE EFFECTS
    ============================================================================*/
 
-static int sap_stop_dfs_cac_timer(struct sap_context *sap_ctx);
+static int sap_stop_dfs_cac_timer(struct sap_context *sapContext);
 
 /*==========================================================================
    FUNCTION    sapStartDfsCacTimer
@@ -116,13 +114,13 @@ static int sap_stop_dfs_cac_timer(struct sap_context *sap_ctx);
    PARAMETERS
 
     IN
-    sap_ctx: SAP Context
+    sapContext: SAP Context
    RETURN VALUE
     DFS Timer start status
    SIDE EFFECTS
    ============================================================================*/
 
-static int sap_start_dfs_cac_timer(struct sap_context *sap_ctx);
+static int sap_start_dfs_cac_timer(struct sap_context *sapContext);
 
 /** sap_hdd_event_to_string() - convert hdd event to string
  * @event: eSapHddEvent event type
@@ -131,6 +129,7 @@ static int sap_start_dfs_cac_timer(struct sap_context *sap_ctx);
  *
  * Return: string for the @event.
  */
+#ifdef WLAN_DEBUG
 static uint8_t *sap_hdd_event_to_string(eSapHddEvent event)
 {
 	switch (event) {
@@ -142,6 +141,7 @@ static uint8_t *sap_hdd_event_to_string(eSapHddEvent event)
 	CASE_RETURN_STRING(eSAP_STA_DISASSOC_EVENT);
 	CASE_RETURN_STRING(eSAP_STA_SET_KEY_EVENT);
 	CASE_RETURN_STRING(eSAP_STA_MIC_FAILURE_EVENT);
+	CASE_RETURN_STRING(eSAP_ASSOC_STA_CALLBACK_EVENT);
 	CASE_RETURN_STRING(eSAP_WPS_PBC_PROBE_REQ_EVENT);
 	CASE_RETURN_STRING(eSAP_DISCONNECT_ALL_P2P_CLIENT);
 	CASE_RETURN_STRING(eSAP_MAC_TRIG_STOP_BSS_EVENT);
@@ -164,6 +164,7 @@ static uint8_t *sap_hdd_event_to_string(eSapHddEvent event)
 		return "eSAP_HDD_EVENT_UNKNOWN";
 	}
 }
+#endif
 
 /*----------------------------------------------------------------------------
  * Externalized Function Definitions
@@ -183,22 +184,26 @@ static uint8_t *sap_hdd_event_to_string(eSapHddEvent event)
  * using following algorithm:
  *
  * Return: channel number picked
- */
+ **/
 static uint8_t sap_random_channel_sel(struct sap_context *sap_ctx)
 {
 	uint8_t ch;
 	uint8_t ch_wd;
 	struct wlan_objmgr_pdev *pdev = NULL;
+	tHalHandle hal;
 	struct ch_params *ch_params;
-	uint32_t hw_mode, flag  = 0;
-	struct mac_context *mac_ctx;
+	uint32_t hw_mode;
+	tpAniSirGlobal mac_ctx;
 	struct dfs_acs_info acs_info = {0};
 
-	mac_ctx = sap_get_mac_context();
-	if (!mac_ctx) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	hal = CDS_GET_HAL_CB();
+	if (!hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("null hal"));
 		return 0;
 	}
+
+	mac_ctx = PMAC_STRUCT(hal);
 
 	pdev = mac_ctx->pdev;
 	if (!pdev) {
@@ -218,26 +223,14 @@ static uint8_t sap_random_channel_sel(struct sap_context *sap_ctx)
 	ch_params->ch_width = ch_wd;
 	if (sap_ctx->acs_cfg) {
 		acs_info.acs_mode = sap_ctx->acs_cfg->acs_mode;
-		acs_info.chan_freq_list = sap_ctx->acs_cfg->master_freq_list;
+		acs_info.channel_list = sap_ctx->acs_cfg->master_ch_list;
 		acs_info.num_of_channel =
 					sap_ctx->acs_cfg->master_ch_list_count;
 	} else {
 		acs_info.acs_mode = false;
 	}
-
-	if (mac_ctx->mlme_cfg->dfs_cfg.dfs_prefer_non_dfs)
-		flag |= DFS_RANDOM_CH_FLAG_NO_DFS_CH;
-	if (mac_ctx->mlme_cfg->dfs_cfg.dfs_disable_japan_w53)
-		flag |= DFS_RANDOM_CH_FLAG_NO_JAPAN_W53_CH;
-	if (mac_ctx->sap.SapDfsInfo.sap_operating_chan_preferred_location
-	    == 1)
-		flag |= DFS_RANDOM_CH_FLAG_NO_UPEER_5G_CH;
-	else if (mac_ctx->sap.SapDfsInfo.
-		 sap_operating_chan_preferred_location == 2)
-		flag |= DFS_RANDOM_CH_FLAG_NO_LOWER_5G_CH;
-
-	if (QDF_IS_STATUS_ERROR(utils_dfs_get_vdev_random_channel(
-	    pdev, sap_ctx->vdev, flag, ch_params, &hw_mode, &ch, &acs_info))) {
+	if (QDF_IS_STATUS_ERROR(utils_dfs_get_random_channel(
+	    pdev, 0, ch_params, &hw_mode, &ch, &acs_info))) {
 		/* No available channel found */
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("No available channel found!!!"));
@@ -262,7 +255,7 @@ static uint8_t sap_random_channel_sel(struct sap_context *sap_ctx)
 
 /**
  * sap_is_channel_bonding_etsi_weather_channel() - check weather chan bonding.
- * @sap_ctx: sap context.
+ * @sap_ctx: sap context
  *
  * Check if the current SAP operating channel is bonded to weather radar
  * channel in ETSI domain.
@@ -272,8 +265,7 @@ static uint8_t sap_random_channel_sel(struct sap_context *sap_ctx)
 static bool
 sap_is_channel_bonding_etsi_weather_channel(struct sap_context *sap_ctx)
 {
-	if (IS_CH_BONDING_WITH_WEATHER_CH(wlan_freq_to_chan(
-					  sap_ctx->chan_freq)) &&
+	if (IS_CH_BONDING_WITH_WEATHER_CH(sap_ctx->channel) &&
 	    (sap_ctx->ch_params.ch_width != CH_WIDTH_20MHZ))
 		return true;
 
@@ -282,7 +274,7 @@ sap_is_channel_bonding_etsi_weather_channel(struct sap_context *sap_ctx)
 
 /*
  * sap_get_bonding_channels() - get bonding channels from primary channel.
- * @sap_ctx: Handle to SAP context.
+ * @sapContext: Handle to SAP context.
  * @channel: Channel to get bonded channels.
  * @channels: Bonded channel list
  * @size: Max bonded channels
@@ -290,17 +282,24 @@ sap_is_channel_bonding_etsi_weather_channel(struct sap_context *sap_ctx)
  *
  * Return: Number of sub channels
  */
-static uint8_t sap_get_bonding_channels(struct sap_context *sap_ctx,
+static uint8_t sap_get_bonding_channels(struct sap_context *sapContext,
 					uint8_t channel,
 					uint8_t *channels, uint8_t size,
 					ePhyChanBondState chanBondState)
 {
+	tHalHandle hHal = CDS_GET_HAL_CB();
+	tpAniSirGlobal pMac;
 	uint8_t numChannel;
 
-	if (!channels)
+	if (channels == NULL)
 		return 0;
 
 	if (size < MAX_BONDED_CHANNELS)
+		return 0;
+
+	if (NULL != hHal)
+		pMac = PMAC_STRUCT(hHal);
+	else
 		return 0;
 
 	switch (chanBondState) {
@@ -416,7 +415,17 @@ static uint8_t sap_ch_params_to_bonding_channels(
 	return nchannels;
 }
 
-void sap_get_cac_dur_dfs_region(struct sap_context *sap_ctx,
+/**
+ * sap_get_cac_dur_dfs_region() - get cac duration and dfs region.
+ * @sap_ctxt: sap context
+ * @cac_duration_ms: pointer to cac duration
+ * @dfs_region: pointer to dfs region
+ *
+ * Get cac duration and dfs region.
+ *
+ * Return: None
+ */
+static void sap_get_cac_dur_dfs_region(struct sap_context *sap_ctx,
 		uint32_t *cac_duration_ms,
 		uint32_t *dfs_region)
 {
@@ -424,7 +433,8 @@ void sap_get_cac_dur_dfs_region(struct sap_context *sap_ctx,
 	uint8_t channels[MAX_BONDED_CHANNELS];
 	uint8_t num_channels;
 	struct ch_params *ch_params = &sap_ctx->ch_params;
-	struct mac_context *mac;
+	tHalHandle hal = NULL;
+	tpAniSirGlobal mac = NULL;
 
 	if (!sap_ctx) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
@@ -432,12 +442,14 @@ void sap_get_cac_dur_dfs_region(struct sap_context *sap_ctx,
 		return;
 	}
 
-	mac = sap_get_mac_context();
-	if (!mac) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	hal = CDS_GET_HAL_CB();
+	if (!hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "%s: null hal", __func__);
 		return;
 	}
 
+	mac = PMAC_STRUCT(hal);
 	wlan_reg_get_dfs_region(mac->pdev, dfs_region);
 	if (mac->sap.SapDfsInfo.ignore_cac) {
 		*cac_duration_ms = 0;
@@ -447,9 +459,9 @@ void sap_get_cac_dur_dfs_region(struct sap_context *sap_ctx,
 	}
 	*cac_duration_ms = DEFAULT_CAC_TIMEOUT;
 
-	if (*dfs_region != DFS_ETSI_REGION) {
+	if (*dfs_region != DFS_ETSI_REG) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-			  FL("sapdfs: default cac duration"));
+			 FL("sapdfs: default cac duration"));
 		return;
 	}
 
@@ -477,20 +489,26 @@ void sap_get_cac_dur_dfs_region(struct sap_context *sap_ctx,
 void sap_dfs_set_current_channel(void *ctx)
 {
 	struct sap_context *sap_ctx = ctx;
+	uint32_t ic_flags = 0;
+	uint16_t ic_flagext = 0;
+	uint8_t ic_ieee = sap_ctx->channel;
+	uint16_t ic_freq = utils_dfs_chan_to_freq(sap_ctx->channel);
 	uint8_t vht_seg0 = sap_ctx->csr_roamProfile.ch_params.center_freq_seg0;
 	uint8_t vht_seg1 = sap_ctx->csr_roamProfile.ch_params.center_freq_seg1;
 	struct wlan_objmgr_pdev *pdev;
-	struct mac_context *mac_ctx;
+	tpAniSirGlobal mac_ctx;
+	tHalHandle hal;
 	uint32_t use_nol = 0;
 	int error;
-	bool is_dfs;
 
-	mac_ctx = sap_get_mac_context();
-	if (!mac_ctx) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	hal = CDS_GET_HAL_CB();
+	if (!hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			FL("null hal"));
 		return;
 	}
 
+	mac_ctx = PMAC_STRUCT(hal);
 	pdev = mac_ctx->pdev;
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
@@ -498,34 +516,147 @@ void sap_dfs_set_current_channel(void *ctx)
 		return;
 	}
 
-	is_dfs = wlan_reg_is_dfs_for_freq(pdev, sap_ctx->chan_freq);
+	switch (sap_ctx->csr_roamProfile.ch_params.ch_width) {
+	case CH_WIDTH_20MHZ:
+		ic_flags |= IEEE80211_CHAN_VHT20;
+		break;
+	case CH_WIDTH_40MHZ:
+		ic_flags |= IEEE80211_CHAN_VHT40PLUS;
+		break;
+	case CH_WIDTH_80MHZ:
+		ic_flags |= IEEE80211_CHAN_VHT80;
+		break;
+	case CH_WIDTH_80P80MHZ:
+		ic_flags |= IEEE80211_CHAN_VHT80_80;
+		break;
+	case CH_WIDTH_160MHZ:
+		ic_flags |= IEEE80211_CHAN_VHT160;
+		break;
+	default:
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid channel width=%d"),
+			  sap_ctx->csr_roamProfile.ch_params.ch_width);
+		return;
+	}
+
+	if (WLAN_REG_IS_24GHZ_CH(sap_ctx->channel))
+		ic_flags |= IEEE80211_CHAN_2GHZ;
+	else
+		ic_flags |= IEEE80211_CHAN_5GHZ;
+
+	if (wlan_reg_is_dfs_ch(pdev, sap_ctx->channel))
+		ic_flagext |= IEEE80211_CHAN_DFS;
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-		  FL("freq=%d, dfs %d seg0=%d, seg1=%d, bw %d"),
-		  sap_ctx->chan_freq, is_dfs, vht_seg0, vht_seg1,
-		  sap_ctx->csr_roamProfile.ch_params.ch_width);
+		  FL("freq=%d, channel=%d, seg0=%d, seg1=%d, flags=0x%x, ext flags=0x%x"),
+		  ic_freq, ic_ieee, vht_seg0, vht_seg1, ic_flags, ic_flagext);
 
-	if (is_dfs) {
+	tgt_dfs_set_current_channel(pdev, ic_freq, ic_flags,
+			ic_flagext, ic_ieee, vht_seg0, vht_seg1);
+
+	if (wlan_reg_is_dfs_ch(pdev, sap_ctx->channel)) {
 		if (policy_mgr_concurrent_beaconing_sessions_running(
 		    mac_ctx->psoc)) {
-			uint16_t con_ch_freq;
-			mac_handle_t handle = MAC_HANDLE(mac_ctx);
+			uint16_t con_ch;
 
-			con_ch_freq =
+			con_ch =
 				sme_get_beaconing_concurrent_operation_channel(
-					handle, sap_ctx->sessionId);
-			if (!con_ch_freq ||
-			    !wlan_reg_is_dfs_for_freq(pdev,
-							con_ch_freq))
+					hal, sap_ctx->sessionId);
+			if (!con_ch || !wlan_reg_is_dfs_ch(pdev, con_ch))
 				tgt_dfs_get_radars(pdev);
 		} else {
 			tgt_dfs_get_radars(pdev);
 		}
 		tgt_dfs_set_phyerr_filter_offload(pdev);
-		if (mac_ctx->mlme_cfg->dfs_cfg.dfs_disable_channel_switch)
+		if (sap_ctx->csr_roamProfile.disableDFSChSwitch)
 			tgt_dfs_control(pdev, DFS_SET_USENOL, &use_nol,
 					sizeof(uint32_t), NULL, NULL, &error);
 	}
+}
+
+/*
+ * FUNCTION  sap_dfs_is_w53_invalid
+ *
+ * DESCRIPTION Checks if the passed channel is W53 and returns if
+ *             SAP W53 opearation is allowed.
+ *
+ * DEPENDENCIES PARAMETERS
+ * IN hHAL : HAL pointer
+ * channelID: Channel Number to be verified
+ *
+ * RETURN VALUE  : bool
+ *                 true: If W53 operation is disabled
+ *                 false: If W53 operation is enabled
+ *
+ * SIDE EFFECTS
+ */
+bool sap_dfs_is_w53_invalid(tHalHandle hHal, uint8_t channelID)
+{
+	tpAniSirGlobal pMac;
+
+	pMac = PMAC_STRUCT(hHal);
+	if (NULL == pMac) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("invalid pMac"));
+		return false;
+	}
+
+	/*
+	 * Check for JAPAN W53 Channel operation capability
+	 */
+	if (true == pMac->sap.SapDfsInfo.is_dfs_w53_disabled &&
+	    true == IS_CHAN_JAPAN_W53(channelID)) {
+		return true;
+	}
+
+	return false;
+}
+
+/*
+ * FUNCTION  sap_dfs_is_channel_in_preferred_location
+ *
+ * DESCRIPTION Checks if the passed channel is in accordance with preferred
+ *          Channel location settings.
+ *
+ * DEPENDENCIES PARAMETERS
+ * IN hHAL : HAL pointer
+ * channelID: Channel Number to be verified
+ *
+ * RETURN VALUE  :bool
+ *        true:If Channel location is same as the preferred location
+ *        false:If Channel location is not same as the preferred location
+ *
+ * SIDE EFFECTS
+ */
+bool sap_dfs_is_channel_in_preferred_location(tHalHandle hHal, uint8_t channelID)
+{
+	tpAniSirGlobal pMac;
+
+	pMac = PMAC_STRUCT(hHal);
+	if (NULL == pMac) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("invalid pMac"));
+		return true;
+	}
+	if ((SAP_CHAN_PREFERRED_INDOOR ==
+	     pMac->sap.SapDfsInfo.sap_operating_chan_preferred_location) &&
+	    (true == IS_CHAN_JAPAN_OUTDOOR(channelID))) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_LOW,
+			  FL
+				  ("CHAN=%d is Outdoor so invalid,preferred Indoor only"),
+			  channelID);
+		return false;
+	} else if ((SAP_CHAN_PREFERRED_OUTDOOR ==
+		    pMac->sap.SapDfsInfo.sap_operating_chan_preferred_location)
+		   && (true == IS_CHAN_JAPAN_INDOOR(channelID))) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_LOW,
+			  FL
+				  ("CHAN=%d is Indoor so invalid,preferred Outdoor only"),
+			  channelID);
+		return false;
+	}
+
+	return true;
 }
 
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
@@ -571,17 +702,30 @@ sap_dfs_is_channel_in_nol_list(struct sap_context *sap_context,
 			       ePhyChanBondState chan_bondState)
 {
 	int i;
-	struct mac_context *mac_ctx;
+	tHalHandle h_hal = CDS_GET_HAL_CB();
+	tpAniSirGlobal mac_ctx;
 	uint8_t channels[MAX_BONDED_CHANNELS];
 	uint8_t num_channels;
 	struct wlan_objmgr_pdev *pdev = NULL;
 	enum channel_state ch_state;
 
-	mac_ctx = sap_get_mac_context();
-	if (!mac_ctx) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	if (!h_hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("invalid h_hal"));
 		return false;
+	} else {
+		mac_ctx = PMAC_STRUCT(h_hal);
 	}
+
+	/* get the bonded channels */
+	if (channel_number == sap_context->channel && chan_bondState >=
+						PHY_CHANNEL_BONDING_STATE_MAX)
+		num_channels = sap_ch_params_to_bonding_channels(
+					&sap_context->ch_params, channels);
+	else
+		num_channels = sap_get_bonding_channels(sap_context,
+					channel_number, channels,
+					MAX_BONDED_CHANNELS, chan_bondState);
 
 	pdev = mac_ctx->pdev;
 	if (!pdev) {
@@ -589,17 +733,6 @@ sap_dfs_is_channel_in_nol_list(struct sap_context *sap_context,
 			  FL("null pdev"));
 		return false;
 	}
-
-	/* get the bonded channels */
-	if ((channel_number == wlan_reg_freq_to_chan(pdev,
-						     sap_context->chan_freq)) &&
-	     chan_bondState >= PHY_CHANNEL_BONDING_STATE_MAX)
-		num_channels = sap_ch_params_to_bonding_channels(
-					&sap_context->ch_params, channels);
-	else
-		num_channels = sap_get_bonding_channels(sap_context,
-					channel_number, channels,
-					MAX_BONDED_CHANNELS, chan_bondState);
 
 	/* check for NOL, first on will break the loop */
 	for (i = 0; i < num_channels; i++) {
@@ -622,17 +755,18 @@ sap_chan_bond_dfs_sub_chan(struct sap_context *sap_context,
 			   ePhyChanBondState bond_state)
 {
 	int i;
-	struct mac_context *mac_ctx;
+	tHalHandle h_hal = CDS_GET_HAL_CB();
+	tpAniSirGlobal mac_ctx;
 	uint8_t channels[MAX_BONDED_CHANNELS];
 	uint8_t num_channels;
 	struct wlan_objmgr_pdev *pdev;
 
-	mac_ctx = sap_get_mac_context();
-	if (!mac_ctx) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	if (!h_hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("invalid h_hal"));
 		return false;
 	}
-
+	mac_ctx = PMAC_STRUCT(h_hal);
 	pdev = mac_ctx->pdev;
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
@@ -644,9 +778,8 @@ sap_chan_bond_dfs_sub_chan(struct sap_context *sap_context,
 		return true;
 
 	/* get the bonded channels */
-	if ((channel_number == wlan_reg_freq_to_chan(pdev,
-						     sap_context->chan_freq)) &&
-	    bond_state >= PHY_CHANNEL_BONDING_STATE_MAX)
+	if (channel_number == sap_context->channel && bond_state >=
+						PHY_CHANNEL_BONDING_STATE_MAX)
 		num_channels = sap_ch_params_to_bonding_channels(
 					&sap_context->ch_params, channels);
 	else
@@ -666,25 +799,13 @@ sap_chan_bond_dfs_sub_chan(struct sap_context *sap_context,
 	return false;
 }
 
-uint32_t sap_select_default_oper_chan(struct mac_context *mac_ctx,
-				      struct sap_acs_cfg *acs_cfg)
+uint8_t sap_select_default_oper_chan(struct sap_acs_cfg *acs_cfg)
 {
 	uint16_t i;
-	uint32_t freq0 = 0, freq1 = 0, freq2 = 0, default_freq;
 
-	if (!acs_cfg)
+	if (!acs_cfg || !acs_cfg->ch_list || !acs_cfg->ch_list_count)
 		return 0;
 
-	if (!acs_cfg->ch_list_count || !acs_cfg->freq_list) {
-		if (mac_ctx->mlme_cfg->acs.force_sap_start) {
-			sap_debug("SAP forced, freq selected %d",
-				  acs_cfg->master_freq_list[0]);
-			return acs_cfg->master_freq_list[0];
-		} else {
-			sap_debug("No channel left for operation");
-			return 0;
-		}
-	}
 	/*
 	 * There could be both 2.4Ghz and 5ghz channels present in the list
 	 * based upon the Hw mode received from hostapd, it is always better
@@ -693,36 +814,22 @@ uint32_t sap_select_default_oper_chan(struct mac_context *mac_ctx,
 	 * rare in 2.4ghz band, so 5ghz should be preferred. If we get a 5Ghz
 	 * chan in the acs cfg ch list , we should go for that first else the
 	 * default channel can be 2.4ghz.
-	 * Add check regulatory channel state before select the channel.
 	 */
 
 	for (i = 0; i < acs_cfg->ch_list_count; i++) {
-		enum channel_state state =
-			wlan_reg_get_channel_state_for_freq(
-					mac_ctx->pdev, acs_cfg->freq_list[i]);
-		if (!freq0 && state == CHANNEL_STATE_ENABLE &&
-		    WLAN_REG_IS_5GHZ_CH_FREQ(acs_cfg->freq_list[i])) {
-			freq0 = acs_cfg->freq_list[i];
-			break;
-		} else if (!freq1 && state == CHANNEL_STATE_DFS &&
-			   WLAN_REG_IS_5GHZ_CH_FREQ(acs_cfg->freq_list[i])) {
-			freq1 = acs_cfg->freq_list[i];
-		} else if (!freq2 && state == CHANNEL_STATE_ENABLE) {
-			freq2 = acs_cfg->freq_list[i];
+		if (WLAN_CHAN_IS_5GHZ(acs_cfg->ch_list[i])) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+				  FL("default 5ghz channel chosen as %d"),
+				  acs_cfg->ch_list[i]);
+			return acs_cfg->ch_list[i];
 		}
 	}
-	default_freq = freq0;
-	if (!default_freq)
-		default_freq = freq1;
-	if (!default_freq)
-		default_freq = freq2;
-	if (!default_freq)
-		default_freq = acs_cfg->freq_list[0];
 
-	sap_debug("default freq %d chosen from %d %d %d %d", default_freq,
-		  freq0, freq1, freq2, acs_cfg->freq_list[0]);
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+		  FL("default channel chosen as %d"),
+		  acs_cfg->ch_list[0]);
 
-	return default_freq;
+	return acs_cfg->ch_list[0];
 }
 
 QDF_STATUS
@@ -731,41 +838,56 @@ sap_validate_chan(struct sap_context *sap_context,
 		  bool check_for_connection_update)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
-	struct mac_context *mac_ctx;
-	mac_handle_t mac_handle;
-	uint32_t con_ch_freq;
+	tpAniSirGlobal mac_ctx;
+	tHalHandle h_hal;
+	uint8_t con_ch;
 	bool sta_sap_scc_on_dfs_chan;
 	uint32_t sta_go_bit_mask = QDF_STA_MASK | QDF_P2P_GO_MASK;
 	uint32_t sta_sap_bit_mask = QDF_STA_MASK | QDF_SAP_MASK;
 	uint32_t concurrent_state;
 	bool go_force_scc;
+	struct wlan_objmgr_vdev *vdev;
 
-	mac_handle = cds_get_context(QDF_MODULE_ID_SME);
-	mac_ctx = MAC_CONTEXT(mac_handle);
-	if (!mac_ctx) {
+	h_hal = cds_get_context(QDF_MODULE_ID_SME);
+	if (NULL == h_hal) {
 		/* we have a serious problem */
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_FATAL,
-			  FL("invalid MAC handle"));
+			  FL("invalid h_hal"));
 		return QDF_STATUS_E_FAULT;
 	}
 
-	if (!sap_context->chan_freq) {
+	mac_ctx = PMAC_STRUCT(h_hal);
+	if (!sap_context->channel) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("Invalid channel"));
 		return QDF_STATUS_E_FAILURE;
 	}
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
+						    sap_context->sessionId,
+						    WLAN_LEGACY_SME_ID);
+	if (!vdev) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid vdev objmgr"));
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	go_force_scc = policy_mgr_go_scc_enforced(mac_ctx->psoc);
-	if (sap_context->vdev && !go_force_scc &&
-	    (wlan_vdev_mlme_get_opmode(sap_context->vdev) == QDF_P2P_GO_MODE))
+	if (!go_force_scc &&
+	    (wlan_vdev_mlme_get_opmode(vdev) == QDF_P2P_GO_MODE)) {
+		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
 		goto validation_done;
+	}
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SME_ID);
+	vdev = NULL;
 
 	concurrent_state = policy_mgr_get_concurrency_mode(mac_ctx->psoc);
 	if (policy_mgr_concurrent_beaconing_sessions_running(mac_ctx->psoc) ||
 	    ((concurrent_state & sta_sap_bit_mask) == sta_sap_bit_mask) ||
 	    ((concurrent_state & sta_go_bit_mask) == sta_go_bit_mask)) {
 #ifdef FEATURE_WLAN_STA_AP_MODE_DFS_DISABLE
-		if (wlan_reg_is_dfs_for_freq(mac_ctx->pdev,
-					     sap_context->chan_freq)) {
+		if (wlan_reg_is_dfs_ch(mac_ctx->pdev,
+				       sap_context->channel)) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_WARN,
 				  FL("DFS not supported in STA_AP Mode"));
 			return QDF_STATUS_E_ABORTED;
@@ -774,21 +896,19 @@ sap_validate_chan(struct sap_context *sap_context,
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 		if (sap_context->cc_switch_mode !=
 					QDF_MCC_TO_SCC_SWITCH_DISABLE) {
-			con_ch_freq = sme_check_concurrent_channel_overlap(
-					mac_handle,
-					sap_context->chan_freq,
+			con_ch = sme_check_concurrent_channel_overlap(h_hal,
+					sap_context->channel,
 					sap_context->csr_roamProfile.phyMode,
 					sap_context->cc_switch_mode);
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				  FL("After check overlap: con_ch:%d"),
-				  con_ch_freq);
+				  con_ch);
 			if (sap_context->cc_switch_mode !=
 		QDF_MCC_TO_SCC_SWITCH_FORCE_PREFERRED_WITHOUT_DISCONNECTION) {
 				if (QDF_IS_STATUS_ERROR(
 					policy_mgr_valid_sap_conc_channel_check(
-						mac_ctx->psoc, &con_ch_freq,
-						sap_context->chan_freq,
-						sap_context->sessionId))) {
+						mac_ctx->psoc, &con_ch,
+						sap_context->channel)))	{
 					QDF_TRACE(QDF_MODULE_ID_SAP,
 						QDF_TRACE_LEVEL_WARN,
 						FL("SAP can't start (no MCC)"));
@@ -797,63 +917,58 @@ sap_validate_chan(struct sap_context *sap_context,
 			}
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				  FL("After check concurrency: con_ch:%d"),
-				  con_ch_freq);
+				  con_ch);
 			sta_sap_scc_on_dfs_chan =
 				policy_mgr_is_sta_sap_scc_allowed_on_dfs_chan(
 						mac_ctx->psoc);
-			if (con_ch_freq &&
+			if (con_ch &&
 			    (policy_mgr_sta_sap_scc_on_lte_coex_chan(
 						mac_ctx->psoc) ||
-			     policy_mgr_is_safe_channel(
-						mac_ctx->psoc, con_ch_freq)) &&
-			    (!wlan_reg_is_dfs_for_freq(
-					mac_ctx->pdev, con_ch_freq) ||
-			    sta_sap_scc_on_dfs_chan)) {
+			     policy_mgr_is_safe_channel(mac_ctx->psoc,
+							con_ch)) &&
+			     (!wlan_reg_is_dfs_ch(mac_ctx->pdev, con_ch) ||
+			      sta_sap_scc_on_dfs_chan)) {
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 					QDF_TRACE_LEVEL_DEBUG,
-					"%s: Override ch freq %d to %d due to CC Intf",
-					__func__, sap_context->chan_freq,
-					con_ch_freq);
-				sap_context->chan_freq = con_ch_freq;
-				if (WLAN_REG_IS_24GHZ_CH_FREQ(
-				    sap_context->chan_freq))
+					"%s: Override ch %d to %d due to CC Intf",
+					__func__, sap_context->channel, con_ch);
+				sap_context->channel = con_ch;
+				if (WLAN_REG_IS_24GHZ_CH(con_ch))
 					sap_context->ch_params.ch_width =
 							CH_WIDTH_20MHZ;
-				wlan_reg_set_channel_params_for_freq(
-					mac_ctx->pdev,
-					sap_context->chan_freq,
-					0,
-					&sap_context->ch_params);
+				wlan_reg_set_channel_params(mac_ctx->pdev,
+						sap_context->channel, 0,
+						&sap_context->ch_params);
 			}
 		}
 #endif
 	}
 validation_done:
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  FL("for configured channel, Ch_freq = %d"),
-		  sap_context->chan_freq);
-
+		  FL("for configured channel, Ch= %d"),
+		  sap_context->channel);
 	if (check_for_connection_update) {
 		/* This wait happens in the hostapd context. The event
 		 * is set in the MC thread context.
 		 */
 		qdf_status =
 		policy_mgr_update_and_wait_for_connection_update(
-			mac_ctx->psoc, sap_context->sessionId,
-			sap_context->chan_freq,
-			POLICY_MGR_UPDATE_REASON_START_AP);
+				mac_ctx->psoc,
+				sap_context->sessionId,
+				sap_context->channel,
+				POLICY_MGR_UPDATE_REASON_START_AP);
 		if (QDF_IS_STATUS_ERROR(qdf_status))
 			return qdf_status;
 	}
 
 	if (pre_start_bss) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
-			  FL("ACS end due to Ch override. Sel Ch freq = %d"),
-			     sap_context->chan_freq);
-		sap_context->acs_cfg->pri_ch_freq = sap_context->chan_freq;
+			  FL("ACS end due to Ch override. Sel Ch = %d"),
+			  sap_context->channel);
+		sap_context->acs_cfg->pri_ch = sap_context->channel;
 		sap_context->acs_cfg->ch_width =
 					 sap_context->ch_width_orig;
-		sap_config_acs_result(mac_handle, sap_context, 0);
+		sap_config_acs_result(h_hal, sap_context, 0);
 		return QDF_STATUS_E_CANCELED;
 	}
 
@@ -863,32 +978,32 @@ validation_done:
 QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 {
 	QDF_STATUS qdf_ret_status;
-	struct mac_context *mac_ctx;
+	tpAniSirGlobal mac_ctx;
 	struct scan_start_request *req;
 	struct wlan_objmgr_vdev *vdev = NULL;
 	uint8_t i;
-	uint32_t *freq_list = NULL;
+	uint8_t *channel_list = NULL;
 	uint8_t num_of_channels = 0;
-	mac_handle_t mac_handle;
-	uint32_t con_ch_freq;
+	tHalHandle h_hal;
+	uint8_t con_ch;
 	uint8_t vdev_id;
 	uint32_t scan_id;
 
-	mac_handle = cds_get_context(QDF_MODULE_ID_SME);
-	if (!mac_handle) {
+	h_hal = cds_get_context(QDF_MODULE_ID_SME);
+	if (!h_hal) {
 		/* we have a serious problem */
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_FATAL,
-			  FL("invalid mac_handle"));
+			  FL("invalid h_hal"));
 		return QDF_STATUS_E_FAULT;
 	}
 
-	mac_ctx = MAC_CONTEXT(mac_handle);
+	mac_ctx = PMAC_STRUCT(h_hal);
 	if (!mac_ctx) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("Invalid MAC context"));
 		return QDF_STATUS_E_FAILURE;
 	}
-	if (sap_context->chan_freq)
+	if (sap_context->channel)
 		return sap_validate_chan(sap_context, true, false);
 
 	if (policy_mgr_concurrent_beaconing_sessions_running(mac_ctx->psoc) ||
@@ -899,10 +1014,10 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 	     policy_mgr_mode_specific_connection_count(mac_ctx->psoc,
 						       PM_P2P_GO_MODE,
 						       NULL)))) {
-		con_ch_freq = sme_get_beaconing_concurrent_operation_channel(
-					mac_handle, sap_context->sessionId);
+		con_ch = sme_get_beaconing_concurrent_operation_channel(
+					h_hal, sap_context->sessionId);
 #ifdef FEATURE_WLAN_STA_AP_MODE_DFS_DISABLE
-		if (con_ch_freq)
+		if (con_ch)
 			sap_context->dfs_ch_disable = true;
 #endif
 	}
@@ -925,82 +1040,90 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 					eSAP_SKIP_ACS_SCAN) {
 #endif
 
-		if (sap_context->freq_list) {
-			qdf_mem_free(sap_context->freq_list);
-			sap_context->freq_list = NULL;
+	if (sap_context->channelList) {
+		qdf_mem_free(sap_context->channelList);
+		sap_context->channelList = NULL;
+		sap_context->num_of_channel = 0;
+	}
+
+	sap_get_channel_list(sap_context, &channel_list, &num_of_channels);
+	if (!num_of_channels) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			  FL("No channel suitable for SAP, hotspot failed"));
+		return QDF_STATUS_E_NOSUPPORT;
+	}
+
+	req = qdf_mem_malloc(sizeof(*req));
+	if (!req) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			  FL("Failed to allocate memory"));
+		qdf_mem_free(channel_list);
+		return QDF_STATUS_E_NOMEM;
+	}
+
+	vdev_id = sap_context->sessionId;
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
+						    vdev_id,
+						    WLAN_LEGACY_SME_ID);
+	if (!vdev) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid vdev objmgr"));
+		qdf_mem_free(req);
+		qdf_mem_free(channel_list);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	/* Initiate a SCAN request */
+	ucfg_scan_init_default_params(vdev, req);
+	scan_id = ucfg_scan_get_scan_id(mac_ctx->psoc);
+	req->scan_req.scan_id = scan_id;
+	req->scan_req.vdev_id = vdev_id;
+	req->scan_req.scan_f_passive = false;
+	req->scan_req.scan_req_id = sap_context->req_id;
+	req->scan_req.scan_priority = SCAN_PRIORITY_HIGH;
+	req->scan_req.scan_f_bcast_probe = true;
+
+	req->scan_req.chan_list.num_chan = num_of_channels;
+	for (i = 0; i < num_of_channels; i++)
+		req->scan_req.chan_list.chan[i].freq =
+			wlan_chan_to_freq(channel_list[i]);
+	sap_context->channelList = channel_list;
+	sap_context->num_of_channel = num_of_channels;
+	/* Set requestType to Full scan */
+#ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
+	if (sap_context->acs_cfg->skip_scan_status ==
+	    eSAP_DO_NEW_ACS_SCAN)
+#endif
+		sme_scan_flush_result(h_hal);
+
+	qdf_ret_status = ucfg_scan_start(req);
+	if (qdf_ret_status != QDF_STATUS_SUCCESS) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("scan request  fail %d!!!"),
+			  qdf_ret_status);
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			  FL("SAP Configuring default channel, Ch=%d"),
+			  sap_context->channel);
+		sap_context->channel = sap_select_default_oper_chan(
+				sap_context->acs_cfg);
+		if (sap_context->channelList != NULL) {
+			sap_context->channel =
+				sap_context->channelList[0];
+			qdf_mem_free(sap_context->
+				channelList);
+			sap_context->channelList = NULL;
 			sap_context->num_of_channel = 0;
 		}
-
-		sap_get_freq_list(sap_context, &freq_list, &num_of_channels);
-		if (!num_of_channels) {
-			sap_err("No freq sutiable for SAP in current list, SAP failed");
-			return QDF_STATUS_E_FAILURE;
-		}
-
-		req = qdf_mem_malloc(sizeof(*req));
-		if (!req) {
-			qdf_mem_free(freq_list);
-			return QDF_STATUS_E_NOMEM;
-		}
-
-		vdev_id = sap_context->sessionId;
-		vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
-							    vdev_id,
-							    WLAN_LEGACY_SME_ID);
-		if (!vdev) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				  FL("Invalid vdev objmgr"));
-			qdf_mem_free(freq_list);
-			qdf_mem_free(req);
-			return QDF_STATUS_E_INVAL;
-		}
-
-		/* Initiate a SCAN request */
-		ucfg_scan_init_default_params(vdev, req);
-		scan_id = ucfg_scan_get_scan_id(mac_ctx->psoc);
-		req->scan_req.scan_id = scan_id;
-		req->scan_req.vdev_id = vdev_id;
-		req->scan_req.scan_f_passive = false;
-		req->scan_req.scan_req_id = sap_context->req_id;
-		req->scan_req.scan_priority = SCAN_PRIORITY_HIGH;
-		req->scan_req.scan_f_bcast_probe = true;
-
-		req->scan_req.chan_list.num_chan = num_of_channels;
-		for (i = 0; i < num_of_channels; i++)
-			req->scan_req.chan_list.chan[i].freq = freq_list[i];
-		sap_context->freq_list = freq_list;
-		sap_context->num_of_channel = num_of_channels;
-		/* Set requestType to Full scan */
-
-		sap_context->acs_req_timestamp = qdf_get_time_of_the_day_ms();
-		qdf_ret_status = ucfg_scan_start(req);
-		if (qdf_ret_status != QDF_STATUS_SUCCESS) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				  FL("scan request  fail %d!!!"),
-				  qdf_ret_status);
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				  FL("SAP Configuring default ch, Ch_freq=%d"),
-				  sap_context->chan_freq);
-			sap_context->chan_freq = sap_select_default_oper_chan(
-						 mac_ctx, sap_context->acs_cfg);
-
-			if (sap_context->freq_list) {
-				sap_context->chan_freq =
-					sap_context->freq_list[0];
-				qdf_mem_free(sap_context->freq_list);
-				sap_context->freq_list = NULL;
-				sap_context->num_of_channel = 0;
-			}
-			/*
-			* In case of ACS req before start Bss,
-			* return failure so that the calling
-			* function can use the default channel.
-			*/
-			qdf_ret_status = QDF_STATUS_E_FAILURE;
-			goto release_vdev_ref;
-		} else {
-			host_log_acs_scan_start(scan_id, vdev_id);
-		}
+		/*
+		* In case of ACS req before start Bss,
+		* return failure so that the calling
+		* function can use the default channel.
+		*/
+		qdf_ret_status = QDF_STATUS_E_FAILURE;
+		goto release_vdev_ref;
+	} else {
+		host_log_acs_scan_start(scan_id, vdev_id);
+	}
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
 	} else {
 		sap_context->acs_cfg->skip_scan_status = eSAP_SKIP_ACS_SCAN;
@@ -1009,7 +1132,7 @@ QDF_STATUS sap_channel_sel(struct sap_context *sap_context)
 	if (sap_context->acs_cfg->skip_scan_status == eSAP_SKIP_ACS_SCAN) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("## %s SKIPPED ACS SCAN"), __func__);
-			wlansap_pre_start_bss_acs_scan_callback(mac_handle,
+			wlansap_pre_start_bss_acs_scan_callback(h_hal,
 				sap_context, sap_context->sessionId, 0,
 				eCSR_SCAN_SUCCESS);
 	}
@@ -1025,16 +1148,15 @@ release_vdev_ref:
 
 /**
  * sap_find_valid_concurrent_session() - to find valid concurrent session
- * @mac_handle: Opaque handle to the global MAC context
+ * @hal: pointer to hal abstration layer
  *
  * This API will check if any valid concurrent SAP session is present
  *
  * Return: pointer to sap context of valid concurrent session
  */
-static struct sap_context *
-sap_find_valid_concurrent_session(mac_handle_t mac_handle)
+static struct sap_context *sap_find_valid_concurrent_session(tHalHandle hal)
 {
-	struct mac_context *mac_ctx = MAC_CONTEXT(mac_handle);
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	uint8_t intf = 0;
 	struct sap_context *sap_ctx;
 
@@ -1043,7 +1165,7 @@ sap_find_valid_concurrent_session(mac_handle_t mac_handle)
 				mac_ctx->sap.sapCtxList[intf].sapPersona) ||
 		     (QDF_P2P_GO_MODE ==
 				mac_ctx->sap.sapCtxList[intf].sapPersona)) &&
-		    mac_ctx->sap.sapCtxList[intf].sap_context) {
+		    mac_ctx->sap.sapCtxList[intf].sap_context != NULL) {
 			sap_ctx = mac_ctx->sap.sapCtxList[intf].sap_context;
 			if (sap_ctx->fsm_state != SAP_INIT)
 				return sap_ctx;
@@ -1053,13 +1175,11 @@ sap_find_valid_concurrent_session(mac_handle_t mac_handle)
 	return NULL;
 }
 
-static QDF_STATUS sap_clear_global_dfs_param(mac_handle_t mac_handle)
+static QDF_STATUS sap_clear_global_dfs_param(tHalHandle hal)
 {
-	struct mac_context *mac_ctx = MAC_CONTEXT(mac_handle);
-	struct sap_context *sap_ctx;
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 
-	sap_ctx = sap_find_valid_concurrent_session(mac_handle);
-	if (sap_ctx && WLAN_REG_IS_5GHZ_CH_FREQ(sap_ctx->chan_freq)) {
+	if (NULL != sap_find_valid_concurrent_session(hal)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 			  "conc session exists, no need to clear dfs struct");
 		return QDF_STATUS_SUCCESS;
@@ -1077,56 +1197,16 @@ static QDF_STATUS sap_clear_global_dfs_param(mac_handle_t mac_handle)
 			&mac_ctx->sap.SapDfsInfo.sap_dfs_cac_timer);
 	}
 	mac_ctx->sap.SapDfsInfo.cac_state = eSAP_DFS_DO_NOT_SKIP_CAC;
-	sap_cac_reset_notify(mac_handle);
+	sap_cac_reset_notify(hal);
+	qdf_mem_zero(&mac_ctx->sap, sizeof(mac_ctx->sap));
 
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS sap_acquire_vdev_ref(struct wlan_objmgr_psoc *psoc,
-				struct sap_context *sap_ctx,
-				uint8_t session_id)
+QDF_STATUS sap_set_session_param(tHalHandle hal, struct sap_context *sapctx,
+				uint32_t session_id)
 {
-	struct wlan_objmgr_vdev *vdev;
-
-	if (sap_ctx->vdev) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("Invalid vdev obj in sap context"));
-		return QDF_STATUS_E_FAULT;
-	}
-
-	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc, session_id,
-						    WLAN_LEGACY_SAP_ID);
-	if (!vdev) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("vdev is NULL for vdev_id: %u"), session_id);
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	sap_ctx->vdev = vdev;
-	return QDF_STATUS_SUCCESS;
-}
-
-void sap_release_vdev_ref(struct sap_context *sap_ctx)
-{
-	struct wlan_objmgr_vdev *vdev;
-
-	if (!sap_ctx) {
-		sap_debug("Invalid SAP pointer");
-		return;
-	}
-
-	vdev = sap_ctx->vdev;
-	if (vdev) {
-		sap_ctx->vdev = NULL;
-		wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_SAP_ID);
-	}
-}
-
-QDF_STATUS sap_set_session_param(mac_handle_t mac_handle,
-				 struct sap_context *sapctx,
-				 uint32_t session_id)
-{
-	struct mac_context *mac_ctx = MAC_CONTEXT(mac_handle);
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	int i;
 
 	sapctx->sessionId = session_id;
@@ -1139,34 +1219,38 @@ QDF_STATUS sap_set_session_param(mac_handle_t mac_handle,
 		if (mac_ctx->sap.sapCtxList[i].sap_context == sapctx)
 			mac_ctx->sap.sapCtxList[i].sap_context = NULL;
 	}
-
+	mac_ctx->sap.sapCtxList[sapctx->sessionId].sessionID =
+				sapctx->sessionId;
 	mac_ctx->sap.sapCtxList[sapctx->sessionId].sap_context = sapctx;
 	mac_ctx->sap.sapCtxList[sapctx->sessionId].sapPersona =
 				sapctx->csr_roamProfile.csrPersona;
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-		"%s: Initializing sap_ctx = %pK with session = %d", __func__,
+		"%s: Initializing sapContext = %pK with session = %d", __func__,
 		sapctx, session_id);
 
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS sap_clear_session_param(mac_handle_t mac_handle,
-				   struct sap_context *sapctx,
-				   uint32_t session_id)
+QDF_STATUS sap_clear_session_param(tHalHandle hal, struct sap_context *sapctx,
+				uint32_t session_id)
 {
-	struct mac_context *mac_ctx = MAC_CONTEXT(mac_handle);
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 
 	if (sapctx->sessionId >= SAP_MAX_NUM_SESSION)
 		return QDF_STATUS_E_FAILURE;
 
+	mac_ctx->sap.sapCtxList[sapctx->sessionId].sessionID =
+		CSR_SESSION_ID_INVALID;
 	mac_ctx->sap.sapCtxList[sapctx->sessionId].sap_context = NULL;
 	mac_ctx->sap.sapCtxList[sapctx->sessionId].sapPersona =
 		QDF_MAX_NO_OF_MODE;
-	sap_clear_global_dfs_param(mac_handle);
+	sap_clear_global_dfs_param(hal);
 	sap_free_roam_profile(&sapctx->csr_roamProfile);
-	sap_err("Set sapCtxList null for session %d", sapctx->sessionId);
 	qdf_mem_zero(sapctx, sizeof(*sapctx));
-	sapctx->sessionId = WLAN_UMAC_VDEV_ID_MAX;
+	sapctx->sessionId = CSR_SESSION_ID_INVALID;
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
+		"%s: Initializing State: %d, sapContext value = %pK", __func__,
+		sapctx->fsm_state, sapctx);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -1179,22 +1263,23 @@ QDF_STATUS sap_clear_session_param(mac_handle_t mac_handle,
  */
 static QDF_STATUS sap_goto_stopping(struct sap_context *sap_ctx)
 {
-	QDF_STATUS status;
-	struct mac_context *mac_ctx;
+	QDF_STATUS qdf_ret_status;
+	tHalHandle hal;
 
-	mac_ctx = sap_get_mac_context();
-	if (!mac_ctx) {
+	hal = CDS_GET_HAL_CB();
+	if (!hal) {
 		/* we have a serious problem */
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "In %s, invalid hal", __func__);
 		return QDF_STATUS_E_FAULT;
 	}
 
 	sap_free_roam_profile(&sap_ctx->csr_roamProfile);
-	status = sme_roam_stop_bss(MAC_HANDLE(mac_ctx), sap_ctx->sessionId);
-	if (status != QDF_STATUS_SUCCESS) {
+	qdf_ret_status = sme_roam_stop_bss(hal, sap_ctx->sessionId);
+	if (qdf_ret_status != QDF_STATUS_SUCCESS) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "Error: In %s calling sme_roam_stop_bss status = %d",
-			  __func__, status);
+			  __func__, qdf_ret_status);
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -1210,7 +1295,7 @@ static QDF_STATUS sap_goto_stopping(struct sap_context *sap_ctx)
 static QDF_STATUS sap_goto_init(struct sap_context *sap_ctx)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
-	struct sap_sm_event sap_event;
+	tWLAN_SAPEvent sap_event;
 	/* Processing has to be coded */
 
 	/*
@@ -1233,7 +1318,7 @@ static QDF_STATUS sap_goto_init(struct sap_context *sap_ctx)
 /**
  * sap_handle_acs_scan_event() - handle acs scan event for SAP
  * @sap_context: ptSapContext
- * @sap_event: struct sap_event
+ * @sap_event: tSap_Event
  * @status: status of acs scan
  *
  * The function is to handle the eSAP_ACS_SCAN_SUCCESS_EVENT event.
@@ -1241,18 +1326,18 @@ static QDF_STATUS sap_goto_init(struct sap_context *sap_ctx)
  * Return: void
  */
 static void sap_handle_acs_scan_event(struct sap_context *sap_context,
-		struct sap_event *sap_event, eSapStatus status)
+		tSap_Event *sap_event, eSapStatus status)
 {
 	sap_event->sapHddEventCode = eSAP_ACS_SCAN_SUCCESS_EVENT;
 	sap_event->sapevt.sap_acs_scan_comp.status = status;
 	sap_event->sapevt.sap_acs_scan_comp.num_of_channels =
 			sap_context->num_of_channel;
-	sap_event->sapevt.sap_acs_scan_comp.freq_list =
-			sap_context->freq_list;
+	sap_event->sapevt.sap_acs_scan_comp.channellist =
+			sap_context->channelList;
 }
 #else
 static void sap_handle_acs_scan_event(struct sap_context *sap_context,
-		struct sap_event *sap_event, eSapStatus status)
+		tSap_Event *sap_event, eSapStatus status)
 {
 }
 #endif
@@ -1271,7 +1356,7 @@ static void sap_handle_acs_scan_event(struct sap_context *sap_context,
  * Return: true for success and false for failure
  */
 static bool sap_fill_owe_ie_in_assoc_ind(tSap_StationAssocIndication *assoc_ind,
-					 struct assoc_ind *sme_assoc_ind)
+					 tSirSmeAssocInd *sme_assoc_ind)
 {
 	uint32_t owe_ie_len, rsn_ie_len, dh_ie_len;
 	const uint8_t *rsn_ie, *dh_ie;
@@ -1338,7 +1423,7 @@ static bool sap_fill_owe_ie_in_assoc_ind(tSap_StationAssocIndication *assoc_ind,
  * Return: true for success and false for failure
  */
 static bool sap_save_owe_pending_assoc_ind(struct sap_context *sap_ctx,
-				       struct assoc_ind *sme_assoc_ind)
+					   tSirSmeAssocInd *sme_assoc_ind)
 {
 	struct owe_assoc_ind *assoc_ind;
 	QDF_STATUS status;
@@ -1373,9 +1458,10 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 		void *context)
 {
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
-	struct sap_event sap_ap_event = {0};
-	struct mac_context *mac_ctx;
-	struct oem_channel_info *chaninfo;
+	tSap_Event sap_ap_event = {0};
+	tHalHandle hal = CDS_GET_HAL_CB();
+	tpAniSirGlobal mac_ctx;
+	tSirSmeChanInfo *chaninfo;
 	tSap_StationAssocIndication *assoc_ind;
 	tSap_StartBssCompleteEvent *bss_complete;
 	struct sap_ch_selected_s *acs_selected;
@@ -1385,15 +1471,15 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 	tSap_StationMICFailureEvent *mic_failure;
 
 	/* Format the Start BSS Complete event to return... */
-	if (!sap_ctx->sap_event_cb)
-		return QDF_STATUS_E_FAILURE;
-
-	mac_ctx = sap_get_mac_context();
-	if (!mac_ctx) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	if (NULL == sap_ctx->pfnSapEventCallback) {
 		return QDF_STATUS_E_FAILURE;
 	}
-
+	if (NULL == hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid hal"));
+		return QDF_STATUS_E_FAILURE;
+	}
+	mac_ctx = PMAC_STRUCT(hal);
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 		  FL("SAP event callback event = %s"),
 		  sap_hdd_event_to_string(sap_hddevent));
@@ -1419,7 +1505,7 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 		assoc_ind->assocReqPtr = csr_roaminfo->assocReqPtr;
 		assoc_ind->fWmmEnabled = csr_roaminfo->wmmEnabledSta;
 		assoc_ind->ecsa_capable = csr_roaminfo->ecsa_capable;
-		if (csr_roaminfo->u.pConnectedProfile) {
+		if (csr_roaminfo->u.pConnectedProfile != NULL) {
 			assoc_ind->negotiatedAuthType =
 				csr_roaminfo->u.pConnectedProfile->AuthType;
 			assoc_ind->negotiatedUCEncryptionType =
@@ -1457,7 +1543,7 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 		bss_complete = &sap_ap_event.sapevt.sapStartBssCompleteEvent;
 
 		bss_complete->sessionId = sap_ctx->sessionId;
-		if (bss_complete->sessionId == WLAN_UMAC_VDEV_ID_MAX) {
+		if (bss_complete->sessionId == CSR_SESSION_ID_INVALID) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 				  FL("Invalid sessionId"));
 			return QDF_STATUS_E_INVAL;
@@ -1470,7 +1556,7 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 			  FL("(eSAP_START_BSS_EVENT): staId = %d"),
 			  bss_complete->staId);
 
-		bss_complete->operating_chan_freq = sap_ctx->chan_freq;
+		bss_complete->operatingChannel = (uint8_t) sap_ctx->channel;
 		bss_complete->ch_width = sap_ctx->ch_params.ch_width;
 		break;
 	case eSAP_DFS_CAC_START:
@@ -1492,17 +1578,15 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 		sap_ap_event.sapHddEventCode = sap_hddevent;
 		acs_selected = &sap_ap_event.sapevt.sap_ch_selected;
 		if (eSAP_STATUS_SUCCESS == (eSapStatus)context) {
-			acs_selected->pri_ch_freq =
-						sap_ctx->acs_cfg->pri_ch_freq;
-			acs_selected->ht_sec_ch_freq =
-					sap_ctx->acs_cfg->ht_sec_ch_freq;
+			acs_selected->pri_ch = sap_ctx->acs_cfg->pri_ch;
+			acs_selected->ht_sec_ch = sap_ctx->acs_cfg->ht_sec_ch;
 			acs_selected->ch_width = sap_ctx->acs_cfg->ch_width;
-			acs_selected->vht_seg0_center_ch_freq =
-				sap_ctx->acs_cfg->vht_seg0_center_ch_freq;
-			acs_selected->vht_seg1_center_ch_freq =
-				sap_ctx->acs_cfg->vht_seg1_center_ch_freq;
+			acs_selected->vht_seg0_center_ch =
+				sap_ctx->acs_cfg->vht_seg0_center_ch;
+			acs_selected->vht_seg1_center_ch =
+				sap_ctx->acs_cfg->vht_seg1_center_ch;
 		} else if (eSAP_STATUS_FAILURE == (eSapStatus)context) {
-			acs_selected->pri_ch_freq = 0;
+			acs_selected->pri_ch = 0;
 		}
 		break;
 
@@ -1537,7 +1621,7 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 		qdf_copy_macaddr(&reassoc_complete->staMac,
 				 &csr_roaminfo->peerMac);
 		reassoc_complete->staId = csr_roaminfo->staId;
-		reassoc_complete->status_code = csr_roaminfo->status_code;
+		reassoc_complete->statusCode = csr_roaminfo->statusCode;
 
 		if (csr_roaminfo->assocReqLength < ASSOC_REQ_IE_OFFSET) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
@@ -1569,6 +1653,7 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 		/* also fill up the channel info from the csr_roamInfo */
 		chaninfo = &reassoc_complete->chan_info;
 
+		chaninfo->chan_id = csr_roaminfo->chan_info.chan_id;
 		chaninfo->mhz = csr_roaminfo->chan_info.mhz;
 		chaninfo->info = csr_roaminfo->chan_info.info;
 		chaninfo->band_center_freq1 =
@@ -1626,13 +1711,11 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 		else
 			disassoc_comp->reason = eSAP_MAC_INITATED_DISASSOC;
 
-		disassoc_comp->status_code = csr_roaminfo->status_code;
+		disassoc_comp->statusCode = csr_roaminfo->statusCode;
 		disassoc_comp->status = (eSapStatus) context;
 		disassoc_comp->rssi = csr_roaminfo->rssi;
 		disassoc_comp->rx_rate = csr_roaminfo->rx_rate;
 		disassoc_comp->tx_rate = csr_roaminfo->tx_rate;
-		disassoc_comp->rx_mc_bc_cnt = csr_roaminfo->rx_mc_bc_cnt;
-		disassoc_comp->rx_retry_cnt = csr_roaminfo->rx_retry_cnt;
 		disassoc_comp->reason_code = csr_roaminfo->disassoc_reason;
 		break;
 
@@ -1677,6 +1760,9 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 		qdf_mem_copy(mic_failure->TSC,
 			     csr_roaminfo->u.pMICFailureInfo->TSC,
 			     SIR_CIPHER_SEQ_CTR_SIZE);
+		break;
+
+	case eSAP_ASSOC_STA_CALLBACK_EVENT:
 		break;
 
 	case eSAP_WPS_PBC_PROBE_REQ_EVENT:
@@ -1730,23 +1816,22 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 		 * Reconfig ACS result info. For DFS AP-AP Mode Sec AP ACS
 		 * follows pri AP
 		 */
-		sap_ctx->acs_cfg->pri_ch_freq = sap_ctx->chan_freq;
+		sap_ctx->acs_cfg->pri_ch = sap_ctx->channel;
 		sap_ctx->acs_cfg->ch_width =
 				sap_ctx->csr_roamProfile.ch_params.ch_width;
-		sap_config_acs_result(MAC_HANDLE(mac_ctx), sap_ctx,
-				      sap_ctx->sec_ch_freq);
+		sap_config_acs_result(hal, sap_ctx, sap_ctx->secondary_ch);
 
 		sap_ap_event.sapHddEventCode = eSAP_CHANNEL_CHANGE_EVENT;
 
 		acs_selected = &sap_ap_event.sapevt.sap_ch_selected;
-		acs_selected->pri_ch_freq = sap_ctx->chan_freq;
-		acs_selected->ht_sec_ch_freq = sap_ctx->sec_ch_freq;
+		acs_selected->pri_ch = sap_ctx->channel;
+		acs_selected->ht_sec_ch = sap_ctx->secondary_ch;
 		acs_selected->ch_width =
-			sap_ctx->acs_cfg->ch_width;
-		acs_selected->vht_seg0_center_ch_freq =
-			sap_ctx->acs_cfg->vht_seg0_center_ch_freq;
-		acs_selected->vht_seg1_center_ch_freq =
-			sap_ctx->acs_cfg->vht_seg1_center_ch_freq;
+			sap_ctx->csr_roamProfile.ch_params.ch_width;
+		acs_selected->vht_seg0_center_ch =
+			sap_ctx->csr_roamProfile.ch_params.center_freq_seg0;
+		acs_selected->vht_seg1_center_ch =
+			sap_ctx->csr_roamProfile.ch_params.center_freq_seg1;
 		break;
 
 	case eSAP_ECSA_CHANGE_CHAN_IND:
@@ -1760,8 +1845,8 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 				"In %s, SAP event callback event = %s",
 				__func__, "eSAP_ECSA_CHANGE_CHAN_IND");
 		sap_ap_event.sapHddEventCode = eSAP_ECSA_CHANGE_CHAN_IND;
-		sap_ap_event.sapevt.sap_chan_cng_ind.new_chan_freq =
-					   csr_roaminfo->target_chan_freq;
+		sap_ap_event.sapevt.sap_chan_cng_ind.new_chan =
+					   csr_roaminfo->target_channel;
 		break;
 	case eSAP_DFS_NEXT_CHANNEL_REQ:
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
@@ -1772,23 +1857,14 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 	case eSAP_STOP_BSS_DUE_TO_NO_CHNL:
 		sap_ap_event.sapHddEventCode = eSAP_STOP_BSS_DUE_TO_NO_CHNL;
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-			  FL("stopping session_id:%d, bssid:"QDF_MAC_ADDR_FMT", chan_freq:%d"),
-			     sap_ctx->sessionId,
-			     QDF_MAC_ADDR_REF(sap_ctx->self_mac_addr),
-			     sap_ctx->chan_freq);
+			  FL("stopping session_id:%d, bssid:%pM, channel:%d"),
+			     sap_ctx->sessionId, sap_ctx->self_mac_addr,
+			     sap_ctx->channel);
 		break;
 
 	case eSAP_CHANNEL_CHANGE_RESP:
 		sap_ap_event.sapHddEventCode = eSAP_CHANNEL_CHANGE_RESP;
-		acs_selected = &sap_ap_event.sapevt.sap_ch_selected;
-		acs_selected->pri_ch_freq = sap_ctx->chan_freq;
-		acs_selected->ht_sec_ch_freq = sap_ctx->sec_ch_freq;
-		acs_selected->ch_width =
-			sap_ctx->csr_roamProfile.ch_params.ch_width;
-		acs_selected->vht_seg0_center_ch_freq =
-			sap_ctx->csr_roamProfile.ch_params.mhz_freq_seg0;
-		acs_selected->vht_seg1_center_ch_freq =
-			sap_ctx->csr_roamProfile.ch_params.mhz_freq_seg1;
+		sap_ap_event.sapevt.ch_change_rsp_status = (QDF_STATUS)context;
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  "In %s, SAP event callback event = %s",
 			 __func__, "eSAP_CHANNEL_CHANGE_RESP");
@@ -1800,49 +1876,11 @@ QDF_STATUS sap_signal_hdd_event(struct sap_context *sap_ctx,
 			  sap_hddevent);
 		break;
 	}
-	qdf_status = (*sap_ctx->sap_event_cb)
-			(&sap_ap_event, sap_ctx->user_context);
+	qdf_status = (*sap_ctx->pfnSapEventCallback)
+			(&sap_ap_event, sap_ctx->pUsrContext);
 
 	return qdf_status;
 
-}
-
-bool sap_is_dfs_cac_wait_state(struct sap_context *sap_ctx)
-{
-	struct wlan_objmgr_vdev *vdev;
-	QDF_STATUS status;
-	struct mac_context *mac_ctx;
-	mac_handle_t mac_handle;
-
-	if (!sap_ctx) {
-		sap_err("Invalid sap context");
-		return false;
-	}
-
-	mac_handle = cds_get_context(QDF_MODULE_ID_SME);
-	if (!mac_handle) {
-		sap_err("invalid mac_handle");
-		return false;
-	}
-
-	mac_ctx = MAC_CONTEXT(mac_handle);
-	if (!mac_ctx) {
-		sap_err("Invalid MAC context");
-		return false;
-	}
-
-	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
-						    sap_ctx->sessionId,
-						    WLAN_DFS_ID);
-	if (!vdev) {
-		sap_err("vdev is NULL for vdev_id: %u", sap_ctx->sessionId);
-		return false;
-	}
-
-	status = wlan_vdev_is_dfs_cac_wait(vdev);
-	wlan_objmgr_vdev_release_ref(vdev, WLAN_DFS_ID);
-
-	return QDF_IS_STATUS_SUCCESS(status);
 }
 
 /**
@@ -1853,9 +1891,9 @@ bool sap_is_dfs_cac_wait_state(struct sap_context *sap_ctx)
  *
  * Return: Valid SAP context on success, else NULL
  */
-static struct sap_context *sap_find_cac_wait_session(mac_handle_t handle)
+static struct sap_context *sap_find_cac_wait_session(tHalHandle handle)
 {
-	struct mac_context *mac = MAC_CONTEXT(handle);
+	tpAniSirGlobal mac = PMAC_STRUCT(handle);
 	uint8_t i = 0;
 	struct sap_context *sap_ctx;
 
@@ -1867,7 +1905,8 @@ static struct sap_context *sap_find_cac_wait_session(mac_handle_t handle)
 		if (((QDF_SAP_MODE == mac->sap.sapCtxList[i].sapPersona)
 		    ||
 		    (QDF_P2P_GO_MODE == mac->sap.sapCtxList[i].sapPersona)) &&
-		    (sap_is_dfs_cac_wait_state(sap_ctx))) {
+		    (sap_ctx) &&
+		    (sap_ctx->fsm_state == SAP_DFS_CAC_WAIT)) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
 				"%s: found SAP in cac wait state", __func__);
 			return sap_ctx;
@@ -1883,55 +1922,70 @@ static struct sap_context *sap_find_cac_wait_session(mac_handle_t handle)
 	return NULL;
 }
 
-void sap_cac_reset_notify(mac_handle_t mac_handle)
+/*==========================================================================
+   FUNCTION  sap_cac_reset_notify
+
+   DESCRIPTION Function will be called up on stop bss indication to clean up
+   DFS global structure.
+
+   DEPENDENCIES PARAMETERS
+     IN hHAL : HAL pointer
+
+   RETURN VALUE  : void.
+
+   SIDE EFFECTS
+   ============================================================================*/
+void sap_cac_reset_notify(tHalHandle hHal)
 {
 	uint8_t intf = 0;
-	struct mac_context *mac = MAC_CONTEXT(mac_handle);
+	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
 	for (intf = 0; intf < SAP_MAX_NUM_SESSION; intf++) {
 		struct sap_context *sap_context =
-			mac->sap.sapCtxList[intf].sap_context;
-		if (((QDF_SAP_MODE == mac->sap.sapCtxList[intf].sapPersona)
+			pMac->sap.sapCtxList[intf].sap_context;
+		if (((QDF_SAP_MODE == pMac->sap.sapCtxList[intf].sapPersona)
 		    ||
-		    (QDF_P2P_GO_MODE == mac->sap.sapCtxList[intf].sapPersona))
-		    && mac->sap.sapCtxList[intf].sap_context) {
+		    (QDF_P2P_GO_MODE == pMac->sap.sapCtxList[intf].sapPersona))
+		    && pMac->sap.sapCtxList[intf].sap_context != NULL) {
 			sap_context->isCacStartNotified = false;
 			sap_context->isCacEndNotified = false;
 		}
 	}
 }
 
-/**
- * sap_cac_start_notify() - Notify CAC start to HDD
- * @mac_handle: Opaque handle to the global MAC context
- *
- * Function will be called to notify eSAP_DFS_CAC_START event to HDD
- *
- * Return: QDF_STATUS_SUCCESS if the notification was sent, otherwise
- *         an appropriate QDF_STATUS error
- */
-static QDF_STATUS sap_cac_start_notify(mac_handle_t mac_handle)
+/*==========================================================================
+   FUNCTION  sap_cac_start_notify
+
+   DESCRIPTION Function will be called to notify eSAP_DFS_CAC_START event
+   to HDD
+
+   DEPENDENCIES PARAMETERS
+     IN hHAL : HAL pointer
+
+   RETURN VALUE  : QDF_STATUS.
+
+   SIDE EFFECTS
+   ============================================================================*/
+static QDF_STATUS sap_cac_start_notify(tHalHandle hHal)
 {
 	uint8_t intf = 0;
-	struct mac_context *mac = MAC_CONTEXT(mac_handle);
+	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
-	qdf_freq_t ch_freq;
 
 	for (intf = 0; intf < SAP_MAX_NUM_SESSION; intf++) {
 		struct sap_context *sap_context =
-			mac->sap.sapCtxList[intf].sap_context;
+			pMac->sap.sapCtxList[intf].sap_context;
 		struct csr_roam_profile *profile;
 
-		if (((QDF_SAP_MODE == mac->sap.sapCtxList[intf].sapPersona)
+		if (((QDF_SAP_MODE == pMac->sap.sapCtxList[intf].sapPersona)
 		    ||
-		    (QDF_P2P_GO_MODE == mac->sap.sapCtxList[intf].sapPersona))
-		    && mac->sap.sapCtxList[intf].sap_context &&
+		    (QDF_P2P_GO_MODE == pMac->sap.sapCtxList[intf].sapPersona))
+		    && pMac->sap.sapCtxList[intf].sap_context != NULL &&
 		    (false == sap_context->isCacStartNotified)) {
 			/* Don't start CAC for non-dfs channel, its violation */
 			profile = &sap_context->csr_roamProfile;
-			ch_freq = profile->op_freq;
-			if (!wlan_reg_is_dfs_for_freq(mac->pdev,
-						      ch_freq))
+			if (!wlan_reg_is_dfs_ch(pMac->pdev,
+						profile->operationChannel))
 				continue;
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
 				  "sapdfs: Signaling eSAP_DFS_CAC_START to HDD for sapctx[%pK]",
@@ -1965,7 +2019,7 @@ static QDF_STATUS sap_cac_start_notify(mac_handle_t mac_handle)
  * Return: QDF_STATUS
  */
 static QDF_STATUS wlansap_update_pre_cac_end(struct sap_context *sap_context,
-		struct mac_context *mac, uint8_t intf)
+		tpAniSirGlobal mac, uint8_t intf)
 {
 	QDF_STATUS qdf_status;
 
@@ -1974,8 +2028,10 @@ static QDF_STATUS wlansap_update_pre_cac_end(struct sap_context *sap_context,
 	sap_context->fsm_state = SAP_STARTED;
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-		  "In %s, pre cac end notify on %d: move to state SAP_STARTED",
-		  __func__, intf);
+			"In %s, pre cac end notify on %d: from state %s => %s",
+			__func__, intf, "SAP_DFS_CAC_WAIT",
+			"SAP_STARTED");
+
 	qdf_status = sap_signal_hdd_event(sap_context,
 			NULL, eSAP_DFS_PRE_CAC_END,
 			(void *)eSAP_STATUS_SUCCESS);
@@ -1990,22 +2046,26 @@ static QDF_STATUS wlansap_update_pre_cac_end(struct sap_context *sap_context,
 	return QDF_STATUS_SUCCESS;
 }
 
-/**
- * sap_cac_end_notify() - Notify CAC end to HDD
- * @mac_handle: Opaque handle to the global MAC context
- *
- * Function will be called to notify eSAP_DFS_CAC_END event to HDD
- *
- * Return: QDF_STATUS_SUCCESS if the notification was sent, otherwise
- *         an appropriate QDF_STATUS error
- */
-static QDF_STATUS sap_cac_end_notify(mac_handle_t mac_handle,
+/*==========================================================================
+   FUNCTION  sap_cac_end_notify
+
+   DESCRIPTION Function will be called to notify eSAP_DFS_CAC_END event
+   to HDD
+
+   DEPENDENCIES PARAMETERS
+     IN hHAL : HAL pointer
+
+   RETURN VALUE  : QDF_STATUS.
+
+   SIDE EFFECTS
+   ============================================================================*/
+static QDF_STATUS sap_cac_end_notify(tHalHandle hHal,
 				     struct csr_roam_info *roamInfo)
 {
 	uint8_t intf;
-	struct mac_context *mac = MAC_CONTEXT(mac_handle);
+	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
-	uint32_t freq;
+	uint8_t chan;
 
 	/*
 	 * eSAP_DFS_CHANNEL_CAC_END:
@@ -2015,23 +2075,20 @@ static QDF_STATUS sap_cac_end_notify(mac_handle_t mac_handle,
 	 */
 	for (intf = 0; intf < SAP_MAX_NUM_SESSION; intf++) {
 		struct sap_context *sap_context =
-			mac->sap.sapCtxList[intf].sap_context;
+			pMac->sap.sapCtxList[intf].sap_context;
 		struct csr_roam_profile *profile;
 
-		if (((QDF_SAP_MODE == mac->sap.sapCtxList[intf].sapPersona)
+		if (((QDF_SAP_MODE == pMac->sap.sapCtxList[intf].sapPersona)
 		    ||
-		    (QDF_P2P_GO_MODE == mac->sap.sapCtxList[intf].sapPersona))
-		    && mac->sap.sapCtxList[intf].sap_context &&
+		    (QDF_P2P_GO_MODE == pMac->sap.sapCtxList[intf].sapPersona))
+		    && pMac->sap.sapCtxList[intf].sap_context != NULL &&
 		    (false == sap_context->isCacEndNotified) &&
-		    sap_is_dfs_cac_wait_state(sap_context)) {
-			sap_context = mac->sap.sapCtxList[intf].sap_context;
+		    (sap_context->fsm_state == SAP_DFS_CAC_WAIT)) {
+			sap_context = pMac->sap.sapCtxList[intf].sap_context;
 			/* Don't check CAC for non-dfs channel */
 			profile = &sap_context->csr_roamProfile;
-			freq = profile->op_freq;
-			if (CHANNEL_STATE_DFS !=
-			    wlan_reg_get_5g_bonded_channel_state_for_freq(mac->pdev,
-									  freq,
-									  profile->ch_params.ch_width))
+			chan = profile->operationChannel;
+			if (!wlan_reg_chan_has_dfs_attribute(pMac->pdev, chan))
 				continue;
 
 			/* If this is an end notification of a pre cac, the
@@ -2041,7 +2098,7 @@ static QDF_STATUS sap_cac_end_notify(mac_handle_t mac_handle,
 			 */
 			if (sap_context->is_pre_cac_on) {
 				qdf_status = wlansap_update_pre_cac_end(
-						sap_context, mac, intf);
+						sap_context, pMac, intf);
 				if (QDF_IS_STATUS_ERROR(qdf_status))
 					return qdf_status;
 				/* pre CAC is not allowed with any concurrency.
@@ -2062,7 +2119,7 @@ static QDF_STATUS sap_cac_end_notify(mac_handle_t mac_handle,
 				return qdf_status;
 			}
 			sap_context->isCacEndNotified = true;
-			mac->sap.SapDfsInfo.sap_radar_found_status = false;
+			pMac->sap.SapDfsInfo.sap_radar_found_status = false;
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
 				  "sapdfs: Start beacon request on sapctx[%pK]",
 				  sap_context);
@@ -2074,8 +2131,8 @@ static QDF_STATUS sap_cac_end_notify(mac_handle_t mac_handle,
 			 * (both without substates)
 			 */
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
-				  "sapdfs: chan_freq[%d] from state %s => %s",
-				  sap_context->chan_freq, "SAP_STARTING",
+				  "sapdfs: channel[%d] from state %s => %s",
+				  sap_context->channel, "SAP_STARTING",
 				  "SAP_STARTED");
 
 			sap_context->fsm_state = SAP_STARTED;
@@ -2092,6 +2149,14 @@ static QDF_STATUS sap_cac_end_notify(mac_handle_t mac_handle,
 					  __func__, intf);
 				return qdf_status;
 			}
+
+			/* Transition from SAP_STARTING to SAP_STARTED
+			 * (both without substates)
+			 */
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+				  "In %s, from state %s => %s",
+				  __func__, "SAP_DFS_CAC_WAIT",
+				  "SAP_STARTED");
 		}
 	}
 	/*
@@ -2102,29 +2167,32 @@ static QDF_STATUS sap_cac_end_notify(mac_handle_t mac_handle,
 	 * AP2 is already beaconing on this channel. This case will be handled
 	 * by checking against eSAP_DFS_SKIP_CAC while starting the timer.
 	 */
-	mac->sap.SapDfsInfo.cac_state = eSAP_DFS_SKIP_CAC;
+	pMac->sap.SapDfsInfo.cac_state = eSAP_DFS_SKIP_CAC;
 	return qdf_status;
 }
 
 /**
- * sap_validate_dfs_nol() - Validate SAP channel with NOL list
+ * sap_goto_starting() - Trigger softap start
  * @sap_ctx: SAP context
- * @sap_ctx: MAC context
+ * @sap_event: SAP event buffer
+ * @mac_ctx: global MAC context
+ * @hal: HAL handle
  *
- * Function will be called to validate SAP channel and bonded sub channels
- * included in DFS NOL or not.
+ * This function triggers start of softap. Before starting, it can select
+ * new channel if given channel has leakage or if given channel in DFS_NOL.
  *
- * Return: QDF_STATUS_SUCCESS for NOT in NOL
+ * Return: QDF_STATUS
  */
-static QDF_STATUS sap_validate_dfs_nol(struct sap_context *sap_ctx,
-				       struct mac_context *mac_ctx)
+static QDF_STATUS
+sap_goto_starting(struct sap_context *sap_ctx,
+		  ptWLAN_SAPEvent sap_event, tpAniSirGlobal mac_ctx,
+		  tHalHandle hal)
 {
+	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	bool b_leak_chan = false;
 	uint8_t temp_chan;
-	uint8_t sap_chan;
 
-	sap_chan = wlan_reg_freq_to_chan(mac_ctx->pdev, sap_ctx->chan_freq);
-	temp_chan = sap_chan;
+	temp_chan = sap_ctx->channel;
 	utils_dfs_mark_leaking_ch(mac_ctx->pdev,
 				  sap_ctx->ch_params.ch_width,
 				  1, &temp_chan);
@@ -2133,12 +2201,12 @@ static QDF_STATUS sap_validate_dfs_nol(struct sap_context *sap_ctx,
 	 * if selelcted channel has leakage to channels
 	 * in NOL, the temp_chan will be reset
 	 */
-	b_leak_chan = (temp_chan != sap_chan);
+	b_leak_chan = (temp_chan != sap_ctx->channel);
 	/*
 	 * check if channel is in DFS_NOL or if the channel
 	 * has leakage to the channels in NOL
 	 */
-	if (sap_dfs_is_channel_in_nol_list(sap_ctx, sap_chan,
+	if (sap_dfs_is_channel_in_nol_list(sap_ctx, sap_ctx->channel,
 					   PHY_CHANNEL_BONDING_STATE_MAX) ||
 	    b_leak_chan) {
 		uint8_t ch;
@@ -2157,47 +2225,20 @@ static QDF_STATUS sap_validate_dfs_nol(struct sap_context *sap_ctx,
 		}
 
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("ch_freq %d is in NOL, Start Bss on new chan %d"),
-			  sap_ctx->chan_freq, ch);
+			  FL("channel %d is in NOL, Start Bss on new chan %d"),
+			  sap_ctx->channel, ch);
 
-		sap_ctx->chan_freq = wlan_reg_chan_to_freq(mac_ctx->pdev, ch);
-		wlan_reg_set_channel_params_for_freq(mac_ctx->pdev,
-						     sap_ctx->chan_freq,
-						     sap_ctx->sec_ch_freq,
-						     &sap_ctx->ch_params);
+		sap_ctx->channel = ch;
+		wlan_reg_set_channel_params(mac_ctx->pdev,
+					    sap_ctx->channel,
+					    sap_ctx->secondary_ch,
+					    &sap_ctx->ch_params);
 	}
-
-	return QDF_STATUS_SUCCESS;
-}
-
-/**
- * sap_goto_starting() - Trigger softap start
- * @sap_ctx: SAP context
- * @sap_event: SAP event buffer
- * @mac_ctx: global MAC context
- * @mac_handle: Opaque handle to the global MAC context
- *
- * This function triggers start of softap. Before starting, it can select
- * new channel if given channel has leakage or if given channel in DFS_NOL.
- *
- * Return: QDF_STATUS
- */
-static QDF_STATUS sap_goto_starting(struct sap_context *sap_ctx,
-				    struct sap_sm_event *sap_event,
-				    struct mac_context *mac_ctx,
-				    mac_handle_t mac_handle)
-{
-	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
-
-	/*
-	 * check if channel is in DFS_NOL or if the channel
-	 * has leakage to the channels in NOL.
-	 */
-	if (!WLAN_REG_IS_6GHZ_CHAN_FREQ(sap_ctx->chan_freq)) {
-		qdf_status = sap_validate_dfs_nol(sap_ctx, mac_ctx);
-		if (!QDF_IS_STATUS_SUCCESS(qdf_status))
-			return qdf_status;
-	}
+	if (sap_ctx->channel > 14 &&
+	    (sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_11g ||
+	     sap_ctx->csr_roamProfile.phyMode ==
+					eCSR_DOT11_MODE_11g_ONLY))
+		sap_ctx->csr_roamProfile.phyMode = eCSR_DOT11_MODE_11a;
 
 	/*
 	 * when AP2 is started while AP1 is performing ACS, we may not
@@ -2206,36 +2247,17 @@ static QDF_STATUS sap_goto_starting(struct sap_context *sap_ctx,
 	 * override AP2 ACS scan result with AP1 DFS channel
 	 */
 	if (policy_mgr_concurrent_beaconing_sessions_running(mac_ctx->psoc)) {
-		uint32_t con_ch_freq;
 		uint16_t con_ch;
 
-		con_ch_freq = sme_get_beaconing_concurrent_operation_channel(
-				mac_handle, sap_ctx->sessionId);
-		con_ch = wlan_reg_freq_to_chan(mac_ctx->pdev, con_ch_freq);
-		/* Overwrite second AP's channel with first only when:
-		 * 1. If operating mode is single mac
-		 * 2. or if 2nd AP is coming up on 5G band channel
-		 */
-		if ((!policy_mgr_is_hw_dbs_capable(mac_ctx->psoc) ||
-		     WLAN_REG_IS_5GHZ_CH_FREQ(sap_ctx->chan_freq)) &&
-		     con_ch &&
-		     wlan_reg_is_dfs_for_freq(mac_ctx->pdev,
-					      con_ch_freq)) {
-			sap_ctx->chan_freq = con_ch_freq;
-			wlan_reg_set_channel_params_for_freq(
-						    mac_ctx->pdev,
-						    con_ch_freq, 0,
+		con_ch = sme_get_beaconing_concurrent_operation_channel(
+				hal, sap_ctx->sessionId);
+		if (con_ch && wlan_reg_is_dfs_ch(mac_ctx->pdev, con_ch)) {
+			sap_ctx->channel = con_ch;
+			wlan_reg_set_channel_params(mac_ctx->pdev,
+						    sap_ctx->channel, 0,
 						    &sap_ctx->ch_params);
 		}
 	}
-	if (WLAN_REG_IS_5GHZ_CH_FREQ(sap_ctx->chan_freq) &&
-	    (sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_11g ||
-	     sap_ctx->csr_roamProfile.phyMode ==
-					eCSR_DOT11_MODE_11g_ONLY))
-		sap_ctx->csr_roamProfile.phyMode = eCSR_DOT11_MODE_11a;
-	else if (WLAN_REG_IS_24GHZ_CH_FREQ(sap_ctx->chan_freq) &&
-		 (sap_ctx->csr_roamProfile.phyMode == eCSR_DOT11_MODE_11a))
-		sap_ctx->csr_roamProfile.phyMode = eCSR_DOT11_MODE_11g;
 
 	/*
 	 * Transition from SAP_INIT to SAP_STARTING
@@ -2249,19 +2271,26 @@ static QDF_STATUS sap_goto_starting(struct sap_context *sap_ctx,
 	/* Specify the channel */
 	sap_ctx->csr_roamProfile.ChannelInfo.numOfChannels =
 					1;
-	sap_ctx->csr_roamProfile.ChannelInfo.freq_list =
-		&sap_ctx->csr_roamProfile.op_freq;
-	sap_ctx->csr_roamProfile.op_freq = sap_ctx->chan_freq;
-
-	sap_ctx->csr_roamProfile.ch_params = sap_ctx->ch_params;
+	sap_ctx->csr_roamProfile.ChannelInfo.ChannelList =
+		&sap_ctx->csr_roamProfile.operationChannel;
+	sap_ctx->csr_roamProfile.operationChannel =
+		(uint8_t)sap_ctx->channel;
+	sap_ctx->csr_roamProfile.ch_params.ch_width =
+				sap_ctx->ch_params.ch_width;
+	sap_ctx->csr_roamProfile.ch_params.center_freq_seg0 =
+			sap_ctx->ch_params.center_freq_seg0;
+	sap_ctx->csr_roamProfile.ch_params.center_freq_seg1 =
+			sap_ctx->ch_params.center_freq_seg1;
+	sap_ctx->csr_roamProfile.ch_params.sec_ch_offset =
+			sap_ctx->ch_params.sec_ch_offset;
 	sap_get_cac_dur_dfs_region(sap_ctx,
 				   &sap_ctx->csr_roamProfile.cac_duration_ms,
 				   &sap_ctx->csr_roamProfile.dfs_regdomain);
 	sap_ctx->csr_roamProfile.beacon_tx_rate =
 			sap_ctx->beacon_tx_rate;
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-		  FL("notify hostapd about chan freq selection: %d"),
-		  sap_ctx->chan_freq);
+		  FL("notify hostapd about channel selection: %d"),
+		  sap_ctx->channel);
 	sap_signal_hdd_event(sap_ctx, NULL,
 			     eSAP_CHANNEL_CHANGE_EVENT,
 			     (void *)eSAP_STATUS_SUCCESS);
@@ -2270,7 +2299,7 @@ static QDF_STATUS sap_goto_starting(struct sap_context *sap_ctx,
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG, "%s: session: %d",
 		  __func__, sap_ctx->sessionId);
 
-	qdf_status = sme_roam_connect(mac_handle, sap_ctx->sessionId,
+	qdf_status = sme_roam_connect(hal, sap_ctx->sessionId,
 				      &sap_ctx->csr_roamProfile,
 				      &sap_ctx->csr_roamId);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
@@ -2281,46 +2310,20 @@ static QDF_STATUS sap_goto_starting(struct sap_context *sap_ctx,
 }
 
 /**
- * sap_fsm_cac_start() - start cac wait timer
- * @sap_ctx: SAP context
- * @mac_ctx: global MAC context
- * @mac_handle: Opaque handle to the global MAC context
- *
- * Return: QDF_STATUS
- */
-static QDF_STATUS sap_fsm_cac_start(struct sap_context *sap_ctx,
-				    struct mac_context *mac_ctx,
-				    mac_handle_t mac_handle)
-{
-	sap_ctx->fsm_state = SAP_STARTING;
-
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
-		  FL("Move sap state to SAP_STARTING"));
-	if (!mac_ctx->sap.SapDfsInfo.is_dfs_cac_timer_running) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
-			  FL("sapdfs: starting dfs cac timer on sapctx[%pK]"),
-			  sap_ctx);
-		sap_start_dfs_cac_timer(sap_ctx);
-	}
-
-	return sap_cac_start_notify(mac_handle);
-}
-
-/**
  * sap_fsm_state_init() - utility function called from sap fsm
  * @sap_ctx: SAP context
  * @sap_event: SAP event buffer
  * @mac_ctx: global MAC context
- * @mac_handle: Opaque handle to the global MAC context
+ * @hal: HAL handle
  *
  * This function is called for state transition from "SAP_INIT"
  *
  * Return: QDF_STATUS
  */
-static QDF_STATUS sap_fsm_state_init(struct sap_context *sap_ctx,
-				     struct sap_sm_event *sap_event,
-				     struct mac_context *mac_ctx,
-				     mac_handle_t mac_handle)
+static QDF_STATUS
+sap_fsm_state_init(struct sap_context *sap_ctx,
+		   ptWLAN_SAPEvent sap_event, tpAniSirGlobal mac_ctx,
+		   tHalHandle hal)
 {
 	uint32_t msg = sap_event->event;
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
@@ -2334,7 +2337,7 @@ static QDF_STATUS sap_fsm_state_init(struct sap_context *sap_ctx,
 		 * request so, set the third to false.
 		 */
 		qdf_status = sap_validate_chan(sap_ctx, false, true);
-		if (QDF_IS_STATUS_ERROR(qdf_status)) {
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
 			QDF_TRACE(QDF_MODULE_ID_SAP,
 				  QDF_TRACE_LEVEL_ERROR,
 				  FL("channel is not valid!"));
@@ -2342,11 +2345,26 @@ static QDF_STATUS sap_fsm_state_init(struct sap_context *sap_ctx,
 		}
 
 		qdf_status = sap_goto_starting(sap_ctx, sap_event,
-					       mac_ctx, mac_handle);
-		if (QDF_IS_STATUS_ERROR(qdf_status))
+					       mac_ctx, hal);
+		if (!QDF_IS_STATUS_ERROR(qdf_status))
 			sap_err("sap_goto_starting failed");
 	} else if (msg == eSAP_DFS_CHANNEL_CAC_START) {
-		qdf_status = sap_fsm_cac_start(sap_ctx, mac_ctx, mac_handle);
+		/*
+		 * No need of state check here, caller is expected to perform
+		 * the checks before sending the event
+		 */
+		sap_ctx->fsm_state = SAP_DFS_CAC_WAIT;
+
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
+			FL("from state SAP_INIT => SAP_DFS_CAC_WAIT"));
+		if (mac_ctx->sap.SapDfsInfo.is_dfs_cac_timer_running != true) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
+			    FL("sapdfs: starting dfs cac timer on sapctx[%pK]"),
+			    sap_ctx);
+			sap_start_dfs_cac_timer(sap_ctx);
+		}
+
+		qdf_status = sap_cac_start_notify(hal);
 	} else {
 		sap_err("in state %s, event msg %d", "SAP_INIT", msg);
 	}
@@ -2356,90 +2374,98 @@ exit:
 }
 
 /**
- * sap_fsm_handle_radar_during_cac() - uhandle radar event during cac
+ * sap_fsm_state_dfs_cac_wait() - utility function called from sap fsm
  * @sap_ctx: SAP context
+ * @sap_event: SAP event buffer
  * @mac_ctx: global MAC context
+ * @hal: HAL handle
+ *
+ * This function is called for state transition from "SAP_DFS_CAC_WAIT"
  *
  * Return: QDF_STATUS
  */
-static QDF_STATUS sap_fsm_handle_radar_during_cac(struct sap_context *sap_ctx,
-						  struct mac_context *mac_ctx)
+static QDF_STATUS sap_fsm_state_dfs_cac_wait(struct sap_context *sap_ctx,
+			ptWLAN_SAPEvent sap_event, tpAniSirGlobal mac_ctx,
+			tHalHandle hal)
 {
-	uint8_t intf;
-
-	if (mac_ctx->sap.SapDfsInfo.target_chan_freq) {
-		wlan_reg_set_channel_params_for_freq(mac_ctx->pdev,
-				    mac_ctx->sap.SapDfsInfo.target_chan_freq, 0,
-				    &sap_ctx->ch_params);
-	} else {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  FL("Invalid target channel freq %d"),
-			  mac_ctx->sap.SapDfsInfo.target_chan_freq);
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	for (intf = 0; intf < SAP_MAX_NUM_SESSION; intf++) {
-		struct sap_context *t_sap_ctx;
-		struct csr_roam_profile *profile;
-
-		t_sap_ctx = mac_ctx->sap.sapCtxList[intf].sap_context;
-		if (((QDF_SAP_MODE ==
-		      mac_ctx->sap.sapCtxList[intf].sapPersona) ||
-		     (QDF_P2P_GO_MODE ==
-		      mac_ctx->sap.sapCtxList[intf].sapPersona)) &&
-		    t_sap_ctx && t_sap_ctx->fsm_state != SAP_INIT) {
-			profile = &t_sap_ctx->csr_roamProfile;
-			if (!wlan_reg_is_passive_or_disable_ch(
-				mac_ctx->pdev,
-				wlan_reg_freq_to_chan(mac_ctx->pdev,
-						      profile->op_freq)))
-			continue;
-			t_sap_ctx->is_chan_change_inprogress = true;
-			/*
-			 * eSAP_DFS_CHANNEL_CAC_RADAR_FOUND:
-			 * A Radar is found on current DFS Channel
-			 * while in CAC WAIT period So, do a channel
-			 * switch to randomly selected	target channel.
-			 * Send the Channel change message to SME/PE.
-			 * sap_radar_found_status is set to 1
-			 */
-			wlansap_channel_change_request(t_sap_ctx,
-				mac_ctx->sap.SapDfsInfo.target_chan_freq);
-		}
-	}
-
-	return QDF_STATUS_SUCCESS;
-}
-
-/**
- * sap_fsm_handle_start_failure() - handle start failure or stop during cac wait
- * @sap_ctx: SAP context
- * @msg: event msg
- * @mac_handle: Opaque handle to the global MAC context
- *
- * Return: QDF_STATUS
- */
-static QDF_STATUS sap_fsm_handle_start_failure(struct sap_context *sap_ctx,
-					       uint32_t msg,
-					       mac_handle_t mac_handle)
-{
+	uint32_t msg = sap_event->event;
+	struct csr_roam_info *roam_info =
+		(struct csr_roam_info *) (sap_event->params);
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 
-	if (msg == eSAP_HDD_STOP_INFRA_BSS &&
-	    (QDF_IS_STATUS_SUCCESS(wlan_vdev_is_dfs_cac_wait(sap_ctx->vdev)) ||
-	     QDF_IS_STATUS_SUCCESS(
-	     wlan_vdev_is_restart_progress(sap_ctx->vdev)))) {
-		/* Transition from SAP_STARTING to SAP_STOPPING */
+	if (msg == eSAP_DFS_CHANNEL_CAC_START) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("In cac wait state from state %s => %s"),
-			  "SAP_STARTING", "SAP_STOPPING");
+			  FL("from state %s => %s"),
+			  "SAP_STARTING", "SAP_DFS_CAC_WAIT");
+		if (mac_ctx->sap.SapDfsInfo.is_dfs_cac_timer_running != true)
+			sap_start_dfs_cac_timer(sap_ctx);
+		qdf_status = sap_cac_start_notify(hal);
+	} else if (msg == eSAP_DFS_CHANNEL_CAC_RADAR_FOUND) {
+		uint8_t intf;
+		/*
+		 * Radar found while performing channel availability
+		 * check, need to switch the channel again
+		 */
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			  "ENTERTRED CAC WAIT STATE-->SAP_STOPPING\n");
+		if (mac_ctx->sap.SapDfsInfo.target_channel) {
+			wlan_reg_set_channel_params(mac_ctx->pdev,
+				mac_ctx->sap.SapDfsInfo.target_channel, 0,
+				&sap_ctx->ch_params);
+		} else {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+				FL("Invalid target channel %d"),
+				mac_ctx->sap.SapDfsInfo.target_channel);
+			return qdf_status;
+		}
+
+		for (intf = 0; intf < SAP_MAX_NUM_SESSION; intf++) {
+			struct sap_context *t_sap_ctx;
+			struct csr_roam_profile *profile;
+
+			t_sap_ctx = mac_ctx->sap.sapCtxList[intf].sap_context;
+			if (((QDF_SAP_MODE ==
+				 mac_ctx->sap.sapCtxList[intf].sapPersona) ||
+			     (QDF_P2P_GO_MODE ==
+				mac_ctx->sap.sapCtxList[intf].sapPersona)) &&
+			    t_sap_ctx != NULL &&
+			    t_sap_ctx->fsm_state != SAP_INIT) {
+				profile = &t_sap_ctx->csr_roamProfile;
+				if (!wlan_reg_is_passive_or_disable_ch(
+						mac_ctx->pdev,
+						profile->operationChannel))
+					continue;
+				/* SAP to be moved to STOPPING state */
+				t_sap_ctx->fsm_state = SAP_STOPPING;
+				t_sap_ctx->is_chan_change_inprogress = true;
+				/*
+				 * eSAP_DFS_CHANNEL_CAC_RADAR_FOUND:
+				 * A Radar is found on current DFS Channel
+				 * while in CAC WAIT period So, do a channel
+				 * switch to randomly selected  target channel.
+				 * Send the Channel change message to SME/PE.
+				 * sap_radar_found_status is set to 1
+				 */
+				wlansap_channel_change_request(
+					t_sap_ctx,
+					mac_ctx->sap.SapDfsInfo.target_channel);
+			}
+		}
+	} else if (msg == eSAP_DFS_CHANNEL_CAC_END) {
+		qdf_status = sap_cac_end_notify(hal, roam_info);
+	} else if (msg == eSAP_HDD_STOP_INFRA_BSS) {
+		/* Transition from SAP_DFS_CAC_WAIT to SAP_STOPPING */
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			  FL("from state %s => %s"),
+			  "SAP_DFS_CAC_WAIT", "SAP_STOPPING");
+
 		/*
 		 * Stop the CAC timer only in following conditions
-		 * single AP: if there is a single AP then stop timer
+		 * single AP: if there is a single AP then stop the timer
 		 * mulitple APs: incase of multiple APs, make sure that
-		 * all APs are down.
+		 *               all APs are down.
 		 */
-		if (!sap_find_valid_concurrent_session(mac_handle)) {
+		if (NULL == sap_find_valid_concurrent_session(hal)) {
 			QDF_TRACE(QDF_MODULE_ID_SAP,
 				  QDF_TRACE_LEVEL_INFO_MED,
 				  FL("sapdfs: no sessions are valid, stopping timer"));
@@ -2449,61 +2475,12 @@ static QDF_STATUS sap_fsm_handle_start_failure(struct sap_context *sap_ctx,
 		sap_ctx->fsm_state = SAP_STOPPING;
 		qdf_status = sap_goto_stopping(sap_ctx);
 	} else {
-		/*
-		 * Transition from SAP_STARTING to SAP_INIT
-		 * (both without substates)
-		 */
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  FL("from state %s => %s"),
-			  "SAP_STARTING", "SAP_INIT");
-
-		/* Advance outer statevar */
-		sap_ctx->fsm_state = SAP_INIT;
-		qdf_status = sap_signal_hdd_event(sap_ctx, NULL,
-						  eSAP_START_BSS_EVENT,
-						  (void *)
-						  eSAP_STATUS_FAILURE);
-		qdf_status = sap_goto_init(sap_ctx);
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("in state %s, invalid event msg %d"),
+			  "SAP_DFS_CAC_WAIT", msg);
 	}
 
 	return qdf_status;
-}
-
-/**
- * sap_propagate_cac_events() - Indicate CAC START/END event
- * @sap_ctx: SAP context
- *
- * This function is to indicate CAC START/END event if CAC process
- * is skipped.
- *
- * Return: void
- */
-static void sap_propagate_cac_events(struct sap_context *sap_ctx)
-{
-	QDF_STATUS qdf_status;
-
-	qdf_status = sap_signal_hdd_event(sap_ctx, NULL,
-					  eSAP_DFS_CAC_START,
-					  (void *)
-					  eSAP_STATUS_SUCCESS);
-	if (qdf_status != QDF_STATUS_SUCCESS) {
-		QDF_TRACE(QDF_MODULE_ID_SAP,
-			  QDF_TRACE_LEVEL_DEBUG,
-			  "failed to indicate CAC START vdev %d",
-			  sap_ctx->sessionId);
-		return;
-	}
-
-	qdf_status = sap_signal_hdd_event(sap_ctx, NULL,
-					  eSAP_DFS_CAC_END,
-					  (void *)
-					  eSAP_STATUS_SUCCESS);
-	if (qdf_status != QDF_STATUS_SUCCESS) {
-		QDF_TRACE(QDF_MODULE_ID_SAP,
-			  QDF_TRACE_LEVEL_DEBUG,
-			  "failed to indicate CAC End vdev %d",
-			  sap_ctx->sessionId);
-	}
 }
 
 /**
@@ -2511,16 +2488,15 @@ static void sap_propagate_cac_events(struct sap_context *sap_ctx)
  * @sap_ctx: SAP context
  * @sap_event: SAP event buffer
  * @mac_ctx: global MAC context
- * @mac_handle: Opaque handle to the global MAC context
+ * @hal: HAL handle
  *
  * This function is called for state transition from "SAP_STARTING"
  *
  * Return: QDF_STATUS
  */
 static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
-					 struct sap_sm_event *sap_event,
-					 struct mac_context *mac_ctx,
-					 mac_handle_t mac_handle)
+			ptWLAN_SAPEvent sap_event, tpAniSirGlobal mac_ctx,
+			tHalHandle hal)
 {
 	uint32_t msg = sap_event->event;
 	struct csr_roam_info *roam_info =
@@ -2528,9 +2504,6 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 	tSapDfsInfo *sap_dfs_info;
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	uint8_t is_dfs = false;
-	uint32_t sap_chan_freq;
-	uint32_t ch_cfreq1 = 0;
-	enum reg_wifi_band band;
 
 	if (msg == eSAP_MAC_START_BSS_SUCCESS) {
 		/*
@@ -2538,58 +2511,36 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 		 * (both without substates)
 		 */
 		sap_debug("Chan %d %s => %s ch_width %d",
-			  sap_ctx->chan_freq, "SAP_STARTING", "SAP_STARTED",
+			  sap_ctx->channel, "SAP_STARTING", "SAP_STARTED",
 			  sap_ctx->ch_params.ch_width);
 		sap_ctx->fsm_state = SAP_STARTED;
 
-		if (sap_ctx->is_chan_change_inprogress) {
-			/* SAP channel change request processing is completed */
-			qdf_status = sap_signal_hdd_event(sap_ctx, roam_info,
-						eSAP_CHANNEL_CHANGE_EVENT,
-						(void *)eSAP_STATUS_SUCCESS);
-			sap_ctx->is_chan_change_inprogress = false;
-		} else {
-			/* Action code for transition */
-			qdf_status = sap_signal_hdd_event(sap_ctx, roam_info,
-					eSAP_START_BSS_EVENT,
-					(void *) eSAP_STATUS_SUCCESS);
-		}
-		sap_chan_freq = sap_ctx->chan_freq;
-		band = wlan_reg_freq_to_band(sap_ctx->chan_freq);
-		if (sap_ctx->ch_params.center_freq_seg1)
-			ch_cfreq1 = wlan_reg_chan_band_to_freq(
-					mac_ctx->pdev,
-					sap_ctx->ch_params.center_freq_seg1,
-					BIT(band));
-
+		/* Action code for transition */
+		qdf_status = sap_signal_hdd_event(sap_ctx, roam_info,
+				eSAP_START_BSS_EVENT,
+				(void *) eSAP_STATUS_SUCCESS);
 		/*
 		 * The upper layers have been informed that AP is up and
 		 * running, however, the AP is still not beaconing, until
 		 * CAC is done if the operating channel is DFS
 		 */
 		if (sap_ctx->ch_params.ch_width == CH_WIDTH_160MHZ) {
-			is_dfs = wlan_reg_get_5g_bonded_channel_state_for_freq(
-					mac_ctx->pdev, sap_chan_freq,
-					CH_WIDTH_160MHZ) == CHANNEL_STATE_DFS;
+			is_dfs = true;
 		} else if (sap_ctx->ch_params.ch_width == CH_WIDTH_80P80MHZ) {
-			if (wlan_reg_get_channel_state_for_freq(
-							mac_ctx->pdev,
-							sap_chan_freq) ==
+			if (wlan_reg_get_channel_state(mac_ctx->pdev,
+						sap_ctx->channel) ==
 			    CHANNEL_STATE_DFS ||
-			    wlan_reg_get_channel_state_for_freq(
-							mac_ctx->pdev,
-							ch_cfreq1) ==
+			    wlan_reg_get_channel_state(mac_ctx->pdev,
+				    sap_ctx->ch_params.center_freq_seg1 -
+				SIR_80MHZ_START_CENTER_CH_DIFF) ==
 					CHANNEL_STATE_DFS)
 				is_dfs = true;
 		} else {
-			if (wlan_reg_get_channel_state_for_freq(
-							mac_ctx->pdev,
-							sap_chan_freq) ==
-			    CHANNEL_STATE_DFS)
+			if (wlan_reg_get_channel_state(mac_ctx->pdev,
+						sap_ctx->channel) ==
+							CHANNEL_STATE_DFS)
 				is_dfs = true;
 		}
-		if (WLAN_REG_IS_6GHZ_CHAN_FREQ(sap_ctx->chan_freq))
-			is_dfs = false;
 
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("is_dfs %d"), is_dfs);
@@ -2605,32 +2556,49 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 					  QDF_TRACE_LEVEL_INFO_HIGH,
 					  FL("start cac timer"));
-				qdf_status = sap_fsm_cac_start(sap_ctx, mac_ctx,
-							       mac_handle);
+
+				/* Move the device in CAC_WAIT_STATE */
+				sap_ctx->fsm_state = SAP_DFS_CAC_WAIT;
+
+				/*
+				 * Need to stop the OS transmit queues,
+				 * so that no traffic can flow down the stack
+				 */
+
+				/* Start CAC wait timer */
+				if (sap_dfs_info->is_dfs_cac_timer_running !=
+									true)
+					sap_start_dfs_cac_timer(sap_ctx);
+				qdf_status = sap_cac_start_notify(hal);
+
 			} else {
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 					  QDF_TRACE_LEVEL_INFO_HIGH,
 					FL("skip cac timer"));
-				/*
-				 * If hostapd starts AP on dfs channel,
-				 * hostapd will wait for CAC START/CAC END
-				 * event and finish AP start process.
-				 * If we skip CAC timer, we will need to
-				 * indicate the CAC event even though driver
-				 * doesn't perform CAC.
-				 */
-				sap_propagate_cac_events(sap_ctx);
-
 				wlansap_start_beacon_req(sap_ctx);
 			}
 		}
 	} else if (msg == eSAP_MAC_START_FAILS ||
-		 msg == eSAP_HDD_STOP_INFRA_BSS) {
-			qdf_status = sap_fsm_handle_start_failure(sap_ctx, msg,
-								  mac_handle);
+			msg == eSAP_HDD_STOP_INFRA_BSS) {
+		/*
+		 * Transition from SAP_STARTING to SAP_INIT
+		 * (both without substates)
+		 */
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+			  FL("from state %s => %s"),
+			  "SAP_STARTING", "SAP_INIT");
+
+		/* Advance outer statevar */
+		sap_ctx->fsm_state = SAP_INIT;
+		qdf_status = sap_signal_hdd_event(sap_ctx, NULL,
+				eSAP_START_BSS_EVENT,
+				(void *) eSAP_STATUS_FAILURE);
+		qdf_status = sap_goto_init(sap_ctx);
+		/* Close the SME session */
 	} else if (msg == eSAP_OPERATING_CHANNEL_CHANGED) {
 		/* The operating channel has changed, update hostapd */
-		sap_ctx->chan_freq = mac_ctx->sap.SapDfsInfo.target_chan_freq;
+		sap_ctx->channel =
+			(uint8_t) mac_ctx->sap.SapDfsInfo.target_channel;
 
 		sap_ctx->fsm_state = SAP_STARTED;
 
@@ -2642,10 +2610,6 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 		qdf_status = sap_signal_hdd_event(sap_ctx, roam_info,
 				  eSAP_START_BSS_EVENT,
 				  (void *)eSAP_STATUS_SUCCESS);
-	} else if (msg == eSAP_DFS_CHANNEL_CAC_RADAR_FOUND) {
-		qdf_status = sap_fsm_handle_radar_during_cac(sap_ctx, mac_ctx);
-	} else if (msg == eSAP_DFS_CHANNEL_CAC_END) {
-		qdf_status = sap_cac_end_notify(mac_handle, roam_info);
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("in state %s, invalid event msg %d"),
@@ -2653,48 +2617,6 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 	}
 
 	return qdf_status;
-}
-
-/**
- * sap_fsm_send_csa_restart_req() - send csa start event
- * @mac_ctx: mac ctx
- * @sap_ctx: SAP context
- *
- * Return: QDF_STATUS
- */
-static inline QDF_STATUS
-sap_fsm_send_csa_restart_req(struct mac_context *mac_ctx,
-			     struct sap_context *sap_ctx)
-{
-	QDF_STATUS status;
-
-	status = policy_mgr_check_and_set_hw_mode_for_channel_switch(
-				mac_ctx->psoc, sap_ctx->sessionId,
-				mac_ctx->sap.SapDfsInfo.target_chan_freq,
-				POLICY_MGR_UPDATE_REASON_CHANNEL_SWITCH_SAP);
-
-	/*
-	 * If hw_mode_status is QDF_STATUS_E_FAILURE, mean HW
-	 * mode change was required but driver failed to set HW
-	 * mode so ignore CSA for the channel.
-	 */
-	if (status == QDF_STATUS_E_FAILURE) {
-		sap_err("HW change required but failed to set hw mode");
-		return status;
-	}
-
-	/*
-	 * If hw_mode_status is QDF_STATUS_SUCCESS mean HW mode
-	 * change was required and was successfully requested so
-	 * the channel switch will continue after HW mode change
-	 * completion.
-	 */
-	if (QDF_IS_STATUS_SUCCESS(status)) {
-		sap_info("Channel change will continue after HW mode change");
-		return QDF_STATUS_SUCCESS;
-	}
-
-	return sme_csa_restart(mac_ctx, sap_ctx->sessionId);
 }
 
 /**
@@ -2708,8 +2630,7 @@ sap_fsm_send_csa_restart_req(struct mac_context *mac_ctx,
  * Return: QDF_STATUS
  */
 static QDF_STATUS sap_fsm_state_started(struct sap_context *sap_ctx,
-					struct sap_sm_event *sap_event,
-					struct mac_context *mac_ctx)
+			ptWLAN_SAPEvent sap_event, tpAniSirGlobal mac_ctx)
 {
 	uint32_t msg = sap_event->event;
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
@@ -2726,10 +2647,10 @@ static QDF_STATUS sap_fsm_state_started(struct sap_context *sap_ctx,
 		qdf_status = sap_goto_stopping(sap_ctx);
 	} else if (eSAP_DFS_CHNL_SWITCH_ANNOUNCEMENT_START == msg) {
 		uint8_t intf;
-		if (!mac_ctx->sap.SapDfsInfo.target_chan_freq) {
+		if (!mac_ctx->sap.SapDfsInfo.target_channel) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				FL("Invalid target channel freq %d"),
-				mac_ctx->sap.SapDfsInfo.target_chan_freq);
+				FL("Invalid target channel %d"),
+				mac_ctx->sap.SapDfsInfo.target_channel);
 			return qdf_status;
 		}
 
@@ -2746,7 +2667,7 @@ static QDF_STATUS sap_fsm_state_started(struct sap_context *sap_ctx,
 				mac_ctx->sap.sapCtxList[intf].sapPersona) ||
 			    (QDF_P2P_GO_MODE ==
 				mac_ctx->sap.sapCtxList[intf].sapPersona)) &&
-			    mac_ctx->sap.sapCtxList[intf].sap_context) {
+			    mac_ctx->sap.sapCtxList[intf].sap_context != NULL) {
 				temp_sap_ctx =
 				    mac_ctx->sap.sapCtxList[intf].sap_context;
 				/*
@@ -2756,19 +2677,35 @@ static QDF_STATUS sap_fsm_state_started(struct sap_context *sap_ctx,
 				profile = &temp_sap_ctx->csr_roamProfile;
 				if (!wlan_reg_is_passive_or_disable_ch(
 						mac_ctx->pdev,
-						wlan_reg_freq_to_chan(
-							mac_ctx->pdev,
-							profile->op_freq)))
+						profile->operationChannel))
 					continue;
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 					  QDF_TRACE_LEVEL_INFO_MED,
 					  FL("sapdfs: Sending CSAIE for sapctx[%pK]"),
 					  temp_sap_ctx);
+
 				qdf_status =
-				   sap_fsm_send_csa_restart_req(mac_ctx,
-								temp_sap_ctx);
+					wlansap_dfs_send_csa_ie_request(temp_sap_ctx);
 			}
 		}
+	} else if (eSAP_CHANNEL_SWITCH_ANNOUNCEMENT_START == msg) {
+		enum QDF_OPMODE persona;
+
+		if (!sap_ctx) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+					FL("Invalid sap_ctx"));
+			return qdf_status;
+		}
+
+		persona = mac_ctx->sap.sapCtxList[sap_ctx->sessionId].
+								sapPersona;
+
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
+				FL("app trigger chan switch: mode:%d vdev:%d"),
+				persona, sap_ctx->sessionId);
+
+		if ((QDF_SAP_MODE == persona) || (QDF_P2P_GO_MODE == persona))
+			qdf_status = wlansap_dfs_send_csa_ie_request(sap_ctx);
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("in state %s, invalid event msg %d"),
@@ -2790,9 +2727,8 @@ static QDF_STATUS sap_fsm_state_started(struct sap_context *sap_ctx,
  */
 static QDF_STATUS
 sap_fsm_state_stopping(struct sap_context *sap_ctx,
-		       struct sap_sm_event *sap_event,
-		       struct mac_context *mac_ctx,
-		       mac_handle_t mac_handle)
+		       ptWLAN_SAPEvent sap_event, tpAniSirGlobal mac_ctx,
+		       tHalHandle hal)
 {
 	uint32_t msg = sap_event->event;
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
@@ -2811,13 +2747,29 @@ sap_fsm_state_stopping(struct sap_context *sap_ctx,
 		qdf_status = sap_signal_hdd_event(sap_ctx, NULL,
 					eSAP_STOP_BSS_EVENT,
 					(void *)eSAP_STATUS_SUCCESS);
-	} else if (msg == eSAP_HDD_STOP_INFRA_BSS) {
+	} else if (msg == eWNI_SME_CHANNEL_CHANGE_REQ) {
+		sap_get_cac_dur_dfs_region(sap_ctx,
+				&sap_ctx->csr_roamProfile.cac_duration_ms,
+				&sap_ctx->csr_roamProfile.dfs_regdomain);
 		/*
-		 * In case the SAP is already in stopping case and
-		 * we get a STOP request, return success.
+		 * Most likely, radar has been detected and SAP wants to
+		 * change the channel
 		 */
-		sap_debug("SAP already in Stopping state");
-		qdf_status = QDF_STATUS_SUCCESS;
+		qdf_status = wlansap_channel_change_request(sap_ctx,
+				mac_ctx->sap.SapDfsInfo.target_channel);
+	} else if (msg == eWNI_SME_CHANNEL_CHANGE_RSP) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			  FL("in state %s, event msg %d result %d"),
+			  "SAP_STOPPING ", msg, sap_event->u2);
+		if (sap_event->u2 == eCSR_ROAM_RESULT_CHANNEL_CHANGE_FAILURE)
+			qdf_status = sap_goto_stopping(sap_ctx);
+	} else if ((msg == eSAP_HDD_STOP_INFRA_BSS) &&
+			(sap_ctx->is_chan_change_inprogress)) {
+		/* stop bss is received while processing channel change */
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO,
+			  FL("in state %s, event msg %d result %d"),
+			  "SAP_STOPPING ", msg, sap_event->u2);
+		qdf_status = sap_goto_stopping(sap_ctx);
 	} else {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  FL("in state %s, invalid event msg %d"),
@@ -2832,11 +2784,11 @@ sap_fsm_state_stopping(struct sap_context *sap_ctx,
  * @sap_ctx: SAP context
  * @sap_event: SAP event
  *
- * SAP state machine entry function
+ * SAP statem machine entry function
  *
  * Return: QDF_STATUS
  */
-QDF_STATUS sap_fsm(struct sap_context *sap_ctx, struct sap_sm_event *sap_event)
+QDF_STATUS sap_fsm(struct sap_context *sap_ctx, ptWLAN_SAPEvent sap_event)
 {
 	/*
 	 * Retrieve the phy link state machine structure
@@ -2844,84 +2796,80 @@ QDF_STATUS sap_fsm(struct sap_context *sap_ctx, struct sap_sm_event *sap_event)
 	 * state var that keeps track of state machine
 	 */
 	enum sap_fsm_state state_var = sap_ctx->fsm_state;
+#ifdef WLAN_DEBUG
 	uint32_t msg = sap_event->event; /* State machine input event message */
+#endif
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
-	struct mac_context *mac_ctx;
-	mac_handle_t mac_handle;
+	tHalHandle hal = CDS_GET_HAL_CB();
+	tpAniSirGlobal mac_ctx;
 
-	mac_ctx = sap_get_mac_context();
-	if (!mac_ctx) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	if (NULL == hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Invalid hal"));
 		return QDF_STATUS_E_FAILURE;
 	}
-	mac_handle = MAC_HANDLE(mac_ctx);
+
+	mac_ctx = PMAC_STRUCT(hal);
 
 	sap_debug("state=%d handle event=%d", state_var, msg);
 
 	switch (state_var) {
 	case SAP_INIT:
 		qdf_status = sap_fsm_state_init(sap_ctx, sap_event,
-						mac_ctx, mac_handle);
+						mac_ctx, hal);
+		break;
+
+	case SAP_DFS_CAC_WAIT:
+		qdf_status = sap_fsm_state_dfs_cac_wait(sap_ctx, sap_event,
+				mac_ctx, hal);
 		break;
 
 	case SAP_STARTING:
 		qdf_status = sap_fsm_state_starting(sap_ctx, sap_event,
-						    mac_ctx, mac_handle);
+				mac_ctx, hal);
 		break;
 
 	case SAP_STARTED:
 		qdf_status = sap_fsm_state_started(sap_ctx, sap_event,
-						   mac_ctx);
+				mac_ctx);
 		break;
 
 	case SAP_STOPPING:
 		qdf_status = sap_fsm_state_stopping(sap_ctx, sap_event,
-						    mac_ctx, mac_handle);
+						    mac_ctx, hal);
 		break;
 	}
 	return qdf_status;
 }
 
 eSapStatus
-sapconvert_to_csr_profile(struct sap_config *config, eCsrRoamBssType bssType,
+sapconvert_to_csr_profile(tsap_config_t *pconfig_params, eCsrRoamBssType bssType,
 			  struct csr_roam_profile *profile)
 {
-	int qdf_status = QDF_STATUS_SUCCESS;
-	bool sap_uapsd = true, chan_switch_hostapd_rate_enabled = true;
-	bool ap_obss_prot = false;
-	uint16_t ap_prot = cfg_default(CFG_AP_PROTECTION_MODE);
-	struct mac_context *mac_ctx;
-	uint8_t mcc_to_scc_switch = 0;
-
-	mac_ctx = sap_get_mac_context();
-	if (!mac_ctx) {
-		sap_err("Invalid MAC context");
-		return eSAP_STATUS_FAILURE;
-	}
-
 	/* Create Roam profile for SoftAP to connect */
 	profile->BSSType = eCSR_BSS_TYPE_INFRA_AP;
 	profile->SSIDs.numOfSSIDs = 1;
-	profile->csrPersona = config->persona;
+	profile->csrPersona = pconfig_params->persona;
+	profile->disableDFSChSwitch = pconfig_params->disableDFSChSwitch;
 
 	qdf_mem_zero(profile->SSIDs.SSIDList[0].SSID.ssId,
 		     sizeof(profile->SSIDs.SSIDList[0].SSID.ssId));
 
 	/* Flag to not broadcast the SSID information */
 	profile->SSIDs.SSIDList[0].ssidHidden =
-		config->SSIDinfo.ssidHidden;
+		pconfig_params->SSIDinfo.ssidHidden;
 
 	profile->SSIDs.SSIDList[0].SSID.length =
-		config->SSIDinfo.ssid.length;
+		pconfig_params->SSIDinfo.ssid.length;
 	qdf_mem_copy(&profile->SSIDs.SSIDList[0].SSID.ssId,
-		     config->SSIDinfo.ssid.ssId,
-		     sizeof(config->SSIDinfo.ssid.ssId));
+		     pconfig_params->SSIDinfo.ssid.ssId,
+		     sizeof(pconfig_params->SSIDinfo.ssid.ssId));
 
 	profile->negotiatedAuthType = eCSR_AUTH_TYPE_OPEN_SYSTEM;
 
-	if (config->authType == eSAP_OPEN_SYSTEM) {
+	if (pconfig_params->authType == eSAP_OPEN_SYSTEM) {
 		profile->negotiatedAuthType = eCSR_AUTH_TYPE_OPEN_SYSTEM;
-	} else if (config->authType == eSAP_SHARED_KEY) {
+	} else if (pconfig_params->authType == eSAP_SHARED_KEY) {
 		profile->negotiatedAuthType = eCSR_AUTH_TYPE_SHARED_KEY;
 	} else {
 		profile->negotiatedAuthType = eCSR_AUTH_TYPE_AUTOSWITCH;
@@ -2930,27 +2878,27 @@ sapconvert_to_csr_profile(struct sap_config *config, eCsrRoamBssType bssType,
 	profile->AuthType.numEntries = 1;
 	profile->AuthType.authType[0] = eCSR_AUTH_TYPE_OPEN_SYSTEM;
 
-	profile->akm_list = config->akm_list;
+	profile->akm_list = pconfig_params->akm_list;
 
 	/* Always set the Encryption Type */
 	profile->EncryptionType.numEntries = 1;
 	profile->EncryptionType.encryptionType[0] =
-		config->RSNEncryptType;
+		pconfig_params->RSNEncryptType;
 
 	profile->mcEncryptionType.numEntries = 1;
 	profile->mcEncryptionType.encryptionType[0] =
-		config->mcRSNEncryptType;
+		pconfig_params->mcRSNEncryptType;
 
-	if (config->privacy & eSAP_SHARED_KEY) {
+	if (pconfig_params->privacy & eSAP_SHARED_KEY) {
 		profile->AuthType.authType[0] = eCSR_AUTH_TYPE_SHARED_KEY;
 	}
 
-	profile->privacy = config->privacy;
-	profile->fwdWPSPBCProbeReq = config->fwdWPSPBCProbeReq;
+	profile->privacy = pconfig_params->privacy;
+	profile->fwdWPSPBCProbeReq = pconfig_params->fwdWPSPBCProbeReq;
 
-	if (config->authType == eSAP_SHARED_KEY) {
+	if (pconfig_params->authType == eSAP_SHARED_KEY) {
 		profile->csr80211AuthType = eSIR_SHARED_KEY;
-	} else if (config->authType == eSAP_OPEN_SYSTEM) {
+	} else if (pconfig_params->authType == eSAP_OPEN_SYSTEM) {
 		profile->csr80211AuthType = eSIR_OPEN_SYSTEM;
 	} else {
 		profile->csr80211AuthType = eSIR_AUTO_SWITCH;
@@ -2967,129 +2915,107 @@ sapconvert_to_csr_profile(struct sap_config *config, eCsrRoamBssType bssType,
 	}
 
 	/* set the RSN/WPA IE */
-	profile->nRSNReqIELength = config->RSNWPAReqIELength;
-	if (config->RSNWPAReqIELength) {
+	profile->nRSNReqIELength = pconfig_params->RSNWPAReqIELength;
+	if (pconfig_params->RSNWPAReqIELength) {
 		profile->pRSNReqIE =
-			qdf_mem_malloc(config->RSNWPAReqIELength);
-		if (!profile->pRSNReqIE)
+			qdf_mem_malloc(pconfig_params->RSNWPAReqIELength);
+		if (NULL == profile->pRSNReqIE) {
+			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+				  " %s Fail to alloc memory", __func__);
 			return eSAP_STATUS_FAILURE;
-
-		qdf_mem_copy(profile->pRSNReqIE, config->RSNWPAReqIE,
-			     config->RSNWPAReqIELength);
-		profile->nRSNReqIELength = config->RSNWPAReqIELength;
+		}
+		qdf_mem_copy(profile->pRSNReqIE, pconfig_params->RSNWPAReqIE,
+			     pconfig_params->RSNWPAReqIELength);
+		profile->nRSNReqIELength = pconfig_params->RSNWPAReqIELength;
 	}
 
 	/* set the phyMode to accept anything */
 	/* Best means everything because it covers all the things we support */
 	/* eCSR_DOT11_MODE_BEST */
-	profile->phyMode = config->SapHw_mode;
+	profile->phyMode = pconfig_params->SapHw_mode;
 
 	/* Configure beaconInterval */
-	profile->beaconInterval = (uint16_t) config->beacon_int;
+	profile->beaconInterval = (uint16_t) pconfig_params->beacon_int;
 
 	/* set DTIM period */
-	profile->dtimPeriod = config->dtim_period;
+	profile->dtimPeriod = pconfig_params->dtim_period;
 
 	/* set Uapsd enable bit */
-	qdf_status = ucfg_mlme_is_sap_uapsd_enabled(mac_ctx->psoc, &sap_uapsd);
-	if (QDF_IS_STATUS_ERROR(qdf_status))
-		sap_err("Get ap UAPSD enabled/disabled failed");
+	profile->ApUapsdEnable = pconfig_params->UapsdEnable;
 
-	profile->ApUapsdEnable = sap_uapsd;
 	/* Enable protection parameters */
-	profile->protEnabled = ucfg_mlme_is_ap_prot_enabled(mac_ctx->psoc);
-
-	/* Enable OBSS protection */
-	qdf_status = ucfg_mlme_is_ap_obss_prot_enabled(mac_ctx->psoc,
-						       &ap_obss_prot);
-	if (QDF_IS_STATUS_ERROR(qdf_status))
-		sap_err("Get ap obss protection failed");
-	profile->obssProtEnabled = ap_obss_prot;
-
-	qdf_status = ucfg_mlme_get_ap_protection_mode(mac_ctx->psoc, &ap_prot);
-	if (QDF_IS_STATUS_ERROR(qdf_status))
-		sap_err("Get ap protection mode failed using default value");
-	profile->cfg_protection = ap_prot;
+	profile->protEnabled = pconfig_params->protEnabled;
+	profile->obssProtEnabled = pconfig_params->obssProtEnabled;
+	profile->cfg_protection = pconfig_params->ht_capab;
 
 	/* country code */
-	if (config->countryCode[0])
-		qdf_mem_copy(profile->countryCode, config->countryCode,
-			     CFG_COUNTRY_CODE_LEN);
-	profile->ieee80211d = config->ieee80211d;
+	if (pconfig_params->countryCode[0])
+		qdf_mem_copy(profile->countryCode, pconfig_params->countryCode,
+			     WNI_CFG_COUNTRY_CODE_LEN);
+	profile->ieee80211d = pconfig_params->ieee80211d;
 	/* wps config info */
-	profile->wps_state = config->wps_state;
+	profile->wps_state = pconfig_params->wps_state;
 
 #ifdef WLAN_FEATURE_11W
 	/* MFP capable/required */
-	profile->MFPCapable = config->mfpCapable ? 1 : 0;
-	profile->MFPRequired = config->mfpRequired ? 1 : 0;
+	profile->MFPCapable = pconfig_params->mfpCapable ? 1 : 0;
+	profile->MFPRequired = pconfig_params->mfpRequired ? 1 : 0;
 #endif
 
-	if (config->probeRespIEsBufferLen > 0 &&
-	    config->pProbeRespIEsBuffer) {
-		profile->add_ie_params.probeRespDataLen =
-			config->probeRespIEsBufferLen;
-		profile->add_ie_params.probeRespData_buff =
-			config->pProbeRespIEsBuffer;
+	if (pconfig_params->probeRespIEsBufferLen > 0 &&
+	    pconfig_params->pProbeRespIEsBuffer != NULL) {
+		profile->addIeParams.probeRespDataLen =
+			pconfig_params->probeRespIEsBufferLen;
+		profile->addIeParams.probeRespData_buff =
+			pconfig_params->pProbeRespIEsBuffer;
 	} else {
-		profile->add_ie_params.probeRespDataLen = 0;
-		profile->add_ie_params.probeRespData_buff = NULL;
+		profile->addIeParams.probeRespDataLen = 0;
+		profile->addIeParams.probeRespData_buff = NULL;
 	}
 	/*assoc resp IE */
-	if (config->assocRespIEsLen > 0 &&
-	    config->pAssocRespIEsBuffer) {
-		profile->add_ie_params.assocRespDataLen =
-			config->assocRespIEsLen;
-		profile->add_ie_params.assocRespData_buff =
-			config->pAssocRespIEsBuffer;
+	if (pconfig_params->assocRespIEsLen > 0 &&
+	    pconfig_params->pAssocRespIEsBuffer != NULL) {
+		profile->addIeParams.assocRespDataLen =
+			pconfig_params->assocRespIEsLen;
+		profile->addIeParams.assocRespData_buff =
+			pconfig_params->pAssocRespIEsBuffer;
 	} else {
-		profile->add_ie_params.assocRespDataLen = 0;
-		profile->add_ie_params.assocRespData_buff = NULL;
+		profile->addIeParams.assocRespDataLen = 0;
+		profile->addIeParams.assocRespData_buff = NULL;
 	}
 
-	if (config->probeRespBcnIEsLen > 0 &&
-	    config->pProbeRespBcnIEsBuffer) {
-		profile->add_ie_params.probeRespBCNDataLen =
-			config->probeRespBcnIEsLen;
-		profile->add_ie_params.probeRespBCNData_buff =
-			config->pProbeRespBcnIEsBuffer;
+	if (pconfig_params->probeRespBcnIEsLen > 0 &&
+	    pconfig_params->pProbeRespBcnIEsBuffer != NULL) {
+		profile->addIeParams.probeRespBCNDataLen =
+			pconfig_params->probeRespBcnIEsLen;
+		profile->addIeParams.probeRespBCNData_buff =
+			pconfig_params->pProbeRespBcnIEsBuffer;
 	} else {
-		profile->add_ie_params.probeRespBCNDataLen = 0;
-		profile->add_ie_params.probeRespBCNData_buff = NULL;
+		profile->addIeParams.probeRespBCNDataLen = 0;
+		profile->addIeParams.probeRespBCNData_buff = NULL;
 	}
+	profile->sap_dot11mc = pconfig_params->sap_dot11mc;
 
-	if (config->supported_rates.numRates) {
+	if (pconfig_params->supported_rates.numRates) {
 		qdf_mem_copy(profile->supported_rates.rate,
-				config->supported_rates.rate,
-				config->supported_rates.numRates);
+				pconfig_params->supported_rates.rate,
+				pconfig_params->supported_rates.numRates);
 		profile->supported_rates.numRates =
-			config->supported_rates.numRates;
+			pconfig_params->supported_rates.numRates;
 	}
 
-	if (config->extended_rates.numRates) {
+	if (pconfig_params->extended_rates.numRates) {
 		qdf_mem_copy(profile->extended_rates.rate,
-				config->extended_rates.rate,
-				config->extended_rates.numRates);
+				pconfig_params->extended_rates.rate,
+				pconfig_params->extended_rates.numRates);
 		profile->extended_rates.numRates =
-			config->extended_rates.numRates;
+			pconfig_params->extended_rates.numRates;
 	}
-
-	qdf_status = ucfg_mlme_get_sap_chan_switch_rate_enabled(
-					mac_ctx->psoc,
-					&chan_switch_hostapd_rate_enabled);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status))
-		sap_err("ucfg_mlme_get_sap_chan_switch_rate_enabled, set def");
 
 	profile->chan_switch_hostapd_rate_enabled =
-					chan_switch_hostapd_rate_enabled;
-	if (QDF_STATUS_SUCCESS ==
-		ucfg_policy_mgr_get_mcc_scc_switch(mac_ctx->psoc,
-						   &mcc_to_scc_switch)) {
-		if (mcc_to_scc_switch != QDF_MCC_TO_SCC_SWITCH_DISABLE)
-			profile->chan_switch_hostapd_rate_enabled = false;
-	}
+		pconfig_params->chan_switch_hostapd_rate_enabled;
 
-	return eSAP_STATUS_SUCCESS;
+	return eSAP_STATUS_SUCCESS;     /* Success. */
 }
 
 void sap_free_roam_profile(struct csr_roam_profile *profile)
@@ -3106,7 +3032,7 @@ void sap_sort_mac_list(struct qdf_mac_addr *macList, uint8_t size)
 	struct qdf_mac_addr temp;
 	int32_t nRes = -1;
 
-	if ((!macList) || (size > MAX_ACL_MAC_ADDRESS)) {
+	if ((NULL == macList) || (size > MAX_ACL_MAC_ADDRESS)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			FL("either buffer is NULL or size = %d is more"), size);
 		return;
@@ -3142,7 +3068,7 @@ sap_search_mac_list(struct qdf_mac_addr *macList,
 
 	nEnd = num_mac - 1;
 
-	if ((!macList) || (num_mac > MAX_ACL_MAC_ADDRESS)) {
+	if ((NULL == macList) || (num_mac > MAX_ACL_MAC_ADDRESS)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 		    FL("either buffer is NULL or size = %d is more."), num_mac);
 		return false;
@@ -3159,7 +3085,7 @@ sap_search_mac_list(struct qdf_mac_addr *macList,
 				  "search SUCC");
 			/* "index equals NULL" means the caller does not need the */
 			/* index value of the peerMac being searched */
-			if (index) {
+			if (index != NULL) {
 				*index = (uint8_t) nMiddle;
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 					  QDF_TRACE_LEVEL_INFO_HIGH, "index %d",
@@ -3187,7 +3113,7 @@ void sap_add_mac_to_acl(struct qdf_mac_addr *macList,
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "add acl entered");
 
-	if (!macList || *size > MAX_ACL_MAC_ADDRESS) {
+	if (NULL == macList || *size > MAX_ACL_MAC_ADDRESS) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			FL("either buffer is NULL or size = %d is incorrect."),
 			*size);
@@ -3225,7 +3151,7 @@ void sap_remove_mac_from_acl(struct qdf_mac_addr *macList,
 	 * the index of the mac addr to be removed and this will only get
 	 * called if the search is successful. Still no harm in having the check
 	 */
-	if ((!macList) || (*size == 0) ||
+	if ((macList == NULL) || (*size == 0) ||
 					(*size > MAX_ACL_MAC_ADDRESS)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			FL("either buffer is NULL or size %d is incorrect."),
@@ -3252,7 +3178,7 @@ void sap_print_acl(struct qdf_mac_addr *macList, uint8_t size)
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "print acl entered");
 
-	if ((!macList) || (size == 0) || (size >= MAX_ACL_MAC_ADDRESS)) {
+	if ((NULL == macList) || (size == 0) || (size >= MAX_ACL_MAC_ADDRESS)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  "In %s, either buffer is NULL or size %d is incorrect.",
 			  __func__, size);
@@ -3262,52 +3188,52 @@ void sap_print_acl(struct qdf_mac_addr *macList, uint8_t size)
 	for (i = 0; i < size; i++) {
 		macArray = (macList + i)->bytes;
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "** ACL entry %i - " QDF_MAC_ADDR_FMT, i,
-			  QDF_MAC_ADDR_REF(macArray));
+			  "** ACL entry %i - " MAC_ADDRESS_STR, i,
+			  MAC_ADDR_ARRAY(macArray));
 	}
 	return;
 }
 
-QDF_STATUS sap_is_peer_mac_allowed(struct sap_context *sap_ctx,
+QDF_STATUS sap_is_peer_mac_allowed(struct sap_context *sapContext,
 				   uint8_t *peerMac)
 {
-	if (eSAP_ALLOW_ALL == sap_ctx->eSapMacAddrAclMode)
+	if (eSAP_ALLOW_ALL == sapContext->eSapMacAddrAclMode)
 		return QDF_STATUS_SUCCESS;
 
 	if (sap_search_mac_list
-		    (sap_ctx->acceptMacList, sap_ctx->nAcceptMac, peerMac, NULL))
+		    (sapContext->acceptMacList, sapContext->nAcceptMac, peerMac, NULL))
 		return QDF_STATUS_SUCCESS;
 
 	if (sap_search_mac_list
-		    (sap_ctx->denyMacList, sap_ctx->nDenyMac, peerMac, NULL)) {
+		    (sapContext->denyMacList, sapContext->nDenyMac, peerMac, NULL)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "In %s, Peer " QDF_MAC_ADDR_FMT " in deny list",
-			  __func__, QDF_MAC_ADDR_REF(peerMac));
+			  "In %s, Peer " MAC_ADDRESS_STR " in deny list",
+			  __func__, MAC_ADDR_ARRAY(peerMac));
 		return QDF_STATUS_E_FAILURE;
 	}
 	/* A new station CAN associate, unless in deny list. Less stringent mode */
-	if (eSAP_ACCEPT_UNLESS_DENIED == sap_ctx->eSapMacAddrAclMode)
+	if (eSAP_ACCEPT_UNLESS_DENIED == sapContext->eSapMacAddrAclMode)
 		return QDF_STATUS_SUCCESS;
 
 	/* A new station CANNOT associate, unless in accept list. More stringent mode */
-	if (eSAP_DENY_UNLESS_ACCEPTED == sap_ctx->eSapMacAddrAclMode) {
+	if (eSAP_DENY_UNLESS_ACCEPTED == sapContext->eSapMacAddrAclMode) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "In %s, Peer " QDF_MAC_ADDR_FMT
+			  "In %s, Peer " MAC_ADDRESS_STR
 			  " denied, Mac filter mode is eSAP_DENY_UNLESS_ACCEPTED",
-			  __func__, QDF_MAC_ADDR_REF(peerMac));
+			  __func__, MAC_ADDR_ARRAY(peerMac));
 		return QDF_STATUS_E_FAILURE;
 	}
 
 	/* The new STA is neither in accept list nor in deny list. In this case, deny the association
 	 * but send a wifi event notification indicating the mac address being denied
 	 */
-	if (eSAP_SUPPORT_ACCEPT_AND_DENY == sap_ctx->eSapMacAddrAclMode) {
-		sap_signal_hdd_event(sap_ctx, NULL, eSAP_UNKNOWN_STA_JOIN,
+	if (eSAP_SUPPORT_ACCEPT_AND_DENY == sapContext->eSapMacAddrAclMode) {
+		sap_signal_hdd_event(sapContext, NULL, eSAP_UNKNOWN_STA_JOIN,
 				     (void *) peerMac);
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "In %s, Peer " QDF_MAC_ADDR_FMT
+			  "In %s, Peer " MAC_ADDRESS_STR
 			  " denied, Mac filter mode is eSAP_SUPPORT_ACCEPT_AND_DENY",
-			  __func__, QDF_MAC_ADDR_REF(peerMac));
+			  __func__, MAC_ADDR_ARRAY(peerMac));
 		return QDF_STATUS_E_FAILURE;
 	}
 	return QDF_STATUS_SUCCESS;
@@ -3330,7 +3256,7 @@ void sap_dump_acs_channel(struct sap_acs_cfg *acs_cfg)
 
 	for (i = 0; i < acs_cfg->ch_list_count; i++)
 		len += qdf_scnprintf(chan_buff + len, buf_len - len,
-				     " %d", acs_cfg->freq_list[i]);
+				     " %d", acs_cfg->ch_list[i]);
 
 	sap_nofl_debug("ACS freq list[%d]:%s",
 		       acs_cfg->ch_list_count, chan_buff);
@@ -3339,79 +3265,68 @@ void sap_dump_acs_channel(struct sap_acs_cfg *acs_cfg)
 
 #ifdef SOFTAP_CHANNEL_RANGE
 /**
- * sap_get_freq_list() - get the list of channel frequency
+ * sap_get_channel_list() - get the list of channels
  * @sap_ctx: sap context
- * @freq_list: pointer to channel list array
+ * @ch_list: pointer to channel list array
  * @num_ch: pointer to number of channels.
  *
- * This function populates the list of channel frequency for scanning.
+ * This function populates the list of channels for scanning.
  *
  * Return: QDF_STATUS
  */
-static QDF_STATUS sap_get_freq_list(struct sap_context *sap_ctx,
-				    uint32_t **freq_list,
-				    uint8_t *num_ch)
+static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
+				       uint8_t **ch_list,
+				       uint8_t *num_ch)
 {
 	uint8_t loop_count;
-	uint32_t *list;
+	uint8_t *list;
 	uint8_t ch_count;
-	uint8_t dfs_master_enable;
-	uint32_t start_ch_freq, band_start_ch;
-	uint32_t end_ch_freq, band_end_ch;
+	uint8_t start_ch_num, band_start_ch;
+	uint8_t end_ch_num, band_end_ch;
 	uint32_t en_lte_coex;
-	struct mac_context *mac_ctx;
+	tHalHandle hal = CDS_GET_HAL_CB();
+	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	tSapChSelSpectInfo spect_info_obj = { NULL, 0 };
 	uint16_t ch_width;
-	uint8_t normalize_factor = 100;
-	uint32_t chan_freq;
-	struct acs_weight *weight_list;
-	struct acs_weight_range *range_list;
-	bool freq_present_in_list = false;
-	uint8_t i;
 
-	mac_ctx = sap_get_mac_context();
-	if (!mac_ctx) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	if (NULL == hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			FL("Invalid HAL pointer from p_cds_gctx"));
 		*num_ch = 0;
-		*freq_list = NULL;
+		*ch_list = NULL;
 		return QDF_STATUS_E_FAULT;
 	}
 
-	weight_list = mac_ctx->mlme_cfg->acs.normalize_weight_chan;
-	range_list = mac_ctx->mlme_cfg->acs.normalize_weight_range;
-
-	dfs_master_enable = mac_ctx->mlme_cfg->dfs_cfg.dfs_master_capable;
-	if (sap_ctx->dfs_mode == ACS_DFS_MODE_DISABLE)
-		dfs_master_enable = false;
-
-	start_ch_freq = sap_ctx->acs_cfg->start_ch_freq;
-	end_ch_freq = sap_ctx->acs_cfg->end_ch_freq;
+	start_ch_num = sap_ctx->acs_cfg->start_ch;
+	end_ch_num = sap_ctx->acs_cfg->end_ch;
 	ch_width = sap_ctx->acs_cfg->ch_width;
-
 	sap_debug("startChannel %d, EndChannel %d, ch_width %d, HW:%d",
-		  start_ch_freq, end_ch_freq, ch_width,
+		  start_ch_num, end_ch_num, ch_width,
 		  sap_ctx->acs_cfg->hw_mode);
 
-	wlansap_extend_to_acs_range(MAC_HANDLE(mac_ctx),
-				    &start_ch_freq, &end_ch_freq,
-				    &band_start_ch, &band_end_ch);
+	wlansap_extend_to_acs_range(hal, &start_ch_num, &end_ch_num,
+					    &band_start_ch, &band_end_ch);
 
 	sap_debug("expanded startChannel %d,EndChannel %d band_start_ch %d, band_end_ch %d",
-		  start_ch_freq, end_ch_freq, band_start_ch, band_end_ch);
+		  start_ch_num, end_ch_num, band_start_ch, band_end_ch);
 
-	en_lte_coex = mac_ctx->mlme_cfg->sap_cfg.enable_lte_coex;
+	sme_cfg_get_int(hal, WNI_CFG_ENABLE_LTE_COEX, &en_lte_coex);
 
 	/* Check if LTE coex is enabled and 2.4GHz is selected */
-	if (en_lte_coex && (band_start_ch == CHAN_ENUM_2412) &&
-	    (band_end_ch == CHAN_ENUM_2484)) {
+	if (en_lte_coex && (band_start_ch == CHAN_ENUM_1) &&
+	    (band_end_ch == CHAN_ENUM_14)) {
 		/* Set 2.4GHz upper limit to channel 9 for LTE COEX */
-		band_end_ch = CHAN_ENUM_2452;
+		band_end_ch = CHAN_ENUM_9;
 	}
 
 	/* Allocate the max number of channel supported */
-	list = qdf_mem_malloc((NUM_CHANNELS) * sizeof(uint32_t));
-	if (!list) {
+	list = (uint8_t *) qdf_mem_malloc(NUM_5GHZ_CHANNELS +
+						NUM_24GHZ_CHANNELS);
+	if (NULL == list) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  FL("Unable to allocate channel list"));
 		*num_ch = 0;
-		*freq_list = NULL;
+		*ch_list = NULL;
 		return QDF_STATUS_E_NOMEM;
 	}
 
@@ -3419,11 +3334,13 @@ static QDF_STATUS sap_get_freq_list(struct sap_context *sap_ctx,
 	ch_count = 0;
 	for (loop_count = band_start_ch; loop_count <= band_end_ch;
 	     loop_count++) {
-		chan_freq = WLAN_REG_CH_TO_FREQ(loop_count);
-
 		/* go to next channel if rf_channel is out of range */
-		if (start_ch_freq > WLAN_REG_CH_TO_FREQ(loop_count) ||
-		    end_ch_freq < WLAN_REG_CH_TO_FREQ(loop_count))
+		if ((start_ch_num > WLAN_REG_CH_NUM(loop_count)) ||
+		    (end_ch_num < WLAN_REG_CH_NUM(loop_count)))
+			continue;
+		/* Skip channel 12, and 13 for IOT issues for now */
+		if (WLAN_REG_CH_NUM(loop_count) == 12 ||
+		    WLAN_REG_CH_NUM(loop_count) == 13)
 			continue;
 		/*
 		 * go to next channel if none of these condition pass
@@ -3431,157 +3348,97 @@ static QDF_STATUS sap_get_freq_list(struct sap_context *sap_ctx,
 		 * - DFS scan disable but chan in CHANNEL_STATE_ENABLE
 		 */
 		if (!(((true == mac_ctx->scan.fEnableDFSChnlScan) &&
-		      wlan_reg_get_channel_state_for_freq(
-			mac_ctx->pdev, WLAN_REG_CH_TO_FREQ(loop_count)))
+		      wlan_reg_get_channel_state(mac_ctx->pdev,
+						 WLAN_REG_CH_NUM(loop_count)))
 		      ||
 		    ((false == mac_ctx->scan.fEnableDFSChnlScan) &&
 		     (CHANNEL_STATE_ENABLE ==
-		      wlan_reg_get_channel_state_for_freq(
-			mac_ctx->pdev, WLAN_REG_CH_TO_FREQ(loop_count)))
+		      wlan_reg_get_channel_state(mac_ctx->pdev,
+						 WLAN_REG_CH_NUM(loop_count)))
 		     )))
-			continue;
-
-		/* check if the channel is in NOL blacklist */
-		if (!WLAN_REG_IS_6GHZ_CHAN_FREQ(WLAN_REG_CH_TO_FREQ(
-					loop_count))) {
-			if (sap_dfs_is_channel_in_nol_list(
-					sap_ctx,
-					WLAN_REG_CH_NUM(loop_count),
-					PHY_SINGLE_CHANNEL_CENTERED)) {
-				sap_debug("Ch %d in NOL list",
-					  WLAN_REG_CH_NUM(loop_count));
-				continue;
-			}
-		}
-		/* Skip DSRC channels */
-		if (wlan_reg_is_dsrc_freq(WLAN_REG_CH_TO_FREQ(loop_count)))
 			continue;
 
 		/*
 		 * Skip the channels which are not in ACS config from user
 		 * space
 		 */
-		if (!wlansap_is_channel_present_in_acs_list(
-					chan_freq,
-					sap_ctx->acs_cfg->freq_list,
-					sap_ctx->acs_cfg->ch_list_count))
+		if (SAP_CHANNEL_NOT_SELECTED ==
+			sap_channel_in_acs_channel_list(
+				WLAN_REG_CH_NUM(loop_count),
+				sap_ctx, &spect_info_obj))
 			continue;
 		/* Dont scan DFS channels in case of MCC disallowed
 		 * As it can result in SAP starting on DFS channel
 		 * resulting  MCC on DFS channel
 		 */
+		if (wlan_reg_is_dfs_ch(mac_ctx->pdev,
+		    WLAN_REG_CH_NUM(loop_count)) &&
+		    (policy_mgr_disallow_mcc(mac_ctx->psoc,
+		    WLAN_REG_CH_NUM(loop_count)) ||
+		    !sap_ctx->acs_cfg->dfs_master_mode))
+			continue;
 
-		if (wlan_reg_is_dfs_for_freq(
-					mac_ctx->pdev,
-					WLAN_REG_CH_TO_FREQ(loop_count))) {
-			if (!dfs_master_enable)
-				continue;
-			else if (policy_mgr_disallow_mcc(
-					mac_ctx->psoc,
-					WLAN_REG_CH_TO_FREQ(loop_count)))
-				continue;
-			normalize_factor =
-				MLME_GET_DFS_CHAN_WEIGHT(
-				mac_ctx->mlme_cfg->acs.np_chan_weightage);
-			freq_present_in_list = true;
-		}
 		/* Dont scan ETSI13 SRD channels if the ETSI13 SRD channels
 		 * are not enabled in master mode
 		 */
 		if (!wlan_reg_is_etsi13_srd_chan_allowed_master_mode(mac_ctx->
-								     pdev) &&
-		    wlan_reg_is_etsi13_srd_chan_for_freq(
-					mac_ctx->pdev,
-					WLAN_REG_CH_TO_FREQ(loop_count)))
+								     pdev,
+		    QDF_SAP_MODE) &&
+		    wlan_reg_is_etsi13_srd_chan(mac_ctx->pdev,
+						WLAN_REG_CH_NUM(loop_count)))
 			continue;
 
-		/* Check if the freq is present in range list */
-		for (i = 0; i < mac_ctx->mlme_cfg->acs.num_weight_range; i++) {
-			if (chan_freq >= range_list[i].start_freq &&
-			    chan_freq <= range_list[i].end_freq) {
-				normalize_factor =
-					range_list[i].normalize_weight;
-				sap_debug("Range list, freq %d normalize weight factor %d",
-					  chan_freq, normalize_factor);
-				freq_present_in_list = true;
-			}
-		}
-
-		for (i = 0;
-		     i < mac_ctx->mlme_cfg->acs.normalize_weight_num_chan;
-		     i++) {
-			if (chan_freq == weight_list[i].chan_freq) {
-				normalize_factor =
-					weight_list[i].normalize_weight;
-				sap_debug("freq %d normalize weight factor %d",
-					  chan_freq, normalize_factor);
-				freq_present_in_list = true;
-			}
-		}
-
-		/* This would mean that the user does not want this freq */
-		if (freq_present_in_list && !normalize_factor) {
-			sap_debug("chan_freq %d ecluded normalize weight 0",
-				  chan_freq);
-			freq_present_in_list = false;
-			continue;
-		}
 #ifdef FEATURE_WLAN_AP_AP_ACS_OPTIMIZE
+		uint8_t ch;
+
+		ch = WLAN_REG_CH_NUM(loop_count);
 		if ((sap_ctx->acs_cfg->skip_scan_status ==
 			eSAP_DO_PAR_ACS_SCAN)) {
-			uint32_t ch_freq;
-
-			ch_freq = WLAN_REG_CH_TO_FREQ(loop_count);
-			if ((ch_freq >=
-				sap_ctx->acs_cfg->skip_scan_range1_stch &&
-			      ch_freq <=
-				sap_ctx->acs_cfg->skip_scan_range1_endch) ||
-			     (ch_freq >=
-				sap_ctx->acs_cfg->skip_scan_range2_stch &&
-			      ch_freq <=
-				sap_ctx->acs_cfg->skip_scan_range2_endch)) {
-				list[ch_count] =
-					WLAN_REG_CH_TO_FREQ(loop_count);
-				ch_count++;
-				sap_debug("%d %d added to ACS ch range",
-					  ch_count, ch_freq);
-			} else {
-				sap_debug("%d %d skipped from ACS ch range",
-					  ch_count, ch_freq);
-			}
-		} else {
-			list[ch_count] = WLAN_REG_CH_TO_FREQ(loop_count);
+		    if ((ch >= sap_ctx->acs_cfg->skip_scan_range1_stch &&
+			 ch <= sap_ctx->acs_cfg->skip_scan_range1_endch) ||
+			(ch >= sap_ctx->acs_cfg->skip_scan_range2_stch &&
+			 ch <= sap_ctx->acs_cfg->skip_scan_range2_endch)) {
+			list[ch_count] =
+				WLAN_REG_CH_NUM(loop_count);
 			ch_count++;
-			sap_debug("%d added to ACS ch range", ch_count);
+			sap_debug("%d %d added to ACS ch range", ch_count, ch);
+		    } else {
+			sap_debug("%d %d skipped from ACS ch range",
+				  ch_count, ch);
+		    }
+		} else {
+			list[ch_count] =
+				WLAN_REG_CH_NUM(loop_count);
+			ch_count++;
+			sap_debug("%d %d added to ACS ch range", ch_count, ch);
 		}
 #else
-		list[ch_count] = WLAN_REG_CH_TO_FREQ(loop_count);
+		list[ch_count] = WLAN_REG_CH_NUM(loop_count);
 		ch_count++;
 #endif
 	}
-	if (!ch_count) {
+	if (0 == ch_count) {
 		sap_info("No active channels present for the current region");
 		/*
 		 * LTE COEX: channel range outside the restricted 2.4GHz
 		 * band limits
 		 */
-		if (en_lte_coex &&
-		    start_ch_freq > WLAN_REG_CH_TO_FREQ(band_end_ch))
+		if (en_lte_coex && (start_ch_num > band_end_ch))
 			sap_info("SAP can't be started as due to LTE COEX");
 	}
 
 	/* return the channel list and number of channels to scan */
 	*num_ch = ch_count;
 	if (ch_count != 0) {
-		*freq_list = list;
+		*ch_list = list;
 	} else {
-		*freq_list = NULL;
+		*ch_list = NULL;
 		qdf_mem_free(list);
 		return QDF_STATUS_SUCCESS;
 	}
 
 	for (loop_count = 0; loop_count < ch_count; loop_count++) {
-		sap_ctx->acs_cfg->freq_list[loop_count] = list[loop_count];
+		sap_ctx->acs_cfg->ch_list[loop_count] = list[loop_count];
 	}
 	sap_ctx->acs_cfg->ch_list_count = ch_count;
 	sap_dump_acs_channel(sap_ctx->acs_cfg);
@@ -3594,7 +3451,8 @@ static QDF_STATUS sap_get_freq_list(struct sap_context *sap_ctx,
 uint8_t sap_indicate_radar(struct sap_context *sap_ctx)
 {
 	uint8_t target_channel = 0;
-	struct mac_context *mac;
+	tHalHandle hal;
+	tpAniSirGlobal mac;
 
 	if (!sap_ctx) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
@@ -3602,11 +3460,14 @@ uint8_t sap_indicate_radar(struct sap_context *sap_ctx)
 		return 0;
 	}
 
-	mac = sap_get_mac_context();
-	if (!mac) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	hal = CDS_GET_HAL_CB();
+	if (!hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			FL("null hal"));
 		return 0;
 	}
+
+	mac = PMAC_STRUCT(hal);
 
 	/*
 	 * SAP needs to generate Channel Switch IE
@@ -3615,8 +3476,8 @@ uint8_t sap_indicate_radar(struct sap_context *sap_ctx)
 	if (sap_ctx->fsm_state == SAP_STARTED)
 		mac->sap.SapDfsInfo.csaIERequired = true;
 
-	if (mac->mlme_cfg->dfs_cfg.dfs_disable_channel_switch)
-		return wlan_reg_freq_to_chan(mac->pdev, sap_ctx->chan_freq);
+	if (sap_ctx->csr_roamProfile.disableDFSChSwitch)
+		return sap_ctx->channel;
 
 	/* set the Radar Found flag in SapDfsInfo */
 	mac->sap.SapDfsInfo.sap_radar_found_status = true;
@@ -3652,19 +3513,19 @@ uint8_t sap_indicate_radar(struct sap_context *sap_ctx)
  */
 void sap_dfs_cac_timer_callback(void *data)
 {
-	struct sap_context *sap_ctx;
-	struct sap_sm_event sap_event;
-	mac_handle_t mac_handle = data;
-	struct mac_context *mac;
+	struct sap_context *sapContext;
+	tWLAN_SAPEvent sapEvent;
+	tHalHandle hHal = (tHalHandle) data;
+	tpAniSirGlobal pMac;
 
-	if (!mac_handle) {
+	if (NULL == hHal) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  "In %s invalid mac_handle", __func__);
+			  "In %s invalid hHal", __func__);
 		return;
 	}
-	mac = MAC_CONTEXT(mac_handle);
-	sap_ctx = sap_find_cac_wait_session(mac_handle);
-	if (!sap_ctx) {
+	pMac = PMAC_STRUCT(hHal);
+	sapContext = sap_find_cac_wait_session(hHal);
+	if (NULL == sapContext) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			"%s: no SAP contexts in wait state", __func__);
 		return;
@@ -3675,61 +3536,65 @@ void sap_dfs_cac_timer_callback(void *data)
 	 * if following flag is set, then timer is in initialized state,
 	 * destroy timer here.
 	 */
-	if (mac->sap.SapDfsInfo.is_dfs_cac_timer_running == true) {
-		if (!sap_ctx->dfs_cac_offload)
+	if (pMac->sap.SapDfsInfo.is_dfs_cac_timer_running == true) {
+		if (!sapContext->dfs_cac_offload)
 			qdf_mc_timer_destroy(
-				&mac->sap.SapDfsInfo.sap_dfs_cac_timer);
-		mac->sap.SapDfsInfo.is_dfs_cac_timer_running = false;
+				&pMac->sap.SapDfsInfo.sap_dfs_cac_timer);
+		pMac->sap.SapDfsInfo.is_dfs_cac_timer_running = false;
 	}
 
 	/*
 	 * CAC Complete, post eSAP_DFS_CHANNEL_CAC_END to sap_fsm
 	 */
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
-			"sapdfs: Sending eSAP_DFS_CHANNEL_CAC_END for target_chan_freq = %d on sapctx[%pK]",
-			sap_ctx->chan_freq, sap_ctx);
+			"sapdfs: Sending eSAP_DFS_CHANNEL_CAC_END for target_channel = %d on sapctx[%pK]",
+			sapContext->channel, sapContext);
 
-	sap_event.event = eSAP_DFS_CHANNEL_CAC_END;
-	sap_event.params = 0;
-	sap_event.u1 = 0;
-	sap_event.u2 = 0;
+	sapEvent.event = eSAP_DFS_CHANNEL_CAC_END;
+	sapEvent.params = 0;
+	sapEvent.u1 = 0;
+	sapEvent.u2 = 0;
 
-	sap_fsm(sap_ctx, &sap_event);
+	sap_fsm(sapContext, &sapEvent);
 }
 
 /*
  * Function to stop the DFS CAC Timer
  */
-static int sap_stop_dfs_cac_timer(struct sap_context *sap_ctx)
+static int sap_stop_dfs_cac_timer(struct sap_context *sapContext)
 {
-	struct mac_context *mac;
+	tHalHandle hHal;
+	tpAniSirGlobal pMac;
 
-	if (!sap_ctx)
+	if (sapContext == NULL)
 		return 0;
 
-	mac = sap_get_mac_context();
-	if (!mac) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	hHal = CDS_GET_HAL_CB();
+	if (NULL == hHal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "In %s invalid hHal", __func__);
 		return 0;
 	}
+	pMac = PMAC_STRUCT(hHal);
 
-	if (sap_ctx->dfs_cac_offload) {
-		mac->sap.SapDfsInfo.is_dfs_cac_timer_running = 0;
+	if (sapContext->dfs_cac_offload) {
+		pMac->sap.SapDfsInfo.is_dfs_cac_timer_running = 0;
 		return 0;
 	}
 
 	if (QDF_TIMER_STATE_RUNNING !=
-	    qdf_mc_timer_get_current_state(&mac->sap.SapDfsInfo.
+	    qdf_mc_timer_get_current_state(&pMac->sap.SapDfsInfo.
 					   sap_dfs_cac_timer)) {
 		return 0;
 	}
 
-	qdf_mc_timer_stop(&mac->sap.SapDfsInfo.sap_dfs_cac_timer);
-	mac->sap.SapDfsInfo.is_dfs_cac_timer_running = 0;
-	qdf_mc_timer_destroy(&mac->sap.SapDfsInfo.sap_dfs_cac_timer);
+	qdf_mc_timer_stop(&pMac->sap.SapDfsInfo.sap_dfs_cac_timer);
+	pMac->sap.SapDfsInfo.is_dfs_cac_timer_running = 0;
+	qdf_mc_timer_destroy(&pMac->sap.SapDfsInfo.sap_dfs_cac_timer);
 
 	return 0;
 }
+
 
 /*
  * Function to start the DFS CAC Timer
@@ -3739,7 +3604,8 @@ static int sap_start_dfs_cac_timer(struct sap_context *sap_ctx)
 {
 	QDF_STATUS status;
 	uint32_t cac_dur;
-	struct mac_context *mac;
+	tHalHandle hal = NULL;
+	tpAniSirGlobal mac = NULL;
 	enum dfs_reg dfs_region;
 
 	if (!sap_ctx) {
@@ -3748,12 +3614,14 @@ static int sap_start_dfs_cac_timer(struct sap_context *sap_ctx)
 		return 0;
 	}
 
-	mac = sap_get_mac_context();
-	if (!mac) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	hal = CDS_GET_HAL_CB();
+	if (!hal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "%s: null hal", __func__);
 		return 0;
 	}
 
+	mac = PMAC_STRUCT(hal);
 	if (sap_ctx->dfs_cac_offload) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 			  "%s: cac timer offloaded to firmware", __func__);
@@ -3769,31 +3637,26 @@ static int sap_start_dfs_cac_timer(struct sap_context *sap_ctx)
 	cac_dur = cac_dur / 100;
 #endif
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
-		  "sapdfs: SAP_DFS_CHANNEL_CAC_START on CH freq %d, CAC_DUR-%d sec",
-		  sap_ctx->chan_freq, cac_dur / 1000);
+		  "sapdfs: SAP_DFS_CHANNEL_CAC_START on CH-%d, CAC_DUR-%d sec",
+		  sap_ctx->channel, cac_dur / 1000);
 
 	qdf_mc_timer_init(&mac->sap.SapDfsInfo.sap_dfs_cac_timer,
 			  QDF_TIMER_TYPE_SW,
-			  sap_dfs_cac_timer_callback, MAC_HANDLE(mac));
+			  sap_dfs_cac_timer_callback, (void *)hal);
 
 	/* Start the CAC timer */
 	status = qdf_mc_timer_start(&mac->sap.SapDfsInfo.sap_dfs_cac_timer,
 			cac_dur);
-	if (QDF_IS_STATUS_ERROR(status)) {
+	if (status == QDF_STATUS_SUCCESS) {
+		mac->sap.SapDfsInfo.is_dfs_cac_timer_running = true;
+		return 1;
+	} else {
+		mac->sap.SapDfsInfo.is_dfs_cac_timer_running = false;
+		qdf_mc_timer_destroy(&mac->sap.SapDfsInfo.sap_dfs_cac_timer);
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "%s: failed to start cac timer", __func__);
-		goto destroy_timer;
+		return 0;
 	}
-
-	mac->sap.SapDfsInfo.is_dfs_cac_timer_running = true;
-
-	return 0;
-
-destroy_timer:
-	mac->sap.SapDfsInfo.is_dfs_cac_timer_running = false;
-	qdf_mc_timer_destroy(&mac->sap.SapDfsInfo.sap_dfs_cac_timer);
-
-	return 1;
 }
 
 /*
@@ -3801,22 +3664,26 @@ destroy_timer:
  * parameters required to track the radar
  * found DFS channels in the current Reg. Domain .
  */
-QDF_STATUS sap_init_dfs_channel_nol_list(struct sap_context *sap_ctx)
+QDF_STATUS sap_init_dfs_channel_nol_list(struct sap_context *sapContext)
 {
-	struct mac_context *mac;
+	tHalHandle hHal;
+	tpAniSirGlobal pMac;
 
-	if (!sap_ctx) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid SAP context");
+	if (NULL == sapContext) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "Invalid sapContext pointer on sap_init_dfs_channel_nol_list");
 		return QDF_STATUS_E_FAULT;
 	}
+	hHal = CDS_GET_HAL_CB();
 
-	mac = sap_get_mac_context();
-	if (!mac) {
-		QDF_TRACE_ERROR(QDF_MODULE_ID_SAP, "Invalid MAC context");
+	if (NULL == hHal) {
+		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
+			  "In %s invalid hHal", __func__);
 		return QDF_STATUS_E_FAULT;
 	}
+	pMac = PMAC_STRUCT(hHal);
 
-	utils_dfs_init_nol(mac->pdev);
+	utils_dfs_init_nol(pMac->pdev);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -3825,17 +3692,17 @@ QDF_STATUS sap_init_dfs_channel_nol_list(struct sap_context *sap_ctx)
  * This function will calculate how many interfaces
  * have sap persona and returns total number of sap persona.
  */
-uint8_t sap_get_total_number_sap_intf(mac_handle_t mac_handle)
+uint8_t sap_get_total_number_sap_intf(tHalHandle hHal)
 {
-	struct mac_context *mac = MAC_CONTEXT(mac_handle);
+	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	uint8_t intf = 0;
 	uint8_t intf_count = 0;
 
 	for (intf = 0; intf < SAP_MAX_NUM_SESSION; intf++) {
-		if (((QDF_SAP_MODE == mac->sap.sapCtxList[intf].sapPersona)
+		if (((QDF_SAP_MODE == pMac->sap.sapCtxList[intf].sapPersona)
 		    ||
-		    (QDF_P2P_GO_MODE == mac->sap.sapCtxList[intf].sapPersona))
-		    && mac->sap.sapCtxList[intf].sap_context) {
+		    (QDF_P2P_GO_MODE == pMac->sap.sapCtxList[intf].sapPersona))
+		    && pMac->sap.sapCtxList[intf].sap_context != NULL) {
 			intf_count++;
 		}
 	}
@@ -3845,8 +3712,8 @@ uint8_t sap_get_total_number_sap_intf(mac_handle_t mac_handle)
 /**
  * is_concurrent_sap_ready_for_channel_change() - to check all saps are ready
  *						  for channel change
- * @mac_handle: Opaque handle to the global MAC context
- * @sap_ctx: sap context for which this function has been called
+ * @hHal: HAL pointer
+ * @sapContext: sap context for which this function has been called
  *
  * This function will find the concurrent sap context apart from
  * passed sap context and return its channel change ready status
@@ -3854,32 +3721,32 @@ uint8_t sap_get_total_number_sap_intf(mac_handle_t mac_handle)
  *
  * Return: true if other SAP personas are ready to channel switch else false
  */
-bool is_concurrent_sap_ready_for_channel_change(mac_handle_t mac_handle,
-						struct sap_context *sap_ctx)
+bool is_concurrent_sap_ready_for_channel_change(tHalHandle hHal,
+						struct sap_context *sapContext)
 {
-	struct mac_context *mac = MAC_CONTEXT(mac_handle);
+	tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 	struct sap_context *sap_context;
 	uint8_t intf = 0;
 
 	for (intf = 0; intf < SAP_MAX_NUM_SESSION; intf++) {
-		if (((QDF_SAP_MODE == mac->sap.sapCtxList[intf].sapPersona)
+		if (((QDF_SAP_MODE == pMac->sap.sapCtxList[intf].sapPersona)
 		    ||
-		    (QDF_P2P_GO_MODE == mac->sap.sapCtxList[intf].sapPersona))
-		    && mac->sap.sapCtxList[intf].sap_context) {
+		    (QDF_P2P_GO_MODE == pMac->sap.sapCtxList[intf].sapPersona))
+		    && pMac->sap.sapCtxList[intf].sap_context != NULL) {
 			sap_context =
-				mac->sap.sapCtxList[intf].sap_context;
-			if (sap_context == sap_ctx) {
+				pMac->sap.sapCtxList[intf].sap_context;
+			if (sap_context == sapContext) {
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 					  QDF_TRACE_LEVEL_ERROR,
 					  FL("sapCtx matched [%pK]"),
-					  sap_ctx);
+					  sapContext);
 				continue;
 			} else {
 				QDF_TRACE(QDF_MODULE_ID_SAP,
 					  QDF_TRACE_LEVEL_ERROR,
 					  FL
 						  ("concurrent sapCtx[%pK] didn't matche with [%pK]"),
-					  sap_context, sap_ctx);
+					  sap_context, sapContext);
 				return sap_context->is_sap_ready_for_chnl_chng;
 			}
 		}
@@ -3889,7 +3756,7 @@ bool is_concurrent_sap_ready_for_channel_change(mac_handle_t mac_handle,
 
 /**
  * sap_is_conc_sap_doing_scc_dfs() - check if conc SAPs are doing SCC DFS
- * @mac_handle: Opaque handle to the global MAC context
+ * @hal: pointer to hal
  * @sap_context: current SAP persona's channel
  *
  * If provided SAP's channel is DFS then Loop through each SAP or GO persona and
@@ -3898,22 +3765,19 @@ bool is_concurrent_sap_ready_for_channel_change(mac_handle_t mac_handle,
  *
  * Return: true if two or more beaconing entitity doing SCC DFS else false
  */
-bool sap_is_conc_sap_doing_scc_dfs(mac_handle_t mac_handle,
+bool sap_is_conc_sap_doing_scc_dfs(tHalHandle hal,
 				   struct sap_context *given_sapctx)
 {
-	struct mac_context *mac = MAC_CONTEXT(mac_handle);
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
 	struct sap_context *sap_ctx;
 	uint8_t intf = 0, scc_dfs_counter = 0;
-	qdf_freq_t ch_freq;
 
-	ch_freq = wlan_reg_legacy_chan_to_freq(mac->pdev,
-				given_sapctx->csr_roamProfile.op_freq);
 	/*
 	 * current SAP persona's channel itself is not DFS, so no need to check
 	 * what other persona's channel is
 	 */
-	if (!wlan_reg_is_dfs_for_freq(mac->pdev,
-				      ch_freq)) {
+	if (!wlan_reg_is_dfs_ch(mac->pdev,
+			given_sapctx->csr_roamProfile.operationChannel)) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 			  FL("skip this loop as provided channel is non-dfs"));
 		return false;
@@ -3929,8 +3793,8 @@ bool sap_is_conc_sap_doing_scc_dfs(mac_handle_t mac_handle,
 		/* if same SAP contexts then skip to next context */
 		if (sap_ctx == given_sapctx)
 			continue;
-		if (given_sapctx->csr_roamProfile.op_freq ==
-					sap_ctx->csr_roamProfile.op_freq)
+		if (given_sapctx->csr_roamProfile.operationChannel ==
+				sap_ctx->csr_roamProfile.operationChannel)
 			scc_dfs_counter++;
 	}
 

@@ -30,6 +30,7 @@
 
 #include "wni_cfg.h"
 #include "ani_global.h"
+#include "cfg_api.h"
 #include "sch_api.h"
 #include "utils_api.h"
 #include "lim_types.h"
@@ -54,8 +55,8 @@
  */
 
 void
-lim_process_beacon_frame(struct mac_context *mac_ctx, uint8_t *rx_pkt_info,
-			 struct pe_session *session)
+lim_process_beacon_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
+			 tpPESession session)
 {
 	tpSirMacMgmtHdr mac_hdr;
 	tSchBeaconStruct *bcn_ptr;
@@ -68,17 +69,18 @@ lim_process_beacon_frame(struct mac_context *mac_ctx, uint8_t *rx_pkt_info,
 	 */
 	mac_hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
 
-	pe_debug("Beacon (len %d): " QDF_MAC_ADDR_FMT " RSSI %d",
+	pe_debug("Beacon (len %d): " QDF_MAC_ADDR_STR " RSSI %d",
 		 WMA_GET_RX_MPDU_LEN(rx_pkt_info),
-		 QDF_MAC_ADDR_REF(mac_hdr->sa),
+		 QDF_MAC_ADDR_ARRAY(mac_hdr->sa),
 		 (uint)abs((int8_t)
 		 WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info)));
 
 	/* Expect Beacon in any state as Scan is independent of LIM state */
 	bcn_ptr = qdf_mem_malloc(sizeof(*bcn_ptr));
-	if (!bcn_ptr)
+	if (NULL == bcn_ptr) {
+		pe_err("Unable to allocate memory");
 		return;
-
+	}
 	/* Parse received Beacon */
 	if (sir_convert_beacon_frame2_struct(mac_ctx,
 			rx_pkt_info, bcn_ptr) !=
@@ -114,14 +116,16 @@ lim_process_beacon_frame(struct mac_context *mac_ctx, uint8_t *rx_pkt_info,
 
 	if (session->limMlmState ==
 			eLIM_MLM_WT_JOIN_BEACON_STATE) {
-		if (session->beacon) {
+		if (session->beacon != NULL) {
 			qdf_mem_free(session->beacon);
 			session->beacon = NULL;
 			session->bcnLen = 0;
 		}
 		session->bcnLen = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 		session->beacon = qdf_mem_malloc(session->bcnLen);
-		if (session->beacon)
+		if (NULL == session->beacon) {
+			pe_err("fail to alloc mem to store bcn");
+		} else {
 			/*
 			 * Store the Beacon/ProbeRsp. This is sent to
 			 * csr/hdd in join cnf response.
@@ -129,7 +133,7 @@ lim_process_beacon_frame(struct mac_context *mac_ctx, uint8_t *rx_pkt_info,
 			qdf_mem_copy(session->beacon,
 				WMA_GET_RX_MPDU_DATA(rx_pkt_info),
 				session->bcnLen);
-
+		}
 		lim_check_and_announce_join_success(mac_ctx, bcn_ptr,
 				mac_hdr, session);
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -22,7 +22,6 @@
  * WLAN Host Device Driver FIPS Certification Feature
  */
 
-#include "osif_sync.h"
 #include "wlan_hdd_main.h"
 #include "wlan_hdd_fips.h"
 #include "wlan_osif_request_manager.h"
@@ -280,16 +279,11 @@ int hdd_fips_test(struct net_device *dev,
 		  struct iw_request_info *info,
 		  union iwreq_data *wrqu, char *extra)
 {
-	int errno;
-	struct osif_vdev_sync *vdev_sync;
+	int ret;
 
-	errno = osif_vdev_sync_op_start(dev, &vdev_sync);
-	if (errno)
-		return errno;
+	cds_ssr_protect(__func__);
+	ret = __hdd_fips_test(dev, info, wrqu, extra);
+	cds_ssr_unprotect(__func__);
 
-	errno = __hdd_fips_test(dev, info, wrqu, extra);
-
-	osif_vdev_sync_op_stop(vdev_sync);
-
-	return errno;
+	return ret;
 }

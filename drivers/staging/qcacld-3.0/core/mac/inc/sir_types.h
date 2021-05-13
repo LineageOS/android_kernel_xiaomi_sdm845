@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016,2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2016,2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -49,6 +49,9 @@
 struct opaque_mac_handle;
 typedef struct opaque_mac_handle *mac_handle_t;
 
+/* retain legacy name until all instances have been replaced */
+typedef mac_handle_t tHalHandle;
+
 /**
  * typedef hdd_handle_t - HDD Handle
  *
@@ -70,5 +73,7 @@ typedef struct opaque_hdd_handle *hdd_handle_t;
 
 #define HAL_NUM_ASSOC_STA           32
 #define HAL_NUM_STA                 41
+
+#define STACFG_MAX_TC               8
 
 #endif /* __SIR_TYPES_H */

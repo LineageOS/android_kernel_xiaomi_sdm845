@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -38,8 +38,7 @@
 	(LRO_DESC | LRO_ELIGIBILITY_CHECKED | LRO_TCP_ACK_NUM | \
 	 LRO_TCP_DATA_CSUM | LRO_TCP_SEQ_NUM | LRO_TCP_WIN)
 
-#if defined(QCA_WIFI_QCA6290) || defined(QCA_WIFI_QCA6390) || \
-    defined(QCA_WIFI_QCA6490) || defined(QCA_WIFI_QCA6750)
+#if defined(QCA_WIFI_QCA6290)
 static qdf_lro_ctx_t wlan_hdd_get_lro_ctx(struct sk_buff *skb)
 {
 	return (qdf_lro_ctx_t)QDF_NBUF_CB_RX_LRO_CTX(skb);
@@ -49,7 +48,7 @@ static qdf_lro_ctx_t wlan_hdd_get_lro_ctx(struct sk_buff *skb)
 {
 	struct hif_opaque_softc *hif_hdl =
 		(struct hif_opaque_softc *)cds_get_context(QDF_MODULE_ID_HIF);
-	if (!hif_hdl) {
+	if (hif_hdl == NULL) {
 		hdd_err("hif_hdl is NULL");
 		return NULL;
 	}
@@ -156,10 +155,4 @@ hdd_lro_set_reset(struct hdd_context *hdd_ctx, struct hdd_adapter *adapter,
 	return 0;
 }
 
-int hdd_is_lro_enabled(struct hdd_context *hdd_ctx)
-{
-	if (hdd_ctx->ol_enable != CFG_LRO_ENABLED)
-		return -EOPNOTSUPP;
 
-	return 0;
-}

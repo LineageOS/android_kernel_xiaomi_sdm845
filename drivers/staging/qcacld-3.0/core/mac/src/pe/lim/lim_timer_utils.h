@@ -47,6 +47,9 @@ enum {
 	eLIM_PROBE_AFTER_HB_TIMER,
 	eLIM_ADDTS_RSP_TIMER,
 	eLIM_CHANNEL_SWITCH_TIMER,
+	eLIM_LEARN_DURATION_TIMER,
+	eLIM_QUIET_TIMER,
+	eLIM_QUIET_BSS_TIMER,
 	eLIM_WPS_OVERLAP_TIMER,
 	eLIM_FT_PREAUTH_RSP_TIMER,
 	eLIM_REMAIN_CHN_TIMER,
@@ -61,17 +64,23 @@ enum {
 #define LIM_DISASSOC_DEAUTH_ACK_TIMEOUT         500
 
 /* Timer Handler functions */
-uint32_t lim_create_timers(struct mac_context *);
+uint32_t lim_create_timers(tpAniSirGlobal);
 void lim_timer_handler(void *, uint32_t);
 void lim_auth_response_timer_handler(void *, uint32_t);
 void lim_assoc_failure_timer_handler(void *, uint32_t);
+void limReassocFailureTimerHandler(void *, uint32_t);
 
-void lim_deactivate_and_change_timer(struct mac_context *, uint32_t);
+void lim_deactivate_and_change_timer(tpAniSirGlobal, uint32_t);
+void limDummyPktExpTimerHandler(void *, uint32_t);
 void lim_cnf_wait_tmer_handler(void *, uint32_t);
-void lim_deactivate_and_change_per_sta_id_timer(struct mac_context *, uint32_t, uint16_t);
-void lim_activate_cnf_timer(struct mac_context *, uint16_t, struct pe_session *);
-void lim_activate_auth_rsp_timer(struct mac_context *, tLimPreAuthNode *);
+void lim_deactivate_and_change_per_sta_id_timer(tpAniSirGlobal, uint32_t, uint16_t);
+void lim_activate_cnf_timer(tpAniSirGlobal, uint16_t, tpPESession);
+void lim_activate_auth_rsp_timer(tpAniSirGlobal, tLimPreAuthNode *);
 void lim_update_olbc_cache_timer_handler(void *, uint32_t);
 void lim_addts_response_timer_handler(void *, uint32_t);
 void lim_channel_switch_timer_handler(void *, uint32_t);
+void lim_quiet_timer_handler(void *, uint32_t);
+void lim_quiet_bss_timer_handler(void *, uint32_t);
+void limCBScanIntervalTimerHandler(void *, uint32_t);
+void limCBScanDurationTimerHandler(void *, uint32_t);
 #endif /* __LIM_TIMER_UTILS_H */

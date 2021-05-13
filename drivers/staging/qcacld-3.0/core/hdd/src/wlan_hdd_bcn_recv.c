@@ -27,7 +27,6 @@
 #include "wlan_osif_priv.h"
 #include "qdf_trace.h"
 #include "wlan_hdd_main.h"
-#include "osif_sync.h"
 #include "wlan_hdd_bcn_recv.h"
 #include <linux/limits.h>
 #include <wlan_hdd_object_manager.h>
@@ -120,9 +119,8 @@ static int get_pause_ind_data_len(bool is_disconnected)
  * Send beacon info to userspace for connected AP through a vendor event:
  * QCA_NL80211_VENDOR_SUBCMD_BEACON_REPORTING.
  */
-static QDF_STATUS hdd_send_bcn_recv_info(hdd_handle_t hdd_handle,
-					 struct wlan_beacon_report
-					 *beacon_report)
+static void hdd_send_bcn_recv_info(hdd_handle_t hdd_handle,
+				   struct wlan_beacon_report *beacon_report)
 {
 	struct sk_buff *vendor_event;
 	struct hdd_context *hdd_ctx = hdd_handle_to_context(hdd_handle);
@@ -131,13 +129,13 @@ static QDF_STATUS hdd_send_bcn_recv_info(hdd_handle_t hdd_handle,
 	struct hdd_adapter *adapter;
 
 	if (wlan_hdd_validate_context(hdd_ctx))
-		return QDF_STATUS_E_FAILURE;
+		return;
 
 	data_len = get_beacon_report_data_len(beacon_report);
 
 	adapter = hdd_get_adapter_by_vdev(hdd_ctx, beacon_report->vdev_id);
 	if (hdd_validate_adapter(adapter))
-		return QDF_STATUS_E_FAILURE;
+		return;
 
 	vendor_event =
 		cfg80211_vendor_event_alloc(
@@ -147,7 +145,7 @@ static QDF_STATUS hdd_send_bcn_recv_info(hdd_handle_t hdd_handle,
 			flags);
 	if (!vendor_event) {
 		hdd_err("cfg80211_vendor_event_alloc failed");
-		return QDF_STATUS_E_FAILURE;
+		return;
 	}
 
 	if (nla_put_u32(vendor_event,
@@ -170,11 +168,10 @@ static QDF_STATUS hdd_send_bcn_recv_info(hdd_handle_t hdd_handle,
 				      beacon_report->boot_time)) {
 		hdd_err("QCA_WLAN_VENDOR_ATTR put fail");
 		kfree_skb(vendor_event);
-		return QDF_STATUS_E_FAILURE;
+		return;
 	}
 
 	cfg80211_vendor_event(vendor_event, flags);
-	return QDF_STATUS_SUCCESS;
 }
 
 /**
@@ -228,7 +225,7 @@ static int hdd_handle_beacon_reporting_start_op(struct hdd_context *hdd_ctx,
 	}
 	/* Handle beacon receive start indication */
 	qdf_status = sme_handle_bcn_recv_start(hdd_ctx->mac_handle,
-					       adapter->vdev_id, nth_value,
+					       adapter->session_id, nth_value,
 					       do_not_resume);
 	if (QDF_IS_STATUS_ERROR(qdf_status)) {
 		hdd_err("bcn rcv start failed with status=%d", qdf_status);
@@ -260,7 +257,7 @@ static int hdd_handle_beacon_reporting_stop_op(struct hdd_context *hdd_ctx,
 	int errno;
 
 	/* Reset bcn recv start flag */
-	sme_stop_beacon_report(hdd_ctx->mac_handle, adapter->vdev_id);
+	sme_stop_beacon_report(hdd_ctx->mac_handle, adapter->session_id);
 
 	/* Deregister beacon report callback */
 	qdf_status = sme_register_bcn_report_pe_cb(hdd_ctx->mac_handle, NULL);
@@ -382,7 +379,7 @@ static int __wlan_hdd_cfg80211_bcn_rcv_op(struct wiphy *wiphy,
 		hdd_debug("Beacon Report: Period: %d", nth_value);
 
 		if (sme_is_beacon_report_started(hdd_ctx->mac_handle,
-						 adapter->vdev_id)) {
+						 adapter->session_id)) {
 			hdd_debug("Start cmd already in progress, issue the stop to FW, before new start");
 			if (hdd_handle_beacon_reporting_stop_op(hdd_ctx,
 								adapter)) {
@@ -402,7 +399,7 @@ static int __wlan_hdd_cfg80211_bcn_rcv_op(struct wiphy *wiphy,
 		break;
 	case QCA_WLAN_VENDOR_BEACON_REPORTING_OP_STOP:
 		if (sme_is_beacon_report_started(hdd_ctx->mac_handle,
-						 adapter->vdev_id)) {
+						 adapter->session_id)) {
 			errno = hdd_handle_beacon_reporting_stop_op(hdd_ctx,
 								    adapter);
 			if (errno) {
@@ -457,14 +454,14 @@ void hdd_beacon_recv_pause_indication(hdd_handle_t hdd_handle,
 
 	do_not_resume =
 		sme_is_beacon_reporting_do_not_resume(hdd_ctx->mac_handle,
-						      adapter->vdev_id);
+						      adapter->session_id);
 
 	if (is_disconnected) {
 		abort_reason =
 		     QCA_WLAN_VENDOR_BEACON_REPORTING_PAUSE_REASON_DISCONNECTED;
 		/* Deregister callbacks and Reset bcn recv start flag */
 		if (sme_is_beacon_report_started(hdd_ctx->mac_handle,
-						 adapter->vdev_id))
+						 adapter->session_id))
 			hdd_handle_beacon_reporting_stop_op(hdd_ctx,
 							    adapter);
 	} else {
@@ -531,16 +528,12 @@ int wlan_hdd_cfg80211_bcn_rcv_op(struct wiphy *wiphy,
 				 const void *data, int data_len)
 {
 	int errno;
-	struct osif_vdev_sync *vdev_sync;
 
-	errno = osif_vdev_sync_op_start(wdev->netdev, &vdev_sync);
-	if (errno)
-		return errno;
-
+	cds_ssr_protect(__func__);
 	errno = __wlan_hdd_cfg80211_bcn_rcv_op(wiphy, wdev,
 					       data, data_len);
 
-	osif_vdev_sync_op_stop(vdev_sync);
+	cds_ssr_unprotect(__func__);
 
 	return errno;
 }

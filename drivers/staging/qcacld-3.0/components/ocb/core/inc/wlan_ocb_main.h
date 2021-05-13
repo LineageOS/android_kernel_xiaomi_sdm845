@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -35,29 +35,22 @@
 #define ocb_info_rl(params...) QDF_TRACE_INFO_RL(QDF_MODULE_ID_OCB, params)
 #define ocb_debug_rl(params...) QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_OCB, params)
 
-#define ocb_alert(params...) \
-	QDF_TRACE_FATAL(QDF_MODULE_ID_OCB, params)
-#define ocb_err(params...) \
-	QDF_TRACE_ERROR(QDF_MODULE_ID_OCB, params)
-#define ocb_warn(params...) \
-	QDF_TRACE_WARN(QDF_MODULE_ID_OCB, params)
-#define ocb_notice(params...) \
-	QDF_TRACE_INFO(QDF_MODULE_ID_OCB, params)
-#define ocb_info(params...) \
-	QDF_TRACE_INFO(QDF_MODULE_ID_OCB, params)
-#define ocb_debug(params...) \
-	QDF_TRACE_DEBUG(QDF_MODULE_ID_OCB, params)
-
-#define ocb_nofl_alert(params...) \
-	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_OCB, params)
-#define ocb_nofl_err(params...) \
-	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_OCB, params)
-#define ocb_nofl_warn(params...) \
-	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_OCB, params)
-#define ocb_nofl_info(params...) \
-	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_OCB, params)
-#define ocb_nofl_debug(params...) \
-	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_OCB, params)
+#define ocb_log(level, args...) \
+		QDF_TRACE(QDF_MODULE_ID_OCB, level, ## args)
+#define ocb_logfl(level, format, args...) \
+		ocb_log(level, FL(format), ## args)
+#define ocb_alert(format, args...) \
+		ocb_logfl(QDF_TRACE_LEVEL_FATAL, format, ## args)
+#define ocb_err(format, args...) \
+		ocb_logfl(QDF_TRACE_LEVEL_ERROR, format, ## args)
+#define ocb_warn(format, args...) \
+		ocb_logfl(QDF_TRACE_LEVEL_WARN, format, ## args)
+#define ocb_notice(format, args...) \
+		ocb_logfl(QDF_TRACE_LEVEL_INFO, format, ## args)
+#define ocb_info(format, args...) \
+		ocb_logfl(QDF_TRACE_LEVEL_INFO_HIGH, format, ## args)
+#define ocb_debug(format, args...) \
+		ocb_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
 
 /**
  * enum ocb_southbound_event - OCB south bound event type
@@ -82,7 +75,7 @@ enum ocb_southbound_event {
  * @ocb_channel_count: channel count
  * @channel_config: current channel configurations
  * @dp_soc: psoc data path handle
- * @dp_pdev_id: pdev data path ID
+ * @dp_pdev: pdev data path handle
  * @ocb_cbs: legacy callback functions
  * @ocb_txops: tx opertions for target interface
  * @ocb_rxops: rx opertions for target interface
@@ -93,7 +86,7 @@ struct ocb_pdev_obj {
 	uint32_t ocb_channel_count;
 	struct ocb_config *channel_config;
 	void *dp_soc;
-	uint8_t dp_pdev_id;
+	void *dp_pdev;
 	struct ocb_callbacks ocb_cbs;
 	struct wlan_ocb_tx_ops ocb_txops;
 	struct wlan_ocb_rx_ops ocb_rxops;

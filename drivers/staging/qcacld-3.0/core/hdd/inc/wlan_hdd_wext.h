@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -137,11 +137,25 @@ typedef enum {
 	HDD_WLAN_WMM_STATUS_MODIFY_UAPSD_SET_FAILED = 21
 } hdd_wlan_wmm_status_e;
 
+/** TS Info Ack Policy */
+enum hdd_wlan_wmm_ts_info_ack_policy {
+	HDD_WLAN_WMM_TS_INFO_ACK_POLICY_NORMAL_ACK = 0,
+	HDD_WLAN_WMM_TS_INFO_ACK_POLICY_HT_IMMEDIATE_BLOCK_ACK = 1,
+};
+
 /** Enable 11d */
 #define ENABLE_11D  1
 
 /** Disable 11d */
 #define DISABLE_11D 0
+
+/*
+ * refer wpa.h in wpa supplicant code for REASON_MICHAEL_MIC_FAILURE
+ *
+ * supplicant sets REASON_MICHAEL_MIC_FAILURE as the reason code when it
+ * sends the MLME deauth IOCTL for TKIP counter measures
+ */
+#define HDD_REASON_MICHAEL_MIC_FAILURE 14
 
 #define HDD_RTSCTS_EN_MASK                  0xF
 #define HDD_RTSCTS_ENABLE                   1
@@ -163,7 +177,6 @@ typedef enum {
 #define HDD_FWTEST_MU_DEFAULT_VALUE 40
 #define HDD_FWTEST_MAX_VALUE 500
 
-#ifdef WLAN_WEXT_SUPPORT_ENABLE
 /**
  * hdd_unregister_wext() - unregister wext context
  * @dev: net device handle
@@ -203,45 +216,10 @@ int hdd_priv_get_data(struct iw_point *p_priv_data,
 void *mem_alloc_copy_from_user_helper(const void *wrqu_data, size_t len);
 
 int hdd_get_ldpc(struct hdd_adapter *adapter, int *value);
-
-/**
- * hdd_set_ldpc() - Set adapter LDPC
- * @adapter: adapter being modified
- * @value: new LDPC value
- *
- * Return: 0 on success, negative errno on failure
- */
 int hdd_set_ldpc(struct hdd_adapter *adapter, int value);
-
-/**
- * hdd_we_set_short_gi() - Set adapter Short GI
- * @adapter: adapter being modified
- * @sgi: new sgi value
- *
- * Return: 0 on success, negative errno on failure
- */
-int hdd_we_set_short_gi(struct hdd_adapter *adapter, int sgi);
-
 int hdd_get_tx_stbc(struct hdd_adapter *adapter, int *value);
-
-/**
- * hdd_set_tx_stbc() - Set adapter TX STBC
- * @adapter: adapter being modified
- * @value: new TX STBC value
- *
- * Return: 0 on success, negative errno on failure
- */
 int hdd_set_tx_stbc(struct hdd_adapter *adapter, int value);
-
 int hdd_get_rx_stbc(struct hdd_adapter *adapter, int *value);
-
-/**
- * hdd_set_rx_stbc() - Set adapter RX STBC
- * @adapter: adapter being modified
- * @value: new RX STBC value
- *
- * Return: 0 on success, negative errno on failure
- */
 int hdd_set_rx_stbc(struct hdd_adapter *adapter, int value);
 
 /**
@@ -269,42 +247,8 @@ int hdd_assemble_rate_code(uint8_t preamble, uint8_t nss, uint8_t rate);
 int hdd_set_11ax_rate(struct hdd_adapter *adapter, int value,
 		      struct sap_config *sap_config);
 
-/**
- * wlan_hdd_update_phymode() - handle change in PHY mode
- * @adapter: adapter being modified
- * @new_phymode: new PHY mode for the device
- *
- * This function is called when the device is set to a new PHY mode.
- * It takes a holistic look at the desired PHY mode along with the
- * configured capabilities of the driver and the reported capabilities
- * of the hardware in order to correctly configure all PHY-related
- * parameters.
- *
- * Return: 0 on success, negative errno value on error
- */
-int wlan_hdd_update_phymode(struct hdd_adapter *adapter, int new_phymode);
-/**
- * wlan_hdd_update_btcoex_mode() - set BTCoex Mode
- * @adapter: adapter being modified
- * @value: new BTCoex mode for the adapter
- *
- * This function is called to set a BTCoex Operation Mode
- *
- * Return: 0 on success, negative errno value on error
- */
-int wlan_hdd_set_btcoex_mode(struct hdd_adapter *adapter, int value);
-
-/**
- * wlan_hdd_set_btcoex_rssi_threshold() - set RSSI threshold
- * @adapter: adapter being modified
- * @value: new RSSI Threshold for the adapter
- *
- * This function is called to set a new RSSI threshold for
- * change of Coex operating mode from TDD to FDD
- *
- * Return: 0 on success, negative errno value on error
- */
-int wlan_hdd_set_btcoex_rssi_threshold(struct hdd_adapter *adapter, int value);
+int wlan_hdd_update_phymode(struct net_device *net, mac_handle_t mac_handle,
+			    int new_phymode, struct hdd_context *phddctx);
 
 struct iw_request_info;
 
@@ -353,34 +297,6 @@ void hdd_set_dump_dp_trace(uint16_t cmd_type, uint16_t count);
 #else
 static inline
 void hdd_set_dump_dp_trace(uint16_t cmd_type, uint16_t count) {}
-#endif
-#else /* WLAN_WEXT_SUPPORT_ENABLE */
-
-static inline void hdd_unregister_wext(struct net_device *dev)
-{
-}
-
-static inline void hdd_register_wext(struct net_device *dev)
-{
-}
-#endif /* WLAN_WEXT_SUPPORT_ENABLE */
-
-#if defined(WLAN_WEXT_SUPPORT_ENABLE) && defined(HASTINGS_BT_WAR)
-int hdd_hastings_bt_war_enable_fw(struct hdd_context *hdd_ctx);
-int hdd_hastings_bt_war_disable_fw(struct hdd_context *hdd_ctx);
-#else
-static inline
-int hdd_hastings_bt_war_enable_fw(struct hdd_context *hdd_ctx)
-{
-	return -ENOTSUPP;
-}
-
-static inline
-int hdd_hastings_bt_war_disable_fw(struct hdd_context *hdd_ctx)
-{
-	return -ENOTSUPP;
-}
-
 #endif
 
 #endif /* __WEXT_IW_H__ */

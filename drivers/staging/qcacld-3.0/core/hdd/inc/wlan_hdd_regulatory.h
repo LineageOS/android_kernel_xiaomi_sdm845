@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -62,23 +62,13 @@ void hdd_send_wiphy_regd_sync_event(struct hdd_context *hdd_ctx);
 int hdd_reg_set_country(struct hdd_context *hdd_ctx, char *country_code);
 
 /**
- * hdd_reg_legacy_setband_to_reg_wifi_band_bitmap() - Convert the user space
- *	band input to a bitmap of band capabilities, with reg_wifi_band as the
- *	bit value
- * @qca_setband: user space/setband value band input, can be 0, 1, or 2
- *
- * Return: bitmap on top of reg_wifi_band of bands enabled
- */
-uint32_t hdd_reg_legacy_setband_to_reg_wifi_band_bitmap(uint8_t qca_setband);
-
-/**
  * hdd_reg_set_band() - helper function for setting the regulatory band
  * @hdd_ctx: the HDD context to set the band for
- * @band_bitmap: the band bitmap to configure
+ * @ui_band: the UI band to configure
  *
  * Return: zero for success, non-zero error code for failure
  */
-int hdd_reg_set_band(struct net_device *dev, uint32_t band_bitmap);
+int hdd_reg_set_band(struct net_device *dev, u8 ui_band);
 
 /**
  * hdd_update_indoor_channel() - enable/disable indoor channel

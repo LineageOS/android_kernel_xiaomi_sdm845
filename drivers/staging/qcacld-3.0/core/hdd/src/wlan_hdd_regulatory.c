@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -32,7 +32,6 @@
 #include "cds_utils.h"
 #include "pld_common.h"
 #include <net/cfg80211.h>
-#include "wlan_policy_mgr_ucfg.h"
 
 #define REG_RULE_2412_2462    REG_RULE(2412-10, 2462+10, 40, 0, 20, 0)
 
@@ -208,63 +207,24 @@ void hdd_reset_global_reg_params(void)
 static void reg_program_config_vars(struct hdd_context *hdd_ctx,
 				    struct reg_config_vars *config_vars)
 {
-	uint8_t indoor_chnl_marking = 0;
-	uint32_t band_capability = 0, scan_11d_interval = 0;
-	bool indoor_chan_enabled = false;
-	uint32_t restart_beaconing = 0;
-	bool enable_srd_chan = false;
-	QDF_STATUS status;
-	bool country_priority = 0;
-	bool value = false;
-	bool enable_dfs_scan = true;
-
-	status = ucfg_mlme_get_band_capability(hdd_ctx->psoc, &band_capability);
-	if (QDF_IS_STATUS_ERROR(status))
-		hdd_err("Failed to get MLME band cap, defaulting to BAND_ALL");
-
-	status = ucfg_policy_mgr_get_indoor_chnl_marking(hdd_ctx->psoc,
-							 &indoor_chnl_marking);
-	if (QDF_STATUS_SUCCESS != status)
-		hdd_err("can't get indoor channel marking, using default");
-
-	status = ucfg_mlme_is_11d_enabled(hdd_ctx->psoc, &value);
-	if (!QDF_IS_STATUS_SUCCESS(status))
-		hdd_err("Invalid 11d_enable flag");
-	config_vars->enable_11d_support = value;
-
-	ucfg_mlme_get_nol_across_regdmn(hdd_ctx->psoc, &value);
-	config_vars->retain_nol_across_regdmn_update = value;
-
-	ucfg_mlme_get_scan_11d_interval(hdd_ctx->psoc, &scan_11d_interval);
-	config_vars->scan_11d_interval = scan_11d_interval;
-
-	ucfg_mlme_get_sap_country_priority(hdd_ctx->psoc,
-					   &country_priority);
-	config_vars->userspace_ctry_priority = country_priority;
-
-	ucfg_scan_cfg_get_dfs_chan_scan_allowed(hdd_ctx->psoc,
-						&enable_dfs_scan);
-
-	config_vars->dfs_enabled = enable_dfs_scan;
-
-	ucfg_mlme_get_indoor_channel_support(hdd_ctx->psoc,
-					     &indoor_chan_enabled);
-	config_vars->indoor_chan_enabled = indoor_chan_enabled;
-
-	config_vars->force_ssc_disable_indoor_channel = indoor_chnl_marking;
-	config_vars->band_capability = band_capability;
-
-	ucfg_mlme_get_restart_beaconing_on_ch_avoid(hdd_ctx->psoc,
-						    &restart_beaconing);
-	config_vars->restart_beaconing = restart_beaconing;
-
-	ucfg_mlme_get_etsi13_srd_chan_in_master_mode(hdd_ctx->psoc,
-						     &enable_srd_chan);
-	config_vars->enable_srd_chan_in_master_mode = enable_srd_chan;
-
-	ucfg_mlme_get_11d_in_world_mode(hdd_ctx->psoc,
-					&config_vars->enable_11d_in_world_mode);
+	config_vars->enable_11d_support = hdd_ctx->config->Is11dSupportEnabled;
+	config_vars->scan_11d_interval = hdd_ctx->config->scan_11d_interval;
+	config_vars->userspace_ctry_priority =
+		hdd_ctx->config->fSupplicantCountryCodeHasPriority;
+	config_vars->dfs_enabled = hdd_ctx->config->enableDFSChnlScan;
+	config_vars->indoor_chan_enabled =
+		hdd_ctx->config->indoor_channel_support;
+	config_vars->force_ssc_disable_indoor_channel =
+		hdd_ctx->config->force_ssc_disable_indoor_channel;
+	config_vars->band_capability = hdd_ctx->config->nBandCapability;
+	config_vars->restart_beaconing = hdd_ctx->config->
+		restart_beaconing_on_chan_avoid_event;
+	config_vars->enable_srd_chan_in_master_mode =
+		hdd_ctx->config->etsi13_srd_chan_in_master_mode;
+	config_vars->enable_11d_in_world_mode =
+		hdd_ctx->config->enable_11d_in_world_mode;
 }
+
 
 /**
  * hdd_regulatory_wiphy_init() - regulatory wiphy init
@@ -287,6 +247,9 @@ static void hdd_regulatory_wiphy_init(struct hdd_context *hdd_ctx,
 	if (hdd_is_world_regdomain(reg->reg_domain)) {
 		reg_rules = hdd_get_world_regrules(reg);
 		wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
+	} else if (hdd_ctx->config->fRegChangeDefCountry) {
+		wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
+		reg_rules = &hdd_world_regrules_60_61_62;
 	} else {
 		wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
 		reg_rules = &hdd_world_regrules_60_61_62;
@@ -327,6 +290,9 @@ static void hdd_regulatory_wiphy_init(struct hdd_context *hdd_ctx,
 	if (hdd_is_world_regdomain(reg->reg_domain)) {
 		reg_rules = hdd_get_world_regrules(reg);
 		wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
+	} else if (hdd_ctx->config->fRegChangeDefCountry) {
+		wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
+		reg_rules = &hdd_world_regrules_60_61_62;
 	} else {
 		wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
 		reg_rules = &hdd_world_regrules_60_61_62;
@@ -444,20 +410,13 @@ static void hdd_process_regulatory_data(struct hdd_context *hdd_ctx,
 	enum channel_enum chan_enum = CHAN_ENUM_1;
 	struct ieee80211_channel *wiphy_chan, *wiphy_chan_144 = NULL;
 	struct regulatory_channel *cds_chan;
-	uint8_t band_capability, indoor_chnl_marking = 0;
-	bool indoor;
-	QDF_STATUS status;
+	uint8_t band_capability;
 
 	band_capability = hdd_ctx->curr_band;
 
-	status = ucfg_policy_mgr_get_indoor_chnl_marking(hdd_ctx->psoc,
-							 &indoor_chnl_marking);
-	if (QDF_STATUS_SUCCESS != status)
-		hdd_err("can't get indoor channel marking, using default");
-
 	for (band_num = 0; band_num < HDD_NUM_NL80211_BANDS; band_num++) {
 
-		if (!wiphy->bands[band_num])
+		if (wiphy->bands[band_num] == NULL)
 			continue;
 
 		for (chan_num = 0;
@@ -476,8 +435,8 @@ static void hdd_process_regulatory_data(struct hdd_context *hdd_ctx,
 			if (!reset)
 				hdd_modify_wiphy(wiphy, wiphy_chan);
 
-			if (indoor_chnl_marking &&
-			    (wiphy_chan->flags & IEEE80211_CHAN_INDOOR_ONLY))
+			if (hdd_ctx->config->force_ssc_disable_indoor_channel &&
+			     (wiphy_chan->flags & IEEE80211_CHAN_INDOOR_ONLY))
 				cds_chan->chan_flags |=
 					REGULATORY_CHAN_INDOOR_ONLY;
 
@@ -500,11 +459,8 @@ static void hdd_process_regulatory_data(struct hdd_context *hdd_ctx,
 				     IEEE80211_CHAN_INDOOR_ONLY) {
 				cds_chan->chan_flags |=
 						REGULATORY_CHAN_INDOOR_ONLY;
-
-				ucfg_mlme_get_indoor_channel_support(
-								hdd_ctx->psoc,
-								&indoor);
-				if (!indoor) {
+				if (hdd_ctx->config->indoor_channel_support
+				    == false) {
 					cds_chan->state = CHANNEL_STATE_DFS;
 					wiphy_chan->flags |=
 						IEEE80211_CHAN_PASSIVE_SCAN;
@@ -546,7 +502,7 @@ static void hdd_process_regulatory_data(struct hdd_context *hdd_ctx,
 		  (1 << WMI_REG_EXT_FCC_CH_144))) {
 		cds_chan = &(reg_channels[CHAN_ENUM_144]);
 		cds_chan->state = CHANNEL_STATE_DISABLE;
-		if (wiphy_chan_144)
+		if (NULL != wiphy_chan_144)
 			wiphy_chan_144->flags |= IEEE80211_CHAN_DISABLED;
 	}
 
@@ -576,7 +532,7 @@ static int hdd_regulatory_init_no_offload(struct hdd_context *hdd_ctx,
 		return ret_val;
 	}
 
-	hdd_set_dfs_region(hdd_ctx, DFS_FCC_REGION);
+	hdd_set_dfs_region(hdd_ctx, DFS_FCC_REG);
 
 	hdd_regulatory_wiphy_init(hdd_ctx, reg_info, wiphy);
 
@@ -617,9 +573,7 @@ void hdd_modify_indoor_channel_state_flags(
 	struct regulatory_channel *cds_chan,
 	enum channel_enum chan_enum, int chan_num, bool disable)
 {
-	bool indoor_support;
-
-	ucfg_mlme_get_indoor_channel_support(hdd_ctx->psoc, &indoor_support);
+	bool indoor_support = hdd_ctx->config->indoor_channel_support;
 
 	/* Mark indoor channel to disable in wiphy and cds */
 	if (disable) {
@@ -662,7 +616,7 @@ void hdd_update_indoor_channel(struct hdd_context *hdd_ctx,
 {
 	int band_num;
 	int chan_num;
-	enum channel_enum chan_enum = CHAN_ENUM_2412;
+	enum channel_enum chan_enum = CHAN_ENUM_1;
 	struct ieee80211_channel *wiphy_chan, *wiphy_chan_144 = NULL;
 	struct regulatory_channel *cds_chan;
 	uint8_t band_capability;
@@ -674,7 +628,7 @@ void hdd_update_indoor_channel(struct hdd_context *hdd_ctx,
 	band_capability = hdd_ctx->curr_band;
 	for (band_num = 0; band_num < HDD_NUM_NL80211_BANDS; band_num++) {
 
-		if (!wiphy->bands[band_num])
+		if (wiphy->bands[band_num] == NULL)
 			continue;
 
 		for (chan_num = 0;
@@ -685,7 +639,7 @@ void hdd_update_indoor_channel(struct hdd_context *hdd_ctx,
 			wiphy_chan =
 				&(wiphy->bands[band_num]->channels[chan_num]);
 			cds_chan = &(reg_channels[chan_enum]);
-			if (chan_enum == CHAN_ENUM_5720)
+			if (chan_enum == CHAN_ENUM_144)
 				wiphy_chan_144 = wiphy_chan;
 
 			chan_enum++;
@@ -749,60 +703,107 @@ int hdd_reg_set_country(struct hdd_context *hdd_ctx, char *country_code)
 	return qdf_status_to_os_return(status);
 }
 
-uint32_t hdd_reg_legacy_setband_to_reg_wifi_band_bitmap(uint8_t qca_setband)
-{
-	uint32_t band_bitmap = 0;
-
-	switch (qca_setband) {
-	case QCA_SETBAND_AUTO:
-		band_bitmap |= (BIT(REG_BAND_2G) | BIT(REG_BAND_5G));
-		break;
-	case QCA_SETBAND_5G:
-		band_bitmap |= BIT(REG_BAND_5G);
-		break;
-	case QCA_SETBAND_2G:
-		band_bitmap |= BIT(REG_BAND_2G);
-		break;
-	default:
-		hdd_err("Invalid band value %u", qca_setband);
-		return 0;
-	}
-
-	return band_bitmap;
-}
-
-int hdd_reg_set_band(struct net_device *dev, uint32_t band_bitmap)
+int hdd_reg_set_band(struct net_device *dev, u8 ui_band)
 {
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	mac_handle_t mac_handle;
+	enum band_info band;
+	QDF_STATUS status;
 	struct hdd_context *hdd_ctx;
-	uint32_t current_band;
+	enum band_info currBand;
+	enum band_info connectedBand;
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
-	if (!band_bitmap) {
-		hdd_err("Can't disable all bands");
+	switch (ui_band) {
+	case WLAN_HDD_UI_BAND_AUTO:
+		band = BAND_ALL;
+		break;
+	case WLAN_HDD_UI_BAND_5_GHZ:
+		band = BAND_5G;
+		break;
+	case WLAN_HDD_UI_BAND_2_4_GHZ:
+		band = BAND_2G;
+		break;
+	default:
+		hdd_err("Invalid band value %u", ui_band);
 		return -EINVAL;
 	}
 
-	hdd_debug("change band to %u", band_bitmap);
+	hdd_debug("change band to %u", band);
 
-	if (ucfg_reg_get_band(hdd_ctx->pdev, &current_band) !=
+	if ((band == BAND_2G && hdd_ctx->config->nBandCapability == 2) ||
+	    (band == BAND_5G && hdd_ctx->config->nBandCapability == 1) ||
+	    (band == BAND_ALL && hdd_ctx->config->nBandCapability != 0)) {
+		hdd_err("band value %u violate INI settings %u",
+			  band, hdd_ctx->config->nBandCapability);
+		return -EIO;
+	}
+
+	if (band == BAND_ALL) {
+		hdd_debug("Auto band received. Setting band same as ini value %d",
+			hdd_ctx->config->nBandCapability);
+		band = hdd_ctx->config->nBandCapability;
+	}
+
+	if (ucfg_reg_get_curr_band(hdd_ctx->pdev, &currBand) !=
 	    QDF_STATUS_SUCCESS) {
 		hdd_debug("Failed to get current band config");
 		return -EIO;
 	}
 
-	if (current_band == band_bitmap) {
-		hdd_debug("band is the same so not updating");
+	if (currBand == band)
 		return 0;
+
+	hdd_ctx->curr_band = band;
+
+	/* Change band request received.
+	 * Abort pending scan requests, flush the existing scan results,
+	 * and change the band capability
+	 */
+	hdd_debug("Current band value = %u, new setting %u ",
+			currBand, band);
+
+	mac_handle = hdd_ctx->mac_handle;
+	hdd_for_each_adapter(hdd_ctx, adapter) {
+		wlan_abort_scan(hdd_ctx->pdev, INVAL_PDEV_ID,
+				adapter->session_id, INVALID_SCAN_ID, false);
+		connectedBand = hdd_conn_get_connected_band(
+				WLAN_HDD_GET_STATION_CTX_PTR(adapter));
+
+		/* Handling is done only for STA and P2P */
+		if (band != BAND_ALL &&
+		    ((adapter->device_mode == QDF_STA_MODE) ||
+		     (adapter->device_mode == QDF_P2P_CLIENT_MODE)) &&
+		    (hdd_conn_is_connected(
+				WLAN_HDD_GET_STATION_CTX_PTR(adapter)))
+			&& (connectedBand != band)) {
+			status = QDF_STATUS_SUCCESS;
+
+			/* STA already connected on current
+			 * band, So issue disconnect first,
+			 * then change the band
+			 */
+
+			hdd_debug("STA (Device mode %s(%d)) connected in band %u, Changing band to %u, Issuing Disconnect",
+					hdd_device_mode_to_string(adapter->device_mode),
+					adapter->device_mode, currBand, band);
+
+			status = wlan_hdd_disconnect(adapter,
+					eCSR_DISCONNECT_REASON_UNSPECIFIED,
+					eSIR_MAC_OPER_CHANNEL_BAND_CHANGE);
+			if (status) {
+				hdd_err("Hdd disconnect failed, status: %d",
+					status);
+				return -EINVAL;
+			}
+		}
+
+		sme_scan_flush_result(mac_handle);
 	}
 
-	hdd_ctx->curr_band = wlan_reg_band_bitmap_to_band_info(band_bitmap);
-
-	if (QDF_IS_STATUS_ERROR(ucfg_reg_set_band(hdd_ctx->pdev,
-						  band_bitmap))) {
-		hdd_err("Failed to set the band bitmap value to %u",
-			band_bitmap);
+	if (QDF_IS_STATUS_ERROR(ucfg_reg_set_band(hdd_ctx->pdev, band))) {
+		hdd_err("Failed to set the band value to %u", band);
 		return -EINVAL;
 	}
 
@@ -896,11 +897,6 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_USER:
-
-		if (request->user_reg_hint_type !=
-		    NL80211_USER_REG_HINT_CELL_BASE)
-			return;
-
 		qdf_mem_copy(country, request->alpha2, QDF_MIN(
 			     sizeof(request->alpha2), sizeof(country)));
 		status = ucfg_reg_set_country(hdd_ctx->pdev, country);
@@ -931,7 +927,7 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 		  request->initiator,
 		  request->dfs_region);
 
-	if (!hdd_ctx) {
+	if (NULL == hdd_ctx) {
 		hdd_err("invalid hdd_ctx pointer");
 		return;
 	}
@@ -955,11 +951,11 @@ void hdd_reg_notifier(struct wiphy *wiphy,
 
 	if (('K' == request->alpha2[0]) &&
 	    ('R' == request->alpha2[1]))
-		request->dfs_region = (enum nl80211_dfs_regions)DFS_KR_REGION;
+		request->dfs_region = (enum nl80211_dfs_regions) DFS_KR_REG;
 
 	if (('C' == request->alpha2[0]) &&
 	    ('N' == request->alpha2[1]))
-		request->dfs_region = (enum nl80211_dfs_regions)DFS_CN_REGION;
+		request->dfs_region = (enum nl80211_dfs_regions) DFS_CN_REG;
 
 	/* first check if this callback is in response to the driver callback */
 	switch (request->initiator) {
@@ -1074,7 +1070,7 @@ static void fill_wiphy_band_channels(struct wiphy *wiphy,
 	uint32_t chan_cnt;
 	struct ieee80211_channel *wiphy_chan;
 
-	if (!wiphy->bands[band_id])
+	if (wiphy->bands[band_id] == NULL)
 		return;
 
 	wiphy_num_chan = wiphy->bands[band_id]->n_channels;
@@ -1110,7 +1106,6 @@ void hdd_ch_avoid_ind(struct hdd_context *hdd_ctxt,
 {
 	uint16_t *local_unsafe_list;
 	uint16_t local_unsafe_list_count;
-	uint8_t i;
 
 	/* Basic sanity */
 	if (!hdd_ctxt) {
@@ -1135,12 +1130,10 @@ void hdd_ch_avoid_ind(struct hdd_context *hdd_ctxt,
 	qdf_mem_zero(hdd_ctxt->unsafe_channel_list,
 					sizeof(hdd_ctxt->unsafe_channel_list));
 
-	hdd_ctxt->unsafe_channel_count = unsafe_chan_list->chan_cnt;
+	hdd_ctxt->unsafe_channel_count = unsafe_chan_list->ch_cnt;
 
-	for (i = 0; i < unsafe_chan_list->chan_cnt; i++) {
-		hdd_ctxt->unsafe_channel_list[i] =
-				unsafe_chan_list->chan_freq_list[i];
-	}
+	qdf_mem_copy(hdd_ctxt->unsafe_channel_list, unsafe_chan_list->ch_list,
+					sizeof(hdd_ctxt->unsafe_channel_list));
 	hdd_debug("number of unsafe channels is %d ",
 	       hdd_ctxt->unsafe_channel_count);
 
@@ -1200,7 +1193,6 @@ static void map_nl_reg_rule_flags(uint16_t drv_reg_rule_flag,
 		*regd_rule_flag |= NL80211_RRF_NO_OUTDOOR;
 	if (drv_reg_rule_flag & REGULATORY_CHAN_NO_OFDM)
 		*regd_rule_flag |= NL80211_RRF_NO_OFDM;
-	*regd_rule_flag |= NL80211_RRF_AUTO_BW;
 }
 
 /**
@@ -1213,31 +1205,27 @@ static enum nl80211_dfs_regions dfs_reg_to_nl80211_dfs_regions(
 					enum dfs_reg dfs_region)
 {
 	switch (dfs_region) {
-	case DFS_UNINIT_REGION:
+	case DFS_UNINIT_REG:
 		return NL80211_DFS_UNSET;
-	case DFS_FCC_REGION:
+	case DFS_FCC_REG:
 		return NL80211_DFS_FCC;
-	case DFS_ETSI_REGION:
+	case DFS_ETSI_REG:
 		return NL80211_DFS_ETSI;
-	case DFS_MKK_REGION:
+	case DFS_MKK_REG:
 		return NL80211_DFS_JP;
 	default:
 		return NL80211_DFS_UNSET;
 	}
 }
 
-/**
- * hdd_set_dfs_pri_multiplier() - Set dfs_pri_multiplier for ETSI region
- * @dfs_region: DFS region
- *
- * Return: none
- */
 #ifdef DFS_PRI_MULTIPLIER
 static void hdd_set_dfs_pri_multiplier(struct hdd_context *hdd_ctx,
 				       enum dfs_reg dfs_region)
 {
-	if (dfs_region == DFS_ETSI_REGION)
-		wlan_sap_set_dfs_pri_multiplier(hdd_ctx->mac_handle);
+	if (dfs_region == DFS_ETSI_REG)
+		wlan_sap_set_dfs_pri_multiplier(
+				hdd_ctx->mac_handle,
+				hdd_ctx->config->dfsRadarPriMultiplier);
 }
 #else
 static inline void hdd_set_dfs_pri_multiplier(struct hdd_context *hdd_ctx,
@@ -1318,60 +1306,6 @@ void hdd_send_wiphy_regd_sync_event(struct hdd_context *hdd_ctx)
 }
 #endif
 
-#if defined(CONFIG_BAND_6GHZ) && (defined(CFG80211_6GHZ_BAND_SUPPORTED) || \
-	(KERNEL_VERSION(5, 4, 0) <= LINUX_VERSION_CODE))
-static void
-fill_wiphy_6ghz_band_channels(struct wiphy *wiphy,
-			      struct regulatory_channel *chan_list)
-{
-	fill_wiphy_band_channels(wiphy, chan_list, NL80211_BAND_6GHZ);
-}
-#else
-static void
-fill_wiphy_6ghz_band_channels(struct wiphy *wiphy,
-			      struct regulatory_channel *chan_list)
-{
-}
-#endif
-
-#define HDD_MAX_CHAN_INFO_LOG 192
-
-/**
- * hdd_regulatory_chanlist_dump() - Dump regulatory channel list info
- * @chan_list: regulatory channel list
- *
- * Return: void
- */
-static void hdd_regulatory_chanlist_dump(struct regulatory_channel *chan_list)
-{
-	uint32_t i;
-	uint8_t info[HDD_MAX_CHAN_INFO_LOG];
-	int len = 0;
-	struct regulatory_channel *chan;
-	uint32_t count = 0;
-	int ret;
-
-	hdd_debug("start (freq MHz, tx power dBm):");
-	for (i = 0; i < NUM_CHANNELS; i++) {
-		chan = &chan_list[i];
-		if ((chan->chan_flags & REGULATORY_CHAN_DISABLED))
-			continue;
-		count++;
-		ret = scnprintf(info + len, sizeof(info) - len, "%d %d ",
-				chan->center_freq, chan->tx_power);
-		if (ret <= 0)
-			break;
-		len += ret;
-		if (len >= (sizeof(info) - 20)) {
-			hdd_debug("%s", info);
-			len = 0;
-		}
-	}
-	if (len > 0)
-		hdd_debug("%s", info);
-	hdd_debug("end total_count %d", count);
-}
-
 static void hdd_regulatory_dyn_cbk(struct wlan_objmgr_psoc *psoc,
 				   struct wlan_objmgr_pdev *pdev,
 				   struct regulatory_channel *chan_list,
@@ -1389,11 +1323,10 @@ static void hdd_regulatory_dyn_cbk(struct wlan_objmgr_psoc *psoc,
 	hdd_ctx = wiphy_priv(wiphy);
 
 	hdd_debug("process channel list update from regulatory");
-	hdd_regulatory_chanlist_dump(chan_list);
 
 	fill_wiphy_band_channels(wiphy, chan_list, NL80211_BAND_2GHZ);
 	fill_wiphy_band_channels(wiphy, chan_list, NL80211_BAND_5GHZ);
-	fill_wiphy_6ghz_band_channels(wiphy, chan_list);
+
 	cc_src = ucfg_reg_get_cc_and_src(hdd_ctx->psoc, alpha2);
 	qdf_mem_copy(hdd_ctx->reg.alpha2, alpha2, REG_ALPHA2_LEN + 1);
 	sme_set_cc_src(hdd_ctx->mac_handle, cc_src);
@@ -1412,8 +1345,6 @@ static void hdd_regulatory_dyn_cbk(struct wlan_objmgr_psoc *psoc,
 		hdd_ch_avoid_ind(hdd_ctx, &avoid_freq_ind->chan_list,
 				&avoid_freq_ind->freq_list);
 	} else {
-		hdd_config_tdls_with_band_switch(hdd_ctx);
-
 		sme_generic_change_country_code(hdd_ctx->mac_handle,
 				hdd_ctx->reg.alpha2);
 		/*Check whether need restart SAP/P2p Go*/
@@ -1433,19 +1364,13 @@ int hdd_update_regulatory_config(struct hdd_context *hdd_ctx)
 int hdd_regulatory_init(struct hdd_context *hdd_ctx, struct wiphy *wiphy)
 {
 	bool offload_enabled;
-	struct regulatory_channel *cur_chan_list;
+	struct regulatory_channel cur_chan_list[NUM_CHANNELS];
 	enum country_src cc_src;
 	uint8_t alpha2[REG_ALPHA2_LEN + 1];
-
-	cur_chan_list = qdf_mem_malloc(sizeof(*cur_chan_list) * NUM_CHANNELS);
-	if (!cur_chan_list) {
-		return -ENOMEM;
-	}
 
 	ucfg_reg_register_chan_change_callback(hdd_ctx->psoc,
 					       hdd_regulatory_dyn_cbk,
 					       NULL);
-
 
 	wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
 	/* Check the kernel version for upstream commit aced43ce780dc5 that
@@ -1463,12 +1388,11 @@ int hdd_regulatory_init(struct hdd_context *hdd_ctx, struct wiphy *wiphy)
 		hdd_ctx->reg_offload = true;
 		ucfg_reg_get_current_chan_list(hdd_ctx->pdev,
 					       cur_chan_list);
-		hdd_regulatory_chanlist_dump(cur_chan_list);
 		fill_wiphy_band_channels(wiphy, cur_chan_list,
 					 NL80211_BAND_2GHZ);
 		fill_wiphy_band_channels(wiphy, cur_chan_list,
 					 NL80211_BAND_5GHZ);
-		fill_wiphy_6ghz_band_channels(wiphy, cur_chan_list);
+
 		cc_src = ucfg_reg_get_cc_and_src(hdd_ctx->psoc, alpha2);
 		qdf_mem_copy(hdd_ctx->reg.alpha2, alpha2, REG_ALPHA2_LEN + 1);
 		sme_set_cc_src(hdd_ctx->mac_handle, cc_src);
@@ -1476,7 +1400,6 @@ int hdd_regulatory_init(struct hdd_context *hdd_ctx, struct wiphy *wiphy)
 		hdd_ctx->reg_offload = false;
 	}
 
-	qdf_mem_free(cur_chan_list);
 	return 0;
 }
 
@@ -1507,13 +1430,7 @@ int hdd_regulatory_init(struct hdd_context *hdd_ctx, struct wiphy *wiphy)
 
 void hdd_update_regdb_offload_config(struct hdd_context *hdd_ctx)
 {
-	QDF_STATUS status;
-	bool ignore_fw_reg_offload_ind = false;
-
-	status = ucfg_mlme_get_ignore_fw_reg_offload_ind(
-						hdd_ctx->psoc,
-						&ignore_fw_reg_offload_ind);
-	if (!ignore_fw_reg_offload_ind) {
+	if (!hdd_ctx->config->ignore_fw_reg_offload_ind) {
 		hdd_debug("regdb offload is based on firmware capability");
 		return;
 	}
@@ -1521,3 +1438,4 @@ void hdd_update_regdb_offload_config(struct hdd_context *hdd_ctx)
 	hdd_debug("Ignore regdb offload Indication from FW");
 	ucfg_set_ignore_fw_reg_offload_ind(hdd_ctx->psoc);
 }
+

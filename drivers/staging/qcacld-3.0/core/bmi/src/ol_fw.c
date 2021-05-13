@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -18,7 +18,6 @@
 
 #include <linux/firmware.h>
 #include "ol_if_athvar.h"
-#include "qdf_time.h"
 #include "targaddrs.h"
 #include "ol_cfg.h"
 #include "cds_api.h"
@@ -173,7 +172,7 @@ __ol_transfer_bin_file(struct ol_context *ol_ctx, enum ATH_BIN_FILE file,
 		       uint32_t address, bool compressed)
 {
 	struct hif_opaque_softc *scn = ol_ctx->scn;
-	int status = 0;
+	int status = EOK;
 	const char *filename;
 	const struct firmware *fw_entry;
 	uint32_t fw_entry_size;
@@ -406,7 +405,7 @@ __ol_transfer_bin_file(struct ol_context *ol_ctx, enum ATH_BIN_FILE file,
 					board_data_size),
 					board_ext_data_size, ol_ctx);
 
-			if (status)
+			if (status != EOK)
 				goto end;
 
 			/* Record extended board Data initialized */
@@ -440,7 +439,7 @@ __ol_transfer_bin_file(struct ol_context *ol_ctx, enum ATH_BIN_FILE file,
 			status = bmi_sign_stream_start(address,
 						(uint8_t *)fw_entry->data,
 						bin_off, ol_ctx);
-			if (status) {
+			if (status != EOK) {
 				BMI_ERR("unable to start sign stream");
 				status = -EINVAL;
 				goto end;
@@ -486,7 +485,7 @@ __ol_transfer_bin_file(struct ol_context *ol_ctx, enum ATH_BIN_FILE file,
 			status = bmi_sign_stream_start(0,
 					(uint8_t *)fw_entry->data +
 					bin_off, bin_len, ol_ctx);
-			if (status)
+			if (status != EOK)
 				BMI_ERR("sign stream error");
 		}
 	}
@@ -506,11 +505,11 @@ release_fw:
 		}
 	}
 
-	if (status)
+	if (status != EOK)
 		BMI_ERR("%s, BMI operation failed: %d", __func__, __LINE__);
 	else
 		BMI_INFO("transferring file: %s size %d bytes done!",
-			 (filename) ? filename : " ", fw_entry_size);
+			 (filename != NULL) ? filename : " ", fw_entry_size);
 	return status;
 }
 
@@ -543,40 +542,15 @@ struct ramdump_info {
 	unsigned long size;
 };
 
-/**
- * if have platform driver support, reinit will be called by CNSS.
- * recovery flag will be cleaned and CRASHED indication will be sent
- * to user space by reinit function. If not support, clean recovery
- * flag and send CRASHED indication in CLD driver.
- */
-static inline void ol_check_clean_recovery_flag(struct ol_context *ol_ctx)
-{
-	qdf_device_t qdf_dev = ol_ctx->qdf_dev;
-
-	if (!pld_have_platform_driver_support(qdf_dev->dev)) {
-		cds_set_recovery_in_progress(false);
-		if (ol_ctx->fw_crashed_cb)
-			ol_ctx->fw_crashed_cb();
-	}
-}
-
 #if !defined(QCA_WIFI_3_0)
 static inline void ol_get_ramdump_mem(struct device *dev,
 				      struct ramdump_info *info)
 {
 	info->base = pld_get_virt_ramdump_mem(dev, &info->size);
 }
-
-static inline void ol_release_ramdump_mem(struct device *dev,
-					  struct ramdump_info *info)
-{
-	pld_release_virt_ramdump_mem(dev, info->base);
-}
 #else
 static inline void ol_get_ramdump_mem(struct device *dev,
 				      struct ramdump_info *info) { }
-static inline void ol_release_ramdump_mem(struct device *dev,
-					  struct ramdump_info *info) { }
 #endif
 
 int ol_copy_ramdump(struct hif_opaque_softc *scn)
@@ -609,14 +583,15 @@ int ol_copy_ramdump(struct hif_opaque_softc *scn)
 
 	ret = ol_target_coredump(scn, info->base, info->size);
 
-	ol_release_ramdump_mem(qdf_dev->dev, info);
 	qdf_mem_free(info);
 	return ret;
 }
 
-static void __ramdump_work_handler(void *data)
+void ramdump_work_handler(void *data)
 {
+#ifdef WLAN_DEBUG
 	int ret;
+#endif
 	uint32_t host_interest_address;
 	uint32_t dram_dump_values[4];
 	uint32_t target_type;
@@ -651,7 +626,6 @@ static void __ramdump_work_handler(void *data)
 		BMI_ERR("HifDiagReadiMem FW Dump Area Pointer failed!");
 		ol_copy_ramdump(ramdump_scn);
 		pld_device_crashed(qdf_dev->dev);
-		ol_check_clean_recovery_flag(ol_ctx);
 
 		return;
 	}
@@ -678,10 +652,8 @@ static void __ramdump_work_handler(void *data)
 	 */
 	if (cds_is_load_or_unload_in_progress())
 		cds_set_recovery_in_progress(false);
-	else {
+	else
 		pld_device_crashed(qdf_dev->dev);
-		ol_check_clean_recovery_flag(ol_ctx);
-	}
 	return;
 
 out_fail:
@@ -691,20 +663,6 @@ out_fail:
 					 PLD_REASON_DEFAULT);
 	else
 		pld_device_crashed(qdf_dev->dev);
-
-	ol_check_clean_recovery_flag(ol_ctx);
-}
-
-void ramdump_work_handler(void *data)
-{
-	struct qdf_op_sync *op_sync;
-
-	if (qdf_op_protect(&op_sync))
-		return;
-
-	__ramdump_work_handler(data);
-
-	qdf_op_unprotect(op_sync);
 }
 
 void fw_indication_work_handler(void *data)
@@ -714,8 +672,6 @@ void fw_indication_work_handler(void *data)
 
 	pld_device_self_recovery(qdf_dev->dev,
 				 PLD_REASON_DEFAULT);
-
-	ol_check_clean_recovery_flag(ol_ctx);
 }
 
 void ol_target_failure(void *instance, QDF_STATUS status)
@@ -758,7 +714,6 @@ void ol_target_failure(void *instance, QDF_STATUS status)
 		       __func__);
 		return;
 	}
-	cds_set_target_ready(false);
 	cds_set_recovery_in_progress(true);
 
 	ret = hif_check_fw_reg(scn);
@@ -1215,7 +1170,7 @@ static QDF_STATUS ol_patch_pll_switch(struct ol_context *ol_ctx)
 		BMI_ERR("Failed to read back PLL_CTRL Addr");
 		goto end;
 	}
-	qdf_udelay(100);
+	OS_DELAY(100);
 	BMI_DBG("Step 5b: %8X", reg_val);
 
 	/* ------Step 6------- */
@@ -1384,7 +1339,7 @@ QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx)
 						address, false);
 	}
 
-	if (!status) {
+	if (status == EOK) {
 		/* Record the fact that Board Data is initialized */
 		param = 1;
 		bmi_write_memory(
@@ -1401,7 +1356,7 @@ QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx)
 		status = ol_transfer_bin_file(ol_ctx, ATH_OTP_FILE,
 					      address, true);
 		/* Execute the OTP code only if entry found and downloaded */
-		if (!status) {
+		if (status == EOK) {
 			uint16_t board_id = 0xffff;
 			/* get board id */
 			param = 0x10;
@@ -1427,7 +1382,7 @@ QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx)
 
 		/* Flash is either not available or invalid */
 		if (ol_transfer_bin_file(ol_ctx, ATH_BOARD_DATA_FILE,
-					 address, false)) {
+					 address, false) != EOK) {
 			return QDF_STATUS_E_FAILURE;
 		}
 
@@ -1442,8 +1397,8 @@ QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx)
 		bmi_execute(address, &param, ol_ctx);
 	}
 
-	if (!ol_transfer_bin_file(ol_ctx, ATH_SETUP_FILE,
-				  BMI_SEGMENTED_WRITE_ADDR, true)) {
+	if (ol_transfer_bin_file(ol_ctx, ATH_SETUP_FILE,
+		BMI_SEGMENTED_WRITE_ADDR, true) == EOK) {
 		param = 0;
 		bmi_execute(address, &param, ol_ctx);
 	}
@@ -1453,14 +1408,14 @@ QDF_STATUS ol_download_firmware(struct ol_context *ol_ctx)
 	 */
 	address = BMI_SEGMENTED_WRITE_ADDR;
 	if (ol_transfer_bin_file(ol_ctx, ATH_FIRMWARE_FILE,
-				 address, true)) {
+				address, true) != EOK) {
 		return QDF_STATUS_E_FAILURE;
 	}
 
 	/* Apply the patches */
 	if (ol_check_dataset_patch(scn, &address)) {
-		if (ol_transfer_bin_file(ol_ctx, ATH_PATCH_FILE, address,
-					 false)) {
+		if ((ol_transfer_bin_file(ol_ctx, ATH_PATCH_FILE, address,
+					  false)) != EOK) {
 			return QDF_STATUS_E_FAILURE;
 		}
 		bmi_write_memory(hif_hia_item_address(target_type,
@@ -1939,10 +1894,4 @@ void ol_init_ini_config(struct ol_context *ol_ctx,
 			struct ol_config_info *cfg)
 {
 	qdf_mem_copy(&ol_ctx->cfg_info, cfg, sizeof(struct ol_config_info));
-}
-
-void ol_set_fw_crashed_cb(struct ol_context *ol_ctx,
-			  void (*callback_fn)(void))
-{
-	ol_ctx->fw_crashed_cb = callback_fn;
 }

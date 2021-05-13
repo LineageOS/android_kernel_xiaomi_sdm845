@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -22,22 +22,9 @@
 #ifdef CONFIG_PLD_PCIE_CNSS
 #include <net/cnss2.h>
 #endif
-#include <linux/pci.h>
 #include "pld_internal.h"
 
-#ifdef DYNAMIC_SINGLE_CHIP
-#define PREFIX DYNAMIC_SINGLE_CHIP "/"
-#else
-
-#ifdef MULTI_IF_NAME
-#define PREFIX MULTI_IF_NAME "/"
-#else
-#define PREFIX ""
-#endif
-
-#endif
-
-#if !defined(HIF_PCI) || defined(CONFIG_PLD_PCIE_FW_SIM)
+#ifndef HIF_PCI
 static inline int pld_pcie_register_driver(void)
 {
 	return 0;
@@ -77,7 +64,17 @@ int pld_pcie_wlan_enable(struct device *dev, struct pld_wlan_enable_cfg *config,
 int pld_pcie_wlan_disable(struct device *dev, enum pld_driver_mode mode);
 #endif
 
-#if defined(CONFIG_PLD_PCIE_CNSS)
+#if defined(CONFIG_PLD_PCIE_CNSS) && defined(QCA_WIFI_3_0_ADRASTEA)
+static inline int pld_pcie_set_fw_log_mode(struct device *dev, u8 fw_log_mode)
+{
+	return cnss_set_fw_debug_mode(fw_log_mode);
+}
+
+static inline void pld_pcie_intr_notify_q6(struct device *dev)
+{
+	cnss_intr_notify_q6();
+}
+#elif defined(CONFIG_PLD_PCIE_CNSS)
 static inline int pld_pcie_set_fw_log_mode(struct device *dev, u8 fw_log_mode)
 {
 	return cnss_set_fw_log_mode(dev, fw_log_mode);
@@ -134,31 +131,6 @@ static inline int pld_pcie_wlan_pm_control(struct device *dev, bool vote)
 #endif
 
 #ifndef CONFIG_PLD_PCIE_CNSS
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
-static inline void *pld_pcie_smmu_get_domain(struct device *dev)
-{
-	return NULL;
-}
-#else
-static inline void *pld_pcie_smmu_get_mapping(struct device *dev)
-{
-	return NULL;
-}
-#endif
-
-static inline int
-pld_pcie_smmu_map(struct device *dev,
-		  phys_addr_t paddr, uint32_t *iova_addr, size_t size)
-{
-	return 0;
-}
-
-static inline int
-pld_pcie_smmu_unmap(struct device *dev, uint32_t iova_addr, size_t size)
-{
-	return 0;
-}
-
 static inline int
 pld_pcie_get_fw_files_for_target(struct device *dev,
 				 struct pld_fw_files *pfw_files,
@@ -168,28 +140,8 @@ pld_pcie_get_fw_files_for_target(struct device *dev,
 	return 0;
 }
 
-static inline int pld_pcie_prevent_l1(struct device *dev)
-{
-	return 0;
-}
-
-static inline void pld_pcie_allow_l1(struct device *dev)
-{
-}
-
 static inline void pld_pcie_link_down(struct device *dev)
 {
-}
-
-static inline int pld_pcie_get_reg_dump(struct device *dev, uint8_t *buf,
-					uint32_t len)
-{
-	return 0;
-}
-
-static inline int pld_pcie_is_fw_down(struct device *dev)
-{
-	return 0;
 }
 
 static inline int pld_pcie_athdiag_read(struct device *dev, uint32_t offset,
@@ -215,25 +167,7 @@ pld_pcie_schedule_recovery_work(struct device *dev,
 static inline void *pld_pcie_get_virt_ramdump_mem(struct device *dev,
 						  unsigned long *size)
 {
-	size_t length = 0;
-	int flags = GFP_KERNEL;
-
-	length = TOTAL_DUMP_SIZE;
-
-	if (!size)
-		return NULL;
-
-	*size = (unsigned long)length;
-
-	if (in_interrupt() || irqs_disabled() || in_atomic())
-		flags = GFP_ATOMIC;
-
-	return kzalloc(length, flags);
-}
-
-static inline void pld_pcie_release_virt_ramdump_mem(void *address)
-{
-	kfree(address);
+	return NULL;
 }
 
 static inline void pld_pcie_device_crashed(struct device *dev)
@@ -281,42 +215,11 @@ static inline int pld_pcie_auto_resume(struct device *dev)
 	return 0;
 }
 
-static inline int pld_pcie_force_wake_request(struct device *dev)
-{
-	return 0;
-}
-
-static inline int pld_pcie_force_wake_request_sync(struct device *dev,
-						   int timeout_us)
-{
-	return 0;
-}
-
-static inline int pld_pcie_is_device_awake(struct device *dev)
-{
-	return true;
-}
-
-static inline int pld_pcie_force_wake_release(struct device *dev)
-{
-	return 0;
-}
-
 static inline void pld_pcie_lock_pm_sem(struct device *dev)
 {
 }
 
 static inline void pld_pcie_release_pm_sem(struct device *dev)
-{
-}
-
-static inline void pld_pcie_lock_reg_window(struct device *dev,
-					    unsigned long *flags)
-{
-}
-
-static inline void pld_pcie_unlock_reg_window(struct device *dev,
-					      unsigned long *flags)
 {
 }
 
@@ -330,40 +233,7 @@ static inline int pld_pcie_power_off(struct device *dev)
 	return 0;
 }
 
-static inline int pld_pcie_idle_restart(struct device *dev)
-{
-	return 0;
-}
-
-static inline int pld_pcie_idle_shutdown(struct device *dev)
-{
-	return 0;
-}
-
 static inline int pld_pcie_force_assert_target(struct device *dev)
-{
-	return -EINVAL;
-}
-
-static inline int pld_pcie_collect_rddm(struct device *dev)
-{
-	return 0;
-}
-
-static inline int pld_pcie_qmi_send_get(struct device *dev)
-{
-	return 0;
-}
-
-static inline int pld_pcie_qmi_send_put(struct device *dev)
-{
-	return 0;
-}
-
-static inline int
-pld_pcie_qmi_send(struct device *dev, int type, void *cmd,
-		  int cmd_len, void *cb_ctx,
-		  int (*cb)(void *ctx, void *event, int event_len))
 {
 	return -EINVAL;
 }
@@ -374,7 +244,7 @@ static inline int pld_pcie_get_user_msi_assignment(struct device *dev,
 						   uint32_t *user_base_data,
 						   uint32_t *base_vector)
 {
-	return -EINVAL;
+	return 0;
 }
 
 static inline int pld_pcie_get_msi_irq(struct device *dev, unsigned int vector)
@@ -388,16 +258,6 @@ static inline void pld_pcie_get_msi_address(struct device *dev,
 {
 	return;
 }
-
-static inline int pld_pcie_is_drv_connected(struct device *dev)
-{
-	return 0;
-}
-
-static inline bool pld_pcie_platform_driver_support(void)
-{
-	return false;
-}
 #else
 int pld_pcie_get_fw_files_for_target(struct device *dev,
 				     struct pld_fw_files *pfw_files,
@@ -408,95 +268,10 @@ void pld_pcie_schedule_recovery_work(struct device *dev,
 				     enum pld_recovery_reason reason);
 void pld_pcie_device_self_recovery(struct device *dev,
 				   enum pld_recovery_reason reason);
-static inline int pld_pcie_collect_rddm(struct device *dev)
-{
-	return cnss_force_collect_rddm(dev);
-}
-
-static inline int pld_pcie_qmi_send_get(struct device *dev)
-{
-	return cnss_qmi_send_get(dev);
-}
-
-static inline int pld_pcie_qmi_send_put(struct device *dev)
-{
-	return cnss_qmi_send_put(dev);
-}
-
-static inline int
-pld_pcie_qmi_send(struct device *dev, int type, void *cmd,
-		  int cmd_len, void *cb_ctx,
-		  int (*cb)(void *ctx, void *event, int event_len))
-{
-	return cnss_qmi_send(dev, type, cmd, cmd_len, cb_ctx, cb);
-}
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
-static inline void *pld_pcie_smmu_get_domain(struct device *dev)
-{
-	return cnss_smmu_get_domain(dev);
-}
-#else
-static inline void *pld_pcie_smmu_get_mapping(struct device *dev)
-{
-	return cnss_smmu_get_mapping(dev);
-}
-#endif
-
-static inline int
-pld_pcie_smmu_map(struct device *dev,
-		  phys_addr_t paddr, uint32_t *iova_addr, size_t size)
-{
-	return cnss_smmu_map(dev, paddr, iova_addr, size);
-}
-
-#ifdef CONFIG_SMMU_S1_UNMAP
-static inline int
-pld_pcie_smmu_unmap(struct device *dev, uint32_t iova_addr, size_t size)
-{
-	return cnss_smmu_unmap(dev, iova_addr, size);
-}
-#else /* !CONFIG_SMMU_S1_UNMAP */
-static inline int
-pld_pcie_smmu_unmap(struct device *dev, uint32_t iova_addr, size_t size)
-{
-	return 0;
-}
-#endif /* CONFIG_SMMU_S1_UNMAP */
-
-static inline int pld_pcie_prevent_l1(struct device *dev)
-{
-	return cnss_pci_prevent_l1(dev);
-}
-
-static inline void pld_pcie_allow_l1(struct device *dev)
-{
-	cnss_pci_allow_l1(dev);
-}
 
 static inline void pld_pcie_link_down(struct device *dev)
 {
 	cnss_pci_link_down(dev);
-}
-
-#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)) && \
-		(LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0)))
-static inline int pld_pcie_get_reg_dump(struct device *dev, uint8_t *buf,
-					uint32_t len)
-{
-	return cnss_pci_get_reg_dump(dev, buf, len);
-}
-#else
-static inline int pld_pcie_get_reg_dump(struct device *dev, uint8_t *buf,
-					uint32_t len)
-{
-	return 0;
-}
-#endif
-
-static inline int pld_pcie_is_fw_down(struct device *dev)
-{
-	return cnss_pci_is_device_down(dev);
 }
 
 static inline int pld_pcie_athdiag_read(struct device *dev, uint32_t offset,
@@ -517,10 +292,6 @@ static inline void *pld_pcie_get_virt_ramdump_mem(struct device *dev,
 						  unsigned long *size)
 {
 	return cnss_get_virt_ramdump_mem(dev, size);
-}
-
-static inline void pld_pcie_release_virt_ramdump_mem(void *address)
-{
 }
 
 static inline void pld_pcie_device_crashed(struct device *dev)
@@ -554,27 +325,6 @@ static inline int pld_pcie_auto_resume(struct device *dev)
 	return cnss_auto_resume(dev);
 }
 
-static inline int pld_pcie_force_wake_request(struct device *dev)
-{
-	return cnss_pci_force_wake_request(dev);
-}
-
-static inline int pld_pcie_force_wake_request_sync(struct device *dev,
-						   int timeout_us)
-{
-	return cnss_pci_force_wake_request_sync(dev, timeout_us);
-}
-
-static inline int pld_pcie_is_device_awake(struct device *dev)
-{
-	return cnss_pci_is_device_awake(dev);
-}
-
-static inline int pld_pcie_force_wake_release(struct device *dev)
-{
-	return cnss_pci_force_wake_release(dev);
-}
-
 static inline void pld_pcie_lock_pm_sem(struct device *dev)
 {
 	cnss_lock_pm_sem(dev);
@@ -583,18 +333,6 @@ static inline void pld_pcie_lock_pm_sem(struct device *dev)
 static inline void pld_pcie_release_pm_sem(struct device *dev)
 {
 	cnss_release_pm_sem(dev);
-}
-
-static inline void pld_pcie_lock_reg_window(struct device *dev,
-					    unsigned long *flags)
-{
-	cnss_pci_lock_reg_window(dev, flags);
-}
-
-static inline void pld_pcie_unlock_reg_window(struct device *dev,
-					      unsigned long *flags)
-{
-	cnss_pci_unlock_reg_window(dev, flags);
 }
 
 static inline int pld_pcie_power_on(struct device *dev)
@@ -607,19 +345,9 @@ static inline int pld_pcie_power_off(struct device *dev)
 	return cnss_power_down(dev);
 }
 
-static inline int pld_pcie_idle_restart(struct device *dev)
-{
-	return cnss_idle_restart(dev);
-}
-
-static inline int pld_pcie_idle_shutdown(struct device *dev)
-{
-	return cnss_idle_shutdown(dev);
-}
-
 static inline int pld_pcie_force_assert_target(struct device *dev)
 {
-	return cnss_force_collect_rddm(dev);
+	return cnss_force_fw_assert(dev);
 }
 
 static inline int pld_pcie_get_user_msi_assignment(struct device *dev,
@@ -642,16 +370,6 @@ static inline void pld_pcie_get_msi_address(struct device *dev,
 					    uint32_t *msi_addr_high)
 {
 	cnss_get_msi_address(dev, msi_addr_low, msi_addr_high);
-}
-
-static inline int pld_pcie_is_drv_connected(struct device *dev)
-{
-	return cnss_pci_is_drv_connected(dev);
-}
-
-static inline bool pld_pcie_platform_driver_support(void)
-{
-	return true;
 }
 #endif
 #endif

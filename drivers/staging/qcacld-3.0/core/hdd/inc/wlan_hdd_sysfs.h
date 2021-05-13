@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -15,14 +15,10 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 #ifndef _WLAN_HDD_SYSFS_H_
 #define _WLAN_HDD_SYSFS_H_
 
 #ifdef WLAN_SYSFS
-
-#define MAX_SYSFS_USER_COMMAND_SIZE_LENGTH (32)
-
 /**
  * hdd_sysfs_create_driver_root_obj() - create driver root kobject
  *
@@ -51,45 +47,6 @@ void hdd_sysfs_create_version_interface(struct wlan_objmgr_psoc *psoc);
  * Return: none
  */
 void hdd_sysfs_destroy_version_interface(void);
-
-/**
- * hdd_sysfs_dp_aggregation_create() - API to create dp aggregation
- *  related sysfs entry
- *
- * file path: /sys/kernel/wifi/dp_aggregation
- *
- * usage:
- *      echo [0/1] > dp_aggregation
- *
- * Return: 0 on success and errno on failure
- */
-int
-hdd_sysfs_dp_aggregation_create(void);
-
-/**
- * hdd_sysfs_dp_aggregation_destroy() - API to destroy dp aggregation
- *  related sysfs entry
- *
- * Return: None
- */
-void
-hdd_sysfs_dp_aggregation_destroy(void);
-
-/**
- * hdd_sys_validate_and_copy_buf() - validate sysfs input buf and copy into
- *                                   destination buffer
- * @dest_buf - pointer to destination buffer where data should be copied
- * @dest_buf_size - size of destination buffer
- * @src_buf - pointer to constant sysfs source buffer
- * @src_buf_size - size of source buffer
- *
- * Return: 0 for success and error code for failure
- */
-int
-hdd_sysfs_validate_and_copy_buf(char *dest_buf, size_t dest_buf_size,
-				char const *src_buf, size_t src_buf_size);
-
-#ifdef WLAN_POWER_DEBUG
 /**
  * hdd_sysfs_create_powerstats_interface() - create power_stats interface
  *
@@ -104,33 +61,12 @@ void hdd_sysfs_create_powerstats_interface(void);
 void hdd_sysfs_destroy_powerstats_interface(void);
 #else
 static inline
-void hdd_sysfs_create_powerstats_interface(void)
-{
-}
-
-static inline
-void hdd_sysfs_destroy_powerstats_interface(void)
-{
-}
-#endif /*End of WLAN_POWER_DEBUG */
-#else
-static inline
 void hdd_sysfs_create_driver_root_obj(void)
 {
 }
 
 static inline
 void hdd_sysfs_destroy_driver_root_obj(void)
-{
-}
-
-static inline
-void hdd_sysfs_create_powerstats_interface(void)
-{
-}
-
-static inline
-void hdd_sysfs_destroy_powerstats_interface(void)
 {
 }
 
@@ -144,22 +80,14 @@ void hdd_sysfs_destroy_version_interface(void)
 {
 }
 
-static inline int
-hdd_sysfs_dp_aggregation_create(void)
-{
-	return 0;
-}
-
-static inline void
-hdd_sysfs_dp_aggregation_destroy(void)
+static inline
+void hdd_sysfs_create_powerstats_interface(void)
 {
 }
 
-static inline int
-hdd_sysfs_validate_and_copy_buf(char *dest_buf, size_t dest_buf_size,
-				char const *src_buf, size_t src_buf_size)
+static inline
+void hdd_sysfs_destroy_powerstats_interface(void)
 {
-	return -EPERM;
 }
 #endif
 
