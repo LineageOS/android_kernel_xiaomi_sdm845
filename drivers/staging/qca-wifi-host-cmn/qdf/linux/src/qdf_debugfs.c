@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -46,13 +46,15 @@ QDF_STATUS qdf_debugfs_init(void)
 }
 qdf_export_symbol(qdf_debugfs_init);
 
-void qdf_debugfs_exit(void)
+QDF_STATUS qdf_debugfs_exit(void)
 {
 	if (!qdf_debugfs_root)
-		return;
+		return QDF_STATUS_SUCCESS;
 
 	debugfs_remove_recursive(qdf_debugfs_root);
 	qdf_debugfs_root = NULL;
+
+	return QDF_STATUS_SUCCESS;
 }
 qdf_export_symbol(qdf_debugfs_exit);
 
@@ -165,31 +167,30 @@ void qdf_debugfs_printf(qdf_debugfs_file_t file, const char *f, ...)
 	va_end(args);
 }
 
-qdf_export_symbol(qdf_debugfs_printf);
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
 
 void qdf_debugfs_hexdump(qdf_debugfs_file_t file, const uint8_t *buf,
-			 qdf_size_t len, int rowsize, int groupsize)
+			 qdf_size_t len)
 {
-	seq_hex_dump(file, "", DUMP_PREFIX_OFFSET, rowsize, groupsize, buf, len,
-		     false);
+	seq_hex_dump(file, "", DUMP_PREFIX_OFFSET, 16, 4, buf, len, false);
 }
 
 #else
 
 void qdf_debugfs_hexdump(qdf_debugfs_file_t file, const uint8_t *buf,
-			 qdf_size_t len, int rowsize, int groupsize)
+			 qdf_size_t len)
 {
+	const size_t rowsize = 16;
+	const size_t groupsize = 4;
 	char *dst;
-	size_t dstlen, readlen, remaining = len;
+	size_t dstlen, readlen;
 	int prefix = 0;
 	size_t commitlen;
 
-	while (remaining > 0 && (file->size > file->count)) {
+	while (len > 0 && (file->size > file->count)) {
 		seq_printf(file, "%.8x: ", prefix);
 
-		readlen = qdf_min(remaining, (qdf_size_t)rowsize);
+		readlen = min(len, rowsize);
 		dstlen = seq_get_buf(file, &dst);
 		hex_dump_to_buffer(buf, readlen, rowsize, groupsize, dst,
 				   dstlen, false);
@@ -197,18 +198,13 @@ void qdf_debugfs_hexdump(qdf_debugfs_file_t file, const uint8_t *buf,
 		seq_commit(file, commitlen);
 		seq_putc(file, '\n');
 
-		remaining = (remaining > rowsize) ? remaining - rowsize : 0;
+		len = (len > rowsize) ? len - rowsize : 0;
 		buf += readlen;
 		prefix += rowsize;
 	}
 }
 
 #endif
-
-bool qdf_debugfs_overflow(qdf_debugfs_file_t file)
-{
-	return seq_has_overflowed(file);
-}
 
 void qdf_debugfs_write(qdf_debugfs_file_t file, const uint8_t *buf,
 		       qdf_size_t len)
@@ -468,70 +464,3 @@ void qdf_debugfs_remove_file(qdf_dentry_t d)
 	debugfs_remove(d);
 }
 qdf_export_symbol(qdf_debugfs_remove_file);
-
-static int qdf_debugfs_single_show(struct seq_file *seq, void *v)
-{
-	struct qdf_debugfs_fops *fops = seq->private;
-
-	if (fops && fops->show)
-		fops->show(seq, fops->priv);
-
-	return 0;
-}
-
-/* .open() */
-static int qdf_debugfs_single_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, qdf_debugfs_single_show,
-			   inode->i_private);
-}
-
-/* File operations for the simplified version */
-static const struct file_operations qdf_debugfs_fops_simple = {
-	.owner          = THIS_MODULE,
-	.open           = qdf_debugfs_single_open,
-	.release        = single_release,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-};
-
-qdf_dentry_t qdf_debugfs_create_file_simplified(
-	const char *name, uint16_t mode,
-	qdf_dentry_t parent, struct qdf_debugfs_fops *fops)
-{
-	qdf_dentry_t file;
-	umode_t filemode;
-
-	if (!name || !fops)
-		return NULL;
-
-	if (!parent)
-		parent = qdf_debugfs_get_root();
-
-	filemode = qdf_debugfs_get_filemode(mode);
-	file = debugfs_create_file(name, filemode, parent, fops,
-				   &qdf_debugfs_fops_simple);
-
-	if (IS_ERR_OR_NULL(file)) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			  "%s creation failed 0x%pK", name, file);
-		file = NULL;
-	}
-
-	return file;
-}
-qdf_export_symbol(qdf_debugfs_create_file_simplified);
-
-int qdf_debugfs_printer(void *priv, const char *fmt, ...)
-{
-	struct seq_file *file = priv;
-	va_list args;
-
-	va_start(args, fmt);
-	seq_vprintf(file, fmt, args);
-	seq_puts(file, "\n");
-	va_end(args);
-
-	return 0;
-}
-qdf_export_symbol(qdf_debugfs_printer);

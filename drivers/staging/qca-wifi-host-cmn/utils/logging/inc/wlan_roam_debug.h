@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -47,10 +47,7 @@ struct wlan_roam_debug_rec {
 	uint32_t arg2;
 };
 
-#ifndef WLAN_ROAM_DEBUG_MAX_REC
 #define WLAN_ROAM_DEBUG_MAX_REC 256
-#endif
-
 /**
  * struct wlan_roam_debug_info - Buffer to store the wma debug records
  * @index: index of the most recent entry in the circular buffer
@@ -102,7 +99,6 @@ enum peer_debug_op {
 #define DEBUG_INVALID_PEER_ID 0xffff
 #define DEBUG_INVALID_VDEV_ID 0xff
 
-#ifdef FEATURE_ROAM_DEBUG
 /**
  * wlan_roam_debug_log() - Add a debug log entry to wlan roam debug records
  * @vdev_id: vdev identifier
@@ -126,49 +122,4 @@ void wlan_roam_debug_log(uint8_t vdev_id, uint8_t op,
  * Return: none
  */
 void wlan_roam_debug_dump_table(void);
-
-#ifdef WLAN_LOGGING_BUFFERS_DYNAMICALLY
-/**
- * wlan_roam_debug_init() - Allocate log buffer dynamically
- *
- * Return: none
- */
-void wlan_roam_debug_init(void);
-/**
- * wlan_roam_debug_deinit() - Free log buffer allocated dynamically
- *
- * Return: none
- */
-void wlan_roam_debug_deinit(void);
-#else /* WLAN_LOGGING_BUFFERS_DYNAMICALLY */
-static inline void wlan_roam_debug_init(void)
-{
-}
-
-static inline void wlan_roam_debug_deinit(void)
-{
-}
-#endif /* WLAN_LOGGING_BUFFERS_DYNAMICALLY */
-
-#else /* FEATURE_ROAM_DEBUG */
-static inline void
-wlan_roam_debug_log(uint8_t vdev_id, uint8_t op,
-		    uint16_t peer_id, void *mac_addr,
-		    void *peer_obj, uint32_t arg1, uint32_t arg2)
-{
-}
-
-static inline void wlan_roam_debug_dump_table(void)
-{
-}
-
-static inline void wlan_roam_debug_init(void)
-{
-}
-
-static inline void wlan_roam_debug_deinit(void)
-{
-}
-#endif /* FEATURE_ROAM_DEBUG */
-
 #endif /* _WLAN_ROAM_DEBUG_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -42,10 +42,6 @@ void hif_target_register_tbl_attach(struct hif_softc *scn, u32 target_type)
 	case TARGET_TYPE_ADRASTEA:
 		scn->targetdef = &adrastea_targetdef;
 		scn->target_ce_def = &adrastea_ce_targetdef;
-		break;
-	case TARGET_TYPE_QCN7605:
-		scn->targetdef = &genoa_targetdef;
-		scn->target_ce_def = &genoa_ce_targetdef;
 		break;
 #if defined(AR6002_HEADERS_DEF)
 	case TARGET_TYPE_AR6002:
@@ -108,55 +104,13 @@ void hif_target_register_tbl_attach(struct hif_softc *scn, u32 target_type)
 #endif
 
 #if defined(QCA6290_HEADERS_DEF)
+	/* use the same defs for HAWKEYE & NAPIER */
 	case TARGET_TYPE_QCA6290:
 		scn->targetdef = QCA6290_TARGETdef;
 		scn->target_ce_def = QCA6290_CE_TARGETdef;
 		break;
 #endif
-#if defined(QCA8074V2_HEADERS_DEF)
-	case TARGET_TYPE_QCA8074V2:
-		scn->targetdef = QCA8074V2_TARGETDEF;
-		scn->target_ce_def = QCA8074V2_CE_TARGETDEF;
-		break;
-#endif
-#if defined(QCA6018_HEADERS_DEF)
-	case TARGET_TYPE_QCA6018:
-		scn->targetdef = QCA6018_TARGETDEF;
-		scn->target_ce_def = QCA6018_CE_TARGETDEF;
-		break;
-#endif
 
-#if defined(QCN9000_HEADERS_DEF)
-	case TARGET_TYPE_QCN9000:
-		scn->targetdef = QCN9000_TARGETDEF;
-		scn->target_ce_def = QCN9000_CE_TARGETDEF;
-		HIF_TRACE("%s: TARGET_TYPE_QCN9000", __func__);
-		break;
-#endif
-
-#if defined(QCA6390_HEADERS_DEF)
-	case TARGET_TYPE_QCA6390:
-		scn->targetdef = QCA6390_TARGETdef;
-		scn->target_ce_def = QCA6390_CE_TARGETdef;
-		HIF_TRACE("%s: TARGET_TYPE_QCA6390", __func__);
-		break;
-#endif /* QCA6390_HEADERS_DEF */
-
-#if defined(QCA6490_HEADERS_DEF)
-	case TARGET_TYPE_QCA6490:
-		scn->targetdef = QCA6490_TARGETdef;
-		scn->target_ce_def = QCA6490_CE_TARGETdef;
-		HIF_TRACE("%s: TARGET_TYPE_QCA6490", __func__);
-		break;
-#endif /* QCA6490_HEADERS_DEF */
-
-#if defined(QCA6750_HEADERS_DEF)
-	case TARGET_TYPE_QCA6750:
-		scn->targetdef = QCA6750_TARGETdef;
-		scn->target_ce_def = QCA6750_CE_TARGETdef;
-		HIF_TRACE("%s: TARGET_TYPE_QCA6750", __func__);
-		break;
-#endif /* QCA6750_HEADERS_DEF */
 	default:
 		break;
 	}
@@ -171,10 +125,6 @@ void hif_register_tbl_attach(struct hif_softc *scn, u32 hif_type)
 	case HIF_TYPE_ADRASTEA:
 		scn->hostdef = &adrastea_hostdef;
 		scn->host_shadow_regs = &adrastea_host_shadow_regs;
-		break;
-	case HIF_TYPE_QCN7605:
-		scn->hostdef = &genoa_hostdef;
-		scn->host_shadow_regs = &genoa_host_shadow_regs;
 		break;
 #if defined(AR6002_HEADERS_DEF)
 	case HIF_TYPE_AR6002:
@@ -229,48 +179,13 @@ void hif_register_tbl_attach(struct hif_softc *scn, u32 hif_type)
 		scn->hostdef = QCA8074_HOSTdef;
 		break;
 #endif
-#if defined(QCA8074V2_HEADERS_DEF)
-	case HIF_TYPE_QCA8074V2:
-		scn->hostdef = QCA8074V2_HOSTDEF;
-		break;
-#endif
-#if defined(QCA6018_HEADERS_DEF)
-	case HIF_TYPE_QCA6018:
-		scn->hostdef = QCA6018_HOSTDEF;
-		HIF_TRACE("%s: HIF_TYPE_QCA6018", __func__);
-		break;
-#endif
+
 #if defined(QCA6290_HEADERS_DEF)
 	case HIF_TYPE_QCA6290:
 		scn->hostdef = QCA6290_HOSTdef;
 		break;
 #endif
-#if defined(QCN9000_HEADERS_DEF)
-	case HIF_TYPE_QCN9000:
-		scn->hostdef = QCN9000_HOSTDEF;
-		break;
-#endif
 
-#if defined(QCA6390_HEADERS_DEF)
-	case HIF_TYPE_QCA6390:
-		scn->hostdef = QCA6390_HOSTdef;
-		HIF_TRACE("%s: HIF_TYPE_QCA6390", __func__);
-		break;
-#endif /* QCA6390_HEADERS_DEF */
-
-#if defined(QCA6490_HEADERS_DEF)
-	case HIF_TYPE_QCA6490:
-		scn->hostdef = QCA6490_HOSTdef;
-		HIF_TRACE("%s: HIF_TYPE_QCA6490", __func__);
-		break;
-#endif /* QCA6490_HEADERS_DEF */
-
-#if defined(QCA6750_HEADERS_DEF)
-	case TARGET_TYPE_QCA6750:
-		scn->hostdef = QCA6750_HOSTdef;
-		HIF_TRACE("%s: TARGET_TYPE_QCA6750", __func__);
-			break;
-#endif /* QCA6750_HEADERS_DEF */
 	default:
 		break;
 	}

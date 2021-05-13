@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -27,7 +27,6 @@
 #include "dl_list.h"
 #define ATH_MODULE_NAME hif
 #include "a_debug.h"
-#include <transfer/transfer.h>
 
 #ifdef HIF_LINUX_MMC_SCATTER_SUPPORT
 
@@ -79,7 +78,7 @@ static struct _HIF_SCATTER_REQ *alloc_scatter_req(struct hif_sdio_dev *device)
 
 	qdf_spin_unlock_irqrestore(&device->lock);
 
-	if (item)
+	if (item != NULL)
 		return A_CONTAINING_STRUCT(item,
 			struct _HIF_SCATTER_REQ, list_link);
 
@@ -113,7 +112,7 @@ QDF_STATUS do_hif_read_write_scatter(struct hif_sdio_dev *device,
 
 	req_priv = busrequest->scatter_req;
 
-	A_ASSERT(req_priv);
+	A_ASSERT(req_priv != NULL);
 	if (!req_priv) {
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -124,8 +123,8 @@ QDF_STATUS do_hif_read_write_scatter(struct hif_sdio_dev *device,
 	memset(&cmd, 0, sizeof(struct mmc_command));
 	memset(&data, 0, sizeof(struct mmc_data));
 
-	data.blksz = HIF_BLOCK_SIZE;
-	data.blocks = req->total_length / HIF_BLOCK_SIZE;
+	data.blksz = HIF_MBOX_BLOCK_SIZE;
+	data.blocks = req->total_length / HIF_MBOX_BLOCK_SIZE;
 
 	AR_DEBUG_PRINTF(ATH_DEBUG_SCATTER,
 			("HIF-SCATTER: (%s) Address: 0x%X, (BlockLen: %d, BlockCount: %d), (tot:%d,sg:%d)\n",
@@ -220,7 +219,7 @@ QDF_STATUS do_hif_read_write_scatter(struct hif_sdio_dev *device,
 				("HIF-SCATTER: async_task completion routine req: 0x%lX (%d)\n",
 				 (unsigned long)busrequest, status));
 		/* complete the request */
-		A_ASSERT(req->completion_routine);
+		A_ASSERT(req->completion_routine != NULL);
 		if (req->completion_routine) {
 			req->completion_routine(req);
 		}
@@ -254,7 +253,7 @@ static QDF_STATUS hif_read_write_scatter(struct hif_sdio_dev *device,
 
 	do {
 
-		A_ASSERT(req_priv);
+		A_ASSERT(req_priv != NULL);
 		if (!req_priv) {
 			break;
 		}
@@ -376,7 +375,7 @@ QDF_STATUS setup_hif_scatter_support(struct hif_sdio_dev *device,
 			(struct HIF_SCATTER_REQ_PRIV *)
 			qdf_mem_malloc(sizeof(
 					struct HIF_SCATTER_REQ_PRIV));
-		if (!req_priv)
+		if (NULL == req_priv)
 			goto end;
 		/* save the device instance */
 		req_priv->device = device;
@@ -387,7 +386,7 @@ QDF_STATUS setup_hif_scatter_support(struct hif_sdio_dev *device,
 				       (MAX_SCATTER_ENTRIES_PER_REQ -
 			       1) * (sizeof(struct _HIF_SCATTER_ITEM)));
 
-		if (!req_priv->hif_scatter_req) {
+		if (NULL == req_priv->hif_scatter_req) {
 			qdf_mem_free(req_priv);
 			goto end;
 		}
@@ -395,7 +394,7 @@ QDF_STATUS setup_hif_scatter_support(struct hif_sdio_dev *device,
 		req_priv->hif_scatter_req->hif_private[0] = req_priv;
 		/* allocate a bus request for this scatter request */
 		busrequest = hif_allocate_bus_request(device);
-		if (!busrequest) {
+		if (NULL == busrequest) {
 			qdf_mem_free(req_priv->hif_scatter_req);
 			qdf_mem_free(req_priv);
 			goto end;
@@ -450,23 +449,23 @@ void cleanup_hif_scatter_resources(struct hif_sdio_dev *device)
 	while (true) {
 		req = alloc_scatter_req(device);
 
-		if (!req)
+		if (NULL == req)
 			break;
 
 		req_priv = (struct HIF_SCATTER_REQ_PRIV *)req->hif_private[0];
-		A_ASSERT(req_priv);
+		A_ASSERT(req_priv != NULL);
 		if (!req_priv) {
 			continue;
 		}
 
-		if (req_priv->busrequest) {
+		if (req_priv->busrequest != NULL) {
 			req_priv->busrequest->scatter_req = NULL;
 			/* free bus request */
 			hif_free_bus_request(device, req_priv->busrequest);
 			req_priv->busrequest = NULL;
 		}
 
-		if (req_priv->hif_scatter_req) {
+		if (req_priv->hif_scatter_req != NULL) {
 			qdf_mem_free(req_priv->hif_scatter_req);
 			req_priv->hif_scatter_req = NULL;
 		}

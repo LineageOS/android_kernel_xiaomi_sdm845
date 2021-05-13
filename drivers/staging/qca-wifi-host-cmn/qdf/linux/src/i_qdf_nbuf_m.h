@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -46,41 +46,6 @@
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.tx.dev.priv_cb_m. \
 	dma_option.bi_map)
 
-#define QDF_NBUF_CB_RX_PEER_ID(skb) \
-	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_m.dp. \
-	wifi3.peer_id)
-
-#define QDF_NBUF_CB_RX_PKT_LEN(skb) \
-	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_m.dp. \
-	wifi3.msdu_len)
-
-#define QDF_NBUF_CB_RX_MAP_IDX(skb) \
-	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_m.dp. \
-	wifi2.map_index)
-
-#define  QDF_NBUF_CB_RX_PEER_CACHED_FRM(skb) \
-	 (((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_m. \
-	 peer_cached_buf_frm)
-
-#define  QDF_NBUF_CB_RX_FLUSH_IND(skb) \
-	 (((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_m.flush_ind)
-
-#define  QDF_NBUF_CB_RX_PACKET_BUFF_POOL(skb) \
-	 (((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_m. \
-	 packet_buf_pool)
-
-#define  QDF_NBUF_CB_RX_PACKET_L3_HDR_PAD(skb) \
-	 (((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_m. \
-	 l3_hdr_pad)
-
-#define  QDF_NBUF_CB_RX_PACKET_EXC_FRAME(skb) \
-	 (((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_m. \
-	 exc_frm)
-
-#define  QDF_NBUF_CB_RX_PACKET_REO_DEST_IND(skb) \
-	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.dev.priv_cb_m. \
-	reo_dest_ind)
-
 #define __qdf_nbuf_ipa_owned_get(skb) \
 	QDF_NBUF_CB_TX_IPA_OWNED(skb)
 
@@ -96,18 +61,7 @@
 #define __qdf_nbuf_ipa_priv_set(skb, priv) \
 	(QDF_NBUF_CB_TX_IPA_PRIV(skb) = (priv))
 
-/**
- * qdf_nbuf_cb_update_vdev_id() - update vdev id in skb cb
- * @skb: skb pointer whose cb is updated with vdev id information
- * @vdev_id: vdev id to be updated in cb
- *
- * Return: void
- */
-static inline void
-qdf_nbuf_cb_update_vdev_id(struct sk_buff *skb, uint8_t vdev_id)
-{
-	QDF_NBUF_CB_RX_VDEV_ID(skb) = vdev_id;
-}
+
 
 void __qdf_nbuf_init_replenish_timer(void);
 void __qdf_nbuf_deinit_replenish_timer(void);

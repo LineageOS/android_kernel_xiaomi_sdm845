@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -32,6 +32,9 @@
 #include <linux/topology.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#ifdef CONFIG_SCHED_CORE_CTL
+#include <linux/sched/core_ctl.h>
+#endif
 #include <linux/pm.h>
 #include <hif_napi.h>
 #include <hif_irq_affinity.h>
@@ -249,10 +252,10 @@ static int hncm_exec_migrate_to(struct qca_napi_data *napid, uint8_t ctx_id,
 	int status = 0;
 	int ind;
 
-	NAPI_DEBUG("-->%s(napi_cd=%d, didx=%d)", __func__, ctx_id, didx);
+	NAPI_DEBUG("-->%s(napi_cd=%d, didx=%d)", __func__, napi_ce, didx);
 
 	exec_ctx = hif_exec_get_ctx(&napid->hif_softc->osc, ctx_id);
-	if (!exec_ctx)
+	if (exec_ctx == NULL)
 		return -EINVAL;
 
 	exec_ctx->cpumask.bits[0] = (1 << didx);
@@ -399,6 +402,8 @@ int hif_exec_cpu_migrate(struct qca_napi_data *napid, int cpu, int action)
 				/* find a destination CPU */
 				dind = hncm_dest_cpu(napid, action);
 				if (dind >= 0) {
+					NAPI_DEBUG("Migrating NAPI ce%d to %d",
+						   i, dind);
 					rc = hncm_exec_migrate_to(napid, i,
 								  dind);
 				} else {
@@ -458,6 +463,19 @@ static inline void hif_exec_bl_irq(struct qca_napi_data *napid, bool bl_flag)
 		HIF_DBG("%s: bl_flag %d CE %d", __func__, bl_flag, i);
 	}
 }
+
+#ifdef CONFIG_SCHED_CORE_CTL
+/* Enable this API only if kernel feature - CONFIG_SCHED_CORE_CTL is defined */
+static inline int hif_napi_core_ctl_set_boost(bool boost)
+{
+	return core_ctl_set_boost(boost);
+}
+#else
+static inline int hif_napi_core_ctl_set_boost(bool boost)
+{
+	return 0;
+}
+#endif
 
 /**
  * hif_napi_cpu_blacklist() - en(dis)ables blacklisting for NAPI RX interrupts.

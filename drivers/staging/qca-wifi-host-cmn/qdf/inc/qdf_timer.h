@@ -56,8 +56,6 @@ qdf_timer_init(qdf_handle_t hdl, qdf_timer_t *timer, qdf_timer_func_t func,
  * @timer: timer to start
  * @msec: Expiration period in milliseconds
  *
- * If QDF timer multiplier is set, the timeout value may get scaled.
- *
  * Return: none
  */
 static inline void qdf_timer_start(qdf_timer_t *timer, int msec)
@@ -71,8 +69,6 @@ static inline void qdf_timer_start(qdf_timer_t *timer, int msec)
  * @msec: Expiration period in milliseconds
  *
  * If @timer is not active, it will be activated.
- *
- * If QDF timer multiplier is set, the timeout value may get scaled.
  *
  * Return: none
  */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -24,10 +24,6 @@
 #define _SERVICE_READY_PARAM_H_
 
 #include "qdf_types.h"
-#ifdef WLAN_SUPPORT_RF_CHARACTERIZATION
-#include "wmi_unified_param.h"
-#endif
-
 
 /**
  * struct wlan_psoc_hal_reg_capability - hal reg table in psoc
@@ -110,23 +106,6 @@ struct wlan_psoc_host_ppe_threshold {
 };
 
 /**
- * struct wlan_psoc_host_hal_reg_cap_ext - extended regulatory capabilities
- * recvd in EXT service
- * @wireless_modes: REGDMN MODE
- * @low_2ghz_chan: lower 2.4GHz channels
- * @high_2ghz_chan: higher 2.4 GHz channels
- * @low_5ghz_chan: lower 5 GHz channels
- * @high_5ghz_chan: higher 5 GHz channels
- */
-struct wlan_psoc_host_hal_reg_cap_ext {
-	uint32_t wireless_modes;
-	uint32_t low_2ghz_chan;
-	uint32_t high_2ghz_chan;
-	uint32_t low_5ghz_chan;
-	uint32_t high_5ghz_chan;
-};
-
-/**
  * struct wlan_psoc_host_mac_phy_caps - Phy caps recvd in EXT service
  *  @hw_mode_id: identify a particular set of HW characteristics,
  *        as specified by the subsequent fields. WMI_MAC_PHY_CAPABILITIES
@@ -153,7 +132,7 @@ struct wlan_psoc_host_hal_reg_cap_ext {
  *         - 1 indicates support for VHT-MCS 0-8 for n spatial streams
  *         - 2 indicates support for VHT-MCS 0-9 for n spatial streams
  *         - 3 indicates that n spatial streams is not supported
- * @he_cap_info_2G[]: HE capability info field of 802.11ax, WMI_HE_CAP defines
+ * @he_cap_info_2G: HE capability info field of 802.11ax, WMI_HE_CAP defines
  * @he_supp_mcs_2G: HE Supported MCS Set field Rx/Tx same
  * @tx_chain_mask_2G: Valid Transmit chain mask
  * @rx_chain_mask_2G: Valid Receive chain mask
@@ -167,22 +146,15 @@ struct wlan_psoc_host_hal_reg_cap_ext {
  *        - 1 indicates support for VHT-MCS 0-8 for n spatial streams
  *        - 2 indicates support for VHT-MCS 0-9 for n spatial streams
  *        - 3 indicates that n spatial streams is not supported
- * @he_cap_info_5G[]: HE capability info field of 802.11ax, WMI_HE_CAP defines
+ * @he_cap_info_5G: HE capability info field of 802.11ax, WMI_HE_CAP defines
  * @he_supp_mcs_5G: HE Supported MCS Set field Rx/Tx same
  * @tx_chain_mask_5G: Valid Transmit chain mask
  * @rx_chain_mask_5G: Valid Receive chain mask
  * @he_cap_phy_info_2G: 2G HE capability phy field
  * @he_cap_phy_info_5G: 5G HE capability phy field
- * @he_cap_info_internal: HE PHY internal feature capability
  * @he_ppet2G: 2G HE PPET info
  * @he_ppet5G: 5G HE PPET info
  * @chainmask_table_id: chain mask table id
- * @lmac_id: hw mac id
- * @reg_cap_ext: extended regulatory capabilities
- * @tgt_pdev_id: target pdev id assigned and used by firmware
- * @nss_ratio_enabled: This flag is set if nss ratio is received from FW as part
- *                     of service ready ext event.
- * @nss_ratio: nss ratio is used to calculate the NSS value for 160MHz.
  */
 struct wlan_psoc_host_mac_phy_caps {
 	uint32_t hw_mode_id;
@@ -201,7 +173,7 @@ struct wlan_psoc_host_mac_phy_caps {
 	uint32_t ht_cap_info_2G;
 	uint32_t vht_cap_info_2G;
 	uint32_t vht_supp_mcs_2G;
-	uint32_t he_cap_info_2G[PSOC_HOST_MAX_MAC_SIZE];
+	uint32_t he_cap_info_2G;
 	uint32_t he_supp_mcs_2G;
 	uint32_t tx_chain_mask_2G;
 	uint32_t rx_chain_mask_2G;
@@ -209,21 +181,15 @@ struct wlan_psoc_host_mac_phy_caps {
 	uint32_t ht_cap_info_5G;
 	uint32_t vht_cap_info_5G;
 	uint32_t vht_supp_mcs_5G;
-	uint32_t he_cap_info_5G[PSOC_HOST_MAX_MAC_SIZE];
+	uint32_t he_cap_info_5G;
 	uint32_t he_supp_mcs_5G;
 	uint32_t tx_chain_mask_5G;
 	uint32_t rx_chain_mask_5G;
 	uint32_t he_cap_phy_info_2G[PSOC_HOST_MAX_PHY_SIZE];
 	uint32_t he_cap_phy_info_5G[PSOC_HOST_MAX_PHY_SIZE];
-	uint32_t he_cap_info_internal;
 	struct wlan_psoc_host_ppe_threshold he_ppet2G;
 	struct wlan_psoc_host_ppe_threshold he_ppet5G;
 	uint32_t chainmask_table_id;
-	uint32_t lmac_id;
-	struct wlan_psoc_host_hal_reg_cap_ext reg_cap_ext;
-	uint32_t tgt_pdev_id;
-	bool nss_ratio_enabled;
-	uint8_t nss_ratio_info;
 };
 
 /**
@@ -257,33 +223,12 @@ struct wlan_psoc_host_dbr_ring_caps {
 };
 
 /**
- * struct wlan_psoc_host_spectral_scaling_params - Spectral scaling params
- * @pdev_id: Pdev id of the pdev
- * @formula_id: Formula id
- * @low_level_offset: Low level offset
- * @high_level_offset: High level offset
- * @rssi_thr: RSSI threshold
- * @default_agc_max_gain: Default agc max gain
- */
-struct wlan_psoc_host_spectral_scaling_params {
-	uint32_t pdev_id;
-	uint32_t formula_id;
-	uint32_t low_level_offset;
-	uint32_t high_level_offset;
-	uint32_t rssi_thr;
-	uint32_t default_agc_max_gain;
-};
-
-/**
  * struct wlan_psoc_host_chainmask_capabilities - chain mask capabilities list
  * @supports_chan_width_20: channel width 20 support for this chain mask.
  * @supports_chan_width_40: channel width 40 support for this chain mask.
  * @supports_chan_width_80: channel width 80 support for this chain mask.
  * @supports_chan_width_160: channel width 160 support for this chain mask.
  * @supports_chan_width_80P80: channel width 80P80 support for this chain mask.
- * @supports_aSpectral: Agile Spectral support for this chain mask.
- * @supports_aSpectral_160: Agile Spectral support in 160 MHz.
- * @supports_aDFS_160: Agile DFS support in 160 MHz for this chain mask.
  * @chain_mask_2G: 2G support for this chain mask.
  * @chain_mask_5G: 5G support for this chain mask.
  * @chain_mask_tx: Tx support for this chain mask.
@@ -297,10 +242,7 @@ struct wlan_psoc_host_chainmask_capabilities {
 		 supports_chan_width_80:1,
 		 supports_chan_width_160:1,
 		 supports_chan_width_80P80:1,
-		 supports_aSpectral:1,
-		 supports_aSpectral_160:1,
-		 supports_aDFS_160:1,
-		 reserved:19,
+		 reserved:22,
 		 chain_mask_2G:1,
 		 chain_mask_5G:1,
 		 chain_mask_tx:1,
@@ -337,8 +279,6 @@ struct wlan_psoc_host_chainmask_table {
  * @num_phy: Number of Phy mode.
  * @num_chainmask_tables: Number of chain mask tables.
  * @num_dbr_ring_caps: Number of direct buf rx ring capabilities
- * @max_bssid_indicator: Maximum number of VAPs in MBSS IE
- * @num_bin_scaling_params: Number of Spectral bin scaling parameters
  * @chainmask_table: Available chain mask tables.
  * @sar_version: SAR version info
  */
@@ -354,29 +294,9 @@ struct wlan_psoc_host_service_ext_param {
 	uint32_t num_phy;
 	uint32_t num_chainmask_tables;
 	uint32_t num_dbr_ring_caps;
-	uint32_t max_bssid_indicator;
-	uint32_t num_bin_scaling_params;
 	struct wlan_psoc_host_chainmask_table
 		chainmask_table[PSOC_MAX_CHAINMASK_TABLES];
 	uint32_t sar_version;
-};
-
-/**
- * struct wlan_psoc_host_service_ext2_param - EXT service base params in event
- * reg_db_version_major: REG DB version major number
- * reg_db_version_minor: REG DB version minor number
- * bdf_reg_db_version_major: BDF REG DB version major number
- * bdf_reg_db_version_minor: BDF REG DB version minor number
- * @num_dbr_ring_caps: Number of direct buf rx ring capabilities
- * @max_ndp_sessions: Max number of ndp session fw supports
- */
-struct wlan_psoc_host_service_ext2_param {
-	uint8_t reg_db_version_major;
-	uint8_t reg_db_version_minor;
-	uint8_t bdf_reg_db_version_major;
-	uint8_t bdf_reg_db_version_minor;
-	uint32_t num_dbr_ring_caps;
-	uint32_t max_ndp_sessions;
 };
 
 #endif /* _SERVICE_READY_PARAM_H_*/

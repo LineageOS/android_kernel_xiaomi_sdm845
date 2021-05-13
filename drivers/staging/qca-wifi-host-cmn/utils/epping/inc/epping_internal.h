@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -60,10 +60,6 @@
 #define EPPING_MAX_ADAPTERS             1
 
 #define EPPING_LOG(level, args ...) QDF_TRACE(QDF_MODULE_ID_HDD, level, ## args)
-#define EPPING_HEX_DUMP(level, data, len) qdf_trace_hex_dump( \
-						QDF_MODULE_ID_HDD, \
-						level, \
-						data, buf_len)
 
 struct epping_cookie {
 	HTC_PACKET HtcPkt;      /* HTC packet wrapper */
@@ -83,7 +79,7 @@ typedef enum {
 #define MAX_COOKIE_SLOT_SIZE 512
 #define MAX_TX_PKT_DUP_NUM   4
 
-#if defined(HIF_PCI) || defined(HIF_IPCI)
+#ifdef HIF_PCI
 #define WLAN_EPPING_DELAY_TIMEOUT_US     10
 #define EPPING_MAX_CE_NUMS               8
 #define EPPING_MAX_WATER_MARK            8
@@ -114,7 +110,7 @@ typedef struct epping_context {
 	unsigned int kperf_num_tx_acks[EPPING_MAX_NUM_EPIDS];
 	unsigned int total_rx_recv;
 	unsigned int total_tx_acks;
-#if defined(HIF_PCI) || defined(HIF_IPCI)
+#ifdef HIF_PCI
 	epping_poll_t epping_poll[EPPING_MAX_NUM_EPIDS];
 #endif
 	struct epping_cookie *cookie_list;
@@ -181,16 +177,15 @@ void epping_refill(void *ctx, HTC_ENDPOINT_ID Endpoint);
 /* epping_txrx signatures */
 epping_adapter_t *epping_add_adapter(epping_context_t *pEpping_ctx,
 				     tSirMacAddr macAddr,
-				     enum QDF_OPMODE device_mode,
-				     bool rtnl_held);
+				     enum QDF_OPMODE device_mode);
 void epping_destroy_adapter(epping_adapter_t *adapter);
 int epping_connect_service(epping_context_t *pEpping_ctx);
-#if defined(HIF_PCI) || defined(HIF_IPCI)
+#ifdef HIF_PCI
 void epping_register_tx_copier(HTC_ENDPOINT_ID eid,
 			       epping_context_t *pEpping_ctx);
 void epping_unregister_tx_copier(HTC_ENDPOINT_ID eid,
 				 epping_context_t *pEpping_ctx);
 void epping_tx_copier_schedule(epping_context_t *pEpping_ctx,
 			       HTC_ENDPOINT_ID eid, qdf_nbuf_t skb);
-#endif /* HIF_PCI || HIF_IPCI */
+#endif /* HIF_PCI */
 #endif /* end #ifndef EPPING_INTERNAL_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -375,39 +375,6 @@ QDF_STATUS wlan_objmgr_unregister_vdev_status_handler(
 		void *args);
 
 /**
- * wlan_objmgr_register_vdev_peer_free_notify_handler() - register vdev peer
- *                                                        free handler
- * @id: component id
- * @handler: function pointer of the component
- *
- * API, allows other UMAC components to register handler
- * The registered handler would be invoked on VDEV Peer gets freed
- *
- * Return: SUCCESS,
- *         Failure (if registration fails, each failure has different error
- *         code)
- */
-QDF_STATUS wlan_objmgr_register_vdev_peer_free_notify_handler(
-		enum wlan_umac_comp_id id,
-		wlan_objmgr_vdev_peer_free_notify_handler handler);
-
-/**
- * wlan_objmgr_unregister_vdev_peer_free_notify_handler() - unregister vdev
- *                                                          peer free handler
- * @id: component id
- * @handler: function pointer of the component
- *
- * API, allows other UMAC components to unregister handler
- *
- * Return: SUCCESS,
- *         Failure (if handler is not present, each failure has different error
- *         code)
- */
-QDF_STATUS wlan_objmgr_unregister_vdev_peer_free_notify_handler(
-		enum wlan_umac_comp_id id,
-		wlan_objmgr_vdev_peer_free_notify_handler handler);
-
-/**
  * wlan_objmgr_register_peer_create_handler() - register peer create handler
  * @id: component id
  * @handler: function pointer of the component
@@ -512,30 +479,5 @@ QDF_STATUS wlan_objmgr_unregister_peer_status_handler(
 		enum wlan_umac_comp_id id,
 		wlan_objmgr_peer_status_handler handler,
 		void *args);
-
-/**
- * APIs to operations on psoc
- */
-typedef void (*wlan_objmgr_psoc_handler)(struct wlan_objmgr_psoc *psoc,
-					void *arg,
-					uint8_t index);
-
-/**
- * wlan_objmgr_iterate_psoc_list() - iterate through all psocs
- *
- * @handler: the handler will be called for each psoc
- *           the handler should be implemented to perform required operation
- * @arg:     agruments passed by caller
- * @dbg_id: id of the caller
- *
- * API to be used for performing the operations on all psoc
- * The "handler" here shouldn't take g_umac_glb_obj->global_lock lock when
- * processing
- *
- * Return: SUCCESS/FAILURE
- */
-QDF_STATUS wlan_objmgr_iterate_psoc_list(
-		wlan_objmgr_psoc_handler handler,
-		void *arg, wlan_objmgr_ref_dbgid dbg_id);
 
 #endif /* _WLAN_OBJMGR_GLOBAL_OBJ_H_*/

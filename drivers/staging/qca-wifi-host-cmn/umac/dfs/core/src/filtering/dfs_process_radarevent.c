@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, 2016-2018 The Linux Foundation. All rights reserved.
  * Copyright (c) 2002-2010, Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -26,20 +26,9 @@
 #include "../dfs_channel.h"
 #include "../dfs_internal.h"
 #include "../dfs_process_radar_found_ind.h"
-#include <wlan_objmgr_vdev_obj.h>
 #include "wlan_dfs_utils_api.h"
 #include "wlan_dfs_lmac_api.h"
 #include "../dfs_partial_offload_radar.h"
-
-#ifdef DFS_FCC_TYPE4_DURATION_CHECK
-#define DFS_WAR_30_MHZ_SEPARATION   30
-#define DFS_WAR_PEAK_INDEX_ZERO 0
-#define DFS_TYPE4_WAR_PULSE_DURATION_LOWER_LIMIT 11
-#define DFS_TYPE4_WAR_PULSE_DURATION_UPPER_LIMIT 33
-#define DFS_TYPE4_WAR_PRI_LOWER_LIMIT 200
-#define DFS_TYPE4_WAR_PRI_UPPER_LIMIT 500
-#define DFS_TYPE4_WAR_VALID_PULSE_DURATION 12
-#endif
 
 #define FREQ_5500_MHZ  5500
 #define FREQ_5500_MHZ       5500
@@ -101,58 +90,6 @@ static inline uint8_t dfs_process_pulse_dur(struct wlan_dfs *dfs,
 	/* Convert 0.8us durations to TSF ticks (usecs) */
 	return (uint8_t)dfs_round((int32_t)((dfs->dur_multiplier)*re_dur));
 }
-
-#ifdef DFS_FCC_TYPE4_DURATION_CHECK
-/*
- * dfs_dur_check() - Modify the pulse duration for FCC Type 4 and JAPAN W56
- *                   Type 8 radar pulses when the conditions mentioned in the
- *                   function body are reported in the radar summary report.
- * @dfs: Pointer to wlan_dfs structure.
- * @chan: Current  channel.
- * @re: Pointer to dfs_event.
- * @diff_ts: timestamp of current pulse - timestamp of last pulse.
- *
- * return: Void
- */
-static inline void dfs_dur_check(
-	struct wlan_dfs *dfs,
-	struct dfs_channel *chan,
-	struct dfs_event *re,
-	uint32_t diff_ts)
-{
-	if ((dfs->dfsdomain == DFS_FCC_DOMAIN ||
-	     dfs->dfsdomain == DFS_MKK4_DOMAIN) &&
-	    ((chan->dfs_ch_flags & WLAN_CHAN_VHT80) == WLAN_CHAN_VHT80) &&
-	    (DFS_DIFF(chan->dfs_ch_freq, chan->dfs_ch_mhz_freq_seg1) ==
-	    DFS_WAR_30_MHZ_SEPARATION) &&
-	    re->re_sidx == DFS_WAR_PEAK_INDEX_ZERO &&
-	    (re->re_dur > DFS_TYPE4_WAR_PULSE_DURATION_LOWER_LIMIT &&
-	    re->re_dur < DFS_TYPE4_WAR_PULSE_DURATION_UPPER_LIMIT) &&
-	    (diff_ts > DFS_TYPE4_WAR_PRI_LOWER_LIMIT &&
-	    diff_ts < DFS_TYPE4_WAR_PRI_UPPER_LIMIT)) {
-		dfs_debug(dfs, WLAN_DEBUG_DFS_ALWAYS,
-			  "chan flags=%llu, Pri Chan %d MHz center %d MHZ",
-			  chan->dfs_ch_flags,
-			  chan->dfs_ch_freq, chan->dfs_ch_mhz_freq_seg1);
-
-		dfs_debug(dfs, WLAN_DEBUG_DFS_ALWAYS,
-			  "Report Peak Index = %d,re.re_dur = %d,diff_ts = %d",
-			  re->re_sidx, re->re_dur, diff_ts);
-
-		re->re_dur = DFS_TYPE4_WAR_VALID_PULSE_DURATION;
-		dfs_debug(dfs, WLAN_DEBUG_DFS_ALWAYS,
-			  "Modifying the pulse duration to %d", re->re_dur);
-	}
-}
-#else
-static inline void dfs_dur_check(
-	struct wlan_dfs *dfs,
-	struct dfs_channel *chan,
-	struct dfs_event *re,
-	uint32_t diff_ts)
-{
-}
-#endif
 
 /*
  * dfs_print_radar_events() - Prints the Radar events.
@@ -355,11 +292,7 @@ static int dfs_confirm_radar(struct wlan_dfs *dfs,
 			  rf->rf_threshold);
 		return 0;
 	}
-	dfs_debug(dfs, WLAN_DEBUG_DFS_FALSE_DET, "%s : dl->dl_min_sidx: %d , dl->dl_max_sidx :%d",
-		  __func__, dl->dl_min_sidx, dl->dl_max_sidx);
 
-	dfs->dfs_freq_offset = DFS_SIDX_TO_FREQ_OFFSET((dl->dl_min_sidx +
-							dl->dl_max_sidx) / 2);
 	return 1;
 }
 
@@ -489,9 +422,7 @@ void __dfs_process_radarevent(struct wlan_dfs *dfs,
 					(uint32_t) deltaT, re->re_dur,
 					ext_chan_event_flag);
 
-				if (*found &&
-				    (utils_get_dfsdomain(dfs->dfs_pdev_obj) !=
-				     DFS_CN_DOMAIN)) {
+				if (*found) {
 					ori_rf_check_delta_peak =
 						rf->rf_check_delta_peak;
 					/*
@@ -524,7 +455,7 @@ void __dfs_process_radarevent(struct wlan_dfs *dfs,
 		dfs_info(dfs, WLAN_DEBUG_DFS_ALWAYS,
 				"Found on channel minDur = %d, filterId = %d",
 				ft->ft_mindur,
-				rf ?  rf->rf_pulseid : -1);
+				rf != NULL ?  rf->rf_pulseid : -1);
 	}
 
 	return;
@@ -638,34 +569,12 @@ static inline void dfs_radarfound_reset_vars(
 	}
 }
 
-/*
- * dfs_print_radar_found_freq() - Print radar found frequency.
- * @dfs: Pointer to wlan_dfs.
- */
-#ifdef CONFIG_CHAN_FREQ_API
-static void dfs_print_radar_found_freq(struct wlan_dfs *dfs)
-{
-	dfs_debug(dfs, WLAN_DEBUG_DFS,
-		  "bangradar on 2nd segment cfreq = %u",
-		  dfs->dfs_precac_secondary_freq_mhz);
-}
-#else
-#ifdef CONFIG_CHAN_NUM_API
-static void dfs_print_radar_found_freq(struct wlan_dfs *dfs)
-{
-	dfs_debug(dfs, WLAN_DEBUG_DFS,
-		  "bangradar on 2nd segment cfreq = %u",
-		  dfs->dfs_precac_secondary_freq);
-}
-#endif
-#endif
-
 /**
  * dfs_handle_bangradar - Handle the case of bangradar
  * @dfs: Pointer to wlan_dfs structure.
  * @chan: Current channel.
  * @rs: Pointer to dfs_state.
- * Return: if bangradar then  return 1.  Otherwise, return 0.
+ * Return: if bangradar then  return 0.  Otherwise, return 1.
  */
 static inline int dfs_handle_bangradar(
 	struct wlan_dfs *dfs,
@@ -675,36 +584,37 @@ static inline int dfs_handle_bangradar(
 	int *retval)
 {
 
-	if (dfs->dfs_bangradar_type) {
-		if (dfs->dfs_bangradar_type >= DFS_INVALID_BANGRADAR_TYPE) {
-			dfs_debug(dfs, WLAN_DEBUG_DFS,
-				  "Invalid bangradar type");
-			return 1;
-		}
-		/* All bangradars are processed similarly.
-		 * arguments for the bangradar are already stored in
-		 * respective dfs structures.
+	if (dfs->dfs_bangradar) {
+		/*
+		 * Bangradar will always simulate radar found on the primary
+		 * channel.
 		 */
-
 		*rs = &dfs->dfs_radar[dfs->dfs_curchan_radindex];
-		if (dfs->dfs_seg_id == SEG_ID_SECONDARY) {
-			if (dfs_is_precac_timer_running(dfs) ||
-			    WLAN_IS_CHAN_11AC_VHT160(chan) ||
-			    WLAN_IS_CHAN_11AC_VHT80_80(chan)) {
-				dfs->is_radar_found_on_secondary_seg = 1;
-				dfs_print_radar_found_freq(dfs);
-			} else {
-				dfs_debug(dfs, WLAN_DEBUG_DFS,
-					  "No second segment");
-				return 1;
-			}
-		}
-		*seg_id = dfs->dfs_seg_id;
-		dfs_debug(dfs, WLAN_DEBUG_DFS, "bangradar %d",
-			  dfs->dfs_bangradar_type);
+		dfs->dfs_bangradar = 0; /* Reset */
+		dfs_debug(dfs, WLAN_DEBUG_DFS, "bangradar");
 		*retval = 1;
 		return 1;
 	}
+
+	if (dfs->dfs_second_segment_bangradar) {
+		if (dfs_is_precac_timer_running(dfs) ||
+				WLAN_IS_CHAN_11AC_VHT160(chan) ||
+				WLAN_IS_CHAN_11AC_VHT80_80(chan)) {
+			dfs->is_radar_found_on_secondary_seg = 1;
+			*rs = &dfs->dfs_radar[dfs->dfs_curchan_radindex];
+			dfs_debug(dfs, WLAN_DEBUG_DFS,
+					"second segment bangradar on cfreq = %u",
+					dfs->dfs_precac_secondary_freq);
+			*retval = 1;
+			*seg_id = SEG_ID_SECONDARY;
+		} else {
+			dfs_debug(dfs, WLAN_DEBUG_DFS,
+					"Do not process the second segment bangradar");
+		}
+		dfs->dfs_second_segment_bangradar = 0; /* Reset */
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -793,7 +703,7 @@ static inline void dfs_remove_event_from_radarq(
 {
 	WLAN_DFSQ_LOCK(dfs);
 	*event = STAILQ_FIRST(&(dfs->dfs_radarq));
-	if (*event)
+	if (*event != NULL)
 		STAILQ_REMOVE_HEAD(&(dfs->dfs_radarq), re_list);
 	WLAN_DFSQ_UNLOCK(dfs);
 }
@@ -1323,23 +1233,14 @@ static inline int dfs_process_each_radarevent(
 		dfs_add_to_pulseline(dfs, &re, &this_ts, &test_ts, &diff_ts,
 				&index);
 
-		dfs_dur_check(dfs, chan, &re, diff_ts);
-
 		dfs_log_event(dfs, &re, this_ts, diff_ts, index);
 
 		dfs_conditional_clear_delaylines(dfs, diff_ts, this_ts, re);
 
 		found = 0;
-		if (events_processed == 1) {
-			dfs->dfs_min_sidx = (re).re_sidx;
-			dfs->dfs_max_sidx = (re).re_sidx;
-		}
-
 		dfs_check_if_bin5(dfs, &re, this_ts, diff_ts, &found);
 		if (found) {
 			*retval |= found;
-			dfs->dfs_freq_offset = DFS_SIDX_TO_FREQ_OFFSET(
-				   (dfs->dfs_min_sidx + dfs->dfs_max_sidx) / 2);
 			return 1;
 		}
 
@@ -1357,7 +1258,7 @@ static inline int dfs_process_each_radarevent(
  *                                      found.
  * @dfs: Pointer to wlan_dfs structure.
  */
-void dfs_false_radarfound_reset_vars(
+static inline void dfs_false_radarfound_reset_vars(
 	struct wlan_dfs *dfs)
 {
 	dfs->dfs_seq_num = 0;
@@ -1366,10 +1267,6 @@ void dfs_false_radarfound_reset_vars(
 	dfs->dfs_phyerr_freq_min     = 0x7fffffff;
 	dfs->dfs_phyerr_freq_max     = 0;
 	dfs->dfs_phyerr_w53_counter  = 0;
-	dfs->dfs_event_log_count = 0;
-	dfs->dfs_phyerr_count = 0;
-	dfs->dfs_phyerr_reject_count = 0;
-	dfs->dfs_phyerr_queued_count = 0;
 }
 
 void dfs_radarfound_action_generic(struct wlan_dfs *dfs, uint8_t seg_id)
@@ -1377,12 +1274,14 @@ void dfs_radarfound_action_generic(struct wlan_dfs *dfs, uint8_t seg_id)
 	struct radar_found_info *radar_found;
 
 	radar_found = qdf_mem_malloc(sizeof(*radar_found));
-	if (!radar_found)
+	if (!radar_found) {
+		dfs_alert(dfs, WLAN_DEBUG_DFS_ALWAYS,
+			  "radar_found allocation failed");
 		return;
+	}
 
 	qdf_mem_zero(radar_found, sizeof(*radar_found));
 	radar_found->segment_id = seg_id;
-	dfs->dfs_seg_id = seg_id;
 	radar_found->pdev_id =
 		wlan_objmgr_pdev_get_pdev_id(dfs->dfs_pdev_obj);
 
@@ -1400,9 +1299,8 @@ void dfs_radar_found_action(struct wlan_dfs *dfs,
 	 * wait timer.
 	 */
 	if (!bangradar &&
-	   (utils_get_dfsdomain(dfs->dfs_pdev_obj) == DFS_FCC_DOMAIN) &&
-	   lmac_is_host_dfs_check_support_enabled(dfs->dfs_pdev_obj) &&
-	   (dfs->dfs_spoof_test_done ? dfs->dfs_use_nol : 1)) {
+	    (utils_get_dfsdomain(dfs->dfs_pdev_obj) == DFS_FCC_DOMAIN) &&
+	    lmac_is_host_dfs_check_support_enabled(dfs->dfs_pdev_obj)) {
 		dfs_radarfound_action_fcc(dfs, seg_id);
 	} else {
 		dfs_radarfound_action_generic(dfs, seg_id);

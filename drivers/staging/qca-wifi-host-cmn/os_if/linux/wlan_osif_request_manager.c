@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -83,15 +83,17 @@ struct osif_request *osif_request_alloc(const struct osif_request_params *params
 	struct osif_request *request;
 
 	if (!is_initialized) {
-		osif_err("invoked when not initialized");
+		cfg80211_err("invoked when not initialized from %pS",
+			(void *)_RET_IP_);
 		return NULL;
 	}
 
 	length = sizeof(*request) + params->priv_size;
 	request = qdf_mem_malloc(length);
-	if (!request)
+	if (!request) {
+		cfg80211_err("allocation failed for %pS", (void *)_RET_IP_);
 		return NULL;
-
+	}
 	request->reference_count = 1;
 	request->params = *params;
 	qdf_event_create(&request->completed);
@@ -119,7 +121,8 @@ struct osif_request *osif_request_get(void *cookie)
 	struct osif_request *request;
 
 	if (!is_initialized) {
-		osif_err("invoked when not initialized");
+		cfg80211_err("invoked when not initialized from %pS",
+			(void *)_RET_IP_);
 		return NULL;
 	}
 	qdf_spin_lock_bh(&spinlock);
@@ -163,6 +166,7 @@ void osif_request_complete(struct osif_request *request)
 
 void osif_request_manager_init(void)
 {
+	cfg80211_debug("%pS", (void *)_RET_IP_);
 	if (is_initialized)
 		return;
 
@@ -180,5 +184,6 @@ void osif_request_manager_init(void)
  */
 void osif_request_manager_deinit(void)
 {
+	cfg80211_debug("%pS", (void *)_RET_IP_);
 	is_initialized = false;
 }

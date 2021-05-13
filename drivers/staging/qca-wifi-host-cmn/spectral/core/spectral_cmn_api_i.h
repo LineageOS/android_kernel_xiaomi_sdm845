@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -85,16 +85,22 @@ QDF_STATUS wlan_spectral_pdev_obj_destroy_handler(struct wlan_objmgr_pdev *pdev,
 /**
  * spectral_control_cmn()- common handler for demultiplexing requests from
  *                         higher layer
- * @pdev:      reference to global pdev object
- * @sscan_req: pointer to Spectral scan request
+ * @pdev:    reference to global pdev object
+ * @id:      spectral config command id
+ * @indata:  reference to input data
+ * @insize:  input data size
+ * @outdata: reference to output data
+ * @outsize: reference to output data size
  *
  * This function processes the spectral config command
  * and appropriate handlers are invoked.
  *
- * Return: QDF_STATUS_SUCCESS/QDF_STATUS_E_FAILURE
+ * Return: 0 success else failure
  */
-QDF_STATUS spectral_control_cmn(struct wlan_objmgr_pdev *pdev,
-				struct spectral_cp_request *sscan_req);
+int spectral_control_cmn(struct wlan_objmgr_pdev *pdev,
+			 u_int id,
+			 void *indata,
+			 uint32_t insize, void *outdata, uint32_t *outsize);
 
 /**
  * spectral_control_ol(): Offload handler for demultiplexing requests from

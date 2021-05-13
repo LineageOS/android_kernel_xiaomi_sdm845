@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -40,32 +40,27 @@
 
 #define obj_mgr_log(level, args...) \
 		QDF_TRACE(QDF_MODULE_ID_OBJ_MGR, level, ## args)
+
 #define obj_mgr_logfl(level, format, args...) \
 		obj_mgr_log(level, FL(format), ## args)
+
+#define obj_mgr_alert(format, args...) \
+		obj_mgr_logfl(QDF_TRACE_LEVEL_FATAL, format, ## args)
+
+#define obj_mgr_err(format, args...) \
+		obj_mgr_logfl(QDF_TRACE_LEVEL_ERROR, format, ## args)
+
+#define obj_mgr_warn(format, args...) \
+		obj_mgr_logfl(QDF_TRACE_LEVEL_WARN, format, ## args)
+
+#define obj_mgr_info(format, args...) \
+		obj_mgr_logfl(QDF_TRACE_LEVEL_INFO, format, ## args)
+
+#define obj_mgr_debug(format, args...) \
+		obj_mgr_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
+
 #define obj_mgr_log_level(level, format, args...)\
 		obj_mgr_logfl(level, format, ## args)
-
-#define obj_mgr_alert(params...) \
-	QDF_TRACE_FATAL(QDF_MODULE_ID_OBJ_MGR, params)
-#define obj_mgr_err(params...) \
-	QDF_TRACE_ERROR(QDF_MODULE_ID_OBJ_MGR, params)
-#define obj_mgr_warn(params...) \
-	QDF_TRACE_WARN(QDF_MODULE_ID_OBJ_MGR, params)
-#define obj_mgr_info(params...) \
-	QDF_TRACE_INFO(QDF_MODULE_ID_OBJ_MGR, params)
-#define obj_mgr_debug(params...) \
-	QDF_TRACE_DEBUG(QDF_MODULE_ID_OBJ_MGR, params)
-
-#define objmgr_nofl_alert(params...) \
-	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_OBJ_MGR, params)
-#define objmgr_nofl_err(params...) \
-	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_OBJ_MGR, params)
-#define objmgr_nofl_warn(params...) \
-	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_OBJ_MGR, params)
-#define objmgr_nofl_info(params...) \
-	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_OBJ_MGR, params)
-#define objmgr_nofl_debug(params...) \
-	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_OBJ_MGR, params)
 
 /**
  * enum WLAN_OBJ_STATE - State of Object
@@ -174,9 +169,6 @@ typedef QDF_STATUS (*wlan_objmgr_vdev_destroy_handler)(
 typedef void (*wlan_objmgr_vdev_status_handler)(
 				struct wlan_objmgr_vdev *vdev, void *arg,
 						QDF_STATUS status);
-typedef void (*wlan_objmgr_vdev_peer_free_notify_handler)(
-				struct wlan_objmgr_vdev *vdev);
-
 
 typedef QDF_STATUS (*wlan_objmgr_peer_create_handler)(
 				struct wlan_objmgr_peer *peer, void *arg);
@@ -231,35 +223,6 @@ typedef void (*wlan_objmgr_peer_status_handler)(
  * @WLAN_WIFI_POS_TGT_IF_ID:    wifi positioning (Target IF)
  * @WLAN_MLME_OBJ_DEL_ID:       Object delete req/resp tracking with FW
  * @WLAN_ACTION_OUI_ID:         action oui operations
- * @WLAN_LEGACY_SAP_ID:         legacy sap fsm
- * @WLAN_PDEV_TARGET_IF_ID:     Target interface layer for pdev APIs
- * @WLAN_MLME_SER_IF_ID:        mlme serialization interface layer
- * @WLAN_SCHEDULER_ID:          mlme scheduler
- * @WLAN_CFR_ID:                CFG Capture method
- * @WLAN_VDEV_TARGET_IF_ID:     Target interface layer
- * @WLAN_RX_PKT_TAG_ID:         RX protocol tag operations
- * @WLAN_INTEROP_ISSUES_AP_ID:  interop issues ap operation
- * @WLAN_WDS_ID:                WDS operations
- * @WLAN_PROXY_ARP_ID:          AP proxy ARP
- * @WLAN_WNM_ID:                wireless network management operations
- * @WLAN_RRM_ID:                Radio resource management operations
- * @WLAN_TR69_ID:               TR69 operations
- * @WLAN_MGMT_RX_ID:            Legacy offload management frame input handler
- * @WLAN_MGMT_TX_ID:            Legacy offload management frame output handler
- * @WLAN_NSS_IF_ID:             NSS offload interface operations
- * @WLAN_MBO_ID:                MBO operations
- * @WLAN_RTT_ID:                RTT operations
- * @WLAN_ALD_ID:                Ath Link Diagnostic operations
- * @WLAN_ME_ID:                 Multicast enhancement operations
- * @WLAN_MGMT_HANDLER_ID:       Management frame handler
- * @WLAN_MLME_HANDLER_ID:       MLME handler
- * @WLAN_DBDC_ID:               Dual Band Dual Concurrent mode operations
- * @WLAN_MLME_OBJMGR_ID:        MLME object manager operations VAP, Node
- * @WLAN_OFFCHAN_TX_ID:         Offchannel Tx operations
- * @WLAN_MISC_ID:               power manager, PAPI, rate set, etc.
- * @WLAN_FWOL_NB_ID:            fw offload northbound operations
- * @WLAN_FWOL_SB_ID:            fw offload southbound operations
- * @WLAN_PSOC_TARGET_IF_ID      PSOC related target_if operations
  * @FTM_TIME_SYNC_ID:           ftm time sync operations
  * @WLAN_PKT_CAPTURE_ID         Packet capture operations
  * @WLAN_REF_ID_MAX:            Max id used to generate ref count tracking array
@@ -312,37 +275,8 @@ typedef enum {
 	WLAN_WIFI_POS_TGT_IF_ID = 41,
 	WLAN_MLME_OBJ_DEL_ID    = 42,
 	WLAN_ACTION_OUI_ID      = 43,
-	WLAN_LEGACY_SAP_ID      = 44,
-	WLAN_PDEV_TARGET_IF_ID     = 45,
-	WLAN_MLME_SER_IF_ID        = 46,
-	WLAN_SCHEDULER_ID          = 47,
-	WLAN_CFR_ID                = 48,
-	WLAN_VDEV_TARGET_IF_ID     = 49,
-	WLAN_RX_PKT_TAG_ID         = 50,
-	WLAN_INTEROP_ISSUES_AP_ID           = 51,
-	WLAN_WDS_ID           = 52,
-	WLAN_PROXY_ARP_ID     = 53,
-	WLAN_WNM_ID           = 54,
-	WLAN_RRM_ID           = 55,
-	WLAN_TR69_ID          = 56,
-	WLAN_MGMT_RX_ID       = 57,
-	WLAN_MGMT_TX_ID       = 58,
-	WLAN_NSS_IF_ID        = 59,
-	WLAN_MBO_ID           = 60,
-	WLAN_RTT_ID           = 61,
-	WLAN_ALD_ID           = 62,
-	WLAN_ME_ID            = 63,
-	WLAN_MGMT_HANDLER_ID  = 64,
-	WLAN_MLME_HANDLER_ID  = 65,
-	WLAN_DBDC_ID          = 66,
-	WLAN_MLME_OBJMGR_ID   = 67,
-	WLAN_OFFCHAN_TX_ID    = 68,
-	WLAN_MISC_ID          = 69,
-	WLAN_FWOL_NB_ID       = 70,
-	WLAN_FWOL_SB_ID       = 71,
-	WLAN_PSOC_TARGET_IF_ID = 72,
-	FTM_TIME_SYNC_ID       = 73,
-	WLAN_PKT_CAPTURE_ID   = 74,
+	FTM_TIME_SYNC_ID        = 44,
+	WLAN_PKT_CAPTURE_ID   = 45,
 	WLAN_REF_ID_MAX,
 } wlan_objmgr_ref_dbgid;
 
@@ -400,37 +334,6 @@ static inline char *string_from_dbgid(wlan_objmgr_ref_dbgid id)
 					"WLAN_WIFI_POS_TGT_IF_ID",
 					"WLAN_MLME_OBJ_DEL_ID",
 					"WLAN_ACTION_OUI_ID",
-					"WLAN_LEGACY_SAP_ID",
-					"WLAN_PDEV_TARGET_IF_ID",
-					"WLAN_MLME_SER_IF_ID",
-					"WLAN_SCHEDULER_ID",
-					"WLAN_CFR_ID",
-					"WLAN_VDEV_TARGET_IF_ID",
-					"WLAN_RX_PKT_TAG_ID",
-					"WLAN_INTEROP_ISSUES_AP_ID",
-					"WLAN_WDS_ID",
-					"WLAN_PROXY_ARP_ID",
-					"WLAN_WNM_ID",
-					"WLAN_RRM_ID",
-					"WLAN_TR69_ID",
-					"WLAN_MGMT_RX_ID",
-					"WLAN_MGMT_TX_ID",
-					"WLAN_NSS_IF_ID",
-					"WLAN_MBO_ID",
-					"WLAN_RTT_ID",
-					"WLAN_ALD_ID",
-					"WLAN_ME_ID",
-					"WLAN_MGMT_HANDLER_ID",
-					"WLAN_MLME_HANDLER_ID",
-					"WLAN_DBDC_ID",
-					"WLAN_MLME_OBJMGR_ID",
-					"WLAN_OFFCHAN_TX_ID",
-					"WLAN_MISC_ID",
-					"WLAN_FWOL_NB_ID",
-					"WLAN_FWOL_SB_ID",
-					"WLAN_PSOC_TARGET_IF_ID",
-					"FTM_TIME_SYNC_ID",
-					"WLAN_PKT_CAPTURE_ID",
 					"WLAN_REF_ID_MAX"};
 
 	return (char *)strings[id];
@@ -442,62 +345,4 @@ static inline char *string_from_dbgid(wlan_objmgr_ref_dbgid id)
 #define WLAN_OBJMGR_BUG(val)
 #endif
 #define WLAN_OBJMGR_RATELIMIT_THRESH 2
-
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-#define WLAN_OBJMGR_TRACE_FUNC_SIZE 30
-/**
- * struct wlan_objmgr_line_ref - line reference data
- * @line:  line number
- * @cnt:   line reference count
- */
-struct wlan_objmgr_line_ref {
-	uint32_t line;
-	qdf_atomic_t cnt;
-};
-
-/**
- * struct wlan_objmgr_line_ref_node - line reference node
- * @line_ref:    line reference data
- * @next:        pointer to next line reference
- */
-struct wlan_objmgr_line_ref_node {
-	struct wlan_objmgr_line_ref line_ref;
-	struct wlan_objmgr_line_ref_node *next;
-};
-
-/**
- * struct wlan_objmgr_trace_func - trace function data
- * @func:        function pointer
- * @line_head:   pointer to head line trace reference
- * @next:        pointer to next function reference
- */
-struct wlan_objmgr_trace_func {
-	char func[WLAN_OBJMGR_TRACE_FUNC_SIZE];
-	struct wlan_objmgr_line_ref_node *line_head;
-	struct wlan_objmgr_trace_func *next;
-};
-
-/**
- * struct wlan_objmgr_trace_id - trace reference data
- * @num_func:  num of functions
- * @head:      head pointer to function reference
- */
-struct wlan_objmgr_trace_id {
-	uint32_t num_func;
-	struct wlan_objmgr_trace_func *head;
-};
-
-/**
- * struct wlan_objmgr_trace - trace reference data
- * @references:        reference data
- * @dereferences:      dereference data
- * @trace_lock:        lock
- */
-struct wlan_objmgr_trace {
-	struct wlan_objmgr_trace_id references[WLAN_REF_ID_MAX];
-	struct wlan_objmgr_trace_id dereferences[WLAN_REF_ID_MAX];
-	qdf_spinlock_t trace_lock;
-};
-#endif /*WLAN_OBJMGR_REF_ID_TRACE*/
-
 #endif /* _WLAN_OBJMGR_CMN_H_*/

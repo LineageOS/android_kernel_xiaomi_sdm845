@@ -44,7 +44,6 @@ uint32_t wmi_get_action_oui_info_mask(uint32_t info_mask);
 bool wmi_get_action_oui_id(enum action_oui_id action_id,
 			   wmi_vendor_oui_action_id *id);
 
-
 /**
  * wmi_fill_oui_extensions() - populates wmi_vendor_oui_ext array
  * @extension: pointer to user supplied action oui extensions

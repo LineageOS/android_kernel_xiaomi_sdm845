@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -30,142 +30,6 @@
 #define INVALID_FLOW_ID 0xFF
 #define MAX_INVALID_BIN 3
 
-#ifdef QCA_AC_BASED_FLOW_CONTROL
-/**
- * dp_tx_initialize_threshold() - Threshold of flow Pool initialization
- * @pool: flow_pool
- * @stop_threshold: stop threshold of certian AC
- * @start_threshold: start threshold of certian AC
- * @flow_pool_size: flow pool size
- *
- * Return: none
- */
-static inline void
-dp_tx_initialize_threshold(struct dp_tx_desc_pool_s *pool,
-			   uint32_t start_threshold,
-			   uint32_t stop_threshold,
-			   uint16_t flow_pool_size)
-{
-	/* BE_BK threshold is same as previous threahold */
-	pool->start_th[DP_TH_BE_BK] = (start_threshold
-					* flow_pool_size) / 100;
-	pool->stop_th[DP_TH_BE_BK] = (stop_threshold
-					* flow_pool_size) / 100;
-
-	/* Update VI threshold based on BE_BK threashold */
-	pool->start_th[DP_TH_VI] = (pool->start_th[DP_TH_BE_BK]
-					* FL_TH_VI_PERCENTAGE) / 100;
-	pool->stop_th[DP_TH_VI] = (pool->stop_th[DP_TH_BE_BK]
-					* FL_TH_VI_PERCENTAGE) / 100;
-
-	/* Update VO threshold based on BE_BK threashold */
-	pool->start_th[DP_TH_VO] = (pool->start_th[DP_TH_BE_BK]
-					* FL_TH_VO_PERCENTAGE) / 100;
-	pool->stop_th[DP_TH_VO] = (pool->stop_th[DP_TH_BE_BK]
-					* FL_TH_VO_PERCENTAGE) / 100;
-
-	/* Update High Priority threshold based on BE_BK threashold */
-	pool->start_th[DP_TH_HI] = (pool->start_th[DP_TH_BE_BK]
-					* FL_TH_HI_PERCENTAGE) / 100;
-	pool->stop_th[DP_TH_HI] = (pool->stop_th[DP_TH_BE_BK]
-					* FL_TH_HI_PERCENTAGE) / 100;
-
-	QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-		  "%s: tx flow control threshold is set, pool size is %d",
-		  __func__, flow_pool_size);
-}
-
-/**
- * dp_tx_flow_pool_reattach() - Reattach flow_pool
- * @pool: flow_pool
- *
- * Return: none
- */
-static inline void
-dp_tx_flow_pool_reattach(struct dp_tx_desc_pool_s *pool)
-{
-	QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-		  "%s: flow pool already allocated, attached %d times",
-		  __func__, pool->pool_create_cnt);
-
-	if (pool->avail_desc > pool->start_th[DP_TH_BE_BK])
-		pool->status = FLOW_POOL_ACTIVE_UNPAUSED;
-	else if (pool->avail_desc <= pool->start_th[DP_TH_BE_BK] &&
-		 pool->avail_desc > pool->start_th[DP_TH_VI])
-		pool->status = FLOW_POOL_BE_BK_PAUSED;
-	else if (pool->avail_desc <= pool->start_th[DP_TH_VI] &&
-		 pool->avail_desc > pool->start_th[DP_TH_VO])
-		pool->status = FLOW_POOL_VI_PAUSED;
-	else if (pool->avail_desc <= pool->start_th[DP_TH_VO] &&
-		 pool->avail_desc > pool->start_th[DP_TH_HI])
-		pool->status = FLOW_POOL_VO_PAUSED;
-	else
-		pool->status = FLOW_POOL_ACTIVE_PAUSED;
-
-	pool->pool_create_cnt++;
-}
-
-/**
- * dp_tx_flow_pool_dump_threshold() - Dump threshold of the flow_pool
- * @pool: flow_pool
- *
- * Return: none
- */
-static inline void
-dp_tx_flow_pool_dump_threshold(struct dp_tx_desc_pool_s *pool)
-{
-	int i;
-
-	for (i = 0; i < FL_TH_MAX; i++) {
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-			  "Level %d :: Start threshold %d :: Stop threshold %d",
-			  i, pool->start_th[i], pool->stop_th[i]);
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-			  "Level %d :: Maximun pause time %lu ms",
-			  i, pool->max_pause_time[i]);
-		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-			  "Level %d :: Latest pause timestamp %lu",
-			  i, pool->latest_pause_time[i]);
-	}
-}
-
-#else
-static inline void
-dp_tx_initialize_threshold(struct dp_tx_desc_pool_s *pool,
-			   uint32_t start_threshold,
-			   uint32_t stop_threshold,
-			   uint16_t flow_pool_size)
-
-{
-	/* INI is in percentage so divide by 100 */
-	pool->start_th = (start_threshold * flow_pool_size) / 100;
-	pool->stop_th = (stop_threshold * flow_pool_size) / 100;
-}
-
-static inline void
-dp_tx_flow_pool_reattach(struct dp_tx_desc_pool_s *pool)
-{
-	QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-		  "%s: flow pool already allocated, attached %d times",
-		  __func__, pool->pool_create_cnt);
-	if (pool->avail_desc > pool->start_th)
-		pool->status = FLOW_POOL_ACTIVE_UNPAUSED;
-	else
-		pool->status = FLOW_POOL_ACTIVE_PAUSED;
-
-	pool->pool_create_cnt++;
-}
-
-static inline void
-dp_tx_flow_pool_dump_threshold(struct dp_tx_desc_pool_s *pool)
-{
-	QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-		  "Start threshold %d :: Stop threshold %d",
-	pool->start_th, pool->stop_th);
-}
-
-#endif
-
 /**
  * dp_tx_dump_flow_pool_info() - dump global_pool and flow_pool info
  *
@@ -173,9 +37,9 @@ dp_tx_flow_pool_dump_threshold(struct dp_tx_desc_pool_s *pool)
  *
  * Return: none
  */
-void dp_tx_dump_flow_pool_info(struct cdp_soc_t *soc_hdl)
+void dp_tx_dump_flow_pool_info(void *ctx)
 {
-	struct dp_soc *soc = cdp_soc_t_to_dp_soc(soc_hdl);
+	struct dp_soc *soc = ctx;
 	struct dp_txrx_pool_stats *pool_stats = &soc->pool_stats;
 	struct dp_tx_desc_pool_s *pool = NULL;
 	struct dp_tx_desc_pool_s tmp_pool;
@@ -210,7 +74,9 @@ void dp_tx_dump_flow_pool_info(struct cdp_soc_t *soc_hdl)
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
 			"Total %d :: Available %d",
 			tmp_pool.pool_size, tmp_pool.avail_desc);
-		dp_tx_flow_pool_dump_threshold(&tmp_pool);
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
+			"Start threshold %d :: Stop threshold %d",
+			 tmp_pool.start_th, tmp_pool.stop_th);
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
 			"Member flow_id  %d :: flow_type %d",
 			tmp_pool.flow_pool_id, tmp_pool.flow_type);
@@ -234,7 +100,7 @@ void dp_tx_clear_flow_pool_stats(struct dp_soc *soc)
 
 	if (!soc) {
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-			"%s: soc is null", __func__);
+			"%s: soc is null\n", __func__);
 		return;
 	}
 	qdf_mem_zero(&soc->pool_stats, sizeof(soc->pool_stats));
@@ -256,16 +122,21 @@ struct dp_tx_desc_pool_s *dp_tx_create_flow_pool(struct dp_soc *soc,
 	uint32_t start_threshold;
 
 	if (flow_pool_id >= MAX_TXDESC_POOLS) {
-		dp_err("invalid flow_pool_id %d", flow_pool_id);
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
+		   "%s: invalid flow_pool_id %d", __func__, flow_pool_id);
 		return NULL;
 	}
 	pool = &soc->tx_desc[flow_pool_id];
 	qdf_spin_lock_bh(&pool->flow_pool_lock);
 	if ((pool->status != FLOW_POOL_INACTIVE) || pool->pool_create_cnt) {
-		dp_tx_flow_pool_reattach(pool);
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
+			"%s: flow pool already allocated, attached %d times\n",
+			__func__, pool->pool_create_cnt);
+		if (pool->avail_desc > pool->start_th)
+			pool->status = FLOW_POOL_ACTIVE_UNPAUSED;
+		else
+			pool->status = FLOW_POOL_ACTIVE_PAUSED;
 		qdf_spin_unlock_bh(&pool->flow_pool_lock);
-		dp_err("cannot alloc desc, status=%d, create_cnt=%d",
-		       pool->status, pool->pool_create_cnt);
 		return pool;
 	}
 
@@ -282,8 +153,9 @@ struct dp_tx_desc_pool_s *dp_tx_create_flow_pool(struct dp_soc *soc,
 	pool->pool_size = flow_pool_size;
 	pool->avail_desc = flow_pool_size;
 	pool->status = FLOW_POOL_ACTIVE_UNPAUSED;
-	dp_tx_initialize_threshold(pool, start_threshold, stop_threshold,
-				   flow_pool_size);
+	/* INI is in percentage so divide by 100 */
+	pool->start_th = (start_threshold * flow_pool_size)/100;
+	pool->stop_th = (stop_threshold * flow_pool_size)/100;
 	pool->pool_create_cnt++;
 
 	qdf_spin_unlock_bh(&pool->flow_pool_lock);
@@ -307,40 +179,32 @@ struct dp_tx_desc_pool_s *dp_tx_create_flow_pool(struct dp_soc *soc,
 int dp_tx_delete_flow_pool(struct dp_soc *soc, struct dp_tx_desc_pool_s *pool,
 	bool force)
 {
-	struct dp_vdev *vdev;
-
 	if (!soc || !pool) {
-		dp_err("pool or soc is NULL");
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
+		   "%s: pool or soc is NULL\n", __func__);
 		QDF_ASSERT(0);
 		return ENOMEM;
 	}
 
-	dp_info("pool create_cnt=%d, avail_desc=%d, size=%d, status=%d",
-		pool->pool_create_cnt, pool->avail_desc,
-		pool->pool_size, pool->status);
 	qdf_spin_lock_bh(&pool->flow_pool_lock);
 	if (!pool->pool_create_cnt) {
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
+			  "flow pool either not created or alread deleted");
 		qdf_spin_unlock_bh(&pool->flow_pool_lock);
-		dp_err("flow pool either not created or alread deleted");
 		return -ENOENT;
 	}
 	pool->pool_create_cnt--;
 	if (pool->pool_create_cnt) {
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
+			  "%s: pool is still attached, pending detach %d\n",
+			  __func__, pool->pool_create_cnt);
 		qdf_spin_unlock_bh(&pool->flow_pool_lock);
-		dp_err("pool is still attached, pending detach %d",
-		       pool->pool_create_cnt);
 		return -EAGAIN;
 	}
 
 	if (pool->avail_desc < pool->pool_size) {
 		pool->status = FLOW_POOL_INVALID;
 		qdf_spin_unlock_bh(&pool->flow_pool_lock);
-		/* Reset TX desc associated to this Vdev as NULL */
-		vdev = dp_get_vdev_from_soc_vdev_id_wifi3(soc,
-							  pool->flow_pool_id);
-		if (vdev)
-			dp_tx_desc_flush(vdev->pdev, vdev, false);
-		dp_err("avail desc less than pool size");
 		return -EAGAIN;
 	}
 
@@ -364,10 +228,11 @@ static void dp_tx_flow_pool_vdev_map(struct dp_pdev *pdev,
 	struct dp_vdev *vdev;
 	struct dp_soc *soc = pdev->soc;
 
-	vdev = dp_get_vdev_from_soc_vdev_id_wifi3(soc, vdev_id);
+	vdev = (struct dp_vdev *)cdp_get_vdev_from_vdev_id((void *)soc,
+					(struct cdp_pdev *)pdev, vdev_id);
 	if (!vdev) {
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-		   "%s: invalid vdev_id %d",
+		   "%s: invalid vdev_id %d\n",
 		   __func__, vdev_id);
 		return;
 	}
@@ -393,10 +258,11 @@ static void dp_tx_flow_pool_vdev_unmap(struct dp_pdev *pdev,
 	struct dp_vdev *vdev;
 	struct dp_soc *soc = pdev->soc;
 
-	vdev = dp_get_vdev_from_soc_vdev_id_wifi3(soc, vdev_id);
+	vdev = (struct dp_vdev *)cdp_get_vdev_from_vdev_id((void *)soc,
+					(struct cdp_pdev *)pdev, vdev_id);
 	if (!vdev) {
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-		   "%s: invalid vdev_id %d",
+		   "%s: invalid vdev_id %d\n",
 		   __func__, vdev_id);
 		return;
 	}
@@ -425,20 +291,23 @@ QDF_STATUS dp_tx_flow_pool_map_handler(struct dp_pdev *pdev, uint8_t flow_id,
 	enum htt_flow_type type = flow_type;
 
 
-	dp_info("flow_id %d flow_type %d flow_pool_id %d flow_pool_size %d",
-		flow_id, flow_type, flow_pool_id, flow_pool_size);
+	QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_INFO,
+		"%s: flow_id %d flow_type %d flow_pool_id %d flow_pool_size %d\n",
+		__func__, flow_id, flow_type, flow_pool_id, flow_pool_size);
 
 	if (qdf_unlikely(!soc)) {
-		dp_err("soc is NULL");
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
+			"%s: soc is NULL", __func__);
 		return QDF_STATUS_E_FAULT;
 	}
 	soc->pool_stats.pool_map_count++;
 
 	pool = dp_tx_create_flow_pool(soc, flow_pool_id,
 			flow_pool_size);
-	if (!pool) {
-		dp_err("creation of flow_pool %d size %d failed",
-		       flow_pool_id, flow_pool_size);
+	if (pool == NULL) {
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
+			   "%s: creation of flow_pool %d size %d failed\n",
+			   __func__, flow_pool_id, flow_pool_size);
 		return QDF_STATUS_E_RESOURCES;
 	}
 
@@ -448,7 +317,9 @@ QDF_STATUS dp_tx_flow_pool_map_handler(struct dp_pdev *pdev, uint8_t flow_id,
 		dp_tx_flow_pool_vdev_map(pdev, pool, flow_id);
 		break;
 	default:
-		dp_err("flow type %d not supported", type);
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
+		   "%s: flow type %d not supported !!!\n",
+		   __func__, type);
 		break;
 	}
 
@@ -475,7 +346,7 @@ void dp_tx_flow_pool_unmap_handler(struct dp_pdev *pdev, uint8_t flow_id,
 	enum htt_flow_type type = flow_type;
 
 	QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_INFO,
-		"%s: flow_id %d flow_type %d flow_pool_id %d",
+		"%s: flow_id %d flow_type %d flow_pool_id %d\n",
 		__func__, flow_id, flow_type, flow_pool_id);
 
 	if (qdf_unlikely(!pdev)) {
@@ -488,7 +359,7 @@ void dp_tx_flow_pool_unmap_handler(struct dp_pdev *pdev, uint8_t flow_id,
 	pool = &soc->tx_desc[flow_pool_id];
 	if (!pool) {
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-		   "%s: flow_pool not available flow_pool_id %d",
+		   "%s: flow_pool not available flow_pool_id %d\n",
 		   __func__, type);
 		return;
 	}
@@ -500,7 +371,7 @@ void dp_tx_flow_pool_unmap_handler(struct dp_pdev *pdev, uint8_t flow_id,
 		break;
 	default:
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_ERROR,
-		   "%s: flow type %d not supported !!!",
+		   "%s: flow type %d not supported !!!\n",
 		   __func__, type);
 		return;
 	}
@@ -521,27 +392,6 @@ void dp_tx_flow_control_init(struct dp_soc *soc)
 }
 
 /**
- * dp_tx_desc_pool_dealloc() - De-allocate tx desc pool
- * @tx_desc_pool: Handle to flow_pool
- *
- * Return: none
- */
-static inline void dp_tx_desc_pool_dealloc(struct dp_soc *soc)
-{
-	struct dp_tx_desc_pool_s *tx_desc_pool;
-	int i;
-
-	for (i = 0; i < MAX_TXDESC_POOLS; i++) {
-		tx_desc_pool = &((soc)->tx_desc[i]);
-		if (!tx_desc_pool->desc_pages.num_pages)
-			continue;
-
-		if (dp_tx_desc_pool_free(soc, i) != QDF_STATUS_SUCCESS)
-			dp_err("Tx Desc Pool:%d Free failed", i);
-	}
-}
-
-/**
  * dp_tx_flow_control_deinit() - Deregister fw based tx flow control
  * @tx_desc_pool: Handle to flow_pool
  *
@@ -549,8 +399,6 @@ static inline void dp_tx_desc_pool_dealloc(struct dp_soc *soc)
  */
 void dp_tx_flow_control_deinit(struct dp_soc *soc)
 {
-	dp_tx_desc_pool_dealloc(soc);
-
 	qdf_spinlock_destroy(&soc->flow_pool_array_lock);
 }
 
@@ -576,35 +424,19 @@ QDF_STATUS dp_txrx_register_pause_cb(struct cdp_soc_t *handle,
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS dp_tx_flow_pool_map(struct cdp_soc_t *handle, uint8_t pdev_id,
-			       uint8_t vdev_id)
+QDF_STATUS dp_tx_flow_pool_map(struct cdp_soc_t *handle, struct cdp_pdev *pdev,
+				uint8_t vdev_id)
 {
-	struct dp_soc *soc = cdp_soc_t_to_dp_soc(handle);
-	struct dp_pdev *pdev =
-		dp_get_pdev_from_soc_pdev_id_wifi3(soc, pdev_id);
-	int tx_ring_size = wlan_cfg_get_num_tx_desc(soc->wlan_cfg_ctx);
+	struct dp_soc *soc = (struct dp_soc *)handle;
+	int tx_ring_size = wlan_cfg_tx_ring_size(soc->wlan_cfg_ctx);
 
-	if (!pdev) {
-		dp_err("pdev is NULL");
-		return QDF_STATUS_E_INVAL;
-	}
-
-	return dp_tx_flow_pool_map_handler(pdev, vdev_id, FLOW_TYPE_VDEV,
-					   vdev_id, tx_ring_size);
+	return (dp_tx_flow_pool_map_handler((struct dp_pdev *)pdev, vdev_id,
+				FLOW_TYPE_VDEV,	vdev_id, tx_ring_size));
 }
 
-void dp_tx_flow_pool_unmap(struct cdp_soc_t *handle, uint8_t pdev_id,
+void dp_tx_flow_pool_unmap(struct cdp_soc_t *soc, struct cdp_pdev *pdev,
 			   uint8_t vdev_id)
 {
-	struct dp_soc *soc = cdp_soc_t_to_dp_soc(handle);
-	struct dp_pdev *pdev =
-		dp_get_pdev_from_soc_pdev_id_wifi3(soc, pdev_id);
-
-	if (!pdev) {
-		dp_err("pdev is NULL");
-		return;
-	}
-
-	return dp_tx_flow_pool_unmap_handler(pdev, vdev_id,
-					     FLOW_TYPE_VDEV, vdev_id);
+	return(dp_tx_flow_pool_unmap_handler((struct dp_pdev *)pdev, vdev_id,
+				FLOW_TYPE_VDEV, vdev_id));
 }

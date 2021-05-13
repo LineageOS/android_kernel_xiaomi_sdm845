@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -56,8 +56,7 @@ static QDF_STATUS wlan_green_ap_ant_ps_reset
 	 * Add protection against green AP enabling interrupts
 	 * when not valid or no VAPs exist
 	 */
-	if (wlan_util_is_vdev_active(pdev, WLAN_GREEN_AP_ID) ==
-						QDF_STATUS_SUCCESS)
+	if (wlan_util_is_vap_active(pdev, WLAN_GREEN_AP_ID) == QDF_STATUS_SUCCESS)
 		green_ap_tx_ops->reset_dev(pdev);
 	else
 		green_ap_err("Green AP tried to enable IRQs when invalid");
@@ -183,15 +182,6 @@ QDF_STATUS wlan_green_ap_state_mc(struct wlan_pdev_green_ap_ctx *green_ap_ctx,
 			green_ap_ctx->num_nodes--;
 		break;
 
-	case WLAN_GREEN_AP_ADD_MULTISTREAM_STA_EVENT:
-		green_ap_ctx->num_nodes_multistream++;
-		break;
-
-	case WLAN_GREEN_AP_DEL_MULTISTREAM_STA_EVENT:
-		if (green_ap_ctx->num_nodes_multistream)
-			green_ap_ctx->num_nodes_multistream--;
-		break;
-
 	case WLAN_GREEN_AP_PS_START_EVENT:
 	case WLAN_GREEN_AP_PS_STOP_EVENT:
 	case WLAN_GREEN_AP_PS_ON_EVENT:
@@ -225,13 +215,8 @@ QDF_STATUS wlan_green_ap_state_mc(struct wlan_pdev_green_ap_ctx *green_ap_ctx,
 	/* handle the green ap ps state */
 	switch (green_ap_ctx->ps_state) {
 	case WLAN_GREEN_AP_PS_IDLE_STATE:
-		if ((green_ap_ctx->num_nodes &&
-		     green_ap_ctx->ps_mode == WLAN_GREEN_AP_MODE_NO_STA) ||
-		    (green_ap_ctx->num_nodes_multistream &&
-		     green_ap_ctx->ps_mode == WLAN_GREEN_AP_MODE_NUM_STREAM)) {
-			/*
-			 * Multistream nodes present, switchoff the power save
-			 */
+		if (green_ap_ctx->num_nodes) {
+			/* Active nodes present, Switchoff the power save */
 			green_ap_info("Transition to OFF from IDLE");
 			wlan_green_ap_ps_event_state_update(
 					green_ap_ctx,
@@ -250,10 +235,7 @@ QDF_STATUS wlan_green_ap_state_mc(struct wlan_pdev_green_ap_ctx *green_ap_ctx,
 		break;
 
 	case WLAN_GREEN_AP_PS_OFF_STATE:
-		if ((!green_ap_ctx->num_nodes &&
-		     green_ap_ctx->ps_mode == WLAN_GREEN_AP_MODE_NO_STA) ||
-		    (!green_ap_ctx->num_nodes_multistream &&
-		     green_ap_ctx->ps_mode == WLAN_GREEN_AP_MODE_NUM_STREAM)) {
+		if (!green_ap_ctx->num_nodes) {
 			green_ap_info("Transition to WAIT from OFF");
 			wlan_green_ap_ps_event_state_update(
 						green_ap_ctx,
@@ -265,10 +247,7 @@ QDF_STATUS wlan_green_ap_state_mc(struct wlan_pdev_green_ap_ctx *green_ap_ctx,
 		break;
 
 	case WLAN_GREEN_AP_PS_WAIT_STATE:
-		if ((!green_ap_ctx->num_nodes &&
-		     green_ap_ctx->ps_mode == WLAN_GREEN_AP_MODE_NO_STA) ||
-		    (!green_ap_ctx->num_nodes_multistream &&
-		     green_ap_ctx->ps_mode == WLAN_GREEN_AP_MODE_NUM_STREAM)) {
+		if (!green_ap_ctx->num_nodes) {
 			if ((channel == 0) || (channel_flags == 0)) {
 				/*
 				 * Stay in the current state and restart the
@@ -302,10 +281,7 @@ QDF_STATUS wlan_green_ap_state_mc(struct wlan_pdev_green_ap_ctx *green_ap_ctx,
 		break;
 
 	case WLAN_GREEN_AP_PS_ON_STATE:
-		if ((green_ap_ctx->num_nodes &&
-		     green_ap_ctx->ps_mode == WLAN_GREEN_AP_MODE_NO_STA) ||
-		    (green_ap_ctx->num_nodes_multistream &&
-		     green_ap_ctx->ps_mode == WLAN_GREEN_AP_MODE_NUM_STREAM)) {
+		if (green_ap_ctx->num_nodes) {
 			qdf_timer_stop(&green_ap_ctx->ps_timer);
 			if (green_ap_tx_ops->ps_on_off_send(
 					green_ap_ctx->pdev, false, pdev_id)) {

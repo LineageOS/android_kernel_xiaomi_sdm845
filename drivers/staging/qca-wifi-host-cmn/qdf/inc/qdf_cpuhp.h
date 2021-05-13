@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -82,25 +82,25 @@ QDF_STATUS qdf_cpuhp_register(struct qdf_cpuhp_handler **handler,
  */
 void qdf_cpuhp_unregister(struct qdf_cpuhp_handler **handler);
 #else
-static inline QDF_STATUS qdf_cpuhp_init(void)
+QDF_STATUS qdf_cpuhp_init(void)
 {
 	return QDF_STATUS_SUCCESS;
 }
 
-static inline QDF_STATUS qdf_cpuhp_deinit(void)
+QDF_STATUS qdf_cpuhp_deinit(void)
 {
 	return QDF_STATUS_SUCCESS;
 }
 
-static inline QDF_STATUS qdf_cpuhp_register(struct qdf_cpuhp_handler **handler,
-					    void *context,
-					    qdf_cpuhp_callback up_callback,
-					    qdf_cpuhp_callback down_callback)
+QDF_STATUS qdf_cpuhp_register(struct qdf_cpuhp_handler **handler,
+			      void *context,
+			      qdf_cpuhp_callback up_callback,
+			      qdf_cpuhp_callback down_callback)
 {
 	return QDF_STATUS_SUCCESS;
 }
 
-static inline void qdf_cpuhp_unregister(struct qdf_cpuhp_handler **handler) {}
+void qdf_cpuhp_unregister(struct qdf_cpuhp_handler **handler) {}
 #endif /* QCA_CONFIG_SMP */
 
 #endif /* __QDF_CPUHP_H */

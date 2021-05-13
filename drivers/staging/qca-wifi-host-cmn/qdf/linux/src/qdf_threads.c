@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -106,19 +106,6 @@ void qdf_busy_wait(uint32_t us_interval)
 }
 qdf_export_symbol(qdf_busy_wait);
 
-#ifdef PF_WAKE_UP_IDLE
-void qdf_set_wake_up_idle(bool idle)
-{
-	set_wake_up_idle(idle);
-}
-#else
-void qdf_set_wake_up_idle(bool idle)
-{
-}
-#endif /* PF_WAKE_UP_IDLE */
-
-qdf_export_symbol(qdf_set_wake_up_idle);
-
 void qdf_set_user_nice(qdf_thread_t *thread, long nice)
 {
 	set_user_nice(thread, nice);
@@ -128,14 +115,7 @@ qdf_export_symbol(qdf_set_user_nice);
 qdf_thread_t *qdf_create_thread(int (*thread_handler)(void *data), void *data,
 				const char thread_name[])
 {
-	struct task_struct *task;
-
-	task = kthread_create(thread_handler, data, thread_name);
-
-	if (IS_ERR(task))
-		return NULL;
-
-	return task;
+	return kthread_create(thread_handler, data, thread_name);
 }
 qdf_export_symbol(qdf_create_thread);
 
@@ -187,29 +167,10 @@ qdf_export_symbol(qdf_wake_up_process);
  * 2) arm architectures in kernel versions >=4.14
  * 3) backported kernels defining BACKPORTED_EXPORT_SAVE_STACK_TRACE_TSK_ARM
  */
-#if ((defined(WLAN_HOST_ARCH_ARM) && !WLAN_HOST_ARCH_ARM) || \
+#if (defined(WLAN_HOST_ARCH_ARM) && !WLAN_HOST_ARCH_ARM) || \
 	LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) || \
-	defined(BACKPORTED_EXPORT_SAVE_STACK_TRACE_TSK_ARM)) && \
-	defined(CONFIG_STACKTRACE) && !defined(CONFIG_ARCH_STACKWALK)
+	defined(BACKPORTED_EXPORT_SAVE_STACK_TRACE_TSK_ARM)
 #define QDF_PRINT_TRACE_COUNT 32
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0))
-void qdf_print_thread_trace(qdf_thread_t *thread)
-{
-	const int spaces = 4;
-	struct task_struct *task = thread;
-	unsigned long entries[QDF_PRINT_TRACE_COUNT] = {0};
-	struct stack_trace trace = {
-		.nr_entries = 0,
-		.skip = 0,
-		.entries = &entries[0],
-		.max_entries = QDF_PRINT_TRACE_COUNT,
-	};
-
-	save_stack_trace_tsk(task, &trace);
-	stack_trace_print(entries, trace.nr_entries, spaces);
-}
-#else
 void qdf_print_thread_trace(qdf_thread_t *thread)
 {
 	const int spaces = 4;
@@ -225,8 +186,6 @@ void qdf_print_thread_trace(qdf_thread_t *thread)
 	save_stack_trace_tsk(task, &trace);
 	print_stack_trace(&trace, spaces);
 }
-#endif
-
 #else
 void qdf_print_thread_trace(qdf_thread_t *thread) { }
 #endif /* KERNEL_VERSION(4, 14, 0) */
@@ -237,18 +196,6 @@ qdf_thread_t *qdf_get_current_task(void)
 	return current;
 }
 qdf_export_symbol(qdf_get_current_task);
-
-int qdf_get_current_pid(void)
-{
-	return current->pid;
-}
-qdf_export_symbol(qdf_get_current_pid);
-
-const char *qdf_get_current_comm(void)
-{
-	return current->comm;
-}
-qdf_export_symbol(qdf_get_current_comm);
 
 void
 qdf_thread_set_cpus_allowed_mask(qdf_thread_t *thread, qdf_cpu_mask *new_mask)
@@ -278,18 +225,3 @@ void qdf_cpumask_setall(qdf_cpu_mask *dstp)
 }
 
 qdf_export_symbol(qdf_cpumask_setall);
-
-bool qdf_cpumask_empty(const struct cpumask *srcp)
-{
-	return cpumask_empty(srcp);
-}
-
-qdf_export_symbol(qdf_cpumask_empty);
-
-void qdf_cpumask_copy(struct cpumask *dstp,
-		      const struct cpumask *srcp)
-{
-	return cpumask_copy(dstp, srcp);
-}
-
-qdf_export_symbol(qdf_cpumask_copy);

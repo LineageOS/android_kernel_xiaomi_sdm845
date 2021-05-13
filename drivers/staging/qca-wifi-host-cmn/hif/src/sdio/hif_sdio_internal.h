@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014, 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -25,14 +25,6 @@
 #include "htc_api.h"
 #include "hif_internal.h"
 
-#if defined(CONFIG_SDIO_TRANSFER_MAILBOX)
-#include <transfer/mailbox.h>
-#elif defined(CONFIG_SDIO_TRANSFER_ADMA)
-#include <transfer/adma.h>
-#else
-#error "Error - Invalid transfer method"
-#endif
-
 #define INVALID_MAILBOX_NUMBER 0xFF
 
 #define HIF_SDIO_RX_BUFFER_SIZE            1792
@@ -45,6 +37,51 @@
 
 #define ATH_DEBUG_MAX_MASK 32
 
+#define OTHER_INTS_ENABLED (INT_STATUS_ENABLE_ERROR_MASK |   \
+			    INT_STATUS_ENABLE_CPU_MASK   |   \
+			    INT_STATUS_ENABLE_COUNTER_MASK)
+
+/* HTC operational parameters */
+#define HTC_TARGET_RESPONSE_TIMEOUT        2000 /* in ms */
+#define HTC_TARGET_DEBUG_INTR_MASK         0x01
+#define HTC_TARGET_CREDIT_INTR_MASK        0xF0
+
+#define MAILBOX_COUNT 4
+#define MAILBOX_FOR_BLOCK_SIZE 1
+#define MAILBOX_USED_COUNT 2
+#if defined(SDIO_3_0)
+#define MAILBOX_LOOKAHEAD_SIZE_IN_WORD 2
+#else
+#define MAILBOX_LOOKAHEAD_SIZE_IN_WORD 1
+#endif
+#define AR6K_TARGET_DEBUG_INTR_MASK     0x01
+
+PREPACK struct MBOX_IRQ_PROC_REGISTERS {
+	uint8_t host_int_status;
+	uint8_t cpu_int_status;
+	uint8_t error_int_status;
+	uint8_t counter_int_status;
+	uint8_t mbox_frame;
+	uint8_t rx_lookahead_valid;
+	uint8_t host_int_status2;
+	uint8_t gmbox_rx_avail;
+	uint32_t rx_lookahead[MAILBOX_LOOKAHEAD_SIZE_IN_WORD * MAILBOX_COUNT];
+	uint32_t int_status_enable;
+} POSTPACK;
+
+PREPACK struct MBOX_IRQ_ENABLE_REGISTERS {
+	uint8_t int_status_enable;
+	uint8_t cpu_int_status_enable;
+	uint8_t error_status_enable;
+	uint8_t counter_int_status_enable;
+} POSTPACK;
+
+#define TOTAL_CREDIT_COUNTER_CNT 4
+
+PREPACK struct MBOX_COUNTER_REGISTERS {
+	uint32_t counter[TOTAL_CREDIT_COUNTER_CNT];
+} POSTPACK;
+
 #define SDIO_NUM_DATA_RX_BUFFERS  64
 #define SDIO_DATA_RX_SIZE         1664
 
@@ -53,7 +90,11 @@ struct hif_sdio_device {
 	qdf_spinlock_t Lock;
 	qdf_spinlock_t TxLock;
 	qdf_spinlock_t RxLock;
+	struct MBOX_IRQ_PROC_REGISTERS IrqProcRegisters;
+	struct MBOX_IRQ_ENABLE_REGISTERS IrqEnableRegisters;
+	struct MBOX_COUNTER_REGISTERS MailBoxCounterRegisters;
 	struct hif_msg_callbacks hif_callbacks;
+	struct hif_device_mbox_info MailBoxInfo;
 	uint32_t BlockSize;
 	uint32_t BlockMask;
 	enum hif_device_irq_mode HifIRQProcessingMode;
@@ -64,11 +105,6 @@ struct hif_sdio_device {
 	int RecheckIRQStatusCnt;
 	uint32_t RecvStateFlags;
 	void *pTarget;
-	struct devRegisters devRegisters;
-#ifdef CONFIG_SDIO_TRANSFER_MAILBOX
-	bool swap_mailbox;
-	struct hif_device_mbox_info MailBoxInfo;
-#endif
 };
 
 #define LOCK_HIF_DEV(device)    qdf_spin_lock(&(device)->Lock)
@@ -99,6 +135,12 @@ struct hif_sdio_device {
 
 /* hif_sdio_dev.c */
 HTC_PACKET *hif_dev_alloc_rx_buffer(struct hif_sdio_device *pDev);
+
+uint8_t hif_dev_map_pipe_to_mail_box(struct hif_sdio_device *pDev,
+			uint8_t pipeid);
+uint8_t hif_dev_map_mail_box_to_pipe(struct hif_sdio_device *pDev,
+			uint8_t mboxIndex,
+				     bool upload);
 
 /* hif_sdio_recv.c */
 QDF_STATUS hif_dev_rw_completion_handler(void *context, QDF_STATUS status);

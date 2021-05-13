@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -26,8 +26,8 @@
 #include "wlan_ptt_sock_svc.h"
 
 QDF_STATUS ucfg_wifi_pos_process_req(struct wlan_objmgr_psoc *psoc,
-				     struct wifi_pos_req_msg *req,
-				     wifi_pos_send_rsp_handler send_rsp_cb)
+		struct wifi_pos_req_msg *req,
+		void (*send_rsp_cb)(uint32_t, uint32_t, uint32_t, uint8_t *))
 {
 	uint8_t err;
 	uint32_t app_pid;
@@ -46,22 +46,21 @@ QDF_STATUS ucfg_wifi_pos_process_req(struct wlan_objmgr_psoc *psoc,
 	wifi_pos_psoc_obj->wifi_pos_send_rsp = send_rsp_cb;
 	is_app_registered = wifi_pos_psoc_obj->is_app_registered;
 	app_pid = wifi_pos_psoc_obj->app_pid;
-	wifi_pos_psoc_obj->rsp_version = req->rsp_version;
 	qdf_spin_unlock_bh(&wifi_pos_psoc_obj->wifi_pos_lock);
 
 	if (!wifi_pos_psoc_obj->wifi_pos_req_handler) {
 		wifi_pos_err("wifi_pos_psoc_obj->wifi_pos_req_handler is null");
 		err = OEM_ERR_NULL_CONTEXT;
-		send_rsp_cb(app_pid, WIFI_POS_CMD_ERROR, sizeof(err), &err);
+		send_rsp_cb(app_pid, ANI_MSG_OEM_ERROR, sizeof(err), &err);
 		return QDF_STATUS_E_NULL_VALUE;
 	}
 
-	if (req->msg_type != WIFI_POS_CMD_REGISTRATION &&
+	if (req->msg_type != ANI_MSG_APP_REG_REQ &&
 		(!is_app_registered || app_pid != req->pid)) {
 		wifi_pos_err("requesting app is not registered, app_registered: %d, requesting pid: %d, stored pid: %d",
 			is_app_registered, req->pid, app_pid);
 		err = OEM_ERR_APP_NOT_REGISTERED;
-		send_rsp_cb(app_pid, WIFI_POS_CMD_ERROR, sizeof(err), &err);
+		send_rsp_cb(app_pid, ANI_MSG_OEM_ERROR, sizeof(err), &err);
 		return QDF_STATUS_E_INVAL;
 	}
 
@@ -100,42 +99,5 @@ void ucfg_wifi_pos_set_ftm_cap(struct wlan_objmgr_psoc *psoc, uint32_t val)
 	qdf_spin_lock_bh(&wifi_pos_psoc->wifi_pos_lock);
 	wifi_pos_psoc->fine_time_meas_cap = val;
 	qdf_spin_unlock_bh(&wifi_pos_psoc->wifi_pos_lock);
-}
-
-void ucfg_wifi_pos_set_oem_6g_supported(struct wlan_objmgr_psoc *psoc,
-					bool val)
-{
-	struct wifi_pos_psoc_priv_obj *wifi_pos_psoc =
-			wifi_pos_get_psoc_priv_obj(psoc);
-	if (!wifi_pos_psoc) {
-		wifi_pos_alert("unable to get wifi_pos psoc obj");
-		return;
-	}
-
-	qdf_spin_lock_bh(&wifi_pos_psoc->wifi_pos_lock);
-	wifi_pos_psoc->oem_6g_support_disable = val;
-	qdf_spin_unlock_bh(&wifi_pos_psoc->wifi_pos_lock);
-}
-
-bool ucfg_wifi_pos_is_nl_rsp(struct wlan_objmgr_psoc *psoc)
-{
-	uint32_t val = 0;
-	struct wifi_pos_psoc_priv_obj *wifi_pos_psoc =
-			wifi_pos_get_psoc_priv_obj(psoc);
-
-	if (!wifi_pos_psoc) {
-		wifi_pos_alert("unable to get wifi_pos psoc obj");
-		return false;
-	}
-
-	qdf_spin_lock_bh(&wifi_pos_psoc->wifi_pos_lock);
-	val = wifi_pos_psoc->rsp_version;
-	qdf_spin_unlock_bh(&wifi_pos_psoc->wifi_pos_lock);
-
-	if (val == WIFI_POS_RSP_V2_NL)
-		return true;
-	else
-		return false;
-
 }
 

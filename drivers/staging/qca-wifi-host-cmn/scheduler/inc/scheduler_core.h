@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -24,37 +24,29 @@
 #include <scheduler_api.h>
 #include <qdf_list.h>
 
-#ifndef SCHEDULER_CORE_MAX_MESSAGES
-#define SCHEDULER_CORE_MAX_MESSAGES 4000
-#endif
-#ifndef WLAN_SCHED_REDUCTION_LIMIT
+#ifdef CONFIG_MCL
+#define SCHEDULER_CORE_MAX_MESSAGES 1000
+#else
+#define SCHEDULER_CORE_MAX_MESSAGES 2000
 #define WLAN_SCHED_REDUCTION_LIMIT 32
 #endif
 #define SCHEDULER_NUMBER_OF_MSG_QUEUE 6
 #define SCHEDULER_WRAPPER_MAX_FAIL_COUNT (SCHEDULER_CORE_MAX_MESSAGES * 3)
 #define SCHEDULER_WATCHDOG_TIMEOUT (10 * 1000) /* 10s */
 
-#define sched_fatal(params...) \
-	QDF_TRACE_FATAL(QDF_MODULE_ID_SCHEDULER, params)
-#define sched_err(params...) \
-	QDF_TRACE_ERROR(QDF_MODULE_ID_SCHEDULER, params)
-#define sched_warn(params...) \
-	QDF_TRACE_WARN(QDF_MODULE_ID_SCHEDULER, params)
-#define sched_info(params...) \
-	QDF_TRACE_INFO(QDF_MODULE_ID_SCHEDULER, params)
-#define sched_debug(params...) \
-	QDF_TRACE_DEBUG(QDF_MODULE_ID_SCHEDULER, params)
+#define __sched_log(level, format, args...) \
+	QDF_TRACE(QDF_MODULE_ID_SCHEDULER, level, FL(format), ## args)
 
-#define sched_nofl_fatal(params...) \
-	QDF_TRACE_FATAL_NO_FL(QDF_MODULE_ID_SCHEDULER, params)
-#define sched_nofl_err(params...) \
-	QDF_TRACE_ERROR_NO_FL(QDF_MODULE_ID_SCHEDULER, params)
-#define sched_nofl_warn(params...) \
-	QDF_TRACE_WARN_NO_FL(QDF_MODULE_ID_SCHEDULER, params)
-#define sched_nofl_info(params...) \
-	QDF_TRACE_INFO_NO_FL(QDF_MODULE_ID_SCHEDULER, params)
-#define sched_nofl_debug(params...) \
-	QDF_TRACE_DEBUG_NO_FL(QDF_MODULE_ID_SCHEDULER, params)
+#define sched_fatal(format, args...) \
+	__sched_log(QDF_TRACE_LEVEL_FATAL, format, ## args)
+#define sched_err(format, args...) \
+	__sched_log(QDF_TRACE_LEVEL_ERROR, format, ## args)
+#define sched_warn(format, args...) \
+	__sched_log(QDF_TRACE_LEVEL_WARN, format, ## args)
+#define sched_info(format, args...) \
+	__sched_log(QDF_TRACE_LEVEL_INFO, format, ## args)
+#define sched_debug(format, args...) \
+	__sched_log(QDF_TRACE_LEVEL_DEBUG, format, ## args)
 
 #define sched_enter() sched_debug("Enter")
 #define sched_exit() sched_debug("Exit")
@@ -95,11 +87,11 @@ struct scheduler_mq_ctx {
  * @resume_sch_event: scheduler resume wait event
  * @sch_thread_lock: scheduler thread lock
  * @sch_last_qidx: scheduler last qidx allocation
- * @watchdog_msg_type: 'type' of the current msg being processed
  * @hdd_callback: os if suspend callback
  * @legacy_wma_handler: legacy wma message handler
  * @legacy_sys_handler: legacy sys message handler
  * @watchdog_timer: timer for triggering a scheduler watchdog bite
+ * @watchdog_msg_type: 'type' of the current msg being processed
  * @watchdog_callback: the callback of the current msg being processed
  */
 struct scheduler_ctx {
@@ -112,11 +104,11 @@ struct scheduler_ctx {
 	qdf_event_t resume_sch_event;
 	qdf_spinlock_t sch_thread_lock;
 	uint8_t sch_last_qidx;
-	uint16_t watchdog_msg_type;
 	hdd_suspend_callback hdd_callback;
 	scheduler_msg_process_fn_t legacy_wma_handler;
 	scheduler_msg_process_fn_t legacy_sys_handler;
 	qdf_timer_t watchdog_timer;
+	uint16_t watchdog_msg_type;
 	void *watchdog_callback;
 };
 

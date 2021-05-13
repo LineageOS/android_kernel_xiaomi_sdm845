@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -188,16 +188,14 @@ static inline QDF_STATUS scheduler_post_msg(uint32_t qid,
  * scheduler_post_msg
  * Return: QDF status
  */
-QDF_STATUS scheduler_post_message_debug(QDF_MODULE_ID src_id,
-					QDF_MODULE_ID dest_id,
-					QDF_MODULE_ID que_id,
-					struct scheduler_msg *msg,
-					int line,
-					const char *func);
-
-#define scheduler_post_message(src_id, dest_id, que_id, msg) \
-	scheduler_post_message_debug(src_id, dest_id, que_id, msg, \
-				     __LINE__, __func__)
+static inline QDF_STATUS scheduler_post_message(QDF_MODULE_ID src_id,
+						QDF_MODULE_ID dest_id,
+						QDF_MODULE_ID que_id,
+						struct scheduler_msg *msg)
+{
+	return scheduler_post_msg(scheduler_get_qid(src_id, dest_id, que_id),
+						    msg);
+}
 
 /**
  * scheduler_resume() - resume scheduler thread
@@ -271,15 +269,6 @@ QDF_STATUS scheduler_os_if_mq_handler(struct scheduler_msg *msg);
  * Return: none
  */
 QDF_STATUS scheduler_timer_q_mq_handler(struct scheduler_msg *msg);
-
-/**
- * scheduler_mlme_mq_handler() - top level message queue handler for
- *                               mlme queue
- * @msg: pointer to actual message being handled
- *
- * Return: QDF status
- */
-QDF_STATUS scheduler_mlme_mq_handler(struct scheduler_msg *msg);
 
 /**
  * scheduler_scan_mq_handler() - top level message queue handler for

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -45,13 +45,6 @@
  */
 typedef struct sk_buff *__qdf_nbuf_t;
 
-/**
- * typedef __qdf_nbuf_queue_head_t - abstraction for sk_buff_head linux struct
- *
- * This is used for skb queue management via linux skb buff head APIs
- */
-typedef struct sk_buff_head __qdf_nbuf_queue_head_t;
-
 #define QDF_NBUF_CB_TX_MAX_OS_FRAGS 1
 
 /* QDF_NBUF_CB_TX_MAX_EXTRA_FRAGS -
@@ -91,41 +84,28 @@ typedef union {
  *   5. "ext_cb_pt" must be the first member in both TX and RX unions
  *      for the priv_cb_w since it must be at same offset for both
  *      TX and RX union
- *   6. "ipa.owned" bit must be first member in both TX and RX unions
- *      for the priv_cb_m since it must be at same offset for both
- *      TX and RX union.
  *
  * @paddr   : physical addressed retrieved by dma_map of nbuf->data
  *
  * @rx.dev.priv_cb_w.ext_cb_ptr: extended cb pointer
  * @rx.dev.priv_cb_w.fctx: ctx to handle special pkts defined by ftype
- * @rx.dev.priv_cb_w.msdu_len: length of RX packet
- * @rx.dev.priv_cb_w.peer_id: peer_id for RX packet
- * @rx.dev.priv_cb_w.protocol_tag: protocol tag set by app for rcvd packet type
- * @rx.dev.priv_cb_w.flow_tag: flow tag set by application for 5 tuples rcvd
+ * @rx.dev.priv_cb_w.reserved1: reserved
+ * @rx.dev.priv_cb_w.reserved2: reserved
  *
- * @rx.dev.priv_cb_m.peer_cached_buf_frm: peer cached buffer
- * @rx.dev.priv_cb_m.flush_ind: flush indication
- * @rx.dev.priv_cb_m.packet_buf_pool:  packet buff bool
- * @rx.dev.priv_cb_m.l3_hdr_pad: L3 header padding offset
- * @rx.dev.priv_cb_m.exc_frm: exception frame
- * @rx.dev.priv_cb_m.reo_dest_ind: reo destination indication
  * @rx.dev.priv_cb_m.tcp_seq_num: TCP sequence number
  * @rx.dev.priv_cb_m.tcp_ack_num: TCP ACK number
  * @rx.dev.priv_cb_m.lro_ctx: LRO context
- * @rx.dev.priv_cb_m.dp.wifi3.msdu_len: length of RX packet
- * @rx.dev.priv_cb_m.dp.wifi3.peer_id:  peer_id for RX packet
- * @rx.dev.priv_cb_m.dp.wifi2.map_index:
- * @rx.dev.priv_cb_m.ipa_owned: packet owned by IPA
+ * @rx.dev.priv_cb_m.map_index:
+ * @rx.dev.priv_cb_m.reserved: reserved
  *
  * @rx.lro_eligible: flag to indicate whether the MSDU is LRO eligible
+ * @rx.peer_cached_buf_frm: peer cached buffer
  * @rx.tcp_proto: L4 protocol is TCP
  * @rx.tcp_pure_ack: A TCP ACK packet with no payload
  * @rx.ipv6_proto: L3 protocol is IPV6
  * @rx.ip_offset: offset to IP header
  * @rx.tcp_offset: offset to TCP header
  * @rx_ctx_id: Rx context id
- * @num_elements_in_list: number of elements in the nbuf list
  *
  * @rx.tcp_udp_chksum: L4 payload checksum
  * @rx.tcp_wim: TCP window size
@@ -135,11 +115,7 @@ typedef union {
  * @rx.flag_chfrag_start: first MSDU in an AMSDU
  * @rx.flag_chfrag_cont: middle or part of MSDU in an AMSDU
  * @rx.flag_chfrag_end: last MSDU in an AMSDU
- * @rx.flag_retry: flag to indicate MSDU is retried
- * @rx.flag_da_mcbc: flag to indicate mulicast or broadcast packets
- * @rx.flag_da_valid: flag to indicate DA is valid for RX packet
- * @rx.flag_sa_valid: flag to indicate SA is valid for RX packet
- * @rx.flag_is_frag: flag to indicate skb has frag list
+ * @rx.packet_buff_pool: indicate packet from pre-allocated pool for Rx ring
  * @rx.rsrvd: reserved
  *
  * @rx.trace: combined structure for DP and protocol trace
@@ -149,12 +125,8 @@ typedef union {
  * @rx.trace.packet_track: RX_DATA packet
  * @rx.trace.rsrvd: enable packet logging
  *
- * @rx.vdev_id: vdev_id for RX pkt
- * @rx.is_raw_frame: RAW frame
- * @rx.fcs_err: FCS error
- * @rx.tid_val: tid value
- * @rx.reserved: reserved
  * @rx.ftype: mcast2ucast, TSO, SG, MESH
+ * @rx.reserved: reserved
  *
  * @tx.dev.priv_cb_w.fctx: ctx to handle special pkts defined by ftype
  * @tx.dev.priv_cb_w.ext_cb_ptr: extended cb pointer
@@ -211,70 +183,41 @@ struct qdf_nbuf_cb {
 				struct {
 					void *ext_cb_ptr;
 					void *fctx;
-					uint16_t msdu_len;
-					uint16_t peer_id;
-					uint16_t protocol_tag;
-					uint16_t flow_tag;
+					uint32_t reserved1;
+					uint32_t reserved2;
 				} priv_cb_w;
 				struct {
-					/* ipa_owned bit is common between rx
-					 * control block and tx control block.
-					 * Do not change location of this bit.
-					 */
-					uint32_t ipa_owned:1,
-						 peer_cached_buf_frm:1,
-						 flush_ind:1,
-						 packet_buf_pool:1,
-						 reserved:4,
-						 l3_hdr_pad:8,
-						 /* exception frame flag */
-						 exc_frm:1,
-						 reo_dest_ind:5,
-						 reserved1:10;
 					uint32_t tcp_seq_num;
 					uint32_t tcp_ack_num;
-					union {
-						struct {
-							uint16_t msdu_len;
-							uint16_t peer_id;
-						} wifi3;
-						struct {
-							uint32_t map_index;
-						} wifi2;
-					} dp;
 					unsigned char *lro_ctx;
+					uint32_t map_index;
+					uint32_t reserved;
 				} priv_cb_m;
 			} dev;
 			uint32_t lro_eligible:1,
+				peer_cached_buf_frm:1,
 				tcp_proto:1,
 				tcp_pure_ack:1,
 				ipv6_proto:1,
 				ip_offset:7,
 				tcp_offset:7,
-				rx_ctx_id:4,
-				fcs_err:1,
-				is_raw_frame:1,
-				num_elements_in_list:8;
+				rx_ctx_id:4;
 			uint32_t tcp_udp_chksum:16,
-				 tcp_win:16;
+				tcp_win:16;
 			uint32_t flow_id;
 			uint8_t flag_chfrag_start:1,
 				flag_chfrag_cont:1,
 				flag_chfrag_end:1,
-				flag_retry:1,
-				flag_da_mcbc:1,
-				flag_da_valid:1,
-				flag_sa_valid:1,
-				flag_is_frag:1;
+				packet_buff_pool:1,
+				rsrvd:4;
 			union {
 				uint8_t packet_state;
 				uint8_t dp_trace:1,
 					packet_track:4,
 					rsrvd:3;
 			} trace;
-			uint16_t vdev_id:8,
-				 tid_val:4,
-				 ftype:4;
+			uint8_t ftype;
+			uint8_t reserved;
 		} rx;
 
 		/* Note: MAX: 40 bytes */
@@ -285,15 +228,11 @@ struct qdf_nbuf_cb {
 					void *fctx;
 				} priv_cb_w;
 				struct {
-					/* ipa_owned bit is common between rx
-					 * control block and tx control block.
-					 * Do not change location of this bit.
-					 */
+					uint32_t data_attr;
 					struct {
 						uint32_t owned:1,
 							priv:31;
 					} ipa;
-					uint32_t data_attr;
 					uint16_t desc_id;
 					uint16_t mgmt_desc_id;
 					struct {
@@ -353,6 +292,8 @@ QDF_COMPILE_TIME_ASSERT(qdf_nbuf_cb_size,
 
 #define QDF_NBUF_CB_RX_LRO_ELIGIBLE(skb) \
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.lro_eligible)
+#define QDF_NBUF_CB_RX_PEER_CACHED_FRM(skb) \
+	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.peer_cached_buf_frm)
 #define QDF_NBUF_CB_RX_TCP_PROTO(skb) \
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.tcp_proto)
 #define QDF_NBUF_CB_RX_TCP_PURE_ACK(skb) \
@@ -365,8 +306,6 @@ QDF_COMPILE_TIME_ASSERT(qdf_nbuf_cb_size,
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.tcp_offset)
 #define QDF_NBUF_CB_RX_CTX_ID(skb) \
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.rx_ctx_id)
-#define QDF_NBUF_CB_RX_NUM_ELEMENTS_IN_LIST(skb) \
-		(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.num_elements_in_list)
 
 #define QDF_NBUF_CB_RX_TCP_CHKSUM(skb) \
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.tcp_udp_chksum)
@@ -384,9 +323,6 @@ QDF_COMPILE_TIME_ASSERT(qdf_nbuf_cb_size,
 #define QDF_NBUF_CB_RX_FTYPE(skb) \
 	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.ftype)
 
-#define QDF_NBUF_CB_RX_VDEV_ID(skb) \
-	(((struct qdf_nbuf_cb *)((skb)->cb))->u.rx.vdev_id)
-
 #define QDF_NBUF_CB_RX_CHFRAG_START(skb) \
 	(((struct qdf_nbuf_cb *) \
 	((skb)->cb))->u.rx.flag_chfrag_start)
@@ -396,38 +332,9 @@ QDF_COMPILE_TIME_ASSERT(qdf_nbuf_cb_size,
 #define QDF_NBUF_CB_RX_CHFRAG_END(skb) \
 		(((struct qdf_nbuf_cb *) \
 		((skb)->cb))->u.rx.flag_chfrag_end)
-
-#define QDF_NBUF_CB_RX_DA_MCBC(skb) \
-	(((struct qdf_nbuf_cb *) \
-	((skb)->cb))->u.rx.flag_da_mcbc)
-
-#define QDF_NBUF_CB_RX_DA_VALID(skb) \
-	(((struct qdf_nbuf_cb *) \
-	((skb)->cb))->u.rx.flag_da_valid)
-
-#define QDF_NBUF_CB_RX_SA_VALID(skb) \
-	(((struct qdf_nbuf_cb *) \
-	((skb)->cb))->u.rx.flag_sa_valid)
-
-#define QDF_NBUF_CB_RX_RETRY_FLAG(skb) \
-	(((struct qdf_nbuf_cb *) \
-	((skb)->cb))->u.rx.flag_retry)
-
-#define QDF_NBUF_CB_RX_RAW_FRAME(skb) \
-	(((struct qdf_nbuf_cb *) \
-	((skb)->cb))->u.rx.is_raw_frame)
-
-#define QDF_NBUF_CB_RX_TID_VAL(skb) \
-	(((struct qdf_nbuf_cb *) \
-	((skb)->cb))->u.rx.tid_val)
-
-#define QDF_NBUF_CB_RX_IS_FRAG(skb) \
-	(((struct qdf_nbuf_cb *) \
-	((skb)->cb))->u.rx.flag_is_frag)
-
-#define QDF_NBUF_CB_RX_FCS_ERR(skb) \
-	(((struct qdf_nbuf_cb *) \
-	((skb)->cb))->u.rx.fcs_err)
+#define QDF_NBUF_CB_RX_PACKET_BUFF_POOL(skb) \
+		(((struct qdf_nbuf_cb *) \
+		((skb)->cb))->u.rx.packet_buff_pool)
 
 #define QDF_NBUF_UPDATE_TX_PKT_COUNT(skb, PACKET_STATE) \
 	qdf_nbuf_set_state(skb, PACKET_STATE)
@@ -634,47 +541,6 @@ typedef void (*qdf_nbuf_free_t)(__qdf_nbuf_t);
 #define __qdf_nbuf_is_rx_chfrag_end(skb) \
 	(QDF_NBUF_CB_RX_CHFRAG_END((skb)))
 
-#define __qdf_nbuf_set_da_mcbc(skb, val) \
-	((QDF_NBUF_CB_RX_DA_MCBC((skb))) = val)
-
-#define __qdf_nbuf_is_da_mcbc(skb) \
-	(QDF_NBUF_CB_RX_DA_MCBC((skb)))
-
-#define __qdf_nbuf_set_da_valid(skb, val) \
-	((QDF_NBUF_CB_RX_DA_VALID((skb))) = val)
-
-#define __qdf_nbuf_is_da_valid(skb) \
-	(QDF_NBUF_CB_RX_DA_VALID((skb)))
-
-#define __qdf_nbuf_set_sa_valid(skb, val) \
-	((QDF_NBUF_CB_RX_SA_VALID((skb))) = val)
-
-#define __qdf_nbuf_is_sa_valid(skb) \
-	(QDF_NBUF_CB_RX_SA_VALID((skb)))
-
-#define __qdf_nbuf_set_rx_retry_flag(skb, val) \
-	((QDF_NBUF_CB_RX_RETRY_FLAG((skb))) = val)
-
-#define __qdf_nbuf_is_rx_retry_flag(skb) \
-	(QDF_NBUF_CB_RX_RETRY_FLAG((skb)))
-
-#define __qdf_nbuf_set_raw_frame(skb, val) \
-	((QDF_NBUF_CB_RX_RAW_FRAME((skb))) = val)
-
-#define __qdf_nbuf_is_raw_frame(skb) \
-	(QDF_NBUF_CB_RX_RAW_FRAME((skb)))
-
-#define __qdf_nbuf_get_tid_val(skb) \
-	(QDF_NBUF_CB_RX_TID_VAL((skb)))
-
-#define __qdf_nbuf_set_tid_val(skb, val) \
-	((QDF_NBUF_CB_RX_TID_VAL((skb))) = val)
-
-#define __qdf_nbuf_set_is_frag(skb, val) \
-	((QDF_NBUF_CB_RX_IS_FRAG((skb))) = val)
-
-#define __qdf_nbuf_is_frag(skb) \
-	(QDF_NBUF_CB_RX_IS_FRAG((skb)))
 
 #define __qdf_nbuf_set_tx_chfrag_start(skb, val) \
 	((QDF_NBUF_CB_TX_EXTRA_FRAG_FLAGS_CHFRAG_START((skb))) = val)
@@ -707,9 +573,6 @@ typedef void (*qdf_nbuf_free_t)(__qdf_nbuf_t);
 #define __qdf_nbuf_data_attr_set(skb, data_attr) \
 	(QDF_NBUF_CB_TX_DATA_ATTR(skb) = (data_attr))
 
-#define __qdf_nbuf_queue_walk_safe(queue, var, tvar)	\
-		skb_queue_walk_safe(queue, var, tvar)
-
 /**
  * __qdf_nbuf_num_frags_init() - init extra frags
  * @skb: sk buffer
@@ -721,6 +584,18 @@ void __qdf_nbuf_num_frags_init(struct sk_buff *skb)
 {
 	QDF_NBUF_CB_TX_NUM_EXTRA_FRAGS(skb) = 0;
 }
+
+typedef enum {
+	CB_FTYPE_INVALID = 0,
+	CB_FTYPE_MCAST2UCAST = 1,
+	CB_FTYPE_TSO = 2,
+	CB_FTYPE_TSO_SG = 3,
+	CB_FTYPE_SG = 4,
+	CB_FTYPE_INTRABSS_FWD = 5,
+	CB_FTYPE_RX_INFO = 6,
+	CB_FTYPE_MESH_RX_INFO = 7,
+	CB_FTYPE_MESH_TX_INFO = 8,
+} CB_FTYPE;
 
 /*
  * prototypes. Implemented in qdf_nbuf.c
@@ -795,7 +670,6 @@ bool __qdf_nbuf_data_is_ipv6_udp_pkt(uint8_t *data);
 bool __qdf_nbuf_data_is_ipv6_tcp_pkt(uint8_t *data);
 bool __qdf_nbuf_data_is_ipv4_dhcp_pkt(uint8_t *data);
 bool __qdf_nbuf_data_is_ipv6_dhcp_pkt(uint8_t *data);
-bool __qdf_nbuf_data_is_ipv6_mdns_pkt(uint8_t *data);
 bool __qdf_nbuf_data_is_ipv4_eapol_pkt(uint8_t *data);
 bool __qdf_nbuf_data_is_ipv4_arp_pkt(uint8_t *data);
 bool __qdf_nbuf_is_bcast_pkt(__qdf_nbuf_t nbuf);
@@ -1050,61 +924,6 @@ static inline struct sk_buff *__qdf_nbuf_copy(struct sk_buff *skb)
 }
 
 #define __qdf_nbuf_reserve      skb_reserve
-
-/**
- * __qdf_nbuf_set_data_pointer() - set buffer data pointer
- * @skb: Pointer to network buffer
- * @data: data pointer
- *
- * Return: none
- */
-static inline void
-__qdf_nbuf_set_data_pointer(struct sk_buff *skb, uint8_t *data)
-{
-	skb->data = data;
-}
-
-/**
- * __qdf_nbuf_set_len() - set buffer data length
- * @skb: Pointer to network buffer
- * @len: data length
- *
- * Return: none
- */
-static inline void
-__qdf_nbuf_set_len(struct sk_buff *skb, uint32_t len)
-{
-	skb->len = len;
-}
-
-/**
- * __qdf_nbuf_set_tail_pointer() - set buffer data tail pointer
- * @skb: Pointer to network buffer
- * @len: skb data length
- *
- * Return: none
- */
-static inline void
-__qdf_nbuf_set_tail_pointer(struct sk_buff *skb, int len)
-{
-	skb_set_tail_pointer(skb, len);
-}
-
-/**
- * __qdf_nbuf_unlink_no_lock() - unlink an skb from skb queue
- * @skb: Pointer to network buffer
- * @list: list to use
- *
- * This is a lockless version, driver must acquire locks if it
- * needs to synchronize
- *
- * Return: none
- */
-static inline void
-__qdf_nbuf_unlink_no_lock(struct sk_buff *skb, struct sk_buff_head *list)
-{
-	__skb_unlink(skb, list);
-}
 
 /**
  * __qdf_nbuf_reset() - reset the buffer data and pointer
@@ -1474,23 +1293,9 @@ void __qdf_nbuf_unmap_tso_segment(qdf_device_t osdev,
 			  bool is_last_seg);
 
 #ifdef FEATURE_TSO
-/**
- * __qdf_nbuf_get_tcp_payload_len() - function to return the tcp
- *                                    payload len
- * @skb: buffer
- *
- * Return: size
- */
-size_t __qdf_nbuf_get_tcp_payload_len(struct sk_buff *skb);
 uint32_t __qdf_nbuf_get_tso_num_seg(struct sk_buff *skb);
 
 #else
-static inline
-size_t __qdf_nbuf_get_tcp_payload_len(struct sk_buff *skb)
-{
-	return 0;
-}
-
 static inline uint32_t __qdf_nbuf_get_tso_num_seg(struct sk_buff *skb)
 {
 	return 0;
@@ -1731,18 +1536,6 @@ __qdf_nbuf_queue_first(__qdf_nbuf_queue_t *qhead)
 }
 
 /**
- * __qdf_nbuf_queue_last() - returns the last skb in the queue
- * @qhead: head of queue
- *
- * Return: NULL if the queue is empty
- */
-static inline struct sk_buff *
-__qdf_nbuf_queue_last(__qdf_nbuf_queue_t *qhead)
-{
-	return qhead->tail;
-}
-
-/**
  * __qdf_nbuf_queue_len() - return the queue length
  * @qhead: Queue head
  *
@@ -1915,21 +1708,6 @@ __qdf_nbuf_expand(struct sk_buff *skb, uint32_t headroom, uint32_t tailroom)
 
 	dev_kfree_skb_any(skb);
 	return NULL;
-}
-
-/**
- * __qdf_nbuf_copy_expand() - copy and expand nbuf
- * @buf: Network buf instance
- * @headroom: Additional headroom to be added
- * @tailroom: Additional tailroom to be added
- *
- * Return: New nbuf that is a copy of buf, with additional head and tailroom
- *	or NULL if there is no memory
- */
-static inline struct sk_buff *
-__qdf_nbuf_copy_expand(struct sk_buff *buf, int headroom, int tailroom)
-{
-	return skb_copy_expand(buf, headroom, tailroom, GFP_ATOMIC);
 }
 
 /**
@@ -2157,19 +1935,6 @@ __qdf_nbuf_set_timestamp(struct sk_buff *skb)
 }
 
 /**
- * __qdf_nbuf_get_timestamp() - get the timestamp for frame
- *
- * @buf: sk buff
- *
- * Return: timestamp stored in skb in ms
- */
-static inline uint64_t
-__qdf_nbuf_get_timestamp(struct sk_buff *skb)
-{
-	return ktime_to_ms(skb_get_ktime(skb));
-}
-
-/**
  * __qdf_nbuf_get_timedelta_ms() - get time difference in ms
  *
  * @buf: sk buff
@@ -2208,63 +1973,7 @@ static inline void __qdf_nbuf_orphan(struct sk_buff *skb)
 {
 	return skb_orphan(skb);
 }
-
-static inline struct sk_buff *
-__qdf_nbuf_queue_head_dequeue(struct sk_buff_head *skb_queue_head)
-{
-	return skb_dequeue(skb_queue_head);
-}
-
-static inline
-uint32_t __qdf_nbuf_queue_head_qlen(struct sk_buff_head *skb_queue_head)
-{
-	return skb_queue_head->qlen;
-}
-
-static inline
-void __qdf_nbuf_queue_head_enqueue_tail(struct sk_buff_head *skb_queue_head,
-					struct sk_buff *skb)
-{
-	return skb_queue_tail(skb_queue_head, skb);
-}
-
-static inline
-void __qdf_nbuf_queue_head_init(struct sk_buff_head *skb_queue_head)
-{
-	return skb_queue_head_init(skb_queue_head);
-}
-
-static inline
-void __qdf_nbuf_queue_head_purge(struct sk_buff_head *skb_queue_head)
-{
-	return skb_queue_purge(skb_queue_head);
-}
-
-/**
- * __qdf_nbuf_queue_head_lock() - Acquire the skb list lock
- * @head: skb list for which lock is to be acquired
- *
- * Return: void
- */
-static inline
-void __qdf_nbuf_queue_head_lock(struct sk_buff_head *skb_queue_head)
-{
-	spin_lock_bh(&skb_queue_head->lock);
-}
-
-/**
- * __qdf_nbuf_queue_head_unlock() - Release the skb list lock
- * @head: skb list for which lock is to be release
- *
- * Return: void
- */
-static inline
-void __qdf_nbuf_queue_head_unlock(struct sk_buff_head *skb_queue_head)
-{
-	spin_unlock_bh(&skb_queue_head->lock);
-}
-
-#ifdef CONFIG_NBUF_AP_PLATFORM
+#ifdef CONFIG_WIN
 #include <i_qdf_nbuf_w.h>
 #else
 #include <i_qdf_nbuf_m.h>

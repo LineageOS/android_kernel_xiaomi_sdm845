@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, 2018-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -23,8 +23,8 @@
 #define PCI_CFG_TO_DISABLE_L1SS_STATES(pdev, addr) \
 { \
 	uint32_t lcr_val; \
-	pfrm_read_config_dword(pdev, addr, &lcr_val); \
-	pfrm_write_config_dword(pdev, addr, (lcr_val & ~0x0000000f)); \
+	pci_read_config_dword(pdev, addr, &lcr_val); \
+	pci_write_config_dword(pdev, addr, (lcr_val & ~0x0000000f)); \
 }
 #else
 #define PCI_CFG_TO_DISABLE_L1SS_STATES(pdev, addr)
@@ -34,12 +34,12 @@
 #define PCI_CLR_CAUSE0_REGISTER(sc) \
 { \
 	uint32_t tmp_cause0; \
-	tmp_cause0 = hif_read32_mb(sc, sc->mem + PCIE_INTR_CAUSE_ADDRESS); \
-	hif_write32_mb(sc, sc->mem + PCIE_INTR_CLR_ADDRESS, \
+	tmp_cause0 = hif_read32_mb(sc->mem + PCIE_INTR_CAUSE_ADDRESS); \
+	hif_write32_mb(sc->mem + PCIE_INTR_CLR_ADDRESS, \
 		      PCIE_INTR_FIRMWARE_MASK | tmp_cause0); \
-	hif_read32_mb(sc, sc->mem + PCIE_INTR_CLR_ADDRESS); \
-	hif_write32_mb(sc, sc->mem + PCIE_INTR_CLR_ADDRESS, 0); \
-	hif_read32_mb(sc, sc->mem + PCIE_INTR_CLR_ADDRESS); \
+	hif_read32_mb(sc->mem + PCIE_INTR_CLR_ADDRESS); \
+	hif_write32_mb(sc->mem + PCIE_INTR_CLR_ADDRESS, 0); \
+	hif_read32_mb(sc->mem + PCIE_INTR_CLR_ADDRESS); \
 }
 #else
 #define PCI_CLR_CAUSE0_REGISTER(sc)

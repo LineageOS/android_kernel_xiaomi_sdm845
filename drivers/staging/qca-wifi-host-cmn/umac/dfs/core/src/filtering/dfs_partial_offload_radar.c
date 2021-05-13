@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  * Copyright (c) 2011, Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -22,7 +22,6 @@
 
 #include "../dfs.h"
 #include "wlan_dfs_mlme_api.h"
-#include <wlan_objmgr_vdev_obj.h>
 #include "wlan_dfs_utils_api.h"
 #include "wlan_dfs_lmac_api.h"
 #include "../dfs_internal.h"
@@ -97,16 +96,6 @@ static struct dfs_pulse dfs_mkk4_radars[] = {
 };
 
 /**
- * struct dfs_pulse dfs_mkkn_radars - MKKN radar table for Offload chipsets.
- */
-static struct dfs_pulse dfs_mkkn_radars[] = {
-	/** Since the table is empty  no new radar type shall be detected.
-	 * New filters shall be added to this tables after proper testing
-	 * and verification.
-	 */
-};
-
-/**
  * struct dfs_bin5pulse dfs_fcc_bin5pulses - FCC BIN5 pulses for Offload
  *                                           chipsets.
  */
@@ -178,14 +167,6 @@ static struct dfs_pulse dfs_etsi_radars[] = {
 	/* PRF 4500, 20us duration, 9 pulses per burst */
 	{9,  20, 4500, 4500, 1,  4,  5, 19, 21, 18,  0, 0, 1,  1000, 0, 41},
 
-	/* Type 3 */
-	/* 10 15us, 200-1000 PRF, 15 pulses */
-	{15, 15, 200, 1000, 0, 4, 5, 8, 18, 22, 0, 0, 0, 5, 0, 42},
-
-	/* Type 4 */
-	/* 1-15us, 1200-1600 PRF, 15 pulses */
-	{15, 15, 1200, 1600, 0, 4, 5, 0, 18, 22, 0, 0, 0, 5, 0, 43},
-
 	/* TYPE staggered pulse */
 	/* Type 5*/
 	/* 0.8-2us, 2-3 bursts,300-400 PRF, 10 pulses each */
@@ -224,34 +205,34 @@ static struct dfs_pulse dfs_china_radars[] = {
 	/* TYPE staggered pulse */
 	/* Type 5*/
 	/* 0.8-2us, 2-3 bursts,300-400 PRF, 12 pulses each */
-	{36,  2,  300,  400, 2, 30,  3,  0,  5, 15, 0,   0, 1, 0, 0, 51},
+	{36,  2,  300,  400, 2, 30,  3,  0,  5, 15, 0,   0, 1, 51},
 	/* Type 6 */
 	/* 0.8-2us, 2-3 bursts, 400-1200 PRF, 16 pulses each */
-	{48,  2,  400, 1200, 2, 30,  7,  0,  5, 15, 0,   0, 0, 0, 0, 52},
+	{48,  2,  400, 1200, 2, 30,  7,  0,  5, 15, 0,   0, 0, 52},
 
 	/* constant PRF based */
 	/* Type 1 */
 	/* 0.5-5us, 200  1000 PRF, 12 pulses */
-	{12, 5,   200,  400, 0, 24,  5,  0,  8, 15, 0,   0, 2, 0, 0, 53},
-	{12, 5,   400,  600, 0, 24,  5,  0,  8, 15, 0,   0, 2, 0, 0, 57},
-	{12, 5,   600,  800, 0, 24,  5,  0,  8, 15, 0,   0, 2, 0, 0, 58},
-	{12, 5,   800, 1000, 0, 24,  5,  0,  8, 15, 0,   0, 2, 0, 0, 59},
+	{12, 5,   200,  400, 0, 24,  5,  0,  8, 15, 0,   0, 2, 53},
+	{12, 5,   400,  600, 0, 24,  5,  0,  8, 15, 0,   0, 2, 57},
+	{12, 5,   600,  800, 0, 24,  5,  0,  8, 15, 0,   0, 2, 58},
+	{12, 5,   800, 1000, 0, 24,  5,  0,  8, 15, 0,   0, 2, 59},
 
 	/* Type 2 */
 	/* 0.5-15us, 200-1600 PRF, 16 pulses */
-	{16, 15,  200, 1600, 0, 24, 8,  0, 18, 24, 0,   0, 0, 0, 0, 54},
+	{16, 15,  200, 1600, 0, 24, 8,  0, 18, 24, 0,   0, 0, 54},
 
 	/* Type 3 */
 	/* 0.5-30us, 2300-4000 PRF, 24 pulses*/
-	{24, 15, 2300, 4000,  0, 24, 10, 0, 33, 24, 0,   0, 0, 0, 0, 55},
+	{24, 15, 2300, 4000,  0, 24, 10, 0, 33, 24, 0,   0, 0, 55},
 
 	/* Type 4 */
 	/* 20-30us, 2000-4000 PRF, 20 pulses*/
-	{20, 30, 2000, 4000, 0, 24, 6, 19, 33, 24, 0,   0, 0, 0, 0, 56},
+	{20, 30, 2000, 4000, 0, 24, 6, 19, 33, 24, 0,   0, 0, 56},
 
 	/* 1us, 1000 PRF, 20 pulses */
 	/* 1000 us PRI */
-	{20,  1, 1000, 1000, 0,  6,  6,  0,  1, 18,  0, 3, 0, 0, 0, 50},
+	{20,  1, 1000, 1000, 0,  6,  6,  0,  1, 18,  0, 3, 0, 50},
 };
 
 /**
@@ -265,7 +246,7 @@ static struct dfs_pulse dfs_korea_radars[] = {
 	{10,  1, 1800, 1800, 0, 4,  4,  0,  1, 18,  0, 3,  1, 5, 0, 41},
 
 	/* Korea Type 3 */
-	{70,  1,  330, 330,  0, 4, 20,  0,  3, 18,  0, 3,  1, 5, 0, 42},
+	{70,  1,  330, 330,  0, 4, 20,  0,  2, 18,  0, 3,  1, 5, 0, 42},
 
 	/* Korea Type 4 */
 	{3,   1, 3003, 3003, 1, 7,  2,  0,  1, 18,  0, 0, 1,  1000, 0, 43},
@@ -342,6 +323,8 @@ void dfs_get_po_radars(struct wlan_dfs *dfs)
 	int i;
 	uint32_t target_type;
 	int dfsdomain = DFS_FCC_DOMAIN;
+	uint16_t ch_freq;
+	uint16_t regdmn;
 
 	/* Fetch current radar patterns from the lmac */
 	qdf_mem_zero(&rinfo, sizeof(rinfo));
@@ -385,7 +368,14 @@ void dfs_get_po_radars(struct wlan_dfs *dfs)
 		dfs_info(dfs, WLAN_DEBUG_DFS_ALWAYS, "ETSI domain");
 		rinfo.dfsdomain = DFS_ETSI_DOMAIN;
 
-		if (dfs_is_en302_502_applicable(dfs)) {
+		ch_freq = dfs->dfs_curchan->dfs_ch_freq;
+		regdmn = utils_dfs_get_cur_rd(dfs->dfs_pdev_obj);
+
+		if (((regdmn == ETSI11_WORLD_REGDMN_PAIR_ID) ||
+		    (regdmn == ETSI12_WORLD_REGDMN_PAIR_ID) ||
+		    (regdmn == ETSI13_WORLD_REGDMN_PAIR_ID) ||
+		    (regdmn == ETSI14_WORLD_REGDMN_PAIR_ID)) &&
+		    DFS_CURCHAN_IS_58GHz(ch_freq)) {
 			rinfo.dfs_radars = dfs_etsi_radars;
 			rinfo.numradars = QDF_ARRAY_SIZE(dfs_etsi_radars);
 		} else {
@@ -413,14 +403,6 @@ void dfs_get_po_radars(struct wlan_dfs *dfs)
 		 */
 		rinfo.dfs_radars = dfs_korea_radars;
 		rinfo.numradars = QDF_ARRAY_SIZE(dfs_korea_radars);
-		rinfo.b5pulses = NULL;
-		rinfo.numb5radars = 0;
-		break;
-	case DFS_MKKN_DOMAIN:
-		dfs_info(dfs, WLAN_DEBUG_DFS_ALWAYS, "MKKN domain");
-		rinfo.dfsdomain = DFS_MKKN_DOMAIN;
-		rinfo.dfs_radars = dfs_mkkn_radars;
-		rinfo.numradars = QDF_ARRAY_SIZE(dfs_mkkn_radars);
 		rinfo.b5pulses = NULL;
 		rinfo.numb5radars = 0;
 		break;
@@ -478,9 +460,7 @@ void dfs_get_po_radars(struct wlan_dfs *dfs)
 
 	dfs_set_adrastea_rf_thrshold(psoc, dfsdomain, target_type, &rinfo);
 
-	WLAN_DFS_DATA_STRUCT_LOCK(dfs);
 	dfs_init_radar_filters(dfs, &rinfo);
-	WLAN_DFS_DATA_STRUCT_UNLOCK(dfs);
 }
 
 #if defined(WLAN_DFS_PARTIAL_OFFLOAD) && defined(HOST_DFS_SPOOF_TEST)

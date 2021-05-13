@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -30,21 +30,23 @@
 #include <wlan_scan_public_structs.h>
 #include "wlan_scan_cache_db.h"
 #include "wlan_scan_11d.h"
-#include "wlan_scan_cfg.h"
 
-#define scm_alert(params...) \
-	QDF_TRACE_FATAL(QDF_MODULE_ID_SCAN, params)
-#define scm_err(params...) \
-	QDF_TRACE_ERROR(QDF_MODULE_ID_SCAN, params)
-#define scm_warn(params...) \
-	QDF_TRACE_WARN(QDF_MODULE_ID_SCAN, params)
-#define scm_notice(params...) \
-	QDF_TRACE_INFO(QDF_MODULE_ID_SCAN, params)
-#define scm_info(params...) \
-	QDF_TRACE_INFO(QDF_MODULE_ID_SCAN, params)
-#define scm_debug(params...) \
-	QDF_TRACE_DEBUG(QDF_MODULE_ID_SCAN, params)
-
+#define scm_log(level, args...) \
+		QDF_TRACE(QDF_MODULE_ID_SCAN, level, ## args)
+#define scm_logfl(level, format, args...) \
+		scm_log(level, FL(format), ## args)
+#define scm_alert(format, args...) \
+		scm_logfl(QDF_TRACE_LEVEL_FATAL, format, ## args)
+#define scm_err(format, args...) \
+		scm_logfl(QDF_TRACE_LEVEL_ERROR, format, ## args)
+#define scm_warn(format, args...) \
+		scm_logfl(QDF_TRACE_LEVEL_WARN, format, ## args)
+#define scm_notice(format, args...) \
+		scm_logfl(QDF_TRACE_LEVEL_INFO, format, ## args)
+#define scm_info(format, args...) \
+		scm_logfl(QDF_TRACE_LEVEL_INFO_HIGH, format, ## args)
+#define scm_debug(format, args...) \
+		scm_logfl(QDF_TRACE_LEVEL_DEBUG, format, ## args)
 /* Rate Limited Logs */
 #define scm_alert_rl(params...) \
 	QDF_TRACE_FATAL_RL(QDF_MODULE_ID_SCAN, params)
@@ -71,6 +73,7 @@
 #define scm_hex_dump(level, data, buf_len) \
 		qdf_trace_hex_dump(QDF_MODULE_ID_SCAN, level, data, buf_len)
 
+
 #define MAX_SCAN_EVENT_HANDLERS_PER_PDEV   100
 #define WLAN_MAX_MODULE_NAME    40
 #define WLAN_MAX_REQUESTORS     200
@@ -89,9 +92,6 @@
 #define SCAN_GO_MAX_ACTIVE_SCAN_BURST_DURATION   (240)
 #define SCAN_P2P_SCAN_MAX_BURST_DURATION     (240)
 #define SCAN_GO_BURST_SCAN_MAX_NUM_OFFCHANNELS   (6)
-
-/* MAX RNR entries per channel*/
-#define WLAN_MAX_RNR_COUNT 15
 
 /**
  * struct probe_time_dwell_time - probe time, dwell time map
@@ -116,7 +116,57 @@ struct probe_time_dwell_time {
 #define SCM_NUM_RSSI_CAT        15
 #define SCAN_STA_MIRACAST_MCC_REST_TIME 400
 
+#ifdef CONFIG_MCL
+#define MAX_SCAN_CACHE_SIZE 300
+#define SCAN_ACTIVE_DWELL_TIME 40
+#define SCAN_PASSIVE_DWELL_TIME 110
+#define SCAN_MAX_REST_TIME 0
+#define SCAN_MIN_REST_TIME 0
+#define SCAN_BURST_DURATION 0
+#define SCAN_CONC_ACTIVE_DWELL_TIME 20
+#define SCAN_CONC_PASSIVE_DWELL_TIME 100
+#define SCAN_CONC_IDLE_TIME 25
+#define SCAN_CONC_MAX_REST_TIME 20
+#define SCAN_CONC_MIN_REST_TIME 10
+#define SCAN_REPEAT_PROBE_TIME 20
+#define SCAN_PROBE_SPACING_TIME 0
+#define SCAN_PROBE_DELAY 0
+#define SCAN_MAX_SCAN_TIME 30000
+#define SCAN_NUM_PROBES 2
+#define SCAN_NETWORK_IDLE_TIMEOUT 0
+#define HIDDEN_SSID_TIME (1*60*1000)
+#define SCAN_CHAN_STATS_EVENT_ENAB (false)
+#define MAX_SCAN_COMMANDS 8
+#else
+#define MAX_SCAN_CACHE_SIZE 1024
+#define SCAN_ACTIVE_DWELL_TIME 105
+#define SCAN_PASSIVE_DWELL_TIME 300
+#define SCAN_MAX_REST_TIME 0
+#define SCAN_MIN_REST_TIME 50
+#define SCAN_BURST_DURATION 0
+#define SCAN_CONC_ACTIVE_DWELL_TIME 0
+#define SCAN_CONC_PASSIVE_DWELL_TIME 0
+#define SCAN_CONC_IDLE_TIME 0
+#define SCAN_CONC_MAX_REST_TIME 0
+#define SCAN_CONC_MIN_REST_TIME 0
+#define SCAN_REPEAT_PROBE_TIME 50
+#define SCAN_PROBE_SPACING_TIME 0
+#define SCAN_PROBE_DELAY 0
+#define SCAN_MAX_SCAN_TIME 50000
+#define SCAN_NUM_PROBES 0
+#define SCAN_NETWORK_IDLE_TIMEOUT 200
+#define HIDDEN_SSID_TIME (0xFFFFFFFF)
+#define SCAN_CHAN_STATS_EVENT_ENAB (true)
+#define MAX_SCAN_COMMANDS 24
+#endif
+
 #define SCAN_TIMEOUT_GRACE_PERIOD 10
+/* scan age time in millisec */
+#ifdef QCA_WIFI_NAPIER_EMULATION
+#define SCAN_CACHE_AGING_TIME (90 * 1000)
+#else
+#define SCAN_CACHE_AGING_TIME (30 * 1000)
+#endif
 #define SCAN_MAX_BSS_PDEV 100
 #define SCAN_PRIORITY SCAN_PRIORITY_LOW
 
@@ -133,21 +183,6 @@ struct probe_time_dwell_time {
  * Enable Reception of Public Action frame with this flag
  */
 #define SCAN_FLAG_EXT_FILTER_PUBLIC_ACTION_FRAME 0x4
-
-/* Indicate to scan all PSC channel */
-#define SCAN_FLAG_EXT_6GHZ_SCAN_ALL_PSC_CH 0x8
-
-/* Indicate to scan all NON-PSC channel */
-#define SCAN_FLAG_EXT_6GHZ_SCAN_ALL_NON_PSC_CH 0x10
-
-/* Indicate to save scan result matching hint from scan client */
-#define SCAN_FLAG_EXT_6GHZ_MATCH_HINT 0x20
-
-/* Skip any channel on which RNR information is not received */
-#define SCAN_FLAG_EXT_6GHZ_SKIP_NON_RNR_CH 0x40
-
-/* Indicate client hint req is high priority than FW rnr or FILS discovery */
-#define SCAN_FLAG_EXT_6GHZ_CLIENT_HIGH_PRIORITY 0x80
 
 /* Passive dwell time if bt_a2dp is enabled. Time in msecs*/
 #define PASSIVE_DWELL_TIME_BT_A2DP_ENABLED 28
@@ -198,103 +233,66 @@ struct scan_requester_info {
  * @wide_band_scan: wide band scan capability
  * @last_scan_time: time of last scan start on this pdev
  * @custom_chan_list: scan only these channels
- * @conf_bssid: configured bssid of the hidden AP
- * @conf_ssid: configured desired ssid
  */
 struct pdev_scan_info {
 	bool wide_band_scan;
 	qdf_time_t last_scan_time;
 	struct chan_list custom_chan_list;
-	uint8_t conf_bssid[QDF_MAC_ADDR_SIZE];
-	struct wlan_ssid conf_ssid;
 };
 
 /**
  * struct scan_vdev_obj - scan vdev obj
  * @pno_match_evt_received: pno match received
  * @pno_in_progress: pno in progress
- * @scan_disabled: if scan is disabled for this vdev
+ * @is_vdev_delete_in_progress: flag to indicate if vdev del is in progress
  * @first_scan_done: Whether its the first scan or not for this particular vdev.
  */
 struct scan_vdev_obj {
 	bool pno_match_evt_received;
 	bool pno_in_progress;
-	uint32_t scan_disabled;
+	bool is_vdev_delete_in_progress;
 	bool first_scan_done;
 };
 
-#ifdef FEATURE_WLAN_SCAN_PNO
 /**
  * struct pno_def_config - def configuration for PNO
- * @pno_offload_enabled: flag to check if PNO offload is enabled/disabled
  * @channel_prediction: config PNO channel prediction feature status
  * @top_k_num_of_channels: def top K number of channels are used for tanimoto
  * distance calculation.
  * @stationary_thresh: def threshold val to determine that STA is stationary.
+ * @scan_timer_repeat_value: PNO scan timer repeat value
+ * @slow_scan_multiplier: PNO slow scan timer multiplier
+ * @dfs_chnl_scan_enable: Enable dfs channel PNO scan
  * @pnoscan_adaptive_dwell_mode: def adaptive dwelltime mode for pno scan
  * @channel_prediction_full_scan: def periodic timer upon which full scan needs
  * to be triggered.
- * @dfs_chnl_scan_enable: Enable dfs channel PNO scan
- * @scan_support_enabled: PNO scan support enabled/disabled
- * @scan_timer_repeat_value: PNO scan timer repeat value
- * @slow_scan_multiplier: PNO slow scan timer multiplier
- * @max_sched_scan_plan_interval: PNO scan interval
- * @max_sched_scan_plan_iterations: PNO scan number of iterations
- * @scan_backoff_multiplier: Scan banckoff multiplier
  * @pno_wake_lock: pno wake lock
  * @pno_cb: callback to call on PNO completion
  * @mawc_params: Configuration parameters for NLO MAWC.
- * @user_config_sched_scan_plan: if enabled set user confing sched scan plan
  */
 struct pno_def_config {
-	bool pno_offload_enabled;
 	bool channel_prediction;
 	uint8_t top_k_num_of_channels;
 	uint8_t stationary_thresh;
-	enum scan_dwelltime_adaptive_mode adaptive_dwell_mode;
-	uint32_t channel_prediction_full_scan;
-	bool dfs_chnl_scan_enabled;
-	bool scan_support_enabled;
 	uint32_t scan_timer_repeat_value;
 	uint32_t slow_scan_multiplier;
-	uint32_t max_sched_scan_plan_interval;
-	uint32_t max_sched_scan_plan_iterations;
-	uint8_t scan_backoff_multiplier;
+	bool dfs_chnl_scan_enabled;
+	enum scan_dwelltime_adaptive_mode adaptive_dwell_mode;
+	uint32_t channel_prediction_full_scan;
 	qdf_wake_lock_t pno_wake_lock;
 	struct cb_handler pno_cb;
 	struct nlo_mawc_params mawc_params;
-	bool user_config_sched_scan_plan;
 };
-#endif
 
-#ifdef FEATURE_WLAN_EXTSCAN
-/**
- * struct extscan_def_config - def configuration for EXTSCAN
- * @extscan_enabled: enable extscan
- * @extscan_passive_max_chn_time: max passive channel time
- * @extscan_passive_min_chn_time: min passive channel time
- * @extscan_active_max_chn_time: max active channel time
- * @extscan_active_min_chn_time: min active channel time
- */
-struct extscan_def_config {
-	bool     extscan_enabled;
-	uint32_t extscan_passive_max_chn_time;
-	uint32_t extscan_passive_min_chn_time;
-	uint32_t extscan_active_max_chn_time;
-	uint32_t extscan_active_min_chn_time;
-};
-#endif
 
 /**
  * struct scan_default_params - default scan parameters to be used
  * @active_dwell: default active dwell time
  * @allow_dfs_chan_in_first_scan: first scan should contain dfs channels or not.
  * @allow_dfs_chan_in_scan: Scan DFS channels or not.
- * @skip_dfs_chan_in_p2p_search: Skip DFS channels in p2p search.
+ * @skip_dfs_chan_in_p2p_search: Skip dfs channels in p2p search.
  * @use_wake_lock_in_user_scan: if wake lock will be acquired during user scan
  * @active_dwell_2g: default active dwell time for 2G channels, if it's not zero
- * @active_dwell_6g: default active dwell time for 6G channels
- * @passive_dwell_6g: default passive dwell time for 6G channels
  * @passive_dwell:default passive dwell time
  * @max_rest_time: default max rest time
  * @sta_miracast_mcc_rest_time: max rest time for miracast and mcc
@@ -312,21 +310,21 @@ struct extscan_def_config {
  * @max_scan_time: default max scan time
  * @num_probes: default maximum number of probes to sent
  * @cache_aging_time: default scan cache aging time
+ * @prefer_5ghz: Prefer 5ghz AP over 2.4Ghz AP
  * @select_5gh_margin: Prefer connecting to 5G AP even if
  *      its RSSI is lower by select_5gh_margin dbm than 2.4G AP.
  *      applicable if prefer_5ghz is set.
  * @is_bssid_hint_priority: True if bssid_hint is given priority
  * @enable_mac_spoofing: enable mac address spoof in scan
+ * @bss_prefer_val: bss prefer value for the RSSI category
+ * @rssi_cat: RSSI category
  * @max_bss_per_pdev: maximum number of bss entries to be maintained per pdev
  * @max_active_scans_allowed: maximum number of active parallel scan allowed
  *                            per psoc
- * @scan_mode_6g: scan mode in 6Ghz
- * @enable_connected_scan: enable scans after connection
  * @scan_priority: default scan priority
  * @adaptive_dwell_time_mode: adaptive dwell mode with connection
  * @adaptive_dwell_time_mode_nc: adaptive dwell mode without connection
  * @honour_nl_scan_policy_flags: honour nl80211 scan policy flags
- * @extscan_adaptive_dwell_mode: Adaptive dwell mode during ext scan
  * @scan_f_passive: passively scan all channels including active channels
  * @scan_f_bcast_probe: add wild card ssid prbreq even if ssid_list is specified
  * @scan_f_cck_rates: add cck rates to rates/xrates ie in prb req
@@ -378,8 +376,6 @@ struct scan_default_params {
 	bool skip_dfs_chan_in_p2p_search;
 	bool use_wake_lock_in_user_scan;
 	uint32_t active_dwell_2g;
-	uint32_t active_dwell_6g;
-	uint32_t passive_dwell_6g;
 	uint32_t passive_dwell;
 	uint32_t max_rest_time;
 	uint32_t sta_miracast_mcc_rest_time;
@@ -396,25 +392,26 @@ struct scan_default_params {
 	uint32_t burst_duration;
 	uint32_t max_scan_time;
 	uint32_t num_probes;
-	qdf_time_t scan_cache_aging_time;
+	uint32_t scan_cache_aging_time;
+	uint32_t prefer_5ghz;
 	uint32_t select_5ghz_margin;
 	bool enable_mac_spoofing;
 	bool is_bssid_hint_priority;
 	uint32_t usr_cfg_probe_rpt_time;
 	uint32_t usr_cfg_num_probes;
+	/* each RSSI category has one value */
+	uint32_t bss_prefer_val[SCM_NUM_RSSI_CAT];
+	int rssi_cat[SCM_NUM_RSSI_CAT];
 	uint16_t max_bss_per_pdev;
 	uint32_t max_active_scans_allowed;
 	uint8_t sta_scan_burst_duration;
 	uint8_t p2p_scan_burst_duration;
 	uint8_t go_scan_burst_duration;
 	uint8_t ap_scan_burst_duration;
-	enum scan_mode_6ghz scan_mode_6g;
-	bool enable_connected_scan;
 	enum scan_priority scan_priority;
 	enum scan_dwelltime_adaptive_mode adaptive_dwell_time_mode;
 	enum scan_dwelltime_adaptive_mode adaptive_dwell_time_mode_nc;
 	bool honour_nl_scan_policy_flags;
-	enum scan_dwelltime_adaptive_mode extscan_adaptive_dwell_mode;
 	union {
 		struct {
 			uint32_t scan_f_passive:1,
@@ -463,6 +460,7 @@ struct scan_default_params {
 		};
 		uint32_t scan_events;
 	};
+	struct roam_filter_params roam_params;
 	struct scoring_config score_config;
 };
 
@@ -481,7 +479,7 @@ struct scan_cb {
 
 /**
  * struct wlan_scan_obj - scan object definition
- * @scan_disabled: if scan is disabled
+ * @enable_scan: if scan is enabled
  * @scan_db:    scan cache data base
  * @cc_db:      pointer of country code data base
  * @lock:       spin lock
@@ -492,21 +490,16 @@ struct scan_cb {
  * @global_evhandlers:  registered scan event handlers
  * @pdev_info: pointer to pdev info
  * @pno_cfg: default pno configuration
- * @extscan_cfg: default extscan configuration
  * @ie_whitelist: default ie whitelist attrs
  * @bt_a2dp_enabled: if bt a2dp is enabled
  * @miracast_enabled: miracast enabled
  * @disable_timeout: command timeout disabled
  * @drop_bcn_on_chan_mismatch: drop bcn if channel mismatch
- * @drop_bcn_on_invalid_freq: drop bcn if freq is invalid in IEs (DS/HT/HE)
  * @scan_start_request_buff: buffer used to pass
  *      scan config to event handlers
- * @rnr_channel_db: RNR channel list database
- * @allow_bss_with_incomplete_ie: Continue scan entry even if any corrupted IES
- *  are present.
  */
 struct wlan_scan_obj {
-	uint32_t scan_disabled;
+	bool enable_scan;
 	qdf_spinlock_t lock;
 	qdf_atomic_t scan_ids;
 	struct scan_dbs scan_db[WLAN_UMAC_MAX_PDEVS];
@@ -516,23 +509,13 @@ struct wlan_scan_obj {
 	struct scan_requester_info requesters[WLAN_MAX_REQUESTORS];
 	struct global_scan_ev_handlers global_evhandlers;
 	struct pdev_scan_info pdev_info[WLAN_UMAC_MAX_PDEVS];
-#ifdef FEATURE_WLAN_SCAN_PNO
 	struct pno_def_config pno_cfg;
-#endif
-#ifdef FEATURE_WLAN_EXTSCAN
-	struct extscan_def_config extscan_cfg;
-#endif
 	struct probe_req_whitelist_attr ie_whitelist;
 	bool bt_a2dp_enabled;
 	bool miracast_enabled;
 	bool disable_timeout;
 	bool drop_bcn_on_chan_mismatch;
-	bool drop_bcn_on_invalid_freq;
 	struct scan_start_request scan_start_request_buff;
-#ifdef FEATURE_6G_SCAN_CHAN_SORT_ALGO
-	struct channel_list_db rnr_channel_db;
-#endif
-	bool allow_bss_with_incomplete_ie;
 };
 
 /**
@@ -541,23 +524,15 @@ struct wlan_scan_obj {
  *
  * Return: scan object
  */
-#define wlan_psoc_get_scan_obj(psoc) \
-	wlan_psoc_get_scan_obj_fl(psoc, \
-				  __func__, __LINE__)
-
 static inline struct wlan_scan_obj *
-wlan_psoc_get_scan_obj_fl(struct wlan_objmgr_psoc *psoc,
-			  const char *func, uint32_t line)
+wlan_psoc_get_scan_obj(struct wlan_objmgr_psoc *psoc)
 {
 	struct wlan_scan_obj *scan_obj;
 
 	scan_obj = (struct wlan_scan_obj *)
 		wlan_objmgr_psoc_get_comp_private_obj(psoc,
 				WLAN_UMAC_COMP_SCAN);
-	if (!scan_obj) {
-		scm_err("%s:%u, Failed to get scan object", func, line);
-		return NULL;
-	}
+
 	return scan_obj;
 }
 

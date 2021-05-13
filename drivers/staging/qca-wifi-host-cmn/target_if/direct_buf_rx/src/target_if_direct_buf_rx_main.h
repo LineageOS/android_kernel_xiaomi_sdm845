@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -21,21 +21,24 @@
 
 #include "qdf_types.h"
 #include "qdf_status.h"
-#include <target_if_direct_buf_rx_api.h>
 
 struct wlan_objmgr_psoc;
 struct wlan_lmac_if_tx_ops;
 struct direct_buf_rx_data;
 
 #define DBR_RING_BASE_ALIGN 8
+#define DBR_EVENT_TIMEOUT_IN_MS 1
+#define DBR_NUM_RESP_PER_EVENT 1
 
-#ifdef DBR_MULTI_SRNG_ENABLE
-#define DBR_SRNG_NUM 2
-#define dbr_get_pdev_id(srng_id, pdev_id) (srng_id)
-#else
-#define DBR_SRNG_NUM 1
-#define dbr_get_pdev_id(srng_id, pdev_id) (pdev_id)
-#endif
+/**
+ * enum DBR_MODULE - Enum containing the modules supporting direct buf rx
+ * @DBR_MODULE_SPECTRAL: Module ID for Spectral
+ * @DBR_MODULE_MAX: Max module ID
+ */
+enum DBR_MODULE {
+	DBR_MODULE_SPECTRAL = 1,
+	DBR_MODULE_MAX,
+};
 
 /**
  * struct direct_buf_rx_info - direct buffer rx operation info struct
@@ -89,88 +92,8 @@ struct direct_buf_rx_ring_cap {
 };
 
 /**
- * enum DBR_RING_DEBUG_EVENT - DMA ring debug event
- * @DBR_RING_DEBUG_EVENT_NONE: Not a real value, just a place holder for
- * no entry
- * @DBR_RING_DEBUG_EVENT_RX: DBR Rx event
- * @DBR_RING_DEBUG_EVENT_REPLENISH_RING: DBR replenish event
- * @DBR_RING_DEBUG_EVENT_MAX: Not a real value, just a place holder for max
- */
-enum DBR_RING_DEBUG_EVENT {
-	DBR_RING_DEBUG_EVENT_NONE = 0,
-	DBR_RING_DEBUG_EVENT_RX,
-	DBR_RING_DEBUG_EVENT_REPLENISH_RING,
-	DBR_RING_DEBUG_EVENT_MAX,
-};
-
-#define DIRECT_BUF_RX_MAX_RING_DEBUG_ENTRIES (1024)
-/**
- * struct direct_buf_rx_ring_debug_entry - DBR ring debug entry
- * @head_idx: Head index of the DMA ring
- * @tail_idx: Tail index of the DMA ring
- * @timestamp: Timestamp at the time of logging
- * @event: Name of the event
- */
-struct direct_buf_rx_ring_debug_entry {
-	uint32_t head_idx;
-	uint32_t tail_idx;
-	uint64_t timestamp;
-	enum DBR_RING_DEBUG_EVENT event;
-};
-
-#ifdef WLAN_DEBUGFS
-/**
- * struct dbr_debugfs_priv - Private data for DBR ring debugfs
- * @dbr_pdev_obj: Pointer to the pdev obj of Direct buffer rx module
- * @mod_id: Pointer to the registered module ID
- * @srng_id: srng ID
- */
-struct dbr_debugfs_priv {
-	struct direct_buf_rx_pdev_obj *dbr_pdev_obj;
-	enum DBR_MODULE mod_id;
-	uint8_t srng_id;
-};
-#endif
-
-/**
- * struct direct_buf_rx_ring_debug - DMA ring debug of a module
- * @entries: Pointer to the array of ring debug entries
- * @ring_debug_idx: Current index in the array of ring debug entries
- * @num_ring_debug_entries: Total ring debug entries
- * @debugfs_entry: Debugfs entry for this ring
- * @debugfs_priv: Debugfs ops for this ring
- */
-struct direct_buf_rx_ring_debug {
-	struct direct_buf_rx_ring_debug_entry *entries;
-	uint32_t ring_debug_idx;
-	uint32_t num_ring_debug_entries;
-#ifdef WLAN_DEBUGFS
-	qdf_dentry_t debugfs_entry;
-	struct qdf_debugfs_fops *debugfs_fops;
-#endif
-};
-
-/**
- * struct direct_buf_rx_module_debug - Debug of a module subscribed to DBR
- * @dbr_ring_debug: Array of ring debug structers corresponding to each srng
- * @poisoning_enabled: Whether buffer poisoning is enabled for this module
- * @poison_value: Value with which buffers should be poisoned
- * @debugfs_entry: Debugfs entry for this module
- */
-struct direct_buf_rx_module_debug {
-	struct direct_buf_rx_ring_debug dbr_ring_debug[DBR_SRNG_NUM];
-	bool poisoning_enabled;
-	uint32_t poison_value;
-#ifdef WLAN_DEBUGFS
-	qdf_dentry_t debugfs_entry;
-#endif
-};
-
-/**
  * struct direct_buf_rx_module_param - DMA module param
  * @mod_id: Module ID
- * @pdev_id: pdev ID
- * @dbr_config: Pointer to dirct buf rx module configuration struct
  * @dbr_ring_cap: Pointer to direct buf rx ring capabilities struct
  * @dbr_ring_cfg: Pointer to direct buf rx ring config struct
  * @dbr_buf_pool: Pointer to direct buf rx buffer pool struct
@@ -178,54 +101,31 @@ struct direct_buf_rx_module_debug {
  */
 struct direct_buf_rx_module_param {
 	enum DBR_MODULE mod_id;
-	uint8_t pdev_id;
-	uint8_t srng_id;
-	struct dbr_module_config dbr_config;
 	struct direct_buf_rx_ring_cap *dbr_ring_cap;
 	struct direct_buf_rx_ring_cfg *dbr_ring_cfg;
 	struct direct_buf_rx_buf_info *dbr_buf_pool;
-	bool (*dbr_rsp_handler)(struct wlan_objmgr_pdev *pdev,
-				struct direct_buf_rx_data *dbr_data);
+	int (*dbr_rsp_handler)(struct wlan_objmgr_pdev *pdev,
+			       struct direct_buf_rx_data *dbr_data);
 };
 
 /**
  * struct direct_buf_rx_pdev_obj - Direct Buf RX pdev object struct
  * @num_modules: Number of modules registered to DBR for the pdev
  * @dbr_mod_param: Pointer to direct buf rx module param struct
- * @dbr_mod_debug: Pointer to the array of DBR module debug structures
- * @debugfs_entry: DBR debugfs entry of this radio
  */
 struct direct_buf_rx_pdev_obj {
 	uint32_t num_modules;
-	struct direct_buf_rx_module_param (*dbr_mod_param)[DBR_SRNG_NUM];
-#ifdef DIRECT_BUF_RX_DEBUG
-	struct direct_buf_rx_module_debug *dbr_mod_debug;
-#ifdef WLAN_DEBUGFS
-	qdf_dentry_t debugfs_entry;
-#endif
-#endif
+	struct direct_buf_rx_module_param *dbr_mod_param;
 };
 
 /**
  * struct direct_buf_rx_psoc_obj - Direct Buf RX psoc object struct
  * @hal_soc: Opaque HAL SOC handle
  * @osdev: QDF os device handle
- * @dbr_pdev_objs: array of DBR pdev objects
  */
 struct direct_buf_rx_psoc_obj {
 	void *hal_soc;
 	qdf_device_t osdev;
-	struct direct_buf_rx_pdev_obj *dbr_pdev_obj[WLAN_UMAC_MAX_PDEVS];
-};
-
-/**
- * struct module_ring_params - Direct buf ring params for module
- * @num_bufs: Number of buffers alloted to this module
- * @buf_size: size of buffers
- */
-struct module_ring_params {
-	uint32_t num_bufs;
-	uint32_t buf_size;
 };
 
 /**
@@ -247,16 +147,6 @@ QDF_STATUS target_if_direct_buf_rx_register_events(
  */
 QDF_STATUS target_if_direct_buf_rx_unregister_events(
 				struct wlan_objmgr_psoc *psoc);
-
-/**
- * target_if_direct_buf_rx_print_ring_stat() - Print ring status for each
- *                                             module in the pdev
- * @pdev: pointer to pdev object
- *
- * Return : QDF status of operation
- */
-QDF_STATUS target_if_direct_buf_rx_print_ring_stat(
-				struct wlan_objmgr_pdev *pdev);
 
 /**
  * target_if_direct_buf_rx_pdev_create_handler() - Handler to be invoked for
@@ -310,19 +200,17 @@ QDF_STATUS target_if_direct_buf_rx_psoc_destroy_handler(
  * @pdev: pointer to pdev object
  * @dbr_pdev_obj: pointer to direct buffer rx module pdev obj
  * @mod_id: module id indicating the module using direct buffer rx framework
- * @srng_id: srng ID
  *
  * Return : QDF status of operation
  */
 QDF_STATUS target_if_deinit_dbr_ring(struct wlan_objmgr_pdev *pdev,
 				struct direct_buf_rx_pdev_obj *dbr_pdev_obj,
-				enum DBR_MODULE mod_id, uint8_t srng_id);
+				enum DBR_MODULE mod_id);
 /**
  * target_if_direct_buf_rx_module_register() - Function to register to direct
  *                                             buffer rx module
  * @pdev: pointer to pdev object
  * @mod_id: module id indicating the module using direct buffer rx framework
- * @dbr_config: dbr module configuration params
  * @dbr_rsp_handler: function pointer pointing to the response handler to be
  *                   invoked for the module registering to direct buffer rx
  *                   module
@@ -331,73 +219,7 @@ QDF_STATUS target_if_deinit_dbr_ring(struct wlan_objmgr_pdev *pdev,
  */
 QDF_STATUS target_if_direct_buf_rx_module_register(
 			struct wlan_objmgr_pdev *pdev, uint8_t mod_id,
-			struct dbr_module_config *dbr_config,
-			bool (*dbr_rsp_handler)
-			     (struct wlan_objmgr_pdev *pdev,
-			      struct direct_buf_rx_data *dbr_data));
+			int (*dbr_rsp_handler)(struct wlan_objmgr_pdev *pdev,
+				struct direct_buf_rx_data *dbr_data));
 
-/**
- * target_if_direct_buf_rx_module_unregister() - Function to unregister to
- *                                               direct buffer rx module
- * @pdev: pointer to pdev object
- * @mod_id: module id indicating the module using direct buffer rx framework
- *
- * Return: QDF status of operation
- */
-QDF_STATUS target_if_direct_buf_rx_module_unregister(
-			struct wlan_objmgr_pdev *pdev, uint8_t mod_id);
-
-/**
- * target_if_direct_buf_rx_get_ring_params() - Function to get ring parameters
- *                                             for module_id
- * @pdev: pointer to pdev object
- * @module_ring_params: pointer to store ring params
- * @mod_id: module idindicating module using direct buffer rx framework
- * @srng_id: srng ID
- */
-QDF_STATUS
-target_if_direct_buf_rx_get_ring_params(struct wlan_objmgr_pdev *pdev,
-					struct module_ring_params *param,
-					uint8_t mod_id, uint8_t srng_id);
-
-/**
- * target_if_dbr_start_ring_debug() - Start DBR ring debug
- * @pdev: pointer to pdev object
- * @mod_id: module ID indicating the module using direct buffer rx framework
- * @num_ring_debug_entries: Size of the ring debug entries
- */
-QDF_STATUS target_if_dbr_start_ring_debug(struct wlan_objmgr_pdev *pdev,
-					  uint8_t mod_id,
-					  uint32_t num_ring_debug_entries);
-
-/**
- * target_if_dbr_stop_ring_debug() - Stop DBR ring debug
- * @pdev: pointer to pdev object
- * @mod_id: module ID indicating the module using direct buffer rx framework
- */
-QDF_STATUS target_if_dbr_stop_ring_debug(struct wlan_objmgr_pdev *pdev,
-					 uint8_t mod_id);
-
-/**
- * target_if_dbr_start_buffer_poisoning() - Start DBR buffer poisoning
- * @pdev: pointer to pdev object
- * @mod_id: module ID indicating the module using direct buffer rx framework
- * @value: Value with which buffers should be poisoned
- *
- * Only those buffers which are going to be mapped to the device after this
- * API call are guaranteed to be poisoned. If user wants all the buffers in
- * the ring to be poisoned from their creation time then this API should be
- * called before module's registration to the DBR.
- *
- */
-QDF_STATUS target_if_dbr_start_buffer_poisoning(struct wlan_objmgr_pdev *pdev,
-						uint8_t mod_id, uint32_t value);
-
-/**
- * target_if_dbr_stop_buffer_poisoning() - Stop DBR buffer poisoning
- * @pdev: pointer to pdev object
- * @mod_id: module ID indicating the module using direct buffer rx framework
- */
-QDF_STATUS target_if_dbr_stop_buffer_poisoning(struct wlan_objmgr_pdev *pdev,
-					       uint8_t mod_id);
 #endif /* _TARGET_IF_DIRECT_BUF_RX_MAIN_H_ */

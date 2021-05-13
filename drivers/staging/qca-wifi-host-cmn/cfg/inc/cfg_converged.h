@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -23,24 +23,8 @@
 #ifndef __CFG_CONVERGED_H
 #define __CFG_CONVERGED_H
 
-#include <wlan_scan_cfg.h>
-#include "cfg_dp.h"
-#include "cfg_hif.h"
-#include <wlan_extscan_cfg.h>
-#ifdef WLAN_SUPPORT_GREEN_AP
-#include "cfg_green_ap_params.h"
-#else
-#define CFG_GREEN_AP_ALL
-#endif
-#include <cfg_spectral.h>
-
 #define CFG_CONVERGED_ALL \
-		CFG_SCAN_ALL \
-		CFG_DP \
-		CFG_EXTSCAN_ALL \
-		CFG_GREEN_AP_ALL \
-		CFG_SPECTRAL_ALL \
-		CFG_HIF
+	/* i.e. CFG_SCAN_ALL etc. */
 
 #endif /* __CFG_CONVERGED_H */
 

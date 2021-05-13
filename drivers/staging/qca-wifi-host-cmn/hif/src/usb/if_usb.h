@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -117,7 +117,6 @@ struct HIF_DEVICE_USB {
 	qdf_spinlock_t cs_lock;
 	qdf_spinlock_t tx_lock;
 	qdf_spinlock_t rx_lock;
-	qdf_spinlock_t rx_prestart_lock;
 	struct hif_msg_callbacks htc_callbacks;
 	struct usb_device *udev;
 	struct usb_interface *interface;
@@ -128,7 +127,6 @@ struct HIF_DEVICE_USB {
 	A_BOOL is_bundle_enabled;
 	uint16_t rx_bundle_cnt;
 	uint32_t rx_bundle_buf_len;
-	bool rx_ctrl_pipe_supported;
 };
 
 struct hif_usb_softc {

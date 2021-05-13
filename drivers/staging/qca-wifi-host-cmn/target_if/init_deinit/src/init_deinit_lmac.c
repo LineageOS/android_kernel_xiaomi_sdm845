@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -68,12 +68,20 @@ target_resource_config *lmac_get_tgt_res_cfg(struct wlan_objmgr_psoc *psoc)
 
 int32_t lmac_get_pdev_idx(struct wlan_objmgr_pdev *pdev)
 {
+	struct target_pdev_info *tgt_hdl;
+
 	if (!pdev) {
 		target_if_err("pdev is null");
 		return 0xffffffff;
 	}
 
-	return wlan_objmgr_pdev_get_pdev_id(pdev);
+	tgt_hdl = wlan_pdev_get_tgt_if_handle(pdev);
+	if (!tgt_hdl) {
+		target_if_err("target_pdev_info is null");
+		return 0xffffffff;
+	}
+
+	return target_pdev_get_pdev_idx(tgt_hdl);
 }
 
 uint32_t lmac_get_tgt_type(struct wlan_objmgr_psoc *psoc)
@@ -128,7 +136,6 @@ uint32_t lmac_get_tgt_version(struct wlan_objmgr_psoc *psoc)
 
 	return target_psoc_get_target_ver(tgt_hdl);
 }
-qdf_export_symbol(lmac_get_tgt_version);
 
 uint32_t lmac_get_tgt_revision(struct wlan_objmgr_psoc *psoc)
 {
@@ -179,7 +186,7 @@ bool lmac_is_target_ar900b(struct wlan_objmgr_psoc *psoc)
 }
 qdf_export_symbol(lmac_is_target_ar900b);
 
-struct wmi_unified *lmac_get_wmi_hdl(struct wlan_objmgr_psoc *psoc)
+struct common_wmi_handle *lmac_get_wmi_hdl(struct wlan_objmgr_psoc *psoc)
 {
 	struct target_psoc_info *tgt_hdl;
 
@@ -204,7 +211,7 @@ wmi_unified_t lmac_get_wmi_unified_hdl(struct wlan_objmgr_psoc *psoc)
 }
 qdf_export_symbol(lmac_get_wmi_unified_hdl);
 
-HTC_HANDLE lmac_get_htc_hdl(struct wlan_objmgr_psoc *psoc)
+struct common_htc_handle *lmac_get_htc_hdl(struct wlan_objmgr_psoc *psoc)
 {
 	struct target_psoc_info *tgt_hdl;
 
@@ -224,7 +231,7 @@ HTC_HANDLE lmac_get_htc_hdl(struct wlan_objmgr_psoc *psoc)
 qdf_export_symbol(lmac_get_htc_hdl);
 
 void lmac_set_htc_hdl(struct wlan_objmgr_psoc *psoc,
-		      HTC_HANDLE htc_hdl)
+		struct common_htc_handle *htc_hdl)
 {
 	struct target_psoc_info *tgt_hdl;
 
@@ -232,7 +239,7 @@ void lmac_set_htc_hdl(struct wlan_objmgr_psoc *psoc,
 		target_if_err("psoc is null");
 		return;
 	}
-	tgt_hdl = wlan_psoc_get_tgt_if_handle(psoc);
+	tgt_hdl = (struct target_psoc_info *)wlan_psoc_get_tgt_if_handle(psoc);
 	if (!tgt_hdl) {
 		target_if_err("target_psoc_info is null");
 		return;
@@ -241,7 +248,7 @@ void lmac_set_htc_hdl(struct wlan_objmgr_psoc *psoc,
 	target_psoc_set_htc_hdl(tgt_hdl, htc_hdl);
 }
 
-struct hif_opaque_softc *lmac_get_hif_hdl(struct wlan_objmgr_psoc *psoc)
+struct common_hif_handle *lmac_get_hif_hdl(struct wlan_objmgr_psoc *psoc)
 {
 	struct target_psoc_info *tgt_hdl;
 
@@ -266,7 +273,7 @@ struct hif_opaque_softc *lmac_get_ol_hif_hdl(struct wlan_objmgr_psoc *psoc)
 }
 qdf_export_symbol(lmac_get_ol_hif_hdl);
 
-struct wmi_unified *lmac_get_pdev_wmi_handle(
+struct common_wmi_handle *lmac_get_pdev_wmi_handle(
 		struct wlan_objmgr_pdev *pdev)
 {
 	struct target_pdev_info *tgt_hdl;
@@ -284,7 +291,6 @@ struct wmi_unified *lmac_get_pdev_wmi_handle(
 
 	return target_pdev_get_wmi_handle(tgt_hdl);
 }
-qdf_export_symbol(lmac_get_pdev_wmi_handle);
 
 wmi_unified_t
 lmac_get_pdev_wmi_unified_handle(struct wlan_objmgr_pdev *pdev)
@@ -345,23 +351,3 @@ void *lmac_get_pdev_feature_ptr(struct wlan_objmgr_pdev *pdev)
 	return target_pdev_get_feature_ptr(tgt_hdl);
 }
 qdf_export_symbol(lmac_get_pdev_feature_ptr);
-
-enum wmi_host_hw_mode_config_type lmac_get_preferred_hw_mode(
-				struct wlan_objmgr_psoc *psoc)
-{
-	struct target_psoc_info *tgt_hdl;
-
-	if (!psoc) {
-		target_if_err("psoc is null");
-		return WMI_HOST_HW_MODE_MAX;
-	}
-	tgt_hdl = wlan_psoc_get_tgt_if_handle(psoc);
-	if (!tgt_hdl) {
-		target_if_err("target_psoc_info is null");
-		return WMI_HOST_HW_MODE_MAX;
-	}
-
-	return target_psoc_get_preferred_hw_mode(tgt_hdl);
-}
-
-qdf_export_symbol(lmac_get_preferred_hw_mode);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -35,14 +35,13 @@
 #include "ahb_api.h"
 #include "pci_api.h"
 #include "hif_napi.h"
-#include "qal_vbus_dev.h"
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
 #define IRQF_DISABLED 0x00000020
 #endif
 
 #define HIF_IC_CE0_IRQ_OFFSET 4
-#define HIF_IC_MAX_IRQ 52
+#define HIF_IC_MAX_IRQ 54
 
 static uint8_t ic_irqnum[HIF_IC_MAX_IRQ];
 /* integrated chip irq names */
@@ -63,6 +62,8 @@ const char *ic_irqname[HIF_IC_MAX_IRQ] = {
 "ce9",
 "ce10",
 "ce11",
+"ce12",
+"ce13",
 "host2wbm-desc-feed",
 "host2reo-re-injection",
 "host2reo-command",
@@ -100,19 +101,6 @@ const char *ic_irqname[HIF_IC_MAX_IRQ] = {
 "wbm2host-tx-completions-ring1",
 "tcl2host-status-ring",
 };
-
-/** hif_ahb_get_irq_name() - get irqname
- * This function gives irqnumber to irqname
- * mapping.
- *
- * @irq_no: irq number
- *
- * Return: irq name
- */
-const char *hif_ahb_get_irq_name(int irq_no)
-{
-	return ic_irqname[irq_no];
-}
 
 /**
  * hif_disable_isr() - disable isr
@@ -230,28 +218,29 @@ int hif_ahb_configure_legacy_irq(struct hif_pci_softc *sc)
 
 	/* do not support MSI or MSI IRQ failed */
 	tasklet_init(&sc->intr_tq, wlan_tasklet, (unsigned long)sc);
-	qal_vbus_get_irq((struct qdf_pfm_hndl *)pdev, "legacy", &irq);
+	irq = platform_get_irq_byname(pdev, "legacy");
 	if (irq < 0) {
 		dev_err(&pdev->dev, "Unable to get irq\n");
-		ret = -EFAULT;
+		ret = -1;
 		goto end;
 	}
 	ret = request_irq(irq, hif_pci_legacy_ce_interrupt_handler,
 				IRQF_DISABLED, "wlan_ahb", sc);
 	if (ret) {
 		dev_err(&pdev->dev, "ath_request_irq failed\n");
-		ret = -EFAULT;
+		ret = -1;
 		goto end;
 	}
 	sc->irq = irq;
 
 	/* Use Legacy PCI Interrupts */
-	hif_write32_mb(sc, sc->mem + (SOC_CORE_BASE_ADDRESS |
+	hif_write32_mb(sc->mem+(SOC_CORE_BASE_ADDRESS |
 				PCIE_INTR_ENABLE_ADDRESS),
 			PCIE_INTR_FIRMWARE_MASK | PCIE_INTR_CE_MASK_ALL);
 	/* read once to flush */
-	hif_read32_mb(sc, sc->mem + (SOC_CORE_BASE_ADDRESS |
-				PCIE_INTR_ENABLE_ADDRESS));
+	hif_read32_mb(sc->mem+(SOC_CORE_BASE_ADDRESS |
+				PCIE_INTR_ENABLE_ADDRESS)
+		     );
 
 end:
 	return ret;
@@ -271,24 +260,15 @@ int hif_ahb_configure_irq(struct hif_pci_softc *sc)
 	for (i = 0; i < scn->ce_count; i++) {
 		if (host_ce_conf[i].flags & CE_ATTR_DISABLE_INTR)
 			continue;
-		ret = pfrm_get_irq(&pdev->dev, (struct qdf_pfm_hndl *)pdev,
-				   ic_irqname[HIF_IC_CE0_IRQ_OFFSET + i],
-				   HIF_IC_CE0_IRQ_OFFSET + i, &irq);
-		if (ret) {
-			dev_err(&pdev->dev, "get irq failed\n");
-			ret = -EFAULT;
-			goto end;
-		}
-
+		irq = platform_get_irq_byname(pdev, ic_irqname[HIF_IC_CE0_IRQ_OFFSET + i]);
 		ic_irqnum[HIF_IC_CE0_IRQ_OFFSET + i] = irq;
-		ret = pfrm_request_irq(&pdev->dev, irq,
-				       hif_ahb_interrupt_handler,
-				       IRQF_TRIGGER_RISING,
-				       ic_irqname[HIF_IC_CE0_IRQ_OFFSET + i],
-				       &hif_state->tasklets[i]);
+		ret = request_irq(irq ,
+				hif_ahb_interrupt_handler,
+				IRQF_TRIGGER_RISING, ic_irqname[HIF_IC_CE0_IRQ_OFFSET + i],
+				&hif_state->tasklets[i]);
 		if (ret) {
 			dev_err(&pdev->dev, "ath_request_irq failed\n");
-			ret = -EFAULT;
+			ret = -1;
 			goto end;
 		}
 		hif_ahb_irq_enable(scn, i);
@@ -305,50 +285,35 @@ int hif_ahb_configure_grp_irq(struct hif_softc *scn,
 	struct hif_pci_softc *sc = HIF_GET_PCI_SOFTC(scn);
 	struct platform_device *pdev = (struct platform_device *)sc->pdev;
 	int irq = 0;
+	const char *irq_name;
 	int j;
 
 	/* configure external interrupts */
 	hif_ext_group->irq_enable = &hif_ahb_exec_grp_irq_enable;
 	hif_ext_group->irq_disable = &hif_ahb_exec_grp_irq_disable;
-	hif_ext_group->irq_name = &hif_ahb_get_irq_name;
 	hif_ext_group->work_complete = &hif_dummy_grp_done;
 
+	hif_ext_group->irq_requested = true;
+
 	for (j = 0; j < hif_ext_group->numirq; j++) {
-		ret = pfrm_get_irq(&pdev->dev, (struct qdf_pfm_hndl *)pdev,
-				   ic_irqname[hif_ext_group->irq[j]],
-				   hif_ext_group->irq[j], &irq);
+		irq_name = ic_irqname[hif_ext_group->irq[j]];
+		irq = platform_get_irq_byname(pdev, irq_name);
+
+		ic_irqnum[hif_ext_group->irq[j]] = irq;
+		ret = request_irq(irq, hif_ext_group_interrupt_handler,
+				  IRQF_TRIGGER_RISING,
+				  ic_irqname[hif_ext_group->irq[j]],
+				  hif_ext_group);
 		if (ret) {
-			dev_err(&pdev->dev, "get irq failed\n");
-			ret = -EFAULT;
+			dev_err(&pdev->dev,
+				"ath_request_irq failed\n");
+			ret = -1;
 			goto end;
 		}
-		ic_irqnum[hif_ext_group->irq[j]] = irq;
 		hif_ext_group->os_irq[j] = irq;
 	}
 
-	qdf_spin_lock_irqsave(&hif_ext_group->irq_lock);
-
-	for (j = 0; j < hif_ext_group->numirq; j++) {
-		irq = hif_ext_group->os_irq[j];
-		irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
-		ret = pfrm_request_irq(scn->qdf_dev->dev,
-				       irq, hif_ext_group_interrupt_handler,
-				       IRQF_TRIGGER_RISING,
-				       ic_irqname[hif_ext_group->irq[j]],
-				       hif_ext_group);
-		if (ret) {
-			dev_err(&pdev->dev, "ath_request_irq failed\n");
-			ret = -EFAULT;
-			goto end;
-		}
-	}
-	qdf_spin_unlock_irqrestore(&hif_ext_group->irq_lock);
-
-	qdf_spin_lock_irqsave(&hif_ext_group->irq_lock);
-	hif_ext_group->irq_requested = true;
-
 end:
-	qdf_spin_unlock_irqrestore(&hif_ext_group->irq_lock);
 	return ret;
 }
 
@@ -357,31 +322,15 @@ void hif_ahb_deconfigure_grp_irq(struct hif_softc *scn)
 	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
 	struct hif_exec_context *hif_ext_group;
 	int i, j;
-	int irq = 0;
 
 	/* configure external interrupts */
 	for (i = 0; i < hif_state->hif_num_extgroup; i++) {
 		hif_ext_group = hif_state->hif_ext_group[i];
 		if (hif_ext_group->irq_requested == true) {
-			qdf_spin_lock_irqsave(&hif_ext_group->irq_lock);
 			hif_ext_group->irq_requested = false;
 			for (j = 0; j < hif_ext_group->numirq; j++) {
-				irq = hif_ext_group->os_irq[j];
-				hif_ext_group->irq_enabled = false;
-				irq_clear_status_flags(irq,
-						       IRQ_DISABLE_UNLAZY);
-			}
-			qdf_spin_unlock_irqrestore(&hif_ext_group->irq_lock);
-
-			/* Avoid holding the irq_lock while freeing the irq
-			 * as the same lock is being held by the irq handler
-			 * while disabling the irq. This causes a deadlock
-			 * between free_irq and irq_handler.
-			 */
-			for (j = 0; j < hif_ext_group->numirq; j++) {
-				irq = hif_ext_group->os_irq[j];
-				pfrm_free_irq(scn->qdf_dev->dev,
-					      irq, hif_ext_group);
+				free_irq(hif_ext_group->os_irq[j],
+						hif_ext_group);
 			}
 		}
 	}
@@ -406,36 +355,19 @@ irqreturn_t hif_ahb_interrupt_handler(int irq, void *context)
  */
 int hif_target_sync_ahb(struct hif_softc *scn)
 {
-	int val = 0;
-	int limit = 0;
-
-	while (limit < 50) {
-		hif_write32_mb(scn, scn->mem +
-			(SOC_CORE_BASE_ADDRESS | PCIE_INTR_ENABLE_ADDRESS),
-			PCIE_INTR_FIRMWARE_MASK | PCIE_INTR_CE_MASK_ALL);
-		qdf_mdelay(10);
-		val = hif_read32_mb(scn, scn->mem +
-			(SOC_CORE_BASE_ADDRESS | PCIE_INTR_ENABLE_ADDRESS));
-		if (val == 0)
-			break;
-		limit++;
-	}
-	hif_write32_mb(scn, scn->mem +
-		(SOC_CORE_BASE_ADDRESS | PCIE_INTR_ENABLE_ADDRESS),
-		PCIE_INTR_FIRMWARE_MASK | PCIE_INTR_CE_MASK_ALL);
-	hif_write32_mb(scn, scn->mem + FW_INDICATOR_ADDRESS, FW_IND_HOST_READY);
+	hif_write32_mb(scn->mem + FW_INDICATOR_ADDRESS, FW_IND_HOST_READY);
 	if (HAS_FW_INDICATOR) {
 		int wait_limit = 500;
 		int fw_ind = 0;
 
 		while (1) {
-			fw_ind = hif_read32_mb(scn, scn->mem +
+			fw_ind = hif_read32_mb(scn->mem +
 					FW_INDICATOR_ADDRESS);
 			if (fw_ind & FW_IND_INITIALIZED)
 				break;
 			if (wait_limit-- < 0)
 				break;
-			hif_write32_mb(scn, scn->mem + (SOC_CORE_BASE_ADDRESS |
+			hif_write32_mb(scn->mem+(SOC_CORE_BASE_ADDRESS |
 				PCIE_INTR_ENABLE_ADDRESS),
 				PCIE_INTR_FIRMWARE_MASK);
 			qdf_mdelay(10);
@@ -467,38 +399,29 @@ void hif_ahb_disable_bus(struct hif_softc *scn)
 	struct resource *memres = NULL;
 	int mem_pa_size = 0;
 	struct hif_target_info *tgt_info = NULL;
-	struct qdf_vbus_resource *vmres = NULL;
-	QDF_STATUS status;
 
 	tgt_info = &scn->target_info;
 	/*Disable WIFI clock input*/
 	if (sc->mem) {
-		status = pfrm_platform_get_resource(
-				scn->qdf_dev->dev,
-				(struct qdf_pfm_hndl *)pdev, &vmres,
-				IORESOURCE_MEM, 0);
-		if (QDF_IS_STATUS_ERROR(status)) {
+		memres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!memres) {
 			HIF_INFO("%s: Failed to get IORESOURCE_MEM\n",
-				 __func__);
+								__func__);
 			return;
 		}
-		memres = (struct resource *)vmres;
-		if (memres)
-			mem_pa_size = memres->end - memres->start + 1;
+		mem_pa_size = memres->end - memres->start + 1;
 
 		/* Should not be executed on 8074 platform */
-		if ((tgt_info->target_type != TARGET_TYPE_QCA8074) &&
-		    (tgt_info->target_type != TARGET_TYPE_QCA8074V2) &&
-		    (tgt_info->target_type != TARGET_TYPE_QCA6018)) {
+		if (tgt_info->target_type != TARGET_TYPE_QCA8074) {
 			hif_ahb_clk_enable_disable(&pdev->dev, 0);
 
 			hif_ahb_device_reset(scn);
 		}
 		mem = (void __iomem *)sc->mem;
 		if (mem) {
-			pfrm_devm_iounmap(&pdev->dev, mem);
-			pfrm_devm_release_mem_region(&pdev->dev, scn->mem_pa,
-						     mem_pa_size);
+			devm_iounmap(&pdev->dev, mem);
+			devm_release_mem_region(&pdev->dev, scn->mem_pa,
+								mem_pa_size);
 			sc->mem = NULL;
 		}
 	}
@@ -532,8 +455,6 @@ QDF_STATUS hif_ahb_enable_bus(struct hif_softc *ol_sc,
 	void __iomem *mem = NULL;
 	uint32_t revision_id = 0;
 	struct hif_pci_softc *sc = HIF_GET_PCI_SOFTC(ol_sc);
-	QDF_STATUS status;
-	struct qdf_vbus_resource *vmres = NULL;
 
 	sc->pdev = (struct pci_dev *)pdev;
 	sc->dev = &pdev->dev;
@@ -547,30 +468,22 @@ QDF_STATUS hif_ahb_enable_bus(struct hif_softc *ol_sc,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	status = pfrm_platform_get_resource(&pdev->dev,
-					    (struct qdf_pfm_hndl *)pdev,
-					    &vmres,
-					    IORESOURCE_MEM, 0);
-	if (QDF_IS_STATUS_ERROR(status)) {
-		HIF_INFO("%s: Failed to get IORESOURCE_MEM\n", __func__);
-		return -EIO;
-	}
-	memres = (struct resource *)vmres;
+	memres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!memres) {
 		HIF_INFO("%s: Failed to get IORESOURCE_MEM\n", __func__);
 		return -EIO;
 	}
 
-	ret = pfrm_dma_set_mask(dev, 32);
+	ret = dma_set_mask(dev, DMA_BIT_MASK(32));
 	if (ret) {
 		HIF_INFO("ath: 32-bit DMA not available\n");
 		goto err_cleanup1;
 	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
-	ret = pfrm_dma_set_mask_and_coherent(dev, 32);
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 #else
-	ret = pfrm_dma_set_coherent_mask(dev, 32);
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 #endif
 	if (ret) {
 		HIF_ERROR("%s: failed to set dma mask error = %d",
@@ -580,16 +493,11 @@ QDF_STATUS hif_ahb_enable_bus(struct hif_softc *ol_sc,
 
 	/* Arrange for access to Target SoC registers. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)
-	status = pfrm_devm_ioremap_resource(dev,
-					    (struct qdf_vbus_resource *)memres,
-					    &mem);
+	mem = devm_ioremap_resource(&pdev->dev, memres);
 #else
-	status = pfrm_devm_request_and_ioremap(
-					dev,
-					(struct qdf_vbus_resource *)memres,
-					&mem);
+	mem = devm_request_and_ioremap(&pdev->dev, memres);
 #endif
-	if (QDF_IS_STATUS_ERROR(status)) {
+	if (IS_ERR(mem)) {
 		HIF_INFO("ath: ioremap error\n");
 		ret = PTR_ERR(mem);
 		goto err_cleanup1;
@@ -605,9 +513,8 @@ QDF_STATUS hif_ahb_enable_bus(struct hif_softc *ol_sc,
 	hif_register_tbl_attach(ol_sc, hif_type);
 	hif_target_register_tbl_attach(ol_sc, target_type);
 
-	if ((tgt_info->target_type != TARGET_TYPE_QCA8074) &&
-	    (tgt_info->target_type != TARGET_TYPE_QCA8074V2) &&
-	    (tgt_info->target_type != TARGET_TYPE_QCA6018)) {
+	/* QCA_WIFI_QCA8074_VP:Should not be executed on 8074 VP platform */
+	if (tgt_info->target_type != TARGET_TYPE_QCA8074) {
 		if (hif_ahb_enable_radio(sc, pdev, id) != 0) {
 			HIF_INFO("error in enabling soc\n");
 			return -EIO;
@@ -623,9 +530,8 @@ QDF_STATUS hif_ahb_enable_bus(struct hif_softc *ol_sc,
 
 	return QDF_STATUS_SUCCESS;
 err_target_sync:
-	if ((tgt_info->target_type != TARGET_TYPE_QCA8074) &&
-	    (tgt_info->target_type != TARGET_TYPE_QCA8074V2) &&
-	    (tgt_info->target_type != TARGET_TYPE_QCA6018)) {
+	/* QCA_WIFI_QCA8074_VP:Should not be executed on 8074 VP platform */
+	if (tgt_info->target_type != TARGET_TYPE_QCA8074) {
 		HIF_INFO("Error: Disabling target\n");
 		hif_ahb_disable_bus(ol_sc);
 	}
@@ -675,22 +581,20 @@ void hif_ahb_nointrs(struct hif_softc *scn)
 	if (sc->num_msi_intrs > 0) {
 		/* MSI interrupt(s) */
 		for (i = 0; i < sc->num_msi_intrs; i++) {
-			pfrm_free_irq(scn->qdf_dev->dev, sc->irq + i, sc);
+			free_irq(sc->irq + i, sc);
 		}
 		sc->num_msi_intrs = 0;
 	} else {
 		if (!scn->per_ce_irq) {
-			pfrm_free_irq(scn->qdf_dev->dev, sc->irq, sc);
+			free_irq(sc->irq, sc);
 		} else {
 			for (i = 0; i < scn->ce_count; i++) {
 				if (host_ce_conf[i].flags
 						& CE_ATTR_DISABLE_INTR)
 					continue;
 
-				pfrm_free_irq(
-					scn->qdf_dev->dev,
-					ic_irqnum[HIF_IC_CE0_IRQ_OFFSET + i],
-					&hif_state->tasklets[i]);
+				free_irq(ic_irqnum[HIF_IC_CE0_IRQ_OFFSET + i],
+						&hif_state->tasklets[i]);
 			}
 			hif_ahb_deconfigure_grp_irq(scn);
 		}
@@ -720,30 +624,25 @@ void hif_ahb_irq_enable(struct hif_softc *scn, int ce_id)
 		if (target_ce_conf->pipedir & PIPEDIR_OUT) {
 			reg_offset = HOST_IE_ADDRESS;
 			qdf_spin_lock_irqsave(&hif_state->irq_reg_lock);
-			regval = hif_read32_mb(scn, scn->mem + reg_offset);
+			regval = hif_read32_mb(scn->mem + reg_offset);
 			regval |= HOST_IE_REG1_CE_BIT(ce_id);
-			hif_write32_mb(scn, scn->mem + reg_offset, regval);
+			hif_write32_mb(scn->mem + reg_offset, regval);
 			qdf_spin_unlock_irqrestore(&hif_state->irq_reg_lock);
 		}
 		if (target_ce_conf->pipedir & PIPEDIR_IN) {
 			reg_offset = HOST_IE_ADDRESS_2;
 			qdf_spin_lock_irqsave(&hif_state->irq_reg_lock);
-			regval = hif_read32_mb(scn, scn->mem + reg_offset);
+			regval = hif_read32_mb(scn->mem + reg_offset);
 			regval |= HOST_IE_REG2_CE_BIT(ce_id);
-			hif_write32_mb(scn, scn->mem + reg_offset, regval);
-			if (tgt_info->target_type == TARGET_TYPE_QCA8074 ||
-			    tgt_info->target_type == TARGET_TYPE_QCA8074V2 ||
-			    tgt_info->target_type == TARGET_TYPE_QCA6018) {
-				/* Enable destination ring interrupts for
-				 * 8074, 8074V2 and 6018
-				 */
-				regval = hif_read32_mb(scn, scn->mem +
+			hif_write32_mb(scn->mem + reg_offset, regval);
+			if (tgt_info->target_type == TARGET_TYPE_QCA8074) {
+				/* Enable destination ring interrupts for 8074
+				 * TODO: To be removed in 2.0 HW */
+				regval = hif_read32_mb(scn->mem +
 					HOST_IE_ADDRESS_3);
 				regval |= HOST_IE_REG3_CE_BIT(ce_id);
-
-				hif_write32_mb(scn, scn->mem +
-					       HOST_IE_ADDRESS_3, regval);
 			}
+			hif_write32_mb(scn->mem + HOST_IE_ADDRESS_3, regval);
 			qdf_spin_unlock_irqrestore(&hif_state->irq_reg_lock);
 		}
 	} else {
@@ -770,30 +669,25 @@ void hif_ahb_irq_disable(struct hif_softc *scn, int ce_id)
 		if (target_ce_conf->pipedir & PIPEDIR_OUT) {
 			reg_offset = HOST_IE_ADDRESS;
 			qdf_spin_lock_irqsave(&hif_state->irq_reg_lock);
-			regval = hif_read32_mb(scn, scn->mem + reg_offset);
+			regval = hif_read32_mb(scn->mem + reg_offset);
 			regval &= ~HOST_IE_REG1_CE_BIT(ce_id);
-			hif_write32_mb(scn, scn->mem + reg_offset, regval);
+			hif_write32_mb(scn->mem + reg_offset, regval);
 			qdf_spin_unlock_irqrestore(&hif_state->irq_reg_lock);
 		}
 		if (target_ce_conf->pipedir & PIPEDIR_IN) {
 			reg_offset = HOST_IE_ADDRESS_2;
 			qdf_spin_lock_irqsave(&hif_state->irq_reg_lock);
-			regval = hif_read32_mb(scn, scn->mem + reg_offset);
+			regval = hif_read32_mb(scn->mem + reg_offset);
 			regval &= ~HOST_IE_REG2_CE_BIT(ce_id);
-			hif_write32_mb(scn, scn->mem + reg_offset, regval);
-			if (tgt_info->target_type == TARGET_TYPE_QCA8074 ||
-			    tgt_info->target_type == TARGET_TYPE_QCA8074V2 ||
-			    tgt_info->target_type == TARGET_TYPE_QCA6018) {
-				/* Disable destination ring interrupts for
-				 * 8074, 8074V2 and 6018
-				 */
-				regval = hif_read32_mb(scn, scn->mem +
+			hif_write32_mb(scn->mem + reg_offset, regval);
+			if (tgt_info->target_type == TARGET_TYPE_QCA8074) {
+				/* Disable destination ring interrupts for 8074
+				 * TODO: To be removed in 2.0 HW */
+				regval = hif_read32_mb(scn->mem +
 					HOST_IE_ADDRESS_3);
 				regval &= ~HOST_IE_REG3_CE_BIT(ce_id);
-
-				hif_write32_mb(scn, scn->mem +
-					       HOST_IE_ADDRESS_3, regval);
 			}
+			hif_write32_mb(scn->mem + HOST_IE_ADDRESS_3, regval);
 			qdf_spin_unlock_irqrestore(&hif_state->irq_reg_lock);
 		}
 	}
@@ -818,7 +712,7 @@ void hif_ahb_exec_grp_irq_enable(struct hif_exec_context *hif_ext_group)
 	int i;
 
 	qdf_spin_lock_irqsave(&hif_ext_group->irq_lock);
-	if (hif_ext_group->irq_requested && !hif_ext_group->irq_enabled) {
+	if (!hif_ext_group->irq_enabled) {
 		for (i = 0; i < hif_ext_group->numirq; i++) {
 			enable_irq(hif_ext_group->os_irq[i]);
 		}
@@ -836,24 +730,4 @@ void hif_ahb_exec_grp_irq_enable(struct hif_exec_context *hif_ext_group)
 bool hif_ahb_needs_bmi(struct hif_softc *scn)
 {
 	return !ce_srng_based(scn);
-}
-
-void hif_ahb_display_stats(struct hif_softc *scn)
-{
-	if (!scn) {
-		HIF_ERROR("%s, hif_scn null", __func__);
-		return;
-	}
-	hif_display_ce_stats(scn);
-}
-
-void hif_ahb_clear_stats(struct hif_softc *scn)
-{
-	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
-
-	if (!hif_state) {
-		HIF_ERROR("%s, hif_state null", __func__);
-		return;
-	}
-	hif_clear_ce_stats(hif_state);
 }

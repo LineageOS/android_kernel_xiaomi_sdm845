@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -35,8 +35,10 @@ static QDF_STATUS
 ftm_pdev_obj_init(struct wifi_ftm_pdev_priv_obj *ftm_pdev_obj)
 {
 	ftm_pdev_obj->data = qdf_mem_malloc(FTM_CMD_MAX_BUF_LENGTH);
-	if (!ftm_pdev_obj->data)
+	if (!ftm_pdev_obj->data) {
+		ftm_err("Memory alloc failed for ftm pdev obj data");
 		return QDF_STATUS_E_NOMEM;
+	}
 
 	ftm_pdev_obj->length = 0;
 
@@ -53,8 +55,10 @@ wlan_ftm_pdev_obj_create_notification(struct wlan_objmgr_pdev *pdev,
 
 	ftm_pdev_obj = qdf_mem_malloc(sizeof(*ftm_pdev_obj));
 
-	if (!ftm_pdev_obj)
+	if (!ftm_pdev_obj) {
+		ftm_err("Memory alloc failed for ftm pdev obj");
 		return QDF_STATUS_E_NOMEM;
+	}
 
 	ftm_pdev_obj->pdev = pdev;
 	status = ftm_pdev_obj_init(ftm_pdev_obj);
@@ -100,7 +104,7 @@ wlan_ftm_pdev_obj_destroy_notification(struct wlan_objmgr_pdev *pdev,
 	struct wifi_ftm_pdev_priv_obj *ftm_pdev_obj =
 		wlan_objmgr_pdev_get_comp_private_obj(pdev, WLAN_UMAC_COMP_FTM);
 
-	if (!ftm_pdev_obj) {
+	if (NULL == ftm_pdev_obj) {
 		ftm_err("invalid wifi ftm obj");
 		return QDF_STATUS_E_FAULT;
 	}

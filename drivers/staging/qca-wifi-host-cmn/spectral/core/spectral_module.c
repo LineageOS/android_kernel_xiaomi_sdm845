@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011,2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011,2017-2018 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -31,12 +31,8 @@ MODULE_LICENSE("Dual BSD/GPL");
  *
  * Return: None
  */
-
-#ifndef QCA_SINGLE_WIFI_3_0
-static int __init spectral_init_module(void)
-#else
-int spectral_init_module(void)
-#endif
+static int __init
+spectral_init_module(void)
 {
 	spectral_info("qca_spectral module loaded");
 	wlan_spectral_init();
@@ -55,17 +51,12 @@ int spectral_init_module(void)
  *
  * Return: None
  */
-#ifndef QCA_SINGLE_WIFI_3_0
-static void __exit spectral_exit_module(void)
-#else
-void spectral_exit_module(void)
-#endif
+static void __exit
+spectral_exit_module(void)
 {
 	wlan_spectral_deinit();
 	spectral_info("qca_spectral module unloaded");
 }
 
-#ifndef QCA_SINGLE_WIFI_3_0
 module_init(spectral_init_module);
 module_exit(spectral_exit_module);
-#endif

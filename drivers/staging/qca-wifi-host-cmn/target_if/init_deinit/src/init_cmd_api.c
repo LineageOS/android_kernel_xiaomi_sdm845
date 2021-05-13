@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -30,8 +30,8 @@
 #include <wlan_tgt_def_config.h>
 #include <wlan_reg_ucfg_api.h>
 #include <init_cmd_api.h>
+#include <wlan_defs.h>
 #include <target_if_scan.h>
-#include <target_if_reg.h>
 
 /**
  *  init_deinit_alloc_host_mem_chunk() - allocates chunk of memory requested
@@ -86,7 +86,7 @@ static uint32_t init_deinit_alloc_host_mem_chunk(struct wlan_objmgr_psoc *psoc,
 	while (!info->mem_chunks[idx].vaddr && num_units) {
 		info->mem_chunks[idx].vaddr = qdf_mem_alloc_consistent(qdf_dev,
 				qdf_dev->dev, num_units * unit_len, &paddr);
-		if (!info->mem_chunks[idx].vaddr) {
+		if (info->mem_chunks[idx].vaddr == NULL) {
 			if (num_unit_info &
 					HOST_CONTIGUOUS_MEM_CHUNK_REQUIRED) {
 				num_units = 0;
@@ -181,6 +181,97 @@ static QDF_STATUS init_deinit_alloc_host_mem(struct wlan_objmgr_psoc *psoc,
 	return QDF_STATUS_SUCCESS;
 }
 
+/**
+ *  init_deinit_alloc_num_units() - allocates num units requested by FW.
+ *  @psoc: PSOC object
+ *  @tgt_hdl: Target PSOC info
+ *  @mem_reqs: pointer to mem req
+ *  @num_units: Number
+ *  @i: FW priority
+ *  @idx: Index
+ *
+ *  API to allocate num units of host memory requested by FW
+ *
+ *  Return: QDF_STATUS_SUCCESS on successful allocation
+ *          QDF_STATUS_E_FAILURE on failure
+ */
+static QDF_STATUS init_deinit_alloc_num_units(struct wlan_objmgr_psoc *psoc,
+			struct target_psoc_info *tgt_hdl,
+			host_mem_req *mem_reqs, uint16_t fw_prio,
+			uint16_t idx)
+{
+	struct tgt_info *info;
+	uint32_t num_units;
+	QDF_STATUS status;
+
+	if (!tgt_hdl) {
+		target_if_err("target_psoc_info is null");
+		return QDF_STATUS_E_INVAL;
+	}
+
+	info = (&tgt_hdl->info);
+
+	if (((fw_prio == FW_MEM_HIGH_PRIORITY) &&
+	     (mem_reqs[idx].num_unit_info &
+			HOST_CONTIGUOUS_MEM_CHUNK_REQUIRED)) ||
+	    ((fw_prio == FW_MEM_LOW_PRIORITY) &&
+			(!(mem_reqs[idx].num_unit_info &
+				HOST_CONTIGUOUS_MEM_CHUNK_REQUIRED)))) {
+		/* First allocate the memory that requires contiguous memory */
+		num_units = mem_reqs[idx].num_units;
+		if (mem_reqs[idx].num_unit_info) {
+			if (mem_reqs[idx].num_unit_info &
+					NUM_UNITS_IS_NUM_PEERS) {
+				/*
+				 * number of units allocated is equal to number
+				 * of peers, 1 extra for self peer on target.
+				 * this needs to be fixed, host and target can
+				 * get out of sync
+				 */
+				num_units = info->wlan_res_cfg.num_peers + 1;
+			}
+			if (mem_reqs[idx].num_unit_info &
+				NUM_UNITS_IS_NUM_ACTIVE_PEERS) {
+				/*
+				 * Requesting allocation of memory using
+				 * num_active_peers in qcache. if qcache is
+				 * disabled in host, then it should allocate
+				 * memory for num_peers instead of
+				 * num_active_peers.
+				 */
+				if (info->wlan_res_cfg.num_active_peers)
+					num_units =
+					info->wlan_res_cfg.num_active_peers + 1;
+				else
+					num_units =
+					info->wlan_res_cfg.num_peers + 1;
+			}
+		}
+
+		target_if_debug("idx %d req %d  num_units %d num_unit_info %d unit size %d actual units %d",
+				idx, mem_reqs[idx].req_id,
+				mem_reqs[idx].num_units,
+				mem_reqs[idx].num_unit_info,
+				mem_reqs[idx].unit_size, num_units);
+
+		status = init_deinit_alloc_host_mem(psoc, tgt_hdl,
+				mem_reqs[idx].req_id, num_units,
+				mem_reqs[idx].unit_size,
+				mem_reqs[idx].num_unit_info);
+		if (status == QDF_STATUS_E_FAILURE) {
+			target_if_err(
+				"psoc:(%pK) num_mem_chunk exceeds supp number",
+									psoc);
+			return QDF_STATUS_E_FAILURE;
+		} else if (status == QDF_STATUS_E_NOMEM) {
+			target_if_err("soc:(%pK) mem alloc failure", psoc);
+			return QDF_STATUS_E_NOMEM;
+		}
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+
 QDF_STATUS init_deinit_free_num_units(struct wlan_objmgr_psoc *psoc,
 			struct target_psoc_info *tgt_hdl)
 {
@@ -207,12 +298,12 @@ QDF_STATUS init_deinit_free_num_units(struct wlan_objmgr_psoc *psoc,
 		info = (&tgt_hdl->info);
 		for (idx = 0; idx < info->num_mem_chunks; idx++) {
 			qdf_mem_free_consistent(
-					qdf_dev, qdf_dev->dev,
-					info->mem_chunks[idx].len,
-					info->mem_chunks[idx].vaddr,
-					info->mem_chunks[idx].paddr,
-					qdf_get_dma_mem_context(
-					(&info->mem_chunks[idx]), memctx));
+				qdf_dev, qdf_dev->dev,
+				info->mem_chunks[idx].len,
+				info->mem_chunks[idx].vaddr,
+				info->mem_chunks[idx].paddr,
+				qdf_get_dma_mem_context(
+					(&(info->mem_chunks[idx])), memctx));
 
 			info->mem_chunks[idx].vaddr = NULL;
 			info->mem_chunks[idx].paddr = 0;
@@ -226,15 +317,15 @@ QDF_STATUS init_deinit_free_num_units(struct wlan_objmgr_psoc *psoc,
 }
 
 QDF_STATUS init_deinit_handle_host_mem_req(
-		struct wlan_objmgr_psoc *psoc,
-		struct target_psoc_info *tgt_hdl, uint8_t *event)
+		 struct wlan_objmgr_psoc *psoc,
+		 struct target_psoc_info *tgt_hdl, uint8_t *event)
 {
-	uint32_t num_mem_reqs;
-	host_mem_req mem_reqs;
+	uint8_t num_mem_reqs;
+	host_mem_req *mem_reqs;
 	uint32_t i;
 	uint32_t idx;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	struct wmi_unified *wmi_handle;
+	struct common_wmi_handle *wmi_handle;
 	struct tgt_info *info;
 
 	if (!tgt_hdl) {
@@ -245,38 +336,21 @@ QDF_STATUS init_deinit_handle_host_mem_req(
 	wmi_handle = target_psoc_get_wmi_hdl(tgt_hdl);
 	info = (&tgt_hdl->info);
 
-	num_mem_reqs = wmi_extract_num_mem_reqs_from_service_ready(
-							wmi_handle, event);
+	mem_reqs = wmi_extract_host_mem_req_from_service_ready(
+					wmi_handle, event, &num_mem_reqs);
 	if (!num_mem_reqs)
 		return QDF_STATUS_SUCCESS;
 
 	if (num_mem_reqs > MAX_MEM_CHUNKS) {
 		target_if_err_rl("num_mem_reqs:%u is out of bounds",
-				num_mem_reqs);
+				 num_mem_reqs);
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	for (i = 0; i < WMI_FW_PRIORITY_MAX; i++) {
+	for (i = 0; i < FW_PRIORITY_MAX; i++) {
 		for (idx = 0; idx < num_mem_reqs; idx++) {
-			status = wmi_extract_host_mem_req_from_service_ready(
-					wmi_handle, event, &mem_reqs,
-					info->wlan_res_cfg.num_active_peers,
-					info->wlan_res_cfg.num_peers, i, idx);
-			if (mem_reqs.tgt_num_units) {
-				status = init_deinit_alloc_host_mem(
-						psoc,
-						tgt_hdl,
-						mem_reqs.req_id,
-						mem_reqs.tgt_num_units,
-						mem_reqs.unit_size,
-						mem_reqs.num_unit_info);
-				if (status == QDF_STATUS_E_FAILURE) {
-					target_if_err("num_mem_chunk exceeds supp number");
-				} else if (status == QDF_STATUS_E_NOMEM) {
-					target_if_err("mem alloc failure");
-				}
-			}
-
+			status = init_deinit_alloc_num_units(psoc, tgt_hdl,
+				mem_reqs, i, idx);
 			if (status != QDF_STATUS_SUCCESS)
 				return status;
 		}
@@ -308,12 +382,8 @@ void init_deinit_derive_band_to_mac_param(
 		return;
 	}
 
-	mac_phy_cap = target_psoc_get_mac_phy_cap(tgt_hdl);
-	if (!mac_phy_cap) {
-		target_if_err("mac_phy_cap is NULL");
-		return;
-	}
 	for (i = 0; i < target_psoc_get_num_radios(tgt_hdl); i++) {
+		mac_phy_cap = &info->mac_phy_cap[i];
 		if (mac_phy_cap->supported_bands ==
 			(WMI_HOST_WLAN_5G_CAPABILITY |
 					WMI_HOST_WLAN_2G_CAPABILITY)) {
@@ -337,9 +407,9 @@ void init_deinit_derive_band_to_mac_param(
 			reg_cap[mac_phy_cap->phy_id].high_5ghz_chan = 0;
 
 			target_if_debug("2G radio - pdev_id = %d start_freq = %d end_freq= %d",
-				       band_to_mac[i].pdev_id,
-				       band_to_mac[i].start_freq,
-				       band_to_mac[i].end_freq);
+					band_to_mac[i].pdev_id,
+					band_to_mac[i].start_freq,
+					band_to_mac[i].end_freq);
 
 		} else if (mac_phy_cap->supported_bands ==
 					WMI_HOST_WLAN_5G_CAPABILITY) {
@@ -353,11 +423,10 @@ void init_deinit_derive_band_to_mac_param(
 			reg_cap[mac_phy_cap->phy_id].high_2ghz_chan = 0;
 
 			target_if_debug("5G radio -pdev_id = %d start_freq = %d end_freq =%d\n",
-				       band_to_mac[i].pdev_id,
-				       band_to_mac[i].start_freq,
-				       band_to_mac[i].end_freq);
+					band_to_mac[i].pdev_id,
+					band_to_mac[i].start_freq,
+					band_to_mac[i].end_freq);
 		}
-		mac_phy_cap++;
 	}
 }
 
@@ -367,7 +436,7 @@ void init_deinit_prepare_send_init_cmd(
 {
 	struct wmi_init_cmd_param init_param = {0};
 	struct tgt_info *info;
-	struct wmi_unified *wmi_handle;
+	struct common_wmi_handle *wmi_handle;
 	QDF_STATUS ret_val;
 
 	if (!tgt_hdl) {
@@ -396,12 +465,6 @@ void init_deinit_prepare_send_init_cmd(
 
 		init_deinit_derive_band_to_mac_param(psoc, tgt_hdl,
 						     init_param.band_to_mac);
-	} else {
-		ret_val = tgt_if_regulatory_modify_freq_range(psoc);
-		if (QDF_IS_STATUS_ERROR(ret_val)) {
-			target_if_err("Modify freq range is failed");
-			return;
-		}
 	}
 
 	ret_val = target_if_alloc_pdevs(psoc, tgt_hdl);
@@ -411,10 +474,6 @@ void init_deinit_prepare_send_init_cmd(
 	ret_val = target_if_update_pdev_tgt_info(psoc, tgt_hdl);
 	if (ret_val != QDF_STATUS_SUCCESS)
 		return;
-
-	info->wlan_res_cfg.max_ndp_sessions =
-		QDF_MIN(info->wlan_res_cfg.max_ndp_sessions,
-			info->service_ext2_param.max_ndp_sessions);
 
 	target_if_debug("FW version 0x%x ", info->target_caps.fw_version);
 	if (init_deinit_is_service_ext_msg(psoc, tgt_hdl) == QDF_STATUS_SUCCESS)
@@ -428,7 +487,4 @@ void init_deinit_prepare_send_init_cmd(
 	/* Set Max scans allowed */
 	target_if_scan_set_max_active_scans(psoc,
 					    WLAN_MAX_ACTIVE_SCANS_ALLOWED);
-
-	if (wmi_service_enabled(wmi_handle, wmi_service_hw_db2dbm_support))
-		wlan_psoc_nif_fw_ext_cap_set(psoc, WLAN_SOC_CEXT_HW_DB2DBM);
 }

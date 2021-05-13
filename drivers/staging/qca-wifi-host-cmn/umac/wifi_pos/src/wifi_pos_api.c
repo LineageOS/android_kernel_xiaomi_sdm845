@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -91,16 +91,7 @@ QDF_STATUS wifi_pos_deinit(void)
 
 QDF_STATUS wifi_pos_psoc_enable(struct wlan_objmgr_psoc *psoc)
 {
-	QDF_STATUS status;
-	struct wlan_lmac_if_wifi_pos_tx_ops *tx_ops;
-
-	tx_ops = wifi_pos_get_tx_ops(psoc);
-	if (!tx_ops) {
-		wifi_pos_err("tx_ops is null");
-		return QDF_STATUS_E_NULL_VALUE;
-	}
-
-	status = tx_ops->wifi_pos_register_events(psoc);
+	QDF_STATUS status = target_if_wifi_pos_register_events(psoc);
 
 	if (QDF_IS_STATUS_ERROR(status))
 		wifi_pos_err("target_if_wifi_pos_register_events failed");
@@ -110,16 +101,7 @@ QDF_STATUS wifi_pos_psoc_enable(struct wlan_objmgr_psoc *psoc)
 
 QDF_STATUS wifi_pos_psoc_disable(struct wlan_objmgr_psoc *psoc)
 {
-	QDF_STATUS status;
-	struct wlan_lmac_if_wifi_pos_tx_ops *tx_ops;
-
-	tx_ops = wifi_pos_get_tx_ops(psoc);
-	if (!tx_ops) {
-		wifi_pos_err("tx_ops is null");
-		return QDF_STATUS_E_NULL_VALUE;
-	}
-
-	status = tx_ops->wifi_pos_deregister_events(psoc);
+	QDF_STATUS status = target_if_wifi_pos_deregister_events(psoc);
 
 	if (QDF_IS_STATUS_ERROR(status))
 		wifi_pos_err("target_if_wifi_pos_deregister_events failed");
@@ -350,57 +332,3 @@ QDF_STATUS wifi_pos_register_get_phy_mode_cb(
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS wifi_pos_register_get_fw_phy_mode_for_freq_cb(
-				struct wlan_objmgr_psoc *psoc,
-				void (*handler)(uint32_t, uint32_t, uint32_t *))
-{
-	struct wifi_pos_psoc_priv_obj *wifi_pos_psoc;
-
-	if (!psoc) {
-		wifi_pos_err("psoc is null");
-		return QDF_STATUS_E_NULL_VALUE;
-	}
-
-	if (!handler) {
-		wifi_pos_err("Null callback");
-		return QDF_STATUS_E_NULL_VALUE;
-	}
-	wifi_pos_psoc = wifi_pos_get_psoc_priv_obj(psoc);
-	if (!wifi_pos_psoc) {
-		wifi_pos_err("wifi_pos priv obj is null");
-		return QDF_STATUS_E_NULL_VALUE;
-	}
-
-	wifi_pos_psoc->wifi_pos_get_fw_phy_mode_for_freq = handler;
-
-	return QDF_STATUS_SUCCESS;
-}
-
-QDF_STATUS wifi_pos_register_send_action(
-				struct wlan_objmgr_psoc *psoc,
-				void (*handler)(struct wlan_objmgr_psoc *psoc,
-						uint32_t sub_type,
-						uint8_t *buf,
-						uint32_t buf_len))
-{
-	struct wifi_pos_psoc_priv_obj *wifi_pos_psoc;
-
-	if (!psoc) {
-		wifi_pos_err("psoc is null");
-		return QDF_STATUS_E_NULL_VALUE;
-	}
-
-	if (!handler) {
-		wifi_pos_err("Null callback");
-		return QDF_STATUS_E_NULL_VALUE;
-	}
-	wifi_pos_psoc = wifi_pos_get_psoc_priv_obj(psoc);
-	if (!wifi_pos_psoc) {
-		wifi_pos_err("wifi_pos priv obj is null");
-		return QDF_STATUS_E_NULL_VALUE;
-	}
-
-	wifi_pos_psoc->wifi_pos_send_action = handler;
-
-	return QDF_STATUS_SUCCESS;
-}

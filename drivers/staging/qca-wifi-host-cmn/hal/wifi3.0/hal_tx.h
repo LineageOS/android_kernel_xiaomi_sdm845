@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -29,8 +29,6 @@
 #define WBM_RELEASE_RING_5_TX_RATE_STATS_LSB      0
 #define WBM_RELEASE_RING_5_TX_RATE_STATS_MASK     0xffffffff
 
-#define HAL_WBM_RELEASE_RING_2_BUFFER_TYPE    0
-#define HAL_WBM_RELEASE_RING_2_DESC_TYPE      1
 
 /*---------------------------------------------------------------------------
   Preprocessor definitions and constants
@@ -82,18 +80,14 @@ do {                                            \
 #define HAL_MAX_HW_DSCP_TID_MAPS 2
 #define HAL_MAX_HW_DSCP_TID_MAPS_11AX 32
 
-#define HAL_MAX_HW_DSCP_TID_V2_MAPS 48
 #define HTT_META_HEADER_LEN_BYTES 64
 #define HAL_TX_EXT_DESC_WITH_META_DATA \
 	(HTT_META_HEADER_LEN_BYTES + HAL_TX_EXTENSION_DESC_LEN_BYTES)
-
-#define HAL_TX_NUM_PCP_PER_REGISTER 8
 
 /* Length of WBM release ring without the status words */
 #define HAL_TX_COMPLETION_DESC_BASE_LEN 12
 
 #define HAL_TX_COMP_RELEASE_SOURCE_TQM 0
-#define HAL_TX_COMP_RELEASE_SOURCE_REO 2
 #define HAL_TX_COMP_RELEASE_SOURCE_FW 3
 
 /* Define a place-holder release reason for FW */
@@ -121,10 +115,6 @@ do {                                            \
 #define HAL_TX_DESC_ADDRX_EN 0x1
 #define HAL_TX_DESC_ADDRY_EN 0x2
 #define HAL_TX_DESC_DEFAULT_LMAC_ID 0x3
-
-#define HAL_TX_ADDR_SEARCH_DEFAULT 0x0
-#define HAL_TX_ADDR_INDEX_SEARCH 0x1
-#define HAL_TX_FLOW_INDEX_SEARCH 0x2
 
 enum hal_tx_ret_buf_manager {
 	HAL_WBM_SW0_BM_ID = 3,
@@ -259,8 +249,6 @@ enum hal_tx_encap_type {
  *				remove reason is fw_reason2
  * @HAL_TX_TQM_RR_FW_REASON3 : Remove command where fw indicated that
  *				remove reason is fw_reason3
- * @HAL_TX_TQM_RR_REM_CMD_DISABLE_QUEUE : Remove command where fw indicated that
- *				remove reason is remove disable queue
  */
 enum hal_tx_tqm_release_reason {
 	HAL_TX_TQM_RR_FRAME_ACKED,
@@ -271,7 +259,6 @@ enum hal_tx_tqm_release_reason {
 	HAL_TX_TQM_RR_FW_REASON1,
 	HAL_TX_TQM_RR_FW_REASON2,
 	HAL_TX_TQM_RR_FW_REASON3,
-	HAL_TX_TQM_RR_REM_CMD_DISABLE_QUEUE,
 };
 
 /* enum - Table IDs for 2 DSCP-TID mapping Tables that TCL H/W supports
@@ -290,6 +277,47 @@ enum hal_tx_dscp_tid_table_id {
 /*---------------------------------------------------------------------------
   TCL Descriptor accessor APIs
   ---------------------------------------------------------------------------*/
+/**
+ * hal_tx_desc_set_buf_addr - Fill Buffer Address information in Tx Descriptor
+ * @desc: Handle to Tx Descriptor
+ * @paddr: Physical Address
+ * @pool_id: Return Buffer Manager ID
+ * @desc_id: Descriptor ID
+ * @type: 0 - Address points to a MSDU buffer
+ *		1 - Address points to MSDU extension descriptor
+ *
+ * Return: void
+ */
+static inline void hal_tx_desc_set_buf_addr(void *desc,
+		dma_addr_t paddr, uint8_t pool_id,
+		uint32_t desc_id, uint8_t type)
+{
+	/* Set buffer_addr_info.buffer_addr_31_0 */
+	HAL_SET_FLD(desc, TCL_DATA_CMD_0, BUFFER_ADDR_INFO_BUF_ADDR_INFO) =
+		HAL_TX_SM(BUFFER_ADDR_INFO_0, BUFFER_ADDR_31_0, paddr);
+
+	/* Set buffer_addr_info.buffer_addr_39_32 */
+	HAL_SET_FLD(desc, TCL_DATA_CMD_1,
+			 BUFFER_ADDR_INFO_BUF_ADDR_INFO) |=
+		HAL_TX_SM(BUFFER_ADDR_INFO_1, BUFFER_ADDR_39_32,
+		       (((uint64_t) paddr) >> 32));
+
+	/* Set buffer_addr_info.return_buffer_manager = pool id */
+	HAL_SET_FLD(desc, TCL_DATA_CMD_1,
+			 BUFFER_ADDR_INFO_BUF_ADDR_INFO) |=
+		HAL_TX_SM(BUFFER_ADDR_INFO_1,
+		       RETURN_BUFFER_MANAGER, (pool_id + HAL_WBM_SW0_BM_ID));
+
+	/* Set buffer_addr_info.sw_buffer_cookie = desc_id */
+	HAL_SET_FLD(desc, TCL_DATA_CMD_1,
+			BUFFER_ADDR_INFO_BUF_ADDR_INFO) |=
+		HAL_TX_SM(BUFFER_ADDR_INFO_1, SW_BUFFER_COOKIE, desc_id);
+
+	/* Set  Buffer or Ext Descriptor Type */
+	HAL_SET_FLD(desc, TCL_DATA_CMD_2,
+			BUF_OR_EXT_DESC_TYPE) |=
+		HAL_TX_SM(TCL_DATA_CMD_2, BUF_OR_EXT_DESC_TYPE, type);
+}
 
 /**
  * hal_tx_desc_set_buf_length - Set Data length in bytes in Tx Descriptor
@@ -427,8 +455,34 @@ static inline void hal_tx_desc_set_to_fw(void *desc, uint8_t to_fw)
 }
 
 /**
+ * hal_tx_desc_set_dscp_tid_table_id - Sets DSCP to TID conversion table ID
+ * @desc: Handle to Tx Descriptor
+ * @id: DSCP to tid conversion table to be used for this frame
+ *
+ * Return: void
+ */
+#if !defined(QCA_WIFI_QCA6290_11AX)
+static inline void hal_tx_desc_set_dscp_tid_table_id(void *desc,
+						     uint8_t id)
+{
+	HAL_SET_FLD(desc, TCL_DATA_CMD_3,
+			 DSCP_TO_TID_PRIORITY_TABLE_ID) |=
+		HAL_TX_SM(TCL_DATA_CMD_3,
+		       DSCP_TO_TID_PRIORITY_TABLE_ID, id);
+}
+#else
+static inline void hal_tx_desc_set_dscp_tid_table_id(void *desc,
+						     uint8_t id)
+{
+	HAL_SET_FLD(desc, TCL_DATA_CMD_5,
+			 DSCP_TID_TABLE_NUM) |=
+		HAL_TX_SM(TCL_DATA_CMD_5,
+		       DSCP_TID_TABLE_NUM, id);
+}
+#endif
+
+/**
  * hal_tx_desc_set_mesh_en - Set mesh_enable flag in Tx descriptor
- * @hal_soc_hdl: hal soc handle
  * @desc: Handle to Tx Descriptor
  * @en:   For raw WiFi frames, this indicates transmission to a mesh STA,
  *        enabling the interpretation of the 'Mesh Control Present' bit
@@ -438,12 +492,10 @@ static inline void hal_tx_desc_set_to_fw(void *desc, uint8_t to_fw)
  *
  * Return: void
  */
-static inline void hal_tx_desc_set_mesh_en(hal_soc_handle_t hal_soc_hdl,
-					   void *desc, uint8_t en)
+static inline void hal_tx_desc_set_mesh_en(void *desc, uint8_t en)
 {
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
-
-	hal_soc->ops->hal_tx_desc_set_mesh_en(desc, en);
+	HAL_SET_FLD(desc, TCL_DATA_CMD_4, MESH_ENABLE) |=
+		HAL_TX_SM(TCL_DATA_CMD_4, MESH_ENABLE, en);
 }
 
 /**
@@ -463,6 +515,31 @@ static inline void hal_tx_desc_set_hlos_tid(void *desc,
 	HAL_SET_FLD(desc, TCL_DATA_CMD_4, HLOS_TID_OVERWRITE) |=
 	   HAL_TX_SM(TCL_DATA_CMD_4, HLOS_TID_OVERWRITE, 1);
 }
+
+#ifdef QCA_WIFI_QCA6290_11AX
+/**
+ * hal_tx_desc_set_lmac_id - Set the lmac_id value
+ * @desc: Handle to Tx Descriptor
+ * @lmac_id: mac Id to ast matching
+ *                     b00 – mac 0
+ *                     b01 – mac 1
+ *                     b10 – mac 2
+ *                     b11 – all macs (legacy HK way)
+ *
+ * Return: void
+ */
+static inline void hal_tx_desc_set_lmac_id(void *desc,
+					    uint8_t lmac_id)
+{
+	HAL_SET_FLD(desc, TCL_DATA_CMD_4, LMAC_ID) |=
+		HAL_TX_SM(TCL_DATA_CMD_4, LMAC_ID, lmac_id);
+}
+#else
+static inline void hal_tx_desc_set_lmac_id(void *desc,
+					    uint8_t lmac_id)
+{
+}
+#endif
 /**
  * hal_tx_desc_sync - Commit the descriptor to Hardware
  * @hal_tx_des_cached: Cached descriptor that software maintains
@@ -472,7 +549,7 @@ static inline void hal_tx_desc_sync(void *hal_tx_desc_cached,
 				    void *hw_desc)
 {
 	qdf_mem_copy((hw_desc + sizeof(struct tlv_32_hdr)),
-			hal_tx_desc_cached, HAL_TX_DESC_LEN_BYTES);
+			hal_tx_desc_cached, 20);
 }
 
 /*---------------------------------------------------------------------------
@@ -795,14 +872,99 @@ static inline uint32_t hal_tx_comp_get_buffer_type(void *hal_desc)
  *
  * Return: buffer type
  */
-static inline
-uint8_t hal_tx_comp_get_release_reason(void *hal_desc,
-				       hal_soc_handle_t hal_soc_hdl)
+static inline uint8_t hal_tx_comp_get_release_reason(void *hal_desc)
 {
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
+	uint32_t comp_desc =
+		*(uint32_t *) (((uint8_t *) hal_desc) +
+			       WBM_RELEASE_RING_2_TQM_RELEASE_REASON_OFFSET);
 
-	return hal_soc->ops->hal_tx_comp_get_release_reason(hal_desc);
+	return (comp_desc & WBM_RELEASE_RING_2_TQM_RELEASE_REASON_MASK) >>
+		WBM_RELEASE_RING_2_TQM_RELEASE_REASON_LSB;
 }
+
+/**
+ * hal_tx_comp_get_status() - TQM Release reason
+ * @hal_desc: completion ring Tx status
+ *
+ * This function will parse the WBM completion descriptor and populate in
+ * HAL structure
+ *
+ * Return: none
+ */
+#if defined(WCSS_VERSION) && \
+	((defined(CONFIG_WIN) && (WCSS_VERSION > 81)) || \
+	 (defined(CONFIG_MCL) && (WCSS_VERSION >= 72)))
+static inline void hal_tx_comp_get_status(void *desc,
+		struct hal_tx_completion_status *ts)
+{
+	uint8_t rate_stats_valid = 0;
+	uint32_t rate_stats = 0;
+
+	ts->ppdu_id = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_3,
+			TQM_STATUS_NUMBER);
+	ts->ack_frame_rssi = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_4,
+			ACK_FRAME_RSSI);
+	ts->first_msdu = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_4, FIRST_MSDU);
+	ts->last_msdu = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_4, LAST_MSDU);
+	ts->msdu_part_of_amsdu = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_4,
+			MSDU_PART_OF_AMSDU);
+
+	ts->peer_id = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_7, SW_PEER_ID);
+	ts->tid = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_7, TID);
+	ts->transmit_cnt = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_3,
+			TRANSMIT_COUNT);
+
+	rate_stats = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_5,
+			TX_RATE_STATS);
+
+	rate_stats_valid = HAL_TX_MS(TX_RATE_STATS_INFO_0,
+			TX_RATE_STATS_INFO_VALID, rate_stats);
+
+	ts->valid = rate_stats_valid;
+
+	if (rate_stats_valid) {
+		ts->bw = HAL_TX_MS(TX_RATE_STATS_INFO_0, TRANSMIT_BW,
+				rate_stats);
+		ts->pkt_type = HAL_TX_MS(TX_RATE_STATS_INFO_0,
+				TRANSMIT_PKT_TYPE, rate_stats);
+		ts->stbc = HAL_TX_MS(TX_RATE_STATS_INFO_0,
+				TRANSMIT_STBC, rate_stats);
+		ts->ldpc = HAL_TX_MS(TX_RATE_STATS_INFO_0, TRANSMIT_LDPC,
+				rate_stats);
+		ts->sgi = HAL_TX_MS(TX_RATE_STATS_INFO_0, TRANSMIT_SGI,
+				rate_stats);
+		ts->mcs = HAL_TX_MS(TX_RATE_STATS_INFO_0, TRANSMIT_MCS,
+				rate_stats);
+		ts->ofdma = HAL_TX_MS(TX_RATE_STATS_INFO_0, OFDMA_TRANSMISSION,
+				rate_stats);
+		ts->tones_in_ru = HAL_TX_MS(TX_RATE_STATS_INFO_0, TONES_IN_RU,
+				rate_stats);
+	}
+
+	ts->release_src = hal_tx_comp_get_buffer_source(desc);
+	ts->status = hal_tx_comp_get_release_reason(desc);
+
+	ts->tsf = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_6,
+			TX_RATE_STATS_INFO_TX_RATE_STATS);
+}
+#else
+static inline void hal_tx_comp_get_status(void *desc,
+		struct hal_tx_completion_status *ts)
+{
+
+	ts->ppdu_id = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_3,
+			TQM_STATUS_NUMBER);
+	ts->ack_frame_rssi = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_4,
+			ACK_FRAME_RSSI);
+	ts->first_msdu = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_4, FIRST_MSDU);
+	ts->last_msdu = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_4, LAST_MSDU);
+	ts->msdu_part_of_amsdu = HAL_TX_DESC_GET(desc, WBM_RELEASE_RING_4,
+			MSDU_PART_OF_AMSDU);
+
+	ts->release_src = hal_tx_comp_get_buffer_source(desc);
+	ts->status = hal_tx_comp_get_release_reason(desc);
+}
+#endif
 
 /**
  * hal_tx_comp_desc_sync() - collect hardware descriptor contents
@@ -828,29 +990,6 @@ static inline void hal_tx_comp_desc_sync(void *hw_desc,
 }
 
 /**
- * hal_dump_comp_desc() - dump tx completion descriptor
- * @hal_desc: hardware descriptor pointer
- *
- * This function will print tx completion descriptor
- *
- * Return: none
- */
-static inline void hal_dump_comp_desc(void *hw_desc)
-{
-	struct hal_tx_desc_comp_s *comp =
-				(struct hal_tx_desc_comp_s *)hw_desc;
-	uint32_t i;
-
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_FATAL,
-		  "Current tx completion descriptor is");
-
-	for (i = 0; i < HAL_TX_COMPLETION_DESC_LEN_DWORDS; i++) {
-		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_FATAL,
-			  "DWORD[i] = 0x%x", comp->desc[i]);
-	}
-}
-
-/**
  * hal_tx_comp_get_htt_desc() - Read the HTT portion of WBM Descriptor
  * @hal_desc: Hardware (WBM) descriptor pointer
  * @htt_desc: Software HTT descriptor pointer
@@ -866,72 +1005,60 @@ static inline void hal_tx_comp_get_htt_desc(void *hw_desc, uint8_t *htt_desc)
 	qdf_mem_copy(htt_desc, desc, HAL_TX_COMP_HTT_STATUS_LEN);
 }
 
-/**
- * hal_tx_init_data_ring() - Initialize all the TCL Descriptors in SRNG
- * @hal_soc_hdl: Handle to HAL SoC structure
- * @hal_srng: Handle to HAL SRNG structure
- *
- * Return: none
- */
-static inline void hal_tx_init_data_ring(hal_soc_handle_t hal_soc_hdl,
-					 hal_ring_handle_t hal_ring_hdl)
-{
-	uint8_t *desc_addr;
-	struct hal_srng_params srng_params;
-	uint32_t desc_size;
-	uint32_t num_desc;
-
-	hal_get_srng_params(hal_soc_hdl, hal_ring_hdl, &srng_params);
-
-	desc_addr = (uint8_t *)srng_params.ring_base_vaddr;
-	desc_size = sizeof(struct tcl_data_cmd);
-	num_desc = srng_params.num_entries;
-
-	while (num_desc) {
-		HAL_TX_DESC_SET_TLV_HDR(desc_addr, HAL_TX_TCL_DATA_TAG,
-					desc_size);
-		desc_addr += (desc_size + sizeof(struct tlv_32_hdr));
-		num_desc--;
-	}
-}
-
-/**
- * hal_tx_desc_set_dscp_tid_table_id() - Sets DSCP to TID conversion table ID
- * @hal_soc: Handle to HAL SoC structure
- * @desc: Handle to Tx Descriptor
- * @id: DSCP to tid conversion table to be used for this frame
- *
- * Return: void
- */
-static inline
-void hal_tx_desc_set_dscp_tid_table_id(hal_soc_handle_t hal_soc_hdl,
-				       void *desc, uint8_t id)
-{
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
-
-	hal_soc->ops->hal_tx_desc_set_dscp_tid_table_id(desc, id);
-}
-
+#if !defined(QCA_WIFI_QCA6290_11AX)
 /**
  * hal_tx_set_dscp_tid_map_default() - Configure default DSCP to TID map table
- *
  * @soc: HAL SoC context
  * @map: DSCP-TID mapping table
  * @id: mapping table ID - 0,1
  *
- * Return: void
+ * DSCP are mapped to 8 TID values using TID values programmed
+ * in two set of mapping registers DSCP_TID1_MAP_<0 to 6> (id = 0)
+ * and DSCP_TID2_MAP_<0 to 6> (id = 1)
+ * Each mapping register has TID mapping for 10 DSCP values
+ *
+ * Return: none
  */
-static inline void hal_tx_set_dscp_tid_map(hal_soc_handle_t hal_soc_hdl,
-					   uint8_t *map, uint8_t id)
+static inline void hal_tx_set_dscp_tid_map(void *hal_soc, uint8_t *map,
+		uint8_t id)
 {
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
+	int i;
+	uint32_t addr;
+	uint32_t value;
 
-	hal_soc->ops->hal_tx_set_dscp_tid_map(hal_soc, map, id);
+	struct hal_soc *soc = (struct hal_soc *)hal_soc;
+
+	if (id == HAL_TX_DSCP_TID_MAP_TABLE_DEFAULT) {
+		addr =
+			HWIO_TCL_R0_DSCP_TID1_MAP_0_ADDR(
+					SEQ_WCSS_UMAC_MAC_TCL_REG_OFFSET);
+	} else {
+		addr =
+			HWIO_TCL_R0_DSCP_TID2_MAP_0_ADDR(
+					SEQ_WCSS_UMAC_MAC_TCL_REG_OFFSET);
+	}
+
+	for (i = 0; i < 64; i += 10) {
+		value = (map[i] |
+			(map[i+1] << HWIO_TCL_R0_DSCP_TID1_MAP_0_DSCP_1_SHFT) |
+			(map[i+2] << HWIO_TCL_R0_DSCP_TID1_MAP_0_DSCP_2_SHFT) |
+			(map[i+3] << HWIO_TCL_R0_DSCP_TID1_MAP_0_DSCP_3_SHFT) |
+			(map[i+4] << HWIO_TCL_R0_DSCP_TID1_MAP_0_DSCP_4_SHFT) |
+			(map[i+5] << HWIO_TCL_R0_DSCP_TID1_MAP_0_DSCP_5_SHFT) |
+			(map[i+6] << HWIO_TCL_R0_DSCP_TID1_MAP_0_DSCP_6_SHFT) |
+			(map[i+7] << HWIO_TCL_R0_DSCP_TID1_MAP_0_DSCP_7_SHFT) |
+			(map[i+8] << HWIO_TCL_R0_DSCP_TID1_MAP_0_DSCP_8_SHFT) |
+			(map[i+9] << HWIO_TCL_R0_DSCP_TID1_MAP_0_DSCP_9_SHFT));
+
+		HAL_REG_WRITE(soc, addr,
+				(value & HWIO_TCL_R0_DSCP_TID1_MAP_1_RMSK));
+
+		addr += 4;
+	}
 }
 
 /**
  * hal_tx_update_dscp_tid() - Update the dscp tid map table as updated by user
- *
  * @soc: HAL SoC context
  * @map: DSCP-TID mapping table
  * @id : MAP ID
@@ -939,196 +1066,163 @@ static inline void hal_tx_set_dscp_tid_map(hal_soc_handle_t hal_soc_hdl,
  *
  * Return: void
  */
-static inline
-void hal_tx_update_dscp_tid(hal_soc_handle_t hal_soc_hdl, uint8_t tid,
-			    uint8_t id, uint8_t dscp)
+static inline void hal_tx_update_dscp_tid(void *hal_soc, uint8_t tid,
+		uint8_t id, uint8_t dscp)
 {
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
+	int index;
+	uint32_t addr;
+	uint32_t value;
+	uint32_t regval;
 
-	hal_soc->ops->hal_tx_update_dscp_tid(hal_soc, tid, id, dscp);
+	struct hal_soc *soc = (struct hal_soc *)hal_soc;
+
+	if (id == HAL_TX_DSCP_TID_MAP_TABLE_DEFAULT)
+		addr =
+			HWIO_TCL_R0_DSCP_TID1_MAP_0_ADDR(
+					SEQ_WCSS_UMAC_MAC_TCL_REG_OFFSET);
+	else
+		addr =
+			HWIO_TCL_R0_DSCP_TID2_MAP_0_ADDR(
+					SEQ_WCSS_UMAC_MAC_TCL_REG_OFFSET);
+
+	index = dscp % HAL_TX_NUM_DSCP_PER_REGISTER;
+	addr += 4 * (dscp/HAL_TX_NUM_DSCP_PER_REGISTER);
+	value = tid << (HAL_TX_BITS_PER_TID * index);
+
+	/* Read back previous DSCP TID config and update
+	 * with new config.
+	 */
+	regval = HAL_REG_READ(soc, addr);
+	regval &= ~(HAL_TX_TID_BITS_MASK << (HAL_TX_BITS_PER_TID * index));
+	regval |= value;
+
+	HAL_REG_WRITE(soc, addr,
+			(regval & HWIO_TCL_R0_DSCP_TID1_MAP_1_RMSK));
 }
+#else
+
+#define DSCP_TID_TABLE_SIZE 24
+#define NUM_WORDS_PER_DSCP_TID_TABLE (DSCP_TID_TABLE_SIZE/4)
 
 /**
- * hal_tx_desc_set_lmac_id - Set the lmac_id value
- * @desc: Handle to Tx Descriptor
- * @lmac_id: mac Id to ast matching
- *                     b00 – mac 0
- *                     b01 – mac 1
- *                     b10 – mac 2
- *                     b11 – all macs (legacy HK way)
+ * hal_tx_set_dscp_tid_map_default() - Configure default DSCP to TID map table
+ * @soc: HAL SoC context
+ * @map: DSCP-TID mapping table
+ * @id: mapping table ID - 0-31
  *
- * Return: void
- */
-static inline void hal_tx_desc_set_lmac_id(hal_soc_handle_t hal_soc_hdl,
-					   void *desc, uint8_t lmac_id)
-{
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
-
-	hal_soc->ops->hal_tx_desc_set_lmac_id(desc, lmac_id);
-}
-
-/**
- * hal_tx_desc_set_search_type - Set the search type value
- * @desc: Handle to Tx Descriptor
- * @search_type: search type
- *		     0 – Normal search
- *		     1 – Index based address search
- *		     2 – Index based flow search
- *
- * Return: void
- */
-static inline void hal_tx_desc_set_search_type(hal_soc_handle_t hal_soc_hdl,
-					       void *desc, uint8_t search_type)
-{
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
-
-	hal_soc->ops->hal_tx_desc_set_search_type(desc, search_type);
-}
-
-/**
- * hal_tx_desc_set_search_index - Set the search index value
- * @desc: Handle to Tx Descriptor
- * @search_index: The index that will be used for index based address or
- *                flow search. The field is valid when 'search_type' is
- *                1 0r 2
- *
- * Return: void
- */
-static inline void hal_tx_desc_set_search_index(hal_soc_handle_t hal_soc_hdl,
-						void *desc,
-						uint32_t search_index)
-{
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
-
-	hal_soc->ops->hal_tx_desc_set_search_index(desc, search_index);
-}
-
-/**
- * hal_tx_desc_set_cache_set_num - Set the cache-set-num value
- * @desc: Handle to Tx Descriptor
- * @cache_num: Cache set number that should be used to cache the index
- *                based search results, for address and flow search.
- *                This value should be equal to LSB four bits of the hash value
- *                of match data, in case of search index points to an entry
- *                which may be used in content based search also. The value can
- *                be anything when the entry pointed by search index will not be
- *                used for content based search.
- *
- * Return: void
- */
-static inline void hal_tx_desc_set_cache_set_num(hal_soc_handle_t hal_soc_hdl,
-						 void *desc,
-						 uint8_t cache_num)
-{
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
-
-	hal_soc->ops->hal_tx_desc_set_cache_set_num(desc, cache_num);
-}
-
-/**
- * hal_tx_comp_get_status() - TQM Release reason
- * @hal_desc: completion ring Tx status
- *
- * This function will parse the WBM completion descriptor and populate in
- * HAL structure
+ * DSCP are mapped to 8 TID values using TID values programmed
+ * in any of the 32 DSCP_TID_MAPS (id = 0-31).
  *
  * Return: none
  */
-static inline void hal_tx_comp_get_status(void *desc, void *ts,
-					  hal_soc_handle_t hal_soc_hdl)
+static inline void hal_tx_set_dscp_tid_map(void *hal_soc, uint8_t *map,
+		uint8_t id)
 {
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
+	int i;
+	uint32_t addr, cmn_reg_addr;
+	uint32_t value = 0, regval;
+	uint8_t val[DSCP_TID_TABLE_SIZE], cnt = 0;
 
-	hal_soc->ops->hal_tx_comp_get_status(desc, ts, hal_soc);
+	struct hal_soc *soc = (struct hal_soc *)hal_soc;
+
+	if (id >= HAL_MAX_HW_DSCP_TID_MAPS_11AX) {
+		return;
+	}
+
+	cmn_reg_addr = HWIO_TCL_R0_CONS_RING_CMN_CTRL_REG_ADDR(
+					SEQ_WCSS_UMAC_MAC_TCL_REG_OFFSET);
+
+	addr = HWIO_TCL_R0_DSCP_TID_MAP_n_ADDR(
+				SEQ_WCSS_UMAC_MAC_TCL_REG_OFFSET,
+				id * NUM_WORDS_PER_DSCP_TID_TABLE);
+
+	/* Enable read/write access */
+	regval = HAL_REG_READ(soc, cmn_reg_addr);
+	regval |=
+		(1 << HWIO_TCL_R0_CONS_RING_CMN_CTRL_REG_DSCP_TID_MAP_PROGRAM_EN_SHFT);
+
+	HAL_REG_WRITE(soc, cmn_reg_addr, regval);
+
+	/* Write 8 (24 bits) DSCP-TID mappings in each interation */
+	for (i = 0; i < 64; i += 8) {
+		value = (map[i] |
+			(map[i+1] << 0x3) |
+			(map[i+2] << 0x6) |
+			(map[i+3] << 0x9) |
+			(map[i+4] << 0xc) |
+			(map[i+5] << 0xf) |
+			(map[i+6] << 0x12) |
+			(map[i+7] << 0x15));
+
+		qdf_mem_copy(&val[cnt], (void *)&value, 3);
+		cnt += 3;
+	}
+
+	for (i = 0; i < DSCP_TID_TABLE_SIZE; i += 4) {
+		regval = *(uint32_t *)(val + i);
+		HAL_REG_WRITE(soc, addr,
+				(regval & HWIO_TCL_R0_DSCP_TID_MAP_n_RMSK));
+		addr += 4;
+	}
+
+	/* Diasble read/write access */
+	regval = HAL_REG_READ(soc, cmn_reg_addr);
+	regval &=
+		~(HWIO_TCL_R0_CONS_RING_CMN_CTRL_REG_DSCP_TID_MAP_PROGRAM_EN_BMSK);
+
+	HAL_REG_WRITE(soc, cmn_reg_addr, regval);
 }
 
+static inline void hal_tx_update_dscp_tid(void *hal_soc, uint8_t tid,
+		uint8_t id, uint8_t dscp)
+{
+	int index;
+	uint32_t addr;
+	uint32_t value;
+	uint32_t regval;
+
+	struct hal_soc *soc = (struct hal_soc *)hal_soc;
+	addr = HWIO_TCL_R0_DSCP_TID_MAP_n_ADDR(
+				SEQ_WCSS_UMAC_MAC_TCL_REG_OFFSET, id);
+
+	index = dscp % HAL_TX_NUM_DSCP_PER_REGISTER;
+	addr += 4 * (dscp/HAL_TX_NUM_DSCP_PER_REGISTER);
+	value = tid << (HAL_TX_BITS_PER_TID * index);
+
+	regval = HAL_REG_READ(soc, addr);
+	regval &= ~(HAL_TX_TID_BITS_MASK << (HAL_TX_BITS_PER_TID * index));
+	regval |= value;
+
+	HAL_REG_WRITE(soc, addr,
+			(regval & HWIO_TCL_R0_DSCP_TID_MAP_n_RMSK));
+}
+#endif
 
 /**
- * hal_tx_desc_set_buf_addr - Fill Buffer Address information in Tx Descriptor
- * @desc: Handle to Tx Descriptor
- * @paddr: Physical Address
- * @pool_id: Return Buffer Manager ID
- * @desc_id: Descriptor ID
- * @type: 0 - Address points to a MSDU buffer
- *		1 - Address points to MSDU extension descriptor
+ * hal_tx_init_data_ring() - Initialize all the TCL Descriptors in SRNG
+ * @hal_soc: Handle to HAL SoC structure
+ * @hal_srng: Handle to HAL SRNG structure
  *
- * Return: void
+ * Return: none
  */
-static inline
-void hal_tx_desc_set_buf_addr(void *desc, dma_addr_t paddr,
-			      uint8_t pool_id, uint32_t desc_id,
-			      uint8_t type, hal_soc_handle_t hal_soc_hdl)
+static inline void hal_tx_init_data_ring(void *hal_soc, void *hal_srng)
 {
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
+	uint8_t *desc_addr;
+	struct hal_srng_params srng_params;
+	uint32_t desc_size;
+	uint32_t num_desc;
 
-	hal_soc->ops->hal_tx_desc_set_buf_addr(desc, paddr, pool_id,
-						desc_id, type);
+	hal_get_srng_params(hal_soc, hal_srng, &srng_params);
 
+	desc_addr = (uint8_t *) srng_params.ring_base_vaddr;
+	desc_size = sizeof(struct tcl_data_cmd);
+	num_desc = srng_params.num_entries;
+
+	while (num_desc) {
+		HAL_TX_DESC_SET_TLV_HDR(desc_addr, HAL_TX_TCL_DATA_TAG,
+				desc_size);
+		desc_addr += (desc_size + sizeof(struct tlv_32_hdr));
+		num_desc--;
+	}
 }
-
-/**
- * hal_tx_set_pcp_tid_map_default() - Configure default PCP to TID map table
- *
- * @soc: HAL SoC context
- * @map: PCP-TID mapping table
- *
- * Return: void
- */
-static inline void hal_tx_set_pcp_tid_map_default(hal_soc_handle_t hal_soc_hdl,
-						  uint8_t *map)
-{
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
-
-	hal_soc->ops->hal_tx_set_pcp_tid_map(hal_soc, map);
-}
-
-/**
- * hal_tx_update_pcp_tid_map() - Update PCP to TID map table
- *
- * @soc: HAL SoC context
- * @pcp: pcp value
- * @tid: tid no
- *
- * Return: void
- */
-static inline void hal_tx_update_pcp_tid_map(hal_soc_handle_t hal_soc_hdl,
-					     uint8_t pcp, uint8_t tid)
-{
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
-
-	hal_soc->ops->hal_tx_update_pcp_tid_map(hal_soc, tid, tid);
-}
-
-/**
- * hal_tx_set_tidmap_prty() - Configure TIDmap priority
- *
- * @soc: HAL SoC context
- * @val: priority value
- *
- * Return: void
- */
-static inline
-void hal_tx_set_tidmap_prty(hal_soc_handle_t hal_soc_hdl, uint8_t val)
-{
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
-
-	hal_soc->ops->hal_tx_set_tidmap_prty(hal_soc, val);
-}
-
-/**
- * hal_get_wbm_internal_error() - wbm internal error
- * @hal_desc: completion ring descriptor pointer
- *
- * This function will return the type of pointer - buffer or descriptor
- *
- * Return: buffer type
- */
-static inline
-uint8_t hal_get_wbm_internal_error(hal_soc_handle_t hal_soc_hdl, void *hal_desc)
-{
-	struct hal_soc *hal_soc = (struct hal_soc *)hal_soc_hdl;
-
-	return hal_soc->ops->hal_get_wbm_internal_error(hal_desc);
-}
-
 #endif /* HAL_TX_H */

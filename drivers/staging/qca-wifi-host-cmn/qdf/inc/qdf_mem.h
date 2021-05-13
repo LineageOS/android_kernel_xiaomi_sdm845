@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -27,7 +27,6 @@
 /* Include Files */
 #include <qdf_types.h>
 #include <i_qdf_mem.h>
-#include <i_qdf_trace.h>
 
 #define QDF_CACHE_LINE_SZ __qdf_cache_line_sz
 
@@ -39,7 +38,6 @@
  * Return: aligned value.
  */
 #define qdf_align(a, align_size)   __qdf_align(a, align_size)
-#define qdf_page_size __page_size
 
 /**
  * struct qdf_mem_dma_page_t - Allocated dmaable page
@@ -59,17 +57,12 @@ struct qdf_mem_dma_page_t {
  * @num_pages: Number of allocation needed pages
  * @dma_pages: page information storage in case of coherent memory
  * @cacheable_pages: page information storage in case of cacheable memory
- * @is_mem_prealloc: flag for multiple pages pre-alloc or not
  */
 struct qdf_mem_multi_page_t {
 	uint16_t num_element_per_page;
 	uint16_t num_pages;
 	struct qdf_mem_dma_page_t *dma_pages;
 	void **cacheable_pages;
-	qdf_size_t page_size;
-#ifdef DP_MEM_PRE_ALLOC
-	uint8_t is_mem_prealloc;
-#endif
 };
 
 
@@ -93,23 +86,16 @@ void qdf_mem_init(void);
  */
 void qdf_mem_exit(void);
 
-#define QDF_MEM_FUNC_NAME_SIZE 48
+#define QDF_MEM_FILE_NAME_SIZE 48
 
 #ifdef MEMORY_DEBUG
 /**
- * qdf_mem_debug_config_get() - Get the user configuration of mem_debug_disabled
- *
- * Return: value of mem_debug_disabled qdf module argument
- */
-bool qdf_mem_debug_config_get(void);
-
-/**
  * qdf_mem_malloc_debug() - debug version of QDF memory allocation API
  * @size: Number of bytes of memory to allocate.
- * @func: Function name of the call site
+ * @file: File name of the call site
  * @line: Line number of the call site
  * @caller: Address of the caller function
- * @flag: GFP flag
+ * @@flag: GFP flag
  *
  * This function will dynamicallly allocate the specified number of bytes of
  * memory and add it to the qdf tracking list to check for memory leaks and
@@ -117,17 +103,14 @@ bool qdf_mem_debug_config_get(void);
  *
  * Return: A valid memory location on success, or NULL on failure
  */
-void *qdf_mem_malloc_debug(size_t size, const char *func, uint32_t line,
+void *qdf_mem_malloc_debug(size_t size, const char *file, uint32_t line,
 			   void *caller, uint32_t flag);
 
 #define qdf_mem_malloc(size) \
-	qdf_mem_malloc_debug(size, __func__, __LINE__, QDF_RET_IP, 0)
-
-#define qdf_mem_malloc_fl(size, func, line) \
-	qdf_mem_malloc_debug(size, func, line, QDF_RET_IP, 0)
+	qdf_mem_malloc_debug(size, __FILE__, __LINE__, QDF_RET_IP, 0)
 
 #define qdf_mem_malloc_atomic(size) \
-	qdf_mem_malloc_debug(size, __func__, __LINE__, QDF_RET_IP, GFP_ATOMIC)
+	qdf_mem_malloc_debug(size, __FILE__, __LINE__, QDF_RET_IP, GFP_ATOMIC)
 /**
  * qdf_mem_free_debug() - debug version of qdf_mem_free
  * @ptr: Pointer to the starting address of the memory to be freed.
@@ -140,29 +123,7 @@ void *qdf_mem_malloc_debug(size_t size, const char *func, uint32_t line,
 void qdf_mem_free_debug(void *ptr, const char *file, uint32_t line);
 
 #define qdf_mem_free(ptr) \
-	qdf_mem_free_debug(ptr, __func__, __LINE__)
-
-void qdf_mem_multi_pages_alloc_debug(qdf_device_t osdev,
-				     struct qdf_mem_multi_page_t *pages,
-				     size_t element_size, uint16_t element_num,
-				     qdf_dma_context_t memctxt, bool cacheable,
-				     const char *func, uint32_t line,
-				     void *caller);
-
-#define qdf_mem_multi_pages_alloc(osdev, pages, element_size, element_num,\
-				  memctxt, cacheable) \
-	qdf_mem_multi_pages_alloc_debug(osdev, pages, element_size, \
-					element_num, memctxt, cacheable, \
-					__func__, __LINE__, QDF_RET_IP)
-
-void qdf_mem_multi_pages_free_debug(qdf_device_t osdev,
-				    struct qdf_mem_multi_page_t *pages,
-				    qdf_dma_context_t memctxt, bool cacheable,
-				    const char *func, uint32_t line);
-
-#define qdf_mem_multi_pages_free(osdev, pages, memctxt, cacheable) \
-	qdf_mem_multi_pages_free_debug(osdev, pages, memctxt, cacheable, \
-				       __func__, __LINE__)
+	qdf_mem_free_debug(ptr, __FILE__, __LINE__)
 
 /**
  * qdf_mem_check_for_leaks() - Assert that the current memory domain is empty
@@ -202,20 +163,21 @@ void qdf_mem_check_for_leaks(void);
  * @dev: Pointer to device handle
  * @size: Size to be allocated
  * @paddr: Physical address
- * @func: Function name of the call site
+ * @file: file name of the call site
  * @line: line numbe rof the call site
  * @caller: Address of the caller function
+ * @flag: GFP flag
  *
  * Return: pointer of allocated memory or null if memory alloc fails
  */
 void *qdf_mem_alloc_consistent_debug(qdf_device_t osdev, void *dev,
 				     qdf_size_t size, qdf_dma_addr_t *paddr,
-				     const char *func, uint32_t line,
+				     const char *file, uint32_t line,
 				     void *caller);
 
 #define qdf_mem_alloc_consistent(osdev, dev, size, paddr) \
 	qdf_mem_alloc_consistent_debug(osdev, dev, size, paddr, \
-				       __func__, __LINE__, QDF_RET_IP)
+				       __FILE__, __LINE__, QDF_RET_IP)
 
 /**
  * qdf_mem_free_consistent_debug() - free consistent qdf memory
@@ -224,7 +186,7 @@ void *qdf_mem_alloc_consistent_debug(qdf_device_t osdev, void *dev,
  * @vaddr: virtual address
  * @paddr: Physical address
  * @memctx: Pointer to DMA context
- * @func: Function name of the call site
+ * @file: file name of the call site
  * @line: line numbe rof the call site
  *
  * Return: none
@@ -233,229 +195,70 @@ void qdf_mem_free_consistent_debug(qdf_device_t osdev, void *dev,
 				   qdf_size_t size, void *vaddr,
 				   qdf_dma_addr_t paddr,
 				   qdf_dma_context_t memctx,
-				   const char *func, uint32_t line);
+				   const char *file, uint32_t line);
 
 #define qdf_mem_free_consistent(osdev, dev, size, vaddr, paddr, memctx) \
 	qdf_mem_free_consistent_debug(osdev, dev, size, vaddr, paddr, memctx, \
-				  __func__, __LINE__)
+				  __FILE__, __LINE__)
 #else
-static inline bool qdf_mem_debug_config_get(void)
-{
-	return false;
-}
+void *qdf_mem_malloc(qdf_size_t size);
+void *qdf_mem_malloc_atomic(qdf_size_t size);
 
 /**
- * qdf_mem_malloc() - allocation QDF memory
- * @size: Number of bytes of memory to allocate.
+ * qdf_mem_free() - free QDF memory
+ * @ptr: Pointer to the starting address of the memory to be freed.
  *
- * This function will dynamicallly allocate the specified number of bytes of
- * memory.
- *
- * Return:
- * Upon successful allocate, returns a non-NULL pointer to the allocated
- * memory.  If this function is unable to allocate the amount of memory
- * specified (for any reason) it returns NULL.
+ * Return: None
  */
-#define qdf_mem_malloc(size) \
-	__qdf_mem_malloc(size, __func__, __LINE__)
-
-#define qdf_mem_malloc_fl(size, func, line) \
-	__qdf_mem_malloc(size, func, line)
-
-/**
- * qdf_mem_malloc_atomic() - allocation QDF memory atomically
- * @size: Number of bytes of memory to allocate.
- *
- * This function will dynamicallly allocate the specified number of bytes of
- * memory.
- *
- * Return:
- * Upon successful allocate, returns a non-NULL pointer to the allocated
- * memory.  If this function is unable to allocate the amount of memory
- * specified (for any reason) it returns NULL.
- */
-#define qdf_mem_malloc_atomic(size) \
-	qdf_mem_malloc_atomic_fl(size, __func__, __LINE__)
-
-void *qdf_mem_malloc_atomic_fl(qdf_size_t size,
-			       const char *func,
-			       uint32_t line);
-
-#define qdf_mem_free(ptr) \
-	__qdf_mem_free(ptr)
+void qdf_mem_free(void *ptr);
 
 static inline void qdf_mem_check_for_leaks(void) { }
 
-#define qdf_mem_alloc_consistent(osdev, dev, size, paddr) \
-	__qdf_mem_alloc_consistent(osdev, dev, size, paddr, __func__, __LINE__)
+void *qdf_mem_alloc_consistent(qdf_device_t osdev, void *dev,
+			       qdf_size_t size, qdf_dma_addr_t *paddr);
 
-#define qdf_mem_free_consistent(osdev, dev, size, vaddr, paddr, memctx) \
-	__qdf_mem_free_consistent(osdev, dev, size, vaddr, paddr, memctx)
-
-void qdf_mem_multi_pages_alloc(qdf_device_t osdev,
-			       struct qdf_mem_multi_page_t *pages,
-			       size_t element_size, uint16_t element_num,
-			       qdf_dma_context_t memctxt, bool cacheable);
-
-void qdf_mem_multi_pages_free(qdf_device_t osdev,
-			      struct qdf_mem_multi_page_t *pages,
-			      qdf_dma_context_t memctxt, bool cacheable);
+void qdf_mem_free_consistent(qdf_device_t osdev, void *dev,
+			     qdf_size_t size, void *vaddr,
+			     qdf_dma_addr_t paddr, qdf_dma_context_t memctx);
 
 #endif /* MEMORY_DEBUG */
 
-/**
- * qdf_mem_multi_pages_zero() - zero out each page memory
- * @pages: Multi page information storage
- * @cacheable: Coherent memory or cacheable memory
- *
- * This function will zero out each page memory
- *
- * Return: None
- */
-void qdf_mem_multi_pages_zero(struct qdf_mem_multi_page_t *pages,
-			      bool cacheable);
+void *qdf_mem_alloc_outline(qdf_device_t osdev, qdf_size_t size);
 
-/**
- * qdf_aligned_malloc() - allocates aligned QDF memory.
- * @size: Size to be allocated
- * @vaddr_unaligned: Unaligned virtual address.
- * @paddr_unaligned: Unaligned physical address.
- * @paddr_aligned: Aligned physical address.
- * @align: Base address alignment.
- * @func: Function name of the call site.
- * @line: Line number of the call site.
- *
- * This function will dynamically allocate the specified number of bytes of
- * memory. Checks if the allocated base address is aligned with base_align.
- * If not, it frees the allocated memory, adds base_align to alloc size and
- * re-allocates the memory.
- *
- * Return:
- * Upon successful allocate, returns an aligned base address of the allocated
- * memory.  If this function is unable to allocate the amount of memory
- * specified (for any reason) it returns NULL.
- */
-#define qdf_aligned_malloc(size, vaddr_unaligned, paddr_unaligned, \
-			   paddr_aligned, align) \
-	qdf_aligned_malloc_fl(size, vaddr_unaligned, paddr_unaligned, \
-			   paddr_aligned, align, __func__, __LINE__)
-
-void *qdf_aligned_malloc_fl(uint32_t *size, void **vaddr_unaligned,
-			    qdf_dma_addr_t *paddr_unaligned,
-			    qdf_dma_addr_t *paddr_aligned,
-			    uint32_t align,
-			    const char *func, uint32_t line);
-
-/**
- * qdf_aligned_mem_alloc_consistent() - allocates consistent qdf memory
- * @osdev: OS device handle
- * @size: Size to be allocated
- * @vaddr_unaligned: Unaligned virtual address.
- * @paddr_unaligned: Unaligned physical address.
- * @paddr_aligned: Aligned physical address.
- * @align: Base address alignment.
- * @func: Function name of the call site.
- * @line: Line number of the call site.
- *
- * Return: pointer of allocated memory or null if memory alloc fails.
- */
-#define qdf_aligned_mem_alloc_consistent(osdev, size, vaddr_unaligned, \
-					 paddr_unaligned, paddr_aligned, \
-					 align) \
-	qdf_aligned_mem_alloc_consistent_fl(osdev, size, vaddr_unaligned, \
-					    paddr_unaligned, paddr_aligned, \
-					    align, __func__, __LINE__)
-
-void *qdf_aligned_mem_alloc_consistent_fl(qdf_device_t osdev, uint32_t *size,
-					  void **vaddr_unaligned,
-					  qdf_dma_addr_t *paddr_unaligned,
-					  qdf_dma_addr_t *paddr_aligned,
-					  uint32_t align, const char *func,
-					  uint32_t line);
-
-#define qdf_mem_virt_to_phys(vaddr) virt_to_phys(vaddr)
-
-void qdf_mem_set_io(void *ptr, uint32_t num_bytes, uint32_t value);
-
-void qdf_mem_copy_toio(void *dst_addr, const void *src_addr,
-					   uint32_t num_bytes);
-
-/**
- * qdf_mem_set() - set (fill) memory with a specified byte value.
- * @ptr: Pointer to memory that will be set
- * @num_bytes: Number of bytes to be set
- * @value: Byte set in memory
- *
- * WARNING: parameter @num_bytes and @value are swapped comparing with
- * standard C function "memset", please ensure correct usage of this function!
- *
- * Return: None
- */
 void qdf_mem_set(void *ptr, uint32_t num_bytes, uint32_t value);
 
-/**
- * qdf_mem_zero() - zero out memory
- * @ptr: pointer to memory that will be set to zero
- * @num_bytes: number of bytes zero
- *
- * This function sets the memory location to all zeros, essentially clearing
- * the memory.
- *
- * Return: None
- */
-static inline void qdf_mem_zero(void *ptr, uint32_t num_bytes)
-{
-	qdf_mem_set(ptr, num_bytes, 0);
-}
+void qdf_mem_zero(void *ptr, uint32_t num_bytes);
 
-/**
- * qdf_mem_copy() - copy memory
- * @dst_addr: Pointer to destination memory location (to copy to)
- * @src_addr: Pointer to source memory location (to copy from)
- * @num_bytes: Number of bytes to copy.
- *
- * Copy host memory from one location to another, similar to memcpy in
- * standard C.  Note this function does not specifically handle overlapping
- * source and destination memory locations.  Calling this function with
- * overlapping source and destination memory locations will result in
- * unpredictable results.  Use qdf_mem_move() if the memory locations
- * for the source and destination are overlapping (or could be overlapping!)
- *
- * Return: none
- */
 void qdf_mem_copy(void *dst_addr, const void *src_addr, uint32_t num_bytes);
 
-/**
- * qdf_mem_move() - move memory
- * @dst_addr: pointer to destination memory location (to move to)
- * @src_addr: pointer to source memory location (to move from)
- * @num_bytes: number of bytes to move.
- *
- * Move host memory from one location to another, similar to memmove in
- * standard C.  Note this function *does* handle overlapping
- * source and destination memory locations.
-
- * Return: None
- */
 void qdf_mem_move(void *dst_addr, const void *src_addr, uint32_t num_bytes);
+
+void qdf_mem_free_outline(void *buf);
+
+void qdf_mem_zero_outline(void *buf, qdf_size_t size);
+
+void qdf_ether_addr_copy(void *dst_addr, const void *src_addr);
 
 /**
  * qdf_mem_cmp() - memory compare
- * @left: pointer to one location in memory to compare
- * @right: pointer to second location in memory to compare
- * @size: the number of bytes to compare
+ * @memory1: pointer to one location in memory to compare.
+ * @memory2: pointer to second location in memory to compare.
+ * @num_bytes: the number of bytes to compare.
  *
  * Function to compare two pieces of memory, similar to memcmp function
  * in standard C.
- *
  * Return:
- *	0 -- equal
- *	< 0 -- *memory1 is less than *memory2
- *	> 0 -- *memory1 is bigger than *memory2
+ * int32_t - returns an int value that tells if the memory
+ * locations are equal or not equal.
+ * 0 -- equal
+ * < 0 -- *memory1 is less than *memory2
+ * > 0 -- *memory1 is bigger than *memory2
  */
-int qdf_mem_cmp(const void *left, const void *right, size_t size);
-
-void qdf_ether_addr_copy(void *dst_addr, const void *src_addr);
+static inline int32_t qdf_mem_cmp(const void *memory1, const void *memory2,
+				  uint32_t num_bytes)
+{
+	return __qdf_mem_cmp(memory1, memory2, num_bytes);
+}
 
 /**
  * qdf_mem_map_nbytes_single - Map memory for DMA
@@ -471,19 +274,11 @@ static inline uint32_t qdf_mem_map_nbytes_single(qdf_device_t osdev, void *buf,
 						 qdf_dma_dir_t dir, int nbytes,
 						 qdf_dma_addr_t *phy_addr)
 {
-#if defined(HIF_PCI) || defined(HIF_IPCI)
+#if defined(HIF_PCI)
 	return __qdf_mem_map_nbytes_single(osdev, buf, dir, nbytes, phy_addr);
 #else
 	return 0;
 #endif
-}
-
-static inline void qdf_mem_dma_cache_sync(qdf_device_t osdev,
-					  qdf_dma_addr_t buf,
-					  qdf_dma_dir_t dir,
-					  int nbytes)
-{
-	__qdf_mem_dma_cache_sync(osdev, buf, dir, nbytes);
 }
 
 /**
@@ -500,7 +295,7 @@ static inline void qdf_mem_unmap_nbytes_single(qdf_device_t osdev,
 					       qdf_dma_dir_t dir,
 					       int nbytes)
 {
-#if defined(HIF_PCI) || defined(HIF_IPCI)
+#if defined(HIF_PCI)
 	__qdf_mem_unmap_nbytes_single(osdev, phy_addr, dir, nbytes);
 #endif
 }
@@ -567,35 +362,16 @@ void qdf_mem_dma_sync_single_for_cpu(qdf_device_t osdev,
 					qdf_size_t size,
 					__dma_data_direction direction);
 
+void qdf_mem_multi_pages_alloc(qdf_device_t osdev,
+			       struct qdf_mem_multi_page_t *pages,
+			       size_t element_size, uint16_t element_num,
+			       qdf_dma_context_t memctxt, bool cacheable);
+void qdf_mem_multi_pages_free(qdf_device_t osdev,
+			      struct qdf_mem_multi_page_t *pages,
+			      qdf_dma_context_t memctxt, bool cacheable);
 int qdf_mem_multi_page_link(qdf_device_t osdev,
 		struct qdf_mem_multi_page_t *pages,
 		uint32_t elem_size, uint32_t elem_count, uint8_t cacheable);
-
-#ifdef WLAN_DEBUGFS
-
-/**
- * qdf_mem_kmalloc_inc() - increment kmalloc allocated bytes count
- * @size: number of bytes to increment by
- *
- * Return: None
- */
-void qdf_mem_kmalloc_inc(qdf_size_t size);
-
-/**
- * qdf_mem_kmalloc_dec() - decrement kmalloc allocated bytes count
- * @size: number of bytes to decrement by
- *
- * Return: None
- */
-void qdf_mem_kmalloc_dec(qdf_size_t size);
-
-#else
-
-static inline void qdf_mem_kmalloc_inc(qdf_size_t size) { }
-static inline void qdf_mem_kmalloc_dec(qdf_size_t size) { }
-
-#endif /* WLAN_DEBUGFS */
-
 /**
  * qdf_mem_skb_inc() - increment total skb allocation size
  * @size: size to be added
@@ -646,7 +422,7 @@ static inline void qdf_update_mem_map_table(qdf_device_t osdev,
 					    uint32_t mem_size)
 {
 	if (!mem_info) {
-		qdf_nofl_err("%s: NULL mem_info", __func__);
+		__qdf_print("%s: NULL mem_info\n", __func__);
 		return;
 	}
 
@@ -843,8 +619,8 @@ static inline void qdf_mem_shared_mem_free(qdf_device_t osdev,
 					   qdf_shared_mem_t *shared_mem)
 {
 	if (!shared_mem) {
-		qdf_nofl_err("%s: NULL shared mem struct passed",
-			     __func__);
+		__qdf_print("%s: NULL shared mem struct passed\n",
+			    __func__);
 		return;
 	}
 
