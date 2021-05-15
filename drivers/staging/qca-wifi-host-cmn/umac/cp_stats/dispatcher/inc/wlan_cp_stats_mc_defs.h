@@ -33,12 +33,8 @@
 
 #define MAX_NUM_CHAINS              2
 
-#define MAX_MIB_STATS               1
-
 #define IS_MSB_SET(__num) ((__num) & BIT(31))
 #define IS_LSB_SET(__num) ((__num) & BIT(0))
-
-#define VDEV_ALL                    0xFF
 
 /**
  * enum stats_req_type - enum indicating bit position of various stats type in
@@ -46,13 +42,11 @@
  * @TYPE_CONNECTION_TX_POWER: tx power was requested
  * @TYPE_STATION_STATS: station stats was requested
  * @TYPE_PEER_STATS: peer stats was requested
- * @TYPE_MIB_STATS: MIB stats was requested
  */
 enum stats_req_type {
 	TYPE_CONNECTION_TX_POWER = 0,
 	TYPE_STATION_STATS,
 	TYPE_PEER_STATS,
-	TYPE_MIB_STATS,
 	TYPE_MAX,
 };
 
@@ -66,11 +60,6 @@ enum stats_req_type {
  * @TX_RATE_VHT20: VHT 20 rates
  * @TX_RATE_VHT40: VHT 40 rates
  * @TX_RATE_VHT80: VHT 80 rates
- * @TX_RATE_HE20: HE 20 rates
- * @TX_RATE_HE40: HE 40 rates
- * @TX_RATE_HE80: HE 80 rates
- * @TX_RATE_HE160: HE 160 rates
- * @TX_RATE_VHT160: VHT 160 rates
  */
 enum tx_rate_info {
 	TX_RATE_LEGACY = 0x1,
@@ -81,25 +70,6 @@ enum tx_rate_info {
 	TX_RATE_VHT20 = 0x20,
 	TX_RATE_VHT40 = 0x40,
 	TX_RATE_VHT80 = 0x80,
-	TX_RATE_HE20 = 0x100,
-	TX_RATE_HE40 = 0x200,
-	TX_RATE_HE80 = 0x400,
-	TX_RATE_HE160 = 0x800,
-	TX_RATE_VHT160 = 0x1000,
-};
-
-/**
- * enum - txrate_gi
- * @txrate_gi_0_8_US: guard interval 0.8 us
- * @txrate_gi_0_4_US: guard interval 0.4 us for legacy
- * @txrate_gi_1_6_US: guard interval 1.6 us
- * @txrate_gi_3_2_US: guard interval 3.2 us
- */
-enum txrate_gi {
-	TXRATE_GI_0_8_US = 0,
-	TXRATE_GI_0_4_US,
-	TXRATE_GI_1_6_US,
-	TXRATE_GI_3_2_US,
 };
 
 /**
@@ -163,8 +133,7 @@ struct stats_event;
 /**
  * struct request_info: details of each request
  * @cookie: identifier for os_if request
- * @u: unified data type for callback to process tx power/peer rssi/
- *     station stats/mib stats request when response comes.
+ * @callback: callback to process os_if request when response comes.
  * @vdev_id: vdev_id of request
  * @pdev_id: pdev_id of request
  * @peer_mac_addr: peer mac address
@@ -176,12 +145,10 @@ struct request_info {
 		void (*get_peer_rssi_cb)(struct stats_event *ev, void *cookie);
 		void (*get_station_stats_cb)(struct stats_event *ev,
 					     void *cookie);
-		void (*get_mib_stats_cb)(struct stats_event *ev,
-					 void *cookie);
 	} u;
 	uint32_t vdev_id;
 	uint32_t pdev_id;
-	uint8_t peer_mac_addr[QDF_MAC_ADDR_SIZE];
+	uint8_t peer_mac_addr[WLAN_MACADDR_LEN];
 };
 
 /**
@@ -206,13 +173,11 @@ struct cca_stats {
 
 /**
  * struct psoc_mc_cp_stats: psoc specific stats
- * @is_cp_stats_suspended: is cp stats suspended or not
  * @pending: details of pending requests
  * @wow_unspecified_wake_up_count: number of non-wow related wake ups
  * @wow_stats: wake_lock stats for vdev
  */
 struct psoc_mc_cp_stats {
-	bool is_cp_stats_suspended;
 	struct pending_stats_requests pending;
 	uint32_t wow_unspecified_wake_up_count;
 	struct wake_lock_stats wow_stats;
@@ -244,7 +209,7 @@ struct pdev_mc_cp_stats {
  */
 struct summary_stats {
 	uint32_t snr;
-	int8_t rssi;
+	uint32_t rssi;
 	uint32_t retry_cnt[4];
 	uint32_t multiple_retry_cnt[4];
 	uint32_t tx_frm_cnt[4];
@@ -273,43 +238,17 @@ struct vdev_mc_cp_stats {
 };
 
 /**
- * struct peer_extd_stats - Peer extension statistics
- * @peer_macaddr: peer MAC address
- * @rx_duration: lower 32 bits of rx duration in microseconds
- * @peer_tx_bytes: Total TX bytes (including dot11 header) sent to peer
- * @peer_rx_bytes: Total RX bytes (including dot11 header) received from peer
- * @last_tx_rate_code: last TX ratecode
- * @last_tx_power: TX power used by peer - units are 0.5 dBm
- * @rx_mc_bc_cnt: Total number of received multicast & broadcast data frames
- * corresponding to this peer, 1 in the MSB of rx_mc_bc_cnt represents a
- * valid data
- */
-struct peer_extd_stats {
-	uint8_t peer_macaddr[QDF_MAC_ADDR_SIZE];
-	uint32_t rx_duration;
-	uint32_t peer_tx_bytes;
-	uint32_t peer_rx_bytes;
-	uint32_t last_tx_rate_code;
-	int32_t last_tx_power;
-	uint32_t rx_mc_bc_cnt;
-};
-
-/**
  * struct peer_mc_cp_stats - peer specific stats
  * @tx_rate: tx rate
  * @rx_rate: rx rate
  * @peer_rssi: rssi
  * @peer_macaddr: mac address
- * @extd_stats: Pointer to peer extended stats
- * @adv_stats: Pointer to peer adv (extd2) stats
  */
 struct peer_mc_cp_stats {
 	uint32_t tx_rate;
 	uint32_t rx_rate;
-	int8_t peer_rssi;
-	uint8_t peer_macaddr[QDF_MAC_ADDR_SIZE];
-	struct peer_extd_stats *extd_stats;
-	struct peer_adv_mc_cp_stats *adv_stats;
+	uint32_t peer_rssi;
+	uint8_t peer_macaddr[WLAN_MACADDR_LEN];
 };
 
 /**
@@ -320,142 +259,11 @@ struct peer_mc_cp_stats {
  * @rx_count: rx count
  */
 struct peer_adv_mc_cp_stats {
-	uint8_t peer_macaddr[QDF_MAC_ADDR_SIZE];
+	uint8_t peer_macaddr[WLAN_MACADDR_LEN];
 	uint32_t fcs_count;
 	uint32_t rx_count;
 	uint64_t rx_bytes;
 };
-
-#ifdef WLAN_FEATURE_MIB_STATS
-/**
- * struct dot11_counters - mib group containing attributes that are MAC counters
- * @tx_frags: successfully transmitted fragments
- * @group_tx_frames: transmitted group addressed frames
- * @failed_cnt: MSDUs not transmitted successfully
- * @rx_frags: fragments successfully received
- * @group_rx_frames: group addressed frames received
- * @fcs_error_cnt: FCS errors detected
- * @tx_frames: frames successfully transmitted
- */
-struct dot11_counters {
-	uint32_t tx_frags;
-	uint32_t group_tx_frames;
-	uint32_t failed_cnt;
-	uint32_t rx_frags;
-	uint32_t group_rx_frames;
-	uint32_t fcs_error_cnt;
-	uint32_t tx_frames;
-};
-
-/**
- * struct dot11_mac_statistics - mib stats information on the operation of MAC
- * @retry_cnt: retries done by mac for successful transmition
- * @multi_retry_cnt: multiple retries done before successful transmition
- * @frame_dup_cnt: duplicate no of frames
- * @rts_success_cnt: number of CTS received (in response to RTS)
- * @rts_fail_cnt: number of CTS not received (in response to RTS)
- * @tx_ack_fail_cnt: number of ACK not received
- */
-struct dot11_mac_statistics {
-	uint32_t retry_cnt;
-	uint32_t multi_retry_cnt;
-	uint32_t frame_dup_cnt;
-	uint32_t rts_success_cnt;
-	uint32_t rts_fail_cnt;
-	uint32_t tx_ack_fail_cnt;
-};
-
-/**
- * dot11_qos_counters - qos mac counters
- * @qos_tx_frag_cnt: transmitted QoS fragments
- * @qos_failed_cnt: failed Qos fragments
- * @qos_retry_cnt: Qos frames transmitted after retransmissions
- * @qos_multi_retry_cnt: Qos frames transmitted after more than
- *                       one retransmissions
- * @qos_frame_dup_cnt: duplicate frames
- * @qos_rts_success_cnt: number of CTS received (in response to RTS)
- * @qos_rts_fail_cnt: number of CTS not received (in response to RTS)
- * @tx_qos_ack_fail_cnt_up: number of ACK not received
- *                          (in response to Qos frame)
- * @qos_rx_frag_cnt: number of received MPDU of type Data
- * @qos_tx_frame_cnt: number of transmitted MPDU of type Data
- * @qos_discarded_frame_cnt: total Discarded MSDUs
- * @qos_mpdu_rx_cnt: total received MPDU
- * @qos_retries_rx_cnt: received MPDU with retry bit equal to 1
- */
-struct dot11_qos_counters {
-	uint32_t qos_tx_frag_cnt;
-	uint32_t qos_failed_cnt;
-	uint32_t qos_retry_cnt;
-	uint32_t qos_multi_retry_cnt;
-	uint32_t qos_frame_dup_cnt;
-	uint32_t qos_rts_success_cnt;
-	uint32_t qos_rts_fail_cnt;
-	uint32_t tx_qos_ack_fail_cnt_up;
-	uint32_t qos_rx_frag_cnt;
-	uint32_t qos_tx_frame_cnt;
-	uint32_t qos_discarded_frame_cnt;
-	uint32_t qos_mpdu_rx_cnt;
-	uint32_t qos_retries_rx_cnt;
-};
-
-/**
- * dot11_rsna_stats - mib rsn stats
- * @rm_ccmp_replays: received robust management CCMP MPDUs discarded
- *                   by the replay mechanism
- * @tkip_icv_err: TKIP ICV errors encountered
- * @tkip_replays: TKIP replay errors detected
- * @ccmp_decrypt_err: MPDUs discarded by the CCMP decryption algorithm
- * @ccmp_replays: received CCMP MPDUs discarded by the replay mechanism
- * @cmac_icv_err: MPDUs discarded by the CMAC integrity check algorithm
- * @cmac_replays: MPDUs discarded by the CMAC replay errors
- */
-struct dot11_rsna_stats {
-	uint32_t rm_ccmp_replays;
-	uint32_t tkip_icv_err;
-	uint32_t tkip_replays;
-	uint32_t ccmp_decrypt_err;
-	uint32_t ccmp_replays;
-	uint32_t cmac_icv_err;
-	uint32_t cmac_replays;
-};
-
-/**
- * dot11_counters_group3 - dot11 group3 stats
- * @tx_ampdu_cnt: transmitted AMPDUs
- * @tx_mpdus_in_ampdu_cnt: number of MPDUs in the A-MPDU in transmitted AMPDUs
- * @tx_octets_in_ampdu_cnt: octets in the transmitted A-MPDUs
- * @ampdu_rx_cnt: received A-MPDU
- * @mpdu_in_rx_ampdu_cnt: MPDUs received in the A-MPDU
- * @rx_octets_in_ampdu_cnt: octets in the received A-MPDU
- * @rx_ampdu_deli_crc_err_cnt: number of MPDUs delimiter with CRC error
- */
-struct dot11_counters_group3 {
-	uint32_t tx_ampdu_cnt;
-	uint32_t tx_mpdus_in_ampdu_cnt;
-	uint64_t tx_octets_in_ampdu_cnt;
-	uint32_t ampdu_rx_cnt;
-	uint32_t mpdu_in_rx_ampdu_cnt;
-	uint64_t rx_octets_in_ampdu_cnt;
-	uint32_t rx_ampdu_deli_crc_err_cnt;
-};
-
-/**
- * mib_stats_metrics - mib stats counters
- * @mib_counters: dot11Counters group
- * @mib_mac_statistics: dot11MACStatistics group
- * @mib_qos_counters: dot11QoSCounters group
- * @mib_rsna_stats: dot11RSNAStats group
- * @mib_counters_group3: dot11CountersGroup3 group
- */
-struct mib_stats_metrics {
-	struct dot11_counters mib_counters;
-	struct dot11_mac_statistics mib_mac_statistics;
-	struct dot11_qos_counters mib_qos_counters;
-	struct dot11_rsna_stats mib_rsna_stats;
-	struct dot11_counters_group3 mib_counters_group3;
-};
-#endif
 
 /**
  * struct congestion_stats_event: congestion stats event param
@@ -495,13 +303,9 @@ struct chain_rssi_event {
  * @peer_stats: if populated array indicating peer stats
  * @peer_adv_stats: if populated, indicates peer adv (extd2) stats
  * @num_peer_adv_stats: number of peer adv (extd2) stats
- * @num_peer_extd_stats: Num peer extended stats
- * @peer_extended_stats: Peer extended stats
  * @cca_stats: if populated indicates congestion stats
  * @num_summary_stats: number of summary stats
  * @vdev_summary_stats: if populated indicates array of summary stats per vdev
- * @num_mib_stats: number of mib stats
- * @mib_stats: if populated indicates array of mib stats per vdev
  * @num_chain_rssi_stats: number of chain rssi stats
  * @vdev_chain_rssi: if populated indicates array of chain rssi per vdev
  * @tx_rate: tx rate (kbps)
@@ -516,15 +320,9 @@ struct stats_event {
 	struct peer_mc_cp_stats *peer_stats;
 	uint32_t num_peer_adv_stats;
 	struct peer_adv_mc_cp_stats *peer_adv_stats;
-	uint32_t num_peer_extd_stats;
-	struct peer_extd_stats *peer_extended_stats;
 	struct congestion_stats_event *cca_stats;
 	uint32_t num_summary_stats;
 	struct summary_stats_event *vdev_summary_stats;
-#ifdef WLAN_FEATURE_MIB_STATS
-	uint32_t num_mib_stats;
-	struct mib_stats_metrics *mib_stats;
-#endif
 	uint32_t num_chain_rssi_stats;
 	struct chain_rssi_event *vdev_chain_rssi;
 	uint32_t tx_rate;

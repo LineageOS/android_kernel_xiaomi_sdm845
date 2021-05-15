@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -22,48 +22,6 @@
 #include "qdf_str.h"
 #include "qdf_trace.h"
 #include "qdf_types.h"
-
-const char *qdf_opmode_str(const enum QDF_OPMODE opmode)
-{
-	switch (opmode) {
-	case QDF_STA_MODE:
-		return "STA";
-	case QDF_SAP_MODE:
-		return "SAP";
-	case QDF_P2P_CLIENT_MODE:
-		return "P2P Client";
-	case QDF_P2P_GO_MODE:
-		return "P2P GO";
-	case QDF_FTM_MODE:
-		return "FTM";
-	case QDF_IBSS_MODE:
-		return "IBSS";
-	case QDF_MONITOR_MODE:
-		return "Monitor";
-	case QDF_P2P_DEVICE_MODE:
-		return "P2P Device";
-	case QDF_OCB_MODE:
-		return "OCB";
-	case QDF_EPPING_MODE:
-		return "EPPing";
-	case QDF_QVIT_MODE:
-		return "QVIT";
-	case QDF_NDI_MODE:
-		return "NDI";
-	case QDF_WDS_MODE:
-		return "WDS";
-	case QDF_BTAMP_MODE:
-		return "BTAMP";
-	case QDF_AHDEMO_MODE:
-		return "AHDEMO";
-	case QDF_TDLS_MODE:
-		return "TDLS";
-	case QDF_NAN_DISC_MODE:
-		return "NAN";
-	default:
-		return "Invalid operating mode";
-	}
-}
 
 static QDF_STATUS qdf_consume_char(const char **str, char c)
 {
@@ -219,7 +177,7 @@ static QDF_STATUS qdf_consume_radix(const char **str, uint8_t *out_radix)
 }
 
 static QDF_STATUS
-__qdf_int_parse_lazy(const char **int_str, uint64_t *out_int, bool *out_negate)
+qdf_int_parse(const char *int_str, uint64_t *out_int, bool *out_negate)
 {
 	QDF_STATUS status;
 	bool negate = false;
@@ -227,44 +185,6 @@ __qdf_int_parse_lazy(const char **int_str, uint64_t *out_int, bool *out_negate)
 	uint8_t digit;
 	uint64_t value = 0;
 	uint64_t next_value;
-	const char *str = *int_str;
-
-	str = qdf_str_left_trim(str);
-
-	status = qdf_consume_char(&str, '-');
-	if (QDF_IS_STATUS_SUCCESS(status))
-		negate = true;
-	else
-		qdf_consume_char(&str, '+');
-
-	status = qdf_consume_radix(&str, &radix);
-	if (QDF_IS_STATUS_ERROR(status))
-		return status;
-
-	while (QDF_IS_STATUS_SUCCESS(qdf_consume_hex(&str, &digit))) {
-		if (digit >= radix)
-			return QDF_STATUS_E_FAILURE;
-
-		next_value = value * radix + digit;
-		if (next_value < value)
-			return QDF_STATUS_E_RANGE;
-
-		value = next_value;
-	}
-
-	*int_str = str;
-	*out_negate = negate;
-	*out_int = value;
-
-	return QDF_STATUS_SUCCESS;
-}
-
-static QDF_STATUS
-qdf_int_parse(const char *int_str, uint64_t *out_int, bool *out_negate)
-{
-	QDF_STATUS status;
-	bool negate;
-	uint64_t value;
 
 	QDF_BUG(int_str);
 	if (!int_str)
@@ -274,9 +194,28 @@ qdf_int_parse(const char *int_str, uint64_t *out_int, bool *out_negate)
 	if (!out_int)
 		return QDF_STATUS_E_INVAL;
 
-	status = __qdf_int_parse_lazy(&int_str, &value, &negate);
+	int_str = qdf_str_left_trim(int_str);
+
+	status = qdf_consume_char(&int_str, '-');
+	if (QDF_IS_STATUS_SUCCESS(status))
+		negate = true;
+	else
+		qdf_consume_char(&int_str, '+');
+
+	status = qdf_consume_radix(&int_str, &radix);
 	if (QDF_IS_STATUS_ERROR(status))
 		return status;
+
+	while (QDF_IS_STATUS_SUCCESS(qdf_consume_hex(&int_str, &digit))) {
+		if (digit >= radix)
+			return QDF_STATUS_E_FAILURE;
+
+		next_value = value * radix + digit;
+		if (next_value < value)
+			return QDF_STATUS_E_RANGE;
+
+		value = next_value;
+	}
 
 	int_str = qdf_str_left_trim(int_str);
 	if (int_str[0] != '\0')
@@ -502,40 +441,6 @@ QDF_STATUS qdf_ipv4_parse(const char *ipv4_str, struct qdf_ipv4_addr *out_addr)
 }
 qdf_export_symbol(qdf_ipv4_parse);
 
-static inline void qdf_ipv6_apply_zero_comp(struct qdf_ipv6_addr *addr,
-					    uint8_t hextets,
-					    uint8_t zero_comp_index)
-{
-	/* Given the following hypothetical ipv6 address:
-	 * |---------------------------------------|
-	 * | 01 | ab | cd | ef |    |    |    |    |
-	 * |---------------------------------------|
-	 *           ^--- zero_comp_index (2)
-	 * from -----^
-	 * to ---------------------------^
-	 * |    hextets (4)    |
-	 *                     |   zero comp size  |
-	 *           | to move |
-	 *
-	 * We need to apply the zero compression such that we get:
-	 * |---------------------------------------|
-	 * | 01 | ab | 00 | 00 | 00 | 00 | cd | ef |
-	 * |---------------------------------------|
-	 *           |     zero comp     |
-	 *                               |  moved  |
-	 */
-
-	size_t zero_comp_size = (QDF_IPV6_ADDR_HEXTET_COUNT - hextets) * 2;
-	size_t bytes_to_move = (hextets - zero_comp_index) * 2;
-	uint8_t *from = &addr->bytes[zero_comp_index * 2];
-	uint8_t *to = from + zero_comp_size;
-
-	if (bytes_to_move)
-		qdf_mem_move(to, from, bytes_to_move);
-
-	qdf_mem_zero(from, to - from);
-}
-
 QDF_STATUS qdf_ipv6_parse(const char *ipv6_str, struct qdf_ipv6_addr *out_addr)
 {
 	QDF_STATUS status;
@@ -596,18 +501,22 @@ QDF_STATUS qdf_ipv6_parse(const char *ipv6_str, struct qdf_ipv6_addr *out_addr)
 		}
 	}
 
+	/* we must have max hextets or a zero compression */
+	if (hextets_found < QDF_IPV6_ADDR_HEXTET_COUNT && zero_comp == -1)
+		return QDF_STATUS_E_FAILURE;
+
 	ipv6_str = qdf_str_left_trim(ipv6_str);
 	if (ipv6_str[0] != '\0')
 		return QDF_STATUS_E_FAILURE;
 
-	/* we must have max hextets or a zero compression, but not both */
-	if (hextets_found < QDF_IPV6_ADDR_HEXTET_COUNT) {
-		if (zero_comp < 0)
-			return QDF_STATUS_E_FAILURE;
+	/* shift lower hextets if zero compressed */
+	if (zero_comp >= 0) {
+		uint8_t shift = QDF_IPV6_ADDR_HEXTET_COUNT - hextets_found;
+		void *to = &addr.bytes[(zero_comp + shift) * 2];
+		void *from = &addr.bytes[zero_comp * 2];
 
-		qdf_ipv6_apply_zero_comp(&addr, hextets_found, zero_comp);
-	} else if (zero_comp > -1) {
-		return QDF_STATUS_E_FAILURE;
+		qdf_mem_move(to, from, (hextets_found - zero_comp) * 2);
+		qdf_mem_set(from, shift * 2, 0);
 	}
 
 	*out_addr = addr;
@@ -615,101 +524,3 @@ QDF_STATUS qdf_ipv6_parse(const char *ipv6_str, struct qdf_ipv6_addr *out_addr)
 	return QDF_STATUS_SUCCESS;
 }
 qdf_export_symbol(qdf_ipv6_parse);
-
-QDF_STATUS qdf_uint16_array_parse(const char *in_str, uint16_t *out_array,
-				  qdf_size_t array_size, qdf_size_t *out_size)
-{
-	QDF_STATUS status;
-	bool negate;
-	qdf_size_t size = 0;
-	uint64_t value;
-
-	QDF_BUG(in_str);
-	if (!in_str)
-		return QDF_STATUS_E_INVAL;
-
-	QDF_BUG(out_array);
-	if (!out_array)
-		return QDF_STATUS_E_INVAL;
-
-	QDF_BUG(out_size);
-	if (!out_size)
-		return QDF_STATUS_E_INVAL;
-
-	while (size < array_size) {
-		status = __qdf_int_parse_lazy(&in_str, &value, &negate);
-		if (QDF_IS_STATUS_ERROR(status))
-			return status;
-
-		if ((uint16_t)value != value || negate)
-			return QDF_STATUS_E_RANGE;
-
-		in_str = qdf_str_left_trim(in_str);
-
-		switch (in_str[0]) {
-		case ',':
-			out_array[size++] = value;
-			in_str++;
-			break;
-		case '\0':
-			out_array[size++] = value;
-			*out_size = size;
-			return QDF_STATUS_SUCCESS;
-		default:
-			return QDF_STATUS_E_FAILURE;
-		}
-	}
-
-	return QDF_STATUS_E_FAILURE;
-}
-
-qdf_export_symbol(qdf_uint16_array_parse);
-
-QDF_STATUS qdf_uint8_array_parse(const char *in_str, uint8_t *out_array,
-				 qdf_size_t array_size, qdf_size_t *out_size)
-{
-	QDF_STATUS status;
-	bool negate;
-	qdf_size_t size = 0;
-	uint64_t value;
-
-	QDF_BUG(in_str);
-	if (!in_str)
-		return QDF_STATUS_E_INVAL;
-
-	QDF_BUG(out_array);
-	if (!out_array)
-		return QDF_STATUS_E_INVAL;
-
-	QDF_BUG(out_size);
-	if (!out_size)
-		return QDF_STATUS_E_INVAL;
-
-	while (size < array_size) {
-		status = __qdf_int_parse_lazy(&in_str, &value, &negate);
-		if (QDF_IS_STATUS_ERROR(status))
-			return status;
-
-		if ((uint8_t)value != value || negate)
-			return QDF_STATUS_E_RANGE;
-
-		in_str = qdf_str_left_trim(in_str);
-
-		switch (in_str[0]) {
-		case ',':
-			out_array[size++] = value;
-			in_str++;
-			break;
-		case '\0':
-			out_array[size++] = value;
-			*out_size = size;
-			return QDF_STATUS_SUCCESS;
-		default:
-			return QDF_STATUS_E_FAILURE;
-		}
-	}
-
-	return QDF_STATUS_E_FAILURE;
-}
-
-qdf_export_symbol(qdf_uint8_array_parse);

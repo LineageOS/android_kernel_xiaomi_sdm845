@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2014-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -26,11 +26,14 @@
  */
 
 #include "wlan_hdd_main.h"
-#include <linux/pm_qos.h>
-#include <linux/pm_runtime.h>
+
+#ifdef WLAN_FEATURE_PACKET_FILTERING
+
+#define HDD_MAX_CMP_PER_PACKET_FILTER	5
 
 #define HDD_WAKELOCK_TIMEOUT_CONNECT 1000
 #define HDD_WAKELOCK_TIMEOUT_RESUME 1000
+#define DISABLE_KRAIT_IDLE_PS_VAL      1
 
 /*
  * HDD_WAKELOCK_CONNECT_COMPLETE = CSR_JOIN_FAILURE_TIMEOUT_DEFAULT (3000) +
@@ -38,10 +41,6 @@
  *                      WNI_CFG_ASSOCIATION_FAILURE_TIMEOUT_STADEF  (2000)
  */
 #define HDD_WAKELOCK_CONNECT_COMPLETE 6000
-
-#ifdef WLAN_FEATURE_PACKET_FILTERING
-
-#define HDD_MAX_CMP_PER_PACKET_FILTER	5
 
 /**
  * enum pkt_filter_protocol_layer - packet filter protocol layer
@@ -311,7 +310,6 @@ int wlan_hdd_cfg80211_resume_wlan(struct wiphy *wiphy);
  */
 void hdd_ipv4_notifier_work_queue(struct work_struct *work);
 
-#ifdef WLAN_NS_OFFLOAD
 /**
  * hdd_enable_ns_offload() - enable NS offload
  * @adapter:   pointer to the adapter
@@ -328,20 +326,7 @@ void hdd_enable_ns_offload(struct hdd_adapter *adapter,
  * Return: nothing
  */
 void hdd_disable_ns_offload(struct hdd_adapter *adapter,
-	enum pmo_offload_trigger trigger);
-#else /* WLAN_NS_OFFLOAD */
-static inline
-void hdd_enable_ns_offload(struct hdd_adapter *adapter,
-			   enum pmo_offload_trigger trigger)
-{
-}
-
-static inline
-void hdd_disable_ns_offload(struct hdd_adapter *adapter,
-			    enum pmo_offload_trigger trigger)
-{
-}
-#endif /* WLAN_NS_OFFLOAD */
+			    enum pmo_offload_trigger trigger);
 
 /**
  * hdd_ipv6_notifier_work_queue() - IP V6 change notifier work handler
@@ -410,21 +395,6 @@ int wlan_hdd_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 int wlan_hdd_ipv4_changed(struct notifier_block *nb,
 			  unsigned long data, void *arg);
 
-#ifdef FEATURE_RUNTIME_PM
-/**
- * wlan_hdd_pm_qos_notify() - PM QOS notifier call back function
- * @nb: Pointer to notifier block kernel structure
- * @curr_val: PM QOS current value
- * @context: call back context
- *
- * This callback function for PM QOS change notification is used to setup
- * dynamic runtime PM.
- *
- * Return: NOTIFY_DONE for success
- */
-int wlan_hdd_pm_qos_notify(struct notifier_block *nb, unsigned long curr_val,
-			   void *context);
-#endif
 /**
  * wlan_hdd_ipv6_changed() - IPv6 change notifier callback
  * @nb: pointer to notifier block
@@ -441,15 +411,16 @@ int wlan_hdd_ipv6_changed(struct notifier_block *nb,
 			  unsigned long data, void *arg);
 
 /**
- * hdd_set_power_config() - set power config to firmware
+ * hdd_set_qpower_config() - set qpower config to firmware
  * @hddctx: HDD context
  * @adapter: HDD adapter
- * @power: new power config value
+ * @qpower: new qpower config value
  *
  * Return: 0 on success; Errno on failure
  */
-int hdd_set_power_config(struct hdd_context *hddctx,
-			 struct hdd_adapter *adapter, uint8_t power);
+int hdd_set_qpower_config(struct hdd_context *hddctx,
+			  struct hdd_adapter *adapter,
+			  uint8_t qpower);
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 /**
@@ -549,65 +520,6 @@ hdd_wlan_fake_apps_suspend(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 #endif /* WLAN_SUSPEND_RESUME_TEST */
-
-#ifdef WLAN_FEATURE_PKT_CAPTURE
-/**
- * wlan_hdd_mon_thread_resume() - Resume MON thread
- * @hdd_ctx: HDD context
- *
- * Check if MON thread is suspended, and resume if yes.
- *
- * Return: None
- */
-void wlan_hdd_mon_thread_resume(struct hdd_context *hdd_ctx);
-
-/**
- * wlan_hdd_mon_thread_suspend() - Suspend MON thread
- * @hdd_ctx: HDD context
- *
- * To suspend MON thread
- *
- * Return: 0 for success
- */
-int wlan_hdd_mon_thread_suspend(struct hdd_context *hdd_ctx);
-
-#else
-static inline void wlan_hdd_mon_thread_resume(struct hdd_context *hdd_ctx) {}
-static inline int wlan_hdd_mon_thread_suspend(struct hdd_context *hdd_ctx)
-{
-	return 0;
-}
-
-#endif /* WLAN_FEATURE_PKT_CAPTURE */
-
-#ifdef QCA_CONFIG_SMP
-/**
- * wlan_hdd_rx_thread_resume() - Resume RX thread
- * @hdd_ctx: HDD context
- *
- * Check if RX thread suspended, and resume if yes.
- *
- * Return: None
- */
-void wlan_hdd_rx_thread_resume(struct hdd_context *hdd_ctx);
-
-/**
- * wlan_hdd_rx_thread_suspend() - Suspend RX thread
- * @hdd_ctx: HDD context
- *
- * To suspend RX thread
- *
- * Return: 0 for success
- */
-int wlan_hdd_rx_thread_suspend(struct hdd_context *hdd_ctx);
-
-#else
-static inline void wlan_hdd_rx_thread_resume(struct hdd_context *hdd_ctx) {}
-static inline int wlan_hdd_rx_thread_suspend(struct hdd_context *hdd_ctx)
-{
-	return 0;
-}
-#endif
 
 #ifdef FEATURE_ANI_LEVEL_REQUEST
 /**

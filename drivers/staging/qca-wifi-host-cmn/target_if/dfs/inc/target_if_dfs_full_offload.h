@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  *
  * Permission to use, copy, modify, and/or distribute this software for
@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/**
+ /**
  * DOC: target_if_dfs_full_offload.h
  * This file contains dfs target interface for full-offload.
  */
@@ -60,78 +60,5 @@ static QDF_STATUS target_process_bang_radar_cmd(struct wlan_objmgr_pdev *pdev,
 }
 #endif
 
-#if defined(QCA_SUPPORT_AGILE_DFS)
-/**
- * target_send_ocac_abort_cmd() - Send off channel CAC abort to target for
- * to cancel current offchannel CAC
- * @pdev: Pointer to DFS pdev object.
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS target_send_ocac_abort_cmd(struct wlan_objmgr_pdev *pdev);
-/**
- * target_send_agile_ch_cfg_cmd() - Send agile channel parameters to target for
- * off channel precac.
- * @pdev: Pointer to DFS pdev object.
- * @adfs_param: Agile-DFS CAC parameters.
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS
-target_send_agile_ch_cfg_cmd(struct wlan_objmgr_pdev *pdev,
-			     struct dfs_agile_cac_params *adfs_param);
-#else
-static inline QDF_STATUS
-target_send_ocac_abort_cmd(struct wlan_objmgr_pdev *pdev)
-{
-	return QDF_STATUS_SUCCESS;
-}
-
-static inline QDF_STATUS
-target_send_agile_ch_cfg_cmd(struct wlan_objmgr_pdev *pdev,
-			     struct dfs_agile_cac_params *adfs_param)
-{
-	return QDF_STATUS_SUCCESS;
-}
-#endif
-
-#if defined(WLAN_DFS_FULL_OFFLOAD) && defined(QCA_DFS_NOL_OFFLOAD)
-/**
- * target_send_usenol_pdev_param - send usenol pdev param to FW.
- * @pdev: Pointer to pdev object.
- * @usenol: Value of user configured usenol.
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS target_send_usenol_pdev_param(struct wlan_objmgr_pdev *pdev,
-					 bool usenol);
-
-/**
- * target_send_subchan_marking_pdev_param - Send subchannel marking
- * pdev param to FW.
- * @pdev: Pointer to pdev object.
- * @subchanmark: Value of user configured subchannel_marking.
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS
-target_send_subchan_marking_pdev_param(struct wlan_objmgr_pdev *pdev,
-				       bool subchanmark);
-
-#else
-static inline QDF_STATUS
-target_send_usenol_pdev_param(struct wlan_objmgr_pdev *pdev,
-			      bool usenol)
-{
-	return QDF_STATUS_SUCCESS;
-}
-
-static inline QDF_STATUS
-target_send_subchan_marking_pdev_param(struct wlan_objmgr_pdev *pdev,
-				       bool subchanmark)
-{
-	return QDF_STATUS_SUCCESS;
-}
-#endif
 #endif /* _TARGET_IF_DFS_FULL_OFFLOAD_H_ */
 

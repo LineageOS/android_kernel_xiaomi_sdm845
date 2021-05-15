@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -73,10 +73,9 @@ struct cfg_meta {
 #define cfg_value_ptr(store, meta) \
 	((void *)&(store)->values + (meta)->field_offset)
 
-static __attribute__((unused)) void
-cfg_int_item_handler(struct cfg_value_store *store,
-		     const struct cfg_meta *meta,
-		     const char *str_value)
+static void cfg_int_item_handler(struct cfg_value_store *store,
+				 const struct cfg_meta *meta,
+				 const char *str_value)
 {
 	QDF_STATUS status;
 	int32_t *store_value = cfg_value_ptr(store, meta);
@@ -117,10 +116,9 @@ cfg_int_item_handler(struct cfg_value_store *store,
 		meta->name, value, meta->min, meta->max, *store_value);
 }
 
-static __attribute__((unused)) void
-cfg_uint_item_handler(struct cfg_value_store *store,
-		      const struct cfg_meta *meta,
-		      const char *str_value)
+static void cfg_uint_item_handler(struct cfg_value_store *store,
+				  const struct cfg_meta *meta,
+				  const char *str_value)
 {
 	QDF_STATUS status;
 	uint32_t *store_value = cfg_value_ptr(store, meta);
@@ -171,10 +169,9 @@ cfg_uint_item_handler(struct cfg_value_store *store,
 		meta->name, value, min, max, *store_value);
 }
 
-static __attribute__((unused)) void
-cfg_bool_item_handler(struct cfg_value_store *store,
-		      const struct cfg_meta *meta,
-		      const char *str_value)
+static void cfg_bool_item_handler(struct cfg_value_store *store,
+				  const struct cfg_meta *meta,
+				  const char *str_value)
 {
 	QDF_STATUS status;
 	bool *store_value = cfg_value_ptr(store, meta);
@@ -187,10 +184,9 @@ cfg_bool_item_handler(struct cfg_value_store *store,
 		meta->name, str_value, status, *store_value ? "true" : "false");
 }
 
-static __attribute__((unused)) void
-cfg_string_item_handler(struct cfg_value_store *store,
-			const struct cfg_meta *meta,
-			const char *str_value)
+static void cfg_string_item_handler(struct cfg_value_store *store,
+				    const struct cfg_meta *meta,
+				    const char *str_value)
 {
 	char *store_value = cfg_value_ptr(store, meta);
 	qdf_size_t len;
@@ -221,10 +217,9 @@ cfg_string_item_handler(struct cfg_value_store *store,
 	qdf_str_lcopy(store_value, str_value, meta->max + 1);
 }
 
-static __attribute__((unused)) void
-cfg_mac_item_handler(struct cfg_value_store *store,
-		     const struct cfg_meta *meta,
-		     const char *str_value)
+static void cfg_mac_item_handler(struct cfg_value_store *store,
+				 const struct cfg_meta *meta,
+				 const char *str_value)
 {
 	QDF_STATUS status;
 	struct qdf_mac_addr *store_value = cfg_value_ptr(store, meta);
@@ -234,14 +229,13 @@ cfg_mac_item_handler(struct cfg_value_store *store,
 		return;
 
 	cfg_err("%s=%s - Invalid format (status %d); Using default "
-		QDF_MAC_ADDR_FMT, meta->name, str_value, status,
-		QDF_MAC_ADDR_REF(store_value->bytes));
+		QDF_MAC_ADDR_STR, meta->name, str_value, status,
+		QDF_MAC_ADDR_ARRAY(store_value->bytes));
 }
 
-static __attribute__((unused)) void
-cfg_ipv4_item_handler(struct cfg_value_store *store,
-		      const struct cfg_meta *meta,
-		      const char *str_value)
+static void cfg_ipv4_item_handler(struct cfg_value_store *store,
+				  const struct cfg_meta *meta,
+				  const char *str_value)
 {
 	QDF_STATUS status;
 	struct qdf_ipv4_addr *store_value = cfg_value_ptr(store, meta);
@@ -255,10 +249,9 @@ cfg_ipv4_item_handler(struct cfg_value_store *store,
 		QDF_IPV4_ADDR_ARRAY(store_value->bytes));
 }
 
-static __attribute__((unused)) void
-cfg_ipv6_item_handler(struct cfg_value_store *store,
-		      const struct cfg_meta *meta,
-		      const char *str_value)
+static void cfg_ipv6_item_handler(struct cfg_value_store *store,
+				  const struct cfg_meta *meta,
+				  const char *str_value)
 {
 	QDF_STATUS status;
 	struct qdf_ipv6_addr *store_value = cfg_value_ptr(store, meta);
@@ -273,8 +266,8 @@ cfg_ipv6_item_handler(struct cfg_value_store *store,
 }
 
 /* populate metadata lookup table */
-#undef __CFG_INI
-#define __CFG_INI(_id, _mtype, _ctype, _name, _min, _max, _fallback, ...) \
+#undef __CFG_ANY
+#define __CFG_ANY(_id, _mtype, _ctype, _name, _min, _max, _fallback, ...) \
 { \
 	.name = _name, \
 	.field_offset = qdf_offsetof(struct cfg_values, _id##_internal), \
@@ -300,18 +293,17 @@ static const struct cfg_meta cfg_meta_lookup_table[] = {
 
 static void cfg_store_set_defaults(struct cfg_value_store *store)
 {
-#undef __CFG_INI
-#define __CFG_INI(id, mtype, ctype, name, min, max, fallback, desc, def...) \
+#undef __CFG_ANY
+#define __CFG_ANY(id, mtype, ctype, name, min, max, fallback, desc, def...) \
 	ctype id = def;
 
 	CFG_ALL
 
-#undef __CFG_INI_STRING
-#define __CFG_INI_STRING(id, mtype, ctype, name, min_len, max_len, ...) \
-	qdf_str_lcopy((char *)&store->values.id##_internal, id, (max_len) + 1);
-
-#undef __CFG_INI
-#define __CFG_INI(id, mtype, ctype, name, min, max, fallback, desc, def...) \
+#undef __CFG_STRING
+#define __CFG_STRING(id, mtype, ctype, name, min_len, max_len, ...) \
+	qdf_str_lcopy((char *)&store->values.id##_internal, id, max_len + 1);
+#undef __CFG_ANY
+#define __CFG_ANY(id, mtype, ctype, name, min, max, fallback, desc, def...) \
 	*(ctype *)&store->values.id##_internal = id;
 
 	CFG_ALL
@@ -345,7 +337,7 @@ cfg_ini_item_handler(void *context, const char *key, const char *value)
 	meta = cfg_lookup_meta(key);
 	if (!meta) {
 		/* TODO: promote to 'err' or 'warn' once legacy is ported */
-		cfg_debug("Unknown config item '%s'", key);
+		cfg_info("Unknown config item '%s'", key);
 		return QDF_STATUS_SUCCESS;
 	}
 
@@ -389,8 +381,10 @@ cfg_store_alloc(const char *path, struct cfg_value_store **out_store)
 	cfg_enter();
 
 	store = qdf_mem_malloc(sizeof(*store));
-	if (!store)
+	if (!store) {
+		cfg_err("Out of memory");
 		return QDF_STATUS_E_NOMEM;
+	}
 
 	status = qdf_str_dup(&store->path, path);
 	if (QDF_IS_STATUS_ERROR(status))
@@ -500,164 +494,28 @@ cfg_ini_parse_to_store(const char *path, struct cfg_value_store *store)
 	return status;
 }
 
-QDF_STATUS cfg_parse_to_psoc_store(struct wlan_objmgr_psoc *psoc,
-				   const char *path)
+static void cfg_init(void)
 {
-	return cfg_ini_parse_to_store(path, cfg_psoc_get_ctx(psoc)->store);
+	qdf_list_create(&__cfg_stores_list, 0);
+	qdf_spinlock_create(&__cfg_stores_lock);
 }
 
-qdf_export_symbol(cfg_parse_to_psoc_store);
-
-QDF_STATUS cfg_parse_to_global_store(const char *path)
+static void cfg_deinit(void)
 {
-	if (!__cfg_global_store) {
-		cfg_err("Global INI store is not valid");
-		return QDF_STATUS_E_NOMEM;
-	}
-
-	return cfg_ini_parse_to_store(path, __cfg_global_store);
+	qdf_spinlock_destroy(&__cfg_stores_lock);
+	qdf_list_destroy(&__cfg_stores_list);
 }
 
-qdf_export_symbol(cfg_parse_to_global_store);
-
-
-static QDF_STATUS
-cfg_store_print(struct wlan_objmgr_psoc *psoc)
+static void cfg_try_deinit(void)
 {
-	struct cfg_value_store *store;
-	struct cfg_psoc_ctx *psoc_ctx;
+	bool empty;
 
-	cfg_enter();
+	qdf_spin_lock_bh(&__cfg_stores_lock);
+	empty = qdf_list_empty(&__cfg_stores_list);
+	qdf_spin_unlock_bh(&__cfg_stores_lock);
 
-	psoc_ctx = cfg_psoc_get_ctx(psoc);
-	if (!psoc_ctx)
-		return QDF_STATUS_E_FAILURE;
-
-	store = psoc_ctx->store;
-	if (!store)
-		return QDF_STATUS_E_FAILURE;
-
-#undef __CFG_INI_MAC
-#define __CFG_INI_MAC(id, mtype, ctype, name, desc, def...) \
-	cfg_nofl_debug("%s "QDF_MAC_ADDR_FMT, name, \
-	QDF_MAC_ADDR_REF((&store->values.id##_internal)->bytes));
-
-#undef __CFG_INI_IPV4
-#define __CFG_INI_IPV4(id, mtype, ctype, name, desc, def...) \
-	cfg_nofl_debug("%s %pI4", name, (&store->values.id##_internal)->bytes);
-
-#undef __CFG_INI_IPV6
-#define __CFG_INI_IPV6(id, mtype, ctype, name, desc, def...) \
-	cfg_nofl_debug("%s %pI6c", name, (&store->values.id##_internal)->bytes);
-
-#undef __CFG_INI
-#define __CFG_INI(id, mtype, ctype, name, min, max, fallback, desc, def...) \
-	cfg_nofl_debug("%s %u", name, *(ctype *)&store->values.id##_internal);
-
-#undef __CFG_INI_STRING
-#define __CFG_INI_STRING(id, mtype, ctype, name, min_len, max_len, ...) \
-	cfg_nofl_debug("%s %s", name, (char *)&store->values.id##_internal);
-
-	CFG_ALL
-
-#undef __CFG_INI_MAC
-#undef __CFG_INI_IPV4
-#undef __CFG_INI_IPV6
-#undef __CFG_INI
-#undef __CFG_INI_STRING
-
-	cfg_exit();
-	return QDF_STATUS_SUCCESS;
-}
-
-static QDF_STATUS
-cfg_ini_config_print(struct wlan_objmgr_psoc *psoc, uint8_t *buf,
-		     ssize_t *plen, ssize_t buflen)
-{
-	struct cfg_value_store *store;
-	struct cfg_psoc_ctx *psoc_ctx;
-	ssize_t len;
-	ssize_t total_len = buflen;
-
-	cfg_enter();
-
-	psoc_ctx = cfg_psoc_get_ctx(psoc);
-	if (!psoc_ctx)
-		return QDF_STATUS_E_FAILURE;
-
-	store = psoc_ctx->store;
-	if (!store)
-		return QDF_STATUS_E_FAILURE;
-
-#undef __CFG_INI_MAC
-#define __CFG_INI_MAC(id, mtype, ctype, name, desc, def...) \
-	do { \
-		len = qdf_scnprintf(buf, buflen, "%s "QDF_MAC_ADDR_FMT"\n", name, \
-				    QDF_MAC_ADDR_REF((&store->values.id##_internal)->bytes)); \
-		buf += len; \
-		buflen -= len; \
-	} while (0);
-
-#undef __CFG_INI_IPV4
-#define __CFG_INI_IPV4(id, mtype, ctype, name, desc, def...) \
-	do { \
-		len = qdf_scnprintf(buf, buflen, "%s %pI4\n", name, \
-				    (&store->values.id##_internal)->bytes); \
-		buf += len; \
-		buflen -= len; \
-	} while (0);
-
-#undef __CFG_INI_IPV6
-#define __CFG_INI_IPV6(id, mtype, ctype, name, desc, def...) \
-	do { \
-		len = qdf_scnprintf(buf, buflen, "%s %pI6c\n", name, \
-				    (&store->values.id##_internal)->bytes); \
-		buf += len; \
-		buflen -= len; \
-	} while (0);
-
-#undef __CFG_INI
-#define __CFG_INI(id, mtype, ctype, name, min, max, fallback, desc, def...) \
-	do { \
-		len = qdf_scnprintf(buf, buflen, "%s %u\n", name, \
-				    *(ctype *)&store->values.id##_internal); \
-		buf += len; \
-		buflen -= len; \
-	} while (0);
-
-#undef __CFG_INI_STRING
-#define __CFG_INI_STRING(id, mtype, ctype, name, min_len, max_len, ...) \
-	do { \
-		len = qdf_scnprintf(buf, buflen, "%s %s\n", name, \
-				    (char *)&store->values.id##_internal); \
-		buf += len; \
-		buflen -= len; \
-	} while (0);
-
-	CFG_ALL
-
-#undef __CFG_INI_MAC
-#undef __CFG_INI_IPV4
-#undef __CFG_INI_IPV6
-#undef __CFG_INI
-#undef __CFG_INI_STRING
-
-	*plen = total_len - buflen;
-	cfg_exit();
-
-	return QDF_STATUS_SUCCESS;
-}
-
-QDF_STATUS ucfg_cfg_store_print(struct wlan_objmgr_psoc *psoc)
-{
-	return cfg_store_print(psoc);
-}
-
-QDF_STATUS ucfg_cfg_ini_config_print(struct wlan_objmgr_psoc *psoc,
-				     uint8_t *buf, ssize_t *plen,
-				     ssize_t buflen)
-{
-	return cfg_ini_config_print(psoc, buf, plen, buflen);
+	if (empty)
+		cfg_deinit();
 }
 
 static QDF_STATUS
@@ -673,8 +531,10 @@ cfg_on_psoc_create(struct wlan_objmgr_psoc *psoc, void *context)
 		return QDF_STATUS_E_FAILURE;
 
 	psoc_ctx = qdf_mem_malloc(sizeof(*psoc_ctx));
-	if (!psoc_ctx)
+	if (!psoc_ctx) {
+		cfg_err("Out of memory");
 		return QDF_STATUS_E_NOMEM;
+	}
 
 	qdf_atomic_inc(&__cfg_global_store->users);
 	psoc_ctx->store = __cfg_global_store;
@@ -719,9 +579,6 @@ QDF_STATUS cfg_dispatcher_init(void)
 	if (__cfg_is_init)
 		return QDF_STATUS_E_INVAL;
 
-	qdf_list_create(&__cfg_stores_list, 0);
-	qdf_spinlock_create(&__cfg_stores_lock);
-
 	status = cfg_psoc_register_create(cfg_on_psoc_create);
 	if (QDF_IS_STATUS_ERROR(status))
 		return status;
@@ -753,12 +610,7 @@ QDF_STATUS cfg_dispatcher_deinit(void)
 	cfg_assert_success(cfg_psoc_unregister_create(cfg_on_psoc_create));
 	cfg_assert_success(cfg_psoc_unregister_destroy(cfg_on_psoc_destroy));
 
-	qdf_spin_lock_bh(&__cfg_stores_lock);
-	QDF_BUG(qdf_list_empty(&__cfg_stores_list));
-	qdf_spin_unlock_bh(&__cfg_stores_lock);
-
-	qdf_spinlock_destroy(&__cfg_stores_lock);
-	qdf_list_destroy(&__cfg_stores_list);
+	cfg_try_deinit();
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -774,9 +626,11 @@ QDF_STATUS cfg_parse(const char *path)
 	if (__cfg_global_store)
 		return QDF_STATUS_E_INVAL;
 
+	cfg_init();
+
 	status = cfg_store_alloc(path, &store);
 	if (QDF_IS_STATUS_ERROR(status))
-		return status;
+		goto deinit;
 
 	cfg_store_set_defaults(store);
 
@@ -791,6 +645,9 @@ QDF_STATUS cfg_parse(const char *path)
 free_store:
 	cfg_store_free(store);
 
+deinit:
+	cfg_deinit();
+
 	return status;
 }
 
@@ -804,6 +661,8 @@ void cfg_release(void)
 
 	cfg_store_put(__cfg_global_store);
 	__cfg_global_store = NULL;
+
+	cfg_try_deinit();
 }
 
 QDF_STATUS cfg_psoc_parse(struct wlan_objmgr_psoc *psoc, const char *path)
@@ -862,6 +721,4 @@ put_store:
 
 	return status;
 }
-
-qdf_export_symbol(cfg_psoc_parse);
 

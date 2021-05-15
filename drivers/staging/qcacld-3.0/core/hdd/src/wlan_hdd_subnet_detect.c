@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -28,7 +28,6 @@
 #include <net/cfg80211.h>
 #include <ani_global.h>
 #include "sme_api.h"
-#include "osif_sync.h"
 #include "wlan_hdd_main.h"
 #include "wlan_hdd_subnet_detect.h"
 #include <qca_vendor.h>
@@ -75,10 +74,9 @@ static int __wlan_hdd_cfg80211_set_gateway_params(struct wiphy *wiphy,
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	struct hdd_context *hdd_ctx = wiphy_priv(wiphy);
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_GW_PARAM_CONFIG_MAX + 1];
-	struct gateway_update_req_param req = { 0 };
+	struct gateway_param_update_req req = { 0 };
 	int ret;
 	QDF_STATUS status;
-	bool subnet_detection_enabled;
 
 	hdd_enter_dev(dev);
 
@@ -87,9 +85,7 @@ static int __wlan_hdd_cfg80211_set_gateway_params(struct wiphy *wiphy,
 		return ret;
 
 	/* user may have disabled the feature in INI */
-	ucfg_mlme_is_subnet_detection_enabled(hdd_ctx->psoc,
-					      &subnet_detection_enabled);
-	if (!subnet_detection_enabled) {
+	if (!hdd_ctx->config->enable_lfr_subnet_detection) {
 		hdd_debug("LFR Subnet Detection disabled in INI");
 		return -ENOTSUPP;
 	}
@@ -148,11 +144,11 @@ static int __wlan_hdd_cfg80211_set_gateway_params(struct wiphy *wiphy,
 
 	req.max_retries = 3;
 	req.timeout = 100;   /* in milliseconds */
-	req.vdev_id = adapter->vdev_id;
+	req.session_id = adapter->session_id;
 
-	hdd_debug("Configuring gateway for session %d", req.vdev_id);
-	hdd_debug("mac:"QDF_MAC_ADDR_FMT", ipv4:%pI4 (type %d), ipv6:%pI6c (type %d)",
-		  QDF_MAC_ADDR_REF(req.gw_mac_addr.bytes),
+	hdd_debug("Configuring gateway for session %d", req.session_id);
+	hdd_debug("mac:%pM, ipv4:%pI4 (type %d), ipv6:%pI6c (type %d)",
+		  req.gw_mac_addr.bytes,
 		  req.ipv4_addr, req.ipv4_addr_type,
 		  req.ipv6_addr, req.ipv6_addr_type);
 
@@ -184,19 +180,14 @@ static int __wlan_hdd_cfg80211_set_gateway_params(struct wiphy *wiphy,
 int wlan_hdd_cfg80211_set_gateway_params(struct wiphy *wiphy,
 		struct wireless_dev *wdev, const void *data, int data_len)
 {
-	int errno;
-	struct osif_vdev_sync *vdev_sync;
+	int ret;
 
-	errno = osif_vdev_sync_op_start(wdev->netdev, &vdev_sync);
-	if (errno)
-		return errno;
+	cds_ssr_protect(__func__);
 
-	errno = __wlan_hdd_cfg80211_set_gateway_params(wiphy, wdev,
-						       data, data_len);
-
-	osif_vdev_sync_op_stop(vdev_sync);
-
-	return errno;
+	ret = __wlan_hdd_cfg80211_set_gateway_params(
+				wiphy, wdev, data, data_len);
+	cds_ssr_unprotect(__func__);
+	return ret;
 }
 #undef PARAM_MAC_ADDR
 #undef PARAM_IPV4_ADDR

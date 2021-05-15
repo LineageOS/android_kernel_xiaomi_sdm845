@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, 2016-2017, 2019-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014, 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -76,11 +76,8 @@ struct htc_tx_packet_info {
 /* Tag packet for runtime put after sending */
 #define HTC_TX_PACKET_TAG_RUNTIME_PUT  (HTC_TX_PACKET_TAG_USER_DEFINED + 3)
 
-/*Tag packet for runtime put in response or cleanup */
-#define HTC_TX_PACKET_TAG_RTPM_PUT_RC  (HTC_TX_PACKET_TAG_USER_DEFINED + 4)
 
 #define HTC_TX_PACKET_FLAG_FIXUP_NETBUF (1 << 0)
-#define HTC_TX_PACKET_FLAG_HTC_HEADER_IN_NETBUF_DATA (1 << 1)
 
 /**
  * struct htc_rx_packet_info - HTC RX Packet information
@@ -245,7 +242,7 @@ static inline HTC_PACKET *htc_packet_dequeue(HTC_PACKET_QUEUE *queue)
 {
 	DL_LIST *pItem = dl_list_remove_item_from_head(&queue->QueueHead);
 
-	if (pItem) {
+	if (pItem != NULL) {
 		queue->Depth--;
 		return A_CONTAINING_STRUCT(pItem, HTC_PACKET, ListLink);
 	}
@@ -257,7 +254,7 @@ static inline HTC_PACKET *htc_packet_dequeue_tail(HTC_PACKET_QUEUE *queue)
 {
 	DL_LIST *pItem = dl_list_remove_item_from_tail(&queue->QueueHead);
 
-	if (pItem) {
+	if (pItem != NULL) {
 		queue->Depth--;
 		return A_CONTAINING_STRUCT(pItem, HTC_PACKET, ListLink);
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -61,9 +61,8 @@ QDF_STATUS init_deinit_chainmask_table_free(
  *
  * Return: zero on successful population of service bitmap or failure flag
  */
-int init_deinit_populate_service_bitmap(
-		wmi_unified_t wmi_handle, uint8_t *event,
-		uint32_t *service_bitmap);
+int init_deinit_populate_service_bitmap(void *wmi_handle, uint8_t *event,
+				      uint32_t *service_bitmap);
 
 /**
  * init_deinit_populate_fw_version_cmd() - populate FW version
@@ -74,8 +73,7 @@ int init_deinit_populate_service_bitmap(
  *
  * Return: zero on successful population of fw_version command or failure flag
  */
-int
-init_deinit_populate_fw_version_cmd(wmi_unified_t wmi_handle, uint8_t *event);
+int init_deinit_populate_fw_version_cmd(void *wmi_handle, uint8_t *event);
 
 /**
  * init_deinit_populate_target_cap() - populate target cap
@@ -87,9 +85,8 @@ init_deinit_populate_fw_version_cmd(wmi_unified_t wmi_handle, uint8_t *event);
  *
  * Return: zero on successful population of target cap or failure flag
  */
-int init_deinit_populate_target_cap(
-		wmi_unified_t wmi_handle, uint8_t *event,
-		struct wlan_psoc_target_capability_info *cap);
+int init_deinit_populate_target_cap(void *wmi_handle, uint8_t *event,
+			       struct wlan_psoc_target_capability_info *cap);
 
 /**
  * init_deinit_populate_service_ready_ext_param() - populate service ready ext
@@ -102,24 +99,8 @@ int init_deinit_populate_target_cap(
  *
  * Return: zero on successful parsing of service ready ext parameter or failure
  */
-int init_deinit_populate_service_ready_ext_param(
-		wmi_unified_t handle, uint8_t *evt,
-		struct wlan_psoc_host_service_ext_param *param);
-
-/**
- * init_deinit_populate_service_ready_ext2_param() - populate service ready ext2
- *                                                   parameter
- * @handle: WMI handle pointer
- * @evt: event buffer received from FW
- * @info: Target info handle
- *
- * API to populate service ready ext2 param
- *
- * Return: zero on successful parsing of service ready ext parameter or failure
- */
-int init_deinit_populate_service_ready_ext2_param(
-		wmi_unified_t handle, uint8_t *evt,
-		struct tgt_info *info);
+int init_deinit_populate_service_ready_ext_param(void *handle, uint8_t *evt,
+			struct wlan_psoc_host_service_ext_param *param);
 
 /**
  * init_deinit_populate_chainmask_tables() - populate chainmaks tables
@@ -131,8 +112,7 @@ int init_deinit_populate_service_ready_ext2_param(
  *
  * Return: zero on successful parsing of chainmaks tables or failure flag
  */
-int init_deinit_populate_chainmask_tables(
-		wmi_unified_t handle, uint8_t *evt,
+int init_deinit_populate_chainmask_tables(void *handle, uint8_t *evt,
 		struct wlan_psoc_host_chainmask_table *param);
 
 /**
@@ -146,8 +126,7 @@ int init_deinit_populate_chainmask_tables(
  *
  * Return: zero on successful population of mac physical capability or failure
  */
-int init_deinit_populate_mac_phy_capability(
-	wmi_unified_t handle, uint8_t *evt,
+int init_deinit_populate_mac_phy_capability(void *handle, uint8_t *evt,
 	struct wlan_psoc_host_hw_mode_caps *hw_cap, struct tgt_info *info);
 
 /**
@@ -160,8 +139,7 @@ int init_deinit_populate_mac_phy_capability(
  *
  * Return: zero on successful parsing of hw mode capability or failure
  */
-int init_deinit_populate_hw_mode_capability(
-		wmi_unified_t wmi_handle,
+int init_deinit_populate_hw_mode_capability(void *wmi_handle,
 		uint8_t *event, struct target_psoc_info *tgt_hdl);
 
 /**
@@ -176,39 +154,7 @@ int init_deinit_populate_hw_mode_capability(
  * Return: zero on successful parsing of dbr ring capability or failure
  */
 int init_deinit_populate_dbr_ring_cap(struct wlan_objmgr_psoc *psoc,
-				      wmi_unified_t handle, uint8_t *event,
-				      struct tgt_info *info);
-
-/**
- * init_deinit_populate_dbr_ring_cap_ext2() - populate dbr ring capability
- *                                            from ext2 event
- * @psoc: PSOC object
- * @handle: WMI handle pointer
- * @event: event buffer received from FW
- * @info: tgt_info object
- *
- * API to populate dbr ring capability
- *
- * Return: zero on successful parsing of dbr ring capability or failure
- */
-int init_deinit_populate_dbr_ring_cap_ext2(struct wlan_objmgr_psoc *psoc,
-					   wmi_unified_t handle, uint8_t *event,
-					   struct tgt_info *info);
-
-/**
- * init_deinit_populate_spectral_bin_scale_params() - populate Spectral scaling
- * @psoc: PSOC object
- * @handle: WMI handle pointer
- * @event: event buffer received from FW
- * @info: tgt_info object
- *
- * API to populate Spectral bin scaling parameters
- *
- * Return: zero on successful parsing of scaling params or failure
- */
-int init_deinit_populate_spectral_bin_scale_params(
-				struct wlan_objmgr_psoc *psoc,
-				wmi_unified_t handle, uint8_t *event,
+				void *handle, uint8_t *event,
 				struct tgt_info *info);
 
 /**
@@ -220,17 +166,6 @@ int init_deinit_populate_spectral_bin_scale_params(
  * Return: QDF_STATUS
  */
 QDF_STATUS init_deinit_dbr_ring_cap_free(
-				struct target_psoc_info *tgt_psoc_info);
-
-/**
- * init_deinit_spectral_scaling_params_free() - free Spectral scaling params
- * @tgt_psoc_info: target psoc info object
- *
- * API to free Spectral scaling params
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS init_deinit_spectral_scaling_params_free(
 				struct target_psoc_info *tgt_psoc_info);
 
 /**
@@ -246,9 +181,8 @@ QDF_STATUS init_deinit_spectral_scaling_params_free(
  * Return: zero on successful parsing of physical reg capability or failure flag
  */
 int init_deinit_populate_phy_reg_cap(struct wlan_objmgr_psoc *psoc,
-				     wmi_unified_t wmi_handle, uint8_t *event,
-				     struct tgt_info *info,
-				     bool service_ready);
+				void *wmi_handle, uint8_t *event,
+				struct tgt_info *info, bool service_ready);
 
 /**
  * init_deinit_validate_160_80p80_fw_caps() - validate 160 80p80 fw caps

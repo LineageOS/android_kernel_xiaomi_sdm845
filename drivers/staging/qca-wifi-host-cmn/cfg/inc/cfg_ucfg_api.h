@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -156,45 +156,6 @@ void cfg_release(void);
 QDF_STATUS cfg_psoc_parse(struct wlan_objmgr_psoc *psoc, const char *path);
 
 /**
- * cfg_parse_to_psoc_store() - Parse file @path and update psoc ini store
- * @psoc: The psoc whose config store should be updated
- * @path: The full file path of the ini file to parse
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS cfg_parse_to_psoc_store(struct wlan_objmgr_psoc *psoc,
-				   const char *path);
-
-/**
- * cfg_parse_to_global_store() Parse file @path and update global ini store
- * @path: The full file path of the ini file to parse
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS cfg_parse_to_global_store(const char *path);
-
-/**
- * cfg_ucfg_store_print() prints the cfg ini/non ini logs
- * @psoc: psoc
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS ucfg_cfg_store_print(struct wlan_objmgr_psoc *psoc);
-
-/**
- * ucfg_cfg_ini_config_print() prints the cfg ini/non ini to buffer
- * @psoc: psoc
- * @buf: cache to save ini config
- * @plen: the pointer to length
- * @buflen: total buf length
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS ucfg_cfg_ini_config_print(struct wlan_objmgr_psoc *psoc,
-				     uint8_t *buf, ssize_t *plen,
-				     ssize_t buflen);
-
-/**
  * cfg_get() - lookup the configured value for @id from @psoc
  * @psoc: The psoc from which to lookup the configured value
  * @id: The id of the configured value to lookup
@@ -213,36 +174,28 @@ QDF_STATUS ucfg_cfg_ini_config_print(struct wlan_objmgr_psoc *psoc,
 
 #define cfg_id(id) #id
 
-#define __cfg_mtype(ini, mtype, ctype, name, min, max, fallback, desc, def...) \
-	mtype
+#define __cfg_mtype(mtype, ctype, name, min, max, fallback, desc, def...) mtype
 #define cfg_mtype(id) do_call(__cfg_mtype, id)
 
-#define __cfg_type(ini, mtype, ctype, name, min, max, fallback, desc, def...) \
-	ctype
+#define __cfg_type(mtype, ctype, name, min, max, fallback, desc, def...) ctype
 #define cfg_type(id) do_call(__cfg_type, id)
 
-#define __cfg_name(ini, mtype, ctype, name, min, max, fallback, desc, def...) \
-	name
+#define __cfg_name(mtype, ctype, name, min, max, fallback, desc, def...) name
 #define cfg_name(id) do_call(__cfg_name, id)
 
-#define __cfg_min(ini, mtype, ctype, name, min, max, fallback, desc, def...) \
-	min
+#define __cfg_min(mtype, ctype, name, min, max, fallback, desc, def...) min
 #define cfg_min(id) do_call(__cfg_min, id)
 
-#define __cfg_max(ini, mtype, ctype, name, min, max, fallback, desc, def...) \
-	max
+#define __cfg_max(mtype, ctype, name, min, max, fallback, desc, def...) max
 #define cfg_max(id) do_call(__cfg_max, id)
 
-#define __cfg_fb(ini, mtype, ctype, name, min, max, fallback, desc, def...) \
-	fallback
+#define __cfg_fb(mtype, ctype, name, min, max, fallback, desc, def...) fallback
 #define cfg_fallback(id) do_call(__cfg_fb, id)
 
-#define __cfg_desc(ini, mtype, ctype, name, min, max, fallback, desc, def...) \
-	desc
+#define __cfg_desc(mtype, ctype, name, min, max, fallback, desc, def...) desc
 #define cfg_description(id) do_call(__cfg_desc, id)
 
-#define __cfg_def(ini, mtype, ctype, name, min, max, fallback, desc, def...) \
-	def
+#define __cfg_def(mtype, ctype, name, min, max, fallback, desc, def...) def
 #define cfg_default(id) do_call(__cfg_def, id)
 
 #define __cfg_str(id...) #id
@@ -257,9 +210,9 @@ cfg_string_in_range(const char *value, qdf_size_t min_len, qdf_size_t max_len)
 	return len >= min_len && len <= max_len;
 }
 
-#define __cfg_INT_in_range(value, min, max) (value >= min && value <= max)
-#define __cfg_UINT_in_range(value, min, max) (value >= min && value <= max)
-#define __cfg_STRING_in_range(value, min_len, max_len) \
+#define __cfg_int_in_range(value, min, max) (value >= min && value <= max)
+#define __cfg_uint_in_range(value, min, max) (value >= min && value <= max)
+#define __cfg_string_in_range(value, min_len, max_len) \
 	cfg_string_in_range(value, min_len, max_len)
 
 #define __cfg_in_range(id, value, mtype) \
@@ -267,7 +220,7 @@ cfg_string_in_range(const char *value, qdf_size_t min_len, qdf_size_t max_len)
 
 /* this may look redundant, but forces @mtype to be expanded */
 #define __cfg_in_range_type(id, value, mtype) \
-	__cfg_in_range(id, value, mtype)
+	__cfg_is_range(id, value, mtype)
 
 #define cfg_in_range(id, value) __cfg_in_range_type(id, value, cfg_mtype(id))
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -23,8 +23,6 @@
 #ifndef _I_BMI_H_
 #define _I_BMI_H_
 
-#include "qdf_types.h"
-#include "qdf_defer.h"
 #include "hif.h"
 #include "bmi_msg.h"
 #include "bmi.h"
@@ -154,7 +152,6 @@ struct bmi_info {
  * @ramdump_work: Work for Ramdump collection
  * @fw_indication_work: Work for Fw inciation
  * @tgt_def: Target Defnition pointer
- * @fw_crashed_cb: Callback for firmware crashed ind
  *
  * Structure to hold all ol BMI/Ramdump info
  */
@@ -169,7 +166,6 @@ struct ol_context {
 	struct targetdef_t {
 		struct targetdef_s *targetdef;
 	} tgt_def;
-	void (*fw_crashed_cb)(void);
 };
 
 #define GET_BMI_CONTEXT(ol_ctx) ((struct bmi_info *)ol_ctx)
@@ -204,7 +200,7 @@ struct ol_config_info *ol_get_ini_handle(struct ol_context *ol_ctx);
 QDF_STATUS hif_reg_based_get_target_info(struct hif_opaque_softc *hif_ctx,
 		  struct bmi_target_info *targ_info);
 #endif
-#if defined(HIF_PCI) || defined(HIF_SNOC) || defined(HIF_AHB) || defined(HIF_USB)
+#if defined(HIF_PCI) || defined(SNOC) || defined(HIF_AHB) || defined(HIF_USB)
 static inline QDF_STATUS
 hif_reg_based_get_target_info(struct hif_opaque_softc *hif_ctx,
 		  struct bmi_target_info *targ_info)

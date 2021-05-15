@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019,2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -58,17 +58,18 @@
 #include <ol_rx_defrag.h>
 #include <enet.h>
 #include <qdf_time.h>           /* qdf_system_time */
+#include <wlan_pkt_capture_ucfg_api.h>
 
 #define DEFRAG_IEEE80211_ADDR_EQ(a1, a2) \
-	(!qdf_mem_cmp(a1, a2, QDF_MAC_ADDR_SIZE))
+	(!qdf_mem_cmp(a1, a2, IEEE80211_ADDR_LEN))
 
 #define DEFRAG_IEEE80211_ADDR_COPY(dst, src) \
-	qdf_mem_copy(dst, src, QDF_MAC_ADDR_SIZE)
+	qdf_mem_copy(dst, src, IEEE80211_ADDR_LEN)
 
 #define DEFRAG_IEEE80211_QOS_HAS_SEQ(wh) \
 	(((wh)->i_fc[0] & \
-	  (IEEE80211_FC0_TYPE_MASK | QDF_IEEE80211_FC0_SUBTYPE_QOS)) == \
-	 (IEEE80211_FC0_TYPE_DATA | QDF_IEEE80211_FC0_SUBTYPE_QOS))
+	  (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_QOS)) == \
+	 (IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_QOS))
 
 #define DEFRAG_IEEE80211_QOS_GET_TID(_x) \
 	((_x)->i_qos[0] & IEEE80211_QOS_TID)
@@ -176,7 +177,7 @@ ol_rx_frag_restructure(
 	const struct ol_rx_defrag_cipher *f_type,
 	int rx_desc_len)
 {
-	if ((!ind_old_position) || (!rx_desc_old_position)) {
+	if ((ind_old_position == NULL) || (rx_desc_old_position == NULL)) {
 		ol_txrx_err("ind_old_position,rx_desc_old_position is NULL\n");
 		ASSERT(0);
 		return;
@@ -583,14 +584,14 @@ void ol_rx_defrag_waitlist_remove(struct ol_txrx_peer_t *peer, unsigned int tid)
 	struct ol_txrx_pdev_t *pdev = peer->vdev->pdev;
 	struct ol_rx_reorder_t *rx_reorder = &peer->tids_rx_reorder[tid];
 
-	if (rx_reorder->defrag_waitlist_elem.tqe_next) {
+	if (rx_reorder->defrag_waitlist_elem.tqe_next != NULL) {
 
 		TAILQ_REMOVE(&pdev->rx.defrag.waitlist, rx_reorder,
 			     defrag_waitlist_elem);
 
 		rx_reorder->defrag_waitlist_elem.tqe_next = NULL;
 		rx_reorder->defrag_waitlist_elem.tqe_prev = NULL;
-	} else if (rx_reorder->defrag_waitlist_elem.tqe_next) {
+	} else if (rx_reorder->defrag_waitlist_elem.tqe_next != NULL) {
 		ol_txrx_alert("waitlist->tqe_prv = NULL\n");
 		QDF_ASSERT(0);
 		rx_reorder->defrag_waitlist_elem.tqe_next = NULL;
@@ -653,7 +654,8 @@ ol_rx_defrag(ol_txrx_pdev_handle pdev,
 	struct ieee80211_frame *wh;
 	uint8_t key[DEFRAG_IEEE80211_KEY_LEN];
 	htt_pdev_handle htt_pdev = pdev->htt_pdev;
-
+	struct ol_txrx_peer_t *peer_head = NULL;
+	uint8_t bssid[QDF_MAC_ADDR_SIZE];
 	vdev = peer->vdev;
 
 	/* bypass defrag for safe mode */
@@ -675,7 +677,7 @@ ol_rx_defrag(ol_txrx_pdev_handle pdev,
 				ol_rx_frames_free(htt_pdev, frag_list);
 			}
 			ol_rx_frames_free(htt_pdev, tmp_next);
-			ol_txrx_err("PN Check failed");
+			ol_txrx_err("ol_rx_defrag: PN Check failed\n");
 			return;
 		}
 		/* remove FCS from each fragment */
@@ -702,7 +704,7 @@ ol_rx_defrag(ol_txrx_pdev_handle pdev,
 			if (!ol_rx_frag_tkip_decap(pdev, cur, hdr_space)) {
 				/* TKIP decap failed, discard frags */
 				ol_rx_frames_free(htt_pdev, frag_list);
-				ol_txrx_err("TKIP decap failed");
+				ol_txrx_err("\n ol_rx_defrag: TKIP decap failed\n");
 				return;
 			}
 			cur = tmp_next;
@@ -715,13 +717,13 @@ ol_rx_defrag(ol_txrx_pdev_handle pdev,
 			if (!ol_rx_frag_ccmp_demic(pdev, cur, hdr_space)) {
 				/* CCMP demic failed, discard frags */
 				ol_rx_frames_free(htt_pdev, frag_list);
-				ol_txrx_err("CCMP demic failed");
+				ol_txrx_err("\n ol_rx_defrag: CCMP demic failed\n");
 				return;
 			}
 			if (!ol_rx_frag_ccmp_decap(pdev, cur, hdr_space)) {
 				/* CCMP decap failed, discard frags */
 				ol_rx_frames_free(htt_pdev, frag_list);
-				ol_txrx_err("CCMP decap failed");
+				ol_txrx_err("\n ol_rx_defrag: CCMP decap failed\n");
 				return;
 			}
 			cur = tmp_next;
@@ -736,7 +738,7 @@ ol_rx_defrag(ol_txrx_pdev_handle pdev,
 			if (!ol_rx_frag_wep_decap(pdev, cur, hdr_space)) {
 				/* wep decap failed, discard frags */
 				ol_rx_frames_free(htt_pdev, frag_list);
-				ol_txrx_err("wep decap failed");
+				ol_txrx_err("\n ol_rx_defrag: wep decap failed\n");
 				return;
 			}
 			cur = tmp_next;
@@ -760,7 +762,7 @@ ol_rx_defrag(ol_txrx_pdev_handle pdev,
 			ol_rx_err(pdev->ctrl_pdev,
 				  vdev->vdev_id, peer->mac_addr.raw, tid, 0,
 				  OL_RX_DEFRAG_ERR, msdu, NULL, 0);
-			ol_txrx_err("TKIP demic failed");
+			ol_txrx_err("\n ol_rx_defrag: TKIP demic failed\n");
 			return;
 		}
 	}
@@ -769,6 +771,33 @@ ol_rx_defrag(ol_txrx_pdev_handle pdev,
 		ol_rx_defrag_qos_decap(pdev, msdu, hdr_space);
 	if (ol_cfg_frame_type(pdev->ctrl_pdev) == wlan_frm_fmt_802_3)
 		ol_rx_defrag_nwifi_to_8023(pdev, msdu);
+
+	/* Packet Capture Mode */
+
+	if ((ucfg_pkt_capture_get_pktcap_mode() &
+	      PKT_CAPTURE_MODE_DATA_ONLY)) {
+		if (peer) {
+			if (peer->vdev) {
+				qdf_spin_lock_bh(&pdev->peer_ref_mutex);
+				peer_head = TAILQ_FIRST(&vdev->peer_list);
+				qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
+				if (peer_head) {
+					qdf_spin_lock_bh(
+						&peer_head->peer_info_lock);
+					qdf_mem_copy(bssid,
+						     &peer_head->mac_addr.raw,
+						     QDF_MAC_ADDR_SIZE);
+					qdf_spin_unlock_bh(
+						&peer_head->peer_info_lock);
+
+					ucfg_pkt_capture_rx_msdu_process(
+								bssid, msdu,
+								vdev->vdev_id,
+								htt_pdev);
+				}
+			}
+		}
+	}
 
 	ol_rx_fwd_check(vdev, peer, tid, msdu);
 }
@@ -868,7 +897,7 @@ ol_rx_frag_tkip_demic(ol_txrx_pdev_handle pdev, const uint8_t *key,
 
 	ol_rx_defrag_copydata(msdu, pktlen - f_tkip.ic_miclen + rx_desc_len,
 			      f_tkip.ic_miclen, (caddr_t) mic0);
-	if (qdf_mem_cmp(mic, mic0, f_tkip.ic_miclen))
+	if (!qdf_mem_cmp(mic, mic0, f_tkip.ic_miclen))
 		return OL_RX_DEFRAG_ERR;
 
 	qdf_nbuf_trim_tail(msdu, f_tkip.ic_miclen);
@@ -949,31 +978,31 @@ void ol_rx_defrag_michdr(const struct ieee80211_frame *wh0, uint8_t hdr[])
 	switch (wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) {
 	case IEEE80211_FC1_DIR_NODS:
 		DEFRAG_IEEE80211_ADDR_COPY(hdr, wh->i_addr1);   /* DA */
-		DEFRAG_IEEE80211_ADDR_COPY(hdr + QDF_MAC_ADDR_SIZE,
+		DEFRAG_IEEE80211_ADDR_COPY(hdr + IEEE80211_ADDR_LEN,
 					   wh->i_addr2);
 		break;
 	case IEEE80211_FC1_DIR_TODS:
 		DEFRAG_IEEE80211_ADDR_COPY(hdr, wh->i_addr3);   /* DA */
-		DEFRAG_IEEE80211_ADDR_COPY(hdr + QDF_MAC_ADDR_SIZE,
+		DEFRAG_IEEE80211_ADDR_COPY(hdr + IEEE80211_ADDR_LEN,
 					   wh->i_addr2);
 		break;
 	case IEEE80211_FC1_DIR_FROMDS:
 		DEFRAG_IEEE80211_ADDR_COPY(hdr, wh->i_addr1);   /* DA */
-		DEFRAG_IEEE80211_ADDR_COPY(hdr + QDF_MAC_ADDR_SIZE,
+		DEFRAG_IEEE80211_ADDR_COPY(hdr + IEEE80211_ADDR_LEN,
 					   wh->i_addr3);
 		break;
 	case IEEE80211_FC1_DIR_DSTODS:
 		DEFRAG_IEEE80211_ADDR_COPY(hdr, wh->i_addr3);   /* DA */
-		DEFRAG_IEEE80211_ADDR_COPY(hdr + QDF_MAC_ADDR_SIZE,
+		DEFRAG_IEEE80211_ADDR_COPY(hdr + IEEE80211_ADDR_LEN,
 					   wh->i_addr4);
 		break;
 	}
 	/*
-	 * Bit 7 is QDF_IEEE80211_FC0_SUBTYPE_QOS for data frame, but
+	 * Bit 7 is IEEE80211_FC0_SUBTYPE_QOS for data frame, but
 	 * it could also be set for deauth, disassoc, action, etc. for
 	 * a mgt type frame. It comes into picture for MFP.
 	 */
-	if (wh->i_fc[0] & QDF_IEEE80211_FC0_SUBTYPE_QOS) {
+	if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS) {
 		const struct ieee80211_qosframe *qwh =
 			(const struct ieee80211_qosframe *)wh;
 		hdr[12] = qwh->i_qos[0] & IEEE80211_QOS_TID;
@@ -1040,7 +1069,7 @@ ol_rx_defrag_mic(ol_txrx_pdev_handle pdev,
 			break;
 
 		wbuf = qdf_nbuf_next(wbuf);
-		if (!wbuf)
+		if (wbuf == NULL)
 			return OL_RX_DEFRAG_ERR;
 
 		rx_desc_len = ol_rx_get_desc_len(htt_pdev, wbuf,
@@ -1122,7 +1151,7 @@ uint16_t ol_rx_frag_hdrsize(const void *data)
 	uint16_t size = sizeof(struct ieee80211_frame);
 
 	if ((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
-		size += QDF_MAC_ADDR_SIZE;
+		size += IEEE80211_ADDR_LEN;
 
 	if (DEFRAG_IEEE80211_QOS_HAS_SEQ(wh)) {
 		size += sizeof(uint16_t);
@@ -1202,18 +1231,18 @@ void ol_rx_defrag_nwifi_to_8023(ol_txrx_pdev_handle pdev, qdf_nbuf_t msdu)
 	switch (wh.i_fc[1] & IEEE80211_FC1_DIR_MASK) {
 	case IEEE80211_FC1_DIR_NODS:
 		qdf_mem_copy(eth_hdr->dest_addr, wh.i_addr1,
-			     QDF_MAC_ADDR_SIZE);
-		qdf_mem_copy(eth_hdr->src_addr, wh.i_addr2, QDF_MAC_ADDR_SIZE);
+			     IEEE80211_ADDR_LEN);
+		qdf_mem_copy(eth_hdr->src_addr, wh.i_addr2, IEEE80211_ADDR_LEN);
 		break;
 	case IEEE80211_FC1_DIR_TODS:
 		qdf_mem_copy(eth_hdr->dest_addr, wh.i_addr3,
-			     QDF_MAC_ADDR_SIZE);
-		qdf_mem_copy(eth_hdr->src_addr, wh.i_addr2, QDF_MAC_ADDR_SIZE);
+			     IEEE80211_ADDR_LEN);
+		qdf_mem_copy(eth_hdr->src_addr, wh.i_addr2, IEEE80211_ADDR_LEN);
 		break;
 	case IEEE80211_FC1_DIR_FROMDS:
 		qdf_mem_copy(eth_hdr->dest_addr, wh.i_addr1,
-			     QDF_MAC_ADDR_SIZE);
-		qdf_mem_copy(eth_hdr->src_addr, wh.i_addr3, QDF_MAC_ADDR_SIZE);
+			     IEEE80211_ADDR_LEN);
+		qdf_mem_copy(eth_hdr->src_addr, wh.i_addr3, IEEE80211_ADDR_LEN);
 		break;
 	case IEEE80211_FC1_DIR_DSTODS:
 		break;
@@ -1272,7 +1301,7 @@ ol_rx_defrag_qos_decap(ol_txrx_pdev_handle pdev,
 		 * adding this explicit check is okay.
 		 */
 		if (wh)
-			wh->i_fc[0] &= ~QDF_IEEE80211_FC0_SUBTYPE_QOS;
+			wh->i_fc[0] &= ~IEEE80211_FC0_SUBTYPE_QOS;
 
 		ol_rx_defrag_push_rx_desc(nbuf, rx_desc_old_position,
 					  ind_old_position, rx_desc_len);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -44,6 +44,8 @@
 #include "qdf_types.h"
 #include "cds_packet.h"
 
+#define MAX_DEAUTH_ALLOWED 5
+/* --------------------------------------------------------------------------- */
 /**
  * sys_init_globals
  *
@@ -56,23 +58,34 @@
  *
  * NOTE:
  *
- * @param struct mac_context *Sirius software parameter struct pointer
+ * @param tpAniSirGlobal Sirius software parameter struct pointer
  * @return None
  */
 
-QDF_STATUS sys_init_globals(struct mac_context *mac)
+QDF_STATUS sys_init_globals(tpAniSirGlobal pMac)
 {
 
-	qdf_mem_zero((uint8_t *) &mac->sys, sizeof(mac->sys));
+	qdf_mem_zero((uint8_t *) &pMac->sys, sizeof(pMac->sys));
 
-	mac->sys.gSysEnableLinkMonitorMode = 0;
+	pMac->sys.gSysEnableLinkMonitorMode = 0;
 
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS sys_bbt_process_message_core(struct mac_context *mac_ctx,
-					struct scheduler_msg *msg,
-					uint32_t type, uint32_t subtype)
+/**
+ * sys_bbt_process_message_core() - to process BBT messages
+ * @mac_ctx: pointer to mac context
+ * @msg: message pointer
+ * @type: type of persona
+ * @subtype: subtype of persona
+ *
+ * This routine is to process some bbt messages
+ *
+ * Return: None
+ */
+QDF_STATUS
+sys_bbt_process_message_core(tpAniSirGlobal mac_ctx, struct scheduler_msg *msg,
+		uint32_t type, uint32_t subtype)
 {
 	uint32_t framecount;
 	QDF_STATUS ret;
@@ -98,7 +111,8 @@ QDF_STATUS sys_bbt_process_message_core(struct mac_context *mac_ctx,
 		 * message wrappers.
 		 */
 		if ((subtype == SIR_MAC_MGMT_BEACON) &&
-		     !GET_LIM_PROCESS_DEFD_MESGS(mac_ctx)) {
+			(!lim_is_system_in_scan_state(mac_ctx)) &&
+			(GET_LIM_PROCESS_DEFD_MESGS(mac_ctx) != true)) {
 			pe_debug("dropping received beacon in deffered state");
 			goto fail;
 		}
@@ -116,24 +130,24 @@ QDF_STATUS sys_bbt_process_message_core(struct mac_context *mac_ctx,
 
 		mac_hdr = WMA_GET_RX_MAC_HEADER(bd_ptr);
 		if (subtype == SIR_MAC_MGMT_ASSOC_REQ) {
-			pe_debug("ASSOC REQ frame allowed: da: " QDF_MAC_ADDR_FMT ", sa: " QDF_MAC_ADDR_FMT ", bssid: " QDF_MAC_ADDR_FMT ", Assoc Req count so far: %d",
-				 QDF_MAC_ADDR_REF(mac_hdr->da),
-				 QDF_MAC_ADDR_REF(mac_hdr->sa),
-				 QDF_MAC_ADDR_REF(mac_hdr->bssId),
+			pe_debug("ASSOC REQ frame allowed: da: " MAC_ADDRESS_STR ", sa: " MAC_ADDRESS_STR ", bssid: " MAC_ADDRESS_STR ", Assoc Req count so far: %d",
+				 MAC_ADDR_ARRAY(mac_hdr->da),
+				 MAC_ADDR_ARRAY(mac_hdr->sa),
+				 MAC_ADDR_ARRAY(mac_hdr->bssId),
 				 mac_ctx->sys.gSysFrameCount[type][subtype]);
 		}
 		if (subtype == SIR_MAC_MGMT_DEAUTH) {
-			pe_debug("DEAUTH frame allowed: da: " QDF_MAC_ADDR_FMT ", sa: " QDF_MAC_ADDR_FMT ", bssid: " QDF_MAC_ADDR_FMT ", DEAUTH count so far: %d",
-				 QDF_MAC_ADDR_REF(mac_hdr->da),
-				 QDF_MAC_ADDR_REF(mac_hdr->sa),
-				 QDF_MAC_ADDR_REF(mac_hdr->bssId),
+			pe_debug("DEAUTH frame allowed: da: " MAC_ADDRESS_STR ", sa: " MAC_ADDRESS_STR ", bssid: " MAC_ADDRESS_STR ", DEAUTH count so far: %d",
+				 MAC_ADDR_ARRAY(mac_hdr->da),
+				 MAC_ADDR_ARRAY(mac_hdr->sa),
+				 MAC_ADDR_ARRAY(mac_hdr->bssId),
 				 mac_ctx->sys.gSysFrameCount[type][subtype]);
 		}
 		if (subtype == SIR_MAC_MGMT_DISASSOC) {
-			pe_debug("DISASSOC frame allowed: da: " QDF_MAC_ADDR_FMT ", sa: " QDF_MAC_ADDR_FMT ", bssid: " QDF_MAC_ADDR_FMT ", DISASSOC count so far: %d",
-				 QDF_MAC_ADDR_REF(mac_hdr->da),
-				 QDF_MAC_ADDR_REF(mac_hdr->sa),
-				 QDF_MAC_ADDR_REF(mac_hdr->bssId),
+			pe_debug("DISASSOC frame allowed: da: " MAC_ADDRESS_STR ", sa: " MAC_ADDRESS_STR ", bssid: " MAC_ADDRESS_STR ", DISASSOC count so far: %d",
+				 MAC_ADDR_ARRAY(mac_hdr->da),
+				 MAC_ADDR_ARRAY(mac_hdr->sa),
+				 MAC_ADDR_ARRAY(mac_hdr->bssId),
 				 mac_ctx->sys.gSysFrameCount[type][subtype]);
 		}
 

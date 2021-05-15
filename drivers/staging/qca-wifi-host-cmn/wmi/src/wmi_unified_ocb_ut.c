@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -51,7 +51,7 @@ target_if_ocb_get_rx_ops(struct wlan_objmgr_psoc *psoc)
  * Return: QDF_STATUS_SUCCESS for success or error code
  */
 static QDF_STATUS fake_vdev_create_cmd_tlv(wmi_unified_t wmi_handle,
-				 uint8_t macaddr[QDF_MAC_ADDR_SIZE],
+				 uint8_t macaddr[IEEE80211_ADDR_LEN],
 				 struct vdev_create_params *param)
 {
 	WMI_LOGP("%s : called", __func__);
@@ -229,9 +229,11 @@ static QDF_STATUS fake_dcc_update_ndl_cmd_tlv(wmi_unified_t wmi_handle,
 	WMI_LOGP("%s : called", __func__);
 	/* Allocate and populate the response */
 	resp = qdf_mem_malloc(sizeof(*resp));
-	if (!resp)
+	if (!resp) {
+		WMI_LOGP("%s:Error allocating memory for the response.",
+			__func__);
 		return -ENOMEM;
-
+	}
 	resp->vdev_id = update_ndl_param->vdev_id;
 	resp->status = 0;
 
@@ -275,17 +277,18 @@ static QDF_STATUS fake_ocb_set_config_cmd_tlv(wmi_unified_t wmi_handle,
 	struct wlan_ocb_rx_ops *ocb_rx_ops;
 	ol_scn_t scn = (ol_scn_t) wmi_handle->scn_handle;
 
-	wmi_debug("vdev_id=%d, channel_count=%d, schedule_size=%d, flag=%x",
-		 config->vdev_id, config->channel_count,
+	WMI_LOGP("%s : called", __func__);
+	WMI_LOGI("%s: vdev_id=%d, channel_count=%d, schedule_size=%d, flag=%x",
+		 __func__, config->vdev_id, config->channel_count,
 		 config->schedule_size, config->flags);
 
 	for (i = 0; i < config->channel_count; i++) {
-		wmi_debug("channel info for channel %d"
+		WMI_LOGI("%s: channel info for channel %d"
 			" chan_freq=%d, bandwidth=%d, " QDF_MAC_ADDRESS_STR
 			" max_pwr=%d, min_pwr=%d, reg_pwr=%d, antenna_max=%d, "
-			"flags=%d", i, config->channels[i].chan_freq,
+			"flags=%d", __func__, i, config->channels[i].chan_freq,
 			config->channels[i].bandwidth,
-			QDF_MAC_ADDR_REF(
+			QDF_MAC_ADDR_ARRAY(
 				config->channels[i].mac_address.bytes),
 			config->channels[i].max_pwr,
 			config->channels[i].min_pwr,
@@ -295,9 +298,9 @@ static QDF_STATUS fake_ocb_set_config_cmd_tlv(wmi_unified_t wmi_handle,
 	}
 
 	for (i = 0; i < config->schedule_size; i++) {
-		wmi_debug("schedule info for channel %d: "
+		WMI_LOGI("%s: schedule info for channel %d: "
 			"chan_fre=%d, total_duration=%d, guard_intreval=%d",
-			i, config->schedule[i].chan_freq,
+			__func__, i, config->schedule[i].chan_freq,
 			config->schedule[i].total_duration,
 			config->schedule[i].guard_interval);
 	}
@@ -377,7 +380,7 @@ static QDF_STATUS fake_peer_create_cmd_tlv(wmi_unified_t wmi,
  * Return: QDF_STATUS_SUCCESS for success or error code
  */
 static QDF_STATUS fake_peer_delete_cmd_tlv(wmi_unified_t wmi,
-				 uint8_t peer_addr[QDF_MAC_ADDR_SIZE],
+				 uint8_t peer_addr[IEEE80211_ADDR_LEN],
 				 uint8_t vdev_id)
 {
 	WMI_LOGP("%s : called", __func__);
@@ -395,19 +398,22 @@ static QDF_STATUS fake_vdev_start_cmd_tlv(wmi_unified_t wmi_handle,
 			  struct vdev_start_params *req)
 {
 	tp_wma_handle wma = (tp_wma_handle) wmi_handle->scn_handle;
-
-	wmi_debug("vdev_id %d freq %d chanmode %d ch_info is_dfs %d "
+	WMI_LOGP("%s : called", __func__);
+	WMI_LOGI("%s: vdev_id %d freq %d chanmode %d ch_info is_dfs %d "
 		"beacon interval %d dtim %d center_chan %d center_freq2 %d "
 		"max_txpow: 0x%x "
 		"Tx SS %d, Rx SS %d, ldpc_rx: %d, cac %d, regd %d, HE ops: %d",
-		(int)req->vdev_id, req->channel.mhz,
-		req->channel.phy_mode,
-		(int)req->channel.dfs_set, req->beacon_intval, req->dtim_period,
-		req->channel.cfreq1, req->channel.cfreq2,
-		req->channel.maxregpower,
+		__func__, (int)req->vdev_id, req->chan_freq, req->chan_mode,
+		(int)req->is_dfs, req->beacon_intval, req->dtim_period,
+		req->band_center_freq1, req->band_center_freq2,
+		req->max_txpow,
 		req->preferred_tx_streams, req->preferred_rx_streams,
 		(int)req->ldpc_rx_enabled, req->cac_duration_ms,
 		req->regdomain, req->he_ops);
+	wma_remove_vdev_req(wma, req->vdev_id,
+			    WMA_TARGET_REQ_TYPE_VDEV_START);
+	wma_vdev_set_mlme_state(wma, req->vdev_id,
+			WLAN_VDEV_S_RUN);
 	ucfg_ocb_config_channel(wma->pdev);
 	return QDF_STATUS_SUCCESS;
 }

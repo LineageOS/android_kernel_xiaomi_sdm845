@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -26,7 +26,7 @@
 #include <qdf_debugfs.h>
 
 /* header files for utilities */
-#include "queue.h"          /* TAILQ */
+#include <cds_queue.h>          /* TAILQ */
 
 /* header files for configuration API */
 #include <ol_cfg.h>             /* ol_cfg_is_high_latency */
@@ -61,7 +61,6 @@
 #include <ol_txrx_types.h>
 #include <ol_cfg.h>
 #include <cdp_txrx_flow_ctrl_legacy.h>
-#include <cdp_txrx_cmn_reg.h>
 #include <cdp_txrx_bus.h>
 #include <cdp_txrx_ipa.h>
 #include <cdp_txrx_pmf.h>
@@ -76,13 +75,11 @@
 #include "epping_main.h"
 #include <a_types.h>
 #include <cdp_txrx_handle.h>
-#include <cdp_txrx_cmn_reg.h>
 #include "wlan_qct_sys.h"
 
 #include <htt_internal.h>
 #include <ol_txrx_ipa.h>
 #include "wlan_roam_debug.h"
-#include "cfg_ucfg_api.h"
 #ifdef DP_SUPPORT_RECOVERY_NOTIFY
 #include <qdf_notifier.h>
 #include <qdf_hang_event_notifier.h>
@@ -93,7 +90,7 @@
 				QDF_FILE_GRP_READ |	\
 				QDF_FILE_OTH_READ)
 
-#define DPT_DEBUGFS_NUMBER_BASE	10
+#define DPT_DEBUGFS_NUMBER_BASE 10
 /**
  * enum dpt_set_param_debugfs - dpt set params
  * @DPT_SET_PARAM_PROTO_BITMAP : set proto bitmap
@@ -108,12 +105,27 @@ enum dpt_set_param_debugfs {
 	DPT_SET_PARAM_MAX,
 };
 
-static void ol_vdev_rx_set_intrabss_fwd(struct cdp_soc_t *soc_hdl,
-					uint8_t vdev_id, bool val);
-uint32_t ol_txrx_get_tx_pending(struct cdp_pdev *pdev_handle);
+#ifdef QCA_SUPPORT_TXRX_LOCAL_PEER_ID
+ol_txrx_peer_handle
+ol_txrx_peer_find_by_local_id(struct cdp_pdev *pdev,
+			      uint8_t local_peer_id);
+ol_txrx_peer_handle
+ol_txrx_peer_get_ref_by_local_id(struct cdp_pdev *ppdev,
+			      uint8_t local_peer_id,
+			      enum peer_debug_id_type dbg_id);
+#endif /* QCA_SUPPORT_TXRX_LOCAL_PEER_ID */
+QDF_STATUS ol_txrx_peer_state_update(struct cdp_pdev *pdev,
+				     uint8_t *peer_mac,
+				     enum ol_txrx_peer_state state);
+static void ol_vdev_rx_set_intrabss_fwd(struct cdp_vdev *vdev,
+		bool val);
+int ol_txrx_get_tx_pending(struct cdp_pdev *pdev_handle);
 extern void
-ol_txrx_set_wmm_param(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
+ol_txrx_set_wmm_param(struct cdp_pdev *data_pdev,
 		      struct ol_tx_wmm_param_t wmm_param);
+
+extern void ol_txrx_get_pn_info(void *ppeer, uint8_t **last_pn_valid,
+		    uint64_t **last_pn, uint32_t **rmf_pn_replays);
 
 /* thresh for peer's cached buf queue beyond which the elements are dropped */
 #define OL_TXRX_CACHED_BUFQ_THRESH 128
@@ -138,8 +150,7 @@ int ol_peer_recovery_notifier_cb(struct notifier_block *block,
 	if (!peer)
 		return -EINVAL;
 
-	if (notif_data->offset + sizeof(struct peer_hang_data) >
-			QDF_WLAN_HANG_FW_OFFSET)
+	if (notif_data->offset >= QDF_WLAN_MAX_HOST_OFFSET)
 		return NOTIFY_STOP_MASK;
 
 	QDF_HANG_EVT_SET_HDR(&hang_data.tlv_header,
@@ -191,28 +202,168 @@ QDF_STATUS ol_unregister_peer_recovery_notifier(void)
 }
 #endif
 
+#if defined(CONFIG_HL_SUPPORT) && defined(FEATURE_WLAN_TDLS)
+
+/**
+ * ol_txrx_copy_mac_addr_raw() - copy raw mac addr
+ * @vdev: the data virtual device
+ * @bss_addr: bss address
+ *
+ * Return: None
+ */
+static void
+ol_txrx_copy_mac_addr_raw(struct cdp_vdev *pvdev, uint8_t *bss_addr)
+{
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t  *)pvdev;
+
+	qdf_spin_lock_bh(&vdev->pdev->last_real_peer_mutex);
+	if (bss_addr && vdev->last_real_peer &&
+	    !qdf_mem_cmp((u8 *)bss_addr,
+			     vdev->last_real_peer->mac_addr.raw,
+			     IEEE80211_ADDR_LEN))
+		qdf_mem_copy(vdev->hl_tdls_ap_mac_addr.raw,
+			     vdev->last_real_peer->mac_addr.raw,
+			     OL_TXRX_MAC_ADDR_LEN);
+	qdf_spin_unlock_bh(&vdev->pdev->last_real_peer_mutex);
+}
+
+/**
+ * ol_txrx_add_last_real_peer() - add last peer
+ * @pdev: the data physical device
+ * @vdev: virtual device
+ * @peer_id: peer id
+ *
+ * Return: None
+ */
+static void
+ol_txrx_add_last_real_peer(struct cdp_pdev *ppdev,
+			   struct cdp_vdev *pvdev, uint8_t *peer_id)
+{
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
+	ol_txrx_peer_handle peer;
+
+	peer = ol_txrx_find_peer_by_addr(
+		(struct cdp_pdev *)pdev,
+		vdev->hl_tdls_ap_mac_addr.raw,
+		peer_id);
+
+	qdf_spin_lock_bh(&pdev->last_real_peer_mutex);
+	if (!vdev->last_real_peer && peer &&
+	    (peer->peer_ids[0] != HTT_INVALID_PEER_ID))
+		vdev->last_real_peer = peer;
+	qdf_spin_unlock_bh(&pdev->last_real_peer_mutex);
+}
+
+/**
+ * is_vdev_restore_last_peer() - check for vdev last peer
+ * @peer: peer object
+ *
+ * Return: true if last peer is not null
+ */
+static bool
+is_vdev_restore_last_peer(void *ppeer)
+{
+	struct ol_txrx_peer_t *peer = ppeer;
+	struct ol_txrx_vdev_t *vdev;
+
+	vdev = peer->vdev;
+	return vdev->last_real_peer && (vdev->last_real_peer == peer);
+}
+
+/**
+ * ol_txrx_update_last_real_peer() - check for vdev last peer
+ * @pdev: the data physical device
+ * @peer: peer device
+ * @peer_id: peer id
+ * @restore_last_peer: restore last peer flag
+ *
+ * Return: None
+ */
+static void
+ol_txrx_update_last_real_peer(struct cdp_pdev *ppdev, void *ppeer,
+	uint8_t *peer_id, bool restore_last_peer)
+{
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
+	struct ol_txrx_peer_t *peer = ppeer;
+	struct ol_txrx_vdev_t *vdev;
+
+	if (!restore_last_peer)
+		return;
+
+	vdev = peer->vdev;
+	peer = ol_txrx_find_peer_by_addr((struct cdp_pdev *)pdev,
+				vdev->hl_tdls_ap_mac_addr.raw, peer_id);
+
+	qdf_spin_lock_bh(&pdev->last_real_peer_mutex);
+	if (!vdev->last_real_peer && peer &&
+	    (peer->peer_ids[0] != HTT_INVALID_PEER_ID))
+		vdev->last_real_peer = peer;
+	qdf_spin_unlock_bh(&pdev->last_real_peer_mutex);
+}
+#endif
+
 /**
  * ol_tx_mark_first_wakeup_packet() - set flag to indicate that
  *    fw is compatible for marking first packet after wow wakeup
- * @soc_hdl: Datapath soc handle
- * @pdev_id: id of data path pdev handle
  * @value: 1 for enabled/ 0 for disabled
  *
  * Return: None
  */
-static void ol_tx_mark_first_wakeup_packet(struct cdp_soc_t *soc_hdl,
-					   uint8_t pdev_id, uint8_t value)
+static void ol_tx_mark_first_wakeup_packet(uint8_t value)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
+		ol_txrx_err(
+			"%s: pdev is NULL\n", __func__);
 		return;
 	}
 
 	htt_mark_first_wakeup_packet(pdev->htt_pdev, value);
 }
+
+u_int16_t
+ol_tx_desc_pool_size_hl(struct cdp_cfg *ctrl_pdev)
+{
+	u_int16_t desc_pool_size;
+	u_int16_t steady_state_tx_lifetime_ms;
+	u_int16_t safety_factor;
+
+	/*
+	 * Steady-state tx latency:
+	 *     roughly 1-2 ms flight time
+	 *   + roughly 1-2 ms prep time,
+	 *   + roughly 1-2 ms target->host notification time.
+	 * = roughly 6 ms total
+	 * Thus, steady state number of frames =
+	 * steady state max throughput / frame size * tx latency, e.g.
+	 * 1 Gbps / 1500 bytes * 6 ms = 500
+	 *
+	 */
+	steady_state_tx_lifetime_ms = 6;
+
+	safety_factor = 8;
+
+	desc_pool_size =
+		ol_cfg_max_thruput_mbps(ctrl_pdev) *
+		1000 /* 1e6 bps/mbps / 1e3 ms per sec = 1000 */ /
+		(8 * OL_TX_AVG_FRM_BYTES) *
+		steady_state_tx_lifetime_ms *
+		safety_factor;
+
+	/* minimum */
+	if (desc_pool_size < OL_TX_DESC_POOL_SIZE_MIN_HL)
+		desc_pool_size = OL_TX_DESC_POOL_SIZE_MIN_HL;
+
+	/* maximum */
+	if (desc_pool_size > OL_TX_DESC_POOL_SIZE_MAX_HL)
+		desc_pool_size = OL_TX_DESC_POOL_SIZE_MAX_HL;
+
+	return desc_pool_size;
+}
+
+/*=== function definitions ===*/
 
 /**
  * ol_tx_set_is_mgmt_over_wmi_enabled() - set flag to indicate that mgmt over
@@ -223,20 +374,12 @@ static void ol_tx_mark_first_wakeup_packet(struct cdp_soc_t *soc_hdl,
  */
 void ol_tx_set_is_mgmt_over_wmi_enabled(uint8_t value)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
+		qdf_print("%s: pdev is NULL\n", __func__);
 		return;
 	}
-
 	pdev->is_mgmt_over_wmi_enabled = value;
 }
 
@@ -247,20 +390,12 @@ void ol_tx_set_is_mgmt_over_wmi_enabled(uint8_t value)
  */
 uint8_t ol_tx_get_is_mgmt_over_wmi_enabled(void)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return 0;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
+		qdf_print("%s: pdev is NULL\n", __func__);
 		return 0;
 	}
-
 	return pdev->is_mgmt_over_wmi_enabled;
 }
 
@@ -268,7 +403,7 @@ uint8_t ol_tx_get_is_mgmt_over_wmi_enabled(void)
 #ifdef QCA_SUPPORT_TXRX_LOCAL_PEER_ID
 static void *
 ol_txrx_find_peer_by_addr_and_vdev(struct cdp_pdev *ppdev,
-	struct cdp_vdev *pvdev, uint8_t *peer_addr)
+	struct cdp_vdev *pvdev, uint8_t *peer_addr, uint8_t *peer_id)
 {
 	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
 	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
@@ -277,30 +412,14 @@ ol_txrx_find_peer_by_addr_and_vdev(struct cdp_pdev *ppdev,
 	peer = ol_txrx_peer_vdev_find_hash(pdev, vdev, peer_addr, 0, 1);
 	if (!peer)
 		return NULL;
+	*peer_id = peer->local_id;
 	ol_txrx_peer_release_ref(peer, PEER_DEBUG_ID_OL_INTERNAL);
 	return peer;
 }
 
-/**
- * ol_txrx_get_vdevid() - Get virtual interface id which peer registered
- * @soc_hdl - data path soc handle
- * @peer_mac - peer mac address
- * @vdev_id - virtual interface id which peer registered
- *
- * Get virtual interface id which peer registered
- *
- * Return: QDF_STATUS_SUCCESS registration success
- *         QDF_STATUS_E_NOSUPPORT not support this feature
- */
-static QDF_STATUS ol_txrx_get_vdevid(struct cdp_soc_t *soc_hdl,
-				     uint8_t *peer_mac, uint8_t *vdev_id)
+static QDF_STATUS ol_txrx_get_vdevid(void *ppeer, uint8_t *vdev_id)
 {
-	uint8_t pdev_id = OL_TXRX_PDEV_ID;
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
-	struct ol_txrx_peer_t *peer =
-		ol_txrx_peer_find_hash_find_get_ref(pdev, peer_mac, 0, 1,
-						    PEER_DEBUG_ID_OL_INTERNAL);
+	struct ol_txrx_peer_t *peer = ppeer;
 
 	if (!peer) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
@@ -309,149 +428,41 @@ static QDF_STATUS ol_txrx_get_vdevid(struct cdp_soc_t *soc_hdl,
 	}
 
 	*vdev_id = peer->vdev->vdev_id;
-	ol_txrx_peer_release_ref(peer, PEER_DEBUG_ID_OL_INTERNAL);
-
 	return QDF_STATUS_SUCCESS;
 }
 
-ol_txrx_vdev_handle
-ol_txrx_get_vdev_by_peer_addr(struct cdp_pdev *ppdev,
-			      struct qdf_mac_addr peer_addr)
+static struct cdp_vdev *ol_txrx_get_vdev_by_sta_id(struct cdp_pdev *ppdev,
+						   uint8_t sta_id)
 {
-	struct ol_txrx_pdev_t *pdev = cdp_pdev_to_ol_txrx_pdev_t(ppdev);
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
 	struct ol_txrx_peer_t *peer = NULL;
 	ol_txrx_vdev_handle vdev;
 
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "PDEV not found for peer_addr: " QDF_MAC_ADDR_FMT,
-			  QDF_MAC_ADDR_REF(peer_addr.bytes));
+			  "PDEV not found for sta_id [%d]", sta_id);
 		return NULL;
 	}
 
-	peer = ol_txrx_peer_get_ref_by_addr(pdev, peer_addr.bytes,
-					    PEER_DEBUG_ID_OL_INTERNAL);
-
+	peer = ol_txrx_peer_get_ref_by_local_id((struct cdp_pdev *)pdev, sta_id,
+						PEER_DEBUG_ID_OL_INTERNAL);
 	if (!peer) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "PDEV not found for peer_addr:" QDF_MAC_ADDR_FMT,
-			  QDF_MAC_ADDR_REF(peer_addr.bytes));
+			  "PEER [%d] not found", sta_id);
 		return NULL;
 	}
 
 	vdev = peer->vdev;
 	ol_txrx_peer_release_ref(peer, PEER_DEBUG_ID_OL_INTERNAL);
 
-	return vdev;
-}
-
-/**
- * ol_txrx_wrapper_get_vdev_by_peer_addr() - Get vdev handle by peer mac address
- * @ppdev - data path device instance
- * @peer_addr - peer mac address
- *
- * Get virtual interface handle by local peer mac address
- *
- * Return: Virtual interface instance handle
- *         NULL in case cannot find
- */
-static struct cdp_vdev *
-ol_txrx_wrapper_get_vdev_by_peer_addr(struct cdp_pdev *ppdev,
-				      struct qdf_mac_addr peer_addr)
-{
-	return (struct cdp_vdev *)ol_txrx_get_vdev_by_peer_addr(ppdev,
-								peer_addr);
-}
-
-/*
- * ol_txrx_find_peer_exist - find peer if already exists
- * @soc_hdl: datapath soc handle
- * @pdev_id: physical device instance id
- * @peer_mac_addr: peer mac address
- *
- * Return: true or false
- */
-static bool ol_txrx_find_peer_exist(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
-				    uint8_t *peer_addr)
-{
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
-
-	if (!pdev)
-		return false;
-
-	return !!ol_txrx_find_peer_by_addr(ol_txrx_pdev_t_to_cdp_pdev(pdev),
-					   peer_addr);
-}
-
-/*
- * ol_txrx_find_peer_exist_on_vdev - find if duplicate peer exists
- * on the given vdev
- * @soc_hdl: datapath soc handle
- * @vdev_id: vdev instance id
- * @peer_mac_addr: peer mac address
- *
- * Return: true or false
- */
-static bool ol_txrx_find_peer_exist_on_vdev(struct cdp_soc_t *soc_hdl,
-					    uint8_t vdev_id,
-					    uint8_t *peer_addr)
-{
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
-
-	if (!vdev)
-		return false;
-
-	return !!ol_txrx_find_peer_by_addr_and_vdev(
-					ol_txrx_pdev_t_to_cdp_pdev(vdev->pdev),
-					ol_txrx_vdev_t_to_cdp_vdev(vdev),
-					peer_addr);
-}
-
-/*
- * ol_txrx_find_peer_exist_on_other_vdev - find if duplicate peer exists
- * on other than the given vdev
- * @soc_hdl: datapath soc handle
- * @vdev_id: vdev instance id
- * @peer_mac_addr: peer mac address
- * @max_bssid: max number of bssids
- *
- * Return: true or false
- */
-static bool ol_txrx_find_peer_exist_on_other_vdev(struct cdp_soc_t *soc_hdl,
-						  uint8_t vdev_id,
-						  uint8_t *peer_addr,
-						  uint16_t max_bssid)
-{
-	int i;
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	struct ol_txrx_vdev_t *vdev;
-
-	for (i = 0; i < max_bssid; i++) {
-		vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc, i);
-		/* Need to check vdevs other than the vdev_id */
-		if (vdev_id == i || !vdev)
-			continue;
-		if (ol_txrx_find_peer_by_addr_and_vdev(
-					ol_txrx_pdev_t_to_cdp_pdev(vdev->pdev),
-					ol_txrx_vdev_t_to_cdp_vdev(vdev),
-					peer_addr)) {
-			QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_INFO,
-				  "%s: Duplicate peer "QDF_MAC_ADDR_FMT" already exist on vdev %d",
-				  __func__, QDF_MAC_ADDR_REF(peer_addr), i);
-			return true;
-		}
-	}
-
-	return false;
+	return (struct cdp_vdev *)vdev;
 }
 
 /**
  * ol_txrx_find_peer_by_addr() - find peer via peer mac addr and peer_id
  * @ppdev: pointer of type cdp_pdev
  * @peer_addr: peer mac addr
+ * @peer_id: pointer to fill in the value of peer->local_id for caller
  *
  * This function finds a peer with given mac address and returns its peer_id.
  * Note that this function does not increment the peer->ref_cnt.
@@ -461,7 +472,8 @@ static bool ol_txrx_find_peer_exist_on_other_vdev(struct cdp_soc_t *soc_hdl,
  * Return: peer handle if peer is found, NULL if peer is not found.
  */
 void *ol_txrx_find_peer_by_addr(struct cdp_pdev *ppdev,
-				uint8_t *peer_addr)
+				uint8_t *peer_addr,
+				uint8_t *peer_id)
 {
 	struct ol_txrx_peer_t *peer;
 	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
@@ -470,6 +482,7 @@ void *ol_txrx_find_peer_by_addr(struct cdp_pdev *ppdev,
 						   PEER_DEBUG_ID_OL_INTERNAL);
 	if (!peer)
 		return NULL;
+	*peer_id = peer->local_id;
 	ol_txrx_peer_release_ref(peer, PEER_DEBUG_ID_OL_INTERNAL);
 	return peer;
 }
@@ -478,6 +491,7 @@ void *ol_txrx_find_peer_by_addr(struct cdp_pdev *ppdev,
  * ol_txrx_peer_get_ref_by_addr() - get peer ref via peer mac addr and peer_id
  * @pdev: pointer of type ol_txrx_pdev_handle
  * @peer_addr: peer mac addr
+ * @peer_id: pointer to fill in the value of peer->local_id for caller
  *
  * This function finds the peer with given mac address and returns its peer_id.
  * Note that this function increments the peer->ref_cnt.
@@ -499,6 +513,7 @@ void *ol_txrx_find_peer_by_addr(struct cdp_pdev *ppdev,
  */
 ol_txrx_peer_handle ol_txrx_peer_get_ref_by_addr(ol_txrx_pdev_handle pdev,
 						 u8 *peer_addr,
+						 u8 *peer_id,
 						 enum peer_debug_id_type dbg_id)
 {
 	struct ol_txrx_peer_t *peer;
@@ -507,7 +522,45 @@ ol_txrx_peer_handle ol_txrx_peer_get_ref_by_addr(ol_txrx_pdev_handle pdev,
 						   dbg_id);
 	if (!peer)
 		return NULL;
+	*peer_id = peer->local_id;
+	return peer;
+}
 
+static uint16_t ol_txrx_local_peer_id(void *ppeer)
+{
+	ol_txrx_peer_handle peer = ppeer;
+
+	return peer->local_id;
+}
+
+/**
+ * @brief Find a txrx peer handle from a peer's local ID
+ * @details
+ *  The control SW typically uses the txrx peer handle to refer to the peer.
+ *  In unusual circumstances, if it is infeasible for the control SW maintain
+ *  the txrx peer handle but it can maintain a small integer local peer ID,
+ *  this function allows the peer handled to be retrieved, based on the local
+ *  peer ID.
+ *
+ * @param pdev - the data physical device object
+ * @param local_peer_id - the ID txrx assigned locally to the peer in question
+ * @return handle to the txrx peer object
+ */
+ol_txrx_peer_handle
+ol_txrx_peer_find_by_local_id(struct cdp_pdev *ppdev,
+			      uint8_t local_peer_id)
+{
+	struct ol_txrx_peer_t *peer;
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
+
+	if ((local_peer_id == OL_TXRX_INVALID_LOCAL_PEER_ID) ||
+	    (local_peer_id >= OL_TXRX_NUM_LOCAL_PEER_IDS)) {
+		return NULL;
+	}
+
+	qdf_spin_lock_bh(&pdev->local_peer_ids.lock);
+	peer = pdev->local_peer_ids.map[local_peer_id];
+	qdf_spin_unlock_bh(&pdev->local_peer_ids.lock);
 	return peer;
 }
 
@@ -638,6 +691,623 @@ static void ol_txrx_local_peer_id_cleanup(struct ol_txrx_pdev_t *pdev)
 #define ol_txrx_local_peer_id_free(pdev, peer)  /* no-op */
 #define ol_txrx_local_peer_id_cleanup(pdev)     /* no-op */
 #endif
+
+#ifdef FEATURE_HL_GROUP_CREDIT_FLOW_CONTROL
+
+/**
+ * ol_txrx_update_group_credit() - update group credit for tx queue
+ * @group: for which credit needs to be updated
+ * @credit: credits
+ * @absolute: TXQ group absolute
+ *
+ * Return: allocated pool size
+ */
+void ol_txrx_update_group_credit(
+		struct ol_tx_queue_group_t *group,
+		int32_t credit,
+		u_int8_t absolute)
+{
+	if (absolute)
+		qdf_atomic_set(&group->credit, credit);
+	else
+		qdf_atomic_add(credit, &group->credit);
+}
+
+/**
+ * ol_txrx_update_tx_queue_groups() - update vdev tx queue group if
+ *				      vdev id mask and ac mask is not matching
+ * @pdev: the data physical device
+ * @group_id: TXQ group id
+ * @credit: TXQ group credit count
+ * @absolute: TXQ group absolute
+ * @vdev_id_mask: TXQ vdev group id mask
+ * @ac_mask: TQX access category mask
+ *
+ * Return: None
+ */
+void ol_txrx_update_tx_queue_groups(
+		ol_txrx_pdev_handle pdev,
+		u_int8_t group_id,
+		int32_t credit,
+		u_int8_t absolute,
+		u_int32_t vdev_id_mask,
+		u_int32_t ac_mask
+		)
+{
+	struct ol_tx_queue_group_t *group;
+	u_int32_t group_vdev_bit_mask, vdev_bit_mask, group_vdev_id_mask;
+	u_int32_t membership;
+	struct ol_txrx_vdev_t *vdev;
+
+	if (group_id >= OL_TX_MAX_TXQ_GROUPS) {
+		ol_txrx_warn("%s: invalid group_id=%u, ignore update.\n",
+			__func__,
+			group_id);
+		return;
+	}
+
+	group = &pdev->txq_grps[group_id];
+
+	membership = OL_TXQ_GROUP_MEMBERSHIP_GET(vdev_id_mask, ac_mask);
+
+	qdf_spin_lock_bh(&pdev->tx_queue_spinlock);
+	/*
+	 * if the membership (vdev id mask and ac mask)
+	 * matches then no need to update tx qeue groups.
+	 */
+	if (group->membership == membership)
+		/* Update Credit Only */
+		goto credit_update;
+
+
+	/*
+	 * membership (vdev id mask and ac mask) is not matching
+	 * TODO: ignoring ac mask for now
+	 */
+	group_vdev_id_mask =
+		OL_TXQ_GROUP_VDEV_ID_MASK_GET(group->membership);
+
+	TAILQ_FOREACH(vdev, &pdev->vdev_list, vdev_list_elem) {
+		group_vdev_bit_mask =
+			OL_TXQ_GROUP_VDEV_ID_BIT_MASK_GET(
+					group_vdev_id_mask, vdev->vdev_id);
+		vdev_bit_mask =
+			OL_TXQ_GROUP_VDEV_ID_BIT_MASK_GET(
+					vdev_id_mask, vdev->vdev_id);
+
+		if (group_vdev_bit_mask != vdev_bit_mask) {
+			/*
+			 * Change in vdev tx queue group
+			 */
+			if (!vdev_bit_mask) {
+				/* Set Group Pointer (vdev and peer) to NULL */
+				ol_tx_set_vdev_group_ptr(
+						pdev, vdev->vdev_id, NULL);
+			} else {
+				/* Set Group Pointer (vdev and peer) */
+				ol_tx_set_vdev_group_ptr(
+						pdev, vdev->vdev_id, group);
+			}
+		}
+	}
+	/* Update membership */
+	group->membership = membership;
+credit_update:
+	/* Update Credit */
+	ol_txrx_update_group_credit(group, credit, absolute);
+	qdf_spin_unlock_bh(&pdev->tx_queue_spinlock);
+}
+#endif
+
+#ifdef QCA_LL_TX_FLOW_CONTROL_V2
+/**
+ * ol_tx_set_desc_global_pool_size() - set global pool size
+ * @num_msdu_desc: total number of descriptors
+ *
+ * Return: none
+ */
+static void ol_tx_set_desc_global_pool_size(uint32_t num_msdu_desc)
+{
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (!pdev) {
+		qdf_print("%s: pdev is NULL\n", __func__);
+		return;
+	}
+	pdev->num_msdu_desc = num_msdu_desc;
+	if (!ol_tx_get_is_mgmt_over_wmi_enabled())
+		pdev->num_msdu_desc += TX_FLOW_MGMT_POOL_SIZE;
+	ol_txrx_info_high("Global pool size: %d\n",
+		pdev->num_msdu_desc);
+}
+
+/**
+ * ol_tx_get_desc_global_pool_size() - get global pool size
+ * @pdev: pdev handle
+ *
+ * Return: global pool size
+ */
+static inline
+uint32_t ol_tx_get_desc_global_pool_size(struct ol_txrx_pdev_t *pdev)
+{
+	return pdev->num_msdu_desc;
+}
+
+/**
+ * ol_tx_get_total_free_desc() - get total free descriptors
+ * @pdev: pdev handle
+ *
+ * Return: total free descriptors
+ */
+static inline
+uint32_t ol_tx_get_total_free_desc(struct ol_txrx_pdev_t *pdev)
+{
+	struct ol_tx_flow_pool_t *pool = NULL;
+	uint32_t free_desc;
+
+	free_desc = pdev->tx_desc.num_free;
+	qdf_spin_lock_bh(&pdev->tx_desc.flow_pool_list_lock);
+	TAILQ_FOREACH(pool, &pdev->tx_desc.flow_pool_list,
+					 flow_pool_list_elem) {
+		qdf_spin_lock_bh(&pool->flow_pool_lock);
+		free_desc += pool->avail_desc;
+		qdf_spin_unlock_bh(&pool->flow_pool_lock);
+	}
+	qdf_spin_unlock_bh(&pdev->tx_desc.flow_pool_list_lock);
+
+	return free_desc;
+}
+
+#else
+/**
+ * ol_tx_get_desc_global_pool_size() - get global pool size
+ * @pdev: pdev handle
+ *
+ * Return: global pool size
+ */
+static inline
+uint32_t ol_tx_get_desc_global_pool_size(struct ol_txrx_pdev_t *pdev)
+{
+	return ol_cfg_target_tx_credit(pdev->ctrl_pdev);
+}
+
+/**
+ * ol_tx_get_total_free_desc() - get total free descriptors
+ * @pdev: pdev handle
+ *
+ * Return: total free descriptors
+ */
+static inline
+uint32_t ol_tx_get_total_free_desc(struct ol_txrx_pdev_t *pdev)
+{
+	return pdev->tx_desc.num_free;
+}
+
+#endif
+
+#if defined(CONFIG_HL_SUPPORT) && defined(CONFIG_PER_VDEV_TX_DESC_POOL)
+
+/**
+ * ol_txrx_rsrc_threshold_lo() - set threshold low - when to start tx desc
+ *				 margin replenishment
+ * @desc_pool_size: tx desc pool size
+ *
+ * Return: threshold low
+ */
+static inline uint16_t
+ol_txrx_rsrc_threshold_lo(int desc_pool_size)
+{
+	int threshold_low;
+
+	/*
+	 * 5% margin of unallocated desc is too much for per
+	 * vdev mechanism.
+	 * Define the value separately.
+	 */
+	threshold_low = TXRX_HL_TX_FLOW_CTRL_MGMT_RESERVED;
+
+	return threshold_low;
+}
+
+/**
+ * ol_txrx_rsrc_threshold_hi() - set threshold high - where to stop
+ *				 during tx desc margin replenishment
+ * @desc_pool_size: tx desc pool size
+ *
+ * Return: threshold high
+ */
+static inline uint16_t
+ol_txrx_rsrc_threshold_hi(int desc_pool_size)
+{
+	int threshold_high;
+	/* when freeing up descriptors,
+	 * keep going until there's a 7.5% margin
+	 */
+	threshold_high = ((15 * desc_pool_size)/100)/2;
+
+	return threshold_high;
+}
+#else
+
+static inline uint16_t
+ol_txrx_rsrc_threshold_lo(int desc_pool_size)
+{
+	int threshold_low;
+	/* always maintain a 5% margin of unallocated descriptors */
+	threshold_low = (5 * desc_pool_size)/100;
+
+	return threshold_low;
+}
+
+static inline uint16_t
+ol_txrx_rsrc_threshold_hi(int desc_pool_size)
+{
+	int threshold_high;
+	/* when freeing up descriptors, keep going until
+	 * there's a 15% margin
+	 */
+	threshold_high = (15 * desc_pool_size)/100;
+
+	return threshold_high;
+}
+#endif
+
+#if defined(CONFIG_HL_SUPPORT) && defined(DEBUG_HL_LOGGING)
+
+/**
+ * ol_txrx_pdev_txq_log_init() - initialise pdev txq logs
+ * @pdev: the physical device object
+ *
+ * Return: None
+ */
+static void
+ol_txrx_pdev_txq_log_init(struct ol_txrx_pdev_t *pdev)
+{
+	qdf_spinlock_create(&pdev->txq_log_spinlock);
+	pdev->txq_log.size = OL_TXQ_LOG_SIZE;
+	pdev->txq_log.oldest_record_offset = 0;
+	pdev->txq_log.offset = 0;
+	pdev->txq_log.allow_wrap = 1;
+	pdev->txq_log.wrapped = 0;
+}
+
+/**
+ * ol_txrx_pdev_txq_log_destroy() - remove txq log spinlock for pdev
+ * @pdev: the physical device object
+ *
+ * Return: None
+ */
+static inline void
+ol_txrx_pdev_txq_log_destroy(struct ol_txrx_pdev_t *pdev)
+{
+	qdf_spinlock_destroy(&pdev->txq_log_spinlock);
+}
+
+#else
+
+static inline void
+ol_txrx_pdev_txq_log_init(struct ol_txrx_pdev_t *pdev)
+{
+}
+
+static inline void
+ol_txrx_pdev_txq_log_destroy(struct ol_txrx_pdev_t *pdev)
+{
+}
+
+
+#endif
+
+#if defined(DEBUG_HL_LOGGING)
+
+/**
+ * ol_txrx_pdev_grp_stats_init() - initialise group stat spinlock for pdev
+ * @pdev: the physical device object
+ *
+ * Return: None
+ */
+static inline void
+ol_txrx_pdev_grp_stats_init(struct ol_txrx_pdev_t *pdev)
+{
+	qdf_spinlock_create(&pdev->grp_stat_spinlock);
+	pdev->grp_stats.last_valid_index = -1;
+	pdev->grp_stats.wrap_around = 0;
+}
+
+/**
+ * ol_txrx_pdev_grp_stat_destroy() - destroy group stat spinlock for pdev
+ * @pdev: the physical device object
+ *
+ * Return: None
+ */
+static inline void
+ol_txrx_pdev_grp_stat_destroy(struct ol_txrx_pdev_t *pdev)
+{
+	qdf_spinlock_destroy(&pdev->grp_stat_spinlock);
+}
+#else
+
+static inline void
+ol_txrx_pdev_grp_stats_init(struct ol_txrx_pdev_t *pdev)
+{
+}
+
+static inline void
+ol_txrx_pdev_grp_stat_destroy(struct ol_txrx_pdev_t *pdev)
+{
+}
+#endif
+
+#if defined(CONFIG_HL_SUPPORT) && defined(FEATURE_WLAN_TDLS)
+
+/**
+ * ol_txrx_hl_tdls_flag_reset() - reset tdls flag for vdev
+ * @vdev: the virtual device object
+ * @flag: flag
+ *
+ * Return: None
+ */
+void
+ol_txrx_hl_tdls_flag_reset(struct cdp_vdev *pvdev, bool flag)
+{
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
+
+	vdev->hlTdlsFlag = flag;
+}
+#endif
+
+#if defined(CONFIG_HL_SUPPORT)
+
+/**
+ * ol_txrx_vdev_txqs_init() - initialise vdev tx queues
+ * @vdev: the virtual device object
+ *
+ * Return: None
+ */
+static void
+ol_txrx_vdev_txqs_init(struct ol_txrx_vdev_t *vdev)
+{
+	u_int8_t i;
+
+	for (i = 0; i < OL_TX_VDEV_NUM_QUEUES; i++) {
+		TAILQ_INIT(&vdev->txqs[i].head);
+		vdev->txqs[i].paused_count.total = 0;
+		vdev->txqs[i].frms = 0;
+		vdev->txqs[i].bytes = 0;
+		vdev->txqs[i].ext_tid = OL_TX_NUM_TIDS + i;
+		vdev->txqs[i].flag = ol_tx_queue_empty;
+		/* aggregation is not applicable for vdev tx queues */
+		vdev->txqs[i].aggr_state = ol_tx_aggr_disabled;
+		ol_tx_txq_set_group_ptr(&vdev->txqs[i], NULL);
+		ol_txrx_set_txq_peer(&vdev->txqs[i], NULL);
+	}
+}
+
+/**
+ * ol_txrx_vdev_tx_queue_free() - free vdev tx queues
+ * @vdev: the virtual device object
+ *
+ * Return: None
+ */
+static void
+ol_txrx_vdev_tx_queue_free(struct ol_txrx_vdev_t *vdev)
+{
+	struct ol_txrx_pdev_t *pdev = vdev->pdev;
+	struct ol_tx_frms_queue_t *txq;
+	int i;
+
+	for (i = 0; i < OL_TX_VDEV_NUM_QUEUES; i++) {
+		txq = &vdev->txqs[i];
+		ol_tx_queue_free(pdev, txq, (i + OL_TX_NUM_TIDS), false);
+	}
+}
+
+/**
+ * ol_txrx_peer_txqs_init() - initialise peer tx queues
+ * @pdev: the physical device object
+ * @peer: peer object
+ *
+ * Return: None
+ */
+static void
+ol_txrx_peer_txqs_init(struct ol_txrx_pdev_t *pdev,
+		       struct ol_txrx_peer_t *peer)
+{
+	uint8_t i;
+	struct ol_txrx_vdev_t *vdev = peer->vdev;
+
+	qdf_spin_lock_bh(&pdev->tx_queue_spinlock);
+	for (i = 0; i < OL_TX_NUM_TIDS; i++) {
+		TAILQ_INIT(&peer->txqs[i].head);
+		peer->txqs[i].paused_count.total = 0;
+		peer->txqs[i].frms = 0;
+		peer->txqs[i].bytes = 0;
+		peer->txqs[i].ext_tid = i;
+		peer->txqs[i].flag = ol_tx_queue_empty;
+		peer->txqs[i].aggr_state = ol_tx_aggr_untried;
+		ol_tx_set_peer_group_ptr(pdev, peer, vdev->vdev_id, i);
+		ol_txrx_set_txq_peer(&peer->txqs[i], peer);
+	}
+	qdf_spin_unlock_bh(&pdev->tx_queue_spinlock);
+
+	/* aggregation is not applicable for mgmt and non-QoS tx queues */
+	for (i = OL_TX_NUM_QOS_TIDS; i < OL_TX_NUM_TIDS; i++)
+		peer->txqs[i].aggr_state = ol_tx_aggr_disabled;
+
+	ol_txrx_peer_pause(peer);
+}
+
+/**
+ * ol_txrx_peer_tx_queue_free() - free peer tx queues
+ * @pdev: the physical device object
+ * @peer: peer object
+ *
+ * Return: None
+ */
+static void
+ol_txrx_peer_tx_queue_free(struct ol_txrx_pdev_t *pdev,
+			   struct ol_txrx_peer_t *peer)
+{
+	struct ol_tx_frms_queue_t *txq;
+	uint8_t i;
+
+	for (i = 0; i < OL_TX_NUM_TIDS; i++) {
+		txq = &peer->txqs[i];
+		ol_tx_queue_free(pdev, txq, i, true);
+	}
+}
+#else
+
+static inline void
+ol_txrx_vdev_txqs_init(struct ol_txrx_vdev_t *vdev)
+{
+}
+
+static inline void
+ol_txrx_vdev_tx_queue_free(struct ol_txrx_vdev_t *vdev)
+{
+}
+
+static inline void
+ol_txrx_peer_txqs_init(struct ol_txrx_pdev_t *pdev,
+		       struct ol_txrx_peer_t *peer)
+{
+}
+
+static inline void
+ol_txrx_peer_tx_queue_free(struct ol_txrx_pdev_t *pdev,
+			   struct ol_txrx_peer_t *peer)
+{
+}
+#endif
+
+#if defined(FEATURE_TSO) && defined(FEATURE_TSO_DEBUG)
+static void ol_txrx_tso_stats_init(ol_txrx_pdev_handle pdev)
+{
+	qdf_spinlock_create(&pdev->stats.pub.tx.tso.tso_stats_lock);
+}
+
+static void ol_txrx_tso_stats_deinit(ol_txrx_pdev_handle pdev)
+{
+	qdf_spinlock_destroy(&pdev->stats.pub.tx.tso.tso_stats_lock);
+}
+
+static void ol_txrx_stats_display_tso(ol_txrx_pdev_handle pdev)
+{
+	int msdu_idx;
+	int seg_idx;
+
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "TSO Statistics:");
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "TSO pkts %lld, bytes %lld\n",
+		 pdev->stats.pub.tx.tso.tso_pkts.pkts,
+		 pdev->stats.pub.tx.tso.tso_pkts.bytes);
+
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "TSO Histogram for numbers of segments:\n"
+		 "Single segment	%d\n"
+		 "  2-5 segments	%d\n"
+		 " 6-10 segments	%d\n"
+		 "11-15 segments	%d\n"
+		 "16-20 segments	%d\n"
+		 "  20+ segments	%d\n",
+		 pdev->stats.pub.tx.tso.tso_hist.pkts_1,
+		 pdev->stats.pub.tx.tso.tso_hist.pkts_2_5,
+		 pdev->stats.pub.tx.tso.tso_hist.pkts_6_10,
+		 pdev->stats.pub.tx.tso.tso_hist.pkts_11_15,
+		 pdev->stats.pub.tx.tso.tso_hist.pkts_16_20,
+		 pdev->stats.pub.tx.tso.tso_hist.pkts_20_plus);
+
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "TSO History Buffer: Total size %d, current_index %d",
+		 NUM_MAX_TSO_MSDUS,
+		 TXRX_STATS_TSO_MSDU_IDX(pdev));
+
+	for (msdu_idx = 0; msdu_idx < NUM_MAX_TSO_MSDUS; msdu_idx++) {
+		if (TXRX_STATS_TSO_MSDU_TOTAL_LEN(pdev, msdu_idx) == 0)
+			continue;
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+			  "jumbo pkt idx: %d num segs %d gso_len %d total_len %d nr_frags %d",
+			 msdu_idx,
+			 TXRX_STATS_TSO_MSDU_NUM_SEG(pdev, msdu_idx),
+			 TXRX_STATS_TSO_MSDU_GSO_SIZE(pdev, msdu_idx),
+			 TXRX_STATS_TSO_MSDU_TOTAL_LEN(pdev, msdu_idx),
+			 TXRX_STATS_TSO_MSDU_NR_FRAGS(pdev, msdu_idx));
+
+		for (seg_idx = 0;
+			 ((seg_idx < TXRX_STATS_TSO_MSDU_NUM_SEG(pdev,
+			   msdu_idx)) && (seg_idx < NUM_MAX_TSO_SEGS));
+			 seg_idx++) {
+#ifdef WLAN_DEBUG
+			struct qdf_tso_seg_t tso_seg =
+				 TXRX_STATS_TSO_SEG(pdev, msdu_idx, seg_idx);
+#endif
+
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+				  "seg idx: %d", seg_idx);
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+				  "tso_enable: %d",
+				  tso_seg.tso_flags.tso_enable);
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+				  "fin %d syn %d rst %d psh %d ack %d urg %d ece %d cwr %d ns %d",
+				  tso_seg.tso_flags.fin, tso_seg.tso_flags.syn,
+				  tso_seg.tso_flags.rst, tso_seg.tso_flags.psh,
+				  tso_seg.tso_flags.ack, tso_seg.tso_flags.urg,
+				  tso_seg.tso_flags.ece, tso_seg.tso_flags.cwr,
+				  tso_seg.tso_flags.ns);
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+				  "tcp_seq_num: 0x%x ip_id: %d",
+				  tso_seg.tso_flags.tcp_seq_num,
+				  tso_seg.tso_flags.ip_id);
+		}
+	}
+}
+
+static void ol_txrx_tso_stats_clear(ol_txrx_pdev_handle pdev)
+{
+	qdf_mem_zero(&pdev->stats.pub.tx.tso.tso_pkts,
+		     sizeof(struct ol_txrx_stats_elem));
+#if defined(FEATURE_TSO)
+	qdf_mem_zero(&pdev->stats.pub.tx.tso.tso_info,
+		     sizeof(struct ol_txrx_stats_tso_info));
+	qdf_mem_zero(&pdev->stats.pub.tx.tso.tso_hist,
+		     sizeof(struct ol_txrx_tso_histogram));
+#endif
+}
+
+#else
+
+static void ol_txrx_stats_display_tso(ol_txrx_pdev_handle pdev)
+{
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+	 "TSO is not supported\n");
+}
+
+static void ol_txrx_tso_stats_init(ol_txrx_pdev_handle pdev)
+{
+	/*
+	 * keeping the body empty and not keeping an error print as print will
+	 * will show up everytime during driver load if TSO is not enabled.
+	 */
+}
+
+static void ol_txrx_tso_stats_deinit(ol_txrx_pdev_handle pdev)
+{
+	/*
+	 * keeping the body empty and not keeping an error print as print will
+	 * will show up everytime during driver unload if TSO is not enabled.
+	 */
+}
+
+static void ol_txrx_tso_stats_clear(ol_txrx_pdev_handle pdev)
+{
+	/*
+	 * keeping the body empty and not keeping an error print as print will
+	 * will show up everytime during driver unload if TSO is not enabled.
+	 */
+}
+#endif /* defined(FEATURE_TSO) && defined(FEATURE_TSO_DEBUG) */
 
 #if defined(CONFIG_DP_TRACE) && defined(WLAN_DEBUGFS)
 /**
@@ -786,9 +1456,12 @@ static QDF_STATUS ol_txrx_write_dpt_buff_debugfs(void *priv,
 	}
 
 	buf1 = (char *)qdf_mem_malloc(len);
-	if (!buf1)
+	if (!buf1) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "%s: qdf_mem_malloc failure",
+				__func__);
 		return QDF_STATUS_E_FAULT;
-
+	}
 	qdf_mem_copy(buf1, buf, len);
 	ret = ol_txrx_conv_str_to_int_debugfs(buf1, len, &proto_bitmap,
 					      &nr_records, &verbosity,
@@ -851,54 +1524,31 @@ static inline void ol_txrx_debugfs_exit(ol_txrx_pdev_handle pdev)
 
 /**
  * ol_txrx_pdev_attach() - allocate txrx pdev
- * @soc_hdl: datapath soc handle
+ * @ctrl_pdev: cfg pdev
  * @htc_pdev: HTC pdev
  * @osdev: os dev
- * @pdev_id: pdev identifier for pdev attach
  *
- * Return: QDF_STATUS_SUCCESS on success
- *		QDF error code for failure
+ * Return: txrx pdev handle
+ *		  NULL for failure
  */
-static QDF_STATUS
-ol_txrx_pdev_attach(ol_txrx_soc_handle soc,
+static struct cdp_pdev *
+ol_txrx_pdev_attach(ol_txrx_soc_handle soc, struct cdp_cfg *ctrl_pdev,
 		    HTC_HANDLE htc_pdev, qdf_device_t osdev, uint8_t pdev_id)
 {
-	struct ol_txrx_soc_t *ol_soc = cdp_soc_t_to_ol_txrx_soc_t(soc);
 	struct ol_txrx_pdev_t *pdev;
-	struct cdp_cfg *cfg_pdev = cds_get_context(QDF_MODULE_ID_CFG);
-	QDF_STATUS status;
 	int i, tid;
 
-	if (pdev_id == OL_TXRX_INVALID_PDEV_ID)
-		return QDF_STATUS_E_INVAL;
-
 	pdev = qdf_mem_malloc(sizeof(*pdev));
-	if (!pdev) {
-		status = QDF_STATUS_E_NOMEM;
+	if (!pdev)
 		goto fail0;
-	}
 
 	/* init LL/HL cfg here */
-	pdev->cfg.is_high_latency = ol_cfg_is_high_latency(cfg_pdev);
-	/*
-	 * Credit reporting through HTT_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND
-	 * enabled or not.
-	 */
-	pdev->cfg.credit_update_enabled =
-		ol_cfg_is_credit_update_enabled(cfg_pdev);
-
-	/* Explicitly request TX Completions from FW */
-	pdev->cfg.request_tx_comp = cds_is_ptp_rx_opt_enabled() ||
-		cds_is_packet_log_enabled();
-
-	pdev->cfg.default_tx_comp_req = !ol_cfg_tx_free_at_download(cfg_pdev);
+	pdev->cfg.is_high_latency = ol_cfg_is_high_latency(ctrl_pdev);
+	pdev->cfg.default_tx_comp_req = !ol_cfg_tx_free_at_download(ctrl_pdev);
 
 	/* store provided params */
-	pdev->ctrl_pdev = cfg_pdev;
+	pdev->ctrl_pdev = ctrl_pdev;
 	pdev->osdev = osdev;
-	pdev->id = pdev_id;
-	pdev->soc = ol_soc;
-	ol_soc->pdev_list[pdev_id] = pdev;
 
 	for (i = 0; i < htt_num_sec_types; i++)
 		pdev->sec_types[i] = (enum ol_sec_type)i;
@@ -912,37 +1562,28 @@ ol_txrx_pdev_attach(ol_txrx_soc_handle soc,
 	TAILQ_INIT(&pdev->req_list);
 	pdev->req_list_depth = 0;
 	qdf_spinlock_create(&pdev->req_list_spinlock);
-	qdf_spinlock_create(&pdev->tx_mutex);
 
 	/* do initial set up of the peer ID -> peer object lookup map */
-	if (ol_txrx_peer_find_attach(pdev)) {
-		status = QDF_STATUS_E_FAILURE;
+	if (ol_txrx_peer_find_attach(pdev))
 		goto fail1;
-	}
 
 	/* initialize the counter of the target's tx buffer availability */
 	qdf_atomic_init(&pdev->target_tx_credit);
 	qdf_atomic_init(&pdev->orig_target_tx_credit);
-	qdf_atomic_init(&pdev->pad_reserve_tx_credit);
-	qdf_atomic_add(1, &pdev->pad_reserve_tx_credit);
 
-	if (ol_cfg_is_high_latency(cfg_pdev)) {
+	if (ol_cfg_is_high_latency(ctrl_pdev)) {
 		qdf_spinlock_create(&pdev->tx_queue_spinlock);
 		pdev->tx_sched.scheduler = ol_tx_sched_attach(pdev);
-		if (!pdev->tx_sched.scheduler) {
-			status = QDF_STATUS_E_FAILURE;
+		if (pdev->tx_sched.scheduler == NULL)
 			goto fail2;
-		}
 	}
 	ol_txrx_pdev_txq_log_init(pdev);
 	ol_txrx_pdev_grp_stats_init(pdev);
 
 	pdev->htt_pdev =
-		htt_pdev_alloc(pdev, cfg_pdev, htc_pdev, osdev);
-	if (!pdev->htt_pdev) {
-		status = QDF_STATUS_E_FAILURE;
+		htt_pdev_alloc(pdev, ctrl_pdev, htc_pdev, osdev);
+	if (!pdev->htt_pdev)
 		goto fail3;
-	}
 
 	htt_register_rx_pkt_dump_callback(pdev->htt_pdev,
 			ol_rx_pkt_dump_call);
@@ -973,45 +1614,37 @@ ol_txrx_pdev_attach(ol_txrx_soc_handle soc,
 		pdev->peer_id_unmap_ref_cnt =
 			TXRX_RFS_DISABLE_PEER_ID_UNMAP_COUNT;
 
-	if (cds_get_conparam() == QDF_GLOBAL_MONITOR_MODE)
-		pdev->chan_noise_floor = NORMALIZED_TO_NOISE_FLOOR;
-
 	ol_txrx_debugfs_init(pdev);
 
-	return QDF_STATUS_SUCCESS;
+	return (struct cdp_pdev *)pdev;
 
 fail3:
 	ol_txrx_peer_find_detach(pdev);
 
 fail2:
-	if (ol_cfg_is_high_latency(cfg_pdev))
+	if (ol_cfg_is_high_latency(ctrl_pdev))
 		qdf_spinlock_destroy(&pdev->tx_queue_spinlock);
 
 fail1:
-	qdf_spinlock_destroy(&pdev->req_list_spinlock);
-	qdf_spinlock_destroy(&pdev->tx_mutex);
 	ol_txrx_tso_stats_deinit(pdev);
 	ol_txrx_fw_stats_desc_pool_deinit(pdev);
 	qdf_mem_free(pdev);
 
 fail0:
-	return status;
+	return NULL;
 }
 
 #if !defined(REMOVE_PKT_LOG) && !defined(QVIT)
 /**
  * htt_pkt_log_init() - API to initialize packet log
- * @soc_hdl: Datapath soc handle
- * @pdev_id: id of data path pdev handle
+ * @handle: pdev handle
  * @scn: HIF context
  *
  * Return: void
  */
-void htt_pkt_log_init(struct cdp_soc_t *soc_hdl, uint8_t pdev_id, void *scn)
+void htt_pkt_log_init(struct cdp_pdev *ppdev, void *scn)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle handle =
-				ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
+	struct ol_txrx_pdev_t *handle = (struct ol_txrx_pdev_t *)ppdev;
 
 	if (handle->pkt_log_init)
 		return;
@@ -1019,10 +1652,9 @@ void htt_pkt_log_init(struct cdp_soc_t *soc_hdl, uint8_t pdev_id, void *scn)
 	if (cds_get_conparam() != QDF_GLOBAL_FTM_MODE &&
 			!QDF_IS_EPPING_ENABLED(cds_get_conparam())) {
 		pktlog_sethandle(&handle->pl_dev, scn);
-		pktlog_set_pdev_id(handle->pl_dev, pdev_id);
 		pktlog_set_callback_regtype(PKTLOG_DEFAULT_CALLBACK_REGISTRATION);
 		if (pktlogmod_init(scn))
-			qdf_print(" pktlogmod_init failed");
+			qdf_print("%s: pktlogmod_init failed", __func__);
 		else
 			handle->pkt_log_init = true;
 	}
@@ -1046,7 +1678,7 @@ static void htt_pktlogmod_exit(struct ol_txrx_pdev_t *handle)
 }
 
 #else
-void htt_pkt_log_init(struct cdp_soc_t *soc_hdl, uint8_t pdev, void *scn) { }
+void htt_pkt_log_init(struct cdp_pdev *pdev_handle, void *ol_sc) { }
 static void htt_pktlogmod_exit(ol_txrx_pdev_handle handle)  { }
 #endif
 
@@ -1087,28 +1719,26 @@ static inline void ol_txrx_pdev_set_threshold(struct ol_txrx_pdev_t *pdev)
 
 /**
  * ol_txrx_pdev_post_attach() - attach txrx pdev
- * @soc_hdl: datapath soc handle
- * @pdev_id: physical device instance id
+ * @pdev: txrx pdev
  *
  * Return: 0 for success
  */
 int
-ol_txrx_pdev_post_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id)
+ol_txrx_pdev_post_attach(struct cdp_pdev *ppdev)
 {
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
 	uint16_t i;
 	uint16_t fail_idx = 0;
 	int ret = 0;
 	uint16_t desc_pool_size;
 	struct hif_opaque_softc *osc =  cds_get_context(QDF_MODULE_ID_HIF);
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
 
 	uint16_t desc_element_size = sizeof(union ol_tx_desc_list_elem_t);
 	union ol_tx_desc_list_elem_t *c_element;
 	unsigned int sig_bit;
 	uint16_t desc_per_page;
 
-	if (!osc || !pdev) {
+	if (!osc) {
 		ret = -EINVAL;
 		goto ol_attach_fail;
 	}
@@ -1128,8 +1758,26 @@ ol_txrx_pdev_post_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id)
 	 * HL - wait for a HTT target credit initialization
 	 * during htt_attach.
 	 */
-	desc_pool_size = ol_tx_get_desc_global_pool_size(pdev);
-	ol_tx_init_pdev(pdev);
+	if (pdev->cfg.is_high_latency) {
+		desc_pool_size = ol_tx_desc_pool_size_hl(pdev->ctrl_pdev);
+
+		qdf_atomic_init(&pdev->tx_queue.rsrc_cnt);
+		qdf_atomic_add(desc_pool_size, &pdev->tx_queue.rsrc_cnt);
+
+		pdev->tx_queue.rsrc_threshold_lo =
+			ol_txrx_rsrc_threshold_lo(desc_pool_size);
+		pdev->tx_queue.rsrc_threshold_hi =
+			ol_txrx_rsrc_threshold_hi(desc_pool_size);
+
+		for (i = 0 ; i < OL_TX_MAX_TXQ_GROUPS; i++)
+			qdf_atomic_init(&pdev->txq_grps[i].credit);
+
+		ol_tx_target_credit_init(pdev, desc_pool_size);
+	} else {
+		qdf_atomic_add(ol_cfg_target_tx_credit(pdev->ctrl_pdev),
+			       &pdev->target_tx_credit);
+		desc_pool_size = ol_tx_get_desc_global_pool_size(pdev);
+	}
 
 	ol_tx_desc_dup_detect_init(pdev, desc_pool_size);
 
@@ -1156,7 +1804,7 @@ ol_txrx_pdev_post_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id)
 	qdf_mem_multi_pages_alloc(pdev->osdev, &pdev->tx_desc.desc_pages,
 		pdev->tx_desc.desc_reserved_size, desc_pool_size, 0, true);
 	if ((0 == pdev->tx_desc.desc_pages.num_pages) ||
-		(!pdev->tx_desc.desc_pages.cacheable_pages)) {
+		(NULL == pdev->tx_desc.desc_pages.cacheable_pages)) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			"Page alloc fail");
 		ret = -ENOMEM;
@@ -1246,9 +1894,10 @@ ol_txrx_pdev_post_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id)
 
 	/* link SW tx descs into a freelist */
 	pdev->tx_desc.num_free = desc_pool_size;
-	ol_txrx_dbg("first tx_desc:0x%pK Last tx desc:0x%pK",
-		    (uint32_t *)pdev->tx_desc.freelist,
-		    (uint32_t *)(pdev->tx_desc.freelist + desc_pool_size));
+	ol_txrx_dbg(
+		   "%s first tx_desc:0x%pK Last tx desc:0x%pK\n", __func__,
+		   (uint32_t *) pdev->tx_desc.freelist,
+		   (uint32_t *) (pdev->tx_desc.freelist + desc_pool_size));
 
 	ol_txrx_pdev_set_threshold(pdev);
 
@@ -1413,6 +2062,7 @@ ol_txrx_pdev_post_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id)
 	}
 
 	/* initialize mutexes for tx desc alloc and peer lookup */
+	qdf_spinlock_create(&pdev->tx_mutex);
 	qdf_spinlock_create(&pdev->peer_ref_mutex);
 	qdf_spinlock_create(&pdev->rx.mutex);
 	qdf_spinlock_create(&pdev->last_real_peer_mutex);
@@ -1428,6 +2078,10 @@ ol_txrx_pdev_post_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id)
 		ret = -ENOMEM;
 		goto pn_trace_attach_fail;
 	}
+
+#ifdef PERE_IP_HDR_ALIGNMENT_WAR
+	pdev->host_80211_enable = ol_scn_host_80211_enable_get(pdev->ctrl_pdev);
+#endif
 
 	/*
 	 * WDI event attach
@@ -1544,6 +2198,7 @@ pn_trace_attach_fail:
 	OL_RX_REORDER_TRACE_DETACH(pdev);
 
 reorder_trace_attach_fail:
+	qdf_spinlock_destroy(&pdev->tx_mutex);
 	qdf_spinlock_destroy(&pdev->peer_ref_mutex);
 	qdf_spinlock_destroy(&pdev->rx.mutex);
 	qdf_spinlock_destroy(&pdev->last_real_peer_mutex);
@@ -1573,8 +2228,7 @@ ol_attach_fail:
 /**
  * ol_txrx_pdev_attach_target() - send target configuration
  *
- * @soc_hdl - data path soc handle
- * @pdev_id - device instance id
+ * @pdev - the physical device being initialized
  *
  * The majority of the data SW setup are done by the pdev_attach
  * functions, but this function completes the data SW setup by
@@ -1582,14 +2236,9 @@ ol_attach_fail:
  *
  * Return: 0 - success 1 - failure
  */
-static int ol_txrx_pdev_attach_target(struct cdp_soc_t *soc_hdl,
-				      uint8_t pdev_id)
+static int ol_txrx_pdev_attach_target(struct cdp_pdev *ppdev)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
-
-	if (!pdev)
-		return QDF_STATUS_E_FAULT;
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
 
 	return htt_attach_target(pdev->htt_pdev) == QDF_STATUS_SUCCESS ? 0:1;
 }
@@ -1640,8 +2289,7 @@ static void ol_tx_free_descs_inuse(ol_txrx_pdev_handle pdev)
 
 /**
  * ol_txrx_pdev_pre_detach() - detach the data SW state
- * @soc_hdl - datapath soc handle
- * @pdev_id - the data physical device id being removed
+ * @pdev - the data physical device object being removed
  * @force - delete the pdev (and its vdevs and peers) even if
  * there are outstanding references by the target to the vdevs
  * and peers within the pdev
@@ -1649,14 +2297,11 @@ static void ol_tx_free_descs_inuse(ol_txrx_pdev_handle pdev)
  * This function is used when the WLAN driver is being removed to
  * detach the host data component within the driver.
  *
- * Return: none
+ * Return: None
  */
-static void ol_txrx_pdev_pre_detach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
-					  int force)
+static void ol_txrx_pdev_pre_detach(struct cdp_pdev *ppdev, int force)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	struct ol_txrx_pdev_t *pdev = ol_txrx_get_pdev_from_pdev_id(soc,
-								    pdev_id);
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
 
 	/* preconditions */
 	TXRX_ASSERT2(pdev);
@@ -1693,7 +2338,7 @@ static void ol_txrx_pdev_pre_detach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 	}
 
 	/* to get flow pool status before freeing descs */
-	ol_tx_dump_flow_pool_info(cds_get_context(QDF_MODULE_ID_SOC));
+	ol_tx_dump_flow_pool_info((void *)pdev);
 	ol_tx_free_descs_inuse(pdev);
 	ol_tx_deregister_flow_control(pdev);
 
@@ -1719,6 +2364,7 @@ static void ol_txrx_pdev_pre_detach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 	htt_detach(pdev->htt_pdev);
 	ol_tx_desc_dup_detect_deinit(pdev);
 
+	qdf_spinlock_destroy(&pdev->tx_mutex);
 	qdf_spinlock_destroy(&pdev->peer_ref_mutex);
 	qdf_spinlock_destroy(&pdev->last_real_peer_mutex);
 	qdf_spinlock_destroy(&pdev->rx.mutex);
@@ -1748,14 +2394,11 @@ static void ol_txrx_pdev_pre_detach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 #ifdef QCA_COMPUTE_TX_DELAY
 	qdf_spinlock_destroy(&pdev->tx_delay.mutex);
 #endif
-
-	return;
 }
 
 /**
  * ol_txrx_pdev_detach() - delete the data SW state
- * @soc_hdl - data path soc handle
- * @pdev_id - device instance id
+ * @ppdev - the data physical device object being removed
  * @force - delete the pdev (and its vdevs and peers) even if
  * there are outstanding references by the target to the vdevs
  * and peers within the pdev
@@ -1765,26 +2408,21 @@ static void ol_txrx_pdev_pre_detach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
  * All virtual devices within the physical device need to be deleted
  * (ol_txrx_vdev_detach) before the physical device itself is deleted.
  *
- * Return: Success or Failure
+ * Return: None
  */
-static QDF_STATUS ol_txrx_pdev_detach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
-				      int force)
+static void ol_txrx_pdev_detach(struct cdp_pdev *ppdev, int force)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	struct ol_txrx_pdev_t *pdev = ol_txrx_get_pdev_from_pdev_id(soc,
-								    pdev_id);
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
 	struct ol_txrx_stats_req_internal *req, *temp_req;
+#ifdef WLAN_DEBUG
 	int i = 0;
-
-	if (!soc) {
-		ol_txrx_err("soc is NULL");
-		return QDF_STATUS_E_FAILURE;
-	}
+#endif
 
 	/*checking to ensure txrx pdev structure is not NULL */
 	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
-		return QDF_STATUS_E_FAILURE;
+		ol_txrx_err(
+			   "NULL pdev passed to %s\n", __func__);
+		return;
 	}
 
 	qdf_spin_lock_bh(&pdev->req_list_spinlock);
@@ -1810,7 +2448,6 @@ static QDF_STATUS ol_txrx_pdev_detach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id
 	qdf_spin_unlock_bh(&pdev->req_list_spinlock);
 
 	qdf_spinlock_destroy(&pdev->req_list_spinlock);
-	qdf_spinlock_destroy(&pdev->tx_mutex);
 
 	OL_RX_REORDER_TIMEOUT_CLEANUP(pdev);
 
@@ -1830,63 +2467,48 @@ static QDF_STATUS ol_txrx_pdev_detach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id
 	ol_txrx_debugfs_exit(pdev);
 	ol_unregister_peer_recovery_notifier();
 
-	soc->pdev_list[pdev->id] = NULL;
 	qdf_mem_free(pdev);
-
-	return QDF_STATUS_SUCCESS;
 }
 
-#if defined(QCA_HL_NETDEV_FLOW_CONTROL)
+#if defined(CONFIG_PER_VDEV_TX_DESC_POOL)
 
 /**
- * ol_txrx_vdev_per_vdev_tx_desc_init() - initialise per vdev tx desc count
- * related variables.
+ * ol_txrx_vdev_tx_desc_cnt_init() - initialise tx descriptor count for vdev
  * @vdev: the virtual device object
  *
  * Return: None
  */
 static inline void
-ol_txrx_vdev_per_vdev_tx_desc_init(struct ol_txrx_vdev_t *vdev)
+ol_txrx_vdev_tx_desc_cnt_init(struct ol_txrx_vdev_t *vdev)
 {
 	qdf_atomic_init(&vdev->tx_desc_count);
-	vdev->tx_desc_limit = 0;
-	vdev->queue_restart_th = 0;
-	vdev->prio_q_paused = 0;
-	vdev->queue_stop_th = 0;
 }
 #else
 
 static inline void
-ol_txrx_vdev_per_vdev_tx_desc_init(struct ol_txrx_vdev_t *vdev)
+ol_txrx_vdev_tx_desc_cnt_init(struct ol_txrx_vdev_t *vdev)
 {
 }
-#endif /* QCA_HL_NETDEV_FLOW_CONTROL */
+#endif
 
 /**
  * ol_txrx_vdev_attach - Allocate and initialize the data object
  * for a new virtual device.
  *
- * @@soc_hdl - data path soc handle
- * @pdev_id - physical device instance id
+ * @data_pdev - the physical device the virtual device belongs to
  * @vdev_mac_addr - the MAC address of the virtual device
  * @vdev_id - the ID used to identify the virtual device to the target
  * @op_mode - whether this virtual device is operating as an AP,
  * an IBSS, or a STA
- * @subtype:  Subtype of the operating vdev
  *
- * Return: QDF_STATUS_SUCCESS on success,
-	   QDF error code on failure
+ * Return: success: handle to new data vdev object, failure: NULL
  */
-static QDF_STATUS
-ol_txrx_vdev_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
+static struct cdp_vdev *
+ol_txrx_vdev_attach(struct cdp_pdev *ppdev,
 		    uint8_t *vdev_mac_addr,
-		    uint8_t vdev_id, enum wlan_op_mode op_mode,
-		    enum wlan_op_subtype subtype)
+		    uint8_t vdev_id, enum wlan_op_mode op_mode)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	struct ol_txrx_pdev_t *pdev = ol_txrx_get_pdev_from_pdev_id(soc,
-								    pdev_id);
-
+	struct ol_txrx_pdev_t  *pdev = (struct ol_txrx_pdev_t *)ppdev;
 	struct ol_txrx_vdev_t *vdev;
 	QDF_STATUS qdf_status;
 
@@ -1894,20 +2516,14 @@ ol_txrx_vdev_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 	TXRX_ASSERT2(pdev);
 	TXRX_ASSERT2(vdev_mac_addr);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return QDF_STATUS_E_INVAL;
-	}
-
 	vdev = qdf_mem_malloc(sizeof(*vdev));
 	if (!vdev)
-		return QDF_STATUS_E_NOMEM;    /* failure */
+		return NULL;    /* failure */
 
 	/* store provided params */
 	vdev->pdev = pdev;
 	vdev->vdev_id = vdev_id;
 	vdev->opmode = op_mode;
-	vdev->subtype = subtype;
 
 	vdev->delete.pending = 0;
 	vdev->safemode = 0;
@@ -1916,13 +2532,15 @@ ol_txrx_vdev_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 	vdev->fwd_tx_packets = 0;
 	vdev->fwd_rx_packets = 0;
 
-	ol_txrx_vdev_per_vdev_tx_desc_init(vdev);
+	ol_txrx_vdev_tx_desc_cnt_init(vdev);
 
 	qdf_mem_copy(&vdev->mac_addr.raw[0], vdev_mac_addr,
-		     QDF_MAC_ADDR_SIZE);
+		     OL_TXRX_MAC_ADDR_LEN);
 
 	TAILQ_INIT(&vdev->peer_list);
 	vdev->last_real_peer = NULL;
+
+	ol_txrx_hl_tdls_flag_reset((struct cdp_vdev *)vdev, false);
 
 #ifdef QCA_IBSS_SUPPORT
 	vdev->ibss_peer_num = 0;
@@ -1956,35 +2574,19 @@ ol_txrx_vdev_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 	vdev->txrx_stats.txack_success = 0;
 	vdev->txrx_stats.txack_failed = 0;
 
-	vdev->bundling_required = false;
-	qdf_spinlock_create(&vdev->bundle_queue.mutex);
-	vdev->bundle_queue.txq.head = NULL;
-	vdev->bundle_queue.txq.tail = NULL;
-	vdev->bundle_queue.txq.depth = 0;
-	qdf_timer_init(
-		pdev->osdev,
-		&vdev->bundle_queue.timer,
-		ol_tx_hl_vdev_bundle_timer,
-		vdev, QDF_TIMER_TYPE_SW);
-
 	/* Default MAX Q depth for every VDEV */
 	vdev->ll_pause.max_q_depth =
 		ol_tx_cfg_max_tx_queue_depth_ll(vdev->pdev->ctrl_pdev);
 	qdf_status = qdf_event_create(&vdev->wait_delete_comp);
-
-	ol_txrx_vdev_init_tcp_del_ack(vdev);
-
 	/* add this vdev into the pdev's list */
 	TAILQ_INSERT_TAIL(&pdev->vdev_list, vdev, vdev_list_elem);
-	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam())
-		pdev->monitor_vdev = vdev;
-
-	ol_txrx_hl_tdls_flag_reset(soc_hdl, vdev_id, false);
 
 	ol_txrx_dbg(
-		   "Created vdev %pK ("QDF_MAC_ADDR_FMT")\n",
+		   "Created vdev %pK (%02x:%02x:%02x:%02x:%02x:%02x)\n",
 		   vdev,
-		   QDF_MAC_ADDR_REF(vdev->mac_addr.raw));
+		   vdev->mac_addr.raw[0], vdev->mac_addr.raw[1],
+		   vdev->mac_addr.raw[2], vdev->mac_addr.raw[3],
+		   vdev->mac_addr.raw[4], vdev->mac_addr.raw[5]);
 
 	/*
 	 * We've verified that htt_op_mode == wlan_op_mode,
@@ -1992,15 +2594,14 @@ ol_txrx_vdev_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 	 */
 	htt_vdev_attach(pdev->htt_pdev, vdev_id, op_mode);
 
-	return QDF_STATUS_SUCCESS;
+	return (struct cdp_vdev *)vdev;
 }
 
 /**
- * ol_txrx_vdev_register - Link a vdev's data object with the
+ *ol_txrx_vdev_register - Link a vdev's data object with the
  * matching OS shim vdev object.
  *
- * @soc_hdl: datapath soc handle
- * @vdev_id: the virtual device's id
+ * @txrx_vdev: the virtual device's data object
  * @osif_vdev: the virtual device's OS shim object
  * @txrx_ops: (pointers to)functions used for tx and rx data xfer
  *
@@ -2015,19 +2616,16 @@ ol_txrx_vdev_attach(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
  *  vdev objects, so the data SW can use the OS shim vdev handle
  *  when passing rx data received by a vdev up to the OS shim.
  */
-static QDF_STATUS ol_txrx_vdev_register(struct cdp_soc_t *soc_hdl,
-					uint8_t vdev_id,
-					ol_osif_vdev_handle osif_vdev,
-					struct ol_txrx_ops *txrx_ops)
+static void ol_txrx_vdev_register(struct cdp_vdev *pvdev,
+				void *osif_vdev,
+				struct ol_txrx_ops *txrx_ops)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 
 	if (qdf_unlikely(!vdev) || qdf_unlikely(!txrx_ops)) {
-		qdf_print("vdev/txrx_ops is NULL!");
+		qdf_print("%s: vdev/txrx_ops is NULL!\n", __func__);
 		qdf_assert(0);
-		return QDF_STATUS_E_FAILURE;
+		return;
 	}
 
 	vdev->osif_dev = osif_vdev;
@@ -2035,8 +2633,27 @@ static QDF_STATUS ol_txrx_vdev_register(struct cdp_soc_t *soc_hdl,
 	vdev->stats_rx = txrx_ops->rx.stats_rx;
 	vdev->tx_comp = txrx_ops->tx.tx_comp;
 	txrx_ops->tx.tx = ol_tx_data;
+}
 
-	return QDF_STATUS_SUCCESS;
+#ifdef currently_unused
+/**
+ * ol_txrx_set_curchan - Setup the current operating channel of
+ * the device
+ * @pdev - the data physical device object
+ * @chan_mhz - the channel frequency (mhz) packets on
+ *
+ * Mainly used when populating monitor mode status that requires
+ * the current operating channel
+ *
+ */
+void ol_txrx_set_curchan(ol_txrx_pdev_handle pdev, uint32_t chan_mhz)
+{
+}
+#endif
+
+void ol_txrx_set_safemode(ol_txrx_vdev_handle vdev, uint32_t val)
+{
+	vdev->safemode = val;
 }
 
 /**
@@ -2056,6 +2673,11 @@ ol_txrx_set_privacy_filters(ol_txrx_vdev_handle vdev,
 	qdf_mem_copy(vdev->privacy_filters, filters,
 		     num * sizeof(struct privacy_exemption));
 	vdev->num_filters = num;
+}
+
+void ol_txrx_set_drop_unenc(ol_txrx_vdev_handle vdev, uint32_t val)
+{
+	vdev->drop_unenc = val;
 }
 
 #if defined(CONFIG_HL_SUPPORT) || defined(QCA_LL_LEGACY_TX_FLOW_CONTROL)
@@ -2112,8 +2734,7 @@ ol_txrx_tx_desc_reset_vdev(ol_txrx_vdev_handle vdev)
 /**
  * ol_txrx_vdev_detach - Deallocate the specified data virtual
  * device object.
- * @soc_hdl - data path soc handle
- * @vdev_id: vdev id
+ * @data_vdev: data object for the virtual device in question
  * @callback: function to call (if non-NULL) once the vdev has
  * been wholly deleted
  * @callback_context: context to provide in the callback
@@ -2133,17 +2754,12 @@ ol_txrx_tx_desc_reset_vdev(ol_txrx_vdev_handle vdev)
  * vdev_detach call, or if it's deferred until all in-progress peer
  * deletions have completed.
  */
-static QDF_STATUS
-ol_txrx_vdev_detach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
+static void
+ol_txrx_vdev_detach(struct cdp_vdev *pvdev,
 		    ol_txrx_vdev_delete_cb callback, void *context)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 	struct ol_txrx_pdev_t *pdev;
-
-	if (qdf_unlikely(!vdev))
-		return QDF_STATUS_E_FAILURE;
 
 	/* preconditions */
 	TXRX_ASSERT2(vdev);
@@ -2173,9 +2789,6 @@ ol_txrx_vdev_detach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 	qdf_timer_free(&vdev->ll_pause.timer);
 	qdf_spinlock_destroy(&vdev->ll_pause.mutex);
 
-	qdf_timer_free(&vdev->bundle_queue.timer);
-	qdf_spinlock_destroy(&vdev->bundle_queue.mutex);
-
 	qdf_spin_lock_bh(&vdev->flow_control_lock);
 	vdev->osif_flow_control_cb = NULL;
 	vdev->osif_flow_control_is_pause = NULL;
@@ -2195,23 +2808,27 @@ ol_txrx_vdev_detach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 	if (!TAILQ_EMPTY(&vdev->peer_list)) {
 		/* debug print - will be removed later */
 		ol_txrx_dbg(
-			   "not deleting vdev object %pK ("QDF_MAC_ADDR_FMT") until deletion finishes for all its peers\n",
-			   vdev,
-			   QDF_MAC_ADDR_REF(vdev->mac_addr.raw));
+			   "%s: not deleting vdev object %pK (%02x:%02x:%02x:%02x:%02x:%02x) until deletion finishes for all its peers\n",
+			   __func__, vdev,
+			   vdev->mac_addr.raw[0], vdev->mac_addr.raw[1],
+			   vdev->mac_addr.raw[2], vdev->mac_addr.raw[3],
+			   vdev->mac_addr.raw[4], vdev->mac_addr.raw[5]);
 		/* indicate that the vdev needs to be deleted */
 		vdev->delete.pending = 1;
 		vdev->delete.callback = callback;
 		vdev->delete.context = context;
 		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
-		return QDF_STATUS_E_FAILURE;
+		return;
 	}
 	qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 	qdf_event_destroy(&vdev->wait_delete_comp);
 
 	ol_txrx_dbg(
-		   "deleting vdev obj %pK ("QDF_MAC_ADDR_FMT")\n",
-		   vdev,
-		   QDF_MAC_ADDR_REF(vdev->mac_addr.raw));
+		   "%s: deleting vdev obj %pK (%02x:%02x:%02x:%02x:%02x:%02x)\n",
+		   __func__, vdev,
+		   vdev->mac_addr.raw[0], vdev->mac_addr.raw[1],
+		   vdev->mac_addr.raw[2], vdev->mac_addr.raw[3],
+		   vdev->mac_addr.raw[4], vdev->mac_addr.raw[5]);
 
 	htt_vdev_detach(pdev->htt_pdev, vdev->vdev_id);
 
@@ -2235,8 +2852,6 @@ ol_txrx_vdev_detach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 	qdf_mem_free(vdev);
 	if (callback)
 		callback(context);
-
-	return QDF_STATUS_SUCCESS;
 }
 
 /**
@@ -2297,24 +2912,20 @@ void ol_txrx_flush_rx_frames(struct ol_txrx_peer_t *peer,
 
 static void ol_txrx_flush_cache_rx_queue(void)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
+	uint8_t sta_id;
 	struct ol_txrx_peer_t *peer;
-	struct ol_txrx_vdev_t *vdev;
-	ol_txrx_pdev_handle pdev;
+	struct ol_txrx_pdev_t *pdev;
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev)
 		return;
 
-	TAILQ_FOREACH(vdev, &pdev->vdev_list, vdev_list_elem) {
-		TAILQ_FOREACH(peer, &vdev->peer_list, peer_list_elem) {
-			ol_txrx_flush_rx_frames(peer, 1);
-		}
+	for (sta_id = 0; sta_id < WLAN_MAX_STA_COUNT; sta_id++) {
+		peer = ol_txrx_peer_find_by_local_id((struct cdp_pdev *)pdev,
+						    sta_id);
+		if (!peer)
+			continue;
+		ol_txrx_flush_rx_frames(peer, 1);
 	}
 }
 
@@ -2345,8 +2956,10 @@ static void ol_txrx_dump_peer_access_list(ol_txrx_peer_handle peer)
 /**
  * ol_txrx_peer_attach - Allocate and set up references for a
  * data peer object.
- * @soc_hdl - data path soc handle
- * @vdev_id - virtual device instance id
+ * @data_pdev: data physical device object that will indirectly
+ * own the data_peer object
+ * @data_vdev - data virtual device object that will directly
+ * own the data_peer object
  * @peer_mac_addr - MAC address of the new peer
  *
  * When an association with a peer starts, the host's control SW
@@ -2360,15 +2973,13 @@ static void ol_txrx_dump_peer_access_list(ol_txrx_peer_handle peer)
  * so a reference within the control peer object can be set to the
  * data peer object.
  *
- * Return: QDF status code
+ * Return: handle to new data peer object, or NULL if the attach
+ * fails
  */
-static QDF_STATUS
-ol_txrx_peer_attach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
-		    uint8_t *peer_mac_addr)
+static void *
+ol_txrx_peer_attach(struct cdp_vdev *pvdev, uint8_t *peer_mac_addr)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 	struct ol_txrx_peer_t *peer;
 	struct ol_txrx_peer_t *temp_peer;
 	uint8_t i;
@@ -2400,9 +3011,11 @@ ol_txrx_peer_attach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 			(union ol_txrx_align_mac_addr_t *)peer_mac_addr) &&
 			(check_valid == 0 || temp_peer->valid)) {
 			ol_txrx_info_high(
-				"vdev_id %d ("QDF_MAC_ADDR_FMT") already exists.\n",
+				"vdev_id %d (%02x:%02x:%02x:%02x:%02x:%02x) already exists.\n",
 				vdev->vdev_id,
-				QDF_MAC_ADDR_REF(peer_mac_addr));
+				peer_mac_addr[0], peer_mac_addr[1],
+				peer_mac_addr[2], peer_mac_addr[3],
+				peer_mac_addr[4], peer_mac_addr[5]);
 			if (qdf_atomic_read(&temp_peer->delete_in_progress)) {
 				vdev->wait_on_peer_id = temp_peer->local_id;
 				qdf_event_reset(&vdev->wait_delete_comp);
@@ -2410,7 +3023,7 @@ ol_txrx_peer_attach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 				break;
 			} else {
 				qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
-				return QDF_STATUS_E_FAILURE;
+				return NULL;
 			}
 		}
 		if (cmp_wait_mac && !ol_txrx_peer_find_mac_addr_cmp(
@@ -2419,9 +3032,14 @@ ol_txrx_peer_attach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 					(check_valid == 0 ||
 					 temp_peer->valid)) {
 			ol_txrx_info_high(
-				"vdev_id %d ("QDF_MAC_ADDR_FMT") old peer exists.\n",
+				"vdev_id %d (%02x:%02x:%02x:%02x:%02x:%02x) old peer exists.\n",
 				vdev->vdev_id,
-				QDF_MAC_ADDR_REF(vdev->last_peer_mac_addr.raw));
+				vdev->last_peer_mac_addr.raw[0],
+				vdev->last_peer_mac_addr.raw[1],
+				vdev->last_peer_mac_addr.raw[2],
+				vdev->last_peer_mac_addr.raw[3],
+				vdev->last_peer_mac_addr.raw[4],
+				vdev->last_peer_mac_addr.raw[5]);
 			if (qdf_atomic_read(&temp_peer->delete_in_progress)) {
 				vdev->wait_on_peer_id = temp_peer->local_id;
 				qdf_event_reset(&vdev->wait_delete_comp);
@@ -2430,7 +3048,7 @@ ol_txrx_peer_attach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 			} else {
 				qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 				ol_txrx_err("peer not found");
-				return QDF_STATUS_E_FAILURE;
+				return NULL;
 			}
 		}
 	}
@@ -2450,18 +3068,18 @@ ol_txrx_peer_attach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 			wlan_roam_debug_dump_table();
 			vdev->wait_on_peer_id = OL_TXRX_INVALID_LOCAL_PEER_ID;
 
-			return QDF_STATUS_E_FAILURE;
+			return NULL;
 		}
 	}
 
 	peer = qdf_mem_malloc(sizeof(*peer));
 	if (!peer)
-		return QDF_STATUS_E_NOMEM;
+		return NULL;    /* failure */
 
 	/* store provided params */
 	peer->vdev = vdev;
 	qdf_mem_copy(&peer->mac_addr.raw[0], peer_mac_addr,
-		     QDF_MAC_ADDR_SIZE);
+		     OL_TXRX_MAC_ADDR_LEN);
 
 	ol_txrx_peer_txqs_init(pdev, peer);
 
@@ -2511,14 +3129,16 @@ ol_txrx_peer_attach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 	ol_txrx_peer_find_hash_add(pdev, peer);
 
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
-		   "vdev %pK created peer %pK ref_cnt %d ("QDF_MAC_ADDR_FMT")\n",
+		   "vdev %pK created peer %pK ref_cnt %d (%02x:%02x:%02x:%02x:%02x:%02x)\n",
 		   vdev, peer, qdf_atomic_read(&peer->ref_cnt),
-		   QDF_MAC_ADDR_REF(peer->mac_addr.raw));
+		   peer->mac_addr.raw[0], peer->mac_addr.raw[1],
+		   peer->mac_addr.raw[2], peer->mac_addr.raw[3],
+		   peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
 	/*
 	 * For every peer MAp message search and set if bss_peer
 	 */
 	if (qdf_mem_cmp(peer->mac_addr.raw, vdev->mac_addr.raw,
-				QDF_MAC_ADDR_SIZE))
+				OL_TXRX_MAC_ADDR_LEN))
 		peer->bss_peer = 1;
 
 	/*
@@ -2529,25 +3149,24 @@ ol_txrx_peer_attach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 	 * progress to "auth" state once the authentication completes.
 	 */
 	peer->state = OL_TXRX_PEER_STATE_INVALID;
-	ol_txrx_peer_state_update(soc_hdl, peer->mac_addr.raw,
+	ol_txrx_peer_state_update((struct cdp_pdev *)pdev, peer->mac_addr.raw,
 				  OL_TXRX_PEER_STATE_DISC);
 
 #ifdef QCA_SUPPORT_PEER_DATA_RX_RSSI
 	peer->rssi_dbm = HTT_RSSI_INVALID;
 #endif
-	if ((QDF_GLOBAL_MONITOR_MODE == cds_get_conparam()) &&
-	    !pdev->self_peer) {
+	if (QDF_GLOBAL_MONITOR_MODE == cds_get_conparam()) {
 		pdev->self_peer = peer;
 		/*
 		 * No Tx in monitor mode, otherwise results in target assert.
 		 * Setting disable_intrabss_fwd to true
 		 */
-		ol_vdev_rx_set_intrabss_fwd(soc_hdl, vdev_id, true);
+		ol_vdev_rx_set_intrabss_fwd((struct cdp_vdev *)vdev, true);
 	}
 
 	ol_txrx_local_peer_id_alloc(pdev, peer);
 
-	return QDF_STATUS_SUCCESS;
+	return (void *)peer;
 }
 
 #undef PEER_DEL_TIMEOUT
@@ -2603,115 +3222,79 @@ ol_txrx_peer_get_peer_mac_addr(void *ppeer)
 #ifdef WLAN_FEATURE_11W
 /**
  * ol_txrx_get_pn_info() - Returns pn info from peer
- * @soc_hdl: soc handle
- * @peer_mac: mac address of the peer
- * @vdev_id: vdev identifier
+ * @peer: handle to peer
  * @last_pn_valid: return last_rmf_pn_valid value from peer.
  * @last_pn: return last_rmf_pn value from peer.
  * @rmf_pn_replays: return rmf_pn_replays value from peer.
  *
  * Return: NONE
  */
-static void
-ol_txrx_get_pn_info(struct cdp_soc_t *soc_hdl, uint8_t *peer_mac,
-		    uint8_t vdev_id, uint8_t **last_pn_valid,
+void
+ol_txrx_get_pn_info(void *ppeer, uint8_t **last_pn_valid,
 		    uint64_t **last_pn, uint32_t **rmf_pn_replays)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev;
-	ol_txrx_peer_handle peer;
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
-	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
-		return;
-	}
-
-	peer =  ol_txrx_peer_find_hash_find_get_ref(pdev, peer_mac, 0, 1,
-						    PEER_DEBUG_ID_OL_INTERNAL);
-	if (!peer)
-		return;
-
+	ol_txrx_peer_handle peer = ppeer;
 	*last_pn_valid = &peer->last_rmf_pn_valid;
 	*last_pn = &peer->last_rmf_pn;
 	*rmf_pn_replays = &peer->rmf_pn_replays;
-
-	ol_txrx_peer_release_ref(peer, PEER_DEBUG_ID_OL_INTERNAL);
 }
 #else
-static void
-ol_txrx_get_pn_info(struct cdp_soc_t *soc_hdl, uint8_t *peer_mac,
-		    uint8_t vdev_id, uint8_t **last_pn_valid,
-		    uint64_t **last_pn, uint32_t **rmf_pn_replays)
+void
+ol_txrx_get_pn_info(void *ppeer, uint8_t **last_pn_valid,
+		uint64_t **last_pn, uint32_t **rmf_pn_replays)
 {
 }
 #endif
 
 /**
  * ol_txrx_get_opmode() - Return operation mode of vdev
- * @soc_hdl: Datapath soc handle
- * @vdev_id: id of vdev
+ * @vdev: vdev handle
  *
- * Return: interface opmode if SUCCESS,
- *	   0 if interface does not exist.
+ * Return: operation mode.
  */
-static int ol_txrx_get_opmode(struct cdp_soc_t *soc_hdl, uint8_t vdev_id)
+static int ol_txrx_get_opmode(struct cdp_vdev *pvdev)
 {
-	struct ol_txrx_vdev_t *vdev;
-
-	vdev = (struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
-	if (!vdev) {
-		ol_txrx_err("vdev for id %d is NULL", vdev_id);
-		return 0;
-	}
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 
 	return vdev->opmode;
 }
 
 /**
  * ol_txrx_get_peer_state() - Return peer state of peer
- * @soc_hdl: datapath soc handle
- * @vdev_id: virtual interface id
- * @peer_mac: peer mac addr
+ * @peer: peer handle
  *
  * Return: return peer state
  */
-static int ol_txrx_get_peer_state(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
-				  uint8_t *peer_mac)
+static int ol_txrx_get_peer_state(void *ppeer)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev =
-		ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
-	ol_txrx_peer_handle peer;
-	enum ol_txrx_peer_state peer_state;
+	ol_txrx_peer_handle peer = ppeer;
 
-	if (!pdev)
-		return QDF_STATUS_E_FAILURE;
+	return peer->state;
+}
 
-	peer =  ol_txrx_peer_find_hash_find_get_ref(pdev, peer_mac, 0, 1,
-						    PEER_DEBUG_ID_OL_INTERNAL);
-	if (!peer)
-		return QDF_STATUS_E_FAILURE;
+/**
+ * ol_txrx_get_vdev_for_peer() - Return vdev from peer handle
+ * @peer: peer handle
+ *
+ * Return: vdev handle from peer
+ */
+static struct cdp_vdev *ol_txrx_get_vdev_for_peer(void *ppeer)
+{
+	ol_txrx_peer_handle peer = ppeer;
 
-	peer_state = peer->state;
-	ol_txrx_peer_release_ref(peer, PEER_DEBUG_ID_OL_INTERNAL);
-
-	return peer_state;
+	return (struct cdp_vdev *)peer->vdev;
 }
 
 /**
  * ol_txrx_get_vdev_mac_addr() - Return mac addr of vdev
- * @soc_hdl: datapath soc handle
- x @vdev_id: virtual interface id
+ * @vdev: vdev handle
  *
  * Return: vdev mac address
  */
 static uint8_t *
-ol_txrx_get_vdev_mac_addr(struct cdp_soc_t *soc_hdl, uint8_t vdev_id)
+ol_txrx_get_vdev_mac_addr(struct cdp_vdev *pvdev)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 
 	if (!vdev)
 		return NULL;
@@ -2749,20 +3332,14 @@ ol_txrx_pdev_handle ol_txrx_get_pdev_from_vdev(ol_txrx_vdev_handle vdev)
 
 /**
  * ol_txrx_get_ctrl_pdev_from_vdev() - Return control pdev of vdev
- * @soc_hdl: datapath soc handle
- * @vdev_id: virtual interface id
+ * @vdev: vdev handle
  *
  * Return: Handle to control pdev
  */
 static struct cdp_cfg *
-ol_txrx_get_ctrl_pdev_from_vdev(struct cdp_soc_t *soc_hdl, uint8_t vdev_id)
+ol_txrx_get_ctrl_pdev_from_vdev(struct cdp_vdev *pvdev)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
-
-	if (!vdev)
-		return NULL;
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 
 	return vdev->pdev->ctrl_pdev;
 }
@@ -2785,24 +3362,17 @@ ol_txrx_is_rx_fwd_disabled(struct cdp_vdev *pvdev)
 #ifdef QCA_IBSS_SUPPORT
 /**
  * ol_txrx_update_ibss_add_peer_num_of_vdev() - update and return peer num
- * @soc_hdl: datapath soc handle
- * @vdev_id: virtual interface id
+ * @vdev: vdev handle
  * @peer_num_delta: peer nums to be adjusted
  *
  * Return: -1 for failure or total peer nums after adjustment.
  */
 static int16_t
-ol_txrx_update_ibss_add_peer_num_of_vdev(struct cdp_soc_t *soc_hdl,
-					 uint8_t vdev_id,
+ol_txrx_update_ibss_add_peer_num_of_vdev(struct cdp_vdev *pvdev,
 					 int16_t peer_num_delta)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 	int16_t new_peer_num;
-
-	if (!vdev)
-		return QDF_STATUS_E_FAILURE;
 
 	new_peer_num = vdev->ibss_peer_num + peer_num_delta;
 	if (new_peer_num > MAX_PEERS || new_peer_num < 0)
@@ -2816,62 +3386,113 @@ ol_txrx_update_ibss_add_peer_num_of_vdev(struct cdp_soc_t *soc_hdl,
 /**
  * ol_txrx_set_ibss_vdev_heart_beat_timer() - Update ibss vdev heart
  * beat timer
- * @soc_hdl: Datapath soc handle
- * @vdev_id: id of vdev
+ * @vdev: vdev handle
  * @timer_value_sec: new heart beat timer value
  *
  * Return: Old timer value set in vdev.
  */
-static uint16_t
-ol_txrx_set_ibss_vdev_heart_beat_timer(struct cdp_soc_t *soc_hdl,
-				       uint8_t vdev_id,
-				       uint16_t timer_value_sec)
+static uint16_t ol_txrx_set_ibss_vdev_heart_beat_timer(struct cdp_vdev *pvdev,
+						uint16_t timer_value_sec)
 {
-	struct ol_txrx_vdev_t *vdev =
-		(struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 	uint16_t old_timer_value = vdev->ibss_peer_heart_beat_timer;
 
 	vdev->ibss_peer_heart_beat_timer = timer_value_sec;
 
 	return old_timer_value;
 }
-#else /* !QCA_IBSS_SUPPORT */
-static inline int16_t
-ol_txrx_update_ibss_add_peer_num_of_vdev(struct cdp_soc_t *soc_hdl,
-					 uint8_t vdev_id,
-					 int16_t peer_num_delta)
-{
-	return 0;
-}
+#endif
 
-static uint16_t ol_txrx_set_ibss_vdev_heart_beat_timer(
-				struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
-				uint16_t timer_value_sec)
-{
-	return 0;
-}
-#endif /* QCA_IBSS_SUPPORT */
-
-#ifdef WLAN_FEATURE_DSRC
 /**
- * ol_txrx_set_ocb_chan_info() - set OCB channel info to vdev.
- * @soc_hdl: Datapath soc handle
- * @vdev_id: id of vdev
- * @ocb_set_chan: OCB channel information to be set in vdev.
+ * ol_txrx_remove_peers_for_vdev() - remove all vdev peers with lock held
+ * @vdev: vdev handle
+ * @callback: callback function to remove the peer.
+ * @callback_context: handle for callback function
+ * @remove_last_peer: Does it required to last peer.
  *
  * Return: NONE
  */
 static void
-ol_txrx_set_ocb_chan_info(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
+ol_txrx_remove_peers_for_vdev(struct cdp_vdev *pvdev,
+			      ol_txrx_vdev_peer_remove_cb callback,
+			      void *callback_context, bool remove_last_peer)
+{
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
+	ol_txrx_peer_handle peer, temp;
+	int self_removed = 0;
+	/* remove all remote peers for vdev */
+	qdf_spin_lock_bh(&vdev->pdev->peer_ref_mutex);
+
+	temp = NULL;
+	TAILQ_FOREACH_REVERSE(peer, &vdev->peer_list, peer_list_t,
+			      peer_list_elem) {
+		if (qdf_atomic_read(&peer->delete_in_progress))
+			continue;
+		if (temp) {
+			qdf_spin_unlock_bh(&vdev->pdev->peer_ref_mutex);
+			callback(callback_context, temp->mac_addr.raw,
+				vdev->vdev_id, temp);
+			qdf_spin_lock_bh(&vdev->pdev->peer_ref_mutex);
+		}
+		/* self peer is deleted last */
+		if (peer == TAILQ_FIRST(&vdev->peer_list)) {
+			self_removed = 1;
+			break;
+		}
+		temp = peer;
+	}
+
+	qdf_spin_unlock_bh(&vdev->pdev->peer_ref_mutex);
+
+	if (self_removed)
+		ol_txrx_info("%s: self peer removed by caller ",
+				   __func__);
+
+	if (remove_last_peer) {
+		/* remove IBSS bss peer last */
+		peer = TAILQ_FIRST(&vdev->peer_list);
+		callback(callback_context, (uint8_t *) &vdev->mac_addr,
+			 vdev->vdev_id, peer);
+	}
+}
+
+/**
+ * ol_txrx_remove_peers_for_vdev_no_lock() - remove vdev peers with no lock.
+ * @vdev: vdev handle
+ * @callback: callback function to remove the peer.
+ * @callback_context: handle for callback function
+ *
+ * Return: NONE
+ */
+static void
+ol_txrx_remove_peers_for_vdev_no_lock(struct cdp_vdev *pvdev,
+			      ol_txrx_vdev_peer_remove_cb callback,
+			      void *callback_context)
+{
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
+	ol_txrx_peer_handle peer = NULL;
+	ol_txrx_peer_handle tmp_peer = NULL;
+
+	TAILQ_FOREACH_SAFE(peer, &vdev->peer_list, peer_list_elem, tmp_peer) {
+		ol_txrx_info_high(
+			   "%s: peer found for vdev id %d. deleting the peer",
+			   __func__, vdev->vdev_id);
+		callback(callback_context, (uint8_t *)&vdev->mac_addr,
+				vdev->vdev_id, peer);
+	}
+}
+
+/**
+ * ol_txrx_set_ocb_chan_info() - set OCB channel info to vdev.
+ * @vdev: vdev handle
+ * @ocb_set_chan: OCB channel information to be set in vdev.
+ *
+ * Return: NONE
+ */
+static void ol_txrx_set_ocb_chan_info(struct cdp_vdev *pvdev,
 			  struct ol_txrx_ocb_set_chan ocb_set_chan)
 {
-	struct ol_txrx_vdev_t *vdev =
-		(struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
-
-	if (qdf_unlikely(!vdev)) {
-		ol_txrx_err("pdev is NULL");
-		return;
-	}
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 
 	vdev->ocb_channel_info = ocb_set_chan.ocb_channel_info;
 	vdev->ocb_channel_count = ocb_set_chan.ocb_channel_count;
@@ -2879,33 +3500,39 @@ ol_txrx_set_ocb_chan_info(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 
 /**
  * ol_txrx_get_ocb_chan_info() - return handle to vdev ocb_channel_info
- * @soc_hdl: Datapath soc handle
- * @vdev_id: id of vdev
+ * @vdev: vdev handle
  *
  * Return: handle to struct ol_txrx_ocb_chan_info
  */
 static struct ol_txrx_ocb_chan_info *
-ol_txrx_get_ocb_chan_info(struct cdp_soc_t *soc_hdl, uint8_t vdev_id)
+ol_txrx_get_ocb_chan_info(struct cdp_vdev *pvdev)
 {
-	struct ol_txrx_vdev_t *vdev =
-		(struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
-
-	if (qdf_unlikely(!vdev)) {
-		ol_txrx_err("pdev is NULL");
-		return NULL;
-	}
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 
 	return vdev->ocb_channel_info;
 }
-#endif
 
-QDF_STATUS ol_txrx_peer_state_update(struct cdp_soc_t *soc_hdl,
+/**
+ * @brief specify the peer's authentication state
+ * @details
+ *  Specify the peer's authentication state (none, connected, authenticated)
+ *  to allow the data SW to determine whether to filter out invalid data frames.
+ *  (In the "connected" state, where security is enabled, but authentication
+ *  has not completed, tx and rx data frames other than EAPOL or WAPI should
+ *  be discarded.)
+ *  This function is only relevant for systems in which the tx and rx filtering
+ *  are done in the host rather than in the target.
+ *
+ * @param data_peer - which peer has changed its state
+ * @param state - the new state of the peer
+ *
+ * Return: QDF Status
+ */
+QDF_STATUS ol_txrx_peer_state_update(struct cdp_pdev *ppdev,
 				     uint8_t *peer_mac,
 				     enum ol_txrx_peer_state state)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev =
-		ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
 	struct ol_txrx_peer_t *peer;
 	int    peer_ref_cnt;
 
@@ -2917,9 +3544,10 @@ QDF_STATUS ol_txrx_peer_state_update(struct cdp_soc_t *soc_hdl,
 
 	peer =  ol_txrx_peer_find_hash_find_get_ref(pdev, peer_mac, 0, 1,
 						    PEER_DEBUG_ID_OL_INTERNAL);
-	if (!peer) {
+	if (NULL == peer) {
 		ol_txrx_err(
-			   "peer is null for peer_mac 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+			   "%s: peer is null for peer_mac 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+			   __func__,
 			   peer_mac[0], peer_mac[1], peer_mac[2], peer_mac[3],
 			   peer_mac[4], peer_mac[5]);
 		return QDF_STATUS_E_INVAL;
@@ -2929,7 +3557,9 @@ QDF_STATUS ol_txrx_peer_state_update(struct cdp_soc_t *soc_hdl,
 	/* avoid multiple auth state change. */
 	if (peer->state == state) {
 #ifdef TXRX_PRINT_VERBOSE_ENABLE
-		ol_txrx_dbg("no state change, returns directly");
+		ol_txrx_dbg(
+			   "%s: no state change, returns directly\n",
+			   __func__);
 #endif
 		peer_ref_cnt = ol_txrx_peer_release_ref
 						(peer,
@@ -2937,8 +3567,8 @@ QDF_STATUS ol_txrx_peer_state_update(struct cdp_soc_t *soc_hdl,
 		return QDF_STATUS_SUCCESS;
 	}
 
-	ol_txrx_dbg("change from %d to %d",
-		    peer->state, state);
+	ol_txrx_dbg("%s: change from %d to %d\n",
+		   __func__, peer->state, state);
 
 	peer->tx_filter = (state == OL_TXRX_PEER_STATE_AUTH)
 		? ol_tx_filter_pass_thru
@@ -2953,7 +3583,9 @@ QDF_STATUS ol_txrx_peer_state_update(struct cdp_soc_t *soc_hdl,
 			 * Pause all regular (non-extended) TID tx queues until
 			 * data arrives and ADDBA negotiation has completed.
 			 */
-			ol_txrx_dbg("pause peer and unpause mgmt/non-qos");
+			ol_txrx_dbg(
+				   "%s: pause peer and unpause mgmt/non-qos\n",
+				   __func__);
 			ol_txrx_peer_pause(peer); /* pause all tx queues */
 			/* unpause mgmt and non-QoS tx queues */
 			for (tid = OL_TX_NUM_QOS_TIDS;
@@ -2993,7 +3625,8 @@ ol_txrx_peer_update(ol_txrx_vdev_handle vdev,
 	peer = ol_txrx_peer_find_hash_find_get_ref(vdev->pdev, peer_mac, 0, 1,
 						   PEER_DEBUG_ID_OL_INTERNAL);
 	if (!peer) {
-		ol_txrx_dbg("peer is null");
+		ol_txrx_dbg("%s: peer is null",
+			   __func__);
 		return;
 	}
 
@@ -3092,7 +3725,7 @@ ol_txrx_peer_qoscapable_get(struct ol_txrx_pdev_t *txrx_pdev, uint16_t peer_id)
 
 	struct ol_txrx_peer_t *peer_t =
 		ol_txrx_peer_find_by_id(txrx_pdev, peer_id);
-	if (peer_t)
+	if (peer_t != NULL)
 		return peer_t->qos_capable;
 	return 0;
 }
@@ -3117,7 +3750,9 @@ static inline void ol_txrx_peer_free_tids(ol_txrx_peer_handle peer)
 	for (i = 0; i < OL_TXRX_NUM_EXT_TIDS; i++) {
 		if (peer->tids_rx_reorder[i].array !=
 		    &peer->tids_rx_reorder[i].base) {
-			ol_txrx_dbg("delete reorder arr, tid:%d", i);
+			ol_txrx_dbg(
+				   "%s, delete reorder arr, tid:%d\n",
+				   __func__, i);
 			qdf_mem_free(peer->tids_rx_reorder[i].array);
 			ol_rx_reorder_init(&peer->tids_rx_reorder[i],
 					   (uint8_t)i);
@@ -3155,7 +3790,7 @@ int ol_txrx_peer_release_ref(ol_txrx_peer_handle peer,
 	int    rc;
 	struct ol_txrx_vdev_t *vdev;
 	struct ol_txrx_pdev_t *pdev;
-	bool ref_silent = true;
+	bool ref_silent = false;
 	int access_list = 0;
 	uint32_t err_code = 0;
 
@@ -3163,13 +3798,13 @@ int ol_txrx_peer_release_ref(ol_txrx_peer_handle peer,
 	TXRX_ASSERT2(peer);
 
 	vdev = peer->vdev;
-	if (!vdev) {
+	if (NULL == vdev) {
 		ol_txrx_err("The vdev is not present anymore\n");
 		return -EINVAL;
 	}
 
 	pdev = vdev->pdev;
-	if (!pdev) {
+	if (NULL == pdev) {
 		ol_txrx_err("The pdev is not present anymore\n");
 		err_code = 0xbad2;
 		goto ERR_STATE;
@@ -3304,9 +3939,14 @@ int ol_txrx_peer_release_ref(ol_txrx_peer_handle peer,
 				 */
 				ol_txrx_tx_desc_reset_vdev(vdev);
 				ol_txrx_dbg(
-					"deleting vdev object %pK ("QDF_MAC_ADDR_FMT") - its last peer is done",
-					vdev,
-					QDF_MAC_ADDR_REF(vdev->mac_addr.raw));
+					"%s: deleting vdev object %pK (%02x:%02x:%02x:%02x:%02x:%02x) - its last peer is done",
+					__func__, vdev,
+					vdev->mac_addr.raw[0],
+					vdev->mac_addr.raw[1],
+					vdev->mac_addr.raw[2],
+					vdev->mac_addr.raw[3],
+					vdev->mac_addr.raw[4],
+					vdev->mac_addr.raw[5]);
 				/* all peers are gone, go ahead and delete it */
 				qdf_mem_free(vdev);
 				if (vdev_delete_cb)
@@ -3383,18 +4023,14 @@ ol_txrx_clear_peer_internal(struct ol_txrx_peer_t *peer)
 
 /**
  * ol_txrx_clear_peer() - clear peer
- * peer_addr: peer mac address
+ * @sta_id: sta id
  *
  * Return: QDF Status
  */
-static QDF_STATUS
-ol_txrx_clear_peer(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
-		   struct qdf_mac_addr peer_addr)
+static QDF_STATUS ol_txrx_clear_peer(struct cdp_pdev *ppdev, uint8_t sta_id)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	struct ol_txrx_pdev_t *pdev =
-			ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
 	struct ol_txrx_peer_t *peer;
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
 	QDF_STATUS status;
 
 	if (!pdev) {
@@ -3402,8 +4038,13 @@ ol_txrx_clear_peer(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	peer = ol_txrx_peer_get_ref_by_addr(pdev, peer_addr.bytes,
-					    PEER_DEBUG_ID_OL_INTERNAL);
+	if (sta_id >= WLAN_MAX_STA_COUNT) {
+		ol_txrx_err("Invalid sta id %d", sta_id);
+		return QDF_STATUS_E_INVAL;
+	}
+
+	peer = ol_txrx_peer_get_ref_by_local_id(ppdev, sta_id,
+						PEER_DEBUG_ID_OL_INTERNAL);
 
 	/* Return success, if the peer is already cleared by
 	 * data path via peer detach function.
@@ -3411,8 +4052,8 @@ ol_txrx_clear_peer(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
 	if (!peer)
 		return QDF_STATUS_SUCCESS;
 
-	ol_txrx_dbg("Clear peer rx frames: " QDF_MAC_ADDR_FMT,
-		    QDF_MAC_ADDR_REF(peer->mac_addr.raw));
+	ol_txrx_dbg("Clear peer rx frames: " QDF_MAC_ADDR_STR,
+		    QDF_MAC_ADDR_ARRAY(peer->mac_addr.raw));
 	ol_txrx_clear_peer_internal(peer);
 	status = ol_txrx_peer_release_ref(peer, PEER_DEBUG_ID_OL_INTERNAL);
 
@@ -3434,9 +4075,11 @@ void peer_unmap_timer_handler(void *data)
 
 	ol_txrx_err("all unmap events not received for peer %pK, ref_cnt %d",
 		    peer, qdf_atomic_read(&peer->ref_cnt));
-	ol_txrx_err("peer %pK ("QDF_MAC_ADDR_FMT")",
+	ol_txrx_err("peer %pK (%02x:%02x:%02x:%02x:%02x:%02x)",
 		    peer,
-		    QDF_MAC_ADDR_REF(peer->mac_addr.raw));
+		    peer->mac_addr.raw[0], peer->mac_addr.raw[1],
+		    peer->mac_addr.raw[2], peer->mac_addr.raw[3],
+		    peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
 	ol_register_peer_recovery_notifier(peer);
 
 	cds_trigger_recovery(QDF_PEER_UNMAP_TIMEDOUT);
@@ -3445,36 +4088,20 @@ void peer_unmap_timer_handler(void *data)
 
 /**
  * ol_txrx_peer_detach() - Delete a peer's data object.
-
- * @soc_hdl: datapath soc handle
- * @vdev_id: virtual interface id
- * @peer_mac: peer MAC address
+ * @peer - the object to detach
  * @bitmap - bitmap indicating special handling of request.
+ *
  * When the host's control SW disassociates a peer, it calls
  * this function to detach and delete the peer. The reference
  * stored in the control peer object to the data peer
  * object (set up by a call to ol_peer_store()) is provided.
  *
- * Return: SUCCESS or Failure
+ * Return: None
  */
-static QDF_STATUS ol_txrx_peer_detach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
-				      uint8_t *peer_mac, uint32_t bitmap)
+static void ol_txrx_peer_detach(void *ppeer, uint32_t bitmap)
 {
-	ol_txrx_peer_handle peer;
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
-
-	if (!vdev)
-		return QDF_STATUS_E_FAILURE;
-
-	peer = ol_txrx_find_peer_by_addr((struct cdp_pdev *)vdev->pdev,
-					 peer_mac);
-	if (!peer)
-		return QDF_STATUS_E_FAILURE;
-
-	ol_txrx_info_high("%s peer %pK, peer->ref_cnt %d", __func__,
-			  peer, qdf_atomic_read(&peer->ref_cnt));
+	ol_txrx_peer_handle peer = ppeer;
+	struct ol_txrx_vdev_t *vdev = peer->vdev;
 
 	/* redirect peer's rx delivery function to point to a discard func */
 	peer->rx_opt_proc = ol_rx_discard;
@@ -3488,9 +4115,11 @@ static QDF_STATUS ol_txrx_peer_detach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id
 	/* htt_rx_reorder_log_print(vdev->pdev->htt_pdev); */
 
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_DEBUG,
-		   "%s:peer %pK ("QDF_MAC_ADDR_FMT")",
+		   "%s:peer %pK (%02x:%02x:%02x:%02x:%02x:%02x)",
 		   __func__, peer,
-		   QDF_MAC_ADDR_REF(peer->mac_addr.raw));
+		   peer->mac_addr.raw[0], peer->mac_addr.raw[1],
+		   peer->mac_addr.raw[2], peer->mac_addr.raw[3],
+		   peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
 
 	qdf_spin_lock_bh(&vdev->pdev->last_real_peer_mutex);
 	if (vdev->last_real_peer == peer)
@@ -3529,15 +4158,11 @@ static QDF_STATUS ol_txrx_peer_detach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id
 	 * reference, added by the PEER_MAP message.
 	 */
 	ol_txrx_peer_release_ref(peer, PEER_DEBUG_ID_OL_PEER_ATTACH);
-
-	return QDF_STATUS_SUCCESS;
 }
 
 /**
  * ol_txrx_peer_detach_force_delete() - Detach and delete a peer's data object
- * @soc_hdl - datapath soc handle
- * @vdev_id - virtual interface id
- * @peer_mac - peer mac address
+ * @ppeer - the object to detach
  *
  * Detach a peer and force peer object to be removed. It is called during
  * roaming scenario when the firmware has already deleted a peer.
@@ -3546,79 +4171,55 @@ static QDF_STATUS ol_txrx_peer_detach(struct cdp_soc_t *soc_hdl, uint8_t vdev_id
  *
  * Return: None
  */
-static void ol_txrx_peer_detach_force_delete(struct cdp_soc_t *soc_hdl,
-					     uint8_t vdev_id, uint8_t *peer_mac)
+static void ol_txrx_peer_detach_force_delete(void *ppeer)
 {
-	struct ol_txrx_peer_t *peer;
-	struct ol_txrx_pdev_t *pdev;
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
+	ol_txrx_peer_handle peer = ppeer;
+	ol_txrx_pdev_handle pdev = peer->vdev->pdev;
 
-	if (!vdev || !vdev->pdev)
-		return;
-
-	pdev = vdev->pdev;
-	peer = ol_txrx_find_peer_by_addr(ol_txrx_pdev_t_to_cdp_pdev(pdev),
-					 peer_mac);
-	if (!peer)
-		return;
+	ol_txrx_info_high("%s peer %pK, peer->ref_cnt %d",
+		__func__, peer, qdf_atomic_read(&peer->ref_cnt));
 
 	/* Clear the peer_id_to_obj map entries */
 	ol_txrx_peer_remove_obj_map_entries(pdev, peer);
-	ol_txrx_peer_detach(soc_hdl, vdev_id, peer_mac,
-			    1 << CDP_PEER_DELETE_NO_SPECIAL);
+	ol_txrx_peer_detach(peer, 1 << CDP_PEER_DELETE_NO_SPECIAL);
 }
 
 /**
  * ol_txrx_peer_detach_sync() - peer detach sync callback
- * @soc_hdl - datapath soc handle
- * @vdev_id - virtual interface id
- * @peer_mac - peer mac address
+ * @ppeer - the peer object
  * @peer_unmap_sync - peer unmap sync cb.
  * @bitmap - bitmap indicating special handling of request.
  *
  * Return: None
  */
-static void ol_txrx_peer_detach_sync(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
-				     uint8_t *peer_mac,
+static void ol_txrx_peer_detach_sync(void *ppeer,
 				     ol_txrx_peer_unmap_sync_cb peer_unmap_sync,
 				     uint32_t bitmap)
 {
-	struct ol_txrx_pdev_t *pdev;
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
+	ol_txrx_peer_handle peer = ppeer;
+	ol_txrx_pdev_handle pdev = peer->vdev->pdev;
 
-	if (!vdev || !vdev->pdev)
-		return;
+	ol_txrx_info_high("%s peer %pK, peer->ref_cnt %d", __func__,
+			  peer, qdf_atomic_read(&peer->ref_cnt));
 
-	pdev = vdev->pdev;
 	if (!pdev->peer_unmap_sync_cb)
 		pdev->peer_unmap_sync_cb = peer_unmap_sync;
 
-	ol_txrx_peer_detach(soc_hdl, vdev_id, peer_mac, bitmap);
+	ol_txrx_peer_detach(peer, bitmap);
 }
 
 /**
  * ol_txrx_peer_unmap_sync_cb_set() - set peer unmap sync callback
- * @soc_hdl - datapath soc handle
- * pdev_id - physical device instance id
+ * @ppdev - TXRX pdev context
  * @peer_unmap_sync - peer unmap sync callback
  *
  * Return: None
  */
 static void ol_txrx_peer_unmap_sync_cb_set(
-				struct cdp_soc_t *soc_hdl,
-				uint8_t pdev_id,
+				struct cdp_pdev *ppdev,
 				ol_txrx_peer_unmap_sync_cb peer_unmap_sync)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	struct ol_txrx_pdev_t *pdev = ol_txrx_get_pdev_from_pdev_id(soc,
-								    pdev_id);
-
-	if (!pdev)
-		return;
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
 
 	if (!pdev->peer_unmap_sync_cb)
 		pdev->peer_unmap_sync_cb = peer_unmap_sync;
@@ -3662,24 +4263,19 @@ static void ol_txrx_dump_tx_desc(ol_txrx_pdev_handle pdev_handle)
  */
 static QDF_STATUS ol_txrx_wait_for_pending_tx(int timeout)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	struct ol_txrx_pdev_t *txrx_pdev;
+	struct ol_txrx_pdev_t *txrx_pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return QDF_STATUS_E_FAULT;
-	}
-
-	txrx_pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
-	if (!txrx_pdev) {
-		ol_txrx_err("txrx context is null");
+	if (txrx_pdev == NULL) {
+		ol_txrx_err(
+			   "%s: txrx context is null", __func__);
 		return QDF_STATUS_E_FAULT;
 	}
 
 	while (ol_txrx_get_tx_pending((struct cdp_pdev *)txrx_pdev)) {
 		qdf_sleep(OL_ATH_TX_DRAIN_WAIT_DELAY);
 		if (timeout <= 0) {
-			ol_txrx_err("tx frames are pending");
+			ol_txrx_err(
+				   "%s: tx frames are pending", __func__);
 			ol_txrx_dump_tx_desc(txrx_pdev);
 			return QDF_STATUS_E_TIMEOUT;
 		}
@@ -3697,22 +4293,18 @@ static QDF_STATUS ol_txrx_wait_for_pending_tx(int timeout)
 #ifdef FEATURE_RUNTIME_PM
 /**
  * ol_txrx_runtime_suspend() - ensure TXRX is ready to runtime suspend
- * @soc_hdl: Datapath soc handle
- * @pdev_id: id of data path pdev handle
+ * @txrx_pdev: TXRX pdev context
  *
  * TXRX is ready to runtime suspend if there are no pending packets
  * in the tx queue.
  *
  * Return: QDF_STATUS
  */
-static QDF_STATUS ol_txrx_runtime_suspend(struct cdp_soc_t *soc_hdl,
-					  uint8_t pdev_id)
+static QDF_STATUS ol_txrx_runtime_suspend(struct cdp_pdev *ppdev)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	struct cdp_pdev *txrx_pdev = (struct cdp_pdev *)
-				ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
+	struct ol_txrx_pdev_t *txrx_pdev = (struct ol_txrx_pdev_t *)ppdev;
 
-	if (ol_txrx_get_tx_pending(txrx_pdev))
+	if (ol_txrx_get_tx_pending((struct cdp_pdev *)txrx_pdev))
 		return QDF_STATUS_E_BUSY;
 	else
 		return QDF_STATUS_SUCCESS;
@@ -3720,15 +4312,13 @@ static QDF_STATUS ol_txrx_runtime_suspend(struct cdp_soc_t *soc_hdl,
 
 /**
  * ol_txrx_runtime_resume() - ensure TXRX is ready to runtime resume
- * @soc_hdl: Datapath soc handle
- * @pdev_id: id of data path pdev handle
+ * @txrx_pdev: TXRX pdev context
  *
  * This is a dummy function for symmetry.
  *
  * Return: QDF_STATUS_SUCCESS
  */
-static QDF_STATUS ol_txrx_runtime_resume(struct cdp_soc_t *soc_hdl,
-					 uint8_t pdev_id)
+static QDF_STATUS ol_txrx_runtime_resume(struct cdp_pdev *ppdev)
 {
 	return QDF_STATUS_SUCCESS;
 }
@@ -3736,29 +4326,26 @@ static QDF_STATUS ol_txrx_runtime_resume(struct cdp_soc_t *soc_hdl,
 
 /**
  * ol_txrx_bus_suspend() - bus suspend
- * @soc_hdl: Datapath soc handle
- * @pdev_id: id of data path pdev handle
+ * @ppdev: TXRX pdev context
  *
  * Ensure that ol_txrx is ready for bus suspend
  *
  * Return: QDF_STATUS
  */
-static QDF_STATUS ol_txrx_bus_suspend(struct cdp_soc_t *soc_hdl,
-				      uint8_t pdev_id)
+static QDF_STATUS ol_txrx_bus_suspend(struct cdp_pdev *ppdev)
 {
 	return ol_txrx_wait_for_pending_tx(SUSPEND_DRAIN_WAIT);
 }
 
 /**
  * ol_txrx_bus_resume() - bus resume
- * @soc_hdl: Datapath soc handle
- * @pdev_id: id of data path pdev handle
+ * @ppdev: TXRX pdev context
  *
  * Dummy function for symetry
  *
  * Return: QDF_STATUS_SUCCESS
  */
-static QDF_STATUS ol_txrx_bus_resume(struct cdp_soc_t *soc_hdl, uint8_t pdev_id)
+static QDF_STATUS ol_txrx_bus_resume(struct cdp_pdev *ppdev)
 {
 	return QDF_STATUS_SUCCESS;
 }
@@ -3772,7 +4359,7 @@ static QDF_STATUS ol_txrx_bus_resume(struct cdp_soc_t *soc_hdl, uint8_t pdev_id)
  *
  * Return: count of pending frames
  */
-uint32_t ol_txrx_get_tx_pending(struct cdp_pdev *ppdev)
+int ol_txrx_get_tx_pending(struct cdp_pdev *ppdev)
 {
 	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
 	uint32_t total;
@@ -3841,14 +4428,15 @@ int ol_txrx_fw_stats_desc_pool_init(struct ol_txrx_pdev_t *pdev,
 	int i;
 
 	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
+		ol_txrx_err("%s: pdev is NULL", __func__);
 		return -EINVAL;
 	}
 	pdev->ol_txrx_fw_stats_desc_pool.pool = qdf_mem_malloc(pool_size *
 		sizeof(struct ol_txrx_fw_stats_desc_elem_t));
-	if (!pdev->ol_txrx_fw_stats_desc_pool.pool)
+	if (!pdev->ol_txrx_fw_stats_desc_pool.pool) {
+		ol_txrx_err("%s: failed to allocate desc pool", __func__);
 		return -ENOMEM;
-
+	}
 	pdev->ol_txrx_fw_stats_desc_pool.freelist =
 		&pdev->ol_txrx_fw_stats_desc_pool.pool[0];
 	pdev->ol_txrx_fw_stats_desc_pool.pool_size = pool_size;
@@ -3878,15 +4466,15 @@ int ol_txrx_fw_stats_desc_pool_init(struct ol_txrx_pdev_t *pdev,
 void ol_txrx_fw_stats_desc_pool_deinit(struct ol_txrx_pdev_t *pdev)
 {
 	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
+		ol_txrx_err("%s: pdev is NULL", __func__);
 		return;
 	}
 	if (!qdf_atomic_read(&pdev->ol_txrx_fw_stats_desc_pool.initialized)) {
-		ol_txrx_err("Pool is not initialized");
+		ol_txrx_err("%s: Pool is not initialized", __func__);
 		return;
 	}
 	if (!pdev->ol_txrx_fw_stats_desc_pool.pool) {
-		ol_txrx_err("Pool is not allocated");
+		ol_txrx_err("%s: Pool is not allocated", __func__);
 		return;
 	}
 	qdf_spin_lock_bh(&pdev->ol_txrx_fw_stats_desc_pool.pool_lock);
@@ -3915,7 +4503,7 @@ struct ol_txrx_fw_stats_desc_t
 	if (!qdf_atomic_read(&pdev->ol_txrx_fw_stats_desc_pool.initialized)) {
 		qdf_spin_unlock_bh(&pdev->
 				   ol_txrx_fw_stats_desc_pool.pool_lock);
-		ol_txrx_err("Pool deinitialized");
+		ol_txrx_err("%s: Pool deinitialized", __func__);
 		return NULL;
 	}
 	if (pdev->ol_txrx_fw_stats_desc_pool.freelist) {
@@ -3926,9 +4514,10 @@ struct ol_txrx_fw_stats_desc_t
 	qdf_spin_unlock_bh(&pdev->ol_txrx_fw_stats_desc_pool.pool_lock);
 
 	if (desc)
-		ol_txrx_dbg("desc_id %d allocated", desc->desc_id);
+		ol_txrx_dbg("%s: desc_id %d allocated",
+			    __func__, desc->desc_id);
 	else
-		ol_txrx_err("fw stats descriptors are exhausted");
+		ol_txrx_err("%s: fw stats descriptors are exhausted", __func__);
 
 	return desc;
 }
@@ -3952,7 +4541,8 @@ struct ol_txrx_stats_req_internal
 	if (!qdf_atomic_read(&pdev->ol_txrx_fw_stats_desc_pool.initialized)) {
 		qdf_spin_unlock_bh(&pdev->
 				   ol_txrx_fw_stats_desc_pool.pool_lock);
-		ol_txrx_err("Desc ID %u Pool deinitialized", desc_id);
+		ol_txrx_err("%s: Desc ID %u Pool deinitialized",
+			    __func__, desc_id);
 		return NULL;
 	}
 	desc_elem = &pdev->ol_txrx_fw_stats_desc_pool.pool[desc_id];
@@ -3965,39 +4555,21 @@ struct ol_txrx_stats_req_internal
 	return req;
 }
 
-/**
- * ol_txrx_fw_stats_get() - Get fw stats
- *
- * @soc_hdl: datapath soc handle
- * @vdev_id: virtual interface id
- * @req: specifications of stats request
- * @per_vdev: bool input whether stats requested per vdev or not
- * @response_expected: bool input whether expecting response or not
- *
- * Return: success or failure
- */
 static A_STATUS
-ol_txrx_fw_stats_get(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
-		     struct ol_txrx_stats_req *req, bool per_vdev,
-		     bool response_expected)
+ol_txrx_fw_stats_get(struct cdp_vdev *pvdev, struct ol_txrx_stats_req *req,
+			bool per_vdev, bool response_expected)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
-	struct ol_txrx_pdev_t *pdev;
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
+	struct ol_txrx_pdev_t *pdev = vdev->pdev;
 	uint8_t cookie = FW_STATS_DESC_POOL_SIZE;
 	struct ol_txrx_stats_req_internal *non_volatile_req;
 	struct ol_txrx_fw_stats_desc_t *desc = NULL;
 	struct ol_txrx_fw_stats_desc_elem_t *elem = NULL;
 
-	if (!vdev)
-		return A_EINVAL;
-
-	pdev = vdev->pdev;
 	if (!pdev ||
 	    req->stats_type_upload_mask >= 1 << HTT_DBG_NUM_STATS ||
 	    req->stats_type_reset_mask >= 1 << HTT_DBG_NUM_STATS) {
-		return A_EINVAL;
+		return A_ERROR;
 	}
 
 	/*
@@ -4016,7 +4588,7 @@ ol_txrx_fw_stats_get(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 		desc = ol_txrx_fw_stats_desc_alloc(pdev);
 		if (!desc) {
 			qdf_mem_free(non_volatile_req);
-			return A_NO_MEMORY;
+			return A_ERROR;
 		}
 
 		/* use the desc id as the cookie */
@@ -4079,7 +4651,7 @@ ol_txrx_fw_stats_handler(ol_txrx_pdev_handle pdev,
 	int found = 0;
 
 	if (cookie >= FW_STATS_DESC_POOL_SIZE) {
-		ol_txrx_err("Cookie is not valid");
+		ol_txrx_err("%s: Cookie is not valid", __func__);
 		return;
 	}
 	req = ol_txrx_fw_stats_desc_get_req(pdev, (uint8_t)cookie);
@@ -4446,12 +5018,13 @@ ol_txrx_stats(uint8_t vdev_id, char *buffer, unsigned int buf_len)
  */
 static void ol_txrx_disp_peer_cached_bufq_stats(struct ol_txrx_peer_t *peer)
 {
-	txrx_nofl_info("cached_bufq: curr %d drops %d hwm %d whatifs %d thresh %d",
-		       peer->bufq_info.curr,
-		       peer->bufq_info.dropped,
-		       peer->bufq_info.high_water_mark,
-		       peer->bufq_info.qdepth_no_thresh,
-		       peer->bufq_info.thresh);
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "cached_bufq: curr %d drops %d hwm %d whatifs %d thresh %d",
+		  peer->bufq_info.curr,
+		  peer->bufq_info.dropped,
+		  peer->bufq_info.high_water_mark,
+		  peer->bufq_info.qdepth_no_thresh,
+		  peer->bufq_info.thresh);
 }
 
 /**
@@ -4479,8 +5052,8 @@ static void ol_txrx_disp_peer_stats(ol_txrx_pdev_handle pdev)
 		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
 
 		if (peer) {
-			txrx_nofl_info("stats: peer 0x%pK local peer id %d",
-				       peer, i);
+			QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+				"stats: peer 0x%pK local peer id %d", peer, i);
 			ol_txrx_disp_peer_cached_bufq_stats(peer);
 			ol_txrx_peer_release_ref(peer,
 						 PEER_DEBUG_ID_OL_INTERNAL);
@@ -4490,132 +5063,134 @@ static void ol_txrx_disp_peer_stats(ol_txrx_pdev_handle pdev)
 #else
 static void ol_txrx_disp_peer_stats(ol_txrx_pdev_handle pdev)
 {
-	txrx_nofl_info("peer stats not supported w/o QCA_SUPPORT_TXRX_LOCAL_PEER_ID");
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+		  "peer stats not supported w/o QCA_SUPPORT_TXRX_LOCAL_PEER_ID");
 }
 #endif
 
 void ol_txrx_stats_display(ol_txrx_pdev_handle pdev,
 			   enum qdf_stats_verbosity_level level)
 {
+#ifdef WLAN_DEBUG
 	u64 tx_dropped =
 		pdev->stats.pub.tx.dropped.download_fail.pkts
 		  + pdev->stats.pub.tx.dropped.target_discard.pkts
 		  + pdev->stats.pub.tx.dropped.no_ack.pkts
-		  + pdev->stats.pub.tx.dropped.target_drop.pkts
 		  + pdev->stats.pub.tx.dropped.others.pkts;
+#endif
 
 	if (level == QDF_STATS_VERBOSITY_LEVEL_LOW) {
-		txrx_nofl_dbg("STATS |%u %u|TX: %lld tso %lld ok %lld drops(%u-%lld %u-%lld %u-%lld %u-%lld ?-%lld hR-%lld)|RX: %lld drops(E %lld PI %lld ME %lld) fwd(S %d F %d SF %d)|",
-			      pdev->tx_desc.num_free,
-			      pdev->tx_desc.pool_size,
-			      pdev->stats.pub.tx.from_stack.pkts,
-			      pdev->stats.pub.tx.tso.tso_pkts.pkts,
-			      pdev->stats.pub.tx.delivered.pkts,
-			      htt_tx_status_download_fail,
-			      pdev->stats.pub.tx.dropped.download_fail.pkts,
-			      htt_tx_status_discard,
-			      pdev->stats.pub.tx.dropped.
-					target_discard.pkts,
-			      htt_tx_status_no_ack,
-			      pdev->stats.pub.tx.dropped.no_ack.pkts,
-			      htt_tx_status_drop,
-			      pdev->stats.pub.tx.dropped.target_drop.pkts,
-			      pdev->stats.pub.tx.dropped.others.pkts,
-			      pdev->stats.pub.tx.dropped.host_reject.pkts,
-			      pdev->stats.pub.rx.delivered.pkts,
-			      pdev->stats.pub.rx.dropped_err.pkts,
-			      pdev->stats.pub.rx.dropped_peer_invalid.pkts,
-			      pdev->stats.pub.rx.dropped_mic_err.pkts,
-			      pdev->stats.pub.rx.intra_bss_fwd.
-					packets_stack,
-			      pdev->stats.pub.rx.intra_bss_fwd.
-					packets_fwd,
-			      pdev->stats.pub.rx.intra_bss_fwd.
-					packets_stack_n_fwd);
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+			  "STATS |%u %u|TX: %lld tso %lld ok %lld drops(%u-%lld %u-%lld %u-%lld ?-%lld hR-%lld)|RX: %lld drops(E %lld PI %lld ME %lld) fwd(S %d F %d SF %d)|",
+			  pdev->tx_desc.num_free,
+			  pdev->tx_desc.pool_size,
+			  pdev->stats.pub.tx.from_stack.pkts,
+			  pdev->stats.pub.tx.tso.tso_pkts.pkts,
+			  pdev->stats.pub.tx.delivered.pkts,
+			  htt_tx_status_download_fail,
+			  pdev->stats.pub.tx.dropped.download_fail.pkts,
+			  htt_tx_status_discard,
+			  pdev->stats.pub.tx.dropped.target_discard.pkts,
+			  htt_tx_status_no_ack,
+			  pdev->stats.pub.tx.dropped.no_ack.pkts,
+			  pdev->stats.pub.tx.dropped.others.pkts,
+			  pdev->stats.pub.tx.dropped.host_reject.pkts,
+			  pdev->stats.pub.rx.delivered.pkts,
+			  pdev->stats.pub.rx.dropped_err.pkts,
+			  pdev->stats.pub.rx.dropped_peer_invalid.pkts,
+			  pdev->stats.pub.rx.dropped_mic_err.pkts,
+			  pdev->stats.pub.rx.intra_bss_fwd.packets_stack,
+			  pdev->stats.pub.rx.intra_bss_fwd.packets_fwd,
+			  pdev->stats.pub.rx.intra_bss_fwd.packets_stack_n_fwd);
 		return;
 	}
 
-	txrx_nofl_info("TX PATH Statistics:");
-	txrx_nofl_info("sent %lld msdus (%lld B), host rejected %lld (%lld B), dropped %lld (%lld B)",
-		       pdev->stats.pub.tx.from_stack.pkts,
-		       pdev->stats.pub.tx.from_stack.bytes,
-		       pdev->stats.pub.tx.dropped.host_reject.pkts,
-		       pdev->stats.pub.tx.dropped.host_reject.bytes,
-			  tx_dropped,
-		       pdev->stats.pub.tx.dropped.download_fail.bytes
-			  + pdev->stats.pub.tx.dropped.target_discard.bytes
-			  + pdev->stats.pub.tx.dropped.target_drop.bytes
-			  + pdev->stats.pub.tx.dropped.no_ack.bytes);
-	txrx_nofl_info("successfully delivered: %lld (%lld B), download fail: %lld (%lld B), target discard: %lld (%lld B), no ack: %lld (%lld B),target drop: %lld (%lld B), others: %lld (%lld B)",
-		       pdev->stats.pub.tx.delivered.pkts,
-		       pdev->stats.pub.tx.delivered.bytes,
-		       pdev->stats.pub.tx.dropped.download_fail.pkts,
-		       pdev->stats.pub.tx.dropped.download_fail.bytes,
-		       pdev->stats.pub.tx.dropped.target_discard.pkts,
-		       pdev->stats.pub.tx.dropped.target_discard.bytes,
-		       pdev->stats.pub.tx.dropped.no_ack.pkts,
-		       pdev->stats.pub.tx.dropped.no_ack.bytes,
-		       pdev->stats.pub.tx.dropped.target_drop.pkts,
-		       pdev->stats.pub.tx.dropped.target_drop.bytes,
-		       pdev->stats.pub.tx.dropped.others.pkts,
-		       pdev->stats.pub.tx.dropped.others.bytes);
-	txrx_nofl_info("Tx completions per HTT message:\n"
-		       "Single Packet  %d\n"
-		       " 2-10 Packets  %d\n"
-		       "11-20 Packets  %d\n"
-		       "21-30 Packets  %d\n"
-		       "31-40 Packets  %d\n"
-		       "41-50 Packets  %d\n"
-		       "51-60 Packets  %d\n"
-		       "  60+ Packets  %d\n",
-		       pdev->stats.pub.tx.comp_histogram.pkts_1,
-		       pdev->stats.pub.tx.comp_histogram.pkts_2_10,
-		       pdev->stats.pub.tx.comp_histogram.pkts_11_20,
-		       pdev->stats.pub.tx.comp_histogram.pkts_21_30,
-		       pdev->stats.pub.tx.comp_histogram.pkts_31_40,
-		       pdev->stats.pub.tx.comp_histogram.pkts_41_50,
-		       pdev->stats.pub.tx.comp_histogram.pkts_51_60,
-		       pdev->stats.pub.tx.comp_histogram.pkts_61_plus);
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "TX PATH Statistics:");
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "sent %lld msdus (%lld B), host rejected %lld (%lld B), dropped %lld (%lld B)",
+		  pdev->stats.pub.tx.from_stack.pkts,
+		  pdev->stats.pub.tx.from_stack.bytes,
+		  pdev->stats.pub.tx.dropped.host_reject.pkts,
+		  pdev->stats.pub.tx.dropped.host_reject.bytes,
+		  tx_dropped,
+		  pdev->stats.pub.tx.dropped.download_fail.bytes
+		  + pdev->stats.pub.tx.dropped.target_discard.bytes
+		  + pdev->stats.pub.tx.dropped.no_ack.bytes);
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "successfully delivered: %lld (%lld B), download fail: %lld (%lld B), target discard: %lld (%lld B), no ack: %lld (%lld B) others: %lld (%lld B)",
+		  pdev->stats.pub.tx.delivered.pkts,
+		  pdev->stats.pub.tx.delivered.bytes,
+		  pdev->stats.pub.tx.dropped.download_fail.pkts,
+		  pdev->stats.pub.tx.dropped.download_fail.bytes,
+		  pdev->stats.pub.tx.dropped.target_discard.pkts,
+		  pdev->stats.pub.tx.dropped.target_discard.bytes,
+		  pdev->stats.pub.tx.dropped.no_ack.pkts,
+		  pdev->stats.pub.tx.dropped.no_ack.bytes,
+		  pdev->stats.pub.tx.dropped.others.pkts,
+		  pdev->stats.pub.tx.dropped.others.bytes);
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "Tx completions per HTT message:\n"
+		  "Single Packet  %d\n"
+		  " 2-10 Packets  %d\n"
+		  "11-20 Packets  %d\n"
+		  "21-30 Packets  %d\n"
+		  "31-40 Packets  %d\n"
+		  "41-50 Packets  %d\n"
+		  "51-60 Packets  %d\n"
+		  "  60+ Packets  %d\n",
+		  pdev->stats.pub.tx.comp_histogram.pkts_1,
+		  pdev->stats.pub.tx.comp_histogram.pkts_2_10,
+		  pdev->stats.pub.tx.comp_histogram.pkts_11_20,
+		  pdev->stats.pub.tx.comp_histogram.pkts_21_30,
+		  pdev->stats.pub.tx.comp_histogram.pkts_31_40,
+		  pdev->stats.pub.tx.comp_histogram.pkts_41_50,
+		  pdev->stats.pub.tx.comp_histogram.pkts_51_60,
+		  pdev->stats.pub.tx.comp_histogram.pkts_61_plus);
 
-	txrx_nofl_info("RX PATH Statistics:");
-	txrx_nofl_info("%lld ppdus, %lld mpdus, %lld msdus, %lld bytes\n"
-		       "dropped: err %lld (%lld B), peer_invalid %lld (%lld B), mic_err %lld (%lld B)\n"
-		       "msdus with frag_ind: %d msdus with offload_ind: %d",
-		       pdev->stats.priv.rx.normal.ppdus,
-		       pdev->stats.priv.rx.normal.mpdus,
-		       pdev->stats.pub.rx.delivered.pkts,
-		       pdev->stats.pub.rx.delivered.bytes,
-		       pdev->stats.pub.rx.dropped_err.pkts,
-		       pdev->stats.pub.rx.dropped_err.bytes,
-		       pdev->stats.pub.rx.dropped_peer_invalid.pkts,
-		       pdev->stats.pub.rx.dropped_peer_invalid.bytes,
-		       pdev->stats.pub.rx.dropped_mic_err.pkts,
-		       pdev->stats.pub.rx.dropped_mic_err.bytes,
-		       pdev->stats.pub.rx.msdus_with_frag_ind,
-		       pdev->stats.pub.rx.msdus_with_offload_ind);
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "RX PATH Statistics:");
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "%lld ppdus, %lld mpdus, %lld msdus, %lld bytes\n"
+		  "dropped: err %lld (%lld B), peer_invalid %lld (%lld B), mic_err %lld (%lld B)\n"
+		  "msdus with frag_ind: %d msdus with offload_ind: %d",
+		  pdev->stats.priv.rx.normal.ppdus,
+		  pdev->stats.priv.rx.normal.mpdus,
+		  pdev->stats.pub.rx.delivered.pkts,
+		  pdev->stats.pub.rx.delivered.bytes,
+		  pdev->stats.pub.rx.dropped_err.pkts,
+		  pdev->stats.pub.rx.dropped_err.bytes,
+		  pdev->stats.pub.rx.dropped_peer_invalid.pkts,
+		  pdev->stats.pub.rx.dropped_peer_invalid.bytes,
+		  pdev->stats.pub.rx.dropped_mic_err.pkts,
+		  pdev->stats.pub.rx.dropped_mic_err.bytes,
+		  pdev->stats.pub.rx.msdus_with_frag_ind,
+		  pdev->stats.pub.rx.msdus_with_offload_ind);
 
-	txrx_nofl_info("  fwd to stack %d, fwd to fw %d, fwd to stack & fw  %d\n",
-		       pdev->stats.pub.rx.intra_bss_fwd.packets_stack,
-		       pdev->stats.pub.rx.intra_bss_fwd.packets_fwd,
-		       pdev->stats.pub.rx.intra_bss_fwd.packets_stack_n_fwd);
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "  fwd to stack %d, fwd to fw %d, fwd to stack & fw  %d\n",
+		  pdev->stats.pub.rx.intra_bss_fwd.packets_stack,
+		  pdev->stats.pub.rx.intra_bss_fwd.packets_fwd,
+		  pdev->stats.pub.rx.intra_bss_fwd.packets_stack_n_fwd);
 
-	txrx_nofl_info("packets per HTT message:\n"
-		       "Single Packet  %d\n"
-		       " 2-10 Packets  %d\n"
-		       "11-20 Packets  %d\n"
-		       "21-30 Packets  %d\n"
-		       "31-40 Packets  %d\n"
-		       "41-50 Packets  %d\n"
-		       "51-60 Packets  %d\n"
-		       "  60+ Packets  %d\n",
-		       pdev->stats.pub.rx.rx_ind_histogram.pkts_1,
-		       pdev->stats.pub.rx.rx_ind_histogram.pkts_2_10,
-		       pdev->stats.pub.rx.rx_ind_histogram.pkts_11_20,
-		       pdev->stats.pub.rx.rx_ind_histogram.pkts_21_30,
-		       pdev->stats.pub.rx.rx_ind_histogram.pkts_31_40,
-		       pdev->stats.pub.rx.rx_ind_histogram.pkts_41_50,
-		       pdev->stats.pub.rx.rx_ind_histogram.pkts_51_60,
-		       pdev->stats.pub.rx.rx_ind_histogram.pkts_61_plus);
+	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_LOW,
+		  "Rx packets per HTT message:\n"
+		  "Single Packet  %d\n"
+		  " 2-10 Packets  %d\n"
+		  "11-20 Packets  %d\n"
+		  "21-30 Packets  %d\n"
+		  "31-40 Packets  %d\n"
+		  "41-50 Packets  %d\n"
+		  "51-60 Packets  %d\n"
+		  "  60+ Packets  %d\n",
+		  pdev->stats.pub.rx.rx_ind_histogram.pkts_1,
+		  pdev->stats.pub.rx.rx_ind_histogram.pkts_2_10,
+		  pdev->stats.pub.rx.rx_ind_histogram.pkts_11_20,
+		  pdev->stats.pub.rx.rx_ind_histogram.pkts_21_30,
+		  pdev->stats.pub.rx.rx_ind_histogram.pkts_31_40,
+		  pdev->stats.pub.rx.rx_ind_histogram.pkts_41_50,
+		  pdev->stats.pub.rx.rx_ind_histogram.pkts_51_60,
+		  pdev->stats.pub.rx.rx_ind_histogram.pkts_61_plus);
 
 	ol_txrx_disp_peer_stats(pdev);
 }
@@ -4656,23 +5231,11 @@ ol_txrx_peer_stats_copy(ol_txrx_pdev_handle pdev,
 }
 #endif /* QCA_ENABLE_OL_TXRX_PEER_STATS */
 
-/**
- * ol_vdev_rx_set_intrabss_fwd() - Get fw stats
- *
- * @soc_hdl: datapath soc handle
- * @vdev_id: virtual interface id
- * @val: enable or disable
- *
- * Return: void
- */
-static void ol_vdev_rx_set_intrabss_fwd(struct cdp_soc_t *soc_hdl,
-					uint8_t vdev_id, bool val)
+static void ol_vdev_rx_set_intrabss_fwd(struct cdp_vdev *pvdev, bool val)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc,
-								     vdev_id);
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 
-	if (!vdev)
+	if (NULL == vdev)
 		return;
 
 	vdev->disable_intrabss_fwd = val;
@@ -4680,20 +5243,18 @@ static void ol_vdev_rx_set_intrabss_fwd(struct cdp_soc_t *soc_hdl,
 
 /**
  * ol_txrx_update_mac_id() - update mac_id for vdev
- * @soc_hdl: Datapath soc handle
  * @vdev_id: vdev id
  * @mac_id: mac id
  *
  * Return: none
  */
-static void ol_txrx_update_mac_id(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
-				  uint8_t mac_id)
+static void ol_txrx_update_mac_id(uint8_t vdev_id, uint8_t mac_id)
 {
 	struct ol_txrx_vdev_t *vdev =
 			(struct ol_txrx_vdev_t *)
 			ol_txrx_get_vdev_from_vdev_id(vdev_id);
 
-	if (!vdev) {
+	if (NULL == vdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Invalid vdev_id %d", __func__, vdev_id);
 		return;
@@ -4703,44 +5264,199 @@ static void ol_txrx_update_mac_id(struct cdp_soc_t *soc_hdl, uint8_t vdev_id,
 
 /**
  * ol_txrx_get_tx_ack_count() - get tx ack count
- * @soc_hdl: Datapath soc handle
  * @vdev_id: vdev_id
  *
  * Return: tx ack count
  */
-static uint32_t ol_txrx_get_tx_ack_stats(struct cdp_soc_t *soc_hdl,
-					 uint8_t vdev_id)
+static uint32_t ol_txrx_get_tx_ack_stats(uint8_t vdev_id)
 {
 	struct ol_txrx_vdev_t *vdev =
 		(struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
-
 	if (!vdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Invalid vdev_id %d", __func__, vdev_id);
 		return 0;
 	}
-
 	return vdev->txrx_stats.txack_success;
 }
 
+#ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
+
+/**
+ * ol_txrx_get_vdev_from_sta_id() - get vdev from sta_id
+ * @sta_id: sta_id
+ *
+ * Return: vdev handle
+ *            NULL if not found.
+ */
+static ol_txrx_vdev_handle ol_txrx_get_vdev_from_sta_id(uint8_t sta_id)
+{
+	struct ol_txrx_peer_t *peer = NULL;
+	ol_txrx_pdev_handle pdev = NULL;
+
+	if (sta_id >= WLAN_MAX_STA_COUNT) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "Invalid sta id passed");
+		return NULL;
+	}
+
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "PDEV not found for sta_id [%d]", sta_id);
+		return NULL;
+	}
+
+	peer = ol_txrx_peer_find_by_local_id((struct cdp_pdev *)pdev, sta_id);
+
+	if (!peer) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
+			  "PEER [%d] not found", sta_id);
+		return NULL;
+	}
+
+	return peer->vdev;
+}
+
+/**
+ * ol_txrx_register_tx_flow_control() - register tx flow control callback
+ * @vdev_id: vdev_id
+ * @flowControl: flow control callback
+ * @osif_fc_ctx: callback context
+ * @flow_control_is_pause: is vdev paused by flow control
+ *
+ * Return: 0 for success or error code
+ */
+static int ol_txrx_register_tx_flow_control(uint8_t vdev_id,
+	ol_txrx_tx_flow_control_fp flowControl, void *osif_fc_ctx,
+	ol_txrx_tx_flow_control_is_pause_fp flow_control_is_pause)
+{
+	struct ol_txrx_vdev_t *vdev =
+		(struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
+
+	if (NULL == vdev) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Invalid vdev_id %d", __func__, vdev_id);
+		return -EINVAL;
+	}
+
+	qdf_spin_lock_bh(&vdev->flow_control_lock);
+	vdev->osif_flow_control_cb = flowControl;
+	vdev->osif_flow_control_is_pause = flow_control_is_pause;
+	vdev->osif_fc_ctx = osif_fc_ctx;
+	qdf_spin_unlock_bh(&vdev->flow_control_lock);
+	return 0;
+}
+
+/**
+ * ol_txrx_de_register_tx_flow_control_cb() - deregister tx flow control
+ *                                            callback
+ * @vdev_id: vdev_id
+ *
+ * Return: 0 for success or error code
+ */
+static int ol_txrx_deregister_tx_flow_control_cb(uint8_t vdev_id)
+{
+	struct ol_txrx_vdev_t *vdev =
+		(struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
+
+	if (NULL == vdev) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Invalid vdev_id", __func__);
+		return -EINVAL;
+	}
+
+	qdf_spin_lock_bh(&vdev->flow_control_lock);
+	vdev->osif_flow_control_cb = NULL;
+	vdev->osif_flow_control_is_pause = NULL;
+	vdev->osif_fc_ctx = NULL;
+	qdf_spin_unlock_bh(&vdev->flow_control_lock);
+	return 0;
+}
+
+/**
+ * ol_txrx_get_tx_resource() - if tx resource less than low_watermark
+ * @sta_id: sta id
+ * @low_watermark: low watermark
+ * @high_watermark_offset: high watermark offset value
+ *
+ * Return: true/false
+ */
+static bool
+ol_txrx_get_tx_resource(uint8_t sta_id,
+			unsigned int low_watermark,
+			unsigned int high_watermark_offset)
+{
+	ol_txrx_vdev_handle vdev = ol_txrx_get_vdev_from_sta_id(sta_id);
+
+	if (NULL == vdev) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO_HIGH,
+			  "%s: Invalid sta_id %d", __func__, sta_id);
+		/* Return true so caller do not understand that resource
+		 * is less than low_watermark.
+		 * sta_id validation will be done in ol_tx_send_data_frame
+		 * and if sta_id is not registered then host will drop
+		 * packet.
+		 */
+		return true;
+	}
+
+	qdf_spin_lock_bh(&vdev->pdev->tx_mutex);
+
+	if (vdev->pdev->tx_desc.num_free < (uint16_t) low_watermark) {
+		vdev->tx_fl_lwm = (uint16_t) low_watermark;
+		vdev->tx_fl_hwm =
+			(uint16_t) (low_watermark + high_watermark_offset);
+		/* Not enough free resource, stop TX OS Q */
+		qdf_atomic_set(&vdev->os_q_paused, 1);
+		qdf_spin_unlock_bh(&vdev->pdev->tx_mutex);
+		return false;
+	}
+	qdf_spin_unlock_bh(&vdev->pdev->tx_mutex);
+	return true;
+}
+
+/**
+ * ol_txrx_ll_set_tx_pause_q_depth() - set pause queue depth
+ * @vdev_id: vdev id
+ * @pause_q_depth: pause queue depth
+ *
+ * Return: 0 for success or error code
+ */
+static int
+ol_txrx_ll_set_tx_pause_q_depth(uint8_t vdev_id, int pause_q_depth)
+{
+	struct ol_txrx_vdev_t *vdev =
+		(struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
+
+	if (NULL == vdev) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "%s: Invalid vdev_id %d", __func__, vdev_id);
+		return -EINVAL;
+	}
+
+	qdf_spin_lock_bh(&vdev->ll_pause.mutex);
+	vdev->ll_pause.max_q_depth = pause_q_depth;
+	qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
+
+	return 0;
+}
+#endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
+
 /**
  * ol_txrx_display_stats() - Display OL TXRX display stats
- * @soc_hdl: Datapath soc handle
  * @value: Module id for which stats needs to be displayed
- * @verb_level: verbose level of stats to be displayed
  *
  * Return: status
  */
 static QDF_STATUS
-ol_txrx_display_stats(struct cdp_soc_t *soc_hdl, uint16_t value,
+ol_txrx_display_stats(void *soc, uint16_t value,
 		      enum qdf_stats_verbosity_level verb_level)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(
-							soc,
-							OL_TXRX_PDEV_ID);
+	ol_txrx_pdev_handle pdev;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s: pdev is NULL", __func__);
@@ -4755,10 +5471,7 @@ ol_txrx_display_stats(struct cdp_soc_t *soc_hdl, uint16_t value,
 		ol_txrx_stats_display_tso(pdev);
 		break;
 	case CDP_DUMP_TX_FLOW_POOL_INFO:
-		if (verb_level == QDF_STATS_VERBOSITY_LEVEL_LOW)
-			ol_tx_dump_flow_pool_info_compact(pdev);
-		else
-			ol_tx_dump_flow_pool_info(soc_hdl);
+		ol_tx_dump_flow_pool_info((void *)pdev);
 		break;
 	case CDP_TXRX_DESC_STATS:
 		qdf_nbuf_tx_desc_count_display();
@@ -4795,23 +5508,20 @@ ol_txrx_display_stats(struct cdp_soc_t *soc_hdl, uint16_t value,
 
 /**
  * ol_txrx_clear_stats() - Clear OL TXRX stats
- * @soc - ol soc handle
- * @pdev_id: pdev identifier
- * @value - Module id for which stats needs to be cleared
+ * @value: Module id for which stats needs to be cleared
  *
- * Return: 0 - success/ non-zero failure
+ * Return: None
  */
-static QDF_STATUS ol_txrx_clear_stats(struct cdp_soc_t *soc_hdl,
-				      uint8_t pdev_id, uint8_t value)
+static void ol_txrx_clear_stats(uint16_t value)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
+	ol_txrx_pdev_handle pdev;
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s: pdev is NULL", __func__);
-		return QDF_STATUS_E_INVAL;
+		return;
 	}
 
 	switch (value) {
@@ -4848,7 +5558,6 @@ static QDF_STATUS ol_txrx_clear_stats(struct cdp_soc_t *soc_hdl,
 		break;
 	}
 
-	return status;
 }
 
 /**
@@ -4859,21 +5568,9 @@ static QDF_STATUS ol_txrx_clear_stats(struct cdp_soc_t *soc_hdl,
  */
 static inline int ol_txrx_drop_nbuf_list(qdf_nbuf_t buf_list)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
 	int num_dropped = 0;
 	qdf_nbuf_t buf, next_buf;
-
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return 0;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
-	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
-		return 0;
-	}
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	buf = buf_list;
 	while (buf) {
@@ -4957,7 +5654,7 @@ static void ol_rx_data_handler(struct ol_txrx_pdev_t *pdev,
 
 free_buf:
 	drop_count = ol_txrx_drop_nbuf_list(buf_list);
-	ol_txrx_warn("Dropped frames %u", drop_count);
+	ol_txrx_warn("%s:Dropped frames %u", __func__, drop_count);
 }
 
 /**
@@ -5026,6 +5723,8 @@ static QDF_STATUS ol_txrx_enqueue_rx_frames(
 		next_buf = qdf_nbuf_queue_next(buf);
 		cache_buf = qdf_mem_malloc(sizeof(*cache_buf));
 		if (!cache_buf) {
+			ol_txrx_err(
+				"Failed to allocate buf to cache the rx frames");
 			qdf_nbuf_free(buf);
 		} else {
 			/* Add NULL terminator */
@@ -5061,21 +5760,14 @@ static QDF_STATUS ol_txrx_enqueue_rx_frames(
 void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 			qdf_nbuf_t rx_buf_list)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
 	/*
 	 * Firmware data path active response will use shim RX thread
 	 * T2H MSG running on SIRQ context,
 	 * IPA kernel module API should not be called on SIRQ CTXT
 	 */
 	ol_txrx_rx_fp data_rx = NULL;
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		goto drop_rx_buf;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if ((!peer) || (!pdev)) {
 		ol_txrx_err("peer/pdev is NULL");
 		goto drop_rx_buf;
@@ -5146,9 +5838,7 @@ drop_rx_buf:
 static QDF_STATUS ol_txrx_register_peer(struct ol_txrx_desc_type *sta_desc)
 {
 	struct ol_txrx_peer_t *peer;
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev =
-		ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	union ol_txrx_peer_update_param_t param;
 	struct privacy_exemption privacy_filter;
 
@@ -5157,9 +5847,14 @@ static QDF_STATUS ol_txrx_register_peer(struct ol_txrx_desc_type *sta_desc)
 		return QDF_STATUS_E_INVAL;
 	}
 
-	peer = ol_txrx_find_peer_by_addr((struct cdp_pdev *)pdev,
-					 sta_desc->peer_addr.bytes);
+	if (sta_desc->sta_id >= WLAN_MAX_STA_COUNT) {
+		ol_txrx_err("Invalid sta id :%d",
+			 sta_desc->sta_id);
+		return QDF_STATUS_E_INVAL;
+	}
 
+	peer = ol_txrx_peer_find_by_local_id((struct cdp_pdev *)pdev,
+					     sta_desc->sta_id);
 	if (!peer)
 		return QDF_STATUS_E_FAULT;
 
@@ -5186,32 +5881,35 @@ static QDF_STATUS ol_txrx_register_peer(struct ol_txrx_desc_type *sta_desc)
 /**
  * ol_txrx_register_ocb_peer - Function to register the OCB peer
  * @mac_addr: MAC address of the self peer
+ * @peer_id: Pointer to the peer ID
  *
  * Return: QDF_STATUS_SUCCESS on success, QDF_STATUS_E_FAILURE on failure
  */
-static QDF_STATUS ol_txrx_register_ocb_peer(uint8_t *mac_addr)
+static QDF_STATUS ol_txrx_register_ocb_peer(uint8_t *mac_addr,
+				     uint8_t *peer_id)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev =
-		ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
+	ol_txrx_pdev_handle pdev;
 	ol_txrx_peer_handle peer;
 
-	if (!pdev || !soc) {
-		ol_txrx_err("Unable to find pdev or soc!");
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	if (!pdev) {
+		ol_txrx_err("%s: Unable to find pdev!",
+			   __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
 
 	peer = ol_txrx_find_peer_by_addr((struct cdp_pdev *)pdev,
-					 mac_addr);
+					 mac_addr, peer_id);
 	if (!peer) {
-		ol_txrx_err("Unable to find OCB peer!");
+		ol_txrx_err("%s: Unable to find OCB peer!",
+			   __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
 
 	ol_txrx_set_ocb_peer(pdev, peer);
 
 	/* Set peer state to connected */
-	ol_txrx_peer_state_update((struct cdp_soc_t *)soc, peer->mac_addr.raw,
+	ol_txrx_peer_state_update((struct cdp_pdev *)pdev, peer->mac_addr.raw,
 				  OL_TXRX_PEER_STATE_AUTH);
 
 	return QDF_STATUS_SUCCESS;
@@ -5225,7 +5923,7 @@ static QDF_STATUS ol_txrx_register_ocb_peer(uint8_t *mac_addr)
 void ol_txrx_set_ocb_peer(struct ol_txrx_pdev_t *pdev,
 			  struct ol_txrx_peer_t *peer)
 {
-	if (!pdev)
+	if (pdev == NULL)
 		return;
 
 	pdev->ocb_peer = peer;
@@ -5244,7 +5942,7 @@ bool ol_txrx_get_ocb_peer(struct ol_txrx_pdev_t *pdev,
 {
 	int rc;
 
-	if ((!pdev) || (!peer)) {
+	if ((pdev == NULL) || (peer == NULL)) {
 		rc = false;
 		goto exit;
 	}
@@ -5262,18 +5960,15 @@ exit:
 
 /**
  * ol_txrx_register_pause_cb() - register pause callback
- * @soc_hdl: Datapath soc handle
  * @pause_cb: pause callback
  *
  * Return: QDF status
  */
-static QDF_STATUS ol_txrx_register_pause_cb(struct cdp_soc_t *soc_hdl,
-					    tx_pause_callback pause_cb)
+static QDF_STATUS ol_txrx_register_pause_cb(struct cdp_soc_t *soc,
+	tx_pause_callback pause_cb)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if (!pdev || !pause_cb) {
 		ol_txrx_err("pdev or pause_cb is NULL");
 		return QDF_STATUS_E_INVAL;
@@ -5299,18 +5994,10 @@ static void ol_txrx_offld_flush_handler(void *context,
 					qdf_nbuf_t rxpkt,
 					uint16_t staid)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("Invalid soc context");
-		qdf_assert(0);
-		return;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if (qdf_unlikely(!pdev)) {
-		ol_txrx_err("Invalid pdev context");
+		ol_txrx_err("Invalid context");
 		qdf_assert(0);
 		return;
 	}
@@ -5334,18 +6021,11 @@ static void ol_txrx_offld_flush(void *data)
 {
 	p_cds_sched_context sched_ctx = get_cds_sched_ctxt();
 	struct cds_ol_rx_pkt *pkt;
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	if (qdf_unlikely(!sched_ctx))
 		return;
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if (qdf_unlikely(!pdev)) {
 		ol_txrx_err("TXRX module context is NULL");
 		return;
@@ -5379,22 +6059,14 @@ static void ol_txrx_offld_flush(void *data)
 static void ol_register_offld_flush_cb(void (offld_flush_cb)(void *))
 {
 	struct hif_opaque_softc *hif_device;
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc NULL!");
-		TXRX_ASSERT2(0);
-		goto out;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
-	if (!pdev) {
+	if (pdev == NULL) {
 		ol_txrx_err("pdev NULL!");
 		TXRX_ASSERT2(0);
 		goto out;
 	}
-	if (pdev->offld_flush_cb) {
+	if (pdev->offld_flush_cb != NULL) {
 		ol_txrx_info("offld already initialised");
 		if (pdev->offld_flush_cb != offld_flush_cb) {
 			ol_txrx_err(
@@ -5407,7 +6079,7 @@ static void ol_register_offld_flush_cb(void (offld_flush_cb)(void *))
 	pdev->offld_flush_cb = offld_flush_cb;
 	hif_device = cds_get_context(QDF_MODULE_ID_HIF);
 
-	if (qdf_unlikely(!hif_device)) {
+	if (qdf_unlikely(hif_device == NULL)) {
 		ol_txrx_err("hif_device NULL!");
 		qdf_assert(0);
 		goto out;
@@ -5430,22 +6102,15 @@ out:
 static void ol_deregister_offld_flush_cb(void)
 {
 	struct hif_opaque_softc *hif_device;
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
-	if (!pdev) {
+	if (pdev == NULL) {
 		ol_txrx_err("pdev NULL!");
 		return;
 	}
 	hif_device = cds_get_context(QDF_MODULE_ID_HIF);
 
-	if (qdf_unlikely(!hif_device)) {
+	if (qdf_unlikely(hif_device == NULL)) {
 		ol_txrx_err("hif_device NULL!");
 		qdf_assert(0);
 		return;
@@ -5459,22 +6124,18 @@ static void ol_deregister_offld_flush_cb(void)
 
 /**
  * ol_register_data_stall_detect_cb() - register data stall callback
- * @soc_hdl: Datapath soc handle
- * @pdev_id: id of data path pdev handle
  * @data_stall_detect_callback: data stall callback function
  *
  *
  * Return: QDF_STATUS Enumeration
  */
 static QDF_STATUS ol_register_data_stall_detect_cb(
-			struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
-			data_stall_detect_cb data_stall_detect_callback)
+				data_stall_detect_cb data_stall_detect_callback)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (!pdev) {
-		ol_txrx_err("pdev NULL!");
+	if (pdev == NULL) {
+		ol_txrx_err("%s: pdev NULL!", __func__);
 		return QDF_STATUS_E_INVAL;
 	}
 	pdev->data_stall_detect_callback = data_stall_detect_callback;
@@ -5483,22 +6144,18 @@ static QDF_STATUS ol_register_data_stall_detect_cb(
 
 /**
  * ol_deregister_data_stall_detect_cb() - de-register data stall callback
- * @soc_hdl: Datapath soc handle
- * @pdev_id: id of data path pdev handle
  * @data_stall_detect_callback: data stall callback function
  *
  *
  * Return: QDF_STATUS Enumeration
  */
 static QDF_STATUS ol_deregister_data_stall_detect_cb(
-			struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
-			data_stall_detect_cb data_stall_detect_callback)
+				data_stall_detect_cb data_stall_detect_callback)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (!pdev) {
-		ol_txrx_err("pdev NULL!");
+	if (pdev == NULL) {
+		ol_txrx_err("%s: pdev NULL!", __func__);
 		return QDF_STATUS_E_INVAL;
 	}
 	pdev->data_stall_detect_callback = NULL;
@@ -5516,82 +6173,107 @@ static QDF_STATUS ol_deregister_data_stall_detect_cb(
  * Return: None
  */
 static void ol_txrx_post_data_stall_event(
-				struct cdp_soc_t *soc_hdl,
 				enum data_stall_log_event_indicator indicator,
 				enum data_stall_log_event_type data_stall_type,
 				uint32_t pdev_id, uint32_t vdev_id_bitmap,
 				enum data_stall_log_recovery_type recovery_type)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	struct data_stall_event_info data_stall_info;
+	struct scheduler_msg msg = {0};
+	QDF_STATUS status;
+	struct data_stall_event_info *data_stall_info;
 	ol_txrx_pdev_handle pdev;
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
+	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s: pdev is NULL.", __func__);
 		return;
 	}
-
-	if (!pdev->data_stall_detect_callback) {
+	data_stall_info = qdf_mem_malloc(sizeof(*data_stall_info));
+	if (!data_stall_info) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-			  "%s: data stall cb not registered", __func__);
+			"%s: data_stall_info is NULL.", __func__);
 		return;
 	}
+	data_stall_info->indicator = indicator;
+	data_stall_info->data_stall_type = data_stall_type;
+	data_stall_info->vdev_id_bitmap = vdev_id_bitmap;
+	data_stall_info->pdev_id = pdev_id;
+	data_stall_info->recovery_type = recovery_type;
 
-	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_DEBUG,
-		  "%s: data_stall_type: %x pdev_id: %d",
-		  __func__, data_stall_type, pdev_id);
-
-	data_stall_info.indicator = indicator;
-	data_stall_info.data_stall_type = data_stall_type;
-	data_stall_info.vdev_id_bitmap = vdev_id_bitmap;
-	data_stall_info.pdev_id = pdev_id;
-	data_stall_info.recovery_type = recovery_type;
-
-	if (data_stall_info.data_stall_type ==
-				DATA_STALL_LOG_FW_RX_REFILL_FAILED)
+	if (data_stall_info->data_stall_type ==
+				DATA_STALL_LOG_FW_RX_REFILL_FAILED) {
 		htt_log_rx_ring_info(pdev->htt_pdev);
+		htt_rx_refill_failure(pdev->htt_pdev);
+	}
 
-	pdev->data_stall_detect_callback(&data_stall_info);
+	sys_build_message_header(SYS_MSG_ID_DATA_STALL_MSG, &msg);
+	/* Save callback and data */
+	msg.callback = pdev->data_stall_detect_callback;
+	msg.bodyptr = data_stall_info;
+	msg.bodyval = 0;
+
+	status = scheduler_post_message(QDF_MODULE_ID_TXRX,
+					QDF_MODULE_ID_HDD,
+					QDF_MODULE_ID_SYS, &msg);
+
+	if (status != QDF_STATUS_SUCCESS) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			  "%s: failed to post data stall msg to SYS", __func__);
+		qdf_mem_free(data_stall_info);
+	}
 }
 
 void
 ol_txrx_dump_pkt(qdf_nbuf_t nbuf, uint32_t nbuf_paddr, int len)
 {
-	qdf_print(" Pkt: VA 0x%pK PA 0x%llx len %d\n",
+	qdf_print("%s: Pkt: VA 0x%pK PA 0x%llx len %d\n", __func__,
 		  qdf_nbuf_data(nbuf), (unsigned long long int)nbuf_paddr, len);
 	print_hex_dump(KERN_DEBUG, "Pkt:   ", DUMP_PREFIX_ADDRESS, 16, 4,
 		       qdf_nbuf_data(nbuf), len, true);
 }
 
+#ifdef QCA_LL_TX_FLOW_CONTROL_V2
+bool
+ol_txrx_fwd_desc_thresh_check(struct ol_txrx_vdev_t *vdev)
+{
+	struct ol_tx_flow_pool_t *pool;
+	bool enough_desc_flag;
+
+	if (!vdev)
+		return false;
+
+	pool = vdev->pool;
+
+	if (!pool)
+		return false;
+
+	qdf_spin_lock_bh(&pool->flow_pool_lock);
+	enough_desc_flag = (pool->avail_desc < (pool->stop_th +
+				OL_TX_NON_FWD_RESERVE))
+		? false : true;
+	qdf_spin_unlock_bh(&pool->flow_pool_lock);
+	return enough_desc_flag;
+}
+#else
+bool ol_txrx_fwd_desc_thresh_check(struct ol_txrx_vdev_t *vdev)
+{
+	return true;
+}
+#endif
+
+/**
+ * ol_txrx_get_vdev_from_vdev_id() - get vdev from vdev_id
+ * @vdev_id: vdev_id
+ *
+ * Return: vdev handle
+ *            NULL if not found.
+ */
 struct cdp_vdev *ol_txrx_get_vdev_from_vdev_id(uint8_t vdev_id)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
+	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	ol_txrx_vdev_handle vdev = NULL;
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return NULL;
-	}
-
-	vdev = ol_txrx_get_vdev_from_soc_vdev_id(soc, vdev_id);
-
-	return ol_txrx_vdev_t_to_cdp_vdev(vdev);
-}
-
-struct ol_txrx_vdev_t *ol_txrx_get_vdev_from_soc_vdev_id(
-				struct ol_txrx_soc_t *soc, uint8_t vdev_id)
-{
-	ol_txrx_pdev_handle pdev;
-	ol_txrx_vdev_handle vdev = NULL;
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if (qdf_unlikely(!pdev))
 		return NULL;
 
@@ -5600,42 +6282,19 @@ struct ol_txrx_vdev_t *ol_txrx_get_vdev_from_soc_vdev_id(
 			break;
 	}
 
-	return vdev;
-}
-
-/**
- * ol_txrx_get_mon_vdev_from_pdev() - get monitor mode vdev from pdev
- * @soc_hdl: datapath soc handle
- * @pdev_id: the physical device id the virtual device belongs to
- *
- * Return: vdev id
- *            error if not found.
- */
-uint8_t ol_txrx_get_mon_vdev_from_pdev(struct cdp_soc_t *soc_hdl,
-				       uint8_t pdev_id)
-{
-	struct ol_txrx_soc_t *soc = (struct ol_txrx_soc_t *)soc_hdl;
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
-
-	if (qdf_unlikely(!pdev))
-		return -EINVAL;
-
-	return pdev->monitor_vdev->vdev_id;
+	return (struct cdp_vdev *)vdev;
 }
 
 /**
  * ol_txrx_set_wisa_mode() - set wisa mode
- * @soc_hdl: Datapath soc handle
- * @vdev_id: vdev_id
+ * @vdev: vdev handle
  * @enable: enable flag
  *
  * Return: QDF STATUS
  */
-static QDF_STATUS ol_txrx_set_wisa_mode(struct cdp_soc_t *soc_hdl,
-					uint8_t vdev_id, bool enable)
+static QDF_STATUS ol_txrx_set_wisa_mode(struct cdp_vdev *pvdev, bool enable)
 {
-	struct ol_txrx_vdev_t *vdev =
-		(struct ol_txrx_vdev_t *)ol_txrx_get_vdev_from_vdev_id(vdev_id);
+	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)pvdev;
 
 	if (!vdev)
 		return QDF_STATUS_E_INVAL;
@@ -5665,10 +6324,10 @@ static uint16_t ol_txrx_get_vdev_id(struct cdp_vdev *pvdev)
  *
  * Return: 0
  */
-static QDF_STATUS ol_txrx_soc_attach_target(ol_txrx_soc_handle soc)
+static int ol_txrx_soc_attach_target(ol_txrx_soc_handle soc)
 {
 	/* MCL legacy OL do nothing here */
-	return QDF_STATUS_SUCCESS;
+	return 0;
 }
 
 /**
@@ -5677,31 +6336,30 @@ static QDF_STATUS ol_txrx_soc_attach_target(ol_txrx_soc_handle soc)
  *
  * MCL legacy OL do nothing here
  *
- * Return: none
+ * Return: noe
  */
-static void ol_txrx_soc_detach(struct cdp_soc_t *soc)
+static void ol_txrx_soc_detach(void *soc)
 {
 	qdf_mem_free(soc);
 }
 
 /**
  * ol_txrx_pkt_log_con_service() - connect packet log service
- * @soc_hdl: Datapath soc handle
- * @pdev_id: id of data path pdev handle
+ * @ppdev: physical device handle
  * @scn: device context
  *
  * Return: noe
  */
 #ifdef REMOVE_PKT_LOG
-static void ol_txrx_pkt_log_con_service(struct cdp_soc_t *soc_hdl,
-					uint8_t pdev_id, void *scn)
+static void ol_txrx_pkt_log_con_service(struct cdp_pdev *ppdev, void *scn)
 {
 }
 #else
-static void ol_txrx_pkt_log_con_service(struct cdp_soc_t *soc_hdl,
-					uint8_t pdev_id, void *scn)
+static void ol_txrx_pkt_log_con_service(struct cdp_pdev *ppdev, void *scn)
 {
-	htt_pkt_log_init(soc_hdl, pdev_id, scn);
+	struct ol_txrx_pdev_t *pdev = (struct ol_txrx_pdev_t *)ppdev;
+
+	htt_pkt_log_init((struct cdp_pdev *)pdev, scn);
 	pktlog_htc_attach();
 }
 #endif
@@ -5709,35 +6367,28 @@ static void ol_txrx_pkt_log_con_service(struct cdp_soc_t *soc_hdl,
 /* OL wrapper functions for CDP abstraction */
 /**
  * ol_txrx_wrapper_flush_rx_frames() - flush rx frames on the queue
- * @soc: data path soc handle
- * @pdev_id: datapath pdev identifier
- * @peer_mac: peer mac address
+ * @peer: peer handle
  * @drop: rx packets drop or deliver
  *
  * Return: none
  */
-static void ol_txrx_wrapper_flush_rx_frames(struct cdp_soc_t *soc_hdl,
-					    uint8_t pdev_id, void *peer_mac,
-					    bool drop)
+static void ol_txrx_wrapper_flush_rx_frames(void *peer, bool drop)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
-	struct ol_txrx_peer_t *peer;
+	ol_txrx_flush_rx_frames((ol_txrx_peer_handle)peer, drop);
+}
 
-	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
-		return;
-	}
-
-	peer = ol_txrx_peer_find_hash_find_get_ref(pdev, peer_mac, 0, 1,
-						   PEER_DEBUG_ID_OL_INTERNAL);
-	if (!peer) {
-		ol_txrx_err("peer "QDF_MAC_ADDR_FMT" not found",
-			    QDF_MAC_ADDR_REF(peer_mac));
-		return;
-	}
-
-	ol_txrx_flush_rx_frames(peer, drop);
+/**
+ * ol_txrx_wrapper_get_vdev_from_vdev_id() - get vdev instance from vdev id
+ * @ppdev: pdev handle
+ * @vdev_id: interface id
+ *
+ * Return: virtual interface instance
+ */
+static
+struct cdp_vdev *ol_txrx_wrapper_get_vdev_from_vdev_id(struct cdp_pdev *ppdev,
+		uint8_t vdev_id)
+{
+	return ol_txrx_get_vdev_from_vdev_id(vdev_id);
 }
 
 /**
@@ -5747,12 +6398,31 @@ static void ol_txrx_wrapper_flush_rx_frames(struct cdp_soc_t *soc_hdl,
  *
  * Return: QDF STATUS
  */
-static QDF_STATUS ol_txrx_wrapper_register_peer(
-					struct cdp_soc_t *soc_hdl,
-					uint8_t pdev_id,
-					struct ol_txrx_desc_type *sta_desc)
+static QDF_STATUS ol_txrx_wrapper_register_peer(struct cdp_pdev *pdev,
+		struct ol_txrx_desc_type *sta_desc)
 {
 	return ol_txrx_register_peer(sta_desc);
+}
+
+/**
+ * ol_txrx_wrapper_peer_find_by_local_id() - Find a txrx peer handle
+ * @pdev - the data physical device object
+ * @local_peer_id - the ID txrx assigned locally to the peer in question
+ *
+ * The control SW typically uses the txrx peer handle to refer to the peer.
+ * In unusual circumstances, if it is infeasible for the control SW maintain
+ * the txrx peer handle but it can maintain a small integer local peer ID,
+ * this function allows the peer handled to be retrieved, based on the local
+ * peer ID.
+ *
+ * @return handle to the txrx peer object
+ */
+static void *
+ol_txrx_wrapper_peer_find_by_local_id(struct cdp_pdev *pdev,
+				      uint8_t local_peer_id)
+{
+	return (void *)ol_txrx_peer_find_by_local_id(
+		pdev, local_peer_id);
 }
 
 /**
@@ -5769,8 +6439,7 @@ static int ol_txrx_wrapper_cfg_is_high_latency(struct cdp_cfg *cfg_pdev)
 
 /**
  * ol_txrx_wrapper_peer_state_update() - specify the peer's authentication state
- * @soc_hdl - datapath soc handle
- * @peer_mac - mac address of which peer has changed its state
+ * @data_peer - which peer has changed its state
  * @state - the new state of the peer
  *
  *  Specify the peer's authentication state (none, connected, authenticated)
@@ -5783,12 +6452,59 @@ static int ol_txrx_wrapper_cfg_is_high_latency(struct cdp_cfg *cfg_pdev)
  *
  * Return: QDF Status
  */
-static QDF_STATUS ol_txrx_wrapper_peer_state_update(
-						struct cdp_soc_t *soc_hdl,
-						uint8_t *peer_mac,
-						enum ol_txrx_peer_state state)
+static QDF_STATUS ol_txrx_wrapper_peer_state_update(struct cdp_pdev *pdev,
+		uint8_t *peer_mac, enum ol_txrx_peer_state state)
 {
-	return ol_txrx_peer_state_update(soc_hdl, peer_mac, state);
+	return ol_txrx_peer_state_update(pdev,
+			peer_mac, state);
+}
+
+/**
+ * ol_txrx_wrapper_find_peer_by_addr() - find peer instance by address
+ * @pdev: pdev handle
+ * @peer_addr: peer address want to find
+ * @peer_id: peer id
+ *
+ * Return: peer instance pointer
+ */
+static void *ol_txrx_wrapper_find_peer_by_addr(struct cdp_pdev *pdev,
+		uint8_t *peer_addr, uint8_t *peer_id)
+{
+	return ol_txrx_find_peer_by_addr(pdev,
+				peer_addr, peer_id);
+}
+
+/**
+ * ol_txrx_wrapper_peer_get_ref_by_addr() - get peer reference by address
+ * @pdev: pdev handle
+ * @peer_addr: peer address we want to find
+ * @peer_id: peer id
+ * @debug_id: peer debug id for tracking
+ *
+ * Return: peer instance pointer
+ */
+static void *
+ol_txrx_wrapper_peer_get_ref_by_addr(struct cdp_pdev *pdev,
+				     u8 *peer_addr, uint8_t *peer_id,
+				     enum peer_debug_id_type debug_id)
+{
+	return ol_txrx_peer_get_ref_by_addr((ol_txrx_pdev_handle)pdev,
+					    peer_addr, peer_id, debug_id);
+}
+
+/**
+ * ol_txrx_wrapper_peer_release_ref() - release peer reference
+ * @peer: peer handle
+ * @debug_id: peer debug id for tracking
+ *
+ * Release peer ref acquired by peer get ref api
+ *
+ * Return: void
+ */
+static void ol_txrx_wrapper_peer_release_ref(void *peer,
+					     enum peer_debug_id_type debug_id)
+{
+	ol_txrx_peer_release_ref(peer, debug_id);
 }
 
 /**
@@ -5807,342 +6523,17 @@ ol_txrx_wrapper_set_flow_control_parameters(struct cdp_cfg *cfg_pdev,
 		(struct txrx_pdev_cfg_param_t *)cfg_param);
 }
 
-/**
- * ol_txrx_get_cfg() - get ini/cgf values in legacy dp
- * @soc_hdl: soc context
- * @cfg_param: cfg parameters
- *
- * Return: none
- */
-static uint32_t ol_txrx_get_cfg(struct cdp_soc_t *soc_hdl, enum cdp_dp_cfg cfg)
-{
-	struct txrx_pdev_cfg_t *cfg_ctx;
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(
-							soc,
-							OL_TXRX_PDEV_ID);
-	uint32_t value = 0;
-
-	if (!pdev) {
-		qdf_print("pdev is NULL");
-		return 0;
-	}
-
-	cfg_ctx = (struct txrx_pdev_cfg_t *)(pdev->ctrl_pdev);
-	switch (cfg) {
-	case cfg_dp_enable_data_stall:
-		value = cfg_ctx->enable_data_stall_detection;
-		break;
-	case cfg_dp_enable_ip_tcp_udp_checksum_offload:
-		value = cfg_ctx->ip_tcp_udp_checksum_offload;
-		break;
-	case cfg_dp_enable_p2p_ip_tcp_udp_checksum_offload:
-		value = cfg_ctx->p2p_ip_tcp_udp_checksum_offload;
-		break;
-	case cfg_dp_enable_nan_ip_tcp_udp_checksum_offload:
-		value = cfg_ctx->nan_tcp_udp_checksumoffload;
-		break;
-	case cfg_dp_tso_enable:
-		value = cfg_ctx->tso_enable;
-		break;
-	case cfg_dp_lro_enable:
-		value = cfg_ctx->lro_enable;
-		break;
-	case cfg_dp_gro_enable:
-		value = cfg_ctx->gro_enable;
-		break;
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
-	case cfg_dp_tx_flow_start_queue_offset:
-		value = cfg_ctx->tx_flow_start_queue_offset;
-		break;
-	case cfg_dp_tx_flow_stop_queue_threshold:
-		value = cfg_ctx->tx_flow_stop_queue_th;
-		break;
-#endif
-	case cfg_dp_ipa_uc_tx_buf_size:
-		value = cfg_ctx->uc_tx_buffer_size;
-		break;
-	case cfg_dp_ipa_uc_tx_partition_base:
-		value = cfg_ctx->uc_tx_partition_base;
-		break;
-	case cfg_dp_ipa_uc_rx_ind_ring_count:
-		value = cfg_ctx->uc_rx_indication_ring_count;
-		break;
-	case cfg_dp_enable_flow_steering:
-		value = cfg_ctx->enable_flow_steering;
-		break;
-	case cfg_dp_reorder_offload_supported:
-		value = cfg_ctx->is_full_reorder_offload;
-		break;
-	case cfg_dp_ce_classify_enable:
-		value = cfg_ctx->ce_classify_enabled;
-		break;
-	case cfg_dp_disable_intra_bss_fwd:
-		value = cfg_ctx->disable_intra_bss_fwd;
-		break;
-	case cfg_dp_pktlog_buffer_size:
-		value = cfg_ctx->pktlog_buffer_size;
-		break;
-	default:
-		value =  0;
-		break;
-	}
-
-	return value;
-}
-
-/*
- * ol_get_pdev_param: function to get parameters from pdev
- * @cdp_soc: txrx soc handle
- * @pdev_id: id of pdev handle
- * @param: parameter type to be get
- * @val: parameter type to be get
- *
- * Return: SUCCESS or FAILURE
- */
-static QDF_STATUS ol_get_pdev_param(struct cdp_soc_t *soc_hdl,  uint8_t pdev_id,
-				    enum cdp_pdev_param_type param,
-				    cdp_config_param_type *val)
-{
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	struct ol_txrx_pdev_t *olpdev = ol_txrx_get_pdev_from_pdev_id(soc,
-								      pdev_id);
-	struct cdp_pdev *pdev = ol_txrx_pdev_t_to_cdp_pdev(olpdev);
-
-	if (!pdev)
-		return QDF_STATUS_E_FAILURE;
-
-	switch (param) {
-	case CDP_TX_PENDING:
-		val->cdp_pdev_param_tx_pending = ol_txrx_get_tx_pending(pdev);
-		break;
-	default:
-		return QDF_STATUS_E_INVAL;
-	}
-
-	return QDF_STATUS_SUCCESS;
-}
-
-/*
- * ol_set_pdev_param: function to get parameters from pdev
- * @cdp_soc: txrx soc handle
- * @pdev_id: id of pdev handle
- * @param: parameter type to be get
- * @val: parameter type to be get
- *
- * Return: SUCCESS or FAILURE
- */
-static QDF_STATUS ol_set_pdev_param(struct cdp_soc_t *soc_hdl,  uint8_t pdev_id,
-				    enum cdp_pdev_param_type param,
-				    cdp_config_param_type val)
-{
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	struct ol_txrx_pdev_t *olpdev = ol_txrx_get_pdev_from_pdev_id(soc,
-								      pdev_id);
-	struct cdp_pdev *pdev = ol_txrx_pdev_t_to_cdp_pdev(olpdev);
-
-	if (!pdev)
-		return QDF_STATUS_E_FAILURE;
-
-	switch (param) {
-	case CDP_MONITOR_CHANNEL:
-	{
-		ol_htt_mon_note_chan(pdev, val.cdp_pdev_param_monitor_chan);
-		break;
-	}
-	default:
-		return QDF_STATUS_E_INVAL;
-	}
-
-	return QDF_STATUS_SUCCESS;
-}
-
 #ifdef WDI_EVENT_ENABLE
-void *ol_get_pldev(struct cdp_soc_t *soc_hdl, uint8_t pdev_id)
+void *ol_get_pldev(struct cdp_pdev *txrx_pdev)
 {
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	struct ol_txrx_pdev_t *pdev = ol_txrx_get_pdev_from_pdev_id(soc,
-								    pdev_id);
-
-	if (pdev)
+	struct ol_txrx_pdev_t *pdev =
+				 (struct ol_txrx_pdev_t *)txrx_pdev;
+	if (pdev != NULL)
 		return pdev->pl_dev;
 
 	return NULL;
 }
 #endif
-
-/**
- * ol_register_packetdump_callback() - registers
- *  tx data packet, tx mgmt. packet and rx data packet
- *  dump callback handler.
- *
- * @soc_hdl: Datapath soc handle
- * @pdev_id: id of data path pdev handle
- * @ol_tx_packetdump_cb: tx packetdump cb
- * @ol_rx_packetdump_cb: rx packetdump cb
- *
- * This function is used to register tx data pkt, tx mgmt.
- * pkt and rx data pkt dump callback
- *
- * Return: None
- *
- */
-static inline
-void ol_register_packetdump_callback(struct cdp_soc_t *soc_hdl, uint8_t pdev_id,
-				     ol_txrx_pktdump_cb ol_tx_packetdump_cb,
-				     ol_txrx_pktdump_cb ol_rx_packetdump_cb)
-{
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
-
-	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
-		return;
-	}
-
-	pdev->ol_tx_packetdump_cb = ol_tx_packetdump_cb;
-	pdev->ol_rx_packetdump_cb = ol_rx_packetdump_cb;
-}
-
-/**
- * ol_deregister_packetdump_callback() - deregidters
- *  tx data packet, tx mgmt. packet and rx data packet
- *  dump callback handler
- * @soc_hdl: Datapath soc handle
- * @pdev_id: id of data path pdev handle
- *
- * This function is used to deregidter tx data pkt.,
- * tx mgmt. pkt and rx data pkt. dump callback
- *
- * Return: None
- *
- */
-static inline
-void ol_deregister_packetdump_callback(struct cdp_soc_t *soc_hdl,
-				       uint8_t pdev_id)
-{
-	struct ol_txrx_soc_t *soc = cdp_soc_t_to_ol_txrx_soc_t(soc_hdl);
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(soc, pdev_id);
-
-	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
-		return;
-	}
-
-	pdev->ol_tx_packetdump_cb = NULL;
-	pdev->ol_rx_packetdump_cb = NULL;
-}
-
-#ifdef WLAN_FEATURE_PKT_CAPTURE
-/**
- * ol_txrx_register_pktcapture_cb() - Register pkt capture mode callback
- * @soc: soc handle
- * @pdev_id: pdev id
- * @context: virtual device's osif_dev
- * @cb: callback to register
- *
- * Return: QDF_STATUS Enumeration
- */
-static QDF_STATUS ol_txrx_register_pktcapture_cb(
-					struct cdp_soc_t *soc,
-					uint8_t pdev_id,
-					void *context,
-					QDF_STATUS(cb)(void *, qdf_nbuf_t))
-{
-	struct ol_txrx_pdev_t *pdev = ol_txrx_get_pdev_from_pdev_id(
-					cdp_soc_t_to_ol_txrx_soc_t(soc),
-					pdev_id);
-
-	if (!pdev) {
-		ol_txrx_err("pdev NULL!");
-		return QDF_STATUS_E_INVAL;
-	}
-
-	pdev->mon_osif_dev = context;
-	pdev->mon_cb = cb;
-	return QDF_STATUS_SUCCESS;
-}
-
-/**
- * ol_txrx_deregister_pktcapture_cb() - Register pkt capture mode callback
- * @soc: soc handle
- * @pdev_id: pdev id
- *
- * Return: QDF_STATUS Enumeration
- */
-static QDF_STATUS ol_txrx_deregister_pktcapture_cb(struct cdp_soc_t *soc,
-						   uint8_t pdev_id)
-{
-	ol_txrx_pdev_handle pdev = ol_txrx_get_pdev_from_pdev_id(
-					cdp_soc_t_to_ol_txrx_soc_t(soc),
-					pdev_id);
-
-	if (qdf_unlikely(!pdev)) {
-		qdf_print("%s: pdev is NULL!\n", __func__);
-		qdf_assert(0);
-		return QDF_STATUS_E_INVAL;
-	}
-
-	pdev->mon_osif_dev = NULL;
-	pdev->mon_cb = NULL;
-
-	return QDF_STATUS_SUCCESS;
-}
-
-/**
- * ol_txrx_get_pktcapture_mode() - return pktcapture mode
- * @soc: soc handle
- * @pdev_id: pdev id
- *
- * Return: 0 - disable
- *         1 - Mgmt packets
- *         2 - Data packets
- *         3 - Both Mgmt and Data packets
- */
-static uint8_t ol_txrx_get_pktcapture_mode(struct cdp_soc_t *soc,
-					   uint8_t pdev_id)
-{
-	struct ol_txrx_pdev_t *pdev = ol_txrx_get_pdev_from_pdev_id(
-					cdp_soc_t_to_ol_txrx_soc_t(soc),
-					pdev_id);
-
-	if (!pdev) {
-		qdf_print("%s: pdev is NULL\n", __func__);
-		return 0;
-	}
-
-	if (!pdev->mon_cb || !pdev->mon_osif_dev)
-		return 0;
-
-	return pdev->pktcapture_mode_value;
-}
-
-/**
- * ol_txrx_set_pktcapture_mode() - set pktcapture mode
- * @soc: soc handle
- * @pdev_id: pdev id
- * @val  : 0 - disable
- *         1 - Mgmt packets
- *         2 - Data packets
- *         3 - Both Mgmt and Data packets
- *
- * Return: none
- */
-static void ol_txrx_set_pktcapture_mode(struct cdp_soc_t *soc,
-					uint8_t pdev_id, uint8_t val)
-{
-	struct ol_txrx_pdev_t *pdev = ol_txrx_get_pdev_from_pdev_id(
-					cdp_soc_t_to_ol_txrx_soc_t(soc),
-					pdev_id);
-
-	if (!pdev) {
-		qdf_print("%s: pdev is NULL\n", __func__);
-		return;
-	}
-
-	pdev->pktcapture_mode_value = val;
-}
-#endif /* WLAN_FEATURE_PKT_CAPTURE */
 
 static struct cdp_cmn_ops ol_ops_cmn = {
 	.txrx_soc_attach_target = ol_txrx_soc_attach_target,
@@ -6161,22 +6552,24 @@ static struct cdp_cmn_ops ol_ops_cmn = {
 	.txrx_vdev_register = ol_txrx_vdev_register,
 	.txrx_soc_detach = ol_txrx_soc_detach,
 	.txrx_get_vdev_mac_addr = ol_txrx_get_vdev_mac_addr,
+	.txrx_get_vdev_from_vdev_id = ol_txrx_wrapper_get_vdev_from_vdev_id,
 	.txrx_get_ctrl_pdev_from_vdev = ol_txrx_get_ctrl_pdev_from_vdev,
-	.txrx_get_mon_vdev_from_pdev = ol_txrx_get_mon_vdev_from_pdev,
 	.txrx_mgmt_send_ext = ol_txrx_mgmt_send_ext,
 	.txrx_mgmt_tx_cb_set = ol_txrx_mgmt_tx_cb_set,
 	.txrx_data_tx_cb_set = ol_txrx_data_tx_cb_set,
 	.txrx_peer_unmap_sync_cb_set = ol_txrx_peer_unmap_sync_cb_set,
+	.txrx_get_tx_pending = ol_txrx_get_tx_pending,
 	.flush_cache_rx_queue = ol_txrx_flush_cache_rx_queue,
 	.txrx_fw_stats_get = ol_txrx_fw_stats_get,
 	.display_stats = ol_txrx_display_stats,
-	.txrx_get_cfg = ol_txrx_get_cfg,
 	/* TODO: Add other functions */
 };
 
 static struct cdp_misc_ops ol_ops_misc = {
+#ifdef QCA_IBSS_SUPPORT
 	.set_ibss_vdev_heart_beat_timer =
 		ol_txrx_set_ibss_vdev_heart_beat_timer,
+#endif
 #ifdef CONFIG_HL_SUPPORT
 	.set_wmm_param = ol_txrx_set_wmm_param,
 #endif /* CONFIG_HL_SUPPORT */
@@ -6201,17 +6594,7 @@ static struct cdp_misc_ops ol_ops_misc = {
 	.flush_rx_frames = ol_txrx_wrapper_flush_rx_frames,
 	.get_intra_bss_fwd_pkts_count = ol_get_intra_bss_fwd_pkts_count,
 	.pkt_log_init = htt_pkt_log_init,
-	.pkt_log_con_service = ol_txrx_pkt_log_con_service,
-	.register_pktdump_cb = ol_register_packetdump_callback,
-	.unregister_pktdump_cb = ol_deregister_packetdump_callback,
-#ifdef QCA_SUPPORT_TXRX_DRIVER_TCP_DEL_ACK
-	.pdev_reset_driver_del_ack = ol_tx_pdev_reset_driver_del_ack,
-	.vdev_set_driver_del_ack_enable = ol_tx_vdev_set_driver_del_ack_enable,
-#endif
-#ifdef WLAN_SUPPORT_TXRX_HL_BUNDLE
-	.vdev_set_bundle_require_flag = ol_tx_vdev_set_bundle_require,
-	.pdev_reset_bundle_require_flag = ol_tx_pdev_reset_bundle_require,
-#endif
+	.pkt_log_con_service = ol_txrx_pkt_log_con_service
 };
 
 static struct cdp_flowctl_ops ol_ops_flowctl = {
@@ -6219,12 +6602,11 @@ static struct cdp_flowctl_ops ol_ops_flowctl = {
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 	.set_desc_global_pool_size = ol_tx_set_desc_global_pool_size,
 	.dump_flow_pool_info = ol_tx_dump_flow_pool_info,
-	.tx_desc_thresh_reached = ol_tx_desc_thresh_reached,
 #endif /* QCA_LL_TX_FLOW_CONTROL_V2 */
 };
 
-#if defined(QCA_LL_LEGACY_TX_FLOW_CONTROL)
 static struct cdp_lflowctl_ops ol_ops_l_flowctl = {
+#ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
 	.register_tx_flow_control = ol_txrx_register_tx_flow_control,
 	.deregister_tx_flow_control_cb = ol_txrx_deregister_tx_flow_control_cb,
 	.flow_control_cb = ol_txrx_flow_control_cb,
@@ -6233,19 +6615,8 @@ static struct cdp_lflowctl_ops ol_ops_l_flowctl = {
 	.vdev_flush = ol_txrx_vdev_flush,
 	.vdev_pause = ol_txrx_vdev_pause,
 	.vdev_unpause = ol_txrx_vdev_unpause
-}; /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
-#elif defined(QCA_HL_NETDEV_FLOW_CONTROL)
-static struct cdp_lflowctl_ops ol_ops_l_flowctl = {
-	.register_tx_flow_control = ol_txrx_register_hl_flow_control,
-	.vdev_flush = ol_txrx_vdev_flush,
-	.vdev_pause = ol_txrx_vdev_pause,
-	.vdev_unpause = ol_txrx_vdev_unpause,
-	.set_vdev_os_queue_status = ol_txrx_set_vdev_os_queue_status,
-	.set_vdev_tx_desc_limit = ol_txrx_set_vdev_tx_desc_limit
+#endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
 };
-#else /* QCA_HL_NETDEV_FLOW_CONTROL */
-static struct cdp_lflowctl_ops ol_ops_l_flowctl = { };
-#endif
 
 #ifdef IPA_OFFLOAD
 static struct cdp_ipa_ops ol_ops_ipa = {
@@ -6285,12 +6656,10 @@ static struct cdp_bus_ops ol_ops_bus = {
 	.bus_resume = ol_txrx_bus_resume
 };
 
-#ifdef WLAN_FEATURE_DSRC
 static struct cdp_ocb_ops ol_ops_ocb = {
 	.set_ocb_chan_info = ol_txrx_set_ocb_chan_info,
 	.get_ocb_chan_info = ol_txrx_get_ocb_chan_info
 };
-#endif
 
 static struct cdp_throttle_ops ol_ops_throttle = {
 #ifdef QCA_SUPPORT_TX_THROTTLE
@@ -6327,24 +6696,30 @@ static struct cdp_cfg_ops ol_ops_cfg = {
 static struct cdp_peer_ops ol_ops_peer = {
 	.register_peer = ol_txrx_wrapper_register_peer,
 	.clear_peer = ol_txrx_clear_peer,
-	.find_peer_exist = ol_txrx_find_peer_exist,
-	.find_peer_exist_on_vdev = ol_txrx_find_peer_exist_on_vdev,
-	.find_peer_exist_on_other_vdev = ol_txrx_find_peer_exist_on_other_vdev,
+	.peer_get_ref_by_addr = ol_txrx_wrapper_peer_get_ref_by_addr,
+	.peer_release_ref = ol_txrx_wrapper_peer_release_ref,
+	.find_peer_by_addr = ol_txrx_wrapper_find_peer_by_addr,
+	.find_peer_by_addr_and_vdev = ol_txrx_find_peer_by_addr_and_vdev,
+	.local_peer_id = ol_txrx_local_peer_id,
+	.peer_find_by_local_id = ol_txrx_wrapper_peer_find_by_local_id,
 	.peer_state_update = ol_txrx_wrapper_peer_state_update,
 	.get_vdevid = ol_txrx_get_vdevid,
-	.get_vdev_by_peer_addr = ol_txrx_wrapper_get_vdev_by_peer_addr,
+	.get_vdev_by_sta_id = ol_txrx_get_vdev_by_sta_id,
 	.register_ocb_peer = ol_txrx_register_ocb_peer,
 	.peer_get_peer_mac_addr = ol_txrx_peer_get_peer_mac_addr,
 	.get_peer_state = ol_txrx_get_peer_state,
+	.get_vdev_for_peer = ol_txrx_get_vdev_for_peer,
+#ifdef QCA_IBSS_SUPPORT
 	.update_ibss_add_peer_num_of_vdev =
 		ol_txrx_update_ibss_add_peer_num_of_vdev,
+#endif
+	.remove_peers_for_vdev = ol_txrx_remove_peers_for_vdev,
+	.remove_peers_for_vdev_no_lock = ol_txrx_remove_peers_for_vdev_no_lock,
 #if defined(CONFIG_HL_SUPPORT) && defined(FEATURE_WLAN_TDLS)
 	.copy_mac_addr_raw = ol_txrx_copy_mac_addr_raw,
 	.add_last_real_peer = ol_txrx_add_last_real_peer,
 	.is_vdev_restore_last_peer = is_vdev_restore_last_peer,
 	.update_last_real_peer = ol_txrx_update_last_real_peer,
-	.set_tdls_offchan_enabled = ol_txrx_set_tdls_offchan_enabled,
-	.set_peer_as_tdls_peer = ol_txrx_set_peer_as_tdls_peer,
 #endif /* CONFIG_HL_SUPPORT */
 	.peer_detach_force_delete = ol_txrx_peer_detach_force_delete,
 };
@@ -6366,8 +6741,6 @@ static struct cdp_ctrl_ops ol_ops_ctrl = {
 	.txrx_get_pldev = ol_get_pldev,
 	.txrx_wdi_event_sub = wdi_event_sub,
 	.txrx_wdi_event_unsub = wdi_event_unsub,
-	.txrx_get_pdev_param = ol_get_pdev_param,
-	.txrx_set_pdev_param = ol_set_pdev_param
 };
 
 /* WINplatform specific structures */
@@ -6392,11 +6765,31 @@ static struct cdp_raw_ops ol_ops_raw = {
 };
 
 #ifdef WLAN_FEATURE_PKT_CAPTURE
+/**
+ * ol_txrx_pktcapture_record_channel() - Update Channel Information
+ * for packet capture mode
+ * @soc: pointer to cdp_soc_t
+ * @pdev_id: pdev id
+ * @mon_ch: channel
+ *
+ * Return: None
+ */
+static void
+ol_txrx_pktcapture_record_channel(struct cdp_soc_t *soc,
+				  uint8_t pdev_id, int mon_ch)
+{
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+
+	if (!pdev) {
+		qdf_print("%s: pdev is NULL\n", __func__);
+		return;
+	}
+
+	htt_rx_mon_note_capture_channel(pdev->htt_pdev, mon_ch);
+}
+
 static struct cdp_pktcapture_ops ol_ops_pkt_capture = {
-	.txrx_pktcapture_cb_register = ol_txrx_register_pktcapture_cb,
-	.txrx_pktcapture_cb_deregister = ol_txrx_deregister_pktcapture_cb,
-	.txrx_pktcapture_set_mode = ol_txrx_set_pktcapture_mode,
-	.txrx_pktcapture_get_mode = ol_txrx_get_pktcapture_mode,
+	.txrx_pktcapture_record_channel = ol_txrx_pktcapture_record_channel,
 };
 #endif /* #ifdef WLAN_FEATURE_PKT_CAPTURE */
 
@@ -6419,9 +6812,7 @@ static struct cdp_ops ol_txrx_ops = {
 	.rx_offld_ops = &ol_rx_offld_ops,
 #endif
 	.bus_ops = &ol_ops_bus,
-#ifdef WLAN_FEATURE_DSRC
 	.ocb_ops = &ol_ops_ocb,
-#endif
 	.peer_ops = &ol_ops_peer,
 	.throttle_ops = &ol_ops_throttle,
 	.mob_stats_ops = &ol_ops_mob_stats,
@@ -6432,20 +6823,26 @@ static struct cdp_ops ol_txrx_ops = {
 #endif
 };
 
-ol_txrx_soc_handle ol_txrx_soc_attach(void *scn_handle,
-				      struct ol_if_ops *dp_ol_if_ops)
+/*
+ * Local prototype added to temporarily address warning caused by
+ * -Wmissing-prototypes. A more correct solution, namely to expose
+ * a prototype in an appropriate header file, will come later.
+ */
+struct cdp_soc_t *ol_txrx_soc_attach(void *scn_handle,
+				     struct ol_if_ops *dp_ol_if_ops);
+struct cdp_soc_t *ol_txrx_soc_attach(void *scn_handle,
+				     struct ol_if_ops *dp_ol_if_ops)
 {
-	struct ol_txrx_soc_t *soc;
+	struct cdp_soc_t *soc = qdf_mem_malloc(sizeof(struct cdp_soc_t));
 
-	soc = qdf_mem_malloc(sizeof(*soc));
-	if (!soc)
+	if (!soc) {
+		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
+			"%s: OL SOC memory allocation failed\n", __func__);
 		return NULL;
+	}
 
-	soc->psoc = scn_handle;
-	soc->cdp_soc.ops = &ol_txrx_ops;
-	soc->cdp_soc.ol_ops = dp_ol_if_ops;
-
-	return ol_txrx_soc_t_to_cdp_soc_t(soc);
+	soc->ops = &ol_txrx_ops;
+	return soc;
 }
 
 bool ol_txrx_get_new_htt_msg_format(struct ol_txrx_pdev_t *pdev)
@@ -6459,10 +6856,8 @@ bool ol_txrx_get_new_htt_msg_format(struct ol_txrx_pdev_t *pdev)
 
 void ol_txrx_set_new_htt_msg_format(uint8_t val)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if (!pdev) {
 		qdf_print("%s: pdev is NULL\n", __func__);
 		return;
@@ -6472,15 +6867,8 @@ void ol_txrx_set_new_htt_msg_format(uint8_t val)
 
 bool ol_txrx_get_peer_unmap_conf_support(void)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return false;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if (!pdev) {
 		qdf_print("%s: pdev is NULL\n", __func__);
 		return false;
@@ -6490,15 +6878,8 @@ bool ol_txrx_get_peer_unmap_conf_support(void)
 
 void ol_txrx_set_peer_unmap_conf_support(bool val)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if (!pdev) {
 		qdf_print("%s: pdev is NULL\n", __func__);
 		return;
@@ -6509,15 +6890,8 @@ void ol_txrx_set_peer_unmap_conf_support(bool val)
 #ifdef WLAN_FEATURE_TSF_PLUS
 bool ol_txrx_get_tx_compl_tsf64(void)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return false;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if (!pdev) {
 		qdf_print("%s: pdev is NULL\n", __func__);
 		return false;
@@ -6527,20 +6901,12 @@ bool ol_txrx_get_tx_compl_tsf64(void)
 
 void ol_txrx_set_tx_compl_tsf64(bool val)
 {
-	struct ol_txrx_soc_t *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	ol_txrx_pdev_handle pdev;
+	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
-	if (qdf_unlikely(!soc)) {
-		ol_txrx_err("soc is NULL");
-		return;
-	}
-
-	pdev = ol_txrx_get_pdev_from_pdev_id(soc, OL_TXRX_PDEV_ID);
 	if (!pdev) {
-		ol_txrx_err("pdev is NULL");
+		qdf_print("%s: pdev is NULL\n", __func__);
 		return;
 	}
-
 	pdev->enable_tx_compl_tsf64 = val;
 }
 #else

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -108,7 +108,6 @@ enum scan_source {
  * @scan_id: scan identifier used across host layers which is generated at WMI
  * @source: scan request originator (NL/Vendor scan)
  * @dev: net device (same as what is in scan_request)
- * @scan_start_timestamp: scan start time
  *
  * Scan request linked list element
  */
@@ -118,40 +117,20 @@ struct scan_req {
 	uint32_t scan_id;
 	uint8_t source;
 	struct net_device *dev;
-	qdf_time_t scan_start_timestamp;
 };
 
 /**
  * struct scan_params - Scan params
  * @source: scan request source
  * @default_ie: default scan ie
- * @vendor_ie: vendor ie
- * @priority: scan priority
  * @half_rate: Half rate flag
  * @quarter_rate: Quarter rate flag
- * @strict_pscan: strict passive scan flag
- * @dwell_time_active: Active dwell time. Ignored if zero or inapplicable.
- * @dwell_time_active_2g: 2.4 GHz specific active dwell time. Ignored if zero or
- * inapplicable.
- * @dwell_time_passive: Passive dwell time. Ignored if zero or inapplicable.
- * @dwell_time_active_6g: 6 GHz specific active dwell time. Ignored if zero or
- * inapplicable.
- * @dwell_time_passive_6g: 6 GHz specific passive dwell time. Ignored if zero or
- * inapplicable.
  */
 struct scan_params {
 	uint8_t source;
 	struct element_info default_ie;
-	struct element_info vendor_ie;
-	enum scan_priority priority;
 	bool half_rate;
 	bool quarter_rate;
-	bool strict_pscan;
-	uint32_t dwell_time_active;
-	uint32_t dwell_time_active_2g;
-	uint32_t dwell_time_passive;
-	uint32_t dwell_time_active_6g;
-	uint32_t dwell_time_passive_6g;
 };
 
 /**
@@ -161,7 +140,7 @@ struct scan_params {
  * @frame_len: frame length
  * @rssi: signal strength in mBm (100*dBm)
  * @boottime_ns: timestamp (CLOCK_BOOTTIME) when the information was received.
- * @per_chain_rssi: per chain rssi received
+ * @per_chain_snr: per chain snr received
  */
 struct wlan_cfg80211_inform_bss {
 	struct ieee80211_channel *chan;
@@ -169,7 +148,7 @@ struct wlan_cfg80211_inform_bss {
 	size_t frame_len;
 	int rssi;
 	uint64_t boottime_ns;
-	uint8_t per_chain_rssi[WLAN_MGMT_TXRX_HOST_MAX_ANTENNA];
+	uint8_t per_chain_snr[WLAN_MGMT_TXRX_HOST_MAX_ANTENNA];
 };
 
 
@@ -375,43 +354,5 @@ QDF_STATUS wlan_abort_scan(struct wlan_objmgr_pdev *pdev,
 void wlan_cfg80211_cleanup_scan_queue(struct wlan_objmgr_pdev *pdev,
 				      struct net_device *dev);
 
-/**
- * wlan_hdd_cfg80211_add_connected_pno_support() - Set connected PNO support
- * @wiphy: Pointer to wireless phy
- *
- * This function is used to set connected PNO support to kernel
- *
- * Return: None
- */
-#if defined(CFG80211_REPORT_BETTER_BSS_IN_SCHED_SCAN) || \
-	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
-void wlan_scan_cfg80211_add_connected_pno_support(struct wiphy *wiphy);
-
-#else
-static inline
-void wlan_scan_cfg80211_add_connected_pno_support(struct wiphy *wiphy)
-{
-}
-#endif
-
-#if ((LINUX_VERSION_CODE > KERNEL_VERSION(4, 4, 0)) || \
-		defined(CFG80211_MULTI_SCAN_PLAN_BACKPORT)) && \
-		defined(FEATURE_WLAN_SCAN_PNO)
-/**
- * hdd_config_sched_scan_plans_to_wiphy() - configure sched scan plans to wiphy
- * @wiphy: pointer to wiphy
- * @config: pointer to config
- *
- * Return: None
- */
-void wlan_config_sched_scan_plans_to_wiphy(struct wiphy *wiphy,
-					   struct wlan_objmgr_psoc *psoc);
-#else
-static inline
-void wlan_config_sched_scan_plans_to_wiphy(struct wiphy *wiphy,
-					   struct wlan_objmgr_psoc *psoc)
-{
-}
-#endif /* FEATURE_WLAN_SCAN_PNO */
 
 #endif

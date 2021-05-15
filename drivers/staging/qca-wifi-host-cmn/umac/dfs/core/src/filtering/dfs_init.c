@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, 2016-2018 The Linux Foundation. All rights reserved.
  * Copyright (c) 2002-2010, Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -22,9 +22,6 @@
 
 #include "../dfs.h"
 #include "wlan_dfs_lmac_api.h"
-#include <wlan_objmgr_vdev_obj.h>
-#include <wlan_reg_services_api.h>
-#include "wlan_dfs_utils_api.h"
 
 /**
  * dfs_reset_filtertype() - Reset filtertype.
@@ -40,7 +37,7 @@ static inline void dfs_reset_filtertype(
 	for (j = 0; j < ft->ft_numfilters; j++) {
 		rf = ft->ft_filters[j];
 		dl = &(rf->rf_dl);
-		if (dl) {
+		if (dl != NULL) {
 			qdf_mem_zero(dl, sizeof(*dl));
 			dl->dl_lastelem = (0xFFFFFFFF) & DFS_MAX_DL_MASK;
 		}
@@ -69,7 +66,7 @@ void dfs_reset_alldelaylines(struct wlan_dfs *dfs)
 	pl->pl_lastelem = DFS_MAX_PULSE_BUFFER_MASK;
 
 	for (i = 0; i < DFS_MAX_RADAR_TYPES; i++) {
-		if (dfs->dfs_radarf[i]) {
+		if (dfs->dfs_radarf[i] != NULL) {
 			ft = dfs->dfs_radarf[i];
 			dfs_reset_filtertype(ft);
 		}
@@ -355,8 +352,11 @@ int dfs_init_radar_filters(struct wlan_dfs *dfs,
 		 * Malloc can return NULL if numb5radars is zero. But we still
 		 * want to reset the delay lines.
 		 */
-		if (!(dfs->dfs_b5radars))
+		if (!(dfs->dfs_b5radars)) {
+			dfs_alert(dfs, WLAN_DEBUG_DFS_ALWAYS,
+					"cannot allocate memory for bin5 radars");
 			goto bad4;
+		}
 	}
 
 	for (n = 0; n < numb5radars; n++) {
@@ -406,129 +406,3 @@ void dfs_clear_stats(struct wlan_dfs *dfs)
 	dfs->wlan_dfs_stats.last_reset_tstamp =
 	    lmac_get_tsf64(dfs->dfs_pdev_obj);
 }
-
-bool dfs_check_intersect_excl(int low_freq, int high_freq, int center_freq)
-{
-	return ((center_freq > low_freq) && (center_freq < high_freq));
-}
-
-int dfs_check_etsi_overlap(int center_freq, int chan_width,
-			   int en302_502_freq_low, int en302_502_freq_high)
-{
-	int chan_freq_low;
-	int chan_freq_high;
-
-	/* Calculate low/high frequency ranges */
-	chan_freq_low = center_freq - (chan_width / 2);
-	chan_freq_high = center_freq + (chan_width / 2);
-
-	return ((chan_freq_high == en302_502_freq_low) ||
-		dfs_check_intersect_excl(en302_502_freq_low,
-					 en302_502_freq_high,
-					 chan_freq_low) ||
-		dfs_check_intersect_excl(en302_502_freq_low,
-					 en302_502_freq_high,
-					 chan_freq_high));
-}
-
-#ifdef CONFIG_CHAN_FREQ_API
-bool dfs_is_en302_502_applicable(struct wlan_dfs *dfs)
-{
-	int chan_freq;
-	int chan_width;
-	int overlap = 0;
-	struct wlan_objmgr_vdev *vdev = NULL;
-	struct wlan_channel *bss_chan = NULL;
-
-	/* Get centre frequency */
-	chan_freq = dfs->dfs_curchan->dfs_ch_mhz_freq_seg1;
-	vdev = wlan_objmgr_pdev_get_first_vdev(dfs->dfs_pdev_obj, WLAN_DFS_ID);
-	if (!vdev) {
-		dfs_err(dfs, WLAN_DEBUG_DFS_ALWAYS,  "vdev is NULL");
-		return false;
-	}
-
-	bss_chan = wlan_vdev_mlme_get_bss_chan(vdev);
-	wlan_objmgr_vdev_release_ref(vdev, WLAN_DFS_ID);
-	/* Grab width */
-	chan_width = wlan_reg_get_bw_value(bss_chan->ch_width);
-
-	if (WLAN_IS_CHAN_11AC_VHT80_80(dfs->dfs_curchan)) {
-		/* HT80_80 mode has 2 segments and each segment must
-		 * be checked for control channel first.
-		 */
-		overlap = dfs_check_etsi_overlap(
-				chan_freq, chan_width / 2,
-				ETSI_RADAR_EN302_502_FREQ_LOWER,
-				ETSI_RADAR_EN302_502_FREQ_UPPER);
-
-		/* check for extension channel */
-		chan_freq = dfs->dfs_curchan->dfs_ch_mhz_freq_seg2;
-
-		overlap += dfs_check_etsi_overlap(
-				chan_freq, chan_width / 2,
-				ETSI_RADAR_EN302_502_FREQ_LOWER,
-				ETSI_RADAR_EN302_502_FREQ_UPPER);
-	} else {
-		overlap = dfs_check_etsi_overlap(
-				chan_freq, chan_width,
-				ETSI_RADAR_EN302_502_FREQ_LOWER,
-				ETSI_RADAR_EN302_502_FREQ_UPPER);
-	}
-
-	return(wlan_reg_is_regdmn_en302502_applicable(dfs->dfs_pdev_obj) &&
-	       overlap);
-}
-#else
-#ifdef CONFIG_CHAN_NUM_API
-bool dfs_is_en302_502_applicable(struct wlan_dfs *dfs)
-{
-	int chan_freq;
-	int chan_width;
-	int overlap = 0;
-	struct wlan_objmgr_vdev *vdev = NULL;
-	struct wlan_channel *bss_chan = NULL;
-
-	/* Get centre frequency */
-	chan_freq = utils_dfs_chan_to_freq(
-			dfs->dfs_curchan->dfs_ch_vhtop_ch_freq_seg1);
-	vdev = wlan_objmgr_pdev_get_first_vdev(dfs->dfs_pdev_obj, WLAN_DFS_ID);
-	if (!vdev) {
-		dfs_err(dfs, WLAN_DEBUG_DFS_ALWAYS,  "vdev is NULL");
-		return false;
-	}
-
-	bss_chan = wlan_vdev_mlme_get_bss_chan(vdev);
-	wlan_objmgr_vdev_release_ref(vdev, WLAN_DFS_ID);
-	/* Grab width */
-	chan_width = wlan_reg_get_bw_value(bss_chan->ch_width);
-
-	if (WLAN_IS_CHAN_11AC_VHT80_80(dfs->dfs_curchan)) {
-		/* HT80_80 mode has 2 segments and each segment must
-		 * be checked for control channel first.
-		 */
-		overlap = dfs_check_etsi_overlap(
-				chan_freq, chan_width / 2,
-				ETSI_RADAR_EN302_502_FREQ_LOWER,
-				ETSI_RADAR_EN302_502_FREQ_UPPER);
-
-		/* check for extension channel */
-		chan_freq = utils_dfs_chan_to_freq(
-				dfs->dfs_curchan->dfs_ch_vhtop_ch_freq_seg2);
-
-		overlap += dfs_check_etsi_overlap(
-				chan_freq, chan_width / 2,
-				ETSI_RADAR_EN302_502_FREQ_LOWER,
-				ETSI_RADAR_EN302_502_FREQ_UPPER);
-	} else {
-		overlap = dfs_check_etsi_overlap(
-				chan_freq, chan_width,
-				ETSI_RADAR_EN302_502_FREQ_LOWER,
-				ETSI_RADAR_EN302_502_FREQ_UPPER);
-	}
-
-	return(wlan_reg_is_regdmn_en302502_applicable(dfs->dfs_pdev_obj) &&
-	       overlap);
-}
-#endif
-#endif

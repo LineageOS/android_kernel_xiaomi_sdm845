@@ -31,16 +31,6 @@
 #define WLAN_HDD_GET_DEV_NAME(adapter) ((adapter)->dev->name)
 
 /**
- * hdd_periodic_sta_stats_config() - Initialize periodic stats configuration
- * @config: Pointer to hdd configuration
- * @psoc: Pointer to psoc
- *
- * Return: none
- */
-void hdd_periodic_sta_stats_config(struct hdd_config *config,
-				   struct wlan_objmgr_psoc *psoc);
-
-/**
  * hdd_periodic_sta_stats_init() - Initialize periodic stats display flag
  * @adapter: Pointer to the station adapter
  *
@@ -91,10 +81,6 @@ void hdd_periodic_sta_stats_mutex_destroy(struct hdd_adapter *adapter);
 #else
 static inline void
 hdd_periodic_sta_stats_display(struct hdd_context *hdd_ctx) {}
-
-static inline void
-hdd_periodic_sta_stats_config(struct hdd_config *config,
-			      struct wlan_objmgr_psoc *psoc) {}
 
 static inline void hdd_periodic_sta_stats_start(struct hdd_adapter *adapter) {}
 

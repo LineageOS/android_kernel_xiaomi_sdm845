@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -24,7 +24,6 @@
 #include <cds_sched.h>
 #include <cds_utils.h>
 #include "wlan_hdd_rx_monitor.h"
-#include "ol_txrx.h"
 
 /**
  * hdd_rx_monitor_callback(): Callback function for receive monitor mode
@@ -58,7 +57,7 @@ void hdd_rx_monitor_callback(ol_osif_vdev_handle context,
 
 	/* walk the chain until all are processed */
 	skb = (struct sk_buff *)rxbuf;
-	while (skb) {
+	while (NULL != skb) {
 		skb_next = skb->next;
 		skb->dev = adapter->dev;
 
@@ -121,13 +120,12 @@ void hdd_monitor_set_rx_monitor_cb(struct ol_txrx_ops *txrx,
 int hdd_enable_monitor_mode(struct net_device *dev)
 {
 	void *soc = cds_get_context(QDF_MODULE_ID_SOC);
-	uint8_t vdev_id;
+	void *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
+	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 
 	hdd_enter_dev(dev);
 
-	vdev_id = cdp_get_mon_vdev_from_pdev(soc, OL_TXRX_PDEV_ID);
-	if (vdev_id < 0)
-		return -EINVAL;
-
-	return cdp_set_monitor_mode(soc, vdev_id, false);
+	return cdp_set_monitor_mode(soc,
+			(struct cdp_vdev *)cdp_get_vdev_from_vdev_id(soc,
+			(struct cdp_pdev *)pdev, adapter->session_id), false);
 }

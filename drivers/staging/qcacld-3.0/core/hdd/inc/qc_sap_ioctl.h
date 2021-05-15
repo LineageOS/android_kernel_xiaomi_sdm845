@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -23,13 +23,17 @@
  * QCSAP ioctls.
  */
 
+#define QCSAP_ADDR_LEN  6
+
+typedef uint8_t qcmacaddr[QCSAP_ADDR_LEN];
+
 /*
  * Channel List Info
  */
 
 struct channel_list_info {
 	uint8_t num_channels;
-	uint8_t channels[CFG_VALID_CHANNEL_LIST_LEN];
+	uint8_t channels[WNI_CFG_VALID_CHANNEL_LIST_LEN];
 };
 
 #ifdef __linux__
@@ -58,8 +62,7 @@ struct channel_list_info {
 #define QCSAP_PRIV_GET_CHAR_SET_NONE   (SIOCIWFIRSTPRIV + 13)
 #define QCSAP_GET_STATS 1
 #define QCSAP_LIST_FW_PROFILE 2
-
-/* (SIOCIWFIRSTPRIV + 14) is unused */
+#define QCSAP_IOCTL_CLR_STATS         (SIOCIWFIRSTPRIV + 14)
 
 #define QCSAP_IOCTL_PRIV_SET_THREE_INT_GET_NONE (SIOCIWFIRSTPRIV + 15)
 #define WE_SET_WLAN_DBG 1
@@ -87,8 +90,6 @@ struct channel_list_info {
  */
 #define WE_SET_CHAN_AVOID 21
 
-#define WE_SET_THERMAL_THROTTLE_CFG     27
-
 #define WE_P2P_NOA_CMD  2
 
 #define QCSAP_IOCTL_MODIFY_ACL          (SIOCIWFIRSTPRIV + 18)
@@ -97,23 +98,20 @@ struct channel_list_info {
 #define QCSAP_IOCTL_GET_STA_INFO        (SIOCIWFIRSTPRIV + 21)
 #define QCSAP_IOCTL_SET_MAX_TX_POWER    (SIOCIWFIRSTPRIV + 22)
 #define QCSAP_IOCTL_GET_INI_CFG         (SIOCIWFIRSTPRIV + 25)
-
+#define QCSAP_IOCTL_SET_INI_CFG         (SIOCIWFIRSTPRIV + 26)
 #define QCSAP_IOCTL_SET_TWO_INT_GET_NONE (SIOCIWFIRSTPRIV + 28)
-/* QCSAP_IOCTL_SET_TWO_INT_GET_NONE sub commands */
 #define QCSAP_IOCTL_SET_FW_CRASH_INJECT 1
 #define QCSAP_IOCTL_DUMP_DP_TRACE_LEVEL 2
 #define QCSAP_ENABLE_FW_PROFILE          3
 #define QCSAP_SET_FW_PROFILE_HIST_INTVL  4
+
 /* Private sub-ioctl for initiating WoW suspend without Apps suspend */
 #define QCSAP_SET_WLAN_SUSPEND  5
 #define QCSAP_SET_WLAN_RESUME   6
-#define QCSAP_SET_BA_AGEING_TIMEOUT 7
-
-#define QCSAP_IOCTL_PRIV_GET_RSSI       (SIOCIWFIRSTPRIV + 29)
-#define QCSAP_IOCTL_PRIV_GET_SOFTAP_LINK_SPEED (SIOCIWFIRSTPRIV + 31)
-#define QCSAP_IOCTL_GET_BA_AGEING_TIMEOUT (SIOCIWFIRSTPRIV + 32)
 
 #define MAX_VAR_ARGS         7
+#define QCSAP_IOCTL_PRIV_GET_RSSI       (SIOCIWFIRSTPRIV + 29)
+#define QCSAP_IOCTL_PRIV_GET_SOFTAP_LINK_SPEED (SIOCIWFIRSTPRIV + 31)
 
 #define QCSAP_IOCTL_MAX_STR_LEN 1024
 
@@ -226,21 +224,17 @@ enum {
 	QCSAP_PARAM_CHAN_WIDTH,
 	QCSAP_PARAM_SET_TXRX_STATS,
 	QCASAP_SET_11AX_RATE,
-	QCASAP_SET_PEER_RATE, /* Not Supported */
+	QCASAP_SET_PEER_RATE,
 	QCASAP_PARAM_DCM,
 	QCASAP_PARAM_RANGE_EXT,
 	QCSAP_SET_DEFAULT_AMPDU,
 	QCSAP_ENABLE_RTS_BURSTING,
 	QCASAP_SET_HE_BSS_COLOR,
-	QCSAP_SET_BTCOEX_MODE,
-	QCSAP_SET_BTCOEX_LOW_RSSI_THRESHOLD,
 };
 
-int iw_get_channel_list_with_cc(struct net_device *dev,
-				mac_handle_t mac_handle,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu,
-				char *extra);
+int iw_get_channel_list(struct net_device *dev,
+		struct iw_request_info *info,
+		union iwreq_data *wrqu, char *extra);
 
 #endif /* __linux__ */
 

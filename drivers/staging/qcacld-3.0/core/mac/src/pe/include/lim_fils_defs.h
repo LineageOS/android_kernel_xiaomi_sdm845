@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -19,6 +19,9 @@
 #define FILS_EAP_TLV_MAX_DATA_LEN 255
 #define FILS_SHA256_128_AUTH_TAG 16
 #define FILS_SHA256_256_AUTH_TAG 32
+
+#define FILS_SHA256_CRYPTO_TYPE "hmac(sha256)"
+#define FILS_SHA384_CRYPTO_TYPE "hmac(sha384)"
 
 /* RFC 6696 */
 #define RMSK_LABEL "Re-authentication Master Session Key@ietf.org"
@@ -80,6 +83,8 @@
 #define FILS_SHA256_Q_LEN 32
 #define FILS_SHA384_Q_LEN 48
 
+#define PMKID_LEN 16
+
 #define MAX_PRF_INTERATIONS_COUNT 255
 
 /* 9.4.2.180 FILS Session element */
@@ -96,6 +101,8 @@
 /*9.4.2.188 FILS Wrapped Data element */
 #define SIR_FILS_WRAPPED_DATA_MAX_SIZE 255
 #define SIR_FILS_WRAPPED_DATA_EXT_EID   8
+
+#define MAX_IE_LENGTH 255
 
 /* RFC 6696 5.3.1: EAP-Initiate/Re-auth-Start Packet */
 #define SIR_FILS_EAP_REAUTH_PACKET_TYPE 1
@@ -348,7 +355,7 @@ struct pe_fils_session {
 	uint16_t sequence_number;
 	uint8_t fils_session[SIR_FILS_SESSION_LENGTH];
 	uint8_t fils_nonce[SIR_FILS_NONCE_LENGTH];
-	uint8_t rsn_ie[WLAN_MAX_IE_LEN];
+	uint8_t rsn_ie[MAX_IE_LENGTH];
 	uint8_t rsn_ie_len;
 	bool group_mgmt_cipher_present;
 	struct mac_ft_ie ft_ie;

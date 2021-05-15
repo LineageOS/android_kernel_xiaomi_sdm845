@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -52,7 +52,7 @@ static QDF_STATUS wlan_objmgr_psoc_object_status(
 		 * break
 		 */
 		else if (psoc->obj_status[id] == QDF_STATUS_COMP_ASYNC) {
-			if (!psoc->soc_comp_priv_obj[id]) {
+			if (psoc->soc_comp_priv_obj[id] == NULL) {
 				status = QDF_STATUS_COMP_ASYNC;
 				break;
 			}
@@ -119,9 +119,10 @@ struct wlan_objmgr_psoc *wlan_objmgr_psoc_obj_create(uint32_t phy_version,
 	void *arg;
 
 	psoc = qdf_mem_malloc(sizeof(*psoc));
-	if (!psoc)
+	if (psoc == NULL) {
+		obj_mgr_err("PSOC allocation failed");
 		return NULL;
-
+	}
 	psoc->obj_state = WLAN_OBJ_STATE_ALLOCATED;
 	qdf_spinlock_create(&psoc->psoc_lock);
 	/* Initialize with default values */
@@ -144,7 +145,7 @@ struct wlan_objmgr_psoc *wlan_objmgr_psoc_obj_create(uint32_t phy_version,
 	for (id = 0; id < WLAN_UMAC_MAX_COMPONENTS; id++) {
 		handler = g_umac_glb_obj->psoc_create_handler[id];
 		arg = g_umac_glb_obj->psoc_create_handler_arg[id];
-		if (handler)
+		if (handler != NULL)
 			psoc->obj_status[id] = handler(psoc, arg);
 		else
 			psoc->obj_status[id] = QDF_STATUS_COMP_DISABLED;
@@ -158,7 +159,7 @@ struct wlan_objmgr_psoc *wlan_objmgr_psoc_obj_create(uint32_t phy_version,
 		for (id = 0; id < WLAN_UMAC_MAX_COMPONENTS; id++) {
 			stat_handler = g_umac_glb_obj->psoc_status_handler[id];
 			arg = g_umac_glb_obj->psoc_status_handler_arg[id];
-			if (stat_handler)
+			if (stat_handler != NULL)
 				stat_handler(psoc, arg,
 					     QDF_STATUS_SUCCESS);
 		}
@@ -196,13 +197,12 @@ static QDF_STATUS wlan_objmgr_psoc_obj_destroy(struct wlan_objmgr_psoc *psoc)
 	QDF_STATUS obj_status;
 	void *arg;
 
-	if (!psoc) {
+	if (psoc == NULL) {
 		obj_mgr_err("psoc is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
 	wlan_objmgr_notify_destroy(psoc, WLAN_PSOC_OP);
 
-	wlan_print_psoc_info(psoc);
 	obj_mgr_info("Physically deleting psoc %d", psoc->soc_objmgr.psoc_id);
 
 	if (psoc->obj_state != WLAN_OBJ_STATE_LOGICALLY_DELETED) {
@@ -249,7 +249,7 @@ QDF_STATUS wlan_objmgr_psoc_obj_delete(struct wlan_objmgr_psoc *psoc)
 {
 	uint8_t print_idx;
 
-	if (!psoc) {
+	if (psoc == NULL) {
 		obj_mgr_err("psoc is NULL");
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -290,7 +290,7 @@ QDF_STATUS wlan_objmgr_psoc_component_obj_attach(
 
 	wlan_psoc_obj_lock(psoc);
 	/* If there is a valid entry, return failure */
-	if (psoc->soc_comp_priv_obj[id]) {
+	if (psoc->soc_comp_priv_obj[id] != NULL) {
 		wlan_psoc_obj_unlock(psoc);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -324,7 +324,7 @@ QDF_STATUS wlan_objmgr_psoc_component_obj_attach(
 		for (i = 0; i < WLAN_UMAC_MAX_COMPONENTS; i++) {
 			stat_handler = g_umac_glb_obj->psoc_status_handler[i];
 			arg = g_umac_glb_obj->psoc_status_handler_arg[i];
-			if (stat_handler)
+			if (stat_handler != NULL)
 				stat_handler(psoc, arg, obj_status);
 		}
 	}
@@ -427,7 +427,7 @@ QDF_STATUS wlan_objmgr_iterate_obj_list(
 		/* Iterate through PDEV list, invoke handler for each pdev */
 		for (obj_id = 0; obj_id < WLAN_UMAC_MAX_PDEVS; obj_id++) {
 			pdev = wlan_objmgr_get_pdev_by_id(psoc, obj_id, dbg_id);
-			if (pdev) {
+			if (pdev != NULL) {
 				handler(psoc, (void *)pdev, arg);
 				wlan_objmgr_pdev_release_ref(pdev, dbg_id);
 			}
@@ -439,7 +439,7 @@ QDF_STATUS wlan_objmgr_iterate_obj_list(
 		for (obj_id = 0; obj_id < max_vdev_cnt; obj_id++) {
 			vdev = wlan_objmgr_get_vdev_by_id_from_psoc(psoc,
 						obj_id, dbg_id);
-			if (vdev) {
+			if (vdev != NULL) {
 				handler(psoc, vdev, arg);
 				wlan_objmgr_vdev_release_ref(vdev, dbg_id);
 			}
@@ -498,7 +498,7 @@ QDF_STATUS wlan_objmgr_iterate_obj_list_all(
 		for (obj_id = 0; obj_id < WLAN_UMAC_MAX_PDEVS; obj_id++) {
 			pdev = wlan_objmgr_get_pdev_by_id_no_state(psoc,
 							obj_id, dbg_id);
-			if (pdev) {
+			if (pdev != NULL) {
 				handler(psoc, (void *)pdev, arg);
 				wlan_objmgr_pdev_release_ref(pdev, dbg_id);
 			}
@@ -510,7 +510,7 @@ QDF_STATUS wlan_objmgr_iterate_obj_list_all(
 		for (obj_id = 0; obj_id < max_vdev_cnt; obj_id++) {
 			vdev = wlan_objmgr_get_vdev_by_id_from_psoc_no_state(
 					psoc, obj_id, dbg_id);
-			if (vdev) {
+			if (vdev != NULL) {
 				handler(psoc, vdev, arg);
 				wlan_objmgr_vdev_release_ref(vdev, dbg_id);
 			}
@@ -584,7 +584,7 @@ static QDF_STATUS wlan_objmgr_iterate_obj_list_all_noref(
 		/* Iterate through PDEV list, invoke handler for each pdev */
 		for (obj_id = 0; obj_id < WLAN_UMAC_MAX_PDEVS; obj_id++) {
 			pdev = objmgr->wlan_pdev_list[obj_id];
-			if (pdev)
+			if (pdev != NULL)
 				handler(psoc, (void *)pdev, arg);
 		}
 		break;
@@ -593,7 +593,7 @@ static QDF_STATUS wlan_objmgr_iterate_obj_list_all_noref(
 		max_vdev_cnt = wlan_psoc_get_max_vdev_count(psoc);
 		for (obj_id = 0; obj_id < max_vdev_cnt; obj_id++) {
 			vdev = objmgr->wlan_vdev_list[obj_id];
-			if (vdev)
+			if (vdev != NULL)
 				handler(psoc, vdev, arg);
 		}
 		break;
@@ -683,7 +683,7 @@ QDF_STATUS wlan_objmgr_trigger_psoc_comp_priv_object_creation(
 	/* If component object is already created, delete old
 	 * component object, then invoke creation
 	 */
-	if (psoc->soc_comp_priv_obj[id]) {
+	if (psoc->soc_comp_priv_obj[id] != NULL) {
 		wlan_psoc_obj_unlock(psoc);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -691,7 +691,7 @@ QDF_STATUS wlan_objmgr_trigger_psoc_comp_priv_object_creation(
 	/* Invoke registered create handlers */
 	handler = g_umac_glb_obj->psoc_create_handler[id];
 	arg = g_umac_glb_obj->psoc_create_handler_arg[id];
-	if (handler)
+	if (handler != NULL)
 		psoc->obj_status[id] = handler(psoc, arg);
 	else
 		return QDF_STATUS_E_FAILURE;
@@ -724,7 +724,7 @@ QDF_STATUS wlan_objmgr_trigger_psoc_comp_priv_object_deletion(
 
 	wlan_psoc_obj_lock(psoc);
 	/* Component object was never created, invalid operation */
-	if (!psoc->soc_comp_priv_obj[id]) {
+	if (psoc->soc_comp_priv_obj[id] == NULL) {
 		wlan_psoc_obj_unlock(psoc);
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -732,7 +732,7 @@ QDF_STATUS wlan_objmgr_trigger_psoc_comp_priv_object_deletion(
 	/* Invoke registered create handlers */
 	handler = g_umac_glb_obj->psoc_destroy_handler[id];
 	arg = g_umac_glb_obj->psoc_destroy_handler_arg[id];
-	if (handler)
+	if (handler != NULL)
 		psoc->obj_status[id] = handler(psoc, arg);
 	else
 		return QDF_STATUS_E_FAILURE;
@@ -828,7 +828,7 @@ struct wlan_objmgr_pdev *wlan_objmgr_get_pdev_by_id(
 	/* get pdev from pdev list */
 	pdev = objmgr->wlan_pdev_list[id];
 	/* Do not return object, if it is not CREATED state */
-	if (pdev) {
+	if (pdev != NULL) {
 		if (wlan_objmgr_pdev_try_get_ref(pdev, dbg_id) !=
 							QDF_STATUS_SUCCESS)
 			pdev = NULL;
@@ -856,7 +856,7 @@ struct wlan_objmgr_pdev *wlan_objmgr_get_pdev_by_id_no_state(
 	/* get pdev from pdev list */
 	pdev = objmgr->wlan_pdev_list[id];
 	/* Do not return object, if it is not CREATED state */
-	if (pdev)
+	if (pdev != NULL)
 		wlan_objmgr_pdev_get_ref(pdev, dbg_id);
 
 	wlan_psoc_obj_unlock(psoc);
@@ -942,163 +942,6 @@ QDF_STATUS wlan_objmgr_psoc_vdev_detach(struct wlan_objmgr_psoc *psoc,
 	return QDF_STATUS_SUCCESS;
 }
 
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc_debug(
-			struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
-			wlan_objmgr_ref_dbgid dbg_id,
-			const char *func, int line)
-{
-	struct wlan_objmgr_vdev *vdev;
-
-	/* if PSOC is NULL, return */
-	if (!psoc)
-		return NULL;
-	/* vdev id is invalid */
-	if (vdev_id >= wlan_psoc_get_max_vdev_count(psoc))
-		return NULL;
-
-	wlan_psoc_obj_lock(psoc);
-	/* retrieve vdev pointer from vdev list */
-	vdev = psoc->soc_objmgr.wlan_vdev_list[vdev_id];
-	if (vdev) {
-		if (wlan_objmgr_vdev_try_get_ref_debug(vdev, dbg_id,
-						       func, line) !=
-			QDF_STATUS_SUCCESS)
-			vdev = NULL;
-	}
-	wlan_psoc_obj_unlock(psoc);
-
-	return vdev;
-}
-
-qdf_export_symbol(wlan_objmgr_get_vdev_by_id_from_psoc_debug);
-#else
-struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc(
-			struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
-			wlan_objmgr_ref_dbgid dbg_id)
-{
-	struct wlan_objmgr_vdev *vdev;
-
-	/* if PSOC is NULL, return */
-	if (!psoc)
-		return NULL;
-	/* vdev id is invalid */
-	if (vdev_id >= wlan_psoc_get_max_vdev_count(psoc))
-		return NULL;
-
-	wlan_psoc_obj_lock(psoc);
-	/* retrieve vdev pointer from vdev list */
-	vdev = psoc->soc_objmgr.wlan_vdev_list[vdev_id];
-	if (vdev) {
-		if (wlan_objmgr_vdev_try_get_ref(vdev, dbg_id) !=
-							QDF_STATUS_SUCCESS)
-			vdev = NULL;
-	}
-	wlan_psoc_obj_unlock(psoc);
-
-	return vdev;
-}
-
-qdf_export_symbol(wlan_objmgr_get_vdev_by_id_from_psoc);
-#endif
-
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc_no_state_debug(
-			struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
-			wlan_objmgr_ref_dbgid dbg_id,
-			const char *func, int line)
-{
-	struct wlan_objmgr_vdev *vdev;
-
-	/* if PSOC is NULL, return */
-	if (!psoc)
-		return NULL;
-	/* vdev id is invalid */
-	if (vdev_id >= wlan_psoc_get_max_vdev_count(psoc))
-		return NULL;
-
-	wlan_psoc_obj_lock(psoc);
-	/* retrieve vdev pointer from vdev list */
-	vdev = psoc->soc_objmgr.wlan_vdev_list[vdev_id];
-	if (vdev)
-		wlan_objmgr_vdev_get_ref_debug(vdev, dbg_id, func, line);
-
-	wlan_psoc_obj_unlock(psoc);
-
-	return vdev;
-}
-
-qdf_export_symbol(wlan_objmgr_get_vdev_by_id_from_psoc_no_state_debug);
-#else
-struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc_no_state(
-			struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
-			wlan_objmgr_ref_dbgid dbg_id)
-{
-	struct wlan_objmgr_vdev *vdev;
-
-	/* if PSOC is NULL, return */
-	if (!psoc)
-		return NULL;
-	/* vdev id is invalid */
-	if (vdev_id >= wlan_psoc_get_max_vdev_count(psoc))
-		return NULL;
-
-	wlan_psoc_obj_lock(psoc);
-	/* retrieve vdev pointer from vdev list */
-	vdev = psoc->soc_objmgr.wlan_vdev_list[vdev_id];
-	if (vdev)
-		wlan_objmgr_vdev_get_ref(vdev, dbg_id);
-
-	wlan_psoc_obj_unlock(psoc);
-
-	return vdev;
-}
-
-qdf_export_symbol(wlan_objmgr_get_vdev_by_id_from_psoc_no_state);
-#endif
-
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_opmode_from_psoc_debug(
-			struct wlan_objmgr_psoc *psoc,
-			enum QDF_OPMODE opmode,
-			wlan_objmgr_ref_dbgid dbg_id,
-			const char *func, int line)
-{
-	struct wlan_objmgr_vdev *vdev = NULL;
-	int vdev_cnt = 0;
-	uint16_t max_vdev_cnt;
-
-	/* if PSOC is NULL, return */
-	if (!psoc)
-		return NULL;
-
-	wlan_psoc_obj_lock(psoc);
-
-	max_vdev_cnt = wlan_psoc_get_max_vdev_count(psoc);
-	/* retrieve vdev pointer from vdev list */
-	while (vdev_cnt < max_vdev_cnt) {
-		vdev = psoc->soc_objmgr.wlan_vdev_list[vdev_cnt];
-		vdev_cnt++;
-		if (!vdev)
-			continue;
-		wlan_vdev_obj_lock(vdev);
-		if (vdev->vdev_mlme.vdev_opmode == opmode) {
-			wlan_vdev_obj_unlock(vdev);
-			if (wlan_objmgr_vdev_try_get_ref_debug(vdev, dbg_id,
-							       func, line) !=
-				QDF_STATUS_SUCCESS) {
-				vdev = NULL;
-				continue;
-			}
-			break;
-		}
-		wlan_vdev_obj_unlock(vdev);
-	}
-	wlan_psoc_obj_unlock(psoc);
-
-	return vdev;
-}
-#else
 struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_opmode_from_psoc(
 			struct wlan_objmgr_psoc *psoc,
 			enum QDF_OPMODE opmode,
@@ -1109,7 +952,7 @@ struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_opmode_from_psoc(
 	uint16_t max_vdev_cnt;
 
 	/* if PSOC is NULL, return */
-	if (!psoc)
+	if (psoc == NULL)
 		return NULL;
 
 	wlan_psoc_obj_lock(psoc);
@@ -1119,7 +962,7 @@ struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_opmode_from_psoc(
 	while (vdev_cnt < max_vdev_cnt) {
 		vdev = psoc->soc_objmgr.wlan_vdev_list[vdev_cnt];
 		vdev_cnt++;
-		if (!vdev)
+		if (vdev == NULL)
 			continue;
 		wlan_vdev_obj_lock(vdev);
 		if (vdev->vdev_mlme.vdev_opmode == opmode) {
@@ -1137,39 +980,59 @@ struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_opmode_from_psoc(
 
 	return vdev;
 }
-#endif
 
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_macaddr_from_psoc_debug(
-		struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
-		uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id,
-		const char *func, int line)
+struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc(
+			struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
+			wlan_objmgr_ref_dbgid dbg_id)
 {
 	struct wlan_objmgr_vdev *vdev;
-	struct wlan_objmgr_pdev *pdev;
 
 	/* if PSOC is NULL, return */
-	if (!psoc)
+	if (psoc == NULL)
+		return NULL;
+	/* vdev id is invalid */
+	if (vdev_id >= wlan_psoc_get_max_vdev_count(psoc))
 		return NULL;
 
-	if (!macaddr)
-		return NULL;
-
-	pdev = wlan_objmgr_get_pdev_by_id(psoc, pdev_id, dbg_id);
-	if (!pdev) {
-		obj_mgr_err("pdev is null");
-		return NULL;
+	wlan_psoc_obj_lock(psoc);
+	/* retrieve vdev pointer from vdev list */
+	vdev = psoc->soc_objmgr.wlan_vdev_list[vdev_id];
+	if (vdev != NULL) {
+		if (wlan_objmgr_vdev_try_get_ref(vdev, dbg_id) !=
+							QDF_STATUS_SUCCESS)
+			vdev = NULL;
 	}
-	vdev = wlan_objmgr_get_vdev_by_macaddr_from_pdev_debug(pdev, macaddr,
-							       dbg_id,
-							       func, line);
-	wlan_objmgr_pdev_release_ref(pdev, dbg_id);
+	wlan_psoc_obj_unlock(psoc);
 
 	return vdev;
 }
+qdf_export_symbol(wlan_objmgr_get_vdev_by_id_from_psoc);
 
-qdf_export_symbol(wlan_objmgr_get_vdev_by_macaddr_from_psoc_debug);
-#else
+struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_id_from_psoc_no_state(
+			struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
+			wlan_objmgr_ref_dbgid dbg_id)
+{
+	struct wlan_objmgr_vdev *vdev;
+
+	/* if PSOC is NULL, return */
+	if (psoc == NULL)
+		return NULL;
+	/* vdev id is invalid */
+	if (vdev_id >= wlan_psoc_get_max_vdev_count(psoc))
+		return NULL;
+
+	wlan_psoc_obj_lock(psoc);
+	/* retrieve vdev pointer from vdev list */
+	vdev = psoc->soc_objmgr.wlan_vdev_list[vdev_id];
+	if (vdev != NULL)
+		wlan_objmgr_vdev_get_ref(vdev, dbg_id);
+
+	wlan_psoc_obj_unlock(psoc);
+
+	return vdev;
+}
+qdf_export_symbol(wlan_objmgr_get_vdev_by_id_from_psoc_no_state);
+
 struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_macaddr_from_psoc(
 		struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 		uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id)
@@ -1178,7 +1041,7 @@ struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_macaddr_from_psoc(
 	struct wlan_objmgr_pdev *pdev;
 
 	/* if PSOC is NULL, return */
-	if (!psoc)
+	if (psoc == NULL)
 		return NULL;
 
 	if (!macaddr)
@@ -1194,44 +1057,8 @@ struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_macaddr_from_psoc(
 
 	return vdev;
 }
-
 qdf_export_symbol(wlan_objmgr_get_vdev_by_macaddr_from_psoc);
-#endif
 
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_vdev
-	*wlan_objmgr_get_vdev_by_macaddr_from_psoc_no_state_debug(
-		struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
-		uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id,
-		const char *func, int line)
-{
-	struct wlan_objmgr_vdev *vdev;
-	struct wlan_objmgr_pdev *pdev;
-
-	/* if PSOC is NULL, return */
-	if (!psoc)
-		return NULL;
-
-	if (!macaddr)
-		return NULL;
-
-	pdev = wlan_objmgr_get_pdev_by_id(psoc, pdev_id, dbg_id);
-	if (!pdev) {
-		obj_mgr_err("pdev is null");
-		return NULL;
-	}
-	vdev = wlan_objmgr_get_vdev_by_macaddr_from_pdev_no_state_debug(pdev,
-									macaddr,
-									dbg_id,
-									func,
-									line);
-	wlan_objmgr_pdev_release_ref(pdev, dbg_id);
-
-	return vdev;
-}
-
-qdf_export_symbol(wlan_objmgr_get_vdev_by_macaddr_from_psoc_no_state_debug);
-#else
 struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_macaddr_from_psoc_no_state(
 		struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 		uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id)
@@ -1240,7 +1067,7 @@ struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_macaddr_from_psoc_no_state(
 	struct wlan_objmgr_pdev *pdev;
 
 	/* if PSOC is NULL, return */
-	if (!psoc)
+	if (psoc == NULL)
 		return NULL;
 
 	if (!macaddr)
@@ -1256,9 +1083,7 @@ struct wlan_objmgr_vdev *wlan_objmgr_get_vdev_by_macaddr_from_psoc_no_state(
 
 	return vdev;
 }
-
 qdf_export_symbol(wlan_objmgr_get_vdev_by_macaddr_from_psoc_no_state);
-#endif
 
 static void wlan_obj_psoc_peerlist_add_tail(qdf_list_t *obj_list,
 				struct wlan_objmgr_peer *obj)
@@ -1272,7 +1097,7 @@ static QDF_STATUS wlan_obj_psoc_peerlist_remove_peer(
 {
 	qdf_list_node_t *psoc_node = NULL;
 
-	if (!peer)
+	if (peer == NULL)
 		return QDF_STATUS_E_FAILURE;
 	/* get vdev list node element */
 	psoc_node = &peer->psoc_peer;
@@ -1296,37 +1121,73 @@ static QDF_STATUS wlan_peer_bssid_match(struct wlan_objmgr_peer *peer,
 }
 
 /**
- * wlan_obj_psoc_peerlist_get_peer_by_pdev_id() - get peer from
- *                                                      psoc peer list
+ * wlan_obj_psoc_peerlist_get_peer_logically_deleted() - get peer
+ * from psoc peer list
  * @psoc: PSOC object
  * @macaddr: MAC address
- * #pdev_id: Pdev id
  *
- * API to finds peer object pointer by MAC addr and pdev id from hash list
+ * API to finds peer object pointer of logically deleted peer
  *
  * Return: peer pointer
  *         NULL on FAILURE
  */
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-static struct wlan_objmgr_peer
-	*wlan_obj_psoc_peerlist_get_peer_by_pdev_id_debug(
+static struct wlan_objmgr_peer *
+			wlan_obj_psoc_peerlist_get_peer_logically_deleted(
 				qdf_list_t *obj_list, uint8_t *macaddr,
-				uint8_t pdev_id, wlan_objmgr_ref_dbgid dbg_id,
-				const char *func, int line)
+				wlan_objmgr_ref_dbgid dbg_id)
 {
 	struct wlan_objmgr_peer *peer;
 	struct wlan_objmgr_peer *peer_temp;
 
 	/* Iterate through hash list to get the peer */
 	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
+	while (peer != NULL) {
 		/* For peer, macaddr is key */
-		if ((WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-			== QDF_STATUS_SUCCESS) &&
-				(wlan_peer_get_pdev_id(peer) == pdev_id)) {
-			if (wlan_objmgr_peer_try_get_ref_debug(peer, dbg_id,
-							       func, line) ==
-			    QDF_STATUS_SUCCESS) {
+		if (WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
+			== QDF_STATUS_SUCCESS) {
+			/* Return peer in logically deleted state */
+			if (peer->obj_state ==
+					WLAN_OBJ_STATE_LOGICALLY_DELETED) {
+				wlan_objmgr_peer_get_ref(peer, dbg_id);
+
+				return peer;
+			}
+
+		}
+		/* Move to next peer */
+		peer_temp = peer;
+		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
+	}
+
+	/* Not found, return NULL */
+	return NULL;
+}
+
+/**
+ * wlan_obj_psoc_peerlist_get_peer() - get peer from psoc peer list
+ * @psoc: PSOC object
+ * @macaddr: MAC address
+ *
+ * API to finds peer object pointer by MAC addr from hash list
+ *
+ * Return: peer pointer
+ *         NULL on FAILURE
+ */
+static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer(
+		qdf_list_t *obj_list, uint8_t *macaddr,
+		wlan_objmgr_ref_dbgid dbg_id)
+{
+	struct wlan_objmgr_peer *peer;
+	struct wlan_objmgr_peer *peer_temp;
+
+	/* Iterate through hash list to get the peer */
+	peer = wlan_psoc_peer_list_peek_head(obj_list);
+	while (peer != NULL) {
+		/* For peer, macaddr is key */
+		if (WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
+				== QDF_STATUS_SUCCESS) {
+			if (wlan_objmgr_peer_try_get_ref(peer, dbg_id) ==
+					QDF_STATUS_SUCCESS) {
 				return peer;
 			}
 		}
@@ -1338,7 +1199,18 @@ static struct wlan_objmgr_peer
 	/* Not found, return NULL */
 	return NULL;
 }
-#else
+
+/**
+ * wlan_obj_psoc_peerlist_get_peer_by_pdev_id() - get peer from psoc peer list
+ * @psoc: PSOC object
+ * @macaddr: MAC address
+ * #pdev_id: Pdev id
+ *
+ * API to finds peer object pointer by MAC addr and pdev id from hash list
+ *
+ * Return: peer pointer
+ *         NULL on FAILURE
+ */
 static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer_by_pdev_id(
 				qdf_list_t *obj_list, uint8_t *macaddr,
 				uint8_t pdev_id, wlan_objmgr_ref_dbgid dbg_id)
@@ -1348,7 +1220,7 @@ static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer_by_pdev_id(
 
 	/* Iterate through hash list to get the peer */
 	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
+	while (peer != NULL) {
 		/* For peer, macaddr is key */
 		if ((WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
 			== QDF_STATUS_SUCCESS) &&
@@ -1366,237 +1238,140 @@ static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer_by_pdev_id(
 	/* Not found, return NULL */
 	return NULL;
 }
-#endif
+
+static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer_no_state(
+				qdf_list_t *obj_list, uint8_t *macaddr,
+				uint8_t pdev_id, wlan_objmgr_ref_dbgid dbg_id)
+{
+	struct wlan_objmgr_peer *peer;
+	struct wlan_objmgr_peer *peer_temp;
+
+	/* Iterate through hash list to get the peer */
+	peer = wlan_psoc_peer_list_peek_head(obj_list);
+	while (peer != NULL) {
+		/* For peer, macaddr and pdev_id is key */
+		if ((WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
+			== QDF_STATUS_SUCCESS) &&
+				(wlan_peer_get_pdev_id(peer) == pdev_id)) {
+			wlan_objmgr_peer_get_ref(peer, dbg_id);
+
+			return peer;
+		}
+		/* Move to next peer */
+		peer_temp = peer;
+		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
+	}
+
+	/* Not found, return NULL */
+	return NULL;
+}
 
 /**
- * wlan_obj_psoc_peerlist_get_peer() - get peer from psoc peer list
- * @psoc: PSOC object
+ * wlan_obj_psoc_populate_logically_del_peerlist_by_mac_n_bssid() - get peer
+ *                                           from psoc peer list using
+ *                                           mac and vdev self mac
+ * @obj_list: peer object list
  * @macaddr: MAC address
+ * @bssid: BSSID address
+ * @dbg_id: id of the caller
  *
- * API to finds peer object pointer by MAC addr from hash list
+ * API to finds peer object pointer by MAC addr and BSSID from
+ * peer hash list for a node which is in logically deleted state,
+ * bssid check is done on matching peer
  *
- * Return: peer pointer
+ * Caller to free the list allocated in this function
+ *
+ * Return: list of peer pointers
  *         NULL on FAILURE
  */
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer_debug(
-		qdf_list_t *obj_list, uint8_t *macaddr,
-		wlan_objmgr_ref_dbgid dbg_id,
-		const char *func, int line)
-{
-	struct wlan_objmgr_peer *peer;
-	struct wlan_objmgr_peer *peer_temp;
-
-	/* Iterate through hash list to get the peer */
-	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
-		/* For peer, macaddr is key */
-		if (WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-				== QDF_STATUS_SUCCESS) {
-			if (wlan_objmgr_peer_try_get_ref_debug(peer, dbg_id,
-							       func, line) ==
-			    QDF_STATUS_SUCCESS) {
-				return peer;
-			}
-		}
-		/* Move to next peer */
-		peer_temp = peer;
-		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
-	}
-
-	/* Not found, return NULL */
-	return NULL;
-}
-#else
-static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer(
-		qdf_list_t *obj_list, uint8_t *macaddr,
-		wlan_objmgr_ref_dbgid dbg_id)
-{
-	struct wlan_objmgr_peer *peer;
-	struct wlan_objmgr_peer *peer_temp;
-
-	/* Iterate through hash list to get the peer */
-	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
-		/* For peer, macaddr is key */
-		if (WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-				== QDF_STATUS_SUCCESS) {
-			if (wlan_objmgr_peer_try_get_ref(peer, dbg_id) ==
-					QDF_STATUS_SUCCESS) {
-				return peer;
-			}
-		}
-		/* Move to next peer */
-		peer_temp = peer;
-		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
-	}
-
-	/* Not found, return NULL */
-	return NULL;
-}
-#endif
-
-/**
- * wlan_obj_psoc_peerlist_get_peer_logically_deleted() - get peer
- * from psoc peer list
- * @psoc: PSOC object
- * @macaddr: MAC address
- *
- * API to finds peer object pointer of logically deleted peer
- *
- * Return: peer pointer
- *         NULL on FAILURE
- */
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-static struct wlan_objmgr_peer *
-		wlan_obj_psoc_peerlist_get_peer_logically_deleted_debug(
+static qdf_list_t
+	*wlan_obj_psoc_populate_logically_del_peerlist_by_mac_n_bssid(
 				qdf_list_t *obj_list, uint8_t *macaddr,
-				wlan_objmgr_ref_dbgid dbg_id,
-				const char *func, int line)
-{
-	struct wlan_objmgr_peer *peer;
-	struct wlan_objmgr_peer *peer_temp;
-
-	/* Iterate through hash list to get the peer */
-	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
-		/* For peer, macaddr is key */
-		if (WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-			== QDF_STATUS_SUCCESS) {
-			/* Return peer in logically deleted state */
-			if (peer->obj_state ==
-					WLAN_OBJ_STATE_LOGICALLY_DELETED) {
-				wlan_objmgr_peer_get_ref_debug(peer, dbg_id,
-							       func, line);
-
-				return peer;
-			}
-
-		}
-		/* Move to next peer */
-		peer_temp = peer;
-		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
-	}
-
-	/* Not found, return NULL */
-	return NULL;
-}
-#else
-static struct wlan_objmgr_peer *
-			wlan_obj_psoc_peerlist_get_peer_logically_deleted(
-				qdf_list_t *obj_list, uint8_t *macaddr,
+				uint8_t *bssid, uint8_t pdev_id,
 				wlan_objmgr_ref_dbgid dbg_id)
 {
 	struct wlan_objmgr_peer *peer;
 	struct wlan_objmgr_peer *peer_temp;
+	struct wlan_logically_del_peer *peer_list = NULL;
+	qdf_list_t *logical_del_peer_list = NULL;
+	bool lock_released = false;
 
-	/* Iterate through hash list to get the peer */
-	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
-		/* For peer, macaddr is key */
-		if (WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-			== QDF_STATUS_SUCCESS) {
-			/* Return peer in logically deleted state */
-			if (peer->obj_state ==
-					WLAN_OBJ_STATE_LOGICALLY_DELETED) {
-				wlan_objmgr_peer_get_ref(peer, dbg_id);
-
-				return peer;
-			}
-		}
-		/* Move to next peer */
-		peer_temp = peer;
-		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
+	logical_del_peer_list = qdf_mem_malloc(sizeof(*logical_del_peer_list));
+	if (!logical_del_peer_list) {
+		obj_mgr_err("failed to allocate list");
+		return NULL;
 	}
 
-	/* Not found, return NULL */
-	return NULL;
-}
-#endif
-
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-static struct wlan_objmgr_peer
-		*wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid_no_state_debug(
-					qdf_list_t *obj_list, uint8_t *macaddr,
-					uint8_t *bssid,
-					uint8_t pdev_id,
-					wlan_objmgr_ref_dbgid dbg_id,
-					const char *func, int line)
-{
-	struct wlan_objmgr_peer *peer;
-	struct wlan_objmgr_peer *peer_temp;
+	qdf_list_create(logical_del_peer_list, WLAN_UMAC_PSOC_MAX_PEERS);
 
 	/* Iterate through hash list to get the peer */
 	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
-		/* For peer, macaddr is key */
-		if (WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-			== QDF_STATUS_SUCCESS) {
+	while (peer != NULL) {
+		wlan_peer_obj_lock(peer);
+		/* For peer, macaddr and pdev id are keys */
+		if ((WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
+			== QDF_STATUS_SUCCESS) &&
+				(wlan_peer_get_pdev_id(peer) == pdev_id)) {
 			/*
-			 *  BSSID match is requested by caller, check BSSID
+			 *  if BSSID not NULL,
+			 *  then match is requested by caller, check BSSID
 			 *  (vdev mac == bssid) --  return peer
 			 *  (vdev mac != bssid) --  perform next iteration
 			 */
-			if ((wlan_peer_bssid_match(peer, bssid) ==
-				QDF_STATUS_SUCCESS) &&
-				(wlan_peer_get_pdev_id(peer) == pdev_id)) {
-				wlan_objmgr_peer_get_ref_debug(peer, dbg_id,
-							       func, line);
+			if ((bssid == NULL) ||
+				(wlan_peer_bssid_match(peer, bssid) ==
+				 QDF_STATUS_SUCCESS)) {
+				/* Return peer in logically deleted state */
+				if ((peer->obj_state ==
+					WLAN_OBJ_STATE_LOGICALLY_DELETED) &&
+				     qdf_atomic_read(
+						&peer->peer_objmgr.ref_cnt)) {
 
-				return peer;
+					wlan_objmgr_peer_get_ref(peer, dbg_id);
+					wlan_peer_obj_unlock(peer);
+					lock_released = true;
+
+					peer_list =
+					qdf_mem_malloc(
+					sizeof(struct wlan_logically_del_peer));
+					if (peer_list == NULL) {
+						wlan_objmgr_peer_release_ref(peer, dbg_id);
+						/* Lock is already released */
+						obj_mgr_alert("Mem alloc failed");
+						WLAN_OBJMGR_BUG(0);
+						break;
+					}
+
+					peer_list->peer = peer;
+
+					qdf_list_insert_front(
+						logical_del_peer_list,
+							&peer_list->list);
+				}
 			}
 		}
+
+		if (!lock_released)
+			wlan_peer_obj_unlock(peer);
+
 		/* Move to next peer */
 		peer_temp = peer;
 		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
+		lock_released = false;
 	}
 
 	/* Not found, return NULL */
-	return NULL;
-}
-#else
-static struct wlan_objmgr_peer
-		*wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid_no_state(
-					qdf_list_t *obj_list, uint8_t *macaddr,
-					uint8_t *bssid,
-					uint8_t pdev_id,
-					wlan_objmgr_ref_dbgid dbg_id)
-{
-	struct wlan_objmgr_peer *peer;
-	struct wlan_objmgr_peer *peer_temp;
-
-	/* Iterate through hash list to get the peer */
-	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
-		/* For peer, macaddr is key */
-		if (WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-			== QDF_STATUS_SUCCESS) {
-			/*
-			 *  BSSID match is requested by caller, check BSSID
-			 *  (vdev mac == bssid) --  return peer
-			 *  (vdev mac != bssid) --  perform next iteration
-			 */
-			if ((wlan_peer_bssid_match(peer, bssid) ==
-				QDF_STATUS_SUCCESS) &&
-				(wlan_peer_get_pdev_id(peer) == pdev_id)) {
-				wlan_objmgr_peer_get_ref(peer, dbg_id);
-
-				return peer;
-			}
-		}
-		/* Move to next peer */
-		peer_temp = peer;
-		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
+	if (qdf_list_empty(logical_del_peer_list)) {
+		qdf_mem_free(logical_del_peer_list);
+		return NULL;
+	} else {
+		return logical_del_peer_list;
 	}
 
-	/* Not found, return NULL */
-	return NULL;
 }
-#endif
 
 /**
- * wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid() - get peer
- *                                                    from psoc peer
+ * wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid() - get peer from psoc peer
  *                                                    list using mac and vdev
  *                                                    self mac
  * @psoc: PSOC object
@@ -1609,48 +1384,6 @@ static struct wlan_objmgr_peer
  * Return: peer pointer
  *         NULL on FAILURE
  */
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-static struct wlan_objmgr_peer
-		*wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid_debug(
-					qdf_list_t *obj_list, uint8_t *macaddr,
-					uint8_t *bssid, uint8_t pdev_id,
-					wlan_objmgr_ref_dbgid dbg_id,
-					const char *func, int line)
-{
-	struct wlan_objmgr_peer *peer;
-	struct wlan_objmgr_peer *peer_temp;
-
-	/* Iterate through hash list to get the peer */
-	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
-		/* For peer, macaddr is key */
-		if (WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-			== QDF_STATUS_SUCCESS) {
-			/*
-			 *  BSSID match is requested by caller, check BSSID
-			 *  (vdev mac == bssid) --  return peer
-			 *  (vdev mac != bssid) --  perform next iteration
-			 */
-			if ((wlan_peer_bssid_match(peer, bssid) ==
-				QDF_STATUS_SUCCESS) &&
-				(wlan_peer_get_pdev_id(peer) == pdev_id)) {
-				if (wlan_objmgr_peer_try_get_ref_debug(peer,
-								       dbg_id,
-								       func,
-								       line)
-					== QDF_STATUS_SUCCESS) {
-					return peer;
-				}
-			}
-		}
-		/* Move to next peer */
-		peer_temp = peer;
-		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
-	}
-	/* Not found, return NULL */
-	return NULL;
-}
-#else
 static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid(
 					qdf_list_t *obj_list, uint8_t *macaddr,
 					uint8_t *bssid, uint8_t pdev_id,
@@ -1661,7 +1394,7 @@ static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid(
 
 	/* Iterate through hash list to get the peer */
 	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
+	while (peer != NULL) {
 		/* For peer, macaddr is key */
 		if (WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
 			== QDF_STATUS_SUCCESS) {
@@ -1686,28 +1419,35 @@ static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid(
 	/* Not found, return NULL */
 	return NULL;
 }
-#endif
 
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer_no_state_debug(
-				qdf_list_t *obj_list, uint8_t *macaddr,
-				uint8_t pdev_id, wlan_objmgr_ref_dbgid dbg_id,
-				const char *func, int line)
+static struct wlan_objmgr_peer
+		*wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid_no_state(
+					qdf_list_t *obj_list, uint8_t *macaddr,
+					uint8_t *bssid,
+					uint8_t pdev_id,
+					wlan_objmgr_ref_dbgid dbg_id)
 {
 	struct wlan_objmgr_peer *peer;
 	struct wlan_objmgr_peer *peer_temp;
 
 	/* Iterate through hash list to get the peer */
 	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
-		/* For peer, macaddr and pdev_id is key */
-		if ((WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-			== QDF_STATUS_SUCCESS) &&
+	while (peer != NULL) {
+		/* For peer, macaddr is key */
+		if (WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
+			== QDF_STATUS_SUCCESS) {
+			/*
+			 *  BSSID match is requested by caller, check BSSID
+			 *  (vdev mac == bssid) --  return peer
+			 *  (vdev mac != bssid) --  perform next iteration
+			 */
+			if ((wlan_peer_bssid_match(peer, bssid) ==
+				QDF_STATUS_SUCCESS) &&
 				(wlan_peer_get_pdev_id(peer) == pdev_id)) {
-			wlan_objmgr_peer_get_ref_debug(peer, dbg_id, func,
-						       line);
+				wlan_objmgr_peer_get_ref(peer, dbg_id);
 
-			return peer;
+				return peer;
+			}
 		}
 		/* Move to next peer */
 		peer_temp = peer;
@@ -1717,226 +1457,9 @@ static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer_no_state_debug(
 	/* Not found, return NULL */
 	return NULL;
 }
-#else
-static struct wlan_objmgr_peer *wlan_obj_psoc_peerlist_get_peer_no_state(
-				qdf_list_t *obj_list, uint8_t *macaddr,
-				uint8_t pdev_id, wlan_objmgr_ref_dbgid dbg_id)
-{
-	struct wlan_objmgr_peer *peer;
-	struct wlan_objmgr_peer *peer_temp;
-
-	/* Iterate through hash list to get the peer */
-	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
-		/* For peer, macaddr and pdev_id is key */
-		if ((WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-			== QDF_STATUS_SUCCESS) &&
-				(wlan_peer_get_pdev_id(peer) == pdev_id)) {
-			wlan_objmgr_peer_get_ref(peer, dbg_id);
-
-			return peer;
-		}
-		/* Move to next peer */
-		peer_temp = peer;
-		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
-	}
-
-	/* Not found, return NULL */
-	return NULL;
-}
-#endif
-
-/**
- * wlan_obj_psoc_populate_logically_del_peerlist_by_mac_n_bssid() -
- *                                           get peer
- *                                           from psoc peer list using
- *                                           mac and vdev self mac
- * @obj_list: peer object list
- * @macaddr: MAC address
- * @bssid: BSSID address
- * @dbg_id: id of the caller
- * @func: function name
- * @line: line number
- *
- * API to finds peer object pointer by MAC addr and BSSID from
- * peer hash list for a node which is in logically deleted state,
- * bssid check is done on matching peer
- *
- * Caller to free the list allocated in this function
- *
- * Return: list of peer pointers
- *         NULL on FAILURE
- */
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-static qdf_list_t
-	*wlan_obj_psoc_populate_logically_del_peerlist_by_mac_n_bssid_debug(
-				qdf_list_t *obj_list, uint8_t *macaddr,
-				uint8_t *bssid, uint8_t pdev_id,
-				wlan_objmgr_ref_dbgid dbg_id,
-				const char *func, int line)
-{
-	struct wlan_objmgr_peer *peer;
-	struct wlan_objmgr_peer *peer_temp;
-	struct wlan_logically_del_peer *peer_list = NULL;
-	qdf_list_t *logical_del_peer_list = NULL;
-	bool lock_released = false;
-
-	logical_del_peer_list = qdf_mem_malloc(sizeof(*logical_del_peer_list));
-	if (!logical_del_peer_list)
-		return NULL;
-
-	qdf_list_create(logical_del_peer_list, WLAN_UMAC_PSOC_MAX_PEERS);
-
-	/* Iterate through hash list to get the peer */
-	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
-		wlan_peer_obj_lock(peer);
-		/* For peer, macaddr and pdev id are keys */
-		if ((WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-			== QDF_STATUS_SUCCESS) &&
-				(wlan_peer_get_pdev_id(peer) == pdev_id)) {
-			/*
-			 *  if BSSID not NULL,
-			 *  then match is requested by caller, check BSSID
-			 *  (vdev mac == bssid) --  return peer
-			 *  (vdev mac != bssid) --  perform next iteration
-			 */
-			if ((!bssid) ||
-			    (wlan_peer_bssid_match(peer, bssid) ==
-				 QDF_STATUS_SUCCESS)) {
-				/* Return peer in logically deleted state */
-				if ((peer->obj_state ==
-					WLAN_OBJ_STATE_LOGICALLY_DELETED) &&
-				     qdf_atomic_read(
-						&peer->peer_objmgr.ref_cnt)) {
-					wlan_objmgr_peer_get_ref_debug(peer,
-								       dbg_id,
-								       func,
-								       line);
-					wlan_peer_obj_unlock(peer);
-					lock_released = true;
-
-					peer_list =
-					qdf_mem_malloc(
-					sizeof(struct wlan_logically_del_peer));
-					if (!peer_list) {
-						wlan_objmgr_peer_release_ref(peer, dbg_id);
-						/* Lock is already released */
-						WLAN_OBJMGR_BUG(0);
-						break;
-					}
-
-					peer_list->peer = peer;
-
-					qdf_list_insert_front(
-						logical_del_peer_list,
-							&peer_list->list);
-				}
-			}
-		}
-
-		if (!lock_released)
-			wlan_peer_obj_unlock(peer);
-
-		/* Move to next peer */
-		peer_temp = peer;
-		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
-		lock_released = false;
-	}
-
-	/* Not found, return NULL */
-	if (qdf_list_empty(logical_del_peer_list)) {
-		qdf_mem_free(logical_del_peer_list);
-		return NULL;
-	} else {
-		return logical_del_peer_list;
-	}
-}
-#else
-static qdf_list_t
-	*wlan_obj_psoc_populate_logically_del_peerlist_by_mac_n_bssid(
-				qdf_list_t *obj_list, uint8_t *macaddr,
-				uint8_t *bssid, uint8_t pdev_id,
-				wlan_objmgr_ref_dbgid dbg_id)
-{
-	struct wlan_objmgr_peer *peer;
-	struct wlan_objmgr_peer *peer_temp;
-	struct wlan_logically_del_peer *peer_list = NULL;
-	qdf_list_t *logical_del_peer_list = NULL;
-	bool lock_released = false;
-
-	logical_del_peer_list = qdf_mem_malloc(sizeof(*logical_del_peer_list));
-	if (!logical_del_peer_list)
-		return NULL;
-
-	qdf_list_create(logical_del_peer_list, WLAN_UMAC_PSOC_MAX_PEERS);
-
-	/* Iterate through hash list to get the peer */
-	peer = wlan_psoc_peer_list_peek_head(obj_list);
-	while (peer) {
-		wlan_peer_obj_lock(peer);
-		/* For peer, macaddr and pdev id are keys */
-		if ((WLAN_ADDR_EQ(wlan_peer_get_macaddr(peer), macaddr)
-			== QDF_STATUS_SUCCESS) &&
-				(wlan_peer_get_pdev_id(peer) == pdev_id)) {
-			/*
-			 *  if BSSID not NULL,
-			 *  then match is requested by caller, check BSSID
-			 *  (vdev mac == bssid) --  return peer
-			 *  (vdev mac != bssid) --  perform next iteration
-			 */
-			if ((!bssid) ||
-			    (wlan_peer_bssid_match(peer, bssid) ==
-				 QDF_STATUS_SUCCESS)) {
-				/* Return peer in logically deleted state */
-				if ((peer->obj_state ==
-					WLAN_OBJ_STATE_LOGICALLY_DELETED) &&
-				     qdf_atomic_read(
-						&peer->peer_objmgr.ref_cnt)) {
-					wlan_objmgr_peer_get_ref(peer, dbg_id);
-					wlan_peer_obj_unlock(peer);
-					lock_released = true;
-
-					peer_list =
-					qdf_mem_malloc(
-					sizeof(struct wlan_logically_del_peer));
-					if (!peer_list) {
-						wlan_objmgr_peer_release_ref(peer, dbg_id);
-						/* Lock is already released */
-						WLAN_OBJMGR_BUG(0);
-						break;
-					}
-
-					peer_list->peer = peer;
-
-					qdf_list_insert_front(
-						logical_del_peer_list,
-							&peer_list->list);
-				}
-			}
-		}
-
-		if (!lock_released)
-			wlan_peer_obj_unlock(peer);
-
-		/* Move to next peer */
-		peer_temp = peer;
-		peer = wlan_peer_get_next_peer_of_psoc(obj_list, peer_temp);
-		lock_released = false;
-	}
-
-	/* Not found, return NULL */
-	if (qdf_list_empty(logical_del_peer_list)) {
-		qdf_mem_free(logical_del_peer_list);
-		return NULL;
-	} else {
-		return logical_del_peer_list;
-	}
-}
-#endif
 
 QDF_STATUS wlan_objmgr_psoc_peer_attach(struct wlan_objmgr_psoc *psoc,
-					struct wlan_objmgr_peer *peer)
+					 struct wlan_objmgr_peer *peer)
 {
 	struct wlan_objmgr_psoc_objmgr *objmgr;
 	uint8_t hash_index;
@@ -1981,7 +1504,7 @@ QDF_STATUS wlan_objmgr_psoc_peer_attach(struct wlan_objmgr_psoc *psoc,
 }
 
 QDF_STATUS wlan_objmgr_psoc_peer_detach(struct wlan_objmgr_psoc *psoc,
-					struct wlan_objmgr_peer *peer)
+						struct wlan_objmgr_peer *peer)
 {
 	struct wlan_objmgr_psoc_objmgr *objmgr;
 	uint8_t hash_index;
@@ -2020,19 +1543,44 @@ QDF_STATUS wlan_objmgr_psoc_peer_detach(struct wlan_objmgr_psoc *psoc,
 	return QDF_STATUS_SUCCESS;
 }
 
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_debug(
-			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
-			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id,
-			const char *func, int line)
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_logically_deleted(
+			struct wlan_objmgr_psoc *psoc, uint8_t *macaddr,
+			wlan_objmgr_ref_dbgid dbg_id)
 {
 	struct wlan_objmgr_psoc_objmgr *objmgr;
 	uint8_t hash_index;
 	struct wlan_objmgr_peer *peer = NULL;
 	struct wlan_peer_list *peer_list;
 
-	if (pdev_id >= WLAN_UMAC_MAX_PDEVS)
-		QDF_ASSERT(0);
+	/* psoc lock should be taken before peer list lock */
+	wlan_psoc_obj_lock(psoc);
+	objmgr = &psoc->soc_objmgr;
+	/* List is empty, return NULL */
+	if (objmgr->wlan_peer_count == 0) {
+		wlan_psoc_obj_unlock(psoc);
+		return NULL;
+	}
+	/* reduce the search window, with hash key */
+	hash_index = WLAN_PEER_HASH(macaddr);
+	peer_list = &objmgr->peer_list;
+	qdf_spin_lock_bh(&peer_list->peer_list_lock);
+	/* Iterate through peer list, get peer */
+	peer = wlan_obj_psoc_peerlist_get_peer_logically_deleted(
+		&peer_list->peer_hash[hash_index], macaddr, dbg_id);
+	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
+	wlan_psoc_obj_unlock(psoc);
+
+	return peer;
+}
+
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac(
+		struct wlan_objmgr_psoc *psoc, uint8_t *macaddr,
+		wlan_objmgr_ref_dbgid dbg_id)
+{
+	struct wlan_objmgr_psoc_objmgr *objmgr;
+	uint8_t hash_index;
+	struct wlan_objmgr_peer *peer = NULL;
+	struct wlan_peer_list *peer_list;
 
 	if (!macaddr)
 		return NULL;
@@ -2050,17 +1598,15 @@ struct wlan_objmgr_peer *wlan_objmgr_get_peer_debug(
 	peer_list = &objmgr->peer_list;
 	qdf_spin_lock_bh(&peer_list->peer_list_lock);
 	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer_by_pdev_id_debug(
-		&peer_list->peer_hash[hash_index], macaddr,
-		pdev_id, dbg_id, func, line);
+	peer = wlan_obj_psoc_peerlist_get_peer(
+			&peer_list->peer_hash[hash_index], macaddr, dbg_id);
 	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
 	wlan_psoc_obj_unlock(psoc);
 
 	return peer;
 }
+qdf_export_symbol(wlan_objmgr_get_peer_by_mac);
 
-qdf_export_symbol(wlan_objmgr_get_peer_debug);
-#else
 struct wlan_objmgr_peer *wlan_objmgr_get_peer(
 			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id)
@@ -2096,154 +1642,11 @@ struct wlan_objmgr_peer *wlan_objmgr_get_peer(
 
 	return peer;
 }
-
 qdf_export_symbol(wlan_objmgr_get_peer);
-#endif
 
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_debug(
-		struct wlan_objmgr_psoc *psoc, uint8_t *macaddr,
-		wlan_objmgr_ref_dbgid dbg_id,
-		const char *func, int line)
-{
-	struct wlan_objmgr_psoc_objmgr *objmgr;
-	uint8_t hash_index;
-	struct wlan_objmgr_peer *peer = NULL;
-	struct wlan_peer_list *peer_list;
-
-	if (!macaddr)
-		return NULL;
-
-	/* psoc lock should be taken before peer list lock */
-	wlan_psoc_obj_lock(psoc);
-	objmgr = &psoc->soc_objmgr;
-	/* List is empty, return NULL */
-	if (objmgr->wlan_peer_count == 0) {
-		wlan_psoc_obj_unlock(psoc);
-		return NULL;
-	}
-	/* reduce the search window, with hash key */
-	hash_index = WLAN_PEER_HASH(macaddr);
-	peer_list = &objmgr->peer_list;
-	qdf_spin_lock_bh(&peer_list->peer_list_lock);
-	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer_debug(
-			&peer_list->peer_hash[hash_index],
-			macaddr, dbg_id, func, line);
-	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
-	wlan_psoc_obj_unlock(psoc);
-
-	return peer;
-}
-
-qdf_export_symbol(wlan_objmgr_get_peer_by_mac_debug);
-#else
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac(
-		struct wlan_objmgr_psoc *psoc, uint8_t *macaddr,
-		wlan_objmgr_ref_dbgid dbg_id)
-{
-	struct wlan_objmgr_psoc_objmgr *objmgr;
-	uint8_t hash_index;
-	struct wlan_objmgr_peer *peer = NULL;
-	struct wlan_peer_list *peer_list;
-
-	if (!macaddr)
-		return NULL;
-
-	/* psoc lock should be taken before peer list lock */
-	wlan_psoc_obj_lock(psoc);
-	objmgr = &psoc->soc_objmgr;
-	/* List is empty, return NULL */
-	if (objmgr->wlan_peer_count == 0) {
-		wlan_psoc_obj_unlock(psoc);
-		return NULL;
-	}
-	/* reduce the search window, with hash key */
-	hash_index = WLAN_PEER_HASH(macaddr);
-	peer_list = &objmgr->peer_list;
-	qdf_spin_lock_bh(&peer_list->peer_list_lock);
-	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer(
-			&peer_list->peer_hash[hash_index], macaddr, dbg_id);
-	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
-	wlan_psoc_obj_unlock(psoc);
-
-	return peer;
-}
-
-qdf_export_symbol(wlan_objmgr_get_peer_by_mac);
-#endif
-
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_logically_deleted_debug(
-			struct wlan_objmgr_psoc *psoc, uint8_t *macaddr,
-			wlan_objmgr_ref_dbgid dbg_id,
-			const char *func, int line)
-{
-	struct wlan_objmgr_psoc_objmgr *objmgr;
-	uint8_t hash_index;
-	struct wlan_objmgr_peer *peer = NULL;
-	struct wlan_peer_list *peer_list;
-
-	/* psoc lock should be taken before peer list lock */
-	wlan_psoc_obj_lock(psoc);
-	objmgr = &psoc->soc_objmgr;
-	/* List is empty, return NULL */
-	if (objmgr->wlan_peer_count == 0) {
-		wlan_psoc_obj_unlock(psoc);
-		return NULL;
-	}
-	/* reduce the search window, with hash key */
-	hash_index = WLAN_PEER_HASH(macaddr);
-	peer_list = &objmgr->peer_list;
-	qdf_spin_lock_bh(&peer_list->peer_list_lock);
-	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer_logically_deleted_debug(
-		&peer_list->peer_hash[hash_index], macaddr, dbg_id,
-		func, line);
-	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
-	wlan_psoc_obj_unlock(psoc);
-
-	return peer;
-}
-#else
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_logically_deleted(
-			struct wlan_objmgr_psoc *psoc, uint8_t *macaddr,
-			wlan_objmgr_ref_dbgid dbg_id)
-{
-	struct wlan_objmgr_psoc_objmgr *objmgr;
-	uint8_t hash_index;
-	struct wlan_objmgr_peer *peer = NULL;
-	struct wlan_peer_list *peer_list;
-
-	/* psoc lock should be taken before peer list lock */
-	wlan_psoc_obj_lock(psoc);
-	objmgr = &psoc->soc_objmgr;
-	/* List is empty, return NULL */
-	if (objmgr->wlan_peer_count == 0) {
-		wlan_psoc_obj_unlock(psoc);
-		return NULL;
-	}
-	/* reduce the search window, with hash key */
-	hash_index = WLAN_PEER_HASH(macaddr);
-	peer_list = &objmgr->peer_list;
-	qdf_spin_lock_bh(&peer_list->peer_list_lock);
-	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer_logically_deleted(
-		&peer_list->peer_hash[hash_index], macaddr, dbg_id);
-	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
-	wlan_psoc_obj_unlock(psoc);
-
-	return peer;
-}
-#endif
-
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev_no_state_debug(
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_nolock(
 			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
-			uint8_t *bssid, uint8_t *macaddr,
-			wlan_objmgr_ref_dbgid dbg_id,
-			const char *func, int line)
+			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id)
 {
 	struct wlan_objmgr_psoc_objmgr *objmgr;
 	uint8_t hash_index;
@@ -2251,33 +1654,26 @@ struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev_no_state_debug(
 	struct wlan_peer_list *peer_list;
 
 	/* psoc lock should be taken before peer list lock */
-	wlan_psoc_obj_lock(psoc);
 	objmgr = &psoc->soc_objmgr;
 	/* List is empty, return NULL */
-	if (objmgr->wlan_peer_count == 0) {
-		wlan_psoc_obj_unlock(psoc);
+	if (objmgr->wlan_peer_count == 0)
 		return NULL;
-	}
+
 	/* reduce the search window, with hash key */
 	hash_index = WLAN_PEER_HASH(macaddr);
 	peer_list = &objmgr->peer_list;
-	qdf_spin_lock_bh(&peer_list->peer_list_lock);
 	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid_no_state_debug(
-		&peer_list->peer_hash[hash_index], macaddr, bssid,
-		pdev_id, dbg_id, func, line);
-	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
-	wlan_psoc_obj_unlock(psoc);
+	peer = wlan_obj_psoc_peerlist_get_peer_by_pdev_id(
+		&peer_list->peer_hash[hash_index], macaddr, pdev_id, dbg_id);
 
 	return peer;
 }
+qdf_export_symbol(wlan_objmgr_get_peer_nolock);
 
-qdf_export_symbol(wlan_objmgr_get_peer_by_mac_n_vdev_no_state_debug);
-#else
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev_no_state(
+
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_no_state(
 			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
-			uint8_t *bssid, uint8_t *macaddr,
-			wlan_objmgr_ref_dbgid dbg_id)
+			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id)
 {
 	struct wlan_objmgr_psoc_objmgr *objmgr;
 	uint8_t hash_index;
@@ -2297,54 +1693,15 @@ struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev_no_state(
 	peer_list = &objmgr->peer_list;
 	qdf_spin_lock_bh(&peer_list->peer_list_lock);
 	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid_no_state(
-		&peer_list->peer_hash[hash_index], macaddr, bssid,
-		pdev_id, dbg_id);
+	peer = wlan_obj_psoc_peerlist_get_peer_no_state(
+		&peer_list->peer_hash[hash_index], macaddr, pdev_id, dbg_id);
 	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
 	wlan_psoc_obj_unlock(psoc);
 
 	return peer;
 }
+qdf_export_symbol(wlan_objmgr_get_peer_no_state);
 
-qdf_export_symbol(wlan_objmgr_get_peer_by_mac_n_vdev_no_state);
-#endif
-
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev_debug(
-			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
-			uint8_t *bssid, uint8_t *macaddr,
-			wlan_objmgr_ref_dbgid dbg_id,
-			const char *func, int line)
-{
-	struct wlan_objmgr_psoc_objmgr *objmgr;
-	uint8_t hash_index;
-	struct wlan_objmgr_peer *peer = NULL;
-	struct wlan_peer_list *peer_list;
-
-	/* psoc lock should be taken before peer list lock */
-	wlan_psoc_obj_lock(psoc);
-	objmgr = &psoc->soc_objmgr;
-	/* List is empty, return NULL */
-	if (objmgr->wlan_peer_count == 0) {
-		wlan_psoc_obj_unlock(psoc);
-		return NULL;
-	}
-	/* reduce the search window, with hash key */
-	hash_index = WLAN_PEER_HASH(macaddr);
-	peer_list = &objmgr->peer_list;
-	qdf_spin_lock_bh(&peer_list->peer_list_lock);
-	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid_debug(
-		&peer_list->peer_hash[hash_index], macaddr, bssid,
-		pdev_id, dbg_id, func, line);
-	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
-	wlan_psoc_obj_unlock(psoc);
-
-	return peer;
-}
-
-qdf_export_symbol(wlan_objmgr_get_peer_by_mac_n_vdev_debug);
-#else
 struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev(
 			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 			uint8_t *bssid, uint8_t *macaddr,
@@ -2376,139 +1733,11 @@ struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev(
 
 	return peer;
 }
-
 qdf_export_symbol(wlan_objmgr_get_peer_by_mac_n_vdev);
-#endif
 
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_nolock_debug(
-			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
-			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id,
-			const char *func, int line)
-{
-	struct wlan_objmgr_psoc_objmgr *objmgr;
-	uint8_t hash_index;
-	struct wlan_objmgr_peer *peer = NULL;
-	struct wlan_peer_list *peer_list;
-
-	/* psoc lock should be taken before peer list lock */
-	objmgr = &psoc->soc_objmgr;
-	/* List is empty, return NULL */
-	if (objmgr->wlan_peer_count == 0)
-		return NULL;
-
-	/* reduce the search window, with hash key */
-	hash_index = WLAN_PEER_HASH(macaddr);
-	peer_list = &objmgr->peer_list;
-	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer_by_pdev_id_debug(
-		&peer_list->peer_hash[hash_index], macaddr,
-		pdev_id, dbg_id, func, line);
-
-	return peer;
-}
-
-qdf_export_symbol(wlan_objmgr_get_peer_nolock_debug);
-#else
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_nolock(
-			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
-			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id)
-{
-	struct wlan_objmgr_psoc_objmgr *objmgr;
-	uint8_t hash_index;
-	struct wlan_objmgr_peer *peer = NULL;
-	struct wlan_peer_list *peer_list;
-
-	/* psoc lock should be taken before peer list lock */
-	objmgr = &psoc->soc_objmgr;
-	/* List is empty, return NULL */
-	if (objmgr->wlan_peer_count == 0)
-		return NULL;
-
-	/* reduce the search window, with hash key */
-	hash_index = WLAN_PEER_HASH(macaddr);
-	peer_list = &objmgr->peer_list;
-	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer_by_pdev_id(
-		&peer_list->peer_hash[hash_index], macaddr, pdev_id, dbg_id);
-
-	return peer;
-}
-
-qdf_export_symbol(wlan_objmgr_get_peer_nolock);
-#endif
-
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_no_state_debug(
-			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
-			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id,
-			const char *func, int line)
-{
-	struct wlan_objmgr_psoc_objmgr *objmgr;
-	uint8_t hash_index;
-	struct wlan_objmgr_peer *peer = NULL;
-	struct wlan_peer_list *peer_list;
-
-	/* psoc lock should be taken before peer list lock */
-	wlan_psoc_obj_lock(psoc);
-	objmgr = &psoc->soc_objmgr;
-	/* List is empty, return NULL */
-	if (objmgr->wlan_peer_count == 0) {
-		wlan_psoc_obj_unlock(psoc);
-		return NULL;
-	}
-	/* reduce the search window, with hash key */
-	hash_index = WLAN_PEER_HASH(macaddr);
-	peer_list = &objmgr->peer_list;
-	qdf_spin_lock_bh(&peer_list->peer_list_lock);
-	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer_no_state_debug(
-		&peer_list->peer_hash[hash_index], macaddr,
-		pdev_id, dbg_id, func, line);
-	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
-	wlan_psoc_obj_unlock(psoc);
-
-	return peer;
-}
-
-qdf_export_symbol(wlan_objmgr_get_peer_no_state_debug);
-#else
-struct wlan_objmgr_peer *wlan_objmgr_get_peer_no_state(
-			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
-			uint8_t *macaddr, wlan_objmgr_ref_dbgid dbg_id)
-{
-	struct wlan_objmgr_psoc_objmgr *objmgr;
-	uint8_t hash_index;
-	struct wlan_objmgr_peer *peer = NULL;
-	struct wlan_peer_list *peer_list;
-
-	/* psoc lock should be taken before peer list lock */
-	wlan_psoc_obj_lock(psoc);
-	objmgr = &psoc->soc_objmgr;
-	/* List is empty, return NULL */
-	if (objmgr->wlan_peer_count == 0) {
-		wlan_psoc_obj_unlock(psoc);
-		return NULL;
-	}
-	/* reduce the search window, with hash key */
-	hash_index = WLAN_PEER_HASH(macaddr);
-	peer_list = &objmgr->peer_list;
-	qdf_spin_lock_bh(&peer_list->peer_list_lock);
-	/* Iterate through peer list, get peer */
-	peer = wlan_obj_psoc_peerlist_get_peer_no_state(
-		&peer_list->peer_hash[hash_index], macaddr, pdev_id, dbg_id);
-	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
-	wlan_psoc_obj_unlock(psoc);
-
-	return peer;
-}
-
-qdf_export_symbol(wlan_objmgr_get_peer_no_state);
-#endif
 
 /**
- * wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev() -
- *                                                           get peer from psoc
+ * wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev() - get peer from psoc
  *                                                           peer list using
  *                                                           mac and vdev
  *                                                           self mac
@@ -2517,8 +1746,6 @@ qdf_export_symbol(wlan_objmgr_get_peer_no_state);
  * @macaddr: MAC address
  * @bssid: BSSID address. NULL mac means search all.
  * @dbg_id: id of the caller
- * @func: function name
- * @line: line number
  *
  * API to finds peer object pointer by MAC addr and BSSID from
  * peer hash list, bssid check is done on matching peer
@@ -2527,45 +1754,6 @@ qdf_export_symbol(wlan_objmgr_get_peer_no_state);
  *         NULL on FAILURE
  */
 
-#ifdef WLAN_OBJMGR_REF_ID_TRACE
-qdf_list_t *wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev_debug(
-			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
-			uint8_t *bssid, uint8_t *macaddr,
-			wlan_objmgr_ref_dbgid dbg_id,
-			const char *func, int line)
-{
-	struct wlan_objmgr_psoc_objmgr *objmgr;
-	uint8_t hash_index;
-	struct wlan_peer_list *peer_list = NULL;
-	qdf_list_t *logical_del_peer_list = NULL;
-
-	/* psoc lock should be taken before peer list lock */
-	wlan_psoc_obj_lock(psoc);
-	objmgr = &psoc->soc_objmgr;
-	/* List is empty, return NULL */
-	if (objmgr->wlan_peer_count == 0) {
-		wlan_psoc_obj_unlock(psoc);
-		return NULL;
-	}
-	/* reduce the search window, with hash key */
-	hash_index = WLAN_PEER_HASH(macaddr);
-	peer_list = &objmgr->peer_list;
-	qdf_spin_lock_bh(&peer_list->peer_list_lock);
-
-	/* Iterate through peer list, get peer */
-	logical_del_peer_list =
-	wlan_obj_psoc_populate_logically_del_peerlist_by_mac_n_bssid_debug(
-			&peer_list->peer_hash[hash_index], macaddr,
-			bssid, pdev_id, dbg_id, func, line);
-
-	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
-	wlan_psoc_obj_unlock(psoc);
-
-	return logical_del_peer_list;
-}
-
-qdf_export_symbol(wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev_debug);
-#else
 qdf_list_t *wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev(
 			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
 			uint8_t *bssid, uint8_t *macaddr,
@@ -2600,9 +1788,40 @@ qdf_list_t *wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev(
 
 	return logical_del_peer_list;
 }
-
 qdf_export_symbol(wlan_objmgr_populate_logically_deleted_peerlist_by_mac_n_vdev);
-#endif
+
+struct wlan_objmgr_peer *wlan_objmgr_get_peer_by_mac_n_vdev_no_state(
+			struct wlan_objmgr_psoc *psoc, uint8_t pdev_id,
+			uint8_t *bssid, uint8_t *macaddr,
+			wlan_objmgr_ref_dbgid dbg_id)
+{
+	struct wlan_objmgr_psoc_objmgr *objmgr;
+	uint8_t hash_index;
+	struct wlan_objmgr_peer *peer = NULL;
+	struct wlan_peer_list *peer_list;
+
+	/* psoc lock should be taken before peer list lock */
+	wlan_psoc_obj_lock(psoc);
+	objmgr = &psoc->soc_objmgr;
+	/* List is empty, return NULL */
+	if (objmgr->wlan_peer_count == 0) {
+		wlan_psoc_obj_unlock(psoc);
+		return NULL;
+	}
+	/* reduce the search window, with hash key */
+	hash_index = WLAN_PEER_HASH(macaddr);
+	peer_list = &objmgr->peer_list;
+	qdf_spin_lock_bh(&peer_list->peer_list_lock);
+	/* Iterate through peer list, get peer */
+	peer = wlan_obj_psoc_peerlist_get_peer_by_mac_n_bssid_no_state(
+		&peer_list->peer_hash[hash_index], macaddr, bssid,
+		pdev_id, dbg_id);
+	qdf_spin_unlock_bh(&peer_list->peer_list_lock);
+	wlan_psoc_obj_unlock(psoc);
+
+	return peer;
+}
+qdf_export_symbol(wlan_objmgr_get_peer_by_mac_n_vdev_no_state);
 
 void *wlan_objmgr_psoc_get_comp_private_obj(struct wlan_objmgr_psoc *psoc,
 					enum wlan_umac_comp_id id)
@@ -2615,7 +1834,7 @@ void *wlan_objmgr_psoc_get_comp_private_obj(struct wlan_objmgr_psoc *psoc,
 		return NULL;
 	}
 
-	if (!psoc) {
+	if (psoc == NULL) {
 		QDF_BUG(0);
 		return NULL;
 	}
@@ -2629,7 +1848,7 @@ qdf_export_symbol(wlan_objmgr_psoc_get_comp_private_obj);
 void wlan_objmgr_psoc_get_ref(struct wlan_objmgr_psoc *psoc,
 						wlan_objmgr_ref_dbgid id)
 {
-	if (!psoc) {
+	if (psoc == NULL) {
 		obj_mgr_err("psoc obj is NULL for id:%d", id);
 		QDF_ASSERT(0);
 		return;
@@ -2644,7 +1863,7 @@ qdf_export_symbol(wlan_objmgr_psoc_get_ref);
 QDF_STATUS wlan_objmgr_psoc_try_get_ref(struct wlan_objmgr_psoc *psoc,
 						wlan_objmgr_ref_dbgid id)
 {
-	if (!psoc) {
+	if (psoc == NULL) {
 		obj_mgr_err("psoc obj is NULL for id:%d", id);
 		QDF_ASSERT(0);
 		return QDF_STATUS_E_FAILURE;
@@ -2673,7 +1892,7 @@ qdf_export_symbol(wlan_objmgr_psoc_try_get_ref);
 void wlan_objmgr_psoc_release_ref(struct wlan_objmgr_psoc *psoc,
 						wlan_objmgr_ref_dbgid id)
 {
-	if (!psoc) {
+	if (psoc == NULL) {
 		obj_mgr_err("psoc obj is NULL for id:%d", id);
 		QDF_ASSERT(0);
 		return;
@@ -2718,7 +1937,8 @@ static void wlan_objmgr_psoc_peer_ref_print(struct wlan_objmgr_psoc *psoc,
 	obj_mgr_alert("Peer MAC:%02x:%02x:%02x:%02x:%02x:%02x state:%d vdev_id:%d",
 		  macaddr[0], macaddr[1], macaddr[2], macaddr[3],
 		  macaddr[4], macaddr[5], obj_state, vdev_id);
-	wlan_objmgr_print_peer_ref_ids(peer, QDF_TRACE_LEVEL_FATAL);
+	wlan_objmgr_print_ref_ids(peer->peer_objmgr.ref_id_dbg,
+				  QDF_TRACE_LEVEL_FATAL);
 }
 
 static void wlan_objmgr_psoc_vdev_ref_print(struct wlan_objmgr_psoc *psoc,
@@ -2777,7 +1997,7 @@ qdf_export_symbol(wlan_objmgr_print_ref_all_objects_per_psoc);
 QDF_STATUS wlan_objmgr_psoc_set_user_config(struct wlan_objmgr_psoc *psoc,
 		struct wlan_objmgr_psoc_user_config *user_config_data)
 {
-	if (!user_config_data) {
+	if (user_config_data == NULL) {
 		obj_mgr_err("user_config_data is NULL");
 		QDF_BUG(0);
 		return QDF_STATUS_E_FAILURE;
@@ -2790,7 +2010,7 @@ QDF_STATUS wlan_objmgr_psoc_set_user_config(struct wlan_objmgr_psoc *psoc,
 	return QDF_STATUS_SUCCESS;
 }
 
-uint32_t wlan_objmgr_psoc_check_for_pdev_leaks(struct wlan_objmgr_psoc *psoc)
+void wlan_objmgr_psoc_check_for_pdev_leaks(struct wlan_objmgr_psoc *psoc)
 {
 	struct wlan_objmgr_psoc_objmgr *_psoc;
 	struct wlan_objmgr_pdev *pdev;
@@ -2799,20 +2019,19 @@ uint32_t wlan_objmgr_psoc_check_for_pdev_leaks(struct wlan_objmgr_psoc *psoc)
 
 	QDF_BUG(psoc);
 	if (!psoc)
-		return leaks;
+		return;
 
 	wlan_psoc_obj_lock(psoc);
 	_psoc = &psoc->soc_objmgr;
 	if (!_psoc->wlan_pdev_count) {
 		wlan_psoc_obj_unlock(psoc);
-		return leaks;
+		return;
 	}
 
-	obj_mgr_alert("objmgr pdev leaks detected for psoc %u!",
-		      _psoc->psoc_id);
-	obj_mgr_alert("----------------------------------------------------");
-	obj_mgr_alert("Pdev Id   Refs   Module");
-	obj_mgr_alert("----------------------------------------------------");
+	obj_mgr_err("objmgr pdev leaks detected for psoc %u!", _psoc->psoc_id);
+	obj_mgr_err("--------------------------------------------------------");
+	obj_mgr_err("Pdev Id   Refs   Module");
+	obj_mgr_err("--------------------------------------------------------");
 
 	wlan_objmgr_for_each_psoc_pdev(psoc, pdev_id, pdev) {
 		qdf_atomic_t *ref_id_dbg;
@@ -2823,19 +2042,20 @@ uint32_t wlan_objmgr_psoc_check_for_pdev_leaks(struct wlan_objmgr_psoc *psoc)
 		ref_id_dbg = pdev->pdev_objmgr.ref_id_dbg;
 		wlan_objmgr_for_each_refs(ref_id_dbg, ref_id, refs) {
 			leaks++;
-			obj_mgr_alert("%7u   %4u   %s",
-				      pdev_id, refs,
-				      string_from_dbgid(ref_id));
+			obj_mgr_err("%7u   %4u   %s",
+				    pdev_id, refs, string_from_dbgid(ref_id));
 		}
 		wlan_pdev_obj_unlock(pdev);
 	}
 
+	QDF_DEBUG_PANIC("%u objmgr pdev leaks detected for psoc %u!",
+			leaks, _psoc->psoc_id);
+
 	wlan_psoc_obj_unlock(psoc);
-	return leaks;
 }
 qdf_export_symbol(wlan_objmgr_psoc_check_for_pdev_leaks);
 
-uint32_t wlan_objmgr_psoc_check_for_vdev_leaks(struct wlan_objmgr_psoc *psoc)
+void wlan_objmgr_psoc_check_for_vdev_leaks(struct wlan_objmgr_psoc *psoc)
 {
 	struct wlan_objmgr_psoc_objmgr *_psoc;
 	struct wlan_objmgr_vdev *vdev;
@@ -2844,20 +2064,19 @@ uint32_t wlan_objmgr_psoc_check_for_vdev_leaks(struct wlan_objmgr_psoc *psoc)
 
 	QDF_BUG(psoc);
 	if (!psoc)
-		return leaks;
+		return;
 
 	wlan_psoc_obj_lock(psoc);
 	_psoc = &psoc->soc_objmgr;
 	if (!_psoc->wlan_vdev_count) {
 		wlan_psoc_obj_unlock(psoc);
-		return leaks;
+		return;
 	}
 
-	obj_mgr_alert("objmgr vdev leaks detected for psoc %u!",
-		      _psoc->psoc_id);
-	obj_mgr_alert("----------------------------------------------------");
-	obj_mgr_alert("Vdev Id   Refs   Module");
-	obj_mgr_alert("----------------------------------------------------");
+	obj_mgr_err("objmgr vdev leaks detected for psoc %u!", _psoc->psoc_id);
+	obj_mgr_err("--------------------------------------------------------");
+	obj_mgr_err("Vdev Id   Refs   Module");
+	obj_mgr_err("--------------------------------------------------------");
 
 	wlan_objmgr_for_each_psoc_vdev(psoc, vdev_id, vdev) {
 		qdf_atomic_t *ref_id_dbg;
@@ -2868,47 +2087,20 @@ uint32_t wlan_objmgr_psoc_check_for_vdev_leaks(struct wlan_objmgr_psoc *psoc)
 		ref_id_dbg = vdev->vdev_objmgr.ref_id_dbg;
 		wlan_objmgr_for_each_refs(ref_id_dbg, ref_id, refs) {
 			leaks++;
-			obj_mgr_alert("%7u   %4u   %s",
-				      vdev_id, refs, string_from_dbgid(ref_id));
+			obj_mgr_err("%7u   %4u   %s",
+				    vdev_id, refs, string_from_dbgid(ref_id));
 		}
 		wlan_vdev_obj_unlock(vdev);
 	}
 
+	QDF_DEBUG_PANIC("%u objmgr vdev leaks detected for psoc %u!",
+			leaks, _psoc->psoc_id);
+
 	wlan_psoc_obj_unlock(psoc);
-	return leaks;
 }
 qdf_export_symbol(wlan_objmgr_psoc_check_for_vdev_leaks);
 
-#ifdef WLAN_OBJMGR_REF_ID_DEBUG
-static void
-wlan_objmgr_print_peer_ref_leaks(struct wlan_objmgr_peer *peer, int vdev_id)
-{
-	qdf_atomic_t *ref_id_dbg;
-	int32_t refs;
-	int ref_id;
-
-	ref_id_dbg = peer->peer_objmgr.ref_id_dbg;
-	wlan_objmgr_for_each_refs(ref_id_dbg, ref_id, refs) {
-		obj_mgr_alert(QDF_MAC_ADDR_FMT " %7u   %4u   %s",
-			      QDF_MAC_ADDR_REF(peer->macaddr),
-			      vdev_id,
-			      refs,
-			      string_from_dbgid(ref_id));
-	}
-}
-#else
-static inline void
-wlan_objmgr_print_peer_ref_leaks(struct wlan_objmgr_peer *peer, int vdev_id)
-{
-	obj_mgr_alert(QDF_MAC_ADDR_FMT " %7u   %4u   %s",
-		      QDF_MAC_ADDR_REF(peer->macaddr),
-		      vdev_id,
-		      qdf_atomic_read(&peer->peer_objmgr.ref_cnt),
-		      "TOTAL_REF_COUNT");
-}
-#endif
-
-uint32_t wlan_objmgr_psoc_check_for_peer_leaks(struct wlan_objmgr_psoc *psoc)
+void wlan_objmgr_psoc_check_for_peer_leaks(struct wlan_objmgr_psoc *psoc)
 {
 	struct wlan_objmgr_psoc_objmgr *_psoc;
 	struct wlan_objmgr_vdev *vdev;
@@ -2917,100 +2109,47 @@ uint32_t wlan_objmgr_psoc_check_for_peer_leaks(struct wlan_objmgr_psoc *psoc)
 
 	QDF_BUG(psoc);
 	if (!psoc)
-		return leaks;
+		return;
 
 	wlan_psoc_obj_lock(psoc);
 	_psoc = &psoc->soc_objmgr;
 	if (!_psoc->temp_peer_count && !_psoc->wlan_peer_count) {
 		wlan_psoc_obj_unlock(psoc);
-		return leaks;
+		return;
 	}
 
-	obj_mgr_alert("objmgr peer leaks detected for psoc %u!",
-		      _psoc->psoc_id);
-	obj_mgr_alert("----------------------------------------------------");
-	obj_mgr_alert("Peer MAC          Vdev Id   Refs   Module");
-	obj_mgr_alert("----------------------------------------------------");
+	obj_mgr_err("objmgr peer leaks detected for psoc %u!", _psoc->psoc_id);
+	obj_mgr_err("--------------------------------------------------------");
+	obj_mgr_err("Peer MAC          Vdev Id   Refs   Module");
+	obj_mgr_err("--------------------------------------------------------");
 
 	wlan_objmgr_for_each_psoc_vdev(psoc, vdev_id, vdev) {
 		struct wlan_objmgr_peer *peer;
 
 		wlan_vdev_obj_lock(vdev);
 		wlan_objmgr_for_each_vdev_peer(vdev, peer) {
+			qdf_atomic_t *ref_id_dbg;
+			int ref_id;
+			int32_t refs;
+
 			wlan_peer_obj_lock(peer);
-			leaks += qdf_atomic_read(&peer->peer_objmgr.ref_cnt);
-			wlan_objmgr_print_peer_ref_leaks(peer, vdev_id);
+			ref_id_dbg = peer->peer_objmgr.ref_id_dbg;
+			wlan_objmgr_for_each_refs(ref_id_dbg, ref_id, refs) {
+				leaks++;
+				obj_mgr_err(QDF_MAC_ADDR_STR " %7u   %4u   %s",
+					    QDF_MAC_ADDR_ARRAY(peer->macaddr),
+					    vdev_id,
+					    refs,
+					    string_from_dbgid(ref_id));
+			}
 			wlan_peer_obj_unlock(peer);
 		}
 		wlan_vdev_obj_unlock(vdev);
 	}
 
+	QDF_DEBUG_PANIC("%u objmgr peer leaks detected for psoc %u!",
+			leaks, _psoc->psoc_id);
+
 	wlan_psoc_obj_unlock(psoc);
-	return leaks;
 }
 qdf_export_symbol(wlan_objmgr_psoc_check_for_peer_leaks);
-
-void wlan_objmgr_psoc_check_for_leaks(struct wlan_objmgr_psoc *psoc)
-{
-	struct wlan_objmgr_psoc_objmgr *_psoc;
-	uint32_t peer_leaks = 0;
-	uint32_t vdev_leaks = 0;
-	uint32_t pdev_leaks = 0;
-
-	_psoc = &psoc->soc_objmgr;
-
-	peer_leaks = wlan_objmgr_psoc_check_for_peer_leaks(psoc);
-	vdev_leaks = wlan_objmgr_psoc_check_for_vdev_leaks(psoc);
-	pdev_leaks = wlan_objmgr_psoc_check_for_pdev_leaks(psoc);
-
-	if (peer_leaks || vdev_leaks || pdev_leaks) {
-		QDF_DEBUG_PANIC("%u objmgr peer leaks %u objmgr vdev leaks"
-				"%u objmgr pdev leaks detected for psoc %u!",
-				peer_leaks, vdev_leaks, pdev_leaks,
-				_psoc->psoc_id);
-	}
-}
-
-qdf_export_symbol(wlan_objmgr_psoc_check_for_leaks);
-
-#ifdef WLAN_OBJMGR_DEBUG
-void wlan_print_psoc_info(struct wlan_objmgr_psoc *psoc)
-{
-	struct wlan_objmgr_psoc_objmgr *psoc_objmgr;
-	struct wlan_objmgr_pdev *pdev;
-	struct wlan_objmgr_vdev *vdev;
-	uint16_t index = 0;
-
-	psoc_objmgr = &psoc->soc_objmgr;
-
-	obj_mgr_debug("psoc: %pK", psoc);
-	obj_mgr_debug("psoc_id: %d", psoc_objmgr->psoc_id);
-	obj_mgr_debug("wlan_pdev_count: %d", psoc_objmgr->wlan_pdev_count);
-	obj_mgr_debug("wlan_pdev_id_map: 0x%x", psoc_objmgr->wlan_pdev_id_map);
-	obj_mgr_debug("wlan_vdev_count: %d", psoc_objmgr->wlan_vdev_count);
-	obj_mgr_debug("max_vdev_count: %d", psoc_objmgr->max_vdev_count);
-	obj_mgr_debug("wlan_peer_count: %d", psoc_objmgr->wlan_peer_count);
-	obj_mgr_debug("max_peer_count: %d", psoc_objmgr->max_peer_count);
-	obj_mgr_debug("temp_peer_count: %d", psoc_objmgr->temp_peer_count);
-	obj_mgr_debug("ref_cnt: %d", qdf_atomic_read(&psoc_objmgr->ref_cnt));
-	obj_mgr_debug("qdf_dev: %pK", psoc_objmgr->qdf_dev);
-
-	obj_mgr_debug("wlan_vdev_id_map[%d]: 0x%x",
-		      index, psoc_objmgr->wlan_vdev_id_map[index]);
-	index++;
-	obj_mgr_debug("wlan_vdev_id_map[%d]: 0x%x",
-		      index, psoc_objmgr->wlan_vdev_id_map[index]);
-
-	wlan_objmgr_for_each_psoc_pdev(psoc, index, pdev) {
-		obj_mgr_debug("wlan_pdev_list[%d]: %pK", index, pdev);
-		wlan_print_pdev_info(pdev);
-	}
-
-	wlan_objmgr_for_each_psoc_vdev(psoc, index, vdev) {
-		obj_mgr_debug("wlan_vdev_list[%d]: %pK", index, vdev);
-		wlan_print_vdev_info(vdev);
-	}
-}
-
-qdf_export_symbol(wlan_print_psoc_info);
-#endif

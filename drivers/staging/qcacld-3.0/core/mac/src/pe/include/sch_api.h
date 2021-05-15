@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015, 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015, 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -35,46 +35,53 @@
 #include "ani_global.h"
 
 /* update only the broadcast qos params */
-void sch_qos_update_broadcast(struct mac_context *mac,
-			      struct pe_session *pe_session);
+void sch_qos_update_broadcast(tpAniSirGlobal pMac,
+			      tpPESession psessionEntry);
 
 /* fill in the default local edca parameter into gLimEdcaParams[] */
-void sch_set_default_edca_params(struct mac_context *mac, struct pe_session *pe_session);
+void sch_set_default_edca_params(tpAniSirGlobal pMac, tpPESession psessionE);
 
 /* update only local qos params */
-void sch_qos_update_local(struct mac_context *mac, struct pe_session *pe_session);
+void sch_qos_update_local(tpAniSirGlobal pMac, tpPESession psessionEntry);
 
 /* update the edca profile parameters */
-void sch_edca_profile_update(struct mac_context *mac,
-			     struct pe_session *pe_session);
+void sch_edca_profile_update(tpAniSirGlobal pMac,
+			     tpPESession psessionEntry);
 
 /* / Set the fixed fields in a beacon frame */
-QDF_STATUS sch_set_fixed_beacon_fields(struct mac_context *mac,
-				       struct pe_session *pe_session);
+QDF_STATUS sch_set_fixed_beacon_fields(tpAniSirGlobal pMac,
+				       tpPESession psessionEntry);
+
+/* / Process the scheduler messages */
+void sch_process_message(tpAniSirGlobal pMac,
+			 struct scheduler_msg *pSchMsg);
 
 /**
  * sch_process_pre_beacon_ind() - Process the PreBeacon Indication from the Lim
- * @mac: pointer to mac structure
+ * @pMac: pointer to mac structure
  * @msg: schedular msg
  * @reason: beaon update reason
  *
  * return: success: QDF_STATUS_SUCCESS failure: QDF_STATUS_E_FAILURE
  */
-QDF_STATUS sch_process_pre_beacon_ind(struct mac_context *mac,
+QDF_STATUS sch_process_pre_beacon_ind(tpAniSirGlobal pMac,
 				      struct scheduler_msg *msg,
 				      enum sir_bcn_update_reason reason);
 
-void sch_beacon_process(struct mac_context *mac, uint8_t *pRxPacketInfo,
-			struct pe_session *pe_session);
+/* / Post a message to the scheduler message queue */
+QDF_STATUS sch_post_message(tpAniSirGlobal pMac,
+			    struct scheduler_msg *pMsg);
 
-QDF_STATUS sch_beacon_edca_process(struct mac_context *mac,
+void sch_beacon_process(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
+			tpPESession psessionEntry);
+
+QDF_STATUS sch_beacon_edca_process(tpAniSirGlobal pMac,
 				   tSirMacEdcaParamSetIE *edca,
-				   struct pe_session *pe_session);
+				   tpPESession psessionEntry);
 
-void sch_generate_tim(struct mac_context *, uint8_t **, uint16_t *, uint8_t);
+void sch_generate_tim(tpAniSirGlobal, uint8_t **, uint16_t *, uint8_t);
 
-void sch_set_beacon_interval(struct mac_context *mac,
-			     struct pe_session *pe_session);
+void sch_set_beacon_interval(tpAniSirGlobal pMac, tpPESession psessionEntry);
 
 /**
  * sch_send_beacon_req() - send beacon update req to wma
@@ -86,25 +93,25 @@ void sch_set_beacon_interval(struct mac_context *mac,
  *
  * return: success: QDF_STATUS_SUCCESS failure: QDF_STATUS_E_FAILURE
  */
-QDF_STATUS sch_send_beacon_req(struct mac_context *mac_ctx, uint8_t *bcn_payload,
-			       uint16_t size, struct pe_session *session,
+QDF_STATUS sch_send_beacon_req(tpAniSirGlobal mac_ctx, uint8_t *bcn_payload,
+			       uint16_t size, tpPESession session,
 			       enum sir_bcn_update_reason reason);
 
 
-QDF_STATUS lim_update_probe_rsp_template_ie_bitmap_beacon1(struct mac_context *,
+QDF_STATUS lim_update_probe_rsp_template_ie_bitmap_beacon1(tpAniSirGlobal,
 							   tDot11fBeacon1 *,
-							   struct pe_session *
-							   pe_session);
-void lim_update_probe_rsp_template_ie_bitmap_beacon2(struct mac_context *,
+							   tpPESession
+							   psessionEntry);
+void lim_update_probe_rsp_template_ie_bitmap_beacon2(tpAniSirGlobal,
 						     tDot11fBeacon2 *,
 						     uint32_t *,
 						     tDot11fProbeResponse *);
 void set_probe_rsp_ie_bitmap(uint32_t *, uint32_t);
-uint32_t lim_send_probe_rsp_template_to_hal(struct mac_context *,
-					    struct pe_session *,
+uint32_t lim_send_probe_rsp_template_to_hal(tpAniSirGlobal,
+					    tpPESession,
 					    uint32_t *);
 
-int sch_gen_timing_advert_frame(struct mac_context *mac, tSirMacAddr self_addr,
+int sch_gen_timing_advert_frame(tpAniSirGlobal pMac, tSirMacAddr self_addr,
 				uint8_t **buf, uint32_t *timestamp_offset,
 				uint32_t *time_value_offset);
 
@@ -126,17 +133,9 @@ int sch_gen_timing_advert_frame(struct mac_context *mac, tSirMacAddr self_addr,
  *
  * Return: None
  */
-void sch_beacon_process_for_ap(struct mac_context *mac_ctx,
+void sch_beacon_process_for_ap(tpAniSirGlobal mac_ctx,
 			       uint8_t session_id,
 			       uint8_t *rx_pkt_info,
 			       tSchBeaconStruct *bcn);
-
-/**
- * sch_edca_profile_update_all() - update edca profile for all sessions
- * @pmac: pointer to mac structure
- *
- * return: None
- */
-void sch_edca_profile_update_all(struct mac_context *pmac);
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016, 2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -37,7 +37,7 @@
  * Rx Packet Struct
  * Buffer for the packet received from WMA has pointers to 802.11
  * frame fields and additional information based on the type of frame.
- * @frequency: Frequency
+ * @channel: Channel number
  * @snr: Signal to noise ratio
  * @rssi: Received signal strength indicator, normalized to -96 dBm as
  *        normal noise floor by adding -96 to snr. All the configured
@@ -50,14 +50,15 @@
  * @mpdu_data_len: Length of 802.11 MPDU payload
  * @offloadScanLearn: Bit set to 1 for beacons received during roaming scan
  * @roamCandidateInd: Bit set to 1 when roaming candidate is found by fw
+ * @scan: Bit set to 1 if packet received during scanning
  * @scan_src: Source of scan
  * @dpuFeedback: DPU feedback for frame
- * @session_id: PE session
+ * @sessionId: PE session
  * @tsf_delta: Delta between tsf in frame and local value of tsf
  * @rssi_raw: rssi based on actual noise floor in hardware.
  */
 typedef struct {
-	uint32_t frequency;
+	uint8_t channel;
 	uint8_t snr;
 	uint32_t rssi;
 	uint32_t timestamp;
@@ -68,9 +69,10 @@ typedef struct {
 	uint32_t mpdu_data_len;
 	uint8_t offloadScanLearn:1;
 	uint8_t roamCandidateInd:1;
+	uint8_t scan:1;
 	uint8_t scan_src;
 	uint8_t dpuFeedback;
-	uint8_t session_id;
+	uint8_t sessionId;
 	uint32_t tsf_delta;
 	uint32_t rssi_raw;
 } t_packetmeta, *tp_packetmeta;

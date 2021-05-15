@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -65,6 +65,14 @@ enum twt_status {
 };
 
 /**
+ * hdd_twt_print_ini_config() - Print TWT INI config items
+ * @hdd_ctx: HDD Context
+ *
+ * Return: None
+ */
+void hdd_twt_print_ini_config(struct hdd_context *hdd_ctx);
+
+/**
  * hdd_update_tgt_twt_cap() - Update TWT target capabilities
  * @hdd_ctx: HDD Context
  * @cfg: Pointer to target configuration
@@ -82,14 +90,23 @@ void hdd_update_tgt_twt_cap(struct hdd_context *hdd_ctx,
  */
 void hdd_send_twt_enable_cmd(struct hdd_context *hdd_ctx);
 
-#define TWT_DISABLE_COMPLETE_TIMEOUT 1000
 /**
- * hdd_send_twt_disable_cmd() - Send TWT disable command to target
- * @hdd_ctx: HDD Context
+ * hdd_twt_enable_comp_cb() - TWT enable complete event callback
+ * @hdd_ctx: pointer to global HDD Context
+ * @twt_event: TWT event data received from the target
  *
- * Return: QDF_STATUS
+ * Return: None
  */
-QDF_STATUS hdd_send_twt_disable_cmd(struct hdd_context *hdd_ctx);
+void hdd_twt_enable_comp_cb(void *hdd_ctx,
+			    struct wmi_twt_enable_complete_event_param *params);
+
+/**
+ * hdd_twt_disable_comp_cb() - TWT disable complete event callback
+ * @hdd_ctx: pointer to global HDD Context
+ *
+ * Return: None
+ */
+void hdd_twt_disable_comp_cb(void *hdd_ctx);
 
 /**
  * wlan_hdd_twt_init() - Initialize TWT
@@ -114,6 +131,10 @@ void wlan_hdd_twt_init(struct hdd_context *hdd_ctx);
 void wlan_hdd_twt_deinit(struct hdd_context *hdd_ctx);
 
 #else
+static inline void hdd_twt_print_ini_config(struct hdd_context *hdd_ctx)
+{
+}
+
 static inline void hdd_update_tgt_twt_cap(struct hdd_context *hdd_ctx,
 					  struct wma_tgt_cfg *cfg)
 {
@@ -123,9 +144,13 @@ static inline void hdd_send_twt_enable_cmd(struct hdd_context *hdd_ctx)
 {
 }
 
-static inline QDF_STATUS hdd_send_twt_disable_cmd(struct hdd_context *hdd_ctx)
+static inline void hdd_twt_enable_comp_cb(void *hdd_ctx,
+			  struct wmi_twt_enable_complete_event_param *params)
 {
-	return QDF_STATUS_SUCCESS;
+}
+
+static inline void hdd_twt_disable_comp_cb(void *hdd_ctx)
+{
 }
 
 static inline void wlan_hdd_twt_init(struct hdd_context *hdd_ctx)

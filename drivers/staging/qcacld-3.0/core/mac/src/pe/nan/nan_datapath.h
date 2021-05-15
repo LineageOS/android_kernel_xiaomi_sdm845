@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -25,7 +25,7 @@
 #ifndef __MAC_NAN_DATAPATH_H
 #define __MAC_NAN_DATAPATH_H
 
-#ifdef WLAN_FEATURE_NAN
+#if defined(WLAN_FEATURE_NAN_DATAPATH) || defined(WLAN_FEATURE_NAN_CONVERGENCE)
 
 #include "sir_common.h"
 #include "ani_global.h"
@@ -34,37 +34,85 @@
 struct peer_nan_datapath_map;
 
 /**
- * lim_process_ndi_mlm_add_bss_rsp() - Process ADD_BSS response for NDI
- * @mac_ctx: Pointer to Global MAC structure
- * @add_bss_rsp: Bss params including rsp data
- * @session_entry: PE session
- *
- * Return: None
+ * struct ndp_peer_node - structure for holding per-peer context
+ * @next: pointer to the next peer
+ * @peer_mac_addr: peer mac address
+ * @ext_rates_present: extended rates supported
+ * @edca_present: edca supported
+ * @wme_edca_present: WME EDCA supported
+ * @wme_info_present: WME info supported
+ * @ht_capable: HT capable
+ * @vht_capable: VHT capabale
+ * @ht_sec_chan_offset: HT secondary channel offset
+ * @capability_info: Generic capability info
+ * @supported_rates: Supported rates
+ * @extended_rates: Supported extended rates
+ * @supported_mcs_rate: Supported MCS rates
+ * @edca_params: EDCA parameters
+ * @erp_ie_present: ERP IE supported
+ * @ht_green_field: HT green field supported
+ * @ht_shortGI_40Mhz; 40 MHZ short GI support
+ * @ht_shortGI_20Mhz; 20 MHZ short GI support
+ * @ht_mimo_ps_state: MIMO power state
+ * @ht_ampdu_density: AMPDU density
+ * @ht_max_rxampdu_factor: receieve AMPDU factor
+ * @ht_max_amsdu_len: Max AMSDU length supported
+ * @ht_supp_chan_widthset: Supported channel widthset
+ * @ht_ldpc_capable: LDPC capable
+ * @heartbeat_failure: heart beat failure indication flag
+ * @vht_caps: VHT capability
+ * @vht_supp_chanwidth_set: VHT supported channel width
+ * @vht_beamformer_capable: Beam former capable
  */
-void lim_process_ndi_mlm_add_bss_rsp(struct mac_context *mac_ctx,
-				     struct add_bss_rsp *add_bss_rsp,
-				     struct pe_session *session_entry);
+struct ndp_peer_node {
+	struct ndp_peer_node *next;
+	struct qdf_mac_addr peer_mac_addr;
+	uint8_t ext_rates_present;
+	uint8_t edca_present;
+	uint8_t wme_edca_present;
+	uint8_t wme_info_present;
+	uint8_t ht_capable;
+	uint8_t vht_capable;
+	uint8_t ht_sec_chan_offset;
+	tSirMacCapabilityInfo    capability_info;
+	tSirMacRateSet           supported_rates;
+	tSirMacRateSet           extended_rates;
+	uint8_t supported_mcs_rate[SIZE_OF_SUPPORTED_MCS_SET];
+	tSirMacEdcaParamSetIE    edca_params;
+	uint8_t erp_ie_present;
+	uint8_t ht_green_field;
+	uint8_t ht_shortGI_40Mhz;
+	uint8_t ht_shortGI_20Mhz;
+	/* MIMO Power Save */
+	tSirMacHTMIMOPowerSaveState ht_mimo_ps_state;
+	uint8_t ht_ampdu_density;
+	/* Maximum Rx A-MPDU factor */
+	uint8_t ht_max_rxampdu_factor;
+	uint8_t ht_max_amsdu_len;
+	uint8_t ht_supp_chan_widthset;
+	uint8_t ht_ldpc_capable;
+	uint8_t heartbeat_failure;
+
+#ifdef WLAN_FEATURE_11AC
+	tDot11fIEVHTCaps vht_caps;
+	uint8_t vht_supp_chanwidth_set;
+	uint8_t vht_beamformer_capable;
+#endif
+};
+
+void lim_process_ndi_mlm_add_bss_rsp(tpAniSirGlobal mac_ctx,
+				     struct scheduler_msg *lim_msg_q,
+				     tpPESession session_entry);
 /* Handler for DEL BSS resp for NDI interface */
+void lim_ndi_del_bss_rsp(tpAniSirGlobal  mac_ctx,
+			void *msg, tpPESession session_entry);
 
-/**
- * lim_ndi_del_bss_rsp() - Handler for DEL BSS resp for NDI interface
- * @mac_ctx: handle to mac structure
- * @del_bss: pointer to del bss response
- * @session_entry: session entry
- *
- * Return: None
- */
-void lim_ndi_del_bss_rsp(struct mac_context * mac_ctx,
-			 struct del_bss_resp *del_bss,
-			 struct pe_session *session_entry);
-
-void lim_ndp_add_sta_rsp(struct mac_context *mac_ctx,
-			 struct pe_session *session_entry,
+void lim_ndp_add_sta_rsp(tpAniSirGlobal mac_ctx, tpPESession session_entry,
 			 tAddStaParams *add_sta_rsp);
 
-void lim_process_ndi_del_sta_rsp(struct mac_context *mac_ctx,
+void lim_process_ndi_del_sta_rsp(tpAniSirGlobal mac_ctx,
 				 struct scheduler_msg *lim_msg,
-				 struct pe_session *pe_session);
+				 tpPESession pe_session);
 
 QDF_STATUS lim_add_ndi_peer_converged(uint32_t vdev_id,
 				struct qdf_mac_addr peer_mac_addr);
@@ -76,43 +124,34 @@ void lim_ndp_delete_peers_by_addr_converged(uint8_t vdev_id,
 					struct qdf_mac_addr peer_ndi_mac_addr);
 
 #else
-static inline
-void lim_process_ndi_mlm_add_bss_rsp(struct mac_context *mac_ctx,
-				     struct add_bss_rsp *add_bss_rsp,
-				     struct pe_session *session_entry)
+static inline void lim_process_ndi_mlm_add_bss_rsp(tpAniSirGlobal mac_ctx,
+					struct scheduler_msg *lim_msg_q,
+					tpPESession session_entry)
+{
+}
+static inline void lim_ndi_del_bss_rsp(tpAniSirGlobal mac_ctx,
+					void *msg, tpPESession session_entry)
+{
+}
+static inline void lim_process_ndi_del_sta_rsp(tpAniSirGlobal mac_ctx,
+				struct scheduler_msg *lim_msg,
+				tpPESession pe_session)
 {
 }
 
-/**
- * lim_ndi_del_bss_rsp() - Handler for DEL BSS resp for NDI interface
- * @mac_ctx: handle to mac structure
- * @del_bss: pointer to del bss response
- * @session_entry: session entry
- *
- * Return: None
- */
-static inline
-void lim_ndi_del_bss_rsp(struct mac_context *mac_ctx,
-			 struct del_bss_resp *del_bss,
-			 struct pe_session *session_entry)
+static inline void lim_ndp_add_sta_rsp(tpAniSirGlobal mac_ctx,
+					tpPESession session_entry,
+					tAddStaParams *add_sta_rsp)
 {
 }
 
-static inline
-void lim_process_ndi_del_sta_rsp(struct mac_context *mac_ctx,
-				 struct scheduler_msg *lim_msg,
-				 struct pe_session *pe_session)
-{
-}
+#endif /* WLAN_FEATURE_NAN_DATAPATH || WLAN_FEATURE_NAN_CONVERGENCE */
 
-static inline
-void lim_ndp_add_sta_rsp(struct mac_context *mac_ctx,
-			 struct pe_session *session_entry,
-			 tAddStaParams *add_sta_rsp)
+static inline QDF_STATUS lim_handle_ndp_event_message(tpAniSirGlobal mac_ctx,
+						      struct scheduler_msg *msg)
 {
+	return QDF_STATUS_SUCCESS;
 }
-
-#endif /* WLAN_FEATURE_NAN */
 
 #endif /* __MAC_NAN_DATAPATH_H */
 

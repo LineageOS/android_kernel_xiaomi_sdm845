@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -37,6 +37,9 @@
 #include "ce_reg.h"
 #include "ce_assignment.h"
 #include "ce_tasklet.h"
+#ifndef CONFIG_WIN
+#include "qwlan_version.h"
+#endif
 #include "qdf_module.h"
 
 #define CE_POLL_TIMEOUT 10      /* ms */
@@ -52,13 +55,9 @@
 #include "qdf_hang_event_notifier.h"
 #endif
 
-#if (defined(QCA_WIFI_QCA8074) || defined(QCA_WIFI_QCA6290) || \
-	defined(QCA_WIFI_QCA6018)) && !defined(QCA_WIFI_SUPPORT_SRNG)
+#if (defined(QCA_WIFI_QCA8074) || defined(QCA_WIFI_QCA6290)) && \
+	!defined(QCA_WIFI_SUPPORT_SRNG)
 #define QCA_WIFI_SUPPORT_SRNG
-#endif
-
-#ifdef QCA_WIFI_SUPPORT_SRNG
-#include <hal_api.h>
 #endif
 
 /* Forward references */
@@ -77,14 +76,14 @@ QDF_STATUS hif_post_recv_buffers_for_pipe(struct HIF_CE_pipe_info *pipe_info);
 #define BYPASS_QMI 0
 #endif
 
-#ifdef ENABLE_10_4_FW_HDR
-#if (ENABLE_10_4_FW_HDR == 1)
+#ifdef CONFIG_WIN
+#if ENABLE_10_4_FW_HDR
 #define WDI_IPA_SERVICE_GROUP 5
 #define WDI_IPA_TX_SVC MAKE_SERVICE_ID(WDI_IPA_SERVICE_GROUP, 0)
 #define HTT_DATA2_MSG_SVC MAKE_SERVICE_ID(HTT_SERVICE_GROUP, 1)
 #define HTT_DATA3_MSG_SVC MAKE_SERVICE_ID(HTT_SERVICE_GROUP, 2)
-#endif /* ENABLE_10_4_FW_HDR == 1 */
 #endif /* ENABLE_10_4_FW_HDR */
+#endif
 
 QDF_STATUS hif_post_recv_buffers(struct hif_softc *scn);
 static void hif_config_rri_on_ddr(struct hif_softc *scn);
@@ -184,19 +183,6 @@ static struct shadow_reg_cfg target_shadow_reg_cfg_map[] = {
 	{ 11, ADRASTEA_DST_WR_INDEX_OFFSET},
 #endif
 };
-
-#ifdef QCN7605_SUPPORT
-static struct shadow_reg_cfg target_shadow_reg_cfg_map_qcn7605[] = {
-	{ 0, ADRASTEA_SRC_WR_INDEX_OFFSET},
-	{ 4, ADRASTEA_SRC_WR_INDEX_OFFSET},
-	{ 5, ADRASTEA_SRC_WR_INDEX_OFFSET},
-	{ 3, ADRASTEA_DST_WR_INDEX_OFFSET},
-	{ 1, ADRASTEA_DST_WR_INDEX_OFFSET},
-	{ 2, ADRASTEA_DST_WR_INDEX_OFFSET},
-	{ 7, ADRASTEA_DST_WR_INDEX_OFFSET},
-	{ 8, ADRASTEA_DST_WR_INDEX_OFFSET},
-};
-#endif
 
 #ifdef WLAN_FEATURE_EPPING
 static struct shadow_reg_cfg target_shadow_reg_cfg_epping[] = {
@@ -426,127 +412,8 @@ static struct service_to_pipe target_service_to_ce_map_qca8074[] = {
 };
 #endif
 
-#if (defined(QCA_WIFI_QCA8074V2))
-static struct service_to_pipe target_service_to_ce_map_qca8074_v2[] = {
-	{ WMI_DATA_VO_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VO_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_IN, 2, },
-	{ WMI_CONTROL_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_CONTROL_SVC, PIPEDIR_IN, 2, },
-	{ WMI_CONTROL_SVC_WMAC1, PIPEDIR_OUT, 7},
-	{ WMI_CONTROL_SVC_WMAC1, PIPEDIR_IN, 2},
-	{ WMI_CONTROL_SVC_WMAC2, PIPEDIR_OUT, 9},
-	{ WMI_CONTROL_SVC_WMAC2, PIPEDIR_IN, 2},
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_OUT, 0, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_IN, 1, },
-	{ HTC_RAW_STREAMS_SVC, PIPEDIR_OUT, 0},
-	{ HTC_RAW_STREAMS_SVC, PIPEDIR_IN, 1 },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_OUT, 4, },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_IN, 1, },
-	{ PACKET_LOG_SVC, PIPEDIR_IN, 5, },
-	/* (Additions here) */
-	{ 0, 0, 0, },
-};
-#else
-static struct service_to_pipe target_service_to_ce_map_qca8074_v2[] = {
-};
-#endif
-
-#if (defined(QCA_WIFI_QCA6018))
-static struct service_to_pipe target_service_to_ce_map_qca6018[] = {
-	{ WMI_DATA_VO_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VO_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_IN, 2, },
-	{ WMI_CONTROL_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_CONTROL_SVC, PIPEDIR_IN, 2, },
-	{ WMI_CONTROL_SVC_WMAC1, PIPEDIR_OUT, 7},
-	{ WMI_CONTROL_SVC_WMAC1, PIPEDIR_IN, 2},
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_OUT, 0, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_IN, 1, },
-	{ HTC_RAW_STREAMS_SVC, PIPEDIR_OUT, 0},
-	{ HTC_RAW_STREAMS_SVC, PIPEDIR_IN, 1 },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_OUT, 4, },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_IN, 1, },
-	{ PACKET_LOG_SVC, PIPEDIR_IN, 5, },
-	/* (Additions here) */
-	{ 0, 0, 0, },
-};
-#else
-static struct service_to_pipe target_service_to_ce_map_qca6018[] = {
-};
-#endif
-
-#if (defined(QCA_WIFI_QCN9000))
-static struct service_to_pipe target_service_to_ce_map_qcn9000[] = {
-	{ WMI_DATA_VO_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VO_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_IN, 2, },
-	{ WMI_CONTROL_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_CONTROL_SVC, PIPEDIR_IN, 2, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_OUT, 0, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_IN, 1, },
-	{ HTC_RAW_STREAMS_SVC, PIPEDIR_OUT, 0},
-	{ HTC_RAW_STREAMS_SVC, PIPEDIR_IN, 1 },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_OUT, 4, },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_IN, 1, },
-	{ PACKET_LOG_SVC, PIPEDIR_IN, 5, },
-	/* (Additions here) */
-	{ 0, 0, 0, },
-};
-#else
-static struct service_to_pipe target_service_to_ce_map_qcn9000[] = {
-};
-#endif
-
-/* PIPEDIR_OUT = HOST to Target */
-/* PIPEDIR_IN  = TARGET to HOST */
-#ifdef QCN7605_SUPPORT
-static struct service_to_pipe target_service_to_ce_map_qcn7605[] = {
-	{ WMI_DATA_VO_SVC, PIPEDIR_OUT, 0, },
-	{ WMI_DATA_VO_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_OUT, 0, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_OUT, 0, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_OUT, 0, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_IN, 2, },
-	{ WMI_CONTROL_SVC, PIPEDIR_OUT, 0, },
-	{ WMI_CONTROL_SVC, PIPEDIR_IN, 2, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_OUT, 0, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_IN, 2, },
-	{ HTC_RAW_STREAMS_SVC, PIPEDIR_OUT, 0, },
-	{ HTC_RAW_STREAMS_SVC, PIPEDIR_IN, 2, },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_OUT, 4, },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_IN, 1, },
-	{ HTT_DATA2_MSG_SVC, PIPEDIR_IN, 3, },
-#ifdef IPA_OFFLOAD
-	{ WDI_IPA_TX_SVC, PIPEDIR_OUT, 5, },
-#else
-	{ HTT_DATA3_MSG_SVC, PIPEDIR_IN, 8, },
-#endif
-	{ PACKET_LOG_SVC, PIPEDIR_IN, 7, },
-	/* (Additions here) */
-	{ 0, 0, 0, },
-};
-#endif
-
 #if (defined(QCA_WIFI_QCA6290))
-#ifdef QCA_6290_AP_MODE
+#ifdef CONFIG_WIN
 static struct service_to_pipe target_service_to_ce_map_qca6290[] = {
 	{ WMI_DATA_VO_SVC, PIPEDIR_OUT, 3, },
 	{ WMI_DATA_VO_SVC, PIPEDIR_IN , 2, },
@@ -590,76 +457,6 @@ static struct service_to_pipe target_service_to_ce_map_qca6290[] = {
 #endif
 #else
 static struct service_to_pipe target_service_to_ce_map_qca6290[] = {
-};
-#endif
-
-#if (defined(QCA_WIFI_QCA6390))
-static struct service_to_pipe target_service_to_ce_map_qca6390[] = {
-	{ WMI_DATA_VO_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VO_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_IN, 2, },
-	{ WMI_CONTROL_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_CONTROL_SVC, PIPEDIR_IN, 2, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_OUT, 0, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_IN, 2, },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_OUT, 4, },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_IN, 1, },
-	{ PACKET_LOG_SVC, PIPEDIR_IN, 5, },
-	/* (Additions here) */
-	{ 0, 0, 0, },
-};
-#else
-static struct service_to_pipe target_service_to_ce_map_qca6390[] = {
-};
-#endif
-
-static struct service_to_pipe target_service_to_ce_map_qca6490[] = {
-	{ WMI_DATA_VO_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VO_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_IN, 2, },
-	{ WMI_CONTROL_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_CONTROL_SVC, PIPEDIR_IN, 2, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_OUT, 0, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_IN, 2, },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_OUT, 4, },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_IN, 1, },
-	{ PACKET_LOG_SVC, PIPEDIR_IN, 5, },
-	/* (Additions here) */
-	{ 0, 0, 0, },
-};
-
-#if (defined(QCA_WIFI_QCA6750))
-static struct service_to_pipe target_service_to_ce_map_qca6750[] = {
-	{ WMI_DATA_VO_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VO_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BK_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_BE_SVC, PIPEDIR_IN, 2, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_DATA_VI_SVC, PIPEDIR_IN, 2, },
-	{ WMI_CONTROL_SVC, PIPEDIR_OUT, 3, },
-	{ WMI_CONTROL_SVC, PIPEDIR_IN, 2, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_OUT, 0, },
-	{ HTC_CTRL_RSVD_SVC, PIPEDIR_IN, 2, },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_OUT, 4, },
-	{ HTT_DATA_MSG_SVC, PIPEDIR_IN, 1, },
-	{ PACKET_LOG_SVC, PIPEDIR_IN, 5, },
-	/* (Additions here) */
-	{ 0, 0, 0, },
-};
-#else
-static struct service_to_pipe target_service_to_ce_map_qca6750[] = {
 };
 #endif
 
@@ -796,23 +593,6 @@ void hif_select_epping_service_to_pipe_map(struct service_to_pipe
 }
 #endif
 
-#ifdef QCN7605_SUPPORT
-static inline
-void hif_select_ce_map_qcn7605(struct service_to_pipe **tgt_svc_map_to_use,
-			       uint32_t *sz_tgt_svc_map_to_use)
-{
-	*tgt_svc_map_to_use = target_service_to_ce_map_qcn7605;
-	*sz_tgt_svc_map_to_use = sizeof(target_service_to_ce_map_qcn7605);
-}
-#else
-static inline
-void hif_select_ce_map_qcn7605(struct service_to_pipe **tgt_svc_map_to_use,
-			       uint32_t *sz_tgt_svc_map_to_use)
-{
-	HIF_ERROR("%s: QCN7605 not supported", __func__);
-}
-#endif
-
 static void hif_select_service_to_pipe_map(struct hif_softc *scn,
 				    struct service_to_pipe **tgt_svc_map_to_use,
 				    uint32_t *sz_tgt_svc_map_to_use)
@@ -830,10 +610,6 @@ static void hif_select_service_to_pipe_map(struct hif_softc *scn,
 			*sz_tgt_svc_map_to_use =
 				sizeof(target_service_to_ce_map_wlan);
 			break;
-		case TARGET_TYPE_QCN7605:
-			hif_select_ce_map_qcn7605(tgt_svc_map_to_use,
-						  sz_tgt_svc_map_to_use);
-			break;
 		case TARGET_TYPE_AR900B:
 		case TARGET_TYPE_QCA9984:
 		case TARGET_TYPE_IPQ4019:
@@ -849,43 +625,10 @@ static void hif_select_service_to_pipe_map(struct hif_softc *scn,
 			*sz_tgt_svc_map_to_use =
 				sizeof(target_service_to_ce_map_qca6290);
 			break;
-		case TARGET_TYPE_QCA6390:
-			*tgt_svc_map_to_use = target_service_to_ce_map_qca6390;
-			*sz_tgt_svc_map_to_use =
-				sizeof(target_service_to_ce_map_qca6390);
-			break;
-		case TARGET_TYPE_QCA6490:
-			*tgt_svc_map_to_use = target_service_to_ce_map_qca6490;
-			*sz_tgt_svc_map_to_use =
-				sizeof(target_service_to_ce_map_qca6490);
-			break;
-		case TARGET_TYPE_QCA6750:
-			*tgt_svc_map_to_use = target_service_to_ce_map_qca6750;
-			*sz_tgt_svc_map_to_use =
-				sizeof(target_service_to_ce_map_qca6750);
-			break;
 		case TARGET_TYPE_QCA8074:
 			*tgt_svc_map_to_use = target_service_to_ce_map_qca8074;
 			*sz_tgt_svc_map_to_use =
 				sizeof(target_service_to_ce_map_qca8074);
-			break;
-		case TARGET_TYPE_QCA8074V2:
-			*tgt_svc_map_to_use =
-				target_service_to_ce_map_qca8074_v2;
-			*sz_tgt_svc_map_to_use =
-				sizeof(target_service_to_ce_map_qca8074_v2);
-			break;
-		case TARGET_TYPE_QCA6018:
-			*tgt_svc_map_to_use =
-				target_service_to_ce_map_qca6018;
-			*sz_tgt_svc_map_to_use =
-				sizeof(target_service_to_ce_map_qca6018);
-			break;
-		case TARGET_TYPE_QCN9000:
-			*tgt_svc_map_to_use =
-				target_service_to_ce_map_qcn9000;
-			*sz_tgt_svc_map_to_use =
-				sizeof(target_service_to_ce_map_qcn9000);
 			break;
 		}
 	}
@@ -910,7 +653,7 @@ static bool ce_mark_datapath(struct CE_state *ce_state)
 	int    i;
 	bool   rc = false;
 
-	if (ce_state) {
+	if (ce_state != NULL) {
 		hif_select_service_to_pipe_map(ce_state->scn, &svc_map,
 					       &map_sz);
 
@@ -968,18 +711,13 @@ static QDF_STATUS ce_alloc_desc_ring(struct hif_softc *scn, unsigned int CE_id,
 				     struct CE_ring_state *ce_ring,
 				     unsigned int nentries, uint32_t desc_size)
 {
-	if ((CE_id == HIF_PCI_IPA_UC_ASSIGNED_CE) &&
-	    !ce_srng_based(scn)) {
+	if (CE_id == HIF_PCI_IPA_UC_ASSIGNED_CE) {
+		scn->ipa_ce_ring = qdf_mem_shared_mem_alloc(scn->qdf_dev,
+			nentries * desc_size + CE_DESC_RING_ALIGN);
 		if (!scn->ipa_ce_ring) {
-			scn->ipa_ce_ring = qdf_mem_shared_mem_alloc(
-				scn->qdf_dev,
-				nentries * desc_size + CE_DESC_RING_ALIGN);
-			if (!scn->ipa_ce_ring) {
-				HIF_ERROR(
-				"%s: Failed to allocate memory for IPA ce ring",
-				__func__);
-				return QDF_STATUS_E_NOMEM;
-			}
+			HIF_ERROR("%s: Failed to allocate memory for IPA ce ring",
+				  __func__);
+			return QDF_STATUS_E_NOMEM;
 		}
 		*base_addr = qdf_mem_get_dma_addr(scn->qdf_dev,
 						&scn->ipa_ce_ring->mem_info);
@@ -987,14 +725,11 @@ static QDF_STATUS ce_alloc_desc_ring(struct hif_softc *scn, unsigned int CE_id,
 						scn->ipa_ce_ring->vaddr;
 	} else {
 		ce_ring->base_addr_owner_space_unaligned =
-			hif_mem_alloc_consistent_unaligned
-					(scn,
-					 (nentries * desc_size +
-					  CE_DESC_RING_ALIGN),
-					 base_addr,
-					 ce_ring->hal_ring_type,
-					 &ce_ring->is_ring_prealloc);
-
+			qdf_mem_alloc_consistent(scn->qdf_dev,
+						 scn->qdf_dev->dev,
+						 (nentries * desc_size +
+						 CE_DESC_RING_ALIGN),
+						 base_addr);
 		if (!ce_ring->base_addr_owner_space_unaligned) {
 			HIF_ERROR("%s: Failed to allocate DMA memory for ce ring id : %u",
 				  __func__, CE_id);
@@ -1016,21 +751,15 @@ static QDF_STATUS ce_alloc_desc_ring(struct hif_softc *scn, unsigned int CE_id,
 static void ce_free_desc_ring(struct hif_softc *scn, unsigned int CE_id,
 			      struct CE_ring_state *ce_ring, uint32_t desc_size)
 {
-	if ((CE_id == HIF_PCI_IPA_UC_ASSIGNED_CE) &&
-	    !ce_srng_based(scn)) {
-		if (scn->ipa_ce_ring) {
-			qdf_mem_shared_mem_free(scn->qdf_dev,
-						scn->ipa_ce_ring);
-			scn->ipa_ce_ring = NULL;
-		}
+	if (CE_id == HIF_PCI_IPA_UC_ASSIGNED_CE) {
+		qdf_mem_shared_mem_free(scn->qdf_dev,
+					scn->ipa_ce_ring);
 		ce_ring->base_addr_owner_space_unaligned = NULL;
 	} else {
-		hif_mem_free_consistent_unaligned
-			(scn,
-			 ce_ring->nentries * desc_size + CE_DESC_RING_ALIGN,
-			 ce_ring->base_addr_owner_space_unaligned,
-			 ce_ring->base_addr_CE_space, 0,
-			 ce_ring->is_ring_prealloc);
+		qdf_mem_free_consistent(scn->qdf_dev, scn->qdf_dev->dev,
+			ce_ring->nentries * desc_size + CE_DESC_RING_ALIGN,
+			ce_ring->base_addr_owner_space_unaligned,
+			ce_ring->base_addr_CE_space, 0);
 		ce_ring->base_addr_owner_space_unaligned = NULL;
 	}
 }
@@ -1041,14 +770,9 @@ static QDF_STATUS ce_alloc_desc_ring(struct hif_softc *scn, unsigned int CE_id,
 				     unsigned int nentries, uint32_t desc_size)
 {
 	ce_ring->base_addr_owner_space_unaligned =
-			hif_mem_alloc_consistent_unaligned
-					(scn,
+		qdf_mem_alloc_consistent(scn->qdf_dev, scn->qdf_dev->dev,
 					 (nentries * desc_size +
-					  CE_DESC_RING_ALIGN),
-					 base_addr,
-					 ce_ring->hal_ring_type,
-					 &ce_ring->is_ring_prealloc);
-
+					 CE_DESC_RING_ALIGN), base_addr);
 	if (!ce_ring->base_addr_owner_space_unaligned) {
 		HIF_ERROR("%s: Failed to allocate DMA memory for ce ring id : %u",
 			  __func__, CE_id);
@@ -1060,30 +784,13 @@ static QDF_STATUS ce_alloc_desc_ring(struct hif_softc *scn, unsigned int CE_id,
 static void ce_free_desc_ring(struct hif_softc *scn, unsigned int CE_id,
 			      struct CE_ring_state *ce_ring, uint32_t desc_size)
 {
-	hif_mem_free_consistent_unaligned
-		(scn,
-		 ce_ring->nentries * desc_size + CE_DESC_RING_ALIGN,
-		 ce_ring->base_addr_owner_space_unaligned,
-		 ce_ring->base_addr_CE_space, 0,
-		 ce_ring->is_ring_prealloc);
+	qdf_mem_free_consistent(scn->qdf_dev, scn->qdf_dev->dev,
+		ce_ring->nentries * desc_size + CE_DESC_RING_ALIGN,
+		ce_ring->base_addr_owner_space_unaligned,
+		ce_ring->base_addr_CE_space, 0);
 	ce_ring->base_addr_owner_space_unaligned = NULL;
 }
 #endif /* IPA_OFFLOAD */
-
-/*
- * TODO: Need to explore the possibility of having this as part of a
- * target context instead of a global array.
- */
-static struct ce_ops* (*ce_attach_register[CE_MAX_TARGET_TYPE])(void);
-
-void ce_service_register_module(enum ce_target_type target_type,
-				struct ce_ops* (*ce_attach)(void))
-{
-	if (target_type < CE_MAX_TARGET_TYPE)
-		ce_attach_register[target_type] = ce_attach;
-}
-
-qdf_export_symbol(ce_service_register_module);
 
 /**
  * ce_srng_based() - Does this target use srng
@@ -1103,13 +810,7 @@ bool ce_srng_based(struct hif_softc *scn)
 
 	switch (tgt_info->target_type) {
 	case TARGET_TYPE_QCA8074:
-	case TARGET_TYPE_QCA8074V2:
 	case TARGET_TYPE_QCA6290:
-	case TARGET_TYPE_QCA6390:
-	case TARGET_TYPE_QCA6490:
-	case TARGET_TYPE_QCA6750:
-	case TARGET_TYPE_QCA6018:
-	case TARGET_TYPE_QCN9000:
 		return true;
 	default:
 		return false;
@@ -1121,26 +822,17 @@ qdf_export_symbol(ce_srng_based);
 #ifdef QCA_WIFI_SUPPORT_SRNG
 static struct ce_ops *ce_services_attach(struct hif_softc *scn)
 {
-	struct ce_ops *ops = NULL;
+	if (ce_srng_based(scn))
+		return ce_services_srng();
 
-	if (ce_srng_based(scn)) {
-		if (ce_attach_register[CE_SVC_SRNG])
-			ops = ce_attach_register[CE_SVC_SRNG]();
-	} else if (ce_attach_register[CE_SVC_LEGACY]) {
-		ops = ce_attach_register[CE_SVC_LEGACY]();
-	}
-
-	return ops;
+	return ce_services_legacy();
 }
 
 
 #else	/* QCA_LITHIUM */
 static struct ce_ops *ce_services_attach(struct hif_softc *scn)
 {
-	if (ce_attach_register[CE_SVC_LEGACY])
-		return ce_attach_register[CE_SVC_LEGACY]();
-
-	return NULL;
+	return ce_services_legacy();
 }
 #endif /* QCA_LITHIUM */
 
@@ -1161,26 +853,7 @@ static inline uint32_t ce_get_desc_size(struct hif_softc *scn,
 	return hif_state->ce_services->ce_get_desc_size(ring_type);
 }
 
-#ifdef QCA_WIFI_SUPPORT_SRNG
-static inline int32_t ce_ring_type_to_hal_ring_type(uint32_t ce_ring_type)
-{
-	switch (ce_ring_type) {
-	case CE_RING_SRC:
-		return CE_SRC;
-	case CE_RING_DEST:
-		return CE_DST;
-	case CE_RING_STATUS:
-		return CE_DST_STATUS;
-	default:
-		return -EINVAL;
-	}
-}
-#else
-static int32_t ce_ring_type_to_hal_ring_type(uint32_t ce_ring_type)
-{
-	return 0;
-}
-#endif
+
 static struct CE_ring_state *ce_alloc_ring_state(struct CE_state *CE_state,
 		uint8_t ring_type, uint32_t nentries)
 {
@@ -1205,7 +878,6 @@ static struct CE_ring_state *ce_alloc_ring_state(struct CE_state *CE_state,
 	ce_ring->low_water_mark_nentries = 0;
 	ce_ring->high_water_mark_nentries = nentries;
 	ce_ring->per_transfer_context = (void **)ptr;
-	ce_ring->hal_ring_type = ce_ring_type_to_hal_ring_type(ring_type);
 
 	desc_size = ce_get_desc_size(scn, ring_type);
 
@@ -1294,7 +966,7 @@ int hif_ce_bus_late_resume(struct hif_softc *scn)
 {
 	int ce_id;
 	struct CE_state *ce_state;
-	int write_index = 0;
+	int write_index;
 	bool index_updated;
 
 	for (ce_id = 0; ce_id < scn->ce_count; ce_id++) {
@@ -1343,7 +1015,7 @@ static void ce_oom_recovery(void *context)
 	hif_post_recv_buffers_for_pipe(pipe_info);
 }
 
-#ifdef HIF_CE_DEBUG_DATA_BUF
+#if HIF_CE_DEBUG_DATA_BUF
 /**
  * alloc_mem_ce_debug_hist_data() - Allocate mem for the data pointed by
  * the CE descriptors.
@@ -1365,15 +1037,12 @@ QDF_STATUS alloc_mem_ce_debug_hist_data(struct hif_softc *scn, uint32_t ce_id)
 	if (!hist_ev)
 		return QDF_STATUS_E_NOMEM;
 
-	scn->hif_ce_desc_hist.data_enable[ce_id] = true;
 	for (index = 0; index < HIF_CE_HISTORY_MAX; index++) {
 		event = &hist_ev[index];
 		event->data =
 			(uint8_t *)qdf_mem_malloc(CE_DEBUG_MAX_DATA_BUF_SIZE);
-		if (!event->data) {
-			hif_err_rl("ce debug data alloc failed");
+		if (event->data == NULL)
 			return QDF_STATUS_E_NOMEM;
-		}
 	}
 	return QDF_STATUS_SUCCESS;
 }
@@ -1400,39 +1069,31 @@ void free_mem_ce_debug_hist_data(struct hif_softc *scn, uint32_t ce_id)
 
 	for (index = 0; index < HIF_CE_HISTORY_MAX; index++) {
 		event = &hist_ev[index];
-		if (event->data)
+		if (event->data != NULL)
 			qdf_mem_free(event->data);
 		event->data = NULL;
 		event = NULL;
 	}
-
 }
 #endif /* HIF_CE_DEBUG_DATA_BUF */
 
-#ifndef HIF_CE_DEBUG_DATA_DYNAMIC_BUF
-#if defined(HIF_CONFIG_SLUB_DEBUG_ON) || defined(HIF_CE_DEBUG_DATA_BUF)
+#if defined(HIF_CONFIG_SLUB_DEBUG_ON) /* MCL */
 struct hif_ce_desc_event hif_ce_desc_history[CE_COUNT_MAX][HIF_CE_HISTORY_MAX];
 
 /**
  * alloc_mem_ce_debug_history() - Allocate CE descriptor history
  * @scn: hif scn handle
  * @ce_id: Copy Engine Id
- * @src_nentries: source ce ring entries
+ *
  * Return: QDF_STATUS
  */
 static QDF_STATUS
-alloc_mem_ce_debug_history(struct hif_softc *scn, unsigned int ce_id,
-			   uint32_t src_nentries)
+alloc_mem_ce_debug_history(struct hif_softc *scn, unsigned int ce_id)
 {
 	struct ce_desc_hist *ce_hist = &scn->hif_ce_desc_hist;
 
 	ce_hist->hist_ev[ce_id] = hif_ce_desc_history[ce_id];
 	ce_hist->enable[ce_id] = 1;
-
-	if (src_nentries)
-		alloc_mem_ce_debug_hist_data(scn, ce_id);
-	else
-		ce_hist->data_enable[ce_id] = false;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -1449,34 +1110,18 @@ static void free_mem_ce_debug_history(struct hif_softc *scn, unsigned int ce_id)
 	struct ce_desc_hist *ce_hist = &scn->hif_ce_desc_hist;
 
 	ce_hist->enable[ce_id] = 0;
-	if (ce_hist->data_enable[ce_id]) {
-		ce_hist->data_enable[ce_id] = false;
-		free_mem_ce_debug_hist_data(scn, ce_id);
-	}
 	ce_hist->hist_ev[ce_id] = NULL;
 }
-#else
-static inline QDF_STATUS
-alloc_mem_ce_debug_history(struct hif_softc *scn, unsigned int CE_id,
-			   uint32_t src_nentries)
-{
-	return QDF_STATUS_SUCCESS;
-}
 
-static inline void
-free_mem_ce_debug_history(struct hif_softc *scn, unsigned int CE_id) { }
-#endif /* (HIF_CONFIG_SLUB_DEBUG_ON) || (HIF_CE_DEBUG_DATA_BUF) */
-#else
-#if defined(HIF_CE_DEBUG_DATA_BUF)
+#elif HIF_CE_DEBUG_DATA_BUF /* WIN */
 
 static QDF_STATUS
-alloc_mem_ce_debug_history(struct hif_softc *scn, unsigned int CE_id,
-			   uint32_t src_nentries)
+alloc_mem_ce_debug_history(struct hif_softc *scn, unsigned int CE_id)
 {
 	scn->hif_ce_desc_hist.hist_ev[CE_id] = (struct hif_ce_desc_event *)
 	qdf_mem_malloc(HIF_CE_HISTORY_MAX * sizeof(struct hif_ce_desc_event));
 
-	if (!scn->hif_ce_desc_hist.hist_ev[CE_id]) {
+	if (scn->hif_ce_desc_hist.hist_ev[CE_id] == NULL) {
 		scn->hif_ce_desc_hist.enable[CE_id] = 0;
 		return QDF_STATUS_E_NOMEM;
 	} else {
@@ -1493,8 +1138,8 @@ static void free_mem_ce_debug_history(struct hif_softc *scn, unsigned int CE_id)
 	if (!hist_ev)
 		return;
 
-	if (ce_hist->data_enable[CE_id]) {
-		ce_hist->data_enable[CE_id] = false;
+	if (ce_hist->data_enable[CE_id] == 1) {
+		ce_hist->data_enable[CE_id] = 0;
 		free_mem_ce_debug_hist_data(scn, CE_id);
 	}
 
@@ -1503,21 +1148,19 @@ static void free_mem_ce_debug_history(struct hif_softc *scn, unsigned int CE_id)
 	ce_hist->hist_ev[CE_id] = NULL;
 }
 
-#else
+#else /* Disabled */
 
 static inline QDF_STATUS
-alloc_mem_ce_debug_history(struct hif_softc *scn, unsigned int CE_id,
-			   uint32_t src_nentries)
+alloc_mem_ce_debug_history(struct hif_softc *scn, unsigned int CE_id)
 {
 	return QDF_STATUS_SUCCESS;
 }
 
 static inline void
 free_mem_ce_debug_history(struct hif_softc *scn, unsigned int CE_id) { }
-#endif /* HIF_CE_DEBUG_DATA_BUF */
-#endif /* HIF_CE_DEBUG_DATA_DYNAMIC_BUF */
+#endif
 
-#if defined(HIF_CONFIG_SLUB_DEBUG_ON) || defined(HIF_CE_DEBUG_DATA_BUF)
+#if defined(HIF_CONFIG_SLUB_DEBUG_ON) || HIF_CE_DEBUG_DATA_BUF
 /**
  * reset_ce_debug_history() - reset the index and ce id used for dumping the
  * CE records on the console using sysfs.
@@ -1534,25 +1177,9 @@ static inline void reset_ce_debug_history(struct hif_softc *scn)
 	ce_hist->hist_index = 0;
 	ce_hist->hist_id = 0;
 }
-#else /* defined(HIF_CONFIG_SLUB_DEBUG_ON) || defined(HIF_CE_DEBUG_DATA_BUF) */
+#else /* defined(HIF_CONFIG_SLUB_DEBUG_ON) || HIF_CE_DEBUG_DATA_BUF */
 static inline void reset_ce_debug_history(struct hif_softc *scn) { }
-#endif /*defined(HIF_CONFIG_SLUB_DEBUG_ON) || defined(HIF_CE_DEBUG_DATA_BUF) */
-
-void ce_enable_polling(void *cestate)
-{
-	struct CE_state *CE_state = (struct CE_state *)cestate;
-
-	if (CE_state && CE_state->attr_flags & CE_ATTR_ENABLE_POLL)
-		CE_state->timer_inited = true;
-}
-
-void ce_disable_polling(void *cestate)
-{
-	struct CE_state *CE_state = (struct CE_state *)cestate;
-
-	if (CE_state && CE_state->attr_flags & CE_ATTR_ENABLE_POLL)
-		CE_state->timer_inited = false;
-}
+#endif /* defined(HIF_CONFIG_SLUB_DEBUG_ON) || HIF_CE_DEBUG_DATA_BUF */
 
 /*
  * Initialize a Copy Engine based on caller-supplied attributes.
@@ -1581,9 +1208,10 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 	if (!CE_state) {
 		CE_state =
 		    (struct CE_state *)qdf_mem_malloc(sizeof(*CE_state));
-		if (!CE_state)
+		if (!CE_state) {
+			HIF_ERROR("%s: CE_state has no mem", __func__);
 			return NULL;
-
+		}
 		malloc_CE_state = true;
 		qdf_spinlock_create(&CE_state->ce_index_lock);
 
@@ -1593,10 +1221,9 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 		CE_state->attr_flags = attr->flags;
 	}
 	CE_state->scn = scn;
-	CE_state->service = ce_engine_service_reg;
 
 	qdf_atomic_init(&CE_state->rx_pending);
-	if (!attr) {
+	if (attr == NULL) {
 		/* Already initialized; caller wants the handle */
 		return (struct CE_handle *)CE_state;
 	}
@@ -1648,9 +1275,11 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 				qdf_mem_malloc(nentries *
 					       sizeof(struct CE_src_desc) +
 					       CE_DESC_RING_ALIGN);
-			if (!src_ring->shadow_base_unaligned)
+			if (src_ring->shadow_base_unaligned == NULL) {
+				HIF_ERROR("%s: src ring no shadow_base mem",
+					  __func__);
 				goto error_no_dma_mem;
-
+			}
 			src_ring->shadow_base = (struct CE_src_desc *)
 				(((size_t) src_ring->shadow_base_unaligned +
 				CE_DESC_RING_ALIGN - 1) &
@@ -1703,7 +1332,7 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 					ce_alloc_ring_state(CE_state,
 							CE_RING_STATUS,
 							nentries);
-				if (!CE_state->status_ring) {
+				if (CE_state->status_ring == NULL) {
 					/*Allocation failed. Cleanup*/
 					qdf_mem_free(CE_state->dest_ring);
 					if (malloc_src_ring) {
@@ -1733,13 +1362,14 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 
 			/* epping */
 			/* poll timer */
-			if (CE_state->attr_flags & CE_ATTR_ENABLE_POLL) {
+			if ((CE_state->attr_flags & CE_ATTR_ENABLE_POLL) ||
+					scn->polled_mode_on) {
 				qdf_timer_init(scn->qdf_dev,
-						&CE_state->poll_timer,
-						ce_poll_timeout,
-						CE_state,
-						QDF_TIMER_TYPE_WAKE_APPS);
-				ce_enable_polling(CE_state);
+						       &CE_state->poll_timer,
+						       ce_poll_timeout,
+						       CE_state,
+						       QDF_TIMER_TYPE_SW);
+				CE_state->timer_inited = true;
 				qdf_timer_mod(&CE_state->poll_timer,
 						      CE_POLL_TIMEOUT);
 			}
@@ -1762,7 +1392,7 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 	ce_mark_datapath(CE_state);
 	scn->ce_id_to_state[CE_id] = CE_state;
 
-	alloc_mem_ce_debug_history(scn, CE_id, attr->src_nentries);
+	alloc_mem_ce_debug_history(scn, CE_id);
 
 	return (struct CE_handle *)CE_state;
 
@@ -1771,32 +1401,6 @@ error_no_dma_mem:
 	ce_fini((struct CE_handle *)CE_state);
 	return NULL;
 }
-
-/**
- * hif_is_polled_mode_enabled - API to query if polling is enabled on all CEs
- * @hif_ctx: HIF Context
- *
- * API to check if polling is enabled on all CEs. Returns true when polling
- * is enabled on all CEs.
- *
- * Return: bool
- */
-bool hif_is_polled_mode_enabled(struct hif_opaque_softc *hif_ctx)
-{
-	struct hif_softc *scn = HIF_GET_SOFTC(hif_ctx);
-	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
-	struct CE_attr *attr;
-	int id;
-
-	for (id = 0; id < scn->ce_count; id++) {
-		attr = &hif_state->host_ce_config[id];
-		if (attr && (attr->dest_nentries) &&
-		    !(attr->flags & CE_ATTR_ENABLE_POLL))
-			return false;
-	}
-	return true;
-}
-qdf_export_symbol(hif_is_polled_mode_enabled);
 
 #ifdef WLAN_FEATURE_FASTPATH
 /**
@@ -1819,6 +1423,14 @@ void hif_enable_fastpath(struct hif_opaque_softc *hif_ctx)
 	scn->fastpath_mode_on = true;
 }
 
+void hif_enable_polled_mode(struct hif_opaque_softc *hif_ctx)
+{
+	struct hif_softc *scn = HIF_GET_SOFTC(hif_ctx);
+	HIF_DBG("%s, Enabling polled mode", __func__);
+
+	scn->polled_mode_on = true;
+}
+
 /**
  * hif_is_fastpath_mode_enabled - API to query if fasthpath mode is enabled
  * @hif_ctx: HIF Context
@@ -1832,6 +1444,13 @@ bool hif_is_fastpath_mode_enabled(struct hif_opaque_softc *hif_ctx)
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_ctx);
 
 	return scn->fastpath_mode_on;
+}
+
+bool hif_is_polled_mode_enabled(struct hif_opaque_softc *hif_ctx)
+{
+	struct hif_softc *scn = HIF_GET_SOFTC(hif_ctx);
+
+	return scn->polled_mode_on;
 }
 
 /**
@@ -1849,7 +1468,6 @@ void *hif_get_ce_handle(struct hif_opaque_softc *hif_ctx, int id)
 
 	return scn->ce_id_to_state[id];
 }
-qdf_export_symbol(hif_get_ce_handle);
 
 /**
  * ce_h2t_tx_ce_cleanup() Place holder function for H2T CE cleanup.
@@ -1977,6 +1595,11 @@ static inline bool ce_is_fastpath_enabled(struct hif_softc *scn)
 {
 	return false;
 }
+
+static inline bool ce_is_fastpath_handler_registered(struct CE_state *ce_state)
+{
+	return false;
+}
 #endif /* WLAN_FEATURE_FASTPATH */
 
 void ce_fini(struct CE_handle *copyeng)
@@ -1990,8 +1613,7 @@ void ce_fini(struct CE_handle *copyeng)
 	CE_state->state = CE_UNUSED;
 	scn->ce_id_to_state[CE_id] = NULL;
 	/* Set the flag to false first to stop processing in ce_poll_timeout */
-	ce_disable_polling(CE_state);
-
+	CE_state->timer_inited = false;
 	qdf_lro_deinit(CE_state->lro_data);
 
 	if (CE_state->src_ring) {
@@ -2072,11 +1694,7 @@ hif_send_head(struct hif_opaque_softc *hif_ctx,
 	int status, i = 0;
 	unsigned int mux_id = 0;
 
-	if (nbytes > qdf_nbuf_len(nbuf)) {
-		HIF_ERROR("%s: nbytes:%d nbuf_len:%d", __func__, nbytes,
-			  (uint32_t)qdf_nbuf_len(nbuf));
-		QDF_ASSERT(0);
-	}
+	QDF_ASSERT(nbytes <= qdf_nbuf_len(nbuf));
 
 	transfer_id =
 		(mux_id & MUX_ID_MASK) |
@@ -2130,7 +1748,7 @@ hif_send_head(struct hif_opaque_softc *hif_ctx,
 	pipe_info->num_sends_allowed -= nfrags;
 	qdf_spin_unlock_bh(&pipe_info->completion_freeq_lock);
 
-	if (qdf_unlikely(!ce_hdl)) {
+	if (qdf_unlikely(ce_hdl == NULL)) {
 		HIF_ERROR("%s: error CE handle is null", __func__);
 		return A_ERROR;
 	}
@@ -2199,6 +1817,8 @@ hif_pci_ce_send_done(struct CE_handle *copyeng, void *ce_context,
 {
 	struct HIF_CE_pipe_info *pipe_info =
 		(struct HIF_CE_pipe_info *)ce_context;
+	struct HIF_CE_state *hif_state = pipe_info->HIF_CE_state;
+	struct hif_softc *scn = HIF_GET_SOFTC(hif_state);
 	unsigned int sw_idx = sw_index, hw_idx = hw_index;
 	struct hif_msg_callbacks *msg_callbacks =
 		&pipe_info->pipe_callbacks;
@@ -2208,15 +1828,23 @@ hif_pci_ce_send_done(struct CE_handle *copyeng, void *ce_context,
 		 * The upper layer callback will be triggered
 		 * when last fragment is complteted.
 		 */
-		if (transfer_context != CE_SENDLIST_ITEM_CTXT)
-			msg_callbacks->txCompletionHandler(
-				msg_callbacks->Context,
-				transfer_context, transfer_id,
-				toeplitz_hash_result);
+		if (transfer_context != CE_SENDLIST_ITEM_CTXT) {
+			if (scn->target_status == TARGET_STATUS_RESET) {
 
-		qdf_spin_lock_bh(&pipe_info->completion_freeq_lock);
+				qdf_nbuf_unmap_single(scn->qdf_dev,
+						      transfer_context,
+						      QDF_DMA_TO_DEVICE);
+				qdf_nbuf_free(transfer_context);
+			} else
+				msg_callbacks->txCompletionHandler(
+					msg_callbacks->Context,
+					transfer_context, transfer_id,
+					toeplitz_hash_result);
+		}
+
+		qdf_spin_lock(&pipe_info->completion_freeq_lock);
 		pipe_info->num_sends_allowed++;
-		qdf_spin_unlock_bh(&pipe_info->completion_freeq_lock);
+		qdf_spin_unlock(&pipe_info->completion_freeq_lock);
 	} while (ce_completed_send_next(copyeng,
 			&ce_context, &transfer_context,
 			&CE_data, &nbytes, &transfer_id,
@@ -2264,12 +1892,16 @@ hif_pci_ce_recv_data(struct CE_handle *copyeng, void *ce_context,
 	struct HIF_CE_state *hif_state = pipe_info->HIF_CE_state;
 	struct CE_state *ce_state = (struct CE_state *) copyeng;
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_state);
-	struct hif_opaque_softc *hif_ctx = GET_HIF_OPAQUE_HDL(scn);
+#ifdef HIF_PCI
+	struct hif_pci_softc *hif_pci_sc = HIF_GET_PCI_SOFTC(hif_state);
+#endif
 	struct hif_msg_callbacks *msg_callbacks =
 		 &pipe_info->pipe_callbacks;
 
 	do {
-		hif_pm_runtime_mark_last_busy(hif_ctx);
+#ifdef HIF_PCI
+		hif_pm_runtime_mark_last_busy(hif_pci_sc->dev);
+#endif
 		qdf_nbuf_unmap_single(scn->qdf_dev,
 				      (qdf_nbuf_t) transfer_context,
 				      QDF_DMA_FROM_DEVICE);
@@ -2410,7 +2042,7 @@ void hif_dump_pipe_debug_count(struct hif_softc *scn)
 	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
 	int pipe_num;
 
-	if (!hif_state) {
+	if (hif_state == NULL) {
 		HIF_ERROR("%s hif_state is NULL", __func__);
 		return;
 	}
@@ -2455,9 +2087,7 @@ static void hif_post_recv_buffers_failure(struct HIF_CE_pipe_info *pipe_info,
 	 *	there is no trigger to refill the ce and we will
 	 *	eventually crash
 	 */
-	if (bufs_needed_tmp == CE_state->dest_ring->nentries - 1 ||
-	    (ce_srng_based(scn) &&
-	     bufs_needed_tmp == CE_state->dest_ring->nentries - 2))
+	if (bufs_needed_tmp == CE_state->dest_ring->nentries - 1)
 		qdf_sched_work(scn->qdf_dev, &CE_state->oom_allocation_work);
 
 }
@@ -2649,7 +2279,7 @@ static void hif_recv_buffer_cleanup_on_pipe(struct HIF_CE_pipe_info *pipe_info)
 	scn = HIF_GET_SOFTC(hif_state);
 	ce_hdl = pipe_info->ce_hdl;
 
-	if (!scn->qdf_dev)
+	if (scn->qdf_dev == NULL)
 		return;
 	while (ce_revoke_recv_next
 		       (ce_hdl, &per_CE_context, (void **)&netbuf,
@@ -2802,8 +2432,7 @@ void hif_ce_stop(struct hif_softc *scn)
 
 		pipe_info = &hif_state->pipe_info[pipe_num];
 		if (pipe_info->ce_hdl) {
-			if (pipe_info->ce_hdl != ce_diag &&
-			    hif_state->started) {
+			if (pipe_info->ce_hdl != ce_diag) {
 				attr = hif_state->host_ce_config[pipe_num];
 				if (attr.src_nentries)
 					qdf_spinlock_destroy(&pipe_info->
@@ -2825,16 +2454,6 @@ void hif_ce_stop(struct hif_softc *scn)
 	hif_state->started = false;
 }
 
-static void hif_get_shadow_reg_cfg(struct hif_softc *scn,
-				   struct shadow_reg_cfg
-				   **target_shadow_reg_cfg_ret,
-				   uint32_t *shadow_cfg_sz_ret)
-{
-	if (target_shadow_reg_cfg_ret)
-		*target_shadow_reg_cfg_ret = target_shadow_reg_cfg;
-	if (shadow_cfg_sz_ret)
-		*shadow_cfg_sz_ret = shadow_cfg_sz;
-}
 
 /**
  * hif_get_target_ce_config() - get copy engine configuration
@@ -2867,8 +2486,12 @@ void hif_get_target_ce_config(struct hif_softc *scn,
 
 	hif_select_service_to_pipe_map(scn, target_service_to_ce_map_ret,
 				       target_service_to_ce_map_sz_ret);
-	hif_get_shadow_reg_cfg(scn, target_shadow_reg_cfg_ret,
-			       shadow_cfg_sz_ret);
+
+	if (target_shadow_reg_cfg_ret)
+		*target_shadow_reg_cfg_ret = target_shadow_reg_cfg;
+
+	if (shadow_cfg_sz_ret)
+		*shadow_cfg_sz_ret = shadow_cfg_sz;
 }
 
 #ifdef CONFIG_SHADOW_V2
@@ -2876,11 +2499,11 @@ static void hif_print_hal_shadow_register_cfg(struct pld_wlan_enable_cfg *cfg)
 {
 	int i;
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-		  "%s: num_config %d", __func__, cfg->num_shadow_reg_v2_cfg);
+		  "%s: num_config %d\n", __func__, cfg->num_shadow_reg_v2_cfg);
 
 	for (i = 0; i < cfg->num_shadow_reg_v2_cfg; i++) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_INFO,
-		     "%s: i %d, val %x", __func__, i,
+		     "%s: i %d, val %x\n", __func__, i,
 		     cfg->shadow_reg_v2_cfg[i].addr);
 	}
 }
@@ -2889,173 +2512,7 @@ static void hif_print_hal_shadow_register_cfg(struct pld_wlan_enable_cfg *cfg)
 static void hif_print_hal_shadow_register_cfg(struct pld_wlan_enable_cfg *cfg)
 {
 	QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-		  "%s: CONFIG_SHADOW_V2 not defined", __func__);
-}
-#endif
-
-#ifdef ADRASTEA_RRI_ON_DDR
-/**
- * hif_get_src_ring_read_index(): Called to get the SRRI
- *
- * @scn: hif_softc pointer
- * @CE_ctrl_addr: base address of the CE whose RRI is to be read
- *
- * This function returns the SRRI to the caller. For CEs that
- * dont have interrupts enabled, we look at the DDR based SRRI
- *
- * Return: SRRI
- */
-inline unsigned int hif_get_src_ring_read_index(struct hif_softc *scn,
-		uint32_t CE_ctrl_addr)
-{
-	struct CE_attr attr;
-	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
-
-	attr = hif_state->host_ce_config[COPY_ENGINE_ID(CE_ctrl_addr)];
-	if (attr.flags & CE_ATTR_DISABLE_INTR) {
-		return CE_SRC_RING_READ_IDX_GET_FROM_DDR(scn, CE_ctrl_addr);
-	} else {
-		if (TARGET_REGISTER_ACCESS_ALLOWED(scn))
-			return A_TARGET_READ(scn,
-					(CE_ctrl_addr) + CURRENT_SRRI_ADDRESS);
-		else
-			return CE_SRC_RING_READ_IDX_GET_FROM_DDR(scn,
-					CE_ctrl_addr);
-	}
-}
-
-/**
- * hif_get_dst_ring_read_index(): Called to get the DRRI
- *
- * @scn: hif_softc pointer
- * @CE_ctrl_addr: base address of the CE whose RRI is to be read
- *
- * This function returns the DRRI to the caller. For CEs that
- * dont have interrupts enabled, we look at the DDR based DRRI
- *
- * Return: DRRI
- */
-inline unsigned int hif_get_dst_ring_read_index(struct hif_softc *scn,
-		uint32_t CE_ctrl_addr)
-{
-	struct CE_attr attr;
-	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
-
-	attr = hif_state->host_ce_config[COPY_ENGINE_ID(CE_ctrl_addr)];
-
-	if (attr.flags & CE_ATTR_DISABLE_INTR) {
-		return CE_DEST_RING_READ_IDX_GET_FROM_DDR(scn, CE_ctrl_addr);
-	} else {
-		if (TARGET_REGISTER_ACCESS_ALLOWED(scn))
-			return A_TARGET_READ(scn,
-					(CE_ctrl_addr) + CURRENT_DRRI_ADDRESS);
-		else
-			return CE_DEST_RING_READ_IDX_GET_FROM_DDR(scn,
-					CE_ctrl_addr);
-	}
-}
-
-/**
- * hif_alloc_rri_on_ddr() - Allocate memory for rri on ddr
- * @scn: hif_softc pointer
- *
- * Return: qdf status
- */
-static inline QDF_STATUS hif_alloc_rri_on_ddr(struct hif_softc *scn)
-{
-	qdf_dma_addr_t paddr_rri_on_ddr = 0;
-
-	scn->vaddr_rri_on_ddr =
-		(uint32_t *)qdf_mem_alloc_consistent(scn->qdf_dev,
-		scn->qdf_dev->dev, (CE_COUNT * sizeof(uint32_t)),
-		&paddr_rri_on_ddr);
-
-	if (!scn->vaddr_rri_on_ddr) {
-		hif_err("dmaable page alloc fail");
-		return QDF_STATUS_E_NOMEM;
-	}
-
-	scn->paddr_rri_on_ddr = paddr_rri_on_ddr;
-
-	qdf_mem_zero(scn->vaddr_rri_on_ddr, CE_COUNT * sizeof(uint32_t));
-
-	return QDF_STATUS_SUCCESS;
-}
-#endif
-
-#if (!defined(QCN7605_SUPPORT)) && defined(ADRASTEA_RRI_ON_DDR)
-/**
- * hif_config_rri_on_ddr(): Configure the RRI on DDR mechanism
- *
- * @scn: hif_softc pointer
- *
- * This function allocates non cached memory on ddr and sends
- * the physical address of this memory to the CE hardware. The
- * hardware updates the RRI on this particular location.
- *
- * Return: None
- */
-static inline void hif_config_rri_on_ddr(struct hif_softc *scn)
-{
-	unsigned int i;
-	uint32_t high_paddr, low_paddr;
-
-	if (hif_alloc_rri_on_ddr(scn) != QDF_STATUS_SUCCESS)
-		return;
-
-	low_paddr  = BITS0_TO_31(scn->paddr_rri_on_ddr);
-	high_paddr = BITS32_TO_35(scn->paddr_rri_on_ddr);
-
-	HIF_DBG("%s using srri and drri from DDR", __func__);
-
-	WRITE_CE_DDR_ADDRESS_FOR_RRI_LOW(scn, low_paddr);
-	WRITE_CE_DDR_ADDRESS_FOR_RRI_HIGH(scn, high_paddr);
-
-	for (i = 0; i < CE_COUNT; i++)
-		CE_IDX_UPD_EN_SET(scn, CE_BASE_ADDRESS(i));
-}
-#else
-/**
- * hif_config_rri_on_ddr(): Configure the RRI on DDR mechanism
- *
- * @scn: hif_softc pointer
- *
- * This is a dummy implementation for platforms that don't
- * support this functionality.
- *
- * Return: None
- */
-static inline void hif_config_rri_on_ddr(struct hif_softc *scn)
-{
-}
-#endif
-
-/**
- * hif_update_rri_over_ddr_config() - update rri_over_ddr config for
- *                                    QMI command
- * @scn: hif context
- * @cfg: wlan enable config
- *
- * In case of Genoa, rri_over_ddr memory configuration is passed
- * to firmware through QMI configure command.
- */
-#if defined(QCN7605_SUPPORT) && defined(ADRASTEA_RRI_ON_DDR)
-static void hif_update_rri_over_ddr_config(struct hif_softc *scn,
-					   struct pld_wlan_enable_cfg *cfg)
-{
-	if (hif_alloc_rri_on_ddr(scn) != QDF_STATUS_SUCCESS)
-		return;
-
-	cfg->rri_over_ddr_cfg_valid = true;
-	cfg->rri_over_ddr_cfg.base_addr_low =
-		 BITS0_TO_31(scn->paddr_rri_on_ddr);
-	cfg->rri_over_ddr_cfg.base_addr_high =
-		 BITS32_TO_35(scn->paddr_rri_on_ddr);
-}
-#else
-static void hif_update_rri_over_ddr_config(struct hif_softc *scn,
-					   struct pld_wlan_enable_cfg *cfg)
-{
+		  "%s: CONFIG_SHADOW_V2 not defined\n", __func__);
 }
 #endif
 
@@ -3092,14 +2549,10 @@ int hif_wlan_enable(struct hif_softc *scn)
 
 	hif_print_hal_shadow_register_cfg(&cfg);
 
-	hif_update_rri_over_ddr_config(scn, &cfg);
-
 	if (QDF_GLOBAL_FTM_MODE == con_mode)
 		mode = PLD_FTM;
 	else if (QDF_GLOBAL_COLDBOOT_CALIB_MODE == con_mode)
 		mode = PLD_COLDBOOT_CALIBRATION;
-	else if (QDF_GLOBAL_FTM_COLDBOOT_CALIB_MODE == con_mode)
-		mode = PLD_FTM_COLDBOOT_CALIBRATION;
 	else if (QDF_IS_EPPING_ENABLED(con_mode))
 		mode = PLD_EPPING;
 	else
@@ -3108,7 +2561,8 @@ int hif_wlan_enable(struct hif_softc *scn)
 	if (BYPASS_QMI)
 		return 0;
 	else
-		return pld_wlan_enable(scn->qdf_dev->dev, &cfg, mode);
+		return pld_wlan_enable(scn->qdf_dev->dev, &cfg,
+				       mode, QWLAN_VERSIONSTR);
 }
 
 #ifdef WLAN_FEATURE_EPPING
@@ -3128,47 +2582,6 @@ void hif_ce_prepare_epping_config(struct HIF_CE_state *hif_state)
 }
 #endif
 
-#ifdef QCN7605_SUPPORT
-static inline
-void hif_set_ce_config_qcn7605(struct hif_softc *scn,
-			       struct HIF_CE_state *hif_state)
-{
-	hif_state->host_ce_config = host_ce_config_wlan_qcn7605;
-	hif_state->target_ce_config = target_ce_config_wlan_qcn7605;
-	hif_state->target_ce_config_sz =
-				 sizeof(target_ce_config_wlan_qcn7605);
-	target_shadow_reg_cfg = target_shadow_reg_cfg_map_qcn7605;
-	shadow_cfg_sz = sizeof(target_shadow_reg_cfg_map_qcn7605);
-	scn->ce_count = QCN7605_CE_COUNT;
-}
-#else
-static inline
-void hif_set_ce_config_qcn7605(struct hif_softc *scn,
-			       struct HIF_CE_state *hif_state)
-{
-	HIF_ERROR("QCN7605 not supported");
-}
-#endif
-
-#ifdef CE_SVC_CMN_INIT
-#ifdef QCA_WIFI_SUPPORT_SRNG
-static inline void hif_ce_service_init(void)
-{
-	ce_service_srng_init();
-}
-#else
-static inline void hif_ce_service_init(void)
-{
-	ce_service_legacy_init();
-}
-#endif
-#else
-static inline void hif_ce_service_init(void)
-{
-}
-#endif
-
-
 /**
  * hif_ce_prepare_config() - load the correct static tables.
  * @scn: hif context
@@ -3182,14 +2595,12 @@ void hif_ce_prepare_config(struct hif_softc *scn)
 	struct hif_target_info *tgt_info = hif_get_target_info_handle(hif_hdl);
 	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
 
-	hif_ce_service_init();
 	hif_state->ce_services = ce_services_attach(scn);
 
 	scn->ce_count = HOST_CE_COUNT;
 	/* if epping is enabled we need to use the epping configuration. */
 	if (QDF_IS_EPPING_ENABLED(mode)) {
 		hif_ce_prepare_epping_config(hif_state);
-		return;
 	}
 
 	switch (tgt_info->target_type) {
@@ -3197,9 +2608,6 @@ void hif_ce_prepare_config(struct hif_softc *scn)
 		hif_state->host_ce_config = host_ce_config_wlan;
 		hif_state->target_ce_config = target_ce_config_wlan;
 		hif_state->target_ce_config_sz = sizeof(target_ce_config_wlan);
-		break;
-	case TARGET_TYPE_QCN7605:
-		hif_set_ce_config_qcn7605(scn, hif_state);
 		break;
 	case TARGET_TYPE_AR900B:
 	case TARGET_TYPE_QCA9984:
@@ -3236,8 +2644,6 @@ void hif_ce_prepare_config(struct hif_softc *scn)
 		break;
 
 	case TARGET_TYPE_QCA8074:
-	case TARGET_TYPE_QCA8074V2:
-	case TARGET_TYPE_QCA6018:
 		if (scn->bus_type == QDF_BUS_TYPE_PCI) {
 			hif_state->host_ce_config =
 					host_ce_config_wlan_qca8074_pci;
@@ -3260,38 +2666,6 @@ void hif_ce_prepare_config(struct hif_softc *scn)
 					sizeof(target_ce_config_wlan_qca6290);
 
 		scn->ce_count = QCA_6290_CE_COUNT;
-		break;
-	case TARGET_TYPE_QCN9000:
-		hif_state->host_ce_config = host_ce_config_wlan_qcn9000;
-		hif_state->target_ce_config = target_ce_config_wlan_qcn9000;
-		hif_state->target_ce_config_sz =
-					sizeof(target_ce_config_wlan_qcn9000);
-		scn->ce_count = QCN_9000_CE_COUNT;
-		scn->disable_wake_irq = 1;
-		break;
-	case TARGET_TYPE_QCA6390:
-		hif_state->host_ce_config = host_ce_config_wlan_qca6390;
-		hif_state->target_ce_config = target_ce_config_wlan_qca6390;
-		hif_state->target_ce_config_sz =
-					sizeof(target_ce_config_wlan_qca6390);
-
-		scn->ce_count = QCA_6390_CE_COUNT;
-		break;
-	case TARGET_TYPE_QCA6490:
-		hif_state->host_ce_config = host_ce_config_wlan_qca6490;
-		hif_state->target_ce_config = target_ce_config_wlan_qca6490;
-		hif_state->target_ce_config_sz =
-					sizeof(target_ce_config_wlan_qca6490);
-
-		scn->ce_count = QCA_6490_CE_COUNT;
-		break;
-	case TARGET_TYPE_QCA6750:
-		hif_state->host_ce_config = host_ce_config_wlan_qca6750;
-		hif_state->target_ce_config = target_ce_config_wlan_qca6750;
-		hif_state->target_ce_config_sz =
-					sizeof(target_ce_config_wlan_qca6750);
-
-		scn->ce_count = QCA_6750_CE_COUNT;
 		break;
 	case TARGET_TYPE_ADRASTEA:
 		if (hif_is_attribute_set(scn, HIF_LOWDESC_CE_NO_PKTLOG_CFG)) {
@@ -3378,7 +2752,8 @@ void hif_unconfig_ce(struct hif_softc *hif_sc)
 }
 
 #ifdef CONFIG_BYPASS_QMI
-#ifdef QCN7605_SUPPORT
+#define FW_SHARED_MEM (2 * 1024 * 1024)
+
 /**
  * hif_post_static_buf_to_target() - post static buffer to WLAN FW
  * @scn: pointer to HIF structure
@@ -3389,123 +2764,20 @@ void hif_unconfig_ce(struct hif_softc *hif_sc)
  */
 static void hif_post_static_buf_to_target(struct hif_softc *scn)
 {
+	void *target_va;
 	phys_addr_t target_pa;
-	struct ce_info *ce_info_ptr;
-	uint32_t msi_data_start;
-	uint32_t msi_data_count;
-	uint32_t msi_irq_start;
-	uint32_t i = 0;
-	int ret;
 
-	scn->vaddr_qmi_bypass =
-			(uint32_t *)qdf_mem_alloc_consistent(scn->qdf_dev,
-							     scn->qdf_dev->dev,
-							     FW_SHARED_MEM,
-							     &target_pa);
-	if (!scn->vaddr_qmi_bypass) {
-		hif_err("Memory allocation failed could not post target buf");
+	target_va = qdf_mem_alloc_consistent(scn->qdf_dev, scn->qdf_dev->dev,
+				FW_SHARED_MEM, &target_pa);
+	if (NULL == target_va) {
+		HIF_TRACE("Memory allocation failed could not post target buf");
 		return;
 	}
-
-	scn->paddr_qmi_bypass = target_pa;
-
-	ce_info_ptr = (struct ce_info *)scn->vaddr_qmi_bypass;
-
-	if (scn->vaddr_rri_on_ddr) {
-		ce_info_ptr->rri_over_ddr_low_paddr  =
-			 BITS0_TO_31(scn->paddr_rri_on_ddr);
-		ce_info_ptr->rri_over_ddr_high_paddr =
-			 BITS32_TO_35(scn->paddr_rri_on_ddr);
-	}
-
-	ret = pld_get_user_msi_assignment(scn->qdf_dev->dev, "CE",
-					  &msi_data_count, &msi_data_start,
-					  &msi_irq_start);
-	if (ret) {
-		hif_err("Failed to get CE msi config");
-		return;
-	}
-
-	for (i = 0; i < CE_COUNT_MAX; i++) {
-		ce_info_ptr->cfg[i].ce_id = i;
-		ce_info_ptr->cfg[i].msi_vector =
-			 (i % msi_data_count) + msi_irq_start;
-	}
-
-	hif_write32_mb(scn, scn->mem + BYPASS_QMI_TEMP_REGISTER, target_pa);
-	hif_info("target va %pK target pa %pa", scn->vaddr_qmi_bypass,
-		 &target_pa);
+	hif_write32_mb(scn->mem + BYPASS_QMI_TEMP_REGISTER, target_pa);
+	HIF_TRACE("target va %pK target pa %pa", target_va, &target_pa);
 }
-
-/**
- * hif_cleanup_static_buf_to_target() -  clean up static buffer to WLAN FW
- * @scn: pointer to HIF structure
- *
- *
- * Return: void
- */
-void hif_cleanup_static_buf_to_target(struct hif_softc *scn)
-{
-	void *target_va = scn->vaddr_qmi_bypass;
-	phys_addr_t target_pa = scn->paddr_qmi_bypass;
-
-	qdf_mem_free_consistent(scn->qdf_dev, scn->qdf_dev->dev,
-				FW_SHARED_MEM, target_va,
-				target_pa, 0);
-	hif_write32_mb(scn, scn->mem + BYPASS_QMI_TEMP_REGISTER, 0);
-}
-#else
-/**
- * hif_post_static_buf_to_target() - post static buffer to WLAN FW
- * @scn: pointer to HIF structure
- *
- * WLAN FW needs 2MB memory from DDR when QMI is disabled.
- *
- * Return: void
- */
-static void hif_post_static_buf_to_target(struct hif_softc *scn)
-{
-	qdf_dma_addr_t target_pa;
-
-	scn->vaddr_qmi_bypass =
-			(uint32_t *)qdf_mem_alloc_consistent(scn->qdf_dev,
-							     scn->qdf_dev->dev,
-							     FW_SHARED_MEM,
-							     &target_pa);
-	if (!scn->vaddr_qmi_bypass) {
-		hif_err("Memory allocation failed could not post target buf");
-		return;
-	}
-
-	scn->paddr_qmi_bypass = target_pa;
-	hif_write32_mb(scn, scn->mem + BYPASS_QMI_TEMP_REGISTER, target_pa);
-}
-
-/**
- * hif_cleanup_static_buf_to_target() -  clean up static buffer to WLAN FW
- * @scn: pointer to HIF structure
- *
- *
- * Return: void
- */
-void hif_cleanup_static_buf_to_target(struct hif_softc *scn)
-{
-	void *target_va = scn->vaddr_qmi_bypass;
-	phys_addr_t target_pa = scn->paddr_qmi_bypass;
-
-	qdf_mem_free_consistent(scn->qdf_dev, scn->qdf_dev->dev,
-				FW_SHARED_MEM, target_va,
-				target_pa, 0);
-	hif_write32_mb(snc, scn->mem + BYPASS_QMI_TEMP_REGISTER, 0);
-}
-#endif
-
 #else
 static inline void hif_post_static_buf_to_target(struct hif_softc *scn)
-{
-}
-
-void hif_cleanup_static_buf_to_target(struct hif_softc *scn)
 {
 }
 #endif
@@ -3574,8 +2846,8 @@ int hif_config_ce(struct hif_softc *scn)
 			goto err;
 		}
 		qdf_spinlock_create(&pipe_info->recv_bufs_needed_lock);
-		QDF_ASSERT(pipe_info->ce_hdl);
-		if (!pipe_info->ce_hdl) {
+		QDF_ASSERT(pipe_info->ce_hdl != NULL);
+		if (pipe_info->ce_hdl == NULL) {
 			rv = QDF_STATUS_E_FAILURE;
 			A_TARGET_ACCESS_UNLIKELY(scn);
 			goto err;
@@ -3638,6 +2910,46 @@ err:
 	HIF_TRACE("%s: X, ret = %d", __func__, rv);
 	return QDF_STATUS_SUCCESS != QDF_STATUS_E_FAILURE;
 }
+
+#ifdef WLAN_FEATURE_FASTPATH
+/**
+ * hif_ce_fastpath_cb_register() - Register callback for fastpath msg handler
+ * @handler: Callback funtcion
+ * @context: handle for callback function
+ *
+ * Return: QDF_STATUS_SUCCESS on success or QDF_STATUS_E_FAILURE
+ */
+int hif_ce_fastpath_cb_register(struct hif_opaque_softc *hif_ctx,
+				fastpath_msg_handler handler,
+				void *context)
+{
+	struct CE_state *ce_state;
+	struct hif_softc *scn = HIF_GET_SOFTC(hif_ctx);
+	int i;
+
+	if (!scn) {
+		HIF_ERROR("%s: scn is NULL", __func__);
+		QDF_ASSERT(0);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	if (!scn->fastpath_mode_on) {
+		HIF_WARN("%s: Fastpath mode disabled", __func__);
+		return QDF_STATUS_E_FAILURE;
+	}
+
+	for (i = 0; i < scn->ce_count; i++) {
+		ce_state = scn->ce_id_to_state[i];
+		if (ce_state->htt_rx_data) {
+			ce_state->fastpath_handler = handler;
+			ce_state->context = context;
+		}
+	}
+
+	return QDF_STATUS_SUCCESS;
+}
+qdf_export_symbol(hif_ce_fastpath_cb_register);
+#endif
 
 #ifdef IPA_OFFLOAD
 /**
@@ -3738,7 +3050,7 @@ void hif_ce_ipa_get_ce_resource(struct hif_softc *scn,
  *      23    No Config - Doesn't point to anything
  * -----------------------------------------------------------
 */
-#ifndef QCN7605_SUPPORT
+
 u32 shadow_sr_wr_ind_addr(struct hif_softc *scn, u32 ctrl_addr)
 {
 	u32 addr = 0;
@@ -3806,70 +3118,6 @@ u32 shadow_dst_wr_ind_addr(struct hif_softc *scn, u32 ctrl_addr)
 	return addr;
 
 }
-#else
-u32 shadow_sr_wr_ind_addr(struct hif_softc *scn, u32 ctrl_addr)
-{
-	u32 addr = 0;
-	u32 ce = COPY_ENGINE_ID(ctrl_addr);
-
-	switch (ce) {
-	case 0:
-		addr = SHADOW_VALUE0;
-		break;
-	case 4:
-		addr = SHADOW_VALUE4;
-		break;
-	case 5:
-		addr = SHADOW_VALUE5;
-		break;
-	default:
-		HIF_ERROR("invalid CE ctrl_addr (CE=%d)", ce);
-		QDF_ASSERT(0);
-	}
-	return addr;
-}
-
-u32 shadow_dst_wr_ind_addr(struct hif_softc *scn, u32 ctrl_addr)
-{
-	u32 addr = 0;
-	u32 ce = COPY_ENGINE_ID(ctrl_addr);
-
-	switch (ce) {
-	case 1:
-		addr = SHADOW_VALUE13;
-		break;
-	case 2:
-		addr = SHADOW_VALUE14;
-		break;
-	case 3:
-		addr = SHADOW_VALUE15;
-		break;
-	case 5:
-		addr = SHADOW_VALUE17;
-		break;
-	case 7:
-		addr = SHADOW_VALUE19;
-		break;
-	case 8:
-		addr = SHADOW_VALUE20;
-		break;
-	case 9:
-		addr = SHADOW_VALUE21;
-		break;
-	case 10:
-		addr = SHADOW_VALUE22;
-		break;
-	case 11:
-		addr = SHADOW_VALUE23;
-		break;
-	default:
-		HIF_ERROR("invalid CE ctrl_addr (CE=%d)", ce);
-		QDF_ASSERT(0);
-	}
-
-	return addr;
-}
-#endif
 #endif
 
 #if defined(FEATURE_LRO)
@@ -3987,6 +3235,127 @@ inline uint32_t DEBUG_CE_DEST_RING_READ_IDX_GET(struct hif_softc *scn,
 
 #endif
 
+#ifdef ADRASTEA_RRI_ON_DDR
+/**
+ * hif_get_src_ring_read_index(): Called to get the SRRI
+ *
+ * @scn: hif_softc pointer
+ * @CE_ctrl_addr: base address of the CE whose RRI is to be read
+ *
+ * This function returns the SRRI to the caller. For CEs that
+ * dont have interrupts enabled, we look at the DDR based SRRI
+ *
+ * Return: SRRI
+ */
+inline unsigned int hif_get_src_ring_read_index(struct hif_softc *scn,
+		uint32_t CE_ctrl_addr)
+{
+	struct CE_attr attr;
+	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
+
+	attr = hif_state->host_ce_config[COPY_ENGINE_ID(CE_ctrl_addr)];
+	if (attr.flags & CE_ATTR_DISABLE_INTR) {
+		return CE_SRC_RING_READ_IDX_GET_FROM_DDR(scn, CE_ctrl_addr);
+	} else {
+		if (TARGET_REGISTER_ACCESS_ALLOWED(scn))
+			return A_TARGET_READ(scn,
+					(CE_ctrl_addr) + CURRENT_SRRI_ADDRESS);
+		else
+			return CE_SRC_RING_READ_IDX_GET_FROM_DDR(scn,
+					CE_ctrl_addr);
+	}
+}
+
+/**
+ * hif_get_dst_ring_read_index(): Called to get the DRRI
+ *
+ * @scn: hif_softc pointer
+ * @CE_ctrl_addr: base address of the CE whose RRI is to be read
+ *
+ * This function returns the DRRI to the caller. For CEs that
+ * dont have interrupts enabled, we look at the DDR based DRRI
+ *
+ * Return: DRRI
+ */
+inline unsigned int hif_get_dst_ring_read_index(struct hif_softc *scn,
+		uint32_t CE_ctrl_addr)
+{
+	struct CE_attr attr;
+	struct HIF_CE_state *hif_state = HIF_GET_CE_STATE(scn);
+
+	attr = hif_state->host_ce_config[COPY_ENGINE_ID(CE_ctrl_addr)];
+
+	if (attr.flags & CE_ATTR_DISABLE_INTR) {
+		return CE_DEST_RING_READ_IDX_GET_FROM_DDR(scn, CE_ctrl_addr);
+	} else {
+		if (TARGET_REGISTER_ACCESS_ALLOWED(scn))
+			return A_TARGET_READ(scn,
+					(CE_ctrl_addr) + CURRENT_DRRI_ADDRESS);
+		else
+			return CE_DEST_RING_READ_IDX_GET_FROM_DDR(scn,
+					CE_ctrl_addr);
+	}
+}
+
+/**
+ * hif_config_rri_on_ddr(): Configure the RRI on DDR mechanism
+ *
+ * @scn: hif_softc pointer
+ *
+ * This function allocates non cached memory on ddr and sends
+ * the physical address of this memory to the CE hardware. The
+ * hardware updates the RRI on this particular location.
+ *
+ * Return: None
+ */
+static inline void hif_config_rri_on_ddr(struct hif_softc *scn)
+{
+	unsigned int i;
+	uint32_t high_paddr, low_paddr;
+	qdf_dma_addr_t paddr_rri_on_ddr = 0;
+
+	scn->vaddr_rri_on_ddr =
+		(uint32_t *)qdf_mem_alloc_consistent(scn->qdf_dev,
+		scn->qdf_dev->dev, (CE_COUNT*sizeof(uint32_t)),
+		&paddr_rri_on_ddr);
+
+	if (!scn->vaddr_rri_on_ddr) {
+		HIF_DBG("dmaable page alloc fail");
+		return;
+	}
+
+	scn->paddr_rri_on_ddr = paddr_rri_on_ddr;
+	low_paddr  = BITS0_TO_31(paddr_rri_on_ddr);
+	high_paddr = BITS32_TO_35(paddr_rri_on_ddr);
+
+	HIF_DBG("%s using srri and drri from DDR", __func__);
+
+	WRITE_CE_DDR_ADDRESS_FOR_RRI_LOW(scn, low_paddr);
+	WRITE_CE_DDR_ADDRESS_FOR_RRI_HIGH(scn, high_paddr);
+
+	for (i = 0; i < CE_COUNT; i++)
+		CE_IDX_UPD_EN_SET(scn, CE_BASE_ADDRESS(i));
+
+	qdf_mem_zero(scn->vaddr_rri_on_ddr, CE_COUNT*sizeof(uint32_t));
+
+}
+#else
+
+/**
+ * hif_config_rri_on_ddr(): Configure the RRI on DDR mechanism
+ *
+ * @scn: hif_softc pointer
+ *
+ * This is a dummy implementation for platforms that don't
+ * support this functionality.
+ *
+ * Return: None
+ */
+static inline void hif_config_rri_on_ddr(struct hif_softc *scn)
+{
+}
+#endif
+
 /**
  * hif_dump_ce_registers() - dump ce registers
  * @scn: hif_opaque_softc pointer.
@@ -4005,7 +3374,7 @@ int hif_dump_ce_registers(struct hif_softc *scn)
 	QDF_STATUS status;
 
 	for (i = 0; i < scn->ce_count; i++, ce_reg_address += CE_OFFSET) {
-		if (!scn->ce_id_to_state[i]) {
+		if (scn->ce_id_to_state[i] == NULL) {
 			HIF_DBG("CE%d not used.", i);
 			continue;
 		}
@@ -4022,19 +3391,19 @@ int hif_dump_ce_registers(struct hif_softc *scn)
 		qdf_trace_hex_dump(QDF_MODULE_ID_HIF, QDF_TRACE_LEVEL_DEBUG,
 				   (uint8_t *) &ce_reg_values[0],
 				   ce_reg_word_size * sizeof(uint32_t));
-		qdf_print("ADDR:[0x%08X], SR_WR_INDEX:%d", (ce_reg_address
+		qdf_print("ADDR:[0x%08X], SR_WR_INDEX:%d\n", (ce_reg_address
 				+ SR_WR_INDEX_ADDRESS),
 				ce_reg_values[SR_WR_INDEX_ADDRESS/4]);
-		qdf_print("ADDR:[0x%08X], CURRENT_SRRI:%d", (ce_reg_address
+		qdf_print("ADDR:[0x%08X], CURRENT_SRRI:%d\n", (ce_reg_address
 				+ CURRENT_SRRI_ADDRESS),
 				ce_reg_values[CURRENT_SRRI_ADDRESS/4]);
-		qdf_print("ADDR:[0x%08X], DST_WR_INDEX:%d", (ce_reg_address
+		qdf_print("ADDR:[0x%08X], DST_WR_INDEX:%d\n", (ce_reg_address
 				+ DST_WR_INDEX_ADDRESS),
 				ce_reg_values[DST_WR_INDEX_ADDRESS/4]);
-		qdf_print("ADDR:[0x%08X], CURRENT_DRRI:%d", (ce_reg_address
+		qdf_print("ADDR:[0x%08X], CURRENT_DRRI:%d\n", (ce_reg_address
 				+ CURRENT_DRRI_ADDRESS),
 				ce_reg_values[CURRENT_DRRI_ADDRESS/4]);
-		qdf_print("---");
+		qdf_print("---\n");
 	}
 	return 0;
 }
@@ -4291,9 +3660,6 @@ void hif_log_ce_info(struct hif_softc *scn, uint8_t *data,
 	info.ce_count = curr_index;
 	size = sizeof(info) -
 		(CE_COUNT_MAX - info.ce_count) * sizeof(struct ce_index);
-
-	if (*offset + size > QDF_WLAN_HANG_FW_OFFSET)
-		return;
 
 	QDF_HANG_EVT_SET_HDR(&info.tlv_header, HANG_EVT_TAG_CE_INFO,
 			     size - QDF_HANG_EVENT_TLV_HDR_SIZE);

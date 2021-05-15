@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015, 2017-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2015, 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -42,49 +42,48 @@ static inline uint8_t dph_compare_mac_addr(uint8_t addr1[], uint8_t addr2[])
 		(addr1[4] == addr2[4]) && (addr1[5] == addr2[5]);
 }
 
-/**
- * struct dph_hash_table - DPH hash table
- * @pHashTable: The actual hash table
- * @pDphNodeArray: The state array
- * @size: The size of the hash table
- */
-struct dph_hash_table {
+/* Hash table class */
+typedef struct {
+
+	/* The hash table itself */
 	tpDphHashNode *pHashTable;
+
+	/* The state array */
 	tDphHashNode *pDphNodeArray;
 	uint16_t size;
-};
+} dphHashTableClass;
 
-tpDphHashNode dph_lookup_hash_entry(struct mac_context *mac, uint8_t staAddr[],
+/* The hash table object */
+extern dphHashTableClass dphHashTable;
+
+tpDphHashNode dph_lookup_hash_entry(tpAniSirGlobal pMac, uint8_t staAddr[],
 				    uint16_t *pStaId,
-				    struct dph_hash_table *hash_table);
+				    dphHashTableClass *pDphHashTable);
+tpDphHashNode dph_lookup_assoc_id(tpAniSirGlobal pMac, uint16_t staIdx,
+				  uint16_t *assocId,
+				  dphHashTableClass *pDphHashTable);
 
 /* Get a pointer to the hash node */
-tpDphHashNode dph_get_hash_entry(struct mac_context *mac, uint16_t staId,
-				 struct dph_hash_table *hash_table);
+extern tpDphHashNode dph_get_hash_entry(tpAniSirGlobal pMac, uint16_t staId,
+					dphHashTableClass *pDphHashTable);
 
 /* Add an entry to the hash table */
-tpDphHashNode dph_add_hash_entry(struct mac_context *mac,
-				 tSirMacAddr staAddr,
-				 uint16_t staId,
-				 struct dph_hash_table *hash_table);
+extern tpDphHashNode dph_add_hash_entry(tpAniSirGlobal pMac,
+					tSirMacAddr staAddr,
+					uint16_t staId,
+					dphHashTableClass *pDphHashTable);
 
 /* Delete an entry from the hash table */
-QDF_STATUS dph_delete_hash_entry(struct mac_context *mac,
+QDF_STATUS dph_delete_hash_entry(tpAniSirGlobal pMac,
 				 tSirMacAddr staAddr, uint16_t staId,
-				 struct dph_hash_table *hash_table);
+				 dphHashTableClass *pDphHashTable);
 
-/**
- * dph_hash_table_init - Initialize a DPH Hash Table
- * @mac: Global MAC Context
- * @hash_table: Pointer to the Hash Table to initialize
- */
-void dph_hash_table_init(struct mac_context *mac,
-			 struct dph_hash_table *hash_table);
-
+void dph_hash_table_class_init(tpAniSirGlobal pMac,
+			       dphHashTableClass *pDphHashTable);
 /* Initialize STA state */
-tpDphHashNode dph_init_sta_state(struct mac_context *mac,
-				 tSirMacAddr staAddr,
-				 uint16_t staId,
-				 struct dph_hash_table *hash_table);
+extern tpDphHashNode dph_init_sta_state(tpAniSirGlobal pMac,
+					tSirMacAddr staAddr,
+					uint16_t staId, uint8_t validStaIdx,
+					dphHashTableClass *pDphHashTable);
 
 #endif

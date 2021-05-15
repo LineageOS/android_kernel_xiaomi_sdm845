@@ -59,6 +59,13 @@ bool ucfg_ipa_is_enabled(void);
 bool ucfg_ipa_uc_is_enabled(void);
 
 /**
+ * ucfg_ipa_update_config() - Update IPA component config
+ *
+ * Return: None
+ */
+void ucfg_ipa_update_config(struct wlan_ipa_config *config);
+
+/**
  * ucfg_ipa_set_dp_handle() - register DP handle
  * @psoc: psoc handle
  * @dp_soc: data path soc handle
@@ -69,14 +76,15 @@ void ucfg_ipa_set_dp_handle(struct wlan_objmgr_psoc *psoc,
 			       void *dp_soc);
 
 /**
- * ucfg_ipa_set_pdev_id() - register pdev id
+ * ucfg_ipa_set_txrx_handle() - register pdev txrx handler
  * @psoc: psoc handle
- * @pdev_id: data path txrx pdev id
+ * @psoc: psoc obj
+ * @txrx_handle: data path pdev txrx handle
  *
  * Return: None
  */
-void ucfg_ipa_set_pdev_id(struct wlan_objmgr_psoc *psoc,
-			  uint8_t pdev_id);
+void ucfg_ipa_set_txrx_handle(struct wlan_objmgr_psoc *psoc,
+			      void *txrx_handle);
 
 /**
  * ucfg_ipa_set_perf_level() - Set IPA perf level
@@ -164,24 +172,6 @@ void ucfg_ipa_reg_send_to_nw_cb(struct wlan_objmgr_pdev *pdev,
 				wlan_ipa_send_to_nw cb);
 
 /**
- * ucfg_ipa_reg_rps_enable_cb() - Register cb to enable RPS
- * @pdev: pdev obj
- * @cb: callback
- *
- * Return: None
- */
-#ifdef IPA_LAN_RX_NAPI_SUPPORT
-void ucfg_ipa_reg_rps_enable_cb(struct wlan_objmgr_pdev *pdev,
-				wlan_ipa_rps_enable cb);
-#else
-static inline
-void ucfg_ipa_reg_rps_enable_cb(struct wlan_objmgr_pdev *pdev,
-				wlan_ipa_rps_enable cb)
-{
-}
-#endif
-
-/**
  * ucfg_ipa_set_mcc_mode() - Set MCC mode
  * @pdev: pdev obj
  * @mcc_mode: 0=MCC/1=SCC
@@ -259,14 +249,6 @@ QDF_STATUS ucfg_ipa_uc_ol_init(struct wlan_objmgr_pdev *pdev,
 QDF_STATUS ucfg_ipa_uc_ol_deinit(struct wlan_objmgr_pdev *pdev);
 
 /**
- * ucfg_ipa_is_tx_pending() - Check if IPA WLAN TX completions are pending
- * @pdev: pdev obj
- *
- * Return: bool if pending TX for IPA.
- */
-bool ucfg_ipa_is_tx_pending(struct wlan_objmgr_pdev *pdev);
-
-/**
  * ucfg_ipa_send_mcc_scc_msg() - Send IPA WLAN_SWITCH_TO_MCC/SCC message
  * @mcc_mode: 0=MCC/1=SCC
  *
@@ -280,6 +262,7 @@ QDF_STATUS ucfg_ipa_send_mcc_scc_msg(struct wlan_objmgr_pdev *pdev,
  * @pdev: pdev obj
  * @net_dev: Interface net device
  * @device_mode: Net interface device mode
+ * @sta_id: station id for the event
  * @session_id: session id for the event
  * @type: event enum of type ipa_wlan_event
  * @mac_address: MAC address associated with the event
@@ -288,7 +271,7 @@ QDF_STATUS ucfg_ipa_send_mcc_scc_msg(struct wlan_objmgr_pdev *pdev,
  */
 QDF_STATUS ucfg_ipa_wlan_evt(struct wlan_objmgr_pdev *pdev,
 			     qdf_netdev_t net_dev, uint8_t device_mode,
-			     uint8_t session_id,
+			     uint8_t sta_id, uint8_t session_id,
 			     enum wlan_ipa_wlan_event ipa_event_type,
 			     uint8_t *mac_addr);
 
@@ -365,40 +348,6 @@ void ucfg_ipa_uc_ssr_cleanup(struct wlan_objmgr_pdev *pdev);
  */
 void ucfg_ipa_fw_rejuvenate_send_msg(struct wlan_objmgr_pdev *pdev);
 
-/**
- * ucfg_ipa_component_config_update() - update IPA component config
- * @psoc: pointer to psoc object
- *
- * Return: None
- */
-void ucfg_ipa_component_config_update(struct wlan_objmgr_psoc *psoc);
-
-/**
- * ucfg_get_ipa_tx_buf_count() - get IPA tx buffer count
- *
- * Return: IPA tx buffer count
- */
-uint32_t ucfg_ipa_get_tx_buf_count(void);
-
-/**
- * ucfg_ipa_update_tx_stats() - send embedded tx traffic in bytes to IPA
- * @pdev: pdev obj
- * @sta_tx: tx in bytes on sta vdev
- * @ap_tx: tx in bytes on sap vdev
- *
- * Return: void
- */
-void ucfg_ipa_update_tx_stats(struct wlan_objmgr_pdev *pdev, uint64_t sta_tx,
-			      uint64_t ap_tx);
-/**
- * ucfg_ipa_flush_pending_vdev_events() - flush pending vdev wlan ipa events
- * @pdev: pdev obj
- * @vdev_id: vdev id
- *
- * Return: None
- */
-void ucfg_ipa_flush_pending_vdev_events(struct wlan_objmgr_pdev *pdev,
-					uint8_t vdev_id);
 #else
 
 static inline bool ucfg_ipa_is_present(void)
@@ -428,8 +377,8 @@ QDF_STATUS ucfg_ipa_set_dp_handle(struct wlan_objmgr_psoc *psoc,
 }
 
 static inline
-QDF_STATUS ucfg_ipa_set_pdev_id(struct wlan_objmgr_psoc *psoc,
-				uint8_t pdev_id)
+QDF_STATUS ucfg_ipa_set_txrx_handle(struct wlan_objmgr_psoc *psoc,
+				    void *txrx_handle)
 {
 	return QDF_STATUS_SUCCESS;
 }
@@ -486,12 +435,6 @@ void ucfg_ipa_reg_send_to_nw_cb(struct wlan_objmgr_pdev *pdev,
 }
 
 static inline
-void ucfg_ipa_reg_rps_enable_cb(struct wlan_objmgr_pdev *pdev,
-				wlan_ipa_rps_enable cb)
-{
-}
-
-static inline
 void ucfg_ipa_set_mcc_mode(struct wlan_objmgr_pdev *pdev, bool mcc_mode)
 {
 }
@@ -541,11 +484,6 @@ QDF_STATUS ucfg_ipa_uc_ol_deinit(struct wlan_objmgr_pdev *pdev)
 	return QDF_STATUS_SUCCESS;
 }
 
-static inline bool ucfg_ipa_is_tx_pending(struct wlan_objmgr_pdev *pdev)
-{
-	return false;
-}
-
 static inline
 QDF_STATUS ucfg_ipa_send_mcc_scc_msg(struct wlan_objmgr_pdev *pdev,
 				     bool mcc_mode)
@@ -556,7 +494,7 @@ QDF_STATUS ucfg_ipa_send_mcc_scc_msg(struct wlan_objmgr_pdev *pdev,
 static inline
 QDF_STATUS ucfg_ipa_wlan_evt(struct wlan_objmgr_pdev *pdev,
 			     qdf_netdev_t net_dev, uint8_t device_mode,
-			     uint8_t session_id,
+			     uint8_t sta_id, uint8_t session_id,
 			     enum wlan_ipa_wlan_event ipa_event_type,
 			     uint8_t *mac_addr)
 {
@@ -601,29 +539,6 @@ void ucfg_ipa_uc_ssr_cleanup(struct wlan_objmgr_pdev *pdev)
 
 static inline
 void ucfg_ipa_fw_rejuvenate_send_msg(struct wlan_objmgr_pdev *pdev)
-{
-}
-
-static inline
-void ucfg_ipa_component_config_update(struct wlan_objmgr_psoc *psoc)
-{
-}
-
-static inline
-uint32_t ucfg_ipa_get_tx_buf_count(void)
-{
-	return 0;
-}
-
-static inline
-void ucfg_ipa_update_tx_stats(struct wlan_objmgr_pdev *pdev, uint64_t sta_tx,
-			      uint64_t ap_tx)
-{
-}
-
-static inline
-void ucfg_ipa_flush_pending_vdev_events(struct wlan_objmgr_pdev *pdev,
-					uint8_t vdev_id)
 {
 }
 #endif /* IPA_OFFLOAD */

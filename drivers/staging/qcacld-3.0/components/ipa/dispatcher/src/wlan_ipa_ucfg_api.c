@@ -21,8 +21,6 @@
 
 #include "wlan_ipa_ucfg_api.h"
 #include "wlan_ipa_main.h"
-#include "cfg_ucfg_api.h"
-
 
 bool ucfg_ipa_is_present(void)
 {
@@ -39,16 +37,21 @@ bool ucfg_ipa_uc_is_enabled(void)
 	return ipa_config_is_uc_enabled();
 }
 
-void ucfg_ipa_set_pdev_id(struct wlan_objmgr_psoc *psoc,
-			  uint8_t pdev_id)
+void ucfg_ipa_set_txrx_handle(struct wlan_objmgr_psoc *psoc,
+				    void *txrx_handle)
 {
-	return ipa_set_pdev_id(psoc, pdev_id);
+	return ipa_set_txrx_handle(psoc, txrx_handle);
 }
 
 void ucfg_ipa_set_dp_handle(struct wlan_objmgr_psoc *psoc,
 				     void *dp_soc)
 {
 	return ipa_set_dp_handle(psoc, dp_soc);
+}
+
+void ucfg_ipa_update_config(struct wlan_ipa_config *config)
+{
+	ipa_config_update(config);
 }
 
 QDF_STATUS ucfg_ipa_set_perf_level(struct wlan_objmgr_pdev *pdev,
@@ -99,15 +102,8 @@ void ucfg_ipa_reg_send_to_nw_cb(struct wlan_objmgr_pdev *pdev,
 				wlan_ipa_send_to_nw cb)
 {
 	return ipa_reg_send_to_nw_cb(pdev, cb);
-}
 
-#ifdef IPA_LAN_RX_NAPI_SUPPORT
-void ucfg_ipa_reg_rps_enable_cb(struct wlan_objmgr_pdev *pdev,
-				wlan_ipa_rps_enable cb)
-{
-	return ipa_reg_rps_enable_cb(pdev, cb);
 }
-#endif
 
 void ucfg_ipa_set_mcc_mode(struct wlan_objmgr_pdev *pdev, bool mcc_mode)
 {
@@ -155,11 +151,6 @@ QDF_STATUS ucfg_ipa_uc_ol_deinit(struct wlan_objmgr_pdev *pdev)
 	return ipa_uc_ol_deinit(pdev);
 }
 
-bool ucfg_ipa_is_tx_pending(struct wlan_objmgr_pdev *pdev)
-{
-	return ipa_is_tx_pending(pdev);
-}
-
 QDF_STATUS ucfg_ipa_send_mcc_scc_msg(struct wlan_objmgr_pdev *pdev,
 				     bool mcc_mode)
 {
@@ -168,11 +159,11 @@ QDF_STATUS ucfg_ipa_send_mcc_scc_msg(struct wlan_objmgr_pdev *pdev,
 
 QDF_STATUS ucfg_ipa_wlan_evt(struct wlan_objmgr_pdev *pdev,
 			     qdf_netdev_t net_dev, uint8_t device_mode,
-			     uint8_t session_id,
+			     uint8_t sta_id, uint8_t session_id,
 			     enum wlan_ipa_wlan_event ipa_event_type,
 			     uint8_t *mac_addr)
 {
-	return ipa_wlan_evt(pdev, net_dev, device_mode, session_id,
+	return ipa_wlan_evt(pdev, net_dev, device_mode, sta_id, session_id,
 			    ipa_event_type, mac_addr);
 }
 
@@ -212,26 +203,4 @@ void ucfg_ipa_uc_ssr_cleanup(struct wlan_objmgr_pdev *pdev)
 void ucfg_ipa_fw_rejuvenate_send_msg(struct wlan_objmgr_pdev *pdev)
 {
 	return ipa_fw_rejuvenate_send_msg(pdev);
-}
-
-void ucfg_ipa_component_config_update(struct wlan_objmgr_psoc *psoc)
-{
-	ipa_component_config_update(psoc);
-}
-
-uint32_t ucfg_ipa_get_tx_buf_count(void)
-{
-	return ipa_get_tx_buf_count();
-}
-
-void ucfg_ipa_update_tx_stats(struct wlan_objmgr_pdev *pdev, uint64_t sta_tx,
-			      uint64_t ap_tx)
-{
-	ipa_update_tx_stats(pdev, sta_tx, ap_tx);
-}
-
-void ucfg_ipa_flush_pending_vdev_events(struct wlan_objmgr_pdev *pdev,
-					uint8_t vdev_id)
-{
-	ipa_flush_pending_vdev_events(pdev, vdev_id);
 }

@@ -112,7 +112,7 @@ static inline struct cdp_cfg
 /**
  * cdp_cfg_vdev_rx_set_intrabss_fwd() - enable/disable intra bass forwarding
  * @soc - data path soc handle
- * @vdev_id - virtual interface id
+ * @vdev - virtual interface instance
  * @val - enable or disable intra bss forwarding
  *
  * ap isolate, do not forward intra bss traffic
@@ -121,7 +121,7 @@ static inline struct cdp_cfg
  */
 static inline void
 cdp_cfg_vdev_rx_set_intrabss_fwd(ol_txrx_soc_handle soc,
-				 uint8_t vdev_id, bool val)
+		struct cdp_vdev *vdev, bool val)
 {
 	if (!soc || !soc->ops) {
 		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
@@ -134,7 +134,7 @@ cdp_cfg_vdev_rx_set_intrabss_fwd(ol_txrx_soc_handle soc,
 	    !soc->ops->cfg_ops->vdev_rx_set_intrabss_fwd)
 		return;
 
-	soc->ops->cfg_ops->vdev_rx_set_intrabss_fwd(soc, vdev_id, val);
+	soc->ops->cfg_ops->vdev_rx_set_intrabss_fwd(vdev, val);
 }
 
 /**
@@ -389,7 +389,9 @@ cdp_cfg_set_tx_compl_tsf64(ol_txrx_soc_handle soc,
 			   uint8_t val)
 {
 	if (!soc || !soc->ops) {
-		dp_debug("invalid instance");
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
+			  "%s invalid instance", __func__);
+		QDF_BUG(0);
 		return;
 	}
 
@@ -404,7 +406,9 @@ static inline bool
 cdp_cfg_get_tx_compl_tsf64(ol_txrx_soc_handle soc)
 {
 	if (!soc || !soc->ops) {
-		dp_debug("invalid instance");
+		QDF_TRACE(QDF_MODULE_ID_DP, QDF_TRACE_LEVEL_DEBUG,
+			  "%s invalid instance", __func__);
+		QDF_BUG(0);
 		return false;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, 2016-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2014, 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -72,28 +72,23 @@ static ssize_t ath_procfs_diag_read(struct file *file, char __user *buf,
 		return -EINVAL;
 
 	read_buffer = qdf_mem_malloc(count);
-	if (!read_buffer)
+	if (NULL == read_buffer) {
+		HIF_ERROR("%s: cdf_mem_alloc failed", __func__);
 		return -ENOMEM;
+	}
 
 	HIF_DBG("rd buff 0x%pK cnt %zu offset 0x%x buf 0x%pK",
 		 read_buffer, count, (int)*pos, buf);
 
 	tgt_info = hif_get_target_info_handle(GET_HIF_OPAQUE_HDL(hif_hdl));
-	if ((scn->bus_type == QDF_BUS_TYPE_SNOC) ||
-	    (scn->bus_type ==  QDF_BUS_TYPE_PCI &&
-	    ((tgt_info->target_type == TARGET_TYPE_QCA6290) ||
-	     (tgt_info->target_type == TARGET_TYPE_QCA6390) ||
-	     (tgt_info->target_type == TARGET_TYPE_QCA6490) ||
-	     (tgt_info->target_type == TARGET_TYPE_QCA8074) ||
-	     (tgt_info->target_type == TARGET_TYPE_QCA8074V2) ||
-	     (tgt_info->target_type == TARGET_TYPE_QCN9000) ||
-	     (tgt_info->target_type == TARGET_TYPE_QCA6018))) ||
-	    (scn->bus_type ==  QDF_BUS_TYPE_IPCI &&
-	     (tgt_info->target_type == TARGET_TYPE_QCA6750))) {
+	if (scn->bus_type == QDF_BUS_TYPE_SNOC ||
+			(scn->bus_type ==  QDF_BUS_TYPE_PCI &&
+			 (tgt_info->target_type == TARGET_TYPE_QCA6290 ||
+			  tgt_info->target_type == TARGET_TYPE_QCA8074))) {
 		memtype = ((uint32_t)(*pos) & 0xff000000) >> 24;
 		offset = (uint32_t)(*pos) & 0xffffff;
-		HIF_DBG("%s: offset 0x%x memtype 0x%x, datalen %zu\n",
-			__func__, offset, memtype, count);
+		HIF_TRACE("%s: offset 0x%x memtype 0x%x, datalen %zu\n",
+			  __func__, offset, memtype, count);
 		rv = pld_athdiag_read(scn->qdf_dev->dev,
 				      offset, memtype, count,
 				      (uint8_t *)read_buffer);
@@ -143,9 +138,10 @@ static ssize_t ath_procfs_diag_write(struct file *file,
 		return -EINVAL;
 
 	write_buffer = qdf_mem_malloc(count);
-	if (!write_buffer)
+	if (NULL == write_buffer) {
+		HIF_ERROR("%s: cdf_mem_alloc failed", __func__);
 		return -ENOMEM;
-
+	}
 	if (copy_from_user(write_buffer, buf, count)) {
 		qdf_mem_free(write_buffer);
 		HIF_ERROR("%s: copy_to_user error in /proc/%s",
@@ -158,21 +154,14 @@ static ssize_t ath_procfs_diag_write(struct file *file,
 		 (int)*pos, *((uint32_t *) write_buffer));
 
 	tgt_info = hif_get_target_info_handle(GET_HIF_OPAQUE_HDL(hif_hdl));
-	if ((scn->bus_type == QDF_BUS_TYPE_SNOC) ||
-	    ((scn->bus_type ==  QDF_BUS_TYPE_PCI) &&
-	     ((tgt_info->target_type == TARGET_TYPE_QCA6290) ||
-	      (tgt_info->target_type == TARGET_TYPE_QCA6390) ||
-	      (tgt_info->target_type == TARGET_TYPE_QCA6490) ||
-	      (tgt_info->target_type == TARGET_TYPE_QCA8074) ||
-	      (tgt_info->target_type == TARGET_TYPE_QCA8074V2) ||
-	      (tgt_info->target_type == TARGET_TYPE_QCN9000) ||
-	      (tgt_info->target_type == TARGET_TYPE_QCA6018))) ||
-	    (scn->bus_type ==  QDF_BUS_TYPE_IPCI &&
-	     (tgt_info->target_type == TARGET_TYPE_QCA6750))) {
+	if (scn->bus_type == QDF_BUS_TYPE_SNOC ||
+			(scn->bus_type ==  QDF_BUS_TYPE_PCI &&
+			 (tgt_info->target_type == TARGET_TYPE_QCA6290 ||
+			  tgt_info->target_type == TARGET_TYPE_QCA8074))) {
 		memtype = ((uint32_t)(*pos) & 0xff000000) >> 24;
 		offset = (uint32_t)(*pos) & 0xffffff;
-		HIF_DBG("%s: offset 0x%x memtype 0x%x, datalen %zu\n",
-			__func__, offset, memtype, count);
+		HIF_TRACE("%s: offset 0x%x memtype 0x%x, datalen %zu\n",
+			  __func__, offset, memtype, count);
 		rv = pld_athdiag_write(scn->qdf_dev->dev,
 				      offset, memtype, count,
 				      (uint8_t *)write_buffer);
@@ -210,7 +199,7 @@ static const struct file_operations athdiag_fops = {
 int athdiag_procfs_init(void *scn)
 {
 	proc_dir = proc_mkdir(PROCFS_DIR, NULL);
-	if (!proc_dir) {
+	if (proc_dir == NULL) {
 		remove_proc_entry(PROCFS_DIR, NULL);
 		HIF_ERROR("%s: Error: Could not initialize /proc/%s",
 			__func__, PROCFS_DIR);
@@ -219,7 +208,7 @@ int athdiag_procfs_init(void *scn)
 
 	proc_file = proc_create_data(PROCFS_NAME, 0600, proc_dir,
 				     &athdiag_fops, (void *)scn);
-	if (!proc_file) {
+	if (proc_file == NULL) {
 		remove_proc_entry(PROCFS_NAME, proc_dir);
 		HIF_ERROR("%s: Could not initialize /proc/%s",
 			__func__, PROCFS_NAME);
@@ -236,7 +225,7 @@ int athdiag_procfs_init(void *scn)
  */
 void athdiag_procfs_remove(void)
 {
-	if (proc_dir) {
+	if (proc_dir != NULL) {
 		remove_proc_entry(PROCFS_NAME, proc_dir);
 		HIF_DBG("/proc/%s/%s removed", PROCFS_DIR, PROCFS_NAME);
 		remove_proc_entry(PROCFS_DIR, NULL);

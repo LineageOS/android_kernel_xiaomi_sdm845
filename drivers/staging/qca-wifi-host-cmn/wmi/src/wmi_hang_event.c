@@ -20,7 +20,7 @@
 #include <qdf_trace.h>
 
 struct wmi_hang_data_fixed_param {
-	uint16_t tlv_header; /* tlv tag and length */
+	uint32_t tlv_header; /* tlv tag and length */
 	uint32_t event;
 	uint32_t data;
 	uint64_t time;
@@ -36,7 +36,7 @@ static void wmi_log_history(struct notifier_block *block, void *data,
 							notif_block);
 	struct qdf_notifer_data *wmi_hang_data = data;
 	int nread, pos, total_len;
-	unsigned int wmi_ring_size = 1;
+	unsigned int wmi_ring_size = 3;
 	uint64_t secs, usecs;
 	struct wmi_event_debug *wmi_evt;
 	struct wmi_unified *wmi_handle;
@@ -50,6 +50,9 @@ static void wmi_log_history(struct notifier_block *block, void *data,
 
 	wmi_handle = notif_block->priv_data;
 	if (!wmi_handle)
+		return;
+
+	if (wmi_hang_data->offset >= QDF_WLAN_MAX_HOST_OFFSET)
 		return;
 
 	if (wmi_history)
@@ -71,9 +74,6 @@ static void wmi_log_history(struct notifier_block *block, void *data,
 		pos = *wmi_log->p_buf_tail_idx - 1;
 
 	while (nread--) {
-		if (wmi_hang_data->offset + total_len > QDF_WLAN_HANG_FW_OFFSET)
-			return;
-
 		switch (wmi_history) {
 		case WMI_EVT_HIST:
 			wmi_buf_ptr = (wmi_hang_data->hang_data +

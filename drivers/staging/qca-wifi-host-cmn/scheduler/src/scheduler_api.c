@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -19,8 +19,6 @@
 #include <scheduler_api.h>
 #include <scheduler_core.h>
 #include <qdf_atomic.h>
-#include <qdf_module.h>
-#include <qdf_platform.h>
 
 QDF_STATUS scheduler_disable(void)
 {
@@ -55,20 +53,15 @@ static inline void scheduler_watchdog_notify(struct scheduler_ctx *sched)
 	if (sched->watchdog_callback)
 		qdf_sprint_symbol(symbol, sched->watchdog_callback);
 
-	sched_fatal("Callback %s (type 0x%x) exceeded its allotted time of %ds",
-		    sched->watchdog_callback ? symbol : "<null>",
-		    sched->watchdog_msg_type,
-		    SCHEDULER_WATCHDOG_TIMEOUT / 1000);
+	sched_err("WLAN_BUG_RCA: Callback %s (type 0x%x) exceeded its allotted time of %ds",
+		  sched->watchdog_callback ? symbol : "<null>",
+		  sched->watchdog_msg_type, SCHEDULER_WATCHDOG_TIMEOUT / 1000);
 }
 
+#ifdef CONFIG_SLUB_DEBUG_ON
 static void scheduler_watchdog_timeout(void *arg)
 {
 	struct scheduler_ctx *sched = arg;
-
-	if (qdf_is_recovering()) {
-		sched_debug("Recovery is in progress ignore timeout");
-		return;
-	}
 
 	scheduler_watchdog_notify(sched);
 	if (sched->sch_thread)
@@ -80,6 +73,12 @@ static void scheduler_watchdog_timeout(void *arg)
 
 	QDF_DEBUG_PANIC("Going down for Scheduler Watchdog Bite!");
 }
+#else
+static void scheduler_watchdog_timeout(void *arg)
+{
+	scheduler_watchdog_notify((struct scheduler_ctx *)arg);
+}
+#endif
 
 QDF_STATUS scheduler_enable(void)
 {
@@ -100,8 +99,8 @@ QDF_STATUS scheduler_enable(void)
 	/* create the scheduler thread */
 	sched_ctx->sch_thread = qdf_create_thread(scheduler_thread, sched_ctx,
 						  "scheduler_thread");
-	if (!sched_ctx->sch_thread) {
-		sched_fatal("Failed to create scheduler thread");
+	if (IS_ERR(sched_ctx->sch_thread)) {
+		sched_err("Failed to create scheduler thread");
 		return QDF_STATUS_E_RESOURCES;
 	}
 
@@ -125,7 +124,7 @@ QDF_STATUS scheduler_init(void)
 
 	status = scheduler_create_ctx();
 	if (QDF_IS_STATUS_ERROR(status)) {
-		sched_fatal("Failed to create context; status:%d", status);
+		sched_err("Failed to create context; status:%d", status);
 		return status;
 	}
 
@@ -138,26 +137,25 @@ QDF_STATUS scheduler_init(void)
 
 	status = scheduler_queues_init(sched_ctx);
 	if (QDF_IS_STATUS_ERROR(status)) {
-		sched_fatal("Failed to init queues; status:%d", status);
+		sched_err("Failed to init queues; status:%d", status);
 		goto ctx_destroy;
 	}
 
 	status = qdf_event_create(&sched_ctx->sch_start_event);
 	if (QDF_IS_STATUS_ERROR(status)) {
-		sched_fatal("Failed to create start event; status:%d", status);
+		sched_err("Failed to create start event; status:%d", status);
 		goto queues_deinit;
 	}
 
 	status = qdf_event_create(&sched_ctx->sch_shutdown);
 	if (QDF_IS_STATUS_ERROR(status)) {
-		sched_fatal("Failed to create shutdown event; status:%d",
-			    status);
+		sched_err("Failed to create shutdown event; status:%d", status);
 		goto start_event_destroy;
 	}
 
 	status = qdf_event_create(&sched_ctx->resume_sch_event);
 	if (QDF_IS_STATUS_ERROR(status)) {
-		sched_fatal("Failed to create resume event; status:%d", status);
+		sched_err("Failed to create resume event; status:%d", status);
 		goto shutdown_event_destroy;
 	}
 
@@ -474,25 +472,6 @@ QDF_STATUS scheduler_timer_q_mq_handler(struct scheduler_msg *msg)
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS scheduler_mlme_mq_handler(struct scheduler_msg *msg)
-{
-	scheduler_msg_process_fn_t mlme_msg_handler;
-
-	QDF_BUG(msg);
-	if (!msg)
-		return QDF_STATUS_E_FAILURE;
-
-	mlme_msg_handler = msg->callback;
-
-	QDF_BUG(mlme_msg_handler);
-	if (!mlme_msg_handler)
-		return QDF_STATUS_E_FAILURE;
-
-	mlme_msg_handler(msg);
-
-	return QDF_STATUS_SUCCESS;
-}
-
 QDF_STATUS scheduler_scan_mq_handler(struct scheduler_msg *msg)
 {
 	QDF_STATUS (*scan_q_msg_handler)(struct scheduler_msg *);
@@ -681,24 +660,3 @@ QDF_STATUS scheduler_get_queue_size(QDF_MODULE_ID qid, uint32_t *size)
 
 	return QDF_STATUS_SUCCESS;
 }
-
-QDF_STATUS scheduler_post_message_debug(QDF_MODULE_ID src_id,
-					QDF_MODULE_ID dest_id,
-					QDF_MODULE_ID que_id,
-					struct scheduler_msg *msg,
-					int line,
-					const char *func)
-{
-	QDF_STATUS status;
-
-	status = scheduler_post_msg(scheduler_get_qid(src_id, dest_id, que_id),
-				    msg);
-
-	if (QDF_IS_STATUS_ERROR(status))
-		sched_err("couldn't post from %d to %d - called from %d, %s",
-			  src_id, dest_id, line, func);
-
-	return status;
-}
-
-qdf_export_symbol(scheduler_post_message_debug);

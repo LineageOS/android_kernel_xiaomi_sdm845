@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -24,7 +24,6 @@
 
 #include <wlan_hdd_includes.h>
 #include <ani_global.h>
-#include "osif_sync.h"
 #include <wlan_hdd_hostapd.h>
 #include <wlan_hdd_trace.h>
 #include <net/cfg80211.h>
@@ -41,9 +40,7 @@
 #include "wma_types.h"
 #include "wlan_policy_mgr_api.h"
 #include <qca_vendor.h>
-#include "wlan_tdls_cfg_api.h"
 #include "wlan_hdd_object_manager.h"
-#include <wlan_reg_ucfg_api.h>
 
 /**
  * enum qca_wlan_vendor_tdls_trigger_mode_hdd_map: Maps the user space TDLS
@@ -226,7 +223,7 @@ __wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
 	if (0 != ret)
 		return -EINVAL;
 
-	if (!adapter)
+	if (NULL == adapter)
 		return -EINVAL;
 
 	if (wlan_cfg80211_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_TDLS_CONFIG_MAX,
@@ -272,19 +269,14 @@ int wlan_hdd_cfg80211_configure_tdls_mode(struct wiphy *wiphy,
 					const void *data,
 					int data_len)
 {
-	int errno;
-	struct osif_vdev_sync *vdev_sync;
+	int ret;
 
-	errno = osif_vdev_sync_op_start(wdev->netdev, &vdev_sync);
-	if (errno)
-		return errno;
-
-	errno = __wlan_hdd_cfg80211_configure_tdls_mode(wiphy, wdev, data,
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_configure_tdls_mode(wiphy, wdev, data,
 							data_len);
+	cds_ssr_unprotect(__func__);
 
-	osif_vdev_sync_op_stop(vdev_sync);
-
-	return errno;
+	return ret;
 }
 
 /**
@@ -301,19 +293,14 @@ int wlan_hdd_cfg80211_exttdls_get_status(struct wiphy *wiphy,
 					const void *data,
 					int data_len)
 {
-	int errno;
-	struct osif_vdev_sync *vdev_sync;
+	int ret = 0;
 
-	errno = osif_vdev_sync_op_start(wdev->netdev, &vdev_sync);
-	if (errno)
-		return errno;
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_exttdls_get_status(wiphy, wdev, data,
+							data_len);
+	cds_ssr_unprotect(__func__);
 
-	errno = __wlan_hdd_cfg80211_exttdls_get_status(wiphy, wdev,
-						       data, data_len);
-
-	osif_vdev_sync_op_stop(vdev_sync);
-
-	return errno;
+	return ret;
 }
 
 /**
@@ -353,18 +340,13 @@ int wlan_hdd_cfg80211_exttdls_enable(struct wiphy *wiphy,
 					const void *data,
 					int data_len)
 {
-	int errno;
-	struct osif_vdev_sync *vdev_sync;
+	int ret = 0;
 
-	errno = osif_vdev_sync_op_start(wdev->netdev, &vdev_sync);
-	if (errno)
-		return errno;
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_exttdls_enable(wiphy, wdev, data, data_len);
+	cds_ssr_unprotect(__func__);
 
-	errno = __wlan_hdd_cfg80211_exttdls_enable(wiphy, wdev, data, data_len);
-
-	osif_vdev_sync_op_stop(vdev_sync);
-
-	return errno;
+	return ret;
 }
 
 /**
@@ -402,19 +384,13 @@ int wlan_hdd_cfg80211_exttdls_disable(struct wiphy *wiphy,
 					const void *data,
 					int data_len)
 {
-	int errno;
-	struct osif_vdev_sync *vdev_sync;
+	int ret = 0;
 
-	errno = osif_vdev_sync_op_start(wdev->netdev, &vdev_sync);
-	if (errno)
-		return errno;
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_exttdls_disable(wiphy, wdev, data, data_len);
+	cds_ssr_unprotect(__func__);
 
-	errno = __wlan_hdd_cfg80211_exttdls_disable(wiphy, wdev,
-						    data, data_len);
-
-	osif_vdev_sync_op_stop(vdev_sync);
-
-	return errno;
+	return ret;
 }
 
 #if TDLS_MGMT_VERSION2
@@ -481,7 +457,6 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 {
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	struct hdd_context *hdd_ctx = wiphy_priv(wiphy);
-	bool tdls_support;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0))
 #if !(TDLS_MGMT_VERSION2)
 	u32 peer_capability;
@@ -495,18 +470,17 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_vdev_id(adapter->vdev_id))
+	if (wlan_hdd_validate_session_id(adapter->session_id))
 		return -EINVAL;
 
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_CFG80211_TDLS_MGMT,
-		   adapter->vdev_id, action_code);
+		   adapter->session_id, action_code);
 
 	if (wlan_hdd_validate_context(hdd_ctx))
 		return -EINVAL;
 
-	cfg_tdls_get_support_enable(hdd_ctx->psoc, &tdls_support);
-	if (!tdls_support) {
+	if (false == hdd_ctx->config->fEnableTDLSSupport) {
 		hdd_debug("TDLS Disabled in INI OR not enabled in FW. "
 			"Cannot process TDLS commands");
 		return -ENOTSUPP;
@@ -587,41 +561,75 @@ int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 #endif
 #endif
 {
-	int errno;
-	struct osif_vdev_sync *vdev_sync;
+	int ret;
 
-	errno = osif_vdev_sync_op_start(dev, &vdev_sync);
-	if (errno)
-		return errno;
-
+	cds_ssr_protect(__func__);
 #if TDLS_MGMT_VERSION2
-	errno = __wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer, action_code,
-					      dialog_token, status_code,
-					      peer_capability, buf, len);
+	ret = __wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer, action_code,
+						dialog_token, status_code,
+						peer_capability, buf, len);
 #else /* TDLS_MGMT_VERSION2 */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || defined(WITH_BACKPORTS)
-	errno = __wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer, action_code,
-					      dialog_token, status_code,
-					      peer_capability, initiator,
-					      buf, len);
+	ret = __wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer, action_code,
+					dialog_token, status_code,
+					peer_capability, initiator,
+					buf, len);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
-	errno = __wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer, action_code,
-					      dialog_token, status_code,
-					      peer_capability, buf, len);
+	ret = __wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer, action_code,
+					dialog_token, status_code,
+					peer_capability, buf, len);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0))
-	errno = __wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer, action_code,
-					      dialog_token, status_code,
-					      peer_capability, buf, len);
+	ret = __wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer, action_code,
+					dialog_token, status_code,
+					peer_capability, buf, len);
 #else
-	errno = __wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer, action_code,
-					      dialog_token, status_code,
-					      buf, len);
+	ret = __wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer, action_code,
+					dialog_token, status_code, buf, len);
 #endif
 #endif
 
-	osif_vdev_sync_op_stop(vdev_sync);
+	cds_ssr_unprotect(__func__);
 
-	return errno;
+	return ret;
+}
+
+/**
+ * wlan_hdd_tdls_extctrl_config_peer() - configure an externally controllable
+ *                                       TDLS peer
+ * @adapter: HDD adapter
+ * @peer: MAC address of the TDLS peer
+ * @callback: Callback to set on the peer
+ * @chan: Channel
+ * @max_latency: Maximum latency
+ * @op_class: Operation class
+ * @min_bandwidth: Minimal bandwidth
+ *
+ * Return: 0 on success; negative otherwise
+ */
+int wlan_hdd_tdls_extctrl_config_peer(struct hdd_adapter *adapter,
+				      const uint8_t *peer,
+				      cfg80211_exttdls_callback callback,
+				      u32 chan,
+				      u32 max_latency,
+				      u32 op_class, u32 min_bandwidth)
+{
+	/* TODO */
+	return 0;
+}
+
+/**
+ * wlan_hdd_tdls_extctrl_deconfig_peer() - de-configure an externally
+ *                                         controllable TDLS peer
+ * @adapter: HDD adapter
+ * @peer: MAC address of the tdls peer
+ *
+ * Return: 0 if success; negative errno otherwisw
+ */
+int wlan_hdd_tdls_extctrl_deconfig_peer(struct hdd_adapter *adapter,
+					const uint8_t *peer)
+{
+	/* TODO */
+	return 0;
 }
 
 /**
@@ -642,7 +650,6 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 	struct hdd_adapter *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
 	struct hdd_context *hdd_ctx = wiphy_priv(wiphy);
 	int status;
-	bool tdls_support;
 
 	hdd_enter();
 
@@ -651,11 +658,10 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	if (wlan_hdd_validate_vdev_id(adapter->vdev_id))
+	if (wlan_hdd_validate_session_id(adapter->session_id))
 		return -EINVAL;
 
-	cfg_tdls_get_support_enable(hdd_ctx->psoc, &tdls_support);
-	if (!tdls_support) {
+	if (false == hdd_ctx->config->fEnableTDLSSupport) {
 		hdd_debug("TDLS Disabled in INI OR not enabled in FW. "
 			"Cannot process TDLS commands");
 		return -ENOTSUPP;
@@ -663,9 +669,9 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_CFG80211_TDLS_OPER,
-		   adapter->vdev_id, oper);
+		   adapter->session_id, oper);
 
-	if (!peer) {
+	if (NULL == peer) {
 		hdd_err("Invalid arguments");
 		return -EINVAL;
 	}
@@ -681,7 +687,8 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 		vdev = hdd_objmgr_get_vdev(adapter);
 		if (!vdev)
 			return -EINVAL;
-		status = wlan_cfg80211_tdls_oper(vdev, peer, oper);
+		status = wlan_cfg80211_tdls_oper(vdev,
+						 peer, oper);
 		hdd_objmgr_put_vdev(vdev);
 		hdd_exit();
 		return status;
@@ -712,19 +719,54 @@ int wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy,
 				enum nl80211_tdls_operation oper)
 #endif
 {
-	int errno;
-	struct osif_vdev_sync *vdev_sync;
+	int ret;
 
-	errno = osif_vdev_sync_op_start(dev, &vdev_sync);
-	if (errno)
-		return errno;
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_tdls_oper(wiphy, dev, peer, oper);
+	cds_ssr_unprotect(__func__);
 
-	errno = __wlan_hdd_cfg80211_tdls_oper(wiphy, dev, peer, oper);
-
-	osif_vdev_sync_op_stop(vdev_sync);
-
-	return errno;
+	return ret;
 }
+
+/**
+ * wlan_hdd_cfg80211_send_tdls_discover_req() - send out TDLS discovery for
+ *                                              a TDLS peer
+ * @wiphy: wiphy
+ * @dev: net device
+ * @peer: MAC address of the peer
+ *
+ * Return: 0 if success; negative errno otherwise
+ */
+int wlan_hdd_cfg80211_send_tdls_discover_req(struct wiphy *wiphy,
+					     struct net_device *dev, u8 *peer)
+{
+	hdd_debug("tdls send discover req: " MAC_ADDRESS_STR,
+		   MAC_ADDR_ARRAY(peer));
+#if TDLS_MGMT_VERSION2
+	return wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer,
+					   WLAN_TDLS_DISCOVERY_REQUEST, 1, 0, 0,
+					   NULL, 0);
+#else
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0))
+	return wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer,
+					   WLAN_TDLS_DISCOVERY_REQUEST, 1, 0,
+					   0, 0, NULL, 0);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
+	return wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer,
+					   WLAN_TDLS_DISCOVERY_REQUEST, 1, 0,
+					   0, NULL, 0);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 15, 0))
+	return wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer,
+					   WLAN_TDLS_DISCOVERY_REQUEST, 1, 0,
+					   0, NULL, 0);
+#else
+	return wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer,
+					   WLAN_TDLS_DISCOVERY_REQUEST, 1, 0,
+					   NULL, 0);
+#endif
+#endif
+}
+
 
 int hdd_set_tdls_offchannel(struct hdd_context *hdd_ctx,
 			    struct hdd_adapter *adapter,
@@ -768,18 +810,6 @@ int hdd_set_tdls_offchannelmode(struct hdd_context *hdd_ctx,
 {
 	struct wlan_objmgr_vdev *vdev;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
-	bool tdls_off_ch;
-
-	if (cfg_tdls_get_off_channel_enable(
-		hdd_ctx->psoc, &tdls_off_ch) !=
-	    QDF_STATUS_SUCCESS) {
-		hdd_err("cfg get tdls off ch failed");
-		return qdf_status_to_os_return(status);
-	}
-	if (!tdls_off_ch) {
-		hdd_debug("tdls off ch is false, do nothing");
-		return qdf_status_to_os_return(status);
-	}
 
 	if (hdd_ctx->tdls_umac_comp_active) {
 		vdev = hdd_objmgr_get_vdev(adapter);
@@ -815,8 +845,7 @@ int hdd_set_tdls_scan_type(struct hdd_context *hdd_ctx, int val)
 		return -EINVAL;
 	}
 
-	cfg_tdls_set_scan_enable(hdd_ctx->psoc, (bool)val);
-
+	hdd_ctx->config->enable_tdls_scan = val;
 	return 0;
 }
 
@@ -848,7 +877,8 @@ int wlan_hdd_tdls_antenna_switch(struct hdd_context *hdd_ctx,
 }
 
 QDF_STATUS hdd_tdls_register_peer(void *userdata, uint32_t vdev_id,
-				  const uint8_t *mac, uint8_t qos)
+				  const uint8_t *mac, uint16_t sta_id,
+				  uint8_t qos)
 {
 	struct hdd_adapter *adapter;
 	struct hdd_context *hddctx;
@@ -864,76 +894,25 @@ QDF_STATUS hdd_tdls_register_peer(void *userdata, uint32_t vdev_id,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	return hdd_roam_register_tdlssta(adapter, mac, qos);
+	return hdd_roam_register_tdlssta(adapter, mac, sta_id, qos);
 }
 
-void hdd_init_tdls_config(struct tdls_start_params *tdls_cfg)
+QDF_STATUS hdd_tdls_deregister_peer(void *userdata, uint32_t vdev_id,
+				    uint8_t sta_id)
 {
-	tdls_cfg->tdls_send_mgmt_req = eWNI_SME_TDLS_SEND_MGMT_REQ;
-	tdls_cfg->tdls_add_sta_req = eWNI_SME_TDLS_ADD_STA_REQ;
-	tdls_cfg->tdls_del_sta_req = eWNI_SME_TDLS_DEL_STA_REQ;
-	tdls_cfg->tdls_update_peer_state = WMA_UPDATE_TDLS_PEER_STATE;
-}
+	struct hdd_adapter *adapter;
+	struct hdd_context *hddctx;
 
-void hdd_config_tdls_with_band_switch(struct hdd_context *hdd_ctx)
-{
-	struct wlan_objmgr_vdev *tdls_obj_vdev;
-	int offchmode;
-	uint32_t current_band;
-	bool tdls_off_ch;
-
-	if (!hdd_ctx) {
-		hdd_err("Invalid hdd_ctx");
-		return;
+	hddctx = userdata;
+	if (!hddctx) {
+		hdd_err("Invalid hddctx");
+		return QDF_STATUS_E_INVAL;
+	}
+	adapter = hdd_get_adapter_by_vdev(hddctx, vdev_id);
+	if (!adapter) {
+		hdd_err("Invalid adapter");
+		return QDF_STATUS_E_FAILURE;
 	}
 
-	if (ucfg_reg_get_band(hdd_ctx->pdev, &current_band) !=
-	    QDF_STATUS_SUCCESS) {
-		hdd_err("Failed to get current band config");
-		return;
-	}
-
-	/**
-	 * If all bands are supported, in below condition off channel enable
-	 * orig is false and nothing is need to do
-	 * 1. band switch does not happen.
-	 * 2. band switch happens and it already restores
-	 * 3. tdls off channel is disabled by default.
-	 * If 2g or 5g is not supported. Disable tdls off channel only when
-	 * tdls off channel is enabled currently.
-	 */
-	if ((current_band & BIT(REG_BAND_2G)) &&
-	    (current_band & BIT(REG_BAND_5G))) {
-		if (cfg_tdls_get_off_channel_enable_orig(
-			hdd_ctx->psoc, &tdls_off_ch) !=
-		    QDF_STATUS_SUCCESS) {
-			hdd_err("cfg get tdls off ch orig failed");
-			return;
-		}
-		if (!tdls_off_ch) {
-			hdd_debug("tdls off ch orig is false, do nothing");
-			return;
-		}
-		offchmode = ENABLE_CHANSWITCH;
-		cfg_tdls_restore_off_channel_enable(hdd_ctx->psoc);
-	} else {
-		if (cfg_tdls_get_off_channel_enable(
-			hdd_ctx->psoc, &tdls_off_ch) !=
-		    QDF_STATUS_SUCCESS) {
-			hdd_err("cfg get tdls off ch failed");
-			return;
-		}
-		if (!tdls_off_ch) {
-			hdd_debug("tdls off ch is false, do nothing");
-			return;
-		}
-		offchmode = DISABLE_CHANSWITCH;
-		cfg_tdls_store_off_channel_enable(hdd_ctx->psoc);
-		cfg_tdls_set_off_channel_enable(hdd_ctx->psoc, false);
-	}
-	tdls_obj_vdev = ucfg_get_tdls_vdev(hdd_ctx->psoc, WLAN_TDLS_NB_ID);
-	if (tdls_obj_vdev) {
-		ucfg_set_tdls_offchan_mode(tdls_obj_vdev, offchmode);
-		wlan_objmgr_vdev_release_ref(tdls_obj_vdev, WLAN_TDLS_NB_ID);
-	}
+	return hdd_roam_deregister_tdlssta(adapter, sta_id);
 }

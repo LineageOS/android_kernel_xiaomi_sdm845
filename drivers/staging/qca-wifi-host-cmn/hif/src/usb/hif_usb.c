@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -33,7 +33,6 @@
 #include "hif_usb_internal.h"
 #include "if_usb.h"
 #include "usb_api.h"
-#include "target_type.h"
 
 #if defined(WLAN_DEBUG) || defined(DEBUG)
 static ATH_DEBUG_MASK_DESCRIPTION g_hif_debug_description[] = {
@@ -175,7 +174,8 @@ static QDF_STATUS hif_send_internal(struct HIF_DEVICE_USB *hif_usb_device,
 		send_context =
 		    qdf_mem_malloc(sizeof(struct hif_usb_send_context)
 				   + head_data_len + nbytes);
-		if (!send_context) {
+		if (send_context == NULL) {
+			HIF_ERROR("%s: qdf_mem_malloc failed", __func__);
 			status = QDF_STATUS_E_NOMEM;
 			goto err;
 		}
@@ -206,7 +206,7 @@ static QDF_STATUS hif_send_internal(struct HIF_DEVICE_USB *hif_usb_device,
 				sizeof(struct hif_usb_send_context);
 
 	urb_context = usb_hif_alloc_urb_from_pipe(pipe);
-	if (!urb_context) {
+	if (NULL == urb_context) {
 		/* TODO : note, it is possible to run out of urbs if 2
 		 * endpoints map to the same pipe ID
 		 */
@@ -283,7 +283,9 @@ QDF_STATUS hif_send_head(struct hif_opaque_softc *scn, uint8_t pipe_id,
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	struct HIF_DEVICE_USB *device = HIF_GET_USB_DEVICE(scn);
 
+	HIF_TRACE("+%s", __func__);
 	status = hif_send_internal(device, pipe_id, NULL, wbuf, nbytes);
+	HIF_TRACE("-%s", __func__);
 	return status;
 }
 
@@ -298,14 +300,8 @@ uint16_t hif_get_free_queue_number(struct hif_opaque_softc *scn,
 				   uint8_t pipe_id)
 {
 	struct HIF_DEVICE_USB *device = HIF_GET_USB_DEVICE(scn);
-	struct HIF_USB_PIPE *pipe = &device->pipes[pipe_id];
-	u16 urb_cnt;
 
-	qdf_spin_lock_irqsave(&pipe->device->cs_lock);
-	urb_cnt =  pipe->urb_cnt;
-	qdf_spin_unlock_irqrestore(&pipe->device->cs_lock);
-
-	return urb_cnt;
+	return device->pipes[pipe_id].urb_cnt;
 }
 
 /**
@@ -353,10 +349,12 @@ void hif_usb_device_deinit(struct hif_usb_softc *sc)
 
 	usb_hif_cleanup_pipe_resources(device);
 
-	if (device->diag_cmd_buffer)
+	usb_set_intfdata(device->interface, NULL);
+
+	if (device->diag_cmd_buffer != NULL)
 		qdf_mem_free(device->diag_cmd_buffer);
 
-	if (device->diag_resp_buffer)
+	if (device->diag_resp_buffer != NULL)
 		qdf_mem_free(device->diag_resp_buffer);
 
 	HIF_TRACE("-%s", __func__);
@@ -381,10 +379,10 @@ QDF_STATUS hif_usb_device_init(struct hif_usb_softc *sc)
 
 	do {
 
+		usb_set_intfdata(interface, device);
 		qdf_spinlock_create(&(device->cs_lock));
 		qdf_spinlock_create(&(device->rx_lock));
 		qdf_spinlock_create(&(device->tx_lock));
-		qdf_spinlock_create(&device->rx_prestart_lock);
 		device->udev = dev;
 		device->interface = interface;
 
@@ -403,13 +401,13 @@ QDF_STATUS hif_usb_device_init(struct hif_usb_softc *sc)
 
 		device->diag_cmd_buffer =
 			qdf_mem_malloc(USB_CTRL_MAX_DIAG_CMD_SIZE);
-		if (!device->diag_cmd_buffer) {
+		if (NULL == device->diag_cmd_buffer) {
 			status = QDF_STATUS_E_NOMEM;
 			break;
 		}
 		device->diag_resp_buffer =
 			qdf_mem_malloc(USB_CTRL_MAX_DIAG_RESP_SIZE);
-		if (!device->diag_resp_buffer) {
+		if (NULL == device->diag_resp_buffer) {
 			status = QDF_STATUS_E_NOMEM;
 			break;
 		}
@@ -417,9 +415,6 @@ QDF_STATUS hif_usb_device_init(struct hif_usb_softc *sc)
 		status = usb_hif_setup_pipe_resources(device);
 
 	} while (false);
-
-	if (hif_is_supported_rx_ctrl_pipe(HIF_GET_SOFTC(sc)))
-		device->rx_ctrl_pipe_supported = 1;
 
 	if (status != QDF_STATUS_SUCCESS)
 		HIF_ERROR("%s: abnormal condition", __func__);
@@ -556,16 +551,12 @@ int hif_map_service_to_pipe(struct hif_opaque_softc *scn, uint16_t svc_id,
 			    int *ul_is_polled, int *dl_is_polled)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	struct HIF_DEVICE_USB *device = HIF_GET_USB_DEVICE(scn);
 
 	switch (svc_id) {
 	case HTC_CTRL_RSVD_SVC:
 	case WMI_CONTROL_SVC:
 		*ul_pipe = HIF_TX_CTRL_PIPE;
-		if (device->rx_ctrl_pipe_supported)
-			*dl_pipe = HIF_RX_CTRL_PIPE;
-		else
-			*dl_pipe = HIF_RX_DATA_PIPE;
+		*dl_pipe = HIF_RX_DATA_PIPE;
 		break;
 	case WMI_DATA_BE_SVC:
 	case WMI_DATA_BK_SVC:
@@ -649,7 +640,7 @@ static QDF_STATUS hif_ctrl_msg_exchange(struct HIF_DEVICE_USB *macp,
 		if (!QDF_IS_STATUS_SUCCESS(status))
 			break;
 
-		if (!response_msg) {
+		if (NULL == response_msg) {
 			/* no expected response */
 			break;
 		}
@@ -666,7 +657,6 @@ static QDF_STATUS hif_ctrl_msg_exchange(struct HIF_DEVICE_USB *macp,
 	return status;
 }
 
-#ifdef WLAN_FEATURE_BMI
 /**
  * hif_exchange_bmi_msg() - send/recev ctrl message of type BMI_CMD/BMI_RESP
  * @scn: pointer to hif_opaque_softc
@@ -696,11 +686,6 @@ QDF_STATUS hif_exchange_bmi_msg(struct hif_opaque_softc *scn,
 				USB_CONTROL_REQ_RECV_BMI_RESP,
 				bmi_response, bmi_response_lengthp);
 }
-
-void hif_register_bmi_callbacks(struct hif_opaque_softc *hif_ctx)
-{
-}
-#endif /* WLAN_FEATURE_BMI */
 
 /**
  * hif_diag_read_access() - Read data from target memory or register
@@ -941,24 +926,4 @@ void hif_usb_set_bundle_mode(struct hif_softc *scn,
 
 	HIF_DBG("athusb bundle %s cnt %d", enabled ? "enabled" : "disabled",
 			rx_bundle_cnt);
-}
-
-/**
- * hif_is_supported_rx_ctrl_pipe() - return true if device supports exclusive
- * control pipe in the RX direction.
- * @scn: hif context
- *
- * Return: true if device supports RX control pipe.
- */
-bool hif_is_supported_rx_ctrl_pipe(struct hif_softc *scn)
-{
-	struct hif_opaque_softc *hif_hdl = GET_HIF_OPAQUE_HDL(scn);
-	struct hif_target_info *tgt_info = hif_get_target_info_handle(hif_hdl);
-
-	switch (tgt_info->target_type) {
-	case TARGET_TYPE_QCN7605:
-		return true;
-	default:
-		return false;
-	}
 }

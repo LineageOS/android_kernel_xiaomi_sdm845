@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -29,12 +29,17 @@
 #include "wlan_cmn.h"
 #include "wlan_objmgr_cmn.h"
 #include "wlan_objmgr_global_obj.h"
+#include "wlan_objmgr_psoc_obj.h"
+#include "wlan_objmgr_pdev_obj.h"
+#include "wlan_objmgr_vdev_obj.h"
+#include "wlan_objmgr_peer_obj.h"
 #include "wmi_unified.h"
 #include "qdf_status.h"
 #include "qdf_lock.h"
 #include "qdf_event.h"
 #include "wlan_pmo_hw_filter_public_struct.h"
 
+#define PMO_IPV4_ADDR_LEN         4
 
 #define PMO_IPV4_ARP_REPLY_OFFLOAD                  0
 #define PMO_IPV6_NEIGHBOR_DISCOVERY_OFFLOAD         1
@@ -44,12 +49,26 @@
 
 #define PMO_MAC_NS_OFFLOAD_SIZE               1
 #define PMO_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA 16
+#define PMO_MAC_IPV6_ADDR_LEN                 16
 #define PMO_IPV6_ADDR_VALID                   1
 #define PMO_IPV6_ADDR_UC_TYPE                 0
 #define PMO_IPV6_ADDR_AC_TYPE                 1
 
+#define PMO_80211_ADDR_LEN  6  /* size of 802.11 address */
 
 #define PMO_WOW_REQUIRED_CREDITS 1
+
+/**
+ * enum pmo_offload_type: tell offload type
+ * @pmo_arp_offload: arp offload
+ * @pmo_ns_offload: ns offload
+ * @pmo_gtk_offload: gtk offload
+ */
+enum pmo_offload_type {
+	pmo_arp_offload = 0,
+	pmo_ns_offload,
+	pmo_gtk_offload,
+};
 
 /**
  * enum pmo_vdev_param_id: tell vdev param id
@@ -85,11 +104,11 @@ enum pmo_beacon_dtim_policy {
  * @pmo_sta_ps_param_inactivity_time: TX/RX inactivity time in msec before
     going to sleep.
  * @pmo_sta_ps_param_uapsd: Set uapsd configuration.
- * @pmo_sta_ps_param_advanced_power_pspoll_count: No of PS-Poll to send before
-    STA wakes up in Advanced Power Save Mode.
- * @pmo_sta_ps_enable_advanced_power:  Enable Advanced Power Save
- * @pmo_sta_ps_param_advanced_power_max_tx_before_wake: Number of TX frames
-    before the entering the Active state
+ * @pmo_sta_ps_param_qpower_pspoll_count: No of PS-Poll to send before
+    STA wakes up in QPower Mode.
+ * @pmo_sta_ps_enable_qpower:  Enable QPower
+ * @pmo_sta_ps_param_qpower_max_tx_before_wake: Number of TX frames before the
+    entering the Active state
  * @pmo_sta_ps_param_ito_repeat_count: Indicates ito repeated count
  */
 enum pmo_sta_powersave_param {
@@ -98,10 +117,40 @@ enum pmo_sta_powersave_param {
 	pmo_sta_ps_param_pspoll_count = 2,
 	pmo_sta_ps_param_inactivity_time = 3,
 	pmo_sta_ps_param_uapsd = 4,
-	pmo_sta_ps_param_advanced_power_pspoll_count = 5,
-	pmo_sta_ps_enable_advanced_power = 6,
-	pmo_sta_ps_param_advanced_power_max_tx_before_wake = 7,
+	pmo_sta_ps_param_qpower_pspoll_count = 5,
+	pmo_sta_ps_enable_qpower = 6,
+	pmo_sta_ps_param_qpower_max_tx_before_wake = 7,
 	pmo_sta_ps_param_ito_repeat_count = 8,
+};
+
+/**
+ * enum powersave_qpower_mode: QPOWER modes
+ * @pmo_qpower_disabled: Qpower is disabled
+ * @pmo_qpower_enabled: Qpower is enabled
+ * @pmo_qpower_duty_cycling: Qpower is enabled with duty cycling
+ */
+enum pmo_power_save_qpower_mode {
+	pmo_qpower_disabled = 0,
+	pmo_qpower_enabled = 1,
+	pmo_qpower_duty_cycling = 2
+};
+
+/**
+ * enum powersave_qpower_mode: powersave_mode
+ * @pmo_ps_not_supported: Power save is not supported
+ * @pmo_ps_legacy_no_deep_sleep: Legacy pwr save enabled and deep sleep disabled
+ * @pmo_ps_qpower_no_deep_sleep: QPOWER enabled and deep sleep disabled
+ * @pmo_ps_legacy_deep_sleep: Legacy power save enabled and deep sleep enabled
+ * @pmo_ps_qpower_deep_sleep: QPOWER enabled and deep sleep enabled
+ * @pmo_ps_duty_cycling_qpower: QPOWER enabled in duty cycling mode
+ */
+enum pmo_powersave_mode {
+	pmo_ps_not_supported = 0,
+	pmo_ps_legacy_no_deep_sleep = 1,
+	pmo_ps_qpower_no_deep_sleep = 2,
+	pmo_ps_legacy_deep_sleep = 3,
+	pmo_ps_qpower_deep_sleep = 4,
+	pmo_ps_duty_cycling_qpower = 5
 };
 
 /**
@@ -136,35 +185,9 @@ enum pmo_wow_interface_pause {
 	PMO_WOW_INTERFACE_PAUSE_COUNT
 };
 
-/**
- * enum wow_enable_type - used to enable/disable WoW.
- * @PMO_WOW_DISABLE_BOTH: Disable both magic pattern match and pattern
- *  byte match.
- * @PMO_WOW_ENABLE_MAGIC_PATTERN: Enable magic pattern match on all interfaces.
- * @PMO_WOW_ENABLE_PATTERN_BYTE: Enable pattern byte match on all interfaces.
- * @PMO_WOW_ENABLE_BOTH: Enable both magic patter and pattern byte match on
- *  all interfaces.
- */
-enum pmo_wow_enable_type {
-	PMO_WOW_DISABLE_BOTH = 0,
-	PMO_WOW_ENABLE_MAGIC_PATTERN,
-	PMO_WOW_ENABLE_PATTERN_BYTE,
-	PMO_WOW_ENABLE_BOTH
-};
-
-/**
- * enum powersave_mode - powersave_mode
- * @PMO_PS_ADVANCED_POWER_SAVE_DISABLE: Disable advanced power save mode
- * @PMO_PS_ADVANCED_POWER_SAVE_ENABLE: Enable power save mode
- */
-enum powersave_mode {
-	PMO_PS_ADVANCED_POWER_SAVE_DISABLE = 0,
-	PMO_PS_ADVANCED_POWER_SAVE_ENABLE = 1
-};
-
-#define PMO_TARGET_SUSPEND_TIMEOUT   (4000)
+#define PMO_TARGET_SUSPEND_TIMEOUT   6000
 #define PMO_WAKE_LOCK_TIMEOUT        1000
-#define PMO_RESUME_TIMEOUT           (4000)
+#define PMO_RESUME_TIMEOUT           6000
 
 /**
  * struct wow_enable_params - A collection of wow enable override parameters
@@ -237,20 +260,6 @@ enum pmo_auto_pwr_detect_failure_mode {
 };
 
 /**
- * enum active_apf_mode - the modes active APF can operate in
- * @ACTIVE_APF_DISABLED: APF is disabled in active mode
- * @ACTIVE_APF_ENABLED: APF is enabled for all packets
- * @ACTIVE_APF_ADAPTIVE: APF is enabled for packets up to some threshold
- * @ACTIVE_APF_MODE_COUNT: The number of active APF modes
- */
-enum active_apf_mode {
-	ACTIVE_APF_DISABLED = 0,
-	ACTIVE_APF_ENABLED,
-	ACTIVE_APF_ADAPTIVE,
-	ACTIVE_APF_MODE_COUNT
-};
-
-/**
  * struct pmo_psoc_cfg - user configuration required for pmo
  * @ptrn_match_enable_all_vdev: true when pattern match is enable for all vdev
  * @apf_enable: true if psoc supports apf else false
@@ -270,41 +279,18 @@ enum active_apf_mode {
  * @magic_ptrn_enable: true when magic pattern is enabled else false
  * @deauth_enable: true when wake up on deauth is enabled else false
  * @disassoc_enable:  true when wake up on disassoc is enabled else false
+ * @bmiss_enable: true when wake up on bmiss is enabled else false
+ * @nan_enable:  true when nan is enabled else false
  * @lpass_enable: true when lpass is enabled else false
- * @max_ps:poll: max power save poll
  * @sta_dynamic_dtim: station dynamic DTIM value
  * @sta_mod_dtim: station modulated DTIM value
  * @sta_max_li_mod_dtim: station max listen interval DTIM value
- * @wow_enable: enable wow with majic pattern match or pattern byte match
  * @power_save_mode: power save mode for psoc
- * @runtime_pm_delay: set runtime pm's inactivity timer
- * @extwow_goto_suspend: true when extended WoW enabled else false
- * @extwow_app1_wakeup_pin_num: set wakeup1 PIN number
- * @extwow_app2_wakeup_pin_num: set wakeup2 PIN number
- * @extwow_app2_init_ping_interval: set keep alive init ping interval
- * @extwow_app2_min_ping_interval: set keep alive minimum ping interval
- * @extwow_app2_max_ping_interval: set keep alive maximum ping interval
- * @extwow_app2_inc_ping_interval: set keep alive increment ping interval
- * @extwow_app2_tcp_src_port: set TCP source port
- * @extwow_app2_tcp_dst_port: set TCP dest port
- * @extwow_app2_tcp_tx_timeout: set TCP TX timeout
- * @extwow_app2_tcp_rx_timeout: set TCP RX timeout
  * @auto_power_save_fail_mode: auto detect power save failure
- * @is_wow_pulse_supported: true when wow pulse feature is enabled else false
- * @wow_pulse_pin: GPIO pin of wow pulse feature
- * @wow_pulse_interval_high: The interval of high level in the pulse
- * @wow_pulse_interval_low: The interval of low level in the pulse
- * @packet_filters_bitmap: Packet filter bitmap configuration
  * @wow_data_inactivity_timeout: power save wow data inactivity timeout
  * @ps_data_inactivity_timeout: Power save data inactivity timeout for non
- *  wow mode
- * @active_uc_apf_mode: Setting that determines how APF is applied in active
- *	mode for uc packets
- * @active_mc_bc_apf_mode: Setting that determines how APF is applied in
- *	active mode for MC/BC packets
+ * wow mode
  * @ito_repeat_count: Indicates ito repeated count
- * @is_mod_dtim_on_sys_suspend_enabled: true when mod dtim is enabled for
- * system suspend wow else false
  */
 struct pmo_psoc_cfg {
 	bool ptrn_match_enable_all_vdev;
@@ -320,54 +306,21 @@ struct pmo_psoc_cfg {
 	bool ap_arpns_support;
 	bool d0_wow_supported;
 	bool ra_ratelimit_enable;
-#if FEATURE_WLAN_RA_FILTERING
 	uint16_t ra_ratelimit_interval;
-#endif
 	bool magic_ptrn_enable;
 	bool deauth_enable;
 	bool disassoc_enable;
+	bool bmiss_enable;
+	bool nan_enable;
 	bool lpass_enable;
-	bool wowlan_deauth_enable;
-	bool wowlan_disassoc_enable;
-	uint8_t max_ps_poll;
 	uint8_t sta_dynamic_dtim;
 	uint8_t sta_mod_dtim;
 	uint8_t sta_max_li_mod_dtim;
-	enum pmo_wow_enable_type wow_enable;
-	enum powersave_mode power_save_mode;
-#ifdef FEATURE_RUNTIME_PM
-	uint32_t runtime_pm_delay;
-#endif
-#ifdef WLAN_FEATURE_EXTWOW_SUPPORT
-	bool extwow_goto_suspend;
-	uint8_t extwow_app1_wakeup_pin_num;
-	uint8_t extwow_app2_wakeup_pin_num;
-	uint32_t extwow_app2_init_ping_interval;
-	uint32_t extwow_app2_min_ping_interval;
-	uint32_t extwow_app2_max_ping_interval;
-	uint32_t extwow_app2_inc_ping_interval;
-	uint16_t extwow_app2_tcp_src_port;
-	uint16_t extwow_app2_tcp_dst_port;
-	uint32_t extwow_app2_tcp_tx_timeout;
-	uint32_t extwow_app2_tcp_rx_timeout;
-#endif
+	uint8_t power_save_mode;
 	enum pmo_auto_pwr_detect_failure_mode auto_power_save_fail_mode;
-#ifdef WLAN_FEATURE_WOW_PULSE
-	bool is_wow_pulse_supported;
-	uint8_t wow_pulse_pin;
-	uint16_t wow_pulse_interval_high;
-	uint16_t wow_pulse_interval_low;
-#endif
-#ifdef WLAN_FEATURE_PACKET_FILTERING
-	uint8_t packet_filters_bitmap;
-#endif
-	bool enable_sap_suspend;
 	uint8_t wow_data_inactivity_timeout;
 	uint8_t ps_data_inactivity_timeout;
-	enum active_apf_mode active_uc_apf_mode;
-	enum active_apf_mode active_mc_bc_apf_mode;
 	uint8_t ito_repeat_count;
-	bool is_mod_dtim_on_sys_suspend_enabled;
 };
 
 /**

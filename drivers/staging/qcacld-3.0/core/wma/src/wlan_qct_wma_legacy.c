@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -30,6 +30,7 @@
 /* Standard include files */
 /* Application Specific include files */
 #include "lim_api.h"
+#include "cfg_api.h"
 #include "wma.h"
 #include "sme_power_save_api.h"
 /* Locally used Defines */
@@ -38,13 +39,13 @@
 
 /**
  * wma_post_ctrl_msg() - Posts WMA messages to MC thread
- * @mac: MAC parameters structure
+ * @pMac: MAC parameters structure
  * @pMsg: pointer with message
  *
  * Return: Success or Failure
  */
 
-QDF_STATUS wma_post_ctrl_msg(struct mac_context *mac, struct scheduler_msg *pMsg)
+QDF_STATUS wma_post_ctrl_msg(tpAniSirGlobal pMac, struct scheduler_msg *pMsg)
 {
 	if (QDF_STATUS_SUCCESS !=
 	    scheduler_post_message(QDF_MODULE_ID_WMA,
@@ -53,6 +54,32 @@ QDF_STATUS wma_post_ctrl_msg(struct mac_context *mac, struct scheduler_msg *pMsg
 		return QDF_STATUS_E_FAILURE;
 	else
 		return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * wma_post_cfg_msg() - Posts MNT messages to gSirMntMsgQ
+ * @pMac: MAC parameters structure
+ * @pMsg: A pointer to the msg
+ *
+ * Return: Success or Failure
+ */
+
+static QDF_STATUS wma_post_cfg_msg(tpAniSirGlobal pMac,
+				   struct scheduler_msg *pMsg)
+{
+	QDF_STATUS rc = QDF_STATUS_SUCCESS;
+
+	do {
+		/*
+		 *For Windows based MAC, instead of posting message to different
+		 * queues we will call the handler routines directly
+		 */
+
+		cfg_process_mb_msg(pMac, (tSirMbMsg *) pMsg->bodyptr);
+		rc = QDF_STATUS_SUCCESS;
+	} while (0);
+
+	return rc;
 }
 
 /**
@@ -76,7 +103,7 @@ QDF_STATUS u_mac_post_ctrl_msg(void *pSirGlobal, tSirMbMsg *pMb)
 {
 	struct scheduler_msg msg = {0};
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	struct mac_context *mac = (struct mac_context *) pSirGlobal;
+	tpAniSirGlobal pMac = (tpAniSirGlobal) pSirGlobal;
 
 	msg.type = pMb->type;
 	msg.bodyval = 0;
@@ -84,15 +111,19 @@ QDF_STATUS u_mac_post_ctrl_msg(void *pSirGlobal, tSirMbMsg *pMb)
 
 	switch (msg.type & HAL_MMH_MB_MSG_TYPE_MASK) {
 	case WMA_MSG_TYPES_BEGIN:       /* Posts a message to the HAL MsgQ */
-		status = wma_post_ctrl_msg(mac, &msg);
+		status = wma_post_ctrl_msg(pMac, &msg);
 		break;
 
 	case SIR_LIM_MSG_TYPES_BEGIN:   /* Posts a message to the LIM MsgQ */
-		status = lim_post_msg_api(mac, &msg);
+		status = lim_post_msg_api(pMac, &msg);
 		break;
 
-	case SIR_SME_MSG_TYPES_BEGIN:   /* Posts a message to the LIM MsgQ */
-		status = sme_post_pe_message(mac, &msg);
+	case SIR_CFG_MSG_TYPES_BEGIN:   /* Posts a message to the CFG MsgQ */
+		status = wma_post_cfg_msg(pMac, &msg);
+		break;
+
+	case SIR_PMM_MSG_TYPES_BEGIN:   /* Posts a message to the LIM MsgQ */
+		status = sme_post_pe_message(pMac, &msg);
 		break;
 
 	default:

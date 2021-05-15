@@ -23,14 +23,10 @@
  */
 
 #include <qdf_types.h>
-#include <wlan_cmn.h>
-#include <reg_services_public_struct.h>
-#include "reg_db.h"
 #include "reg_db_parser.h"
 #include <qdf_mem.h>
-#include <wlan_objmgr_psoc_obj.h>
-#include "reg_priv_objs.h"
-#include "reg_utils.h"
+#include "reg_priv.h"
+#include "reg_services.h"
 
 QDF_STATUS reg_is_country_code_valid(uint8_t *alpha2)
 {
@@ -41,7 +37,7 @@ QDF_STATUS reg_is_country_code_valid(uint8_t *alpha2)
 
 	for (i = 0; i < num_countries; i++) {
 		if ((g_all_countries[i].alpha2[0] == alpha2[0]) &&
-		    (g_all_countries[i].alpha2[1] == alpha2[1]))
+				(g_all_countries[i].alpha2[1] == alpha2[1]))
 			return QDF_STATUS_SUCCESS;
 		else
 			continue;
@@ -50,9 +46,11 @@ QDF_STATUS reg_is_country_code_valid(uint8_t *alpha2)
 	return QDF_STATUS_E_FAILURE;
 }
 
-QDF_STATUS reg_regrules_assign(uint8_t dmn_id_2g, uint8_t dmn_id_5g,
-			       uint8_t ant_gain_2g, uint8_t ant_gain_5g,
-			       struct cur_regulatory_info *reg_info)
+QDF_STATUS reg_regrules_assign(uint8_t dmn_id_2g,
+	uint8_t dmn_id_5g,
+	uint8_t ant_gain_2g,
+	uint8_t ant_gain_5g,
+	struct cur_regulatory_info *reg_info)
 
 {
 	uint8_t k;
@@ -90,8 +88,8 @@ QDF_STATUS reg_regrules_assign(uint8_t dmn_id_2g, uint8_t dmn_id_5g,
 }
 
 QDF_STATUS reg_get_rdpair_from_country_iso(uint8_t *alpha2,
-					   uint16_t *country_index,
-					   uint16_t *regdmn_pair)
+	uint16_t *country_index,
+	uint16_t *regdmn_pair)
 {
 	uint16_t i, j;
 	int num_countries;
@@ -102,7 +100,7 @@ QDF_STATUS reg_get_rdpair_from_country_iso(uint8_t *alpha2,
 
 	for (i = 0; i < num_countries; i++) {
 		if ((g_all_countries[i].alpha2[0] == alpha2[0]) &&
-		    (g_all_countries[i].alpha2[1] == alpha2[1]))
+			(g_all_countries[i].alpha2[1] == alpha2[1]))
 			break;
 	}
 
@@ -129,7 +127,7 @@ QDF_STATUS reg_get_rdpair_from_country_iso(uint8_t *alpha2,
 }
 
 QDF_STATUS reg_get_rdpair_from_regdmn_id(uint16_t regdmn_id,
-					 uint16_t *regdmn_pair)
+		uint16_t *regdmn_pair)
 {
 	uint16_t j;
 	int num_reg_dmn;
@@ -152,8 +150,8 @@ QDF_STATUS reg_get_rdpair_from_regdmn_id(uint16_t regdmn_id,
 }
 
 QDF_STATUS reg_get_rdpair_from_country_code(uint16_t cc,
-					    uint16_t *country_index,
-					    uint16_t *regdmn_pair)
+		uint16_t *country_index,
+		uint16_t *regdmn_pair)
 {
 	uint16_t i, j;
 	int num_countries;
@@ -246,7 +244,7 @@ static inline QDF_STATUS reg_get_reginfo_form_country_code_and_regdmn_pair(
 				ant_gain_2g, ant_gain_5g, reg_info);
 
 		if (err == QDF_STATUS_E_FAILURE) {
-			reg_err("No rule for country index = %d regdmn_pair = %d",
+			reg_err("No rule found for country index = %d regdmn_pair = %d\n",
 				country_index, regdmn_pair);
 			return QDF_STATUS_E_FAILURE;
 		}
@@ -260,14 +258,14 @@ static inline QDF_STATUS reg_get_reginfo_form_country_code_and_regdmn_pair(
 	return QDF_STATUS_SUCCESS;
 }
 
-#ifdef CONFIG_REG_CLIENT
+#ifdef CONFIG_MCL_REGDB
 /**
  * reg_update_alpha2_from_domain() - Get country alpha2 code from reg domain
  * @reg_info: pointer to hold alpha2 code
  *
  * This function is used to populate alpha2 of @reg_info with:
- *	(a) "00" (REG_WORLD_ALPHA2) for WORLD domain and
- *	(b) alpha2 of first country matching with non WORLD domain.
+ *        (a) "00" (REG_WORLD_ALPHA2) for WORLD domain and
+ *        (b) alpha2 of first country matching with non WORLD domain.
  *
  * Return: None
  */
@@ -284,11 +282,9 @@ reg_update_alpha2_from_domain(struct cur_regulatory_info *reg_info)
 	}
 
 	reg_get_num_countries(&num_countries);
-
 	for (i = 0; i < (uint16_t)num_countries; i++)
-		if (g_all_countries[i].reg_dmn_pair_id ==
-		    reg_info->reg_dmn_pair)
-			break;
+	if (g_all_countries[i].reg_dmn_pair_id == reg_info->reg_dmn_pair)
+		break;
 
 	if (i == (uint16_t)num_countries)
 		return;
@@ -358,7 +354,8 @@ static inline QDF_STATUS reg_get_reginfo_form_regdmn_pair(
 		err = reg_regrules_assign(dmn_id_2g, dmn_id_5g,
 			ant_gain_2g, ant_gain_5g, reg_info);
 		if (err == QDF_STATUS_E_FAILURE) {
-			reg_err("No rule for regdmn_pair = %d\n", regdmn_pair);
+			reg_err("No rule found for regdmn_pair = %d\n",
+				regdmn_pair);
 			return QDF_STATUS_E_FAILURE;
 		}
 
@@ -371,16 +368,21 @@ static inline QDF_STATUS reg_get_reginfo_form_regdmn_pair(
 	return QDF_STATUS_SUCCESS;
 }
 
+/* Given a country code the function finds current  regulatory information */
 QDF_STATUS reg_get_cur_reginfo(struct cur_regulatory_info *reg_info,
-			       uint16_t country_index,
-			       uint16_t regdmn_pair)
+		uint16_t country_index,
+		uint16_t regdmn_pair)
 {
 	if ((country_index != (uint16_t)(-1)) &&
-	    (regdmn_pair != (uint16_t)(-1)))
+			(regdmn_pair != (uint16_t)(-1)))
 		return reg_get_reginfo_form_country_code_and_regdmn_pair(
-				reg_info, country_index, regdmn_pair);
+				reg_info,
+				country_index,
+				regdmn_pair);
 	else if (regdmn_pair != (uint16_t)(-1))
-		return reg_get_reginfo_form_regdmn_pair(reg_info, regdmn_pair);
+		return reg_get_reginfo_form_regdmn_pair(
+				reg_info,
+				regdmn_pair);
 	else
 		return QDF_STATUS_E_FAILURE;
 

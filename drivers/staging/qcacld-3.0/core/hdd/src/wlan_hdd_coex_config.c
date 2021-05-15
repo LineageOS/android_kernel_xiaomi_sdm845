@@ -28,8 +28,7 @@
 #include "wlan_hdd_coex_config.h"
 #include "qca_vendor.h"
 #include "wlan_osif_request_manager.h"
-#include "osif_sync.h"
-#include "wlan_fwol_ucfg_api.h"
+#include "wlan_hdd_cfg.h"
 
 static const struct nla_policy
 coex_config_three_way_policy[QCA_VENDOR_ATTR_COEX_CONFIG_THREE_WAY_MAX + 1] = {
@@ -68,7 +67,7 @@ static int __wlan_hdd_cfg80211_set_coex_config(struct wiphy *wiphy,
 	struct nlattr *tb[QCA_VENDOR_ATTR_COEX_CONFIG_THREE_WAY_MAX + 1];
 	uint32_t config_type;
 	struct coex_config_params coex_cfg_params = {0};
-	struct wlan_fwol_coex_config config = {0};
+	struct hdd_config *config;
 	int errno;
 	QDF_STATUS status;
 
@@ -78,12 +77,13 @@ static int __wlan_hdd_cfg80211_set_coex_config(struct wiphy *wiphy,
 	if (errno != 0)
 		return errno;
 
-	status = ucfg_fwol_get_coex_config_params(hdd_ctx->psoc, &config);
-	if (QDF_IS_STATUS_ERROR(status)) {
-		hdd_err("Unable to get coex config params");
+	config = hdd_ctx->config;
+	if (!config) {
+		hdd_err("hdd config got NULL");
 		return -EINVAL;
 	}
-	if (!config.btc_three_way_coex_config_legacy_enable) {
+
+	if (!config->enable_three_way_coex_config_legacy) {
 		hdd_err("Coex legacy feature should be enable first");
 		return -EINVAL;
 	}
@@ -111,7 +111,7 @@ static int __wlan_hdd_cfg80211_set_coex_config(struct wiphy *wiphy,
 	}
 	coex_cfg_params.config_type = config_type_to_wmi_tbl[config_type];
 	if (coex_cfg_params.config_type <
-	    WMI_COEX_CONFIG_THREE_WAY_DELAY_PARA ||
+	    WMI_COEX_CONFIG_THREE_WAY_COEX_RESET ||
 	    coex_cfg_params.config_type >
 	    WMI_COEX_CONFIG_THREE_WAY_COEX_START) {
 		hdd_err("config_type_wmi val error %d",
@@ -158,7 +158,8 @@ static int __wlan_hdd_cfg80211_set_coex_config(struct wiphy *wiphy,
 
 	hdd_debug("priority4 0x%x", coex_cfg_params.config_arg4);
 
-	coex_cfg_params.vdev_id = adapter->vdev_id;
+	coex_cfg_params.vdev_id = adapter->session_id;
+
 	status = sme_send_coex_config_cmd(&coex_cfg_params);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		hdd_err("Failed to send coex config params");
@@ -182,17 +183,12 @@ int wlan_hdd_cfg80211_set_coex_config(struct wiphy *wiphy,
 				      struct wireless_dev *wdev,
 				      const void *data, int data_len)
 {
-	int errno;
-	struct osif_vdev_sync *vdev_sync;
+	int ret;
 
-	errno = osif_vdev_sync_op_start(wdev->netdev, &vdev_sync);
-	if (errno)
-		return errno;
+	cds_ssr_protect(__func__);
+	ret = __wlan_hdd_cfg80211_set_coex_config(wiphy, wdev,
+						  data, data_len);
+	cds_ssr_unprotect(__func__);
 
-	errno = __wlan_hdd_cfg80211_set_coex_config(wiphy, wdev,
-						    data, data_len);
-
-	osif_vdev_sync_op_stop(vdev_sync);
-
-	return errno;
+	return ret;
 }

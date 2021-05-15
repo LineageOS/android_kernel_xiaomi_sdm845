@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019, 2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -29,7 +29,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/wireless.h>
-#include "osif_sync.h"
 #include <wlan_hdd_includes.h>
 #include <net/arp.h>
 #include "qwlan_version.h"
@@ -59,12 +58,8 @@ static int populate_oem_data_cap(struct hdd_adapter *adapter,
 {
 	QDF_STATUS status;
 	struct hdd_config *config;
-	uint32_t num_chan, i;
-	uint32_t *chan_freq_list;
-	uint8_t band_capability;
-	uint32_t band_bitmap;
-	uint16_t neighbor_scan_min_chan_time;
-	uint16_t neighbor_scan_max_chan_time;
+	uint32_t num_chan;
+	uint8_t *chan_list;
 	struct hdd_context *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 
 	config = hdd_ctx->config;
@@ -72,19 +67,11 @@ static int populate_oem_data_cap(struct hdd_adapter *adapter,
 		hdd_err("HDD configuration is null");
 		return -EINVAL;
 	}
-
-	status = ucfg_mlme_get_band_capability(hdd_ctx->psoc, &band_bitmap);
-	if (QDF_IS_STATUS_ERROR(status)) {
-		hdd_err("Failed to get MLME band capability");
-		return -EIO;
-	}
-
-	band_capability = wlan_reg_band_bitmap_to_band_info(band_bitmap);
-
-	chan_freq_list =
-		qdf_mem_malloc(sizeof(uint32_t) * OEM_CAP_MAX_NUM_CHANNELS);
-	if (!chan_freq_list)
+	chan_list = qdf_mem_malloc(sizeof(uint8_t) * OEM_CAP_MAX_NUM_CHANNELS);
+	if (NULL == chan_list) {
+		hdd_err("Memory allocation failed");
 		return -ENOMEM;
+	}
 
 	strlcpy(data_cap->oem_target_signature, OEM_TARGET_SIGNATURE,
 		OEM_TARGET_SIGNATURE_LEN);
@@ -94,44 +81,39 @@ static int populate_oem_data_cap(struct hdd_adapter *adapter,
 	data_cap->driver_version.minor = QWLAN_VERSION_MINOR;
 	data_cap->driver_version.patch = QWLAN_VERSION_PATCH;
 	data_cap->driver_version.build = QWLAN_VERSION_BUILD;
-	ucfg_mlme_get_neighbor_scan_max_chan_time(psoc,
-						  &neighbor_scan_max_chan_time);
-	ucfg_mlme_get_neighbor_scan_min_chan_time(psoc,
-						  &neighbor_scan_min_chan_time);
-	data_cap->allowed_dwell_time_min = neighbor_scan_min_chan_time;
-	data_cap->allowed_dwell_time_max = neighbor_scan_max_chan_time;
+	data_cap->allowed_dwell_time_min = config->nNeighborScanMinChanTime;
+	data_cap->allowed_dwell_time_max = config->nNeighborScanMaxChanTime;
 	data_cap->curr_dwell_time_min =
 		sme_get_neighbor_scan_min_chan_time(hdd_ctx->mac_handle,
-						    adapter->vdev_id);
+						    adapter->session_id);
 	data_cap->curr_dwell_time_max =
 		sme_get_neighbor_scan_max_chan_time(hdd_ctx->mac_handle,
-						    adapter->vdev_id);
-	data_cap->supported_bands = band_capability;
+						    adapter->session_id);
+	data_cap->supported_bands = config->nBandCapability;
 
 	/* request for max num of channels */
 	num_chan = OEM_CAP_MAX_NUM_CHANNELS;
-	status = sme_get_cfg_valid_channels(&chan_freq_list[0], &num_chan);
+	status = sme_get_cfg_valid_channels(
+					    &chan_list[0], &num_chan);
 	if (QDF_STATUS_SUCCESS != status) {
 		hdd_err("failed to get valid channel list, status: %d", status);
-		qdf_mem_free(chan_freq_list);
+		qdf_mem_free(chan_list);
 		return -EINVAL;
 	}
 
 	/* make sure num channels is not more than chan list array */
 	if (num_chan > OEM_CAP_MAX_NUM_CHANNELS) {
-		hdd_err("Num of channels-%d > length-%d of chan_freq_list",
+		hdd_err("Num of channels-%d > length-%d of chan_list",
 			num_chan, OEM_CAP_MAX_NUM_CHANNELS);
-		qdf_mem_free(chan_freq_list);
+		qdf_mem_free(chan_list);
 		return -ENOMEM;
 	}
 
 	data_cap->num_channels = num_chan;
-	for (i = 0; i < num_chan; i++) {
-		data_cap->channel_list[i] =
-			wlan_reg_freq_to_chan(hdd_ctx->pdev, chan_freq_list[i]);
-	}
+	qdf_mem_copy(data_cap->channel_list, chan_list,
+		     sizeof(uint8_t) * num_chan);
 
-	qdf_mem_free(chan_freq_list);
+	qdf_mem_free(chan_list);
 	return 0;
 }
 
@@ -151,24 +133,28 @@ int iw_get_oem_data_cap(struct net_device *dev,
 			struct iw_request_info *info,
 			union iwreq_data *wrqu, char *extra)
 {
-	struct oem_data_cap *oem_data_cap = (void *)extra;
-	struct hdd_adapter *adapter = netdev_priv(dev);
-	struct hdd_context *hdd_ctx;
-	int errno;
+	int status;
+	struct oem_data_cap oemDataCap = { {0} };
+	struct oem_data_cap *pHddOemDataCap;
+	struct hdd_adapter *adapter = (netdev_priv(dev));
+	struct hdd_context *pHddContext;
+	int ret;
 
 	hdd_enter();
 
-	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	errno = wlan_hdd_validate_context(hdd_ctx);
-	if (errno)
-		return errno;
+	pHddContext = WLAN_HDD_GET_CTX(adapter);
+	ret = wlan_hdd_validate_context(pHddContext);
+	if (0 != ret)
+		return ret;
 
-	qdf_mem_zero(oem_data_cap, sizeof(*oem_data_cap));
-	errno = populate_oem_data_cap(adapter, oem_data_cap);
-	if (errno) {
+	status = populate_oem_data_cap(adapter, &oemDataCap);
+	if (0 != status) {
 		hdd_err("Failed to populate oem data capabilities");
-		return errno;
+		return status;
 	}
+
+	pHddOemDataCap = (struct oem_data_cap *) (extra);
+	*pHddOemDataCap = oemDataCap;
 
 	hdd_exit();
 	return 0;
@@ -185,13 +171,12 @@ static void send_oem_reg_rsp_nlink_msg(void)
 {
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
-	tAniMsgHdr *ani_hdr;
+	tAniMsgHdr *aniHdr;
 	uint8_t *buf;
-	uint8_t *num_interfaces;
-	uint8_t *device_mode;
-	uint8_t *vdev_id;
-	struct hdd_adapter *adapter, *next_adapter = NULL;
-	wlan_net_dev_ref_dbgid dbgid = NET_DEV_HOLD_SEND_OEM_REG_RSP_NLINK_MSG;
+	uint8_t *numInterfaces;
+	uint8_t *deviceMode;
+	uint8_t *vdevId;
+	struct hdd_adapter *adapter;
 
 	/* OEM msg is always to a specific process & cannot be a broadcast */
 	if (p_hdd_ctx->oem_pid == 0) {
@@ -200,7 +185,7 @@ static void send_oem_reg_rsp_nlink_msg(void)
 	}
 
 	skb = alloc_skb(NLMSG_SPACE(WLAN_NL_MAX_PAYLOAD), GFP_KERNEL);
-	if (!skb)
+	if (skb == NULL)
 		return;
 
 	nlh = (struct nlmsghdr *)skb->data;
@@ -208,8 +193,8 @@ static void send_oem_reg_rsp_nlink_msg(void)
 	nlh->nlmsg_flags = 0;
 	nlh->nlmsg_seq = 0;
 	nlh->nlmsg_type = WLAN_NL_MSG_OEM;
-	ani_hdr = NLMSG_DATA(nlh);
-	ani_hdr->type = ANI_MSG_APP_REG_RSP;
+	aniHdr = NLMSG_DATA(nlh);
+	aniHdr->type = ANI_MSG_APP_REG_RSP;
 
 	/* Fill message body:
 	 *   First byte will be number of interfaces, followed by
@@ -217,32 +202,30 @@ static void send_oem_reg_rsp_nlink_msg(void)
 	 *     - one byte for device mode
 	 *     - one byte for vdev id
 	 */
-	buf = (char *)((char *)ani_hdr + sizeof(tAniMsgHdr));
-	num_interfaces = buf++;
-	*num_interfaces = 0;
+	buf = (char *)((char *)aniHdr + sizeof(tAniMsgHdr));
+	numInterfaces = buf++;
+	*numInterfaces = 0;
 
 	/* Iterate through each adapter and fill device mode and vdev id */
-	hdd_for_each_adapter_dev_held_safe(p_hdd_ctx, adapter, next_adapter,
-					   dbgid) {
-		device_mode = buf++;
-		vdev_id = buf++;
-		*device_mode = adapter->device_mode;
-		*vdev_id = adapter->vdev_id;
-		(*num_interfaces)++;
-		hdd_debug("num_interfaces: %d, device_mode: %d, vdev_id: %d",
-			  *num_interfaces, *device_mode,
-			  *vdev_id);
-		hdd_adapter_dev_put_debug(adapter, dbgid);
+	hdd_for_each_adapter(p_hdd_ctx, adapter) {
+		deviceMode = buf++;
+		vdevId = buf++;
+		*deviceMode = adapter->device_mode;
+		*vdevId = adapter->session_id;
+		(*numInterfaces)++;
+		hdd_debug("numInterfaces: %d, deviceMode: %d, vdevId: %d",
+			  *numInterfaces, *deviceMode,
+			  *vdevId);
 	}
 
-	ani_hdr->length =
-		sizeof(uint8_t) + (*num_interfaces) * 2 * sizeof(uint8_t);
-	nlh->nlmsg_len = NLMSG_LENGTH((sizeof(tAniMsgHdr) + ani_hdr->length));
+	aniHdr->length =
+		sizeof(uint8_t) + (*numInterfaces) * 2 * sizeof(uint8_t);
+	nlh->nlmsg_len = NLMSG_LENGTH((sizeof(tAniMsgHdr) + aniHdr->length));
 
-	skb_put(skb, NLMSG_SPACE((sizeof(tAniMsgHdr) + ani_hdr->length)));
+	skb_put(skb, NLMSG_SPACE((sizeof(tAniMsgHdr) + aniHdr->length)));
 
 	hdd_debug("sending App Reg Response length: %d to pid: %d",
-		   ani_hdr->length, p_hdd_ctx->oem_pid);
+		   aniHdr->length, p_hdd_ctx->oem_pid);
 
 	(void)nl_srv_ucast_oem(skb, p_hdd_ctx->oem_pid, MSG_DONTWAIT);
 }
@@ -260,11 +243,11 @@ static void send_oem_err_rsp_nlink_msg(int32_t app_pid, uint8_t error_code)
 {
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
-	tAniMsgHdr *ani_hdr;
+	tAniMsgHdr *aniHdr;
 	uint8_t *buf;
 
 	skb = alloc_skb(NLMSG_SPACE(WLAN_NL_MAX_PAYLOAD), GFP_KERNEL);
-	if (!skb)
+	if (skb == NULL)
 		return;
 
 	nlh = (struct nlmsghdr *)skb->data;
@@ -272,16 +255,16 @@ static void send_oem_err_rsp_nlink_msg(int32_t app_pid, uint8_t error_code)
 	nlh->nlmsg_flags = 0;
 	nlh->nlmsg_seq = 0;
 	nlh->nlmsg_type = WLAN_NL_MSG_OEM;
-	ani_hdr = NLMSG_DATA(nlh);
-	ani_hdr->type = ANI_MSG_OEM_ERROR;
-	ani_hdr->length = sizeof(uint8_t);
-	nlh->nlmsg_len = NLMSG_LENGTH(sizeof(tAniMsgHdr) + ani_hdr->length);
+	aniHdr = NLMSG_DATA(nlh);
+	aniHdr->type = ANI_MSG_OEM_ERROR;
+	aniHdr->length = sizeof(uint8_t);
+	nlh->nlmsg_len = NLMSG_LENGTH(sizeof(tAniMsgHdr) + aniHdr->length);
 
 	/* message body will contain one byte of error code */
-	buf = (char *)((char *)ani_hdr + sizeof(tAniMsgHdr));
+	buf = (char *)((char *)aniHdr + sizeof(tAniMsgHdr));
 	*buf = error_code;
 
-	skb_put(skb, NLMSG_SPACE(sizeof(tAniMsgHdr) + ani_hdr->length));
+	skb_put(skb, NLMSG_SPACE(sizeof(tAniMsgHdr) + aniHdr->length));
 
 	hdd_debug("sending oem error response to pid: %d", app_pid);
 
@@ -319,7 +302,7 @@ void hdd_send_oem_data_rsp_msg(struct oem_data_rsp *oem_data_rsp)
 
 	skb = alloc_skb(NLMSG_SPACE(sizeof(tAniMsgHdr) + OEM_DATA_RSP_SIZE),
 			GFP_KERNEL);
-	if (!skb)
+	if (skb == NULL)
 		return;
 
 	nlh = (struct nlmsghdr *)skb->data;
@@ -388,46 +371,55 @@ static QDF_STATUS oem_process_data_req_msg(int oem_data_len, char *oem_data)
 	return status;
 }
 
+/**
+ * update_channel_bw_info() - set bandwidth info for the chan
+ * @hdd_ctx: hdd context
+ * @chan: channel for which info are required
+ * @chan_info: struct where the bandwidth info is filled
+ *
+ * This function find the maximum bandwidth allowed, secondary
+ * channel offset and center freq for the channel as per regulatory
+ * domain and using these info calculate the phy mode for the
+ * channel.
+ *
+ * Return: void
+ */
 void hdd_update_channel_bw_info(struct hdd_context *hdd_ctx,
-				uint32_t chan_freq, void *chan_info)
+				uint16_t chan, void *chan_info)
 {
 	struct ch_params ch_params = {0};
-	enum wlan_phymode phy_mode;
-	uint16_t fw_phy_mode;
+	uint16_t sec_ch_2g = 0;
+	WLAN_PHY_MODE phy_mode;
 	uint32_t wni_dot11_mode;
-	struct hdd_channel_info *hdd_chan_info = chan_info;
+	tHddChannelInfo *hdd_chan_info = chan_info;
 
 	wni_dot11_mode = sme_get_wni_dot11_mode(hdd_ctx->mac_handle);
 
 	/* Passing CH_WIDTH_MAX will give the max bandwidth supported */
 	ch_params.ch_width = CH_WIDTH_MAX;
 
-	wlan_reg_set_channel_params_for_freq(
-		hdd_ctx->pdev, chan_freq, 0, &ch_params);
+	wlan_reg_set_channel_params(hdd_ctx->pdev, chan, sec_ch_2g, &ch_params);
 	if (ch_params.center_freq_seg0)
 		hdd_chan_info->band_center_freq1 =
 			cds_chan_to_freq(ch_params.center_freq_seg0);
 
-	if (ch_params.ch_width < CH_WIDTH_INVALID) {
-		phy_mode = wma_chan_phy_mode(chan_freq, ch_params.ch_width,
+	if (ch_params.ch_width < CH_WIDTH_INVALID)
+		phy_mode = wma_chan_phy_mode(chan, ch_params.ch_width,
 					     wni_dot11_mode);
-	}
 	else
 		/*
 		 * If channel width is CH_WIDTH_INVALID, It mean channel is
 		 * invalid and should not have been received in channel info
 		 * req. Set invalid phymode in this case.
 		 */
-		phy_mode = WLAN_PHYMODE_AUTO;
+		phy_mode = MODE_UNKNOWN;
 
-	fw_phy_mode = wma_host_to_fw_phymode(phy_mode);
+	hdd_debug("chan %d dot11_mode %d ch_width %d sec offset %d freq_seg0 %d phy_mode %d",
+		chan, wni_dot11_mode, ch_params.ch_width,
+		ch_params.sec_ch_offset,
+		hdd_chan_info->band_center_freq1, phy_mode);
 
-	hdd_debug("chan %d dot11_mode %d ch_width %d sec offset %d freq_seg0 %d phy_mode %d fw_phy_mode %d",
-		  chan_freq, wni_dot11_mode, ch_params.ch_width,
-		  ch_params.sec_ch_offset,
-		  hdd_chan_info->band_center_freq1, phy_mode, fw_phy_mode);
-
-	WMI_SET_CHANNEL_MODE(hdd_chan_info, fw_phy_mode);
+	WMI_SET_CHANNEL_MODE(hdd_chan_info, phy_mode);
 }
 
 /**
@@ -443,15 +435,15 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 {
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
-	tAniMsgHdr *ani_hdr;
+	tAniMsgHdr *aniHdr;
 	struct hdd_channel_info *pHddChanInfo;
 	struct hdd_channel_info hddChanInfo;
+	uint8_t chanId;
 	uint32_t reg_info_1;
 	uint32_t reg_info_2;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
 	int i;
 	uint8_t *buf;
-	uint32_t chan_freq;
 
 	/* OEM msg is always to a specific process and cannot be a broadcast */
 	if (p_hdd_ctx->oem_pid == 0) {
@@ -462,7 +454,7 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 	skb = alloc_skb(NLMSG_SPACE(sizeof(tAniMsgHdr) + sizeof(uint8_t) +
 				    numOfChannels * sizeof(*pHddChanInfo)),
 			GFP_KERNEL);
-	if (!skb)
+	if (skb == NULL)
 		return -ENOMEM;
 
 	nlh = (struct nlmsghdr *)skb->data;
@@ -470,15 +462,15 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 	nlh->nlmsg_flags = 0;
 	nlh->nlmsg_seq = 0;
 	nlh->nlmsg_type = WLAN_NL_MSG_OEM;
-	ani_hdr = NLMSG_DATA(nlh);
-	ani_hdr->type = ANI_MSG_CHANNEL_INFO_RSP;
+	aniHdr = NLMSG_DATA(nlh);
+	aniHdr->type = ANI_MSG_CHANNEL_INFO_RSP;
 
-	ani_hdr->length =
+	aniHdr->length =
 		sizeof(uint8_t) + numOfChannels * sizeof(*pHddChanInfo);
-	nlh->nlmsg_len = NLMSG_LENGTH((sizeof(tAniMsgHdr) + ani_hdr->length));
+	nlh->nlmsg_len = NLMSG_LENGTH((sizeof(tAniMsgHdr) + aniHdr->length));
 
 	/* First byte of message body will have num of channels */
-	buf = (char *)((char *)ani_hdr + sizeof(tAniMsgHdr));
+	buf = (char *)((char *)aniHdr + sizeof(tAniMsgHdr));
 	*buf++ = numOfChannels;
 
 	/* Next follows channel info struct for each channel id.
@@ -490,26 +482,25 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 						    i *
 						    sizeof(*pHddChanInfo));
 
-		chan_freq = wlan_reg_legacy_chan_to_freq(
-				p_hdd_ctx->pdev, chanList[i]);
-		status = sme_get_reg_info(p_hdd_ctx->mac_handle, chan_freq,
+		chanId = chanList[i];
+		status = sme_get_reg_info(p_hdd_ctx->mac_handle, chanId,
 					  &reg_info_1, &reg_info_2);
 		if (QDF_STATUS_SUCCESS == status) {
 			/* copy into hdd chan info struct */
+			hddChanInfo.chan_id = chanId;
 			hddChanInfo.reserved0 = 0;
-			hddChanInfo.mhz = chan_freq;
+			hddChanInfo.mhz = cds_chan_to_freq(chanId);
 			hddChanInfo.band_center_freq1 = hddChanInfo.mhz;
 			hddChanInfo.band_center_freq2 = 0;
 
 			hddChanInfo.info = 0;
 			if (CHANNEL_STATE_DFS ==
-			    wlan_reg_get_channel_state_for_freq(
-				p_hdd_ctx->pdev, chan_freq))
+			    wlan_reg_get_channel_state(p_hdd_ctx->pdev, chanId))
 				WMI_SET_CHANNEL_FLAG(&hddChanInfo,
 						     WMI_CHAN_FLAG_DFS);
 
 			hdd_update_channel_bw_info(p_hdd_ctx,
-						chan_freq, &hddChanInfo);
+						chanId, &hddChanInfo);
 			hddChanInfo.reg_info_1 = reg_info_1;
 			hddChanInfo.reg_info_2 = reg_info_2;
 		} else {
@@ -517,9 +508,10 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 			 * channel info struct
 			 */
 			hdd_debug("sme_get_reg_info failed for chan: %d, fill 0s",
-				   chan_freq);
+				   chanId);
+			hddChanInfo.chan_id = chanId;
 			hddChanInfo.reserved0 = 0;
-			hddChanInfo.mhz = chan_freq;
+			hddChanInfo.mhz = 0;
 			hddChanInfo.band_center_freq1 = 0;
 			hddChanInfo.band_center_freq2 = 0;
 			hddChanInfo.info = 0;
@@ -530,7 +522,7 @@ static int oem_process_channel_info_req_msg(int numOfChannels, char *chanList)
 			     sizeof(*pHddChanInfo));
 	}
 
-	skb_put(skb, NLMSG_SPACE((sizeof(tAniMsgHdr) + ani_hdr->length)));
+	skb_put(skb, NLMSG_SPACE((sizeof(tAniMsgHdr) + aniHdr->length)));
 
 	hdd_debug("sending channel info resp for num channels (%d) to pid (%d)",
 		   numOfChannels, p_hdd_ctx->oem_pid);
@@ -572,7 +564,7 @@ static int oem_process_set_cap_req_msg(int oem_cap_len,
 	error_code = qdf_status_to_os_return(status);
 
 	skb = alloc_skb(NLMSG_SPACE(WLAN_NL_MAX_PAYLOAD), GFP_KERNEL);
-	if (!skb)
+	if (skb == NULL)
 		return -ENOMEM;
 
 	nlh = (struct nlmsghdr *)skb->data;
@@ -632,7 +624,7 @@ static int oem_process_get_cap_req_msg(void)
 
 	skb = alloc_skb(NLMSG_SPACE(sizeof(tAniMsgHdr) + sizeof(*cap_rsp)),
 			GFP_KERNEL);
-	if (!skb)
+	if (skb == NULL)
 		return -ENOMEM;
 
 	nlh = (struct nlmsghdr *)skb->data;
@@ -662,17 +654,29 @@ static int oem_process_get_cap_req_msg(void)
 	return 0;
 }
 
-void hdd_send_peer_status_ind_to_oem_app(struct qdf_mac_addr *peer_mac,
-					 uint8_t peer_status,
-					 uint8_t peer_capability,
-					 uint8_t vdev_id,
-					 struct oem_channel_info *chan_info,
+/**
+ * hdd_send_peer_status_ind_to_oem_app() -
+ * Function to send peer status to a registered application
+ * @peerMac: MAC address of peer
+ * @peerStatus: ePeerConnected or ePeerDisconnected
+ * @peerTimingMeasCap: 0: RTT/RTT2, 1: RTT3. Default is 0
+ * @sessionId: SME session id, i.e. vdev_id
+ * @chan_info: operating channel information
+ * @dev_mode: dev mode for which indication is sent
+ *
+ * Return: none
+ */
+void hdd_send_peer_status_ind_to_oem_app(struct qdf_mac_addr *peerMac,
+					 uint8_t peerStatus,
+					 uint8_t peerTimingMeasCap,
+					 uint8_t sessionId,
+					 tSirSmeChanInfo *chan_info,
 					 enum QDF_OPMODE dev_mode)
 {
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
-	tAniMsgHdr *ani_hdr;
-	struct peer_status_info *peer_info;
+	tAniMsgHdr *aniHdr;
+	struct peer_status_info *pPeerInfo;
 
 	if (!p_hdd_ctx) {
 		hdd_err("HDD Ctx is null");
@@ -688,9 +692,9 @@ void hdd_send_peer_status_ind_to_oem_app(struct qdf_mac_addr *peer_mac,
 	}
 
 	skb = alloc_skb(NLMSG_SPACE(sizeof(tAniMsgHdr) +
-				    sizeof(*peer_info)),
+				    sizeof(*pPeerInfo)),
 			GFP_KERNEL);
-	if (!skb)
+	if (skb == NULL)
 		return;
 
 	nlh = (struct nlmsghdr *)skb->data;
@@ -698,50 +702,62 @@ void hdd_send_peer_status_ind_to_oem_app(struct qdf_mac_addr *peer_mac,
 	nlh->nlmsg_flags = 0;
 	nlh->nlmsg_seq = 0;
 	nlh->nlmsg_type = WLAN_NL_MSG_OEM;
-	ani_hdr = NLMSG_DATA(nlh);
-	ani_hdr->type = ANI_MSG_PEER_STATUS_IND;
+	aniHdr = NLMSG_DATA(nlh);
+	aniHdr->type = ANI_MSG_PEER_STATUS_IND;
 
-	ani_hdr->length = sizeof(*peer_info);
-	nlh->nlmsg_len = NLMSG_LENGTH((sizeof(tAniMsgHdr) + ani_hdr->length));
+	aniHdr->length = sizeof(*pPeerInfo);
+	nlh->nlmsg_len = NLMSG_LENGTH((sizeof(tAniMsgHdr) + aniHdr->length));
 
-	peer_info = (struct peer_status_info *) ((char *)ani_hdr + sizeof(tAniMsgHdr));
-	qdf_mem_zero(peer_info, sizeof(*peer_info));
-	qdf_mem_copy(peer_info->peer_mac_addr, peer_mac->bytes,
-		     sizeof(peer_mac->bytes));
-	peer_info->peer_status = peer_status;
-	peer_info->vdev_id = vdev_id;
-	peer_info->peer_capability = peer_capability;
+	pPeerInfo = (struct peer_status_info *) ((char *)aniHdr + sizeof(tAniMsgHdr));
+
+	qdf_mem_copy(pPeerInfo->peer_mac_addr, peerMac->bytes,
+		     sizeof(peerMac->bytes));
+	pPeerInfo->peer_status = peerStatus;
+	pPeerInfo->vdev_id = sessionId;
+	pPeerInfo->peer_capability = peerTimingMeasCap;
+	pPeerInfo->reserved0 = 0;
 	/* Set 0th bit of reserved0 for STA mode */
 	if (QDF_STA_MODE == dev_mode)
-		peer_info->reserved0 |= 0x01;
+		pPeerInfo->reserved0 |= 0x01;
 
 	if (chan_info) {
-		peer_info->peer_chan_info.reserved0 = 0;
-		peer_info->peer_chan_info.mhz = chan_info->mhz;
-		peer_info->peer_chan_info.band_center_freq1 =
+		pPeerInfo->peer_chan_info.chan_id = chan_info->chan_id;
+		pPeerInfo->peer_chan_info.reserved0 = 0;
+		pPeerInfo->peer_chan_info.mhz = chan_info->mhz;
+		pPeerInfo->peer_chan_info.band_center_freq1 =
 			chan_info->band_center_freq1;
-		peer_info->peer_chan_info.band_center_freq2 =
+		pPeerInfo->peer_chan_info.band_center_freq2 =
 			chan_info->band_center_freq2;
-		peer_info->peer_chan_info.info = chan_info->info;
-		peer_info->peer_chan_info.reg_info_1 = chan_info->reg_info_1;
-		peer_info->peer_chan_info.reg_info_2 = chan_info->reg_info_2;
+		pPeerInfo->peer_chan_info.info = chan_info->info;
+		pPeerInfo->peer_chan_info.reg_info_1 = chan_info->reg_info_1;
+		pPeerInfo->peer_chan_info.reg_info_2 = chan_info->reg_info_2;
+	} else {
+		pPeerInfo->peer_chan_info.chan_id = 0;
+		pPeerInfo->peer_chan_info.reserved0 = 0;
+		pPeerInfo->peer_chan_info.mhz = 0;
+		pPeerInfo->peer_chan_info.band_center_freq1 = 0;
+		pPeerInfo->peer_chan_info.band_center_freq2 = 0;
+		pPeerInfo->peer_chan_info.info = 0;
+		pPeerInfo->peer_chan_info.reg_info_1 = 0;
+		pPeerInfo->peer_chan_info.reg_info_2 = 0;
 	}
-	skb_put(skb, NLMSG_SPACE((sizeof(tAniMsgHdr) + ani_hdr->length)));
+	skb_put(skb, NLMSG_SPACE((sizeof(tAniMsgHdr) + aniHdr->length)));
 
-	hdd_info("sending peer " QDF_MAC_ADDR_FMT
-		  " status(%d), peer_capability(%d), vdev_id(%d),"
+	hdd_info("sending peer " MAC_ADDRESS_STR
+		  " status(%d), peerTimingMeasCap(%d), vdevId(%d), chanId(%d)"
 		  " to oem app pid(%d), center freq 1 (%d), center freq 2 (%d),"
 		  " info (0x%x), frequency (%d),reg info 1 (0x%x),"
 		  " reg info 2 (0x%x)",
-		  QDF_MAC_ADDR_REF(peer_mac->bytes),
-		  peer_status, peer_capability,
-		  vdev_id, p_hdd_ctx->oem_pid,
-		  peer_info->peer_chan_info.band_center_freq1,
-		  peer_info->peer_chan_info.band_center_freq2,
-		  peer_info->peer_chan_info.info,
-		  peer_info->peer_chan_info.mhz,
-		  peer_info->peer_chan_info.reg_info_1,
-		  peer_info->peer_chan_info.reg_info_2);
+		  MAC_ADDR_ARRAY(peerMac->bytes),
+		  peerStatus, peerTimingMeasCap,
+		  sessionId, pPeerInfo->peer_chan_info.chan_id,
+		  p_hdd_ctx->oem_pid,
+		  pPeerInfo->peer_chan_info.band_center_freq1,
+		  pPeerInfo->peer_chan_info.band_center_freq2,
+		  pPeerInfo->peer_chan_info.info,
+		  pPeerInfo->peer_chan_info.mhz,
+		  pPeerInfo->peer_chan_info.reg_info_1,
+		  pPeerInfo->peer_chan_info.reg_info_2);
 
 	(void)nl_srv_ucast_oem(skb, p_hdd_ctx->oem_pid, MSG_DONTWAIT);
 }
@@ -844,7 +860,7 @@ static int oem_chan_info_req_handler(struct hdd_context *hdd_ctx,
 
 	/* message length contains list of channel ids */
 	if ((!msg_hdr->length) ||
-			(CFG_VALID_CHANNEL_LIST_LEN < msg_hdr->length)) {
+			(WNI_CFG_VALID_CHANNEL_LIST_LEN < msg_hdr->length)) {
 		hdd_err("Invalid length (%d) in channel info request",
 				msg_hdr->length);
 		send_oem_err_rsp_nlink_msg(pid, OEM_ERR_INVALID_MESSAGE_LENGTH);
@@ -1088,23 +1104,13 @@ static int oem_msg_callback(struct sk_buff *skb)
 
 static int __oem_msg_callback(struct sk_buff *skb)
 {
-	struct hdd_context *hdd_ctx = p_hdd_ctx;
-	struct osif_psoc_sync *psoc_sync;
-	int errno;
+	int ret;
 
-	errno = wlan_hdd_validate_context(hdd_ctx);
-	if (errno)
-		return errno;
+	cds_ssr_protect(__func__);
+	ret = oem_msg_callback(skb);
+	cds_ssr_unprotect(__func__);
 
-	errno = osif_psoc_sync_op_start(hdd_ctx->parent_dev, &psoc_sync);
-	if (errno)
-		return errno;
-
-	errno = oem_msg_callback(skb);
-
-	osif_psoc_sync_op_stop(psoc_sync);
-
-	return errno;
+	return ret;
 }
 
 int oem_activate_service(struct hdd_context *hdd_ctx)
@@ -1176,7 +1182,7 @@ void hdd_oem_event_handler_cb(const struct oem_data *oem_event_data,
 		}
 		qdf_mem_copy(oem_data->data, oem_event_data->data,
 			     oem_data->data_len);
-		oem_data->vdev_id = hdd_adapter->vdev_id;
+		oem_data->vdev_id = hdd_adapter->session_id;
 		osif_request_complete(request);
 		osif_request_put(request);
 	} else {
@@ -1281,17 +1287,18 @@ __wlan_hdd_cfg80211_oem_data_handler(struct wiphy *wiphy,
 	}
 
 	oem_data.data_len =
-		nla_len(tb[QCA_WLAN_VENDOR_ATTR_OEM_DATA_CMD_DATA]);
+			nla_len(tb[QCA_WLAN_VENDOR_ATTR_OEM_DATA_CMD_DATA]);
 	if (!oem_data.data_len) {
 		hdd_err("oem data len is 0!");
 		return -EINVAL;
 	}
-	oem_data.vdev_id = adapter->vdev_id;
+
+	oem_data.vdev_id = adapter->session_id;
 	oem_data.data = nla_data(tb[QCA_WLAN_VENDOR_ATTR_OEM_DATA_CMD_DATA]);
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_OEM_DATA_RESPONSE_EXPECTED])
 		adapter->response_expected = nla_get_flag(
-			   tb[QCA_WLAN_VENDOR_ATTR_OEM_DATA_RESPONSE_EXPECTED]);
+			tb[QCA_WLAN_VENDOR_ATTR_OEM_DATA_RESPONSE_EXPECTED]);
 
 	if (adapter->response_expected) {
 		int skb_len = 0;
@@ -1309,7 +1316,7 @@ __wlan_hdd_cfg80211_oem_data_handler(struct wiphy *wiphy,
 
 		status = sme_oem_data_cmd(hdd_ctx->mac_handle,
 					  hdd_oem_event_handler_cb,
-					  &oem_data, adapter->vdev_id);
+					  &oem_data, adapter->session_id);
 		if (QDF_IS_STATUS_ERROR(status)) {
 			hdd_err("Failure while sending command to fw");
 			ret = -EAGAIN;
@@ -1330,8 +1337,7 @@ __wlan_hdd_cfg80211_oem_data_handler(struct wiphy *wiphy,
 
 		skb_len = NLMSG_HDRLEN + NLA_HDRLEN + get_oem_data->data_len;
 
-		skb = wlan_cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
-							       skb_len);
+		skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, skb_len);
 		if (!skb) {
 			hdd_err("cfg80211_vendor_cmd_alloc_reply_skb failed");
 			ret = -ENOMEM;
@@ -1345,12 +1351,12 @@ __wlan_hdd_cfg80211_oem_data_handler(struct wiphy *wiphy,
 			ret =  -EINVAL;
 			goto err;
 		}
-		wlan_cfg80211_vendor_cmd_reply(skb);
+		cfg80211_vendor_cmd_reply(skb);
 
 	} else {
 		status = sme_oem_data_cmd(hdd_ctx->mac_handle,
 					  hdd_oem_event_handler_cb,
-					  &oem_data, adapter->vdev_id);
+					  &oem_data, adapter->session_id);
 		return qdf_status_to_os_return(status);
 	}
 
@@ -1361,24 +1367,18 @@ err:
 	adapter->response_expected = false;
 
 	return ret;
-
 }
 
 int wlan_hdd_cfg80211_oem_data_handler(struct wiphy *wiphy,
-				       struct wireless_dev *wdev,
-				       const void *data, int data_len)
+		struct wireless_dev *wdev,
+		const void *data, int data_len)
 {
-	struct osif_vdev_sync *vdev_sync;
 	int ret;
 
-	ret = osif_vdev_sync_op_start(wdev->netdev, &vdev_sync);
-	if (ret)
-		return ret;
-
+	cds_ssr_protect(__func__);
 	ret = __wlan_hdd_cfg80211_oem_data_handler(wiphy, wdev,
-						   data, data_len);
-	osif_vdev_sync_op_stop(vdev_sync);
-
+			data, data_len);
+	cds_ssr_unprotect(__func__);
 	return ret;
 }
 #endif

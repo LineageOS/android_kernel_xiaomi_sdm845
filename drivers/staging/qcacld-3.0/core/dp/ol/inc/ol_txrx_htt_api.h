@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -36,26 +36,11 @@ static inline uint16_t *ol_tx_msdu_id_storage(qdf_nbuf_t msdu)
 	return (uint16_t *) (&QDF_NBUF_CB_TX_DESC_ID(msdu));
 
 }
-
-/**
- * @brief Deduct one credit from target_tx and one from any of the groups
- * @details
- * Deduct one credit from target_tx credit and one credit from any of the
- * groups, whichever has more number of credits.
- *
- * @param pdev - the data physical device
- */
-int ol_tx_deduct_one_credit(struct ol_txrx_pdev_t *pdev);
 #else
 static inline uint16_t *ol_tx_msdu_id_storage(qdf_nbuf_t msdu)
 {
 	qdf_assert(qdf_nbuf_headroom(msdu) >= (sizeof(uint16_t) * 2 - 1));
 	return (uint16_t *) (((qdf_size_t) (qdf_nbuf_head(msdu) + 1)) & ~0x1);
-}
-
-static inline int ol_tx_deduct_one_credit(struct ol_txrx_pdev_t *pdev)
-{
-	return 0;
 }
 #endif
 /**
@@ -131,9 +116,6 @@ enum htt_tx_status {
 
 	/* no_ack - sent, but no ack */
 	htt_tx_status_no_ack = HTT_TX_COMPL_IND_STAT_NO_ACK,
-
-	/* drop may due to tx descriptor not enough*/
-	htt_tx_status_drop = HTT_TX_COMPL_IND_STAT_DROP,
 
 	/* download_fail - host could not deliver the tx frame to target */
 	htt_tx_status_download_fail = HTT_HOST_ONLY_STATUS_CODE_START,
@@ -251,8 +233,6 @@ ol_tx_desc_update_group_credit(
 	u_int16_t tx_desc_id,
 	int credit, u_int8_t absolute, enum htt_tx_status status);
 
-void ol_tx_deduct_one_any_group_credit(ol_txrx_pdev_handle pdev);
-
 #ifdef DEBUG_HL_LOGGING
 
 /**
@@ -304,9 +284,6 @@ ol_tx_desc_update_group_credit(
 	int credit, u_int8_t absolute, enum htt_tx_status status)
 {
 }
-
-static inline void ol_tx_deduct_one_any_group_credit(ol_txrx_pdev_handle pdev)
-{}
 #endif
 
 /**
@@ -387,19 +364,10 @@ void ol_tx_target_credit_update(struct ol_txrx_pdev_t *pdev, int credit_delta);
  * @param num_mpdu_ranges - how many ranges of MPDUs does the message describe.
  *      Each MPDU within the range has the same rx status.
  */
-#ifdef WLAN_PARTIAL_REORDER_OFFLOAD
 void
 ol_rx_indication_handler(ol_txrx_pdev_handle pdev,
 			 qdf_nbuf_t rx_ind_msg,
 			 uint16_t peer_id, uint8_t tid, int num_mpdu_ranges);
-#else
-static inline void
-ol_rx_indication_handler(ol_txrx_pdev_handle pdev,
-			 qdf_nbuf_t rx_ind_msg,
-			 uint16_t peer_id, uint8_t tid, int num_mpdu_ranges)
-{
-}
-#endif
 
 /**
  * @brief Process an rx fragment indication message sent by the target.
@@ -525,47 +493,6 @@ ol_rx_sec_ind_handler(ol_txrx_pdev_handle pdev,
 		      uint16_t peer_id,
 		      enum htt_sec_type sec_type,
 		      int is_unicast, uint32_t *michael_key, uint32_t *rx_pn);
-
-/**
- * @brief Process an ADDBA message sent by the target.
- * @details
- *  When the target notifies the host of an ADDBA event for a specified
- *  peer-TID, the host will set up the rx reordering state for the peer-TID.
- *  Specifically, the host will create a rx reordering array whose length
- *  is based on the window size specified in the ADDBA.
- *
- * @param pdev - data physical device handle
- *      (registered with HTT as a context pointer during attach time)
- * @param peer_id - which peer the ADDBA event is for
- * @param tid - which traffic ID within the peer the ADDBA event is for
- * @param win_sz - how many sequence numbers are in the ARQ block ack window
- *      set up by the ADDBA event
- * @param start_seq_num - the initial value of the sequence number during the
- *      block ack agreement, as specified by the ADDBA request.
- * @param failed - indicate whether the target's ADDBA setup succeeded:
- *      0 -> success, 1 -> fail
- */
-void
-ol_rx_addba_handler(ol_txrx_pdev_handle pdev,
-		    uint16_t peer_id,
-		    uint8_t tid,
-		    uint8_t win_sz, uint16_t start_seq_num, uint8_t failed);
-
-/**
- * @brief Process a DELBA message sent by the target.
- * @details
- *  When the target notifies the host of a DELBA event for a specified
- *  peer-TID, the host will clean up the rx reordering state for the peer-TID.
- *  Specifically, the host will remove the rx reordering array, and will
- *  set the reorder window size to be 1 (stop and go ARQ).
- *
- * @param pdev - data physical device handle
- *      (registered with HTT as a context pointer during attach time)
- * @param peer_id - which peer the ADDBA event is for
- * @param tid - which traffic ID within the peer the ADDBA event is for
- */
-void
-ol_rx_delba_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id, uint8_t tid);
 
 enum htt_rx_flush_action {
 	htt_rx_flush_release,
@@ -736,21 +663,11 @@ ol_txrx_peer_qoscapable_get(struct ol_txrx_pdev_t *txrx_pdev, uint16_t peer_id);
  * @param tid - what (extended) traffic type the rx data is
  * @param is_offload - is this an offload indication?
  */
-#ifdef WLAN_FULL_REORDER_OFFLOAD
 void
 ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 				  qdf_nbuf_t rx_ind_msg,
 				  uint16_t peer_id,
 				  uint8_t tid, uint8_t is_offload);
-#else
-static inline void
-ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
-				  qdf_nbuf_t rx_ind_msg,
-				  uint16_t peer_id,
-				  uint8_t tid, uint8_t is_offload)
-{
-}
-#endif
 
 #ifdef FEATURE_HL_GROUP_CREDIT_FLOW_CONTROL
 
@@ -770,19 +687,4 @@ ol_tx_get_max_tx_groups_supported(struct ol_txrx_pdev_t *pdev)
 }
 #endif
 
-#if defined(FEATURE_HL_GROUP_CREDIT_FLOW_CONTROL) && \
-	defined(FEATURE_HL_DBS_GROUP_CREDIT_SHARING)
-int ol_txrx_distribute_group_credits(struct ol_txrx_pdev_t *pdev, u8 group_id,
-				     u32 membership_new);
-#else
-static inline int ol_txrx_distribute_group_credits(struct ol_txrx_pdev_t *pdev,
-						   u8 group_id,
-						   u32 membership_new)
-{
-	return 0;
-}
-#endif /*
-	* FEATURE_HL_GROUP_CREDIT_FLOW_CONTROL &&
-	* FEATURE_HL_DBS_GROUP_CREDIT_SHARING
-	*/
 #endif /* _OL_TXRX_HTT_API__H_ */

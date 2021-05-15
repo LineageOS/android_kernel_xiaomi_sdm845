@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  * Copyright (c) 2002-2006, Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -117,13 +117,7 @@ static os_timer_func(dfs_task)
 		return;
 	}
 
-	/* Need to take a lock here since dfs filtering data structures are
-	 * freed and re-allocated in dfs_init_radar_filters() during channel
-	 * change which may happen in the middle of dfs pulse processing.
-	 */
-	WLAN_DFS_DATA_STRUCT_LOCK(dfs);
 	dfs_process_radarevent(dfs, dfs->dfs_curchan);
-	WLAN_DFS_DATA_STRUCT_UNLOCK(dfs);
 
 	dfs->wlan_radar_tasksched = 0;
 }
@@ -218,7 +212,6 @@ int dfs_main_attach(struct wlan_dfs *dfs)
 	/*Verify : Passing NULL to qdf_timer_init().*/
 	dfs_main_task_timer_init(dfs);
 
-	dfs_allow_hw_pulses(dfs, true);
 	dfs_host_wait_timer_init(dfs);
 
 	WLAN_DFSQ_LOCK_CREATE(dfs);
@@ -227,11 +220,13 @@ int dfs_main_attach(struct wlan_dfs *dfs)
 	STAILQ_INIT(&dfs->dfs_arq);
 	STAILQ_INIT(&(dfs->dfs_eventq));
 	WLAN_DFSEVENTQ_LOCK_CREATE(dfs);
-	WLAN_DFS_DATA_STRUCT_LOCK_CREATE(dfs);
 
 	dfs->events = dfs_alloc_dfs_events();
-	if (!(dfs->events))
+	if (!(dfs->events)) {
+		dfs_alert(dfs, WLAN_DEBUG_DFS_ALWAYS,
+			  "events allocation failed");
 		return 1;
+	}
 
 	for (i = 0; i < DFS_MAX_EVENTS; i++)
 		STAILQ_INSERT_TAIL(&(dfs->dfs_eventq), &dfs->events[i],
@@ -241,6 +236,8 @@ int dfs_main_attach(struct wlan_dfs *dfs)
 	if (!(dfs->pulses)) {
 		dfs_free_dfs_events(dfs->events);
 		dfs->events = NULL;
+		dfs_alert(dfs, WLAN_DEBUG_DFS_ALWAYS,
+			  "Pulse buffer allocation failed");
 		return 1;
 	}
 
@@ -250,9 +247,11 @@ int dfs_main_attach(struct wlan_dfs *dfs)
 	for (n = 0; n < DFS_MAX_RADAR_TYPES; n++) {
 		dfs->dfs_radarf[n] = (struct dfs_filtertype *)
 			qdf_mem_malloc(sizeof(struct dfs_filtertype));
-		if (!(dfs->dfs_radarf[n]))
+		if (!(dfs->dfs_radarf[n])) {
+			dfs_alert(dfs, WLAN_DEBUG_DFS_ALWAYS,
+					"cannot allocate memory for radar filter types");
 			goto bad1;
-
+		}
 		qdf_mem_zero(dfs->dfs_radarf[n],
 			     sizeof(struct dfs_filtertype));
 		status = dfs_alloc_mem_filter(dfs->dfs_radarf[n]);
@@ -266,14 +265,18 @@ int dfs_main_attach(struct wlan_dfs *dfs)
 	/* Allocate memory for radar table. */
 	dfs->dfs_ftindextable = (int8_t **)qdf_mem_malloc(
 			DFS_NUM_FT_IDX_TBL_ROWS*sizeof(int8_t *));
-	if (!(dfs->dfs_ftindextable))
+	if (!(dfs->dfs_ftindextable)) {
+		dfs_alert(dfs, WLAN_DEBUG_DFS_ALWAYS, "Cannot allocate memory for radar table");
 		goto bad1;
-
+	}
 	for (n = 0; n < DFS_NUM_FT_IDX_TBL_ROWS; n++) {
 		dfs->dfs_ftindextable[n] = qdf_mem_malloc(
 				DFS_MAX_RADAR_OVERLAP*sizeof(int8_t));
-		if (!(dfs->dfs_ftindextable[n]))
+		if (!(dfs->dfs_ftindextable[n])) {
+			dfs_alert(dfs, WLAN_DEBUG_DFS_ALWAYS,
+					"cannot allocate memory for radar table entry");
 			goto bad2;
+		}
 	}
 
 	dfs->dfs_use_nol = 1;
@@ -312,7 +315,7 @@ bad2:
 	dfs->dfs_ftindextable = NULL;
 bad1:
 	for (n = 0; n < DFS_MAX_RADAR_TYPES; n++) {
-		if (dfs->dfs_radarf[n]) {
+		if (dfs->dfs_radarf[n] != NULL) {
 			dfs_free_filter(dfs->dfs_radarf[n]);
 			qdf_mem_free(dfs->dfs_radarf[n]);
 			dfs->dfs_radarf[n] = NULL;
@@ -338,14 +341,14 @@ void dfs_main_timer_reset(struct wlan_dfs *dfs)
 	}
 }
 
-void dfs_main_timer_detach(struct wlan_dfs *dfs)
+void dfs_main_timer_free(struct wlan_dfs *dfs)
 {
 	qdf_timer_free(&dfs->wlan_dfs_task_timer);
 	dfs->wlan_radar_tasksched = 0;
 }
 
 #if defined(WLAN_DFS_PARTIAL_OFFLOAD) && defined(HOST_DFS_SPOOF_TEST)
-void dfs_host_wait_timer_detach(struct wlan_dfs *dfs)
+void dfs_host_wait_timer_free(struct wlan_dfs *dfs)
 {
 	qdf_timer_free(&dfs->dfs_host_wait_timer);
 }
@@ -365,22 +368,22 @@ void dfs_main_detach(struct wlan_dfs *dfs)
 	dfs_reset_radarq(dfs);
 	dfs_reset_alldelaylines(dfs);
 
-	if (dfs->pulses) {
+	if (dfs->pulses != NULL) {
 		dfs_free_dfs_pulseline(dfs->pulses);
 		dfs->pulses = NULL;
 	}
 
 	for (n = 0; n < DFS_MAX_RADAR_TYPES; n++) {
-		if (dfs->dfs_radarf[n]) {
+		if (dfs->dfs_radarf[n] != NULL) {
 			dfs_free_filter(dfs->dfs_radarf[n]);
 			qdf_mem_free(dfs->dfs_radarf[n]);
 			dfs->dfs_radarf[n] = NULL;
 		}
 	}
 
-	if (dfs->dfs_ftindextable) {
+	if (dfs->dfs_ftindextable != NULL) {
 		for (n = 0; n < DFS_NUM_FT_IDX_TBL_ROWS; n++) {
-			if (dfs->dfs_ftindextable[n]) {
+			if (dfs->dfs_ftindextable[n] != NULL) {
 				qdf_mem_free(dfs->dfs_ftindextable[n]);
 				dfs->dfs_ftindextable[n] = NULL;
 			}
@@ -390,7 +393,7 @@ void dfs_main_detach(struct wlan_dfs *dfs)
 		dfs->wlan_dfs_isdfsregdomain = 0;
 	}
 
-	if (dfs->dfs_b5radars) {
+	if (dfs->dfs_b5radars != NULL) {
 		qdf_mem_free(dfs->dfs_b5radars);
 		dfs->dfs_b5radars = NULL;
 	}
@@ -403,12 +406,11 @@ void dfs_main_detach(struct wlan_dfs *dfs)
 	if (!empty)
 		dfs_reset_arq(dfs);
 
-	if (dfs->events) {
+	if (dfs->events != NULL) {
 		dfs_free_dfs_events(dfs->events);
 		dfs->events = NULL;
 	}
 
-	WLAN_DFS_DATA_STRUCT_LOCK_DESTROY(dfs);
 	WLAN_DFSQ_LOCK_DESTROY(dfs);
 	WLAN_ARQ_LOCK_DESTROY(dfs);
 	WLAN_DFSEVENTQ_LOCK_DESTROY(dfs);
