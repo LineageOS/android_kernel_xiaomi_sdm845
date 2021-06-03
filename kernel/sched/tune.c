@@ -1058,7 +1058,7 @@ sysctl_sched_cfs_boost_handler(struct ctl_table *table, int write,
 	if (ret || !write)
 		return ret;
 
-	if (sysctl_sched_cfs_boost < -100 || sysctl_sched_cfs_boost > 100)
+	if (sysctl_sched_cfs_boost > 100)
 		return -EINVAL;
 	boost_pct = sysctl_sched_cfs_boost;
 
