@@ -2,8 +2,7 @@
 #
 # Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 
-ccflags-y := -O3
-ccflags-y += -D'pr_fmt(fmt)=KBUILD_MODNAME ": " fmt'
+ccflags-y := -D'pr_fmt(fmt)=KBUILD_MODNAME ": " fmt'
 ccflags-$(CONFIG_WIREGUARD_DEBUG) += -DDEBUG
 wireguard-y := main.o
 wireguard-y += noise.o
