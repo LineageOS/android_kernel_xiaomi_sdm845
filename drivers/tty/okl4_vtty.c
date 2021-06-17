@@ -810,11 +810,15 @@ vconsole_write(struct console *co, const char *p, unsigned count)
 {
 	struct vtty_port *port = &ports[co->index];
 	size_t bytes_remaining = count;
-	char buf[port->max_msg_size + sizeof(u32)];
+	char *buf;
 	cycles_t last_sent_start = get_cycles();
 	static int pipe_full = 0;
 
-	memset(buf, 0, sizeof(buf));
+	buf = kcalloc(port->max_msg_size + sizeof(u32), sizeof(buf), GFP_KERNEL);
+	if (!buf) {
+		kfree(buf);
+		return;
+	}
 
 	while (bytes_remaining > 0) {
 		unsigned to_send = min(port->max_msg_size, bytes_remaining);
@@ -826,6 +830,8 @@ vconsole_write(struct console *co, const char *p, unsigned count)
 
 		ret = _okl4_sys_pipe_send(port->pipe_tx_kcap, send,
 				(void *)buf);
+
+		kfree(buf);
 
 		if (ret == OKL4_ERROR_PIPE_NOT_READY) {
 			okl4_pipe_control_t x = 0;
