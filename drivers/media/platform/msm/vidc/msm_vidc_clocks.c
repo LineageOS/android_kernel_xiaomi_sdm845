@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1094,7 +1094,8 @@ int msm_vidc_decide_work_mode(struct msm_vidc_inst *inst)
 		if (rc_mode == V4L2_CID_MPEG_VIDC_VIDEO_RATE_CONTROL_VBR_VFR ||
 		    rc_mode == V4L2_CID_MPEG_VIDC_VIDEO_RATE_CONTROL_VBR_CFR ||
 		    rc_mode == V4L2_CID_MPEG_VIDC_VIDEO_RATE_CONTROL_MBR_CFR ||
-		    rc_mode == V4L2_CID_MPEG_VIDC_VIDEO_RATE_CONTROL_MBR_VFR)
+		    rc_mode == V4L2_CID_MPEG_VIDC_VIDEO_RATE_CONTROL_MBR_VFR ||
+		    rc_mode == V4L2_CID_MPEG_VIDC_VIDEO_RATE_CONTROL_OFF)
 		pdata.video_work_mode = VIDC_WORK_MODE_2;
 	} else {
 		return -EINVAL;
