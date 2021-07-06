@@ -831,10 +831,16 @@ static inline void skb_mark_not_on_list(struct sk_buff *skb)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0) && !defined(ISRHEL8)
+#include <net/netlink.h>
+#ifndef NLA_POLICY_EXACT_LEN
 #define NLA_POLICY_EXACT_LEN(_len) { .type = NLA_UNSPEC, .len = _len }
 #endif
+#endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0) && !defined(ISRHEL8)
+#include <net/netlink.h>
+#ifndef NLA_POLICY_MIN_LEN
 #define NLA_POLICY_MIN_LEN(_len) { .type = NLA_UNSPEC, .len = _len }
+#endif
 #define COMPAT_CANNOT_INDIVIDUAL_NETLINK_OPS_POLICY
 #endif
 
@@ -1127,7 +1133,7 @@ static const struct header_ops ip_tunnel_header_ops = { .parse_protocol = ip_tun
 #undef __read_mostly
 #define __read_mostly
 #endif
-#if (defined(RAP_PLUGIN) || defined(CONFIG_CFI_CLANG)) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
+#if (defined(CONFIG_PAX) || defined(CONFIG_CFI_CLANG)) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 #include <linux/timer.h>
 #define wg_expired_retransmit_handshake(a) wg_expired_retransmit_handshake(unsigned long timer)
 #define wg_expired_send_keepalive(a) wg_expired_send_keepalive(unsigned long timer)
