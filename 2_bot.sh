@@ -1,8 +1,8 @@
 #!/bin/bash
 ### MLX COMPILATION SCRIPT
 ###setup bot
-CHATID=#################################################
-BOTAPIKEY=##############################################
+CHATID='@getmyid_bot'
+BOTAPIKEY='@botmaster'
 ###ping channel
  curl -F chat_id="$CHATID" -F text="Build started bitches" -F document=@"$KERNEL/$KERNELNAME" https://api.telegram.org/bot$BOTAPIKEY/sendMessage
 ###escalate privileges needed to zip recovery
@@ -32,15 +32,15 @@ ccache -M 30G
 ###setup dirs
 AK=$MLX/AnyKernel3
 AIK=$MLX/AIK
-RECOVERYNAME=OrangeFox-v10-1-MLX-67-60hz-Unofficial-beryllium.zip
+RECOVERYNAME=OrangeFox-latest-MLX-67-60hz-Unofficial-beryllium.zip
 OUT=$MLX/out/arch/arm64/boot
 KERNEL=~/Desktop/MLX
 TC=~/TOOLCHAIN
-CLANG=$TC/clang/bin
+#CLANG=$TC/clang/bin
 COMPILE=$(cat "$KERNEL/.compile/compile.h")
 cd $AK && git pull
-cd $AIK && git pull
-cd $CLANG/.. && git pull
+#cd $AIK && git pull
+#cd $CLANG/.. && git pull
 cd $MLX
 ###setup kernel stuff
 DEFCONFIG=malakas_beryllium_defconfig
@@ -53,23 +53,24 @@ KERNELINFO2=${VERSION}_${DEVICE}_${HZ2}_$(date +"%Y-%m-%d")
 KERNELNAME=mlx_kernel_$KERNELINFO.zip
 KERNELNAME2=mlx_kernel_$KERNELINFO2.zip
 THREADS=-j$(nproc --all)
-FLAGS="AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip"
+#FLAGS="AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip"
 #LD="LD=ld.gold"
-CLANG_FLAGS="CC=clang"
+#CLANG_FLAGS="CC=clang"
 #VERBOSE="V=1"
 ###set HZ
 sed -i '68s/.*/					qcom,mdss-dsi-panel-framerate = < 0x45 >;/' $MLX/arch/arm64/boot/dts/qcom/dsi-panel-tianma-fhd-nt36672a-video.dtsi
 ### update compilers prior to compilation
-sudo apt -f upgrade -y clang-11 lld-11
-sudo apt -f upgrade -y clang-10 lld-10
-sudo apt -f upgrade -y gcc-10
-sudo apt -f upgrade -y gcc clang binutils make flex bison bc build-essential libncurses-dev  libssl-dev libelf-dev qt5-default
-cd $TC/clang && git pull && cd MLX
+#sudo apt -f upgrade -y clang-11 lld-11
+#sudo apt -f upgrade -y clang-10 lld-10
+#sudo apt -f upgrade -y gcc-10
+#sudo apt -f upgrade -y gcc clang binutils make flex bison bc build-essential libncurses-dev  libssl-dev libelf-dev qt5-default
+sudo apt update && sudo apt upgrade -f -y -t experimental && sudo apt upgrade -f -y
+#cd $TC/clang && git pull && cd MLX
 ###
 export ARCH=arm64 && export SUBARCH=arm64 $DEFCONFIG
 
-export CROSS_COMPILE=$CLANG/aarch64-linux-gnu-
-export CROSS_COMPILE_ARM32=$CLANG/arm-linux-gnueabi-
+export CROSS_COMPILE=aarch64-linux-gnu-
+export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
 #export CLANG_TRIPLE=aarch64-linux-gnu-
 export LD_LIBRARY_PATH="$CLANG/../lib:$CLANG/../lib64:$LD_LIBRARY_PATH"
@@ -127,8 +128,8 @@ sed -i '68s/.*/					qcom,mdss-dsi-panel-framerate = < 0x43 >;/' $MLX/arch/arm64/
 ###
 export ARCH=arm64 && export SUBARCH=arm64 $DEFCONFIG
 
-export CROSS_COMPILE=$CLANG/aarch64-linux-gnu-
-export CROSS_COMPILE_ARM32=$CLANG/arm-linux-gnueabi-
+export CROSS_COMPILE=aarch64-linux-gnu-
+export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
 #export CLANG_TRIPLE=aarch64-linux-gnu-
 export LD_LIBRARY_PATH="$CLANG/../lib:$CLANG/../lib64:$LD_LIBRARY_PATH"

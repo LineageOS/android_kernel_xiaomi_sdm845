@@ -65,7 +65,7 @@
 			qcom,mdss-dsi-display-timings {
 
 				timing@0 {
-					qcom,mdss-dsi-panel-framerate = < 0x45 >;
+					qcom,mdss-dsi-panel-framerate = < 0x43 >;
 					qcom,mdss-dsi-panel-width = < 0x438 >;
 					qcom,mdss-dsi-panel-height = < 0x8c6 >;
 					qcom,mdss-dsi-h-front-porch = < 0x28 >;
