@@ -71,7 +71,7 @@ static int drm_bootsplash_display_probe(struct drm_bootsplash *splash)
 	bool tiled = false;
 	int ret;
 
-	ret = drm_client_modeset_probe(client, 0, 0);
+	ret = drm_client_modeset_probe(client, 1920, 1080);
 	if (ret)
 		return ret;
 

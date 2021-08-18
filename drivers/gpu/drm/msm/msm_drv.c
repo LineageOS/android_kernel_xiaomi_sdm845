@@ -693,8 +693,6 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	drm_mode_config_reset(ddev);
 
-	drm_client_dev_register(ddev);
-
 	if (kms && kms->funcs && kms->funcs->cont_splash_config) {
 		ret = kms->funcs->cont_splash_config(kms);
 		if (ret) {
