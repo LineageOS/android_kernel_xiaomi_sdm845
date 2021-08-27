@@ -37,6 +37,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include "drm_internal.h"
+#include <drm/drm_client.h>
 
 #if defined(CONFIG_DEBUG_FS)
 
@@ -160,6 +161,12 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		debugfs_remove(minor->debugfs_root);
 		minor->debugfs_root = NULL;
 		DRM_ERROR("Failed to create core drm debugfs files\n");
+		return ret;
+	}
+
+	ret = drm_client_debugfs_init(minor);
+	if (ret) {
+		DRM_ERROR("Failed to create client debugfs file\n");
 		return ret;
 	}
 

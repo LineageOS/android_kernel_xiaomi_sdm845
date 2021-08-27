@@ -382,3 +382,30 @@ void drm_client_framebuffer_delete(struct drm_client_buffer *buffer)
 	drm_client_buffer_delete(buffer);
 }
 EXPORT_SYMBOL(drm_client_framebuffer_delete);
+
+#ifdef CONFIG_DEBUG_FS
+static int drm_client_debugfs_internal_clients(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_client_dev *client;
+
+	mutex_lock(&dev->clientlist_mutex);
+	list_for_each_entry(client, &dev->clientlist, list)
+		seq_printf(m, "%s\n", client->name);
+	mutex_unlock(&dev->clientlist_mutex);
+
+	return 0;
+}
+
+static const struct drm_info_list drm_client_debugfs_list[] = {
+	{ "internal_clients", drm_client_debugfs_internal_clients, 0 },
+};
+
+int drm_client_debugfs_init(struct drm_minor *minor)
+{
+	return drm_debugfs_create_files(drm_client_debugfs_list,
+					ARRAY_SIZE(drm_client_debugfs_list),
+					minor->debugfs_root, minor);
+}
+#endif
