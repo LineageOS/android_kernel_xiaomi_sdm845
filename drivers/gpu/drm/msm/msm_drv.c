@@ -279,6 +279,7 @@ static int msm_drm_uninit(struct device *dev)
 	drm_vblank_cleanup(ddev);
 
 	if (priv->registered) {
+		drm_client_dev_unregister(ddev);
 		drm_dev_unregister(ddev);
 		priv->registered = false;
 	}
@@ -691,6 +692,8 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	priv->registered = true;
 
 	drm_mode_config_reset(ddev);
+
+	drm_client_dev_register(ddev);
 
 	if (kms && kms->funcs && kms->funcs->cont_splash_config) {
 		ret = kms->funcs->cont_splash_config(kms);
