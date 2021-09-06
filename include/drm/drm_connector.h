@@ -745,6 +745,11 @@ struct drm_connector {
 	void *private;
 };
 
+struct drm_connector_list_iter {
+	struct drm_device *dev;
+	struct drm_connector *conn;
+};
+
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
 
 int drm_connector_init(struct drm_device *dev,
@@ -846,7 +851,7 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 	for ((__i) = 0; (__i) < ARRAY_SIZE((connector)->encoder_ids) && \
 		     (connector)->encoder_ids[(__i)] != 0; (__i)++) \
 		for_each_if((encoder) = \
-			    drm_encoder_find((connector)->dev, NULL, \
+			    drm_encoder_find((connector)->dev, \
 					     (connector)->encoder_ids[(__i)])) \
 
 #endif
