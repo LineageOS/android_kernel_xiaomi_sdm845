@@ -41,6 +41,7 @@
 #include "drm_legacy.h"
 #include "drm_internal.h"
 #include "drm_crtc_internal.h"
+#include <drm/drm_client.h>
 
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
@@ -443,6 +444,8 @@ void drm_lastclose(struct drm_device * dev)
 
 	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		drm_legacy_dev_reinit(dev);
+
+	drm_client_dev_restore(dev);
 }
 
 /**
