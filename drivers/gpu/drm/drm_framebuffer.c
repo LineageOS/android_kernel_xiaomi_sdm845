@@ -717,6 +717,7 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 	INIT_LIST_HEAD(&fb->filp_head);
 	fb->dev = dev;
 	fb->funcs = funcs;
+	strlcpy(fb->comm, current->comm, TASK_COMM_LEN);
 
 	ret = drm_mode_object_get_reg(dev, &fb->base, DRM_MODE_OBJECT_FB,
 				      false, drm_framebuffer_free);
