@@ -1025,10 +1025,10 @@ EXPORT_SYMBOL(drm_mode_config_reset);
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int drm_mode_create_dumb_ioctl(struct drm_device *dev,
-			       void *data, struct drm_file *file_priv)
+int drm_mode_create_dumb(struct drm_device *dev,
+			 struct drm_mode_create_dumb *args,
+			 struct drm_file *file_priv)
 {
-	struct drm_mode_create_dumb *args = data;
 	u32 cpp, stride, size;
 
 	if (!dev->driver->dumb_create)
@@ -1061,6 +1061,12 @@ int drm_mode_create_dumb_ioctl(struct drm_device *dev,
 	args->size = 0;
 
 	return dev->driver->dumb_create(file_priv, dev, args);
+}
+
+int drm_mode_create_dumb_ioctl(struct drm_device *dev,
+			       void *data, struct drm_file *file_priv)
+{
+	return drm_mode_create_dumb(dev, data, file_priv);
 }
 
 /**
@@ -1104,15 +1110,21 @@ int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
  * Returns:
  * Zero on success, negative errno on failure.
  */
+int drm_mode_destroy_dumb(struct drm_device *dev, u32 handle,
+			  struct drm_file *file_priv)
+{
+	if (!dev->driver->dumb_destroy)
+		return -ENOSYS;
+
+	return dev->driver->dumb_destroy(file_priv, dev, handle);
+}
+
 int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 				void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_destroy_dumb *args = data;
 
-	if (!dev->driver->dumb_destroy)
-		return -ENOSYS;
-
-	return dev->driver->dumb_destroy(file_priv, dev, args->handle);
+	return drm_mode_destroy_dumb(dev, args->handle, file_priv);
 }
 
 /**
