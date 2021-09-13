@@ -137,19 +137,19 @@ struct drm_crtc_commit {
 
 struct __drm_planes_state {
 	struct drm_plane *ptr;
-	struct drm_plane_state *state;
+	struct drm_plane_state *state, *old_state, *new_state;
 };
 
 struct __drm_crtcs_state {
 	struct drm_crtc *ptr;
-	struct drm_crtc_state *state;
+	struct drm_crtc_state *state, *old_state, *new_state;
 	struct drm_crtc_commit *commit;
 	s32 __user *out_fence_ptr;
 };
 
 struct __drm_connnectors_state {
 	struct drm_connector *ptr;
-	struct drm_connector_state *state;
+	struct drm_connector_state *state, *old_state, *new_state;
 };
 
 /**
