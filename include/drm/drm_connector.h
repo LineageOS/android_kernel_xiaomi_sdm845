@@ -836,4 +836,17 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 	     &connector->head != (&(dev)->mode_config.connector_list);		\
 	     connector = list_next_entry(connector, head))
 
+/**
+ * drm_connector_for_each_possible_encoder - iterate connector's possible encoders
+ * @connector: &struct drm_connector pointer
+ * @encoder: &struct drm_encoder pointer used as cursor
+ * @__i: int iteration cursor, for macro-internal use
+ */
+#define drm_connector_for_each_possible_encoder(connector, encoder, __i) \
+	for ((__i) = 0; (__i) < ARRAY_SIZE((connector)->encoder_ids) && \
+		     (connector)->encoder_ids[(__i)] != 0; (__i)++) \
+		for_each_if((encoder) = \
+			    drm_encoder_find((connector)->dev, NULL, \
+					     (connector)->encoder_ids[(__i)])) \
+
 #endif
