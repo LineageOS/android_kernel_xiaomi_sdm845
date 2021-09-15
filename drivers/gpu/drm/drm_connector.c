@@ -298,7 +298,7 @@ int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 	if (WARN_ON(connector->encoder))
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(connector->encoder_ids); i++) {
+	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
 		if (connector->encoder_ids[i] == 0) {
 			connector->encoder_ids[i] = encoder->base.id;
 			return 0;

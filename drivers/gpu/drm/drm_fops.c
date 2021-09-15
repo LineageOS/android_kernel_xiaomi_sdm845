@@ -353,6 +353,10 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 
 	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor->index);
 
+	priv = drm_file_alloc(minor);
+	if (IS_ERR(priv))
+		return PTR_ERR(priv);
+
 	if (drm_is_primary_client(priv)) {
 		ret = drm_master_open(priv);
 		if (ret) {

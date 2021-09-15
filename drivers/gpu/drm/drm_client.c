@@ -54,7 +54,6 @@ static void drm_client_close(struct drm_client_dev *client)
 
 	drm_file_free(client->file);
 }
-EXPORT_SYMBOL(drm_client_close);
 
 /**
  * drm_client_init - Initialise a DRM client
@@ -176,6 +175,7 @@ void drm_client_dev_unregister(struct drm_device *dev)
 	}
 	mutex_unlock(&dev->clientlist_mutex);
 }
+EXPORT_SYMBOL(drm_client_dev_unregister);
 
 /**
  * drm_client_dev_hotplug - Send hotplug event to clients
@@ -249,7 +249,6 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u
 	struct drm_device *dev = client->dev;
 	struct drm_client_buffer *buffer;
 	struct drm_gem_object *obj;
-	void *vaddr;
 	int ret;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
@@ -275,12 +274,6 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u
 	}
 
 	buffer->gem = obj;
-
-	vaddr = drm_client_buffer_vmap(buffer);
-	if (IS_ERR(vaddr)) {
-		ret = PTR_ERR(vaddr);
-		goto err_delete;
-	}
 
 	return buffer;
 
@@ -313,6 +306,9 @@ void *drm_client_buffer_vmap(struct drm_client_buffer *buffer)
 	if (buffer->vaddr)
 		return buffer->vaddr;
 
+	if (!dev->driver->gem_prime_vmap)
+		return ERR_PTR(-ENOTSUPP);
+
 	/*
 	 * FIXME: The dependency on GEM here isn't required, we could
 	 * convert the driver handle to a dma-buf instead and use the
@@ -343,7 +339,8 @@ void drm_client_buffer_vunmap(struct drm_client_buffer *buffer)
 {
 	struct drm_device *dev = buffer->client->dev;
 
-	dev->driver->gem_prime_vunmap(buffer->gem, buffer->vaddr);
+	if (buffer->vaddr && dev->driver->gem_prime_vunmap)
+		dev->driver->gem_prime_vunmap(buffer->gem, buffer->vaddr);
 	buffer->vaddr = NULL;
 }
 EXPORT_SYMBOL(drm_client_buffer_vunmap);

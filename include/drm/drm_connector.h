@@ -751,11 +751,6 @@ struct drm_connector {
 	void *private;
 };
 
-struct drm_connector_list_iter {
-	struct drm_device *dev;
-	struct drm_connector *conn;
-};
-
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
 
 int drm_connector_init(struct drm_device *dev,
