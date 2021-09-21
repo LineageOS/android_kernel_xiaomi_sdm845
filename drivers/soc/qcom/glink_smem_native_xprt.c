@@ -701,11 +701,12 @@ static int fifo_tx(struct edge_info *einfo, const void *data, int len)
 	DEFINE_WAIT(wait);
 
 	spin_lock_irqsave(&einfo->write_lock, flags);
-	while (fifo_write_avail(einfo) < len) {
+	while (fifo_write_avail(einfo) < len || einfo->tx_blocked_signal_sent) {
 		send_tx_blocked_signal(einfo);
 		prepare_to_wait(&einfo->tx_blocked_queue, &wait,
 							TASK_UNINTERRUPTIBLE);
-		if (fifo_write_avail(einfo) < len && !einfo->in_ssr) {
+		if ((fifo_write_avail(einfo) < len
+			|| einfo->tx_blocked_signal_sent) && !einfo->in_ssr) {
 			spin_unlock_irqrestore(&einfo->write_lock, flags);
 			schedule();
 			spin_lock_irqsave(&einfo->write_lock, flags);
@@ -2094,7 +2095,7 @@ static int tx_data(struct glink_transport_if *if_ptr, uint16_t cmd_id,
 	}
 
 	/* Need enough space to write the command and some data */
-	if (size <= sizeof(cmd)) {
+	if (size <= sizeof(cmd) || einfo->tx_blocked_signal_sent) {
 		einfo->tx_resume_needed = true;
 		send_tx_blocked_signal(einfo);
 		spin_unlock_irqrestore(&einfo->write_lock, flags);
