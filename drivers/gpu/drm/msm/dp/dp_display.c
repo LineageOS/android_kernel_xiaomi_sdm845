@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -779,6 +779,9 @@ static int dp_display_usbpd_attention_cb(struct device *dev)
 		pr_err("no driver data found\n");
 		return -ENODEV;
 	}
+
+	if (dp->usbpd->hpd_high && dp->usbpd->hpd_irq)
+		drm_dp_cec_irq(dp->aux->drm_aux);
 
 	if (dp->usbpd->hpd_irq && dp->usbpd->hpd_high &&
 	    dp->power_on) {
