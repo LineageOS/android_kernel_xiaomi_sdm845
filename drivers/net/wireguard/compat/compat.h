@@ -515,6 +515,28 @@ static inline void __compat_kvfree(const void *addr)
 #define kvfree __compat_kvfree
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+#include <linux/vmalloc.h>
+#include <linux/mm.h>
+static inline void *__compat_kvmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	if (n != 0 && SIZE_MAX / n < size)
+		return NULL;
+	return kvmalloc(n * size, flags);
+}
+#define kvmalloc_array __compat_kvmalloc_array
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
+#include <linux/vmalloc.h>
+#include <linux/mm.h>
+static inline void *__compat_kvcalloc(size_t n, size_t size, gfp_t flags)
+{
+        return kvmalloc_array(n, size, flags | __GFP_ZERO);
+}
+#define kvcalloc __compat_kvcalloc
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 9)
 #include <linux/netdevice.h>
 #define priv_destructor destructor
