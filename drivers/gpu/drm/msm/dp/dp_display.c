@@ -479,7 +479,10 @@ static int dp_display_send_hpd_notification(struct dp_display_private *dp,
 
 	if (!dp_display_framework_ready(dp)) {
 		pr_err("%s: dp display framework not ready\n", __func__);
-		drm_client_dev_register(dp->dp_display.drm_dev);
+		if (!dp->dp_display.is_bootsplash_en) {
+			dp->dp_display.is_bootsplash_en = true;
+			drm_client_dev_register(dp->dp_display.drm_dev);
+		}
 		return ret;
 	}
 
