@@ -984,7 +984,6 @@ static bool drm_mode_match_aspect_ratio(const struct drm_display_mode *mode1,
 bool drm_mode_match(const struct drm_display_mode *mode1,
 		    const struct drm_display_mode *mode2,
 		    unsigned int match_flags)
-
 {
 	if (!mode1 && !mode2)
 		return true;
@@ -993,7 +992,7 @@ bool drm_mode_match(const struct drm_display_mode *mode1,
 		return false;
 
 	if (match_flags & DRM_MODE_MATCH_TIMINGS &&
-	    !drm_mode_match_timings(mode1, mode2))
+		!drm_mode_match_timings(mode1, mode2))
 		return false;
 
 	if (match_flags & DRM_MODE_MATCH_CLOCK &&
@@ -1051,10 +1050,6 @@ EXPORT_SYMBOL(drm_mode_equal);
 bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1,
 			      const struct drm_display_mode *mode2)
 {
-	if ((mode1->flags & DRM_MODE_FLAG_3D_MASK) !=
-	    (mode2->flags & DRM_MODE_FLAG_3D_MASK))
-		return false;
-
 	return drm_mode_match(mode1, mode2,
 			      DRM_MODE_MATCH_TIMINGS |
 			      DRM_MODE_MATCH_FLAGS |

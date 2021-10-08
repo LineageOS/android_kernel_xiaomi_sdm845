@@ -1050,9 +1050,8 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
-		if (connector->encoder_ids[i] != 0)
-			encoders_count++;
+	drm_connector_for_each_possible_encoder(connector, encoder, i)
+		encoders_count++;
 
 	if (out_resp->count_modes == 0) {
 		connector->funcs->fill_modes(connector,
@@ -1112,15 +1111,12 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	if ((out_resp->count_encoders >= encoders_count) && encoders_count) {
 		copied = 0;
 		encoder_ptr = (uint32_t __user *)(unsigned long)(out_resp->encoders_ptr);
-		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-			if (connector->encoder_ids[i] != 0) {
-				if (put_user(connector->encoder_ids[i],
-					     encoder_ptr + copied)) {
-					ret = -EFAULT;
-					goto out;
-				}
-				copied++;
+		drm_connector_for_each_possible_encoder(connector, encoder, i) {
+			if (put_user(encoder->base.id, encoder_ptr + copied)) {
+				ret = -EFAULT;
+				goto out;
 			}
+			copied++;
 		}
 	}
 	out_resp->count_encoders = encoders_count;
