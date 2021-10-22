@@ -803,6 +803,27 @@ struct drm_device {
 	struct mutex filelist_mutex;
 	struct list_head filelist;
 
+	/**
+	 * @filelist_internal:
+	 *
+	 * List of open DRM files for in-kernel clients. Protected by @filelist_mutex.
+	 */
+	struct list_head filelist_internal;
+
+	/**
+	 * @clientlist_mutex:
+	 *
+	 * Protects @clientlist access.
+	 */
+	struct mutex clientlist_mutex;
+
+	/**
+	 * @clientlist:
+	 *
+	 * List of in-kernel clients. Protected by @clientlist_mutex.
+	 */
+	struct list_head clientlist;
+
 	/** \name Memory management */
 	/*@{ */
 	struct list_head maplist;	/**< Linked list of regions */
@@ -901,10 +922,34 @@ struct drm_device {
 #define DRM_SWITCH_POWER_CHANGING 2
 #define DRM_SWITCH_POWER_DYNAMIC_OFF 3
 
+/**
+ * drm_core_check_feature - check driver feature flags
+ * @dev: DRM device to check
+ * @feature: feature flag
+ *
+ * This checks @dev for driver features, see &drm_driver.driver_features and the
+ * various DRIVER_\* flags.
+ *
+ * Returns true if the @feature is supported, false otherwise.
+ */
 static __inline__ int drm_core_check_feature(struct drm_device *dev,
 					     int feature)
 {
 	return ((dev->driver->driver_features & feature) ? 1 : 0);
+}
+
+/**
+ * drm_drv_uses_atomic_modeset - check if the driver implements
+ * atomic_commit()
+ * @dev: DRM device
+ *
+ * This check is useful if drivers do not have DRIVER_ATOMIC set but
+ * have atomic modesetting internally implemented.
+ */
+static __inline__ int drm_drv_uses_atomic_modeset(struct drm_device *dev)
+{
+	return drm_core_check_feature(dev, DRIVER_ATOMIC) ||
+		dev->mode_config.funcs->atomic_commit != NULL;
 }
 
 static inline void drm_device_set_unplugged(struct drm_device *dev)

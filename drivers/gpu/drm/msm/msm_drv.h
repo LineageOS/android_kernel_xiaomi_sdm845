@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019, 2021, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -45,6 +45,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/msm_drm.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_client.h>
 
 #include "sde_power_handle.h"
 

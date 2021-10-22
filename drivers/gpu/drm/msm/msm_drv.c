@@ -279,6 +279,7 @@ static int msm_drm_uninit(struct device *dev)
 	drm_vblank_cleanup(ddev);
 
 	if (priv->registered) {
+		drm_client_dev_unregister(ddev);
 		drm_dev_unregister(ddev);
 		priv->registered = false;
 	}
