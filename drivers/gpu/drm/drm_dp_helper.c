@@ -411,6 +411,30 @@ int drm_dp_link_power_down(struct drm_dp_aux *aux, struct drm_dp_link *link)
 }
 EXPORT_SYMBOL(drm_dp_link_power_down);
 
+int drm_dp_link_power_down_aux_up(struct drm_dp_aux *aux,
+						struct drm_dp_link *link)
+{
+	u8 value;
+	int err;
+
+	if (link->revision < 0x11)
+		return 0;
+
+	err = drm_dp_dpcd_readb(aux, DP_SET_POWER, &value);
+	if (err < 0)
+		return err;
+
+	value &= ~DP_SET_POWER_MASK;
+	value |= DP_SET_POWER_D5;
+
+	err = drm_dp_dpcd_writeb(aux, DP_SET_POWER, value);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_link_power_down_aux_up);
+
 /**
  * drm_dp_link_configure() - configure a DisplayPort link
  * @aux: DisplayPort AUX channel

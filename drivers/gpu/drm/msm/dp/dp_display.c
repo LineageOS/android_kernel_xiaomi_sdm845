@@ -1414,6 +1414,60 @@ static int dp_display_get_modes(struct dp_display *dp,
 	return ret;
 }
 
+int dp_display_set_power(struct drm_connector *connector,
+			int power_mode, void *disp)
+{
+	struct dp_display *dp = disp;
+	struct dp_display_private *dp_priv =
+			container_of(dp, struct dp_display_private, dp_display);
+	int rc = 0;
+
+	if (!dp) {
+		pr_err("invalid display\n");
+		return -EINVAL;
+	}
+
+	if (!dp_priv) {
+		pr_err("invalid display private\n");
+		return -EINVAL;
+	}
+
+	if (!dp_priv->panel) {
+		pr_err("invalid link_info\n");
+		return -EINVAL;
+	}
+
+	if (!dp_priv->aux->drm_aux) {
+		pr_err("Invalid drm_aux");
+		return -EINVAL;
+	}
+
+	if (!dp_priv->link) {
+		pr_err("invalid dp_link\n");
+		return -EINVAL;
+	}
+
+	switch (power_mode) {
+	case SDE_MODE_DPMS_STANDBY:
+		dp_priv->link->power_mode = DRM_MODE_DPMS_STANDBY;
+		rc = dp_priv->link->psm_config(dp_priv->link,
+				&dp_priv->panel->link_info, true);
+		dp_priv->ctrl->push_idle(dp_priv->ctrl);
+		break;
+	case SDE_MODE_DPMS_SUSPEND:
+		dp_priv->link->power_mode = DRM_MODE_DPMS_SUSPEND;
+		rc = dp_priv->link->psm_config(dp_priv->link,
+				&dp_priv->panel->link_info, true);
+		dp_priv->ctrl->push_idle(dp_priv->ctrl);
+		break;
+	default:
+		pr_err("conn %d dpms set to unrecognized mode %d\n",
+		connector->base.id, power_mode);
+		break;
+	}
+	return rc;
+}
+
 static int dp_display_config_hdr(struct dp_display *dp_display,
 			struct drm_msm_ext_hdr_metadata *hdr)
 {
