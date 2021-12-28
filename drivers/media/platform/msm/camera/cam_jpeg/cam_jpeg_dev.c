@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, 2021 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -57,10 +57,13 @@ static const struct of_device_id cam_jpeg_dt_match[] = {
 static int cam_jpeg_subdev_open(struct v4l2_subdev *sd,
 	struct v4l2_subdev_fh *fh)
 {
+	cam_req_mgr_rwsem_read_op(CAM_SUBDEV_LOCK);
 
 	mutex_lock(&g_jpeg_dev.jpeg_mutex);
 	g_jpeg_dev.open_cnt++;
 	mutex_unlock(&g_jpeg_dev.jpeg_mutex);
+
+	cam_req_mgr_rwsem_read_op(CAM_SUBDEV_UNLOCK);
 
 	return 0;
 }
