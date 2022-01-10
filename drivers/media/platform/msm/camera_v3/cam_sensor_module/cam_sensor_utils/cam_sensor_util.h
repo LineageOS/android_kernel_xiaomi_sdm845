@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2022, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -28,6 +28,10 @@
 
 #define INVALID_VREG 100
 
+int32_t cam_sensor_i2c_read_data(
+	struct i2c_settings_array *i2c_settings,
+	struct camera_io_master *io_master_info);
+
 int cam_get_dt_power_setting_data(struct device_node *of_node,
 	struct cam_hw_soc_info *soc_info,
 	struct cam_sensor_power_ctrl_t *power_info);
@@ -37,7 +41,9 @@ int msm_camera_pinctrl_init
 
 int cam_sensor_i2c_command_parser(struct camera_io_master *io_master,
 	struct i2c_settings_array *i2c_reg_settings,
-	struct cam_cmd_buf_desc *cmd_desc, int32_t num_cmd_buffers);
+	struct cam_cmd_buf_desc *cmd_desc, int32_t num_cmd_buffers,
+	struct cam_buf_io_cfg *io_cfg);
+
 
 int cam_sensor_util_i2c_apply_setting(struct camera_io_master *io_master_info,
 	struct i2c_settings_list *i2c_list);

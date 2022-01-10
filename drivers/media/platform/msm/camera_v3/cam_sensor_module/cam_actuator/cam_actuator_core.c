@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2022, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -563,7 +563,7 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 				rc = cam_sensor_i2c_command_parser(
 					&a_ctrl->io_master_info,
 					i2c_reg_settings,
-					&cmd_desc[i], 1);
+					&cmd_desc[i], 1, NULL);
 				if (rc < 0) {
 					CAM_ERR(CAM_ACTUATOR,
 					"Failed:parse init settings: %d",
@@ -625,7 +625,7 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 		rc = cam_sensor_i2c_command_parser(
 			&a_ctrl->io_master_info,
 			i2c_reg_settings,
-			cmd_desc, 1);
+			cmd_desc, 1, NULL);
 		if (rc < 0) {
 			CAM_ERR(CAM_ACTUATOR,
 				"Auto move lens parsing failed: %d", rc);
@@ -656,7 +656,7 @@ int32_t cam_actuator_i2c_pkt_parse(struct cam_actuator_ctrl_t *a_ctrl,
 		rc = cam_sensor_i2c_command_parser(
 			&a_ctrl->io_master_info,
 			i2c_reg_settings,
-			cmd_desc, 1);
+			cmd_desc, 1, NULL);
 		if (rc < 0) {
 			CAM_ERR(CAM_ACTUATOR,
 				"Manual move lens parsing failed: %d", rc);
