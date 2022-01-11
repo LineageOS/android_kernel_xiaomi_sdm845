@@ -19,6 +19,7 @@
 #include "dp_link.h"
 #include "dp_usbpd.h"
 #include "dp_aux.h"
+#include "dp_ctrl.h"
 
 /**
  * struct dp_debug
@@ -56,7 +57,7 @@ struct dp_debug {
 struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 			struct dp_usbpd *usbpd, struct dp_link *link,
 			struct dp_aux *aux, struct drm_connector **connector,
-			struct dp_catalog *catalog);
+			struct dp_catalog *catalog, struct dp_ctrl *ctrl);
 /**
  * dp_debug_put()
  *

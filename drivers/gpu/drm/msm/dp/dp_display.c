@@ -977,7 +977,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 
 	dp->debug = dp_debug_get(dev, dp->panel, dp->usbpd,
 				dp->link, dp->aux, &dp->dp_display.connector,
-				dp->catalog);
+				dp->catalog, dp->ctrl);
 	if (IS_ERR(dp->debug)) {
 		rc = PTR_ERR(dp->debug);
 		pr_err("failed to initialize debug, rc = %d\n", rc);
