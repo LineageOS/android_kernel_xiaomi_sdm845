@@ -17,6 +17,8 @@
 #include "dp_link.h"
 #include "dp_panel.h"
 
+#include <uapi/drm/drm_mode.h>
+
 enum dynamic_range {
 	DP_DYNAMIC_RANGE_RGB_VESA = 0x00,
 	DP_DYNAMIC_RANGE_RGB_CEA = 0x01,
@@ -961,9 +963,15 @@ static int dp_link_psm_config(struct dp_link *dp_link,
 
 	link = container_of(dp_link, struct dp_link_private, dp_link);
 
-	if (enable)
-		ret = drm_dp_link_power_down(link->aux->drm_aux, link_info);
-	else
+	if (enable) {
+		if (dp_link->power_mode != DRM_MODE_DPMS_STANDBY
+				&& dp_link->power_mode != DRM_MODE_DPMS_SUSPEND)
+			ret = drm_dp_link_power_down(link->aux->drm_aux,
+					link_info);
+		else
+			ret = drm_dp_link_power_down_aux_up(link->aux->drm_aux,
+					link_info);
+	} else
 		ret = drm_dp_link_power_up(link->aux->drm_aux, link_info);
 
 	if (ret)
