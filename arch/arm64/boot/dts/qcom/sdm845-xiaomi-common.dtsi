@@ -40,6 +40,14 @@
 				fsmgr_flags = "wait";
 				status = "ok";
 			};
+			system_ext {
+				compatible = "android,system_ext";
+				dev = "/dev/block/platform/soc/1d84000.ufshc/by-name/cust";
+				type = "ext4";
+				mnt_flags = "ro,barrier=1,discard";
+				fsmgr_flags = "wait";
+				status = "ok";
+			};
 			vendor {
 				fsmgr_flags = "wait";
 			};
