@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -241,6 +242,143 @@ static int32_t cam_sensor_handle_continuous_write(
 	return rc;
 }
 
+static int32_t cam_sensor_get_io_buffer(
+	struct cam_buf_io_cfg *io_cfg,
+	struct cam_sensor_i2c_reg_setting *i2c_settings)
+{
+	uintptr_t buf_addr = 0x0;
+	size_t buf_size = 0;
+	int32_t rc = 0;
+
+	if (io_cfg == NULL || i2c_settings == NULL) {
+		CAM_ERR(CAM_SENSOR,
+			"Invalid args, io buf or i2c settings is NULL");
+		return -EINVAL;
+	}
+
+	if (io_cfg->direction == CAM_BUF_OUTPUT) {
+		rc = cam_mem_get_cpu_buf(io_cfg->mem_handle[0],
+			&buf_addr, &buf_size);
+		if ((rc < 0) || (!buf_addr)) {
+			CAM_ERR(CAM_SENSOR,
+				"invalid buffer, rc: %d, buf_addr: %pK",
+				rc, (void *)buf_addr);
+			return -EINVAL;
+		}
+		CAM_DBG(CAM_SENSOR,
+			"buf_addr: %pK, buf_size: %zu, offsetsize: %d",
+			(void *)buf_addr, buf_size, io_cfg->offsets[0]);
+		if (io_cfg->offsets[0] >= buf_size) {
+			CAM_ERR(CAM_SENSOR,
+				"invalid size:io_cfg->offsets[0]: %d, buf_size: %d",
+				io_cfg->offsets[0], (unsigned int)buf_size);
+			return -EINVAL;
+		}
+		i2c_settings->read_buff =
+			(uint8_t *)buf_addr + io_cfg->offsets[0];
+		i2c_settings->read_buff_len =
+			buf_size - io_cfg->offsets[0];
+	} else {
+		CAM_ERR(CAM_SENSOR, "Invalid direction: %d",
+			io_cfg->direction);
+		rc = -EINVAL;
+	}
+	return rc;
+}
+
+static int32_t cam_sensor_handle_random_read(
+	struct cam_cmd_i2c_random_rd *cmd_i2c_random_rd,
+	struct i2c_settings_array *i2c_reg_settings,
+	uint16_t *cmd_length_in_bytes,
+	int32_t *offset,
+	struct list_head **list,
+	struct cam_buf_io_cfg *io_cfg)
+{
+	struct i2c_settings_list *i2c_list;
+	int32_t rc = 0, cnt = 0;
+
+	i2c_list = cam_sensor_get_i2c_ptr(i2c_reg_settings,
+			cmd_i2c_random_rd->header.count);
+	if ((i2c_list == NULL) ||
+			(i2c_list->i2c_settings.reg_setting == NULL)) {
+		CAM_ERR(CAM_SENSOR,
+			"Failed in allocating i2c_list: %pK",
+			i2c_list);
+		return -ENOMEM;
+	}
+
+	rc = cam_sensor_get_io_buffer(io_cfg, &(i2c_list->i2c_settings));
+	if (rc) {
+		CAM_ERR(CAM_SENSOR, "Failed to get read buffer: %d", rc);
+	} else {
+		*cmd_length_in_bytes = sizeof(struct i2c_rdwr_header) +
+			(sizeof(struct cam_cmd_read) *
+			 (cmd_i2c_random_rd->header.count));
+		i2c_list->op_code = CAM_SENSOR_I2C_READ_RANDOM;
+		i2c_list->i2c_settings.addr_type =
+			cmd_i2c_random_rd->header.addr_type;
+		i2c_list->i2c_settings.data_type =
+			cmd_i2c_random_rd->header.data_type;
+		i2c_list->i2c_settings.size =
+			cmd_i2c_random_rd->header.count;
+
+		for (cnt = 0; cnt < (cmd_i2c_random_rd->header.count);
+				cnt++) {
+			i2c_list->i2c_settings.reg_setting[cnt].reg_addr =
+				cmd_i2c_random_rd->data_read[cnt].reg_data;
+		}
+		*offset = cnt;
+		*list = &(i2c_list->list);
+	}
+
+	return rc;
+}
+
+static int32_t cam_sensor_handle_continuous_read(
+	struct cam_cmd_i2c_continuous_rd *cmd_i2c_continuous_rd,
+	struct i2c_settings_array *i2c_reg_settings,
+	uint16_t *cmd_length_in_bytes, int32_t *offset,
+	struct list_head **list,
+	struct cam_buf_io_cfg *io_cfg)
+{
+	struct i2c_settings_list *i2c_list;
+	int32_t rc = 0, cnt = 0;
+
+	i2c_list = cam_sensor_get_i2c_ptr(i2c_reg_settings, 1);
+	if ((i2c_list == NULL) ||
+			(i2c_list->i2c_settings.reg_setting == NULL)) {
+		CAM_ERR(CAM_SENSOR,
+			"Failed in allocating i2c_list: %pK",
+			i2c_list);
+		return -ENOMEM;
+	}
+
+	rc = cam_sensor_get_io_buffer(io_cfg, &(i2c_list->i2c_settings));
+	if (rc) {
+		CAM_ERR(CAM_SENSOR,
+			"Failed to get read buffer: %d %d", rc, cnt);
+	} else {
+
+		*cmd_length_in_bytes = sizeof(struct cam_cmd_i2c_continuous_rd);
+		i2c_list->op_code = CAM_SENSOR_I2C_READ_SEQ;
+
+		i2c_list->i2c_settings.addr_type =
+			cmd_i2c_continuous_rd->header.addr_type;
+		i2c_list->i2c_settings.data_type =
+			cmd_i2c_continuous_rd->header.data_type;
+		i2c_list->i2c_settings.size =
+			cmd_i2c_continuous_rd->header.count;
+		i2c_list->i2c_settings.reg_setting[0].reg_addr =
+			cmd_i2c_continuous_rd->reg_addr;
+
+		*offset = cnt;
+		*list = &(i2c_list->list);
+	}
+
+	return rc;
+}
+
+
 static int cam_sensor_handle_slave_info(
 	struct camera_io_master *io_master,
 	uint32_t *cmd_buf)
@@ -291,7 +429,8 @@ int cam_sensor_i2c_command_parser(
 	struct camera_io_master *io_master,
 	struct i2c_settings_array *i2c_reg_settings,
 	struct cam_cmd_buf_desc   *cmd_desc,
-	int32_t num_cmd_buffers)
+	int32_t num_cmd_buffers,
+	struct cam_buf_io_cfg *io_cfg)
 {
 	int16_t                   rc = 0, i = 0;
 	size_t                    len_of_buff = 0;
@@ -496,6 +635,92 @@ int cam_sensor_i2c_command_parser(
 				byte_cnt += cmd_length_in_bytes;
 				break;
 			}
+			case CAMERA_SENSOR_CMD_TYPE_I2C_RNDM_RD: {
+				uint16_t cmd_length_in_bytes   = 0;
+				struct cam_cmd_i2c_random_rd *i2c_random_rd =
+				 (struct cam_cmd_i2c_random_rd *)cmd_buf;
+
+				if (remain_len - byte_cnt <
+				 sizeof(struct cam_cmd_i2c_random_rd)) {
+					CAM_ERR(CAM_SENSOR,
+						 "Not enough buffer space");
+					rc = -EINVAL;
+					goto rel_buf;
+				}
+
+				 tot_size = sizeof(struct i2c_rdwr_header) +
+					 (sizeof(struct cam_cmd_read) *
+					  i2c_random_rd->header.count);
+
+				if (tot_size > (remain_len - byte_cnt)) {
+					CAM_ERR(CAM_SENSOR,
+					"Not enough buff provided %x, %x, %d",
+						(unsigned int)tot_size,
+						(unsigned int)remain_len,
+						byte_cnt);
+					rc = -EINVAL;
+					goto rel_buf;
+				}
+
+				rc = cam_sensor_handle_random_read(
+					i2c_random_rd,
+					i2c_reg_settings,
+					&cmd_length_in_bytes, &j, &list,
+					io_cfg);
+				if (rc < 0) {
+					CAM_ERR(CAM_SENSOR,
+						"Failed in random read %d", rc);
+					goto end;
+				}
+
+				cmd_buf += cmd_length_in_bytes /
+						sizeof(uint32_t);
+				byte_cnt += cmd_length_in_bytes;
+				break;
+			}
+			case CAMERA_SENSOR_CMD_TYPE_I2C_CONT_RD: {
+				uint16_t cmd_length_in_bytes   = 0;
+				struct cam_cmd_i2c_continuous_rd
+				 *i2c_continuous_rd =
+				 (struct cam_cmd_i2c_continuous_rd *)cmd_buf;
+
+				if (remain_len - byte_cnt <
+				 sizeof(struct cam_cmd_i2c_continuous_rd)) {
+					CAM_ERR(CAM_SENSOR,
+					 "Not enough buffer space");
+					rc = -EINVAL;
+					goto end;
+				}
+
+				tot_size =
+				 sizeof(struct cam_cmd_i2c_continuous_rd);
+
+				if (tot_size > (remain_len - byte_cnt)) {
+					CAM_ERR(CAM_SENSOR,
+					"Not enough buff provided %d, %d, %d",
+					(int)tot_size, (int)remain_len,
+					byte_cnt);
+					rc = -EINVAL;
+					goto end;
+				}
+
+				rc = cam_sensor_handle_continuous_read(
+					 i2c_continuous_rd,
+					 i2c_reg_settings,
+					 &cmd_length_in_bytes, &j, &list,
+					 io_cfg);
+				if (rc < 0) {
+					CAM_ERR(CAM_SENSOR,
+					 "Failed in continuous read %d", rc);
+					goto end;
+				}
+
+				cmd_buf += cmd_length_in_bytes /
+					sizeof(uint32_t);
+				byte_cnt += cmd_length_in_bytes;
+				break;
+			}
+
 			default:
 				CAM_ERR(CAM_SENSOR, "Invalid Command Type:%d",
 					 cmm_hdr->cmd_type);
@@ -508,7 +733,7 @@ int cam_sensor_i2c_command_parser(
 			CAM_WARN(CAM_SENSOR, "put failed for buffer :%d",
 				cmd_desc[i].mem_handle);
 	}
-
+end:
 	return rc;
 
 rel_buf:
@@ -586,6 +811,93 @@ int cam_sensor_util_i2c_apply_setting(
 
 	return rc;
 }
+
+int32_t cam_sensor_i2c_read_data(
+	struct i2c_settings_array *i2c_settings,
+	struct camera_io_master *io_master_info)
+{
+	int32_t                   rc = 0;
+	struct i2c_settings_list  *i2c_list;
+	uint32_t                  cnt = 0;
+	uint8_t                   *read_buff = NULL;
+	uint32_t                  buff_length = 0;
+	uint32_t                  read_length = 0;
+
+	list_for_each_entry(i2c_list,
+		&(i2c_settings->list_head), list) {
+		read_buff = i2c_list->i2c_settings.read_buff;
+		buff_length = i2c_list->i2c_settings.read_buff_len;
+		if ((read_buff == NULL) || (buff_length == 0)) {
+			CAM_ERR(CAM_SENSOR,
+			"Invalid input buffer, buffer: %pK, length: %d",
+				read_buff, buff_length);
+			return -EINVAL;
+		}
+
+		if (i2c_list->op_code == CAM_SENSOR_I2C_READ_RANDOM) {
+			read_length = i2c_list->i2c_settings.data_type *
+				i2c_list->i2c_settings.size;
+			if ((read_length > buff_length) ||
+					(read_length <
+					i2c_list->i2c_settings.size)) {
+				CAM_ERR(CAM_SENSOR,
+				"Invalid size, readLen:%d, bufLen:%d, size:%d",
+						read_length, buff_length,
+						i2c_list->i2c_settings.size);
+				return -EINVAL;
+			}
+			for (cnt = 0; cnt < (i2c_list->i2c_settings.size);
+					cnt++) {
+				struct cam_sensor_i2c_reg_array *reg_setting =
+				&(i2c_list->i2c_settings.reg_setting[cnt]);
+				rc = camera_io_dev_read(io_master_info,
+					reg_setting->reg_addr,
+					&reg_setting->reg_data,
+					i2c_list->i2c_settings.addr_type,
+					i2c_list->i2c_settings.data_type);
+				if (rc < 0) {
+					CAM_ERR(CAM_SENSOR,
+					"Failed: random read I2C settings: %d",
+						rc);
+					return rc;
+				}
+				if (i2c_list->i2c_settings.data_type <
+						CAMERA_SENSOR_I2C_TYPE_MAX) {
+					memcpy(read_buff,
+					 &reg_setting->reg_data,
+					 i2c_list->i2c_settings.data_type);
+					read_buff +=
+					 i2c_list->i2c_settings.data_type;
+				}
+			}
+		} else if (i2c_list->op_code == CAM_SENSOR_I2C_READ_SEQ) {
+			read_length = i2c_list->i2c_settings.size;
+			if (read_length > buff_length) {
+				CAM_ERR(CAM_SENSOR,
+				"Invalid buffer size,readLen: %d, bufLen:%d",
+					read_length, buff_length);
+				return -EINVAL;
+			}
+			rc = camera_io_dev_read_seq(
+				io_master_info,
+				i2c_list->i2c_settings.reg_setting[0].reg_addr,
+				read_buff,
+				i2c_list->i2c_settings.addr_type,
+				i2c_list->i2c_settings.data_type,
+				i2c_list->i2c_settings.size);
+			if (rc < 0) {
+				CAM_ERR(CAM_SENSOR,
+					"failed: seq read I2C settings: %d",
+					rc);
+				return rc;
+			}
+		}
+	}
+
+	return rc;
+}
+
+
 
 int32_t msm_camera_fill_vreg_params(
 	struct cam_hw_soc_info *soc_info,

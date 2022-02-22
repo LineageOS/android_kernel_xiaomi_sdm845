@@ -25,6 +25,8 @@
 #include "sde_connector.h"
 #include "dp_display.h"
 
+#include <drm/drm_dp_helper.h>
+
 #define DEBUG_NAME "drm_dp"
 
 struct dp_debug_private {
@@ -50,6 +52,13 @@ struct dp_debug_private {
 	struct work_struct sim_work;
 	struct dp_debug dp_debug;
 	struct mutex lock;
+	struct dp_ctrl *ctrl;
+};
+
+enum dpms_mode_status {
+	DRM_DPMS_ON = 1,
+	DRM_DPMS_OFF = 2,
+	DRM_DPMS_SUSPEND = 5,
 };
 
 static int dp_debug_get_edid_buf(struct dp_debug_private *debug)
@@ -985,6 +994,77 @@ end:
 	return len;
 }
 
+static ssize_t dp_debug_write_dpms(struct file *file,
+	const char __user *user_buff, size_t count, loff_t *ppos)
+{
+	int dpms_mode;
+	struct dp_debug_private *debug = file->private_data;
+	char buf[SZ_8];
+	size_t len = 0;
+	enum dpms_mode_status mode_status;
+
+	len = min_t(size_t, count, SZ_8-1);
+	if (copy_from_user(buf, user_buff, len))
+		goto end;
+
+	buf[len] = '\0';
+
+	if (kstrtoint(buf, 8, &dpms_mode)) {
+		pr_err("offset kstrtoint error\n");
+		return 0;
+	}
+
+	if (!debug->aux || !debug->aux->drm_aux || !debug->panel)
+		return 0;
+
+	pr_info("dpms_mode = %d", dpms_mode);
+	mode_status = dpms_mode;
+	switch (mode_status) {
+	case DRM_DPMS_ON:
+		drm_dp_link_power_up(debug->aux->drm_aux,
+				&debug->panel->link_info);
+		debug->ctrl->link_maintenance(debug->ctrl);
+		break;
+	case DRM_DPMS_OFF:
+		drm_dp_link_power_down(debug->aux->drm_aux,
+				&debug->panel->link_info);
+		break;
+	case DRM_DPMS_SUSPEND:
+		drm_dp_link_power_down_aux_up(debug->aux->drm_aux,
+				&debug->panel->link_info);
+		break;
+	default:
+		pr_err("Invalid values\n");
+	}
+end:
+	return count;
+}
+
+static ssize_t dp_debug_read_dpms(struct file *file,
+			char __user *user_buff, size_t count, loff_t *ppos)
+{
+	u8 value;
+	int err, len;
+	char buf[SZ_8];
+	struct dp_debug_private *debug = file->private_data;
+
+	err = drm_dp_dpcd_readb(debug->aux->drm_aux, DP_SET_POWER, &value);
+	if (err < 0)
+		return err;
+
+	if (*ppos)
+		return 0;
+
+	len += snprintf(buf, SZ_8, "%d\n", value);
+
+	len = min_t(size_t, count, len);
+	if (copy_to_user(user_buff, buf, len))
+		return -EFAULT;
+
+	*ppos += len;
+	return len;
+}
+
 static ssize_t dp_debug_write_dump(struct file *file,
 		const char __user *user_buff, size_t count, loff_t *ppos)
 {
@@ -1119,6 +1199,12 @@ static const struct file_operations dump_fops = {
 	.open = simple_open,
 	.write = dp_debug_write_dump,
 	.read = dp_debug_read_dump,
+};
+
+static const struct file_operations dpms_mode_fops = {
+	.open = simple_open,
+	.write = dp_debug_write_dpms,
+	.read = dp_debug_read_dpms,
 };
 
 static int dp_debug_init(struct dp_debug *dp_debug)
@@ -1260,6 +1346,16 @@ static int dp_debug_init(struct dp_debug *dp_debug)
 		goto error_remove_dir;
 	}
 
+	file = debugfs_create_file("dpms_mode", 0644, dir,
+		debug, &dpms_mode_fops);
+
+	if (IS_ERR_OR_NULL(file)) {
+		rc = PTR_ERR(file);
+		pr_err("[%s] debugfs dpms failed, rc=%d\n",
+			DEBUG_NAME, rc);
+		goto error_remove_dir;
+	}
+
 	return 0;
 
 error_remove_dir:
@@ -1281,13 +1377,13 @@ static void dp_debug_sim_work(struct work_struct *work)
 struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 			struct dp_usbpd *usbpd, struct dp_link *link,
 			struct dp_aux *aux, struct drm_connector **connector,
-			struct dp_catalog *catalog)
+			struct dp_catalog *catalog, struct dp_ctrl *ctrl)
 {
 	int rc = 0;
 	struct dp_debug_private *debug;
 	struct dp_debug *dp_debug;
 
-	if (!dev || !panel || !usbpd || !link || !catalog) {
+	if (!dev || !panel || !usbpd || !link || !catalog || !ctrl) {
 		pr_err("invalid input\n");
 		rc = -EINVAL;
 		goto error;
@@ -1309,6 +1405,7 @@ struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 	debug->dev = dev;
 	debug->connector = connector;
 	debug->catalog = catalog;
+	debug->ctrl = ctrl;
 
 	dp_debug = &debug->dp_debug;
 	dp_debug->vdisplay = 0;
