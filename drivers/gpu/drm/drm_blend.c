@@ -126,15 +126,15 @@
  * drm_property_create_bitmask()) called "rotation" and has the following
  * bitmask enumaration values:
  *
- * DRM_ROTATE_0:
+ * DRM_MODE_ROTATE_0:
  * 	"rotate-0"
- * DRM_ROTATE_90:
+ * DRM_MODE_ROTATE_90:
  * 	"rotate-90"
- * DRM_ROTATE_180:
+ * DRM_MODE_ROTATE_180:
  * 	"rotate-180"
- * DRM_ROTATE_270:
+ * DRM_MODE_ROTATE_270:
  * 	"rotate-270"
- * DRM_REFLECT_X:
+ * DRM_MODE_REFLECT_X:
  * 	"reflect-x"
  * DRM_REFELCT_Y:
  * 	"reflect-y"
@@ -148,12 +148,12 @@ struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
 						       unsigned int supported_rotations)
 {
 	static const struct drm_prop_enum_list props[] = {
-		{ __builtin_ffs(DRM_ROTATE_0) - 1,   "rotate-0" },
-		{ __builtin_ffs(DRM_ROTATE_90) - 1,  "rotate-90" },
-		{ __builtin_ffs(DRM_ROTATE_180) - 1, "rotate-180" },
-		{ __builtin_ffs(DRM_ROTATE_270) - 1, "rotate-270" },
-		{ __builtin_ffs(DRM_REFLECT_X) - 1,  "reflect-x" },
-		{ __builtin_ffs(DRM_REFLECT_Y) - 1,  "reflect-y" },
+		{ __builtin_ffs(DRM_MODE_ROTATE_0) - 1,   "rotate-0" },
+		{ __builtin_ffs(DRM_MODE_ROTATE_90) - 1,  "rotate-90" },
+		{ __builtin_ffs(DRM_MODE_ROTATE_180) - 1, "rotate-180" },
+		{ __builtin_ffs(DRM_MODE_ROTATE_270) - 1, "rotate-270" },
+		{ __builtin_ffs(DRM_MODE_REFLECT_X) - 1,  "reflect-x" },
+		{ __builtin_ffs(DRM_MODE_REFLECT_Y) - 1,  "reflect-y" },
 	};
 
 	return drm_property_create_bitmask(dev, 0, "rotation",
@@ -168,14 +168,14 @@ EXPORT_SYMBOL(drm_mode_create_rotation_property);
  * @supported_rotations: Supported rotations
  *
  * Attempt to simplify the rotation to a form that is supported.
- * Eg. if the hardware supports everything except DRM_REFLECT_X
+ * Eg. if the hardware supports everything except DRM_MODE_REFLECT_X
  * one could call this function like this:
  *
- * drm_rotation_simplify(rotation, DRM_ROTATE_0 |
- *                       DRM_ROTATE_90 | DRM_ROTATE_180 |
- *                       DRM_ROTATE_270 | DRM_REFLECT_Y);
+ * drm_rotation_simplify(rotation, DRM_MODE_ROTATE_0 |
+ *                       DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_180 |
+ *                       DRM_MODE_ROTATE_270 | DRM_MODE_REFLECT_Y);
  *
- * to eliminate the DRM_ROTATE_X flag. Depending on what kind of
+ * to eliminate the DRM_MODE_ROTATE_X flag. Depending on what kind of
  * transforms the hardware supports, this function may not
  * be able to produce a supported transform, so the caller should
  * check the result afterwards.
@@ -184,9 +184,9 @@ unsigned int drm_rotation_simplify(unsigned int rotation,
 				   unsigned int supported_rotations)
 {
 	if (rotation & ~supported_rotations) {
-		rotation ^= DRM_REFLECT_X | DRM_REFLECT_Y;
-		rotation = (rotation & DRM_REFLECT_MASK) |
-		           BIT((ffs(rotation & DRM_ROTATE_MASK) + 1) % 4);
+		rotation ^= DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y;
+		rotation = (rotation & DRM_MODE_REFLECT_MASK) |
+		           BIT((ffs(rotation & DRM_MODE_ROTATE_MASK) + 1) % 4);
 	}
 
 	return rotation;

@@ -33,10 +33,10 @@
 #include <linux/mount.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
+#include <drm/drm_client.h>
 #include "drm_crtc_internal.h"
 #include "drm_legacy.h"
 #include "drm_internal.h"
-#include "drm_crtc_internal.h"
 
 /*
  * drm_debug: Enable debug output.
@@ -503,6 +503,8 @@ int drm_dev_init(struct drm_device *dev,
 	dev->driver = driver;
 
 	INIT_LIST_HEAD(&dev->filelist);
+	INIT_LIST_HEAD(&dev->filelist_internal);
+	INIT_LIST_HEAD(&dev->clientlist);
 	INIT_LIST_HEAD(&dev->ctxlist);
 	INIT_LIST_HEAD(&dev->vmalist);
 	INIT_LIST_HEAD(&dev->maplist);
@@ -512,6 +514,7 @@ int drm_dev_init(struct drm_device *dev,
 	spin_lock_init(&dev->event_lock);
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->filelist_mutex);
+	mutex_init(&dev->clientlist_mutex);
 	mutex_init(&dev->ctxlist_mutex);
 	mutex_init(&dev->master_mutex);
 
@@ -573,6 +576,7 @@ err_minors:
 	drm_fs_inode_free(dev->anon_inode);
 err_free:
 	mutex_destroy(&dev->master_mutex);
+	mutex_destroy(&dev->clientlist_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(drm_dev_init);
@@ -635,6 +639,7 @@ static void drm_dev_release(struct kref *ref)
 	drm_minor_free(dev, DRM_MINOR_CONTROL);
 
 	mutex_destroy(&dev->master_mutex);
+	mutex_destroy(&dev->clientlist_mutex);
 	kfree(dev->unique);
 	kfree(dev);
 }

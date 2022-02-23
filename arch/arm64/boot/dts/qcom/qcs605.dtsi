@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,27 +31,27 @@
 };
 
 &pil_cdsp_mem {
-	reg = <0 0x8e700000 0 0x800000>;
+	reg = <0 0x8e700000 0 0x900000>;
 };
 
 &pil_mba_mem {
-	reg = <0 0x8ef00000 0 0x200000>;
+	reg = <0 0x8f000000 0 0x200000>;
 };
 
 &pil_adsp_mem {
-	reg = <0 0x8f100000 0 0x1e00000>;
+	reg = <0 0x8f200000 0 0x1e00000>;
 };
 
 &pil_ipa_fw_mem {
-	reg = <0 0x90f00000 0 0x10000>;
+	reg = <0 0x91000000 0 0x10000>;
 };
 
 &pil_ipa_gsi_mem {
-	reg = <0 0x90f10000 0 0x5000>;
+	reg = <0 0x91010000 0 0x5000>;
 };
 
 &pil_gpu_mem {
-	reg = <0 0x90f15000 0 0x4000>;
+	reg = <0 0x91015000 0 0x4000>;
 };
 
 &adsp_mem {
