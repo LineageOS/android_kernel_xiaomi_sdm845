@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, 2021 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -60,8 +60,10 @@ static long cam_subdev_ioctl(struct v4l2_subdev *sd, unsigned int cmd,
 
 	switch (cmd) {
 	case VIDIOC_CAM_CONTROL:
+		cam_req_mgr_rwsem_read_op(CAM_SUBDEV_LOCK);
 		rc = cam_node_handle_ioctl(node,
 			(struct cam_control *) arg);
+		cam_req_mgr_rwsem_read_op(CAM_SUBDEV_UNLOCK);
 		break;
 	default:
 		CAM_ERR(CAM_CORE, "Invalid command %d for %s", cmd,
