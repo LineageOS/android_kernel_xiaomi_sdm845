@@ -3774,12 +3774,14 @@ static irqreturn_t dwc3_thread_interrupt(int irq, void *_dwc)
 
 	start_time = ktime_get();
 
+	local_bh_disable();
 	spin_lock_irqsave(&dwc->lock, flags);
 	dwc->bh_handled_evt_cnt[dwc->bh_dbg_index] = 0;
 
 	ret = dwc3_process_event_buf(dwc);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
+	local_bh_enable();
 
 	temp_time = ktime_to_us(ktime_sub(ktime_get(), start_time));
 	dwc->bh_completion_time[dwc->bh_dbg_index] = temp_time;
