@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, 2021The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -82,6 +82,8 @@ static int cam_icp_subdev_open(struct v4l2_subdev *sd,
 	struct cam_node *node = v4l2_get_subdevdata(sd);
 	int rc = 0;
 
+	cam_req_mgr_rwsem_read_op(CAM_SUBDEV_LOCK);
+
 	mutex_lock(&g_icp_dev.icp_lock);
 	if (g_icp_dev.open_cnt >= 1) {
 		CAM_ERR(CAM_ICP, "ICP subdev is already opened");
@@ -104,6 +106,7 @@ static int cam_icp_subdev_open(struct v4l2_subdev *sd,
 	g_icp_dev.open_cnt++;
 end:
 	mutex_unlock(&g_icp_dev.icp_lock);
+	cam_req_mgr_rwsem_read_op(CAM_SUBDEV_UNLOCK);
 	return rc;
 }
 
