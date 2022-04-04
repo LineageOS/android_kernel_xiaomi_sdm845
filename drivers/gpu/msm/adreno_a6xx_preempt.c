@@ -795,7 +795,7 @@ int a6xx_preemption_init(struct adreno_device *adreno_dev)
 	 * postamble pm4 packets
 	 */
 	if (!adreno_dev->perfcounter) {
-		u32 *postamble = preempt->scratch.hostptr +
+		u32 *postamble = preempt->counters.hostptr +
 					(KMD_POSTAMBLE_IDX * sizeof(u64));
 		u32 count = 0;
 
