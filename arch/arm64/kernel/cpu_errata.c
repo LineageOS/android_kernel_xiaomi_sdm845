@@ -170,16 +170,15 @@ static void  install_bp_hardening_cb(const struct arm64_cpu_capabilities *entry,
 }
 
 #ifdef CONFIG_PSCI_BP_HARDENING
-static int enable_psci_bp_hardening(void *data)
+static void
+enable_psci_bp_hardening(const struct arm64_cpu_capabilities *entry)
 {
-	const struct arm64_cpu_capabilities *entry = data;
-
 	if (psci_ops.get_version)
 		install_bp_hardening_cb(entry,
 				       (bp_hardening_cb_t)psci_ops.get_version,
 				       __psci_hyp_bp_inval_start,
 				       __psci_hyp_bp_inval_end);
-	return 0;
+	return;
 }
 #endif
 
@@ -561,20 +560,20 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 #ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
 	{
 		.capability = ARM64_HARDEN_BRANCH_PREDICTOR,
-		MIDR_ALL_VERSIONS(MIDR_KRYO3G),
+		ERRATA_MIDR_ALL_VERSIONS(MIDR_KRYO3G),
 #ifdef CONFIG_PSCI_BP_HARDENING
-		.enable = enable_psci_bp_hardening,
+		.cpu_enable = enable_psci_bp_hardening,
 #else
-		.enable = enable_smccc_arch_workaround_1,
+		.cpu_enable = enable_smccc_arch_workaround_1,
 #endif
 	},
 	{
 		.capability = ARM64_HARDEN_BRANCH_PREDICTOR,
-		MIDR_ALL_VERSIONS(MIDR_KRYO2XX_GOLD),
+		ERRATA_MIDR_ALL_VERSIONS(MIDR_KRYO2XX_GOLD),
 #ifdef CONFIG_PSCI_BP_HARDENING
-		.enable = enable_psci_bp_hardening,
+		.cpu_enable = enable_psci_bp_hardening,
 #else
-		.enable = enable_smccc_arch_workaround_1,
+		.cpu_enable = enable_smccc_arch_workaround_1,
 #endif
 	},
 #endif /* CONFIG_HARDEN_BRANCH_PREDICTOR */
