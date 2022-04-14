@@ -69,6 +69,10 @@ ifeq ($(wildcard $(srctree)/arch/arm64/include/asm/neon.h)$(CONFIG_ARM64),y)
 ccflags-y += -I$(kbuild-dir)/compat/neon-arm/include
 endif
 
+ifeq ($(wildcard $(srctree)/include/net/dst_metadata.h),)
+ccflags-y += -I$(kbuild-dir)/compat/dstmetadata/include
+endif
+
 ifeq ($(CONFIG_X86_64),y)
 	ifeq ($(ssse3_instr),)
 		ssse3_instr := $(call as-instr,pshufb %xmm0$(comma)%xmm0,-DCONFIG_AS_SSSE3=1)
