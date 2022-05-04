@@ -872,9 +872,9 @@ static bool is_spectrev2_safe(void)
 	};
 
 	return !is_midr_in_range_list(read_cpuid_id(),
-	                              arm64_bp_harden_smccc_cpus) ||
+				      arm64_psci_bp_harden_cpus) &&
 			!is_midr_in_range_list(read_cpuid_id(),
-			                       arm64_psci_bp_harden_cpus);
+				               arm64_bp_harden_smccc_cpus);
 }
 
 void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
