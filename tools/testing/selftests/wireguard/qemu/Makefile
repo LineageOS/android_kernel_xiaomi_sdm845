@@ -68,8 +68,10 @@ CROSS_COMPILE_FLAG := --build=$(CBUILD) --host=$(CHOST)
 export CROSS_COMPILE=$(CBUILD)-
 STRIP := $(CBUILD)-strip
 endif
+QEMU_VPORT_RESULT :=
 ifeq ($(ARCH),aarch64)
 QEMU_ARCH := aarch64
+QEMU_VPORT_RESULT := virtio-serial-device
 KERNEL_ARCH := arm64
 KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/arch/arm64/boot/Image
 ifeq ($(HOST_ARCH),$(ARCH))
@@ -80,6 +82,7 @@ CFLAGS += -march=armv8-a -mtune=cortex-a53
 endif
 else ifeq ($(ARCH),aarch64_be)
 QEMU_ARCH := aarch64
+QEMU_VPORT_RESULT := virtio-serial-device
 KERNEL_ARCH := arm64
 KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/arch/arm64/boot/Image
 ifeq ($(HOST_ARCH),$(ARCH))
@@ -90,6 +93,7 @@ CFLAGS += -march=armv8-a -mtune=cortex-a53
 endif
 else ifeq ($(ARCH),arm)
 QEMU_ARCH := arm
+QEMU_VPORT_RESULT := virtio-serial-device
 KERNEL_ARCH := arm
 KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/arch/arm/boot/zImage
 ifeq ($(HOST_ARCH),$(ARCH))
@@ -100,6 +104,7 @@ CFLAGS += -march=armv7-a -mtune=cortex-a15 -mabi=aapcs-linux
 endif
 else ifeq ($(ARCH),armeb)
 QEMU_ARCH := arm
+QEMU_VPORT_RESULT := virtio-serial-device
 KERNEL_ARCH := arm
 KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/arch/arm/boot/zImage
 ifeq ($(HOST_ARCH),$(ARCH))
@@ -199,7 +204,7 @@ KERNEL_ARCH := m68k
 KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/vmlinux
 KERNEL_CMDLINE := $(shell sed -n 's/CONFIG_CMDLINE=\(.*\)/\1/p' arch/m68k.config)
 ifeq ($(HOST_ARCH),$(ARCH))
-QEMU_MACHINE := -cpu host,accel=kvm -machine q800 -smp 1 -append $(KERNEL_CMDLINE)
+QEMU_MACHINE := -cpu host,accel=kvm -machine q800 -append $(KERNEL_CMDLINE)
 else
 QEMU_MACHINE := -machine q800 -smp 1 -append $(KERNEL_CMDLINE)
 endif
@@ -212,6 +217,7 @@ MUSL_CC := $(BUILD_PATH)/musl-gcc
 export CC := $(MUSL_CC)
 USERSPACE_DEPS := $(MUSL_CC) $(BUILD_PATH)/include/.installed $(BUILD_PATH)/include/linux/.installed
 
+comma := ,
 build: $(KERNEL_BZIMAGE)
 qemu: $(KERNEL_BZIMAGE)
 	rm -f $(BUILD_PATH)/result
@@ -222,7 +228,8 @@ qemu: $(KERNEL_BZIMAGE)
 		$(QEMU_MACHINE) \
 		-m $$(grep -q CONFIG_DEBUG_KMEMLEAK=y $(KERNEL_BUILD_PATH)/.config && echo 1G || echo 256M) \
 		-serial stdio \
-		-serial file:$(BUILD_PATH)/result \
+		-chardev file,path=$(BUILD_PATH)/result,id=result \
+		$(if $(QEMU_VPORT_RESULT),-device $(QEMU_VPORT_RESULT) -device virtserialport$(comma)chardev=result,-serial chardev:result) \
 		-no-reboot \
 		-monitor none \
 		-kernel $<
