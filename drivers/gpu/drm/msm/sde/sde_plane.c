@@ -3837,7 +3837,7 @@ static int sde_plane_sspp_atomic_update(struct drm_plane *plane,
 		case PLANE_PROP_ALPHA:
 		case PLANE_PROP_INPUT_FENCE:
 		case PLANE_PROP_BLEND_OP:
-		case PLANE_PROP_FOD:
+		case PLANE_PROP_UDFPS:
 			/* no special action required */
 			break;
 		case PLANE_PROP_FB_TRANSLATION_MODE:
@@ -4292,8 +4292,8 @@ static void _sde_plane_install_properties(struct drm_plane *plane,
 	msm_property_install_range(&psde->property_info, "zpos",
 		0x0, 0, zpos_max, zpos_def, PLANE_PROP_ZPOS);
 
-	msm_property_install_range(&psde->property_info, "fod",
-		0x0, 0, INT_MAX, 0, PLANE_PROP_FOD);
+	msm_property_install_range(&psde->property_info, "udfps",
+		0x0, 0, INT_MAX, 0, PLANE_PROP_UDFPS);
 
 	msm_property_install_range(&psde->property_info, "alpha",
 		0x0, 0, 255, 255, PLANE_PROP_ALPHA);
@@ -4670,8 +4670,8 @@ static int sde_plane_atomic_set_property(struct drm_plane *plane,
 {
 	struct sde_plane *psde = plane ? to_sde_plane(plane) : NULL;
 	struct sde_plane_state *pstate;
-	struct drm_property *fod_property;
-	uint64_t fod_val = 0;
+	struct drm_property *udfps_property;
+	uint64_t udfps_val = 0;
 	int idx, ret = -EINVAL;
 
 	SDE_DEBUG_PLANE(psde, "\n");
@@ -4685,18 +4685,18 @@ static int sde_plane_atomic_set_property(struct drm_plane *plane,
 		idx = msm_property_index(&psde->property_info,
 				property);
 		if (idx == PLANE_PROP_ZPOS) {
-			if (val & FOD_PRESSED_LAYER_ZORDER) {
-				val &= ~FOD_PRESSED_LAYER_ZORDER;
-				fod_val = 1;
+			if (val & UDFPS_PRESSED_LAYER_ZORDER) {
+				val &= ~UDFPS_PRESSED_LAYER_ZORDER;
+				udfps_val = 1;
 			}
 
-			fod_property = psde->property_info.
-					property_array[PLANE_PROP_FOD];
+			udfps_property = psde->property_info.
+					property_array[PLANE_PROP_UDFPS];
 			ret = msm_property_atomic_set(&psde->property_info,
 					&pstate->property_state,
-					fod_property, fod_val);
+					udfps_property, udfps_val);
 			if (ret)
-				SDE_ERROR("failed to set fod prop");
+				SDE_ERROR("failed to set udfps prop");
 		}
 		ret = msm_property_atomic_set(&psde->property_info,
 				&pstate->property_state, property, val);

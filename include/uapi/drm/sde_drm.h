@@ -447,8 +447,8 @@ struct sde_drm_roi_v1 {
 #define SDE_MODE_DPMS_OFF	5
 
 /**
- * sde fod dim layer
+ * UDFPS dim layer
  */
-#define FOD_PRESSED_LAYER_ZORDER 0x20000000u
+#define UDFPS_PRESSED_LAYER_ZORDER 0x20000000u
 
 #endif /* _SDE_DRM_H_ */
