@@ -548,66 +548,6 @@
 			fts,limit-name = "stm_fts_production_limits.csv";
 		};
 	};
-	atmel_mxt_ts_640u@4a {
-		compatible = "atmel,mxt-ts";
-		reg = <0x4a>;
-		interrupt-parent = <&tlmm>;
-		interrupts = <31 0x2008>;
-		vdd-supply = <&pm8998_l28>;
-		vddio-supply = <&disp_vddio_vreg>;
-		/* pins used by touchscreen */
-		pinctrl-names = "pmx_ts_active","pmx_ts_suspend";
-		pinctrl-0 = <&ts_active>;
-		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
-		atmel,reset-gpio = <&tlmm 32 0x00>;
-		atmel,reset-low-prepower;
-		atmel,irq-gpio = <&tlmm 31 0x2008>;
-		atmel,mxt-fw-name = "mXT640U2000.fw";
-		atmel,config-array-size = <1>;
-		atmel,default-config = <0>;
-		atmel,default-panel-id = <0x51>;
-		atmel,irqflags = <0x2008>;
-		atmel,gpio-mask = <0xC>;
-		atmel,esd-reset;
-		atmel,no-keys;
-		atmel,use-ta-gpio;
-		atmel,raw-min = <3000>;
-		atmel,raw-max = <7000>;
-		atmel,cfg_1 {
-			atmel,family-id = <0xA6>;
-			atmel,variant-id = <0x01>;
-			atmel,version = <0x20>;
-			atmel,build = <0x00>;
-			atmel,rev-id = <0x12>;
-			atmel,mxt-cfg-name = "mxt_640u_gov_config.fw";
-			atmel,vendor-id = <0x0C>;
-			atmel,panel-id = <0x51>; /* gov id = 0x51 */
-			atmel,key-codes = <158 139 102>;
-			atmel,selfintthr-stylus = <0>;
-			atmel,t71-tchthr-pos = <22>;
-			atmel,self-chgtime-min = <0>;
-			atmel,self-chgtime-max = <0>;
-			atmel,mult-intthr-sensitive = <0x08>;
-			atmel,mult-intthr-not-sensitive = <17>;
-			atmel,atchthr-sensitive = <6>;
-			atmel,mult-tchthr-sensitive = <0x14>;
-			atmel,mult-tchthr-not-sensitive = <0>;
-			atmel,wake-up-self-adcx = <16>;
-			atmel,atchratio = <0>;
-			atmel,xycfg = <0x08>;
-			atmel,xsize = <0x1e>;
-			atmel,xrange-lsb = <0x37>;
-			atmel,xrange-msb = <0x04>;
-			atmel,tchhyst = <0x0a>;
-			atmel,intthrhyst = <0x03>;
-			atmel,xtchthr = <0x23>;
-			atmel,xtchhyst = <0x0f>;
-			atmel,intthrx = <0x08>;
-			atmel,ytchthr = <0x23>;
-			atmel,ytchhyst = <0x0f>;
-			atmel,intthry = <0x08>;
-		};
-	};
 
 	ndt@50 {
 		compatible = "ndt,press-f60";
