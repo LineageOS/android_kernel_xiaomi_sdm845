@@ -60,11 +60,6 @@
 #include "fts_lib/ftsTest.h"
 #include "fts_lib/ftsTime.h"
 #include "fts_lib/ftsTool.h"
-#ifdef CONFIG_INPUT_PRESS_NDT
-#include "./../ndt_core.h"
-#endif
-
-
 
 #define LINK_KOBJ_NAME "tp"
 
@@ -129,9 +124,6 @@ static int fts_flash_procedure(struct fts_ts_info *info, const char *fw_name, in
 static const char *fts_get_limit(struct fts_ts_info *info);
 #ifdef EDGEHOVER_FOR_VOLUME
 static void fts_clear_point(struct fts_ts_info *info);
-#endif
-#ifdef CONFIG_INPUT_PRESS_NDT
-bool aod_mode;
 #endif
 
 unsigned int le_to_uint(const unsigned char *ptr)
@@ -1425,65 +1417,26 @@ static unsigned char *fts_nop_event_handler(struct fts_ts_info *info, unsigned c
 	return fts_next_event(event);
 }
 
-#if defined(CONFIG_INPUT_PRESS_NEXTINPUT) || defined(CONFIG_INPUT_PRESS_NDT)
-static int fts_infod;
-bool fts_is_infod(void)
-{
-	return (fts_infod == 0 ? false : true);
-}
-
-static bool fts_is_in_fodarea(int x, int y)
-{
-	int d = 0;
-
-	d = (x - CENTER_X) * (x - CENTER_X) + (y - CENTER_Y) * (y - CENTER_Y);
-	if (d < CIRCLE_R * CIRCLE_R)
-		return true;
-	else
-		return false;
-}
-#endif
-bool finger_report_flag;
 static unsigned char *fts_enter_pointer_event_handler(struct fts_ts_info *info, unsigned char *event)
 {
 	unsigned char touchId, touchcount;
 	int x, y, z;
-#ifndef CONFIG_INPUT_PRESS_NDT
 	if (!info->resume_bit)
 		goto no_report;
-#endif
 
 	touchId = event[1] & 0x0F;
 	touchcount = (event[1] & 0xF0) >> 4;
 	__set_bit(touchId, &info->touch_id);
 	x = (event[2] << 4) | (event[4] & 0xF0) >> 4;
 	y = (event[3] << 4) | (event[4] & 0x0F);
-#ifdef CONFIG_INPUT_PRESS_NDT
-	z = ndt_get_pressure();
-#else
 	z = (event[5] & 0x3F);
-#endif
+
 	if (x == X_AXIS_MAX)
 		x--;
 
 	if (y == Y_AXIS_MAX)
 		y--;
 
-#if defined(CONFIG_INPUT_PRESS_NEXTINPUT) || defined(CONFIG_INPUT_PRESS_NDT)
-	if (fts_is_in_fodarea(x, y)) {
-		if (!finger_report_flag) {
-			log_error("%s %s: finger down in the fod area\n", tag, __func__);
-			finger_report_flag = true;
-		}
-		input_report_key(info->input_dev, KEY_INFO, 1);
-		input_sync(info->input_dev);
-		fts_infod |= BIT(touchId);
-	}
-	else
-		fts_infod &= ~BIT(touchId);
-	if (!info->resume_bit && !aod_mode)
-		aod_mode = true;
-#endif
 	input_mt_slot(info->input_dev, touchId);
 	input_mt_report_slot_state(info->input_dev, MT_TOOL_FINGER, 1);
 	log_debug("%s  %s : TouchID = %d,Touchcount = %d\n", tag, __func__, touchId, touchcount);
@@ -1492,30 +1445,14 @@ static unsigned char *fts_enter_pointer_event_handler(struct fts_ts_info *info, 
 		input_report_key(info->input_dev, BTN_TOUCH, 1);
 		input_report_key(info->input_dev, BTN_TOOL_FINGER, 1);
 	}
-#ifdef CONFIG_INPUT_PRESS_NDT
-	if (!aod_mode) {
-		input_report_abs(info->input_dev, ABS_MT_POSITION_X, x);
-		input_report_abs(info->input_dev, ABS_MT_POSITION_Y, y);
-		input_report_abs(info->input_dev, ABS_MT_TOUCH_MAJOR, z);
-		input_report_abs(info->input_dev, ABS_MT_TOUCH_MINOR, z);
-	} else {
-		input_report_abs(info->input_dev, ABS_MT_POSITION_X, 0);
-		input_report_abs(info->input_dev, ABS_MT_POSITION_Y, 0);
-		input_report_abs(info->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-		input_report_abs(info->input_dev, ABS_MT_TOUCH_MINOR, 0);
-	}
-#else
-		input_report_abs(info->input_dev, ABS_MT_POSITION_X, x);
-		input_report_abs(info->input_dev, ABS_MT_POSITION_Y, y);
-		input_report_abs(info->input_dev, ABS_MT_TOUCH_MAJOR, z);
-		input_report_abs(info->input_dev, ABS_MT_TOUCH_MINOR, z);
-#endif
-
+	input_report_abs(info->input_dev, ABS_MT_POSITION_X, x);
+	input_report_abs(info->input_dev, ABS_MT_POSITION_Y, y);
+	input_report_abs(info->input_dev, ABS_MT_TOUCH_MAJOR, z);
+	input_report_abs(info->input_dev, ABS_MT_TOUCH_MINOR, z);
 	input_report_abs(info->input_dev, ABS_MT_PRESSURE, z);
 	log_debug("%s  %s :  Event 0x%02x - ID[%d], (x, y, z) = (%3d, %3d, %3d)\n", tag, __func__, *event, touchId, x, y, z);
-#ifndef CONFIG_INPUT_PRESS_NDT
+
 no_report:
-#endif
 	return fts_next_event(event);
 }
 
@@ -1523,17 +1460,12 @@ static unsigned char *fts_leave_pointer_event_handler(struct fts_ts_info *info, 
 {
 	unsigned char touchId, touchcount;
 	int x;
-#if defined(CONFIG_INPUT_PRESS_NEXTINPUT) || defined(CONFIG_INPUT_PRESS_NDT)
-	int y;
-#endif
 
 	touchId = event[1] & 0x0F;
 	touchcount = (event[1] & 0xF0) >> 4;
 	__clear_bit(touchId, &info->touch_id);
 	x = (event[2] << 4) | (event[4] & 0xF0) >> 4;
-#if defined(CONFIG_INPUT_PRESS_NEXTINPUT) || defined(CONFIG_INPUT_PRESS_NDT)
-	y = (event[3] << 4) | (event[4] & 0x0F);
-#endif
+
 	input_mt_slot(info->input_dev, touchId);
 	input_mt_report_slot_state(info->input_dev, MT_TOOL_FINGER, 0);
 	log_debug("%s  %s : TouchID = %d, Touchcount = %d\n", tag, __func__, touchId, touchcount);
@@ -1569,14 +1501,7 @@ static unsigned char *fts_leave_pointer_event_handler(struct fts_ts_info *info, 
 	}
 #endif
 	log_debug("%s  %s : Event 0x%02x - release ID[%d]\n", tag, __func__, event[0], touchId);
-#if defined(CONFIG_INPUT_PRESS_NEXTINPUT) || defined(CONFIG_INPUT_PRESS_NDT)
-	fts_infod &= ~BIT(touchId);
-	if (fts_info->resume_bit && aod_mode)
-		aod_mode = false;
-	input_report_key(info->input_dev, KEY_INFO, 0);
-	input_sync(info->input_dev);
-	finger_report_flag = false;
-#endif
+
 	return fts_next_event(event);
 }
 
@@ -2342,9 +2267,6 @@ static void fts_fw_update_auto(struct work_struct *work)
 	struct delayed_work *fwu_work = container_of(work, struct delayed_work, work);
 	struct fts_ts_info *info = container_of(fwu_work, struct fts_ts_info, fwu_work);
 
-#ifdef CONFIG_INPUT_PRESS_NDT
-	ndt_update_fw(false, "ndt_fw.bin");
-#endif
 	fts_flash_procedure(info, NULL, 0);
 #ifdef CONFIG_DRM
 	drm_register_client(&info->notifier);
@@ -2586,9 +2508,7 @@ static int fts_mode_handler(struct fts_ts_info *info, int force)
 #endif
 		info->mode = MODE_SENSEOFF;
 #ifdef PHONE_GESTURE
-#ifndef CONFIG_INPUT_PRESS_NDT
 		if (info->gesture_enabled == 1) {
-#endif
 			log_debug("%s %s: enter in gesture mode !\n", tag, __func__);
 			ret = enterGestureMode(isSystemResettedDown());
 
@@ -2598,16 +2518,11 @@ static int fts_mode_handler(struct fts_ts_info *info, int force)
 				log_error("%s %s: enterGestureMode failed! ERROR %08X recovery in senseOff...\n", tag, __func__, ret);
 
 			res |= ret;
-#ifndef CONFIG_INPUT_PRESS_NDT
 		}
 #endif
-
-#endif
-#ifndef CONFIG_INPUT_PRESS_NDT
 		if (info->mode != MODE_GESTURE || info->gesture_enabled == 0) {
 			fts_disableInterrupt();
 		}
-#endif
 
 		setSystemResettedDown(0);
 		break;
@@ -2664,10 +2579,6 @@ static void fts_resume_work(struct work_struct *work)
 
     info = container_of(work, struct fts_ts_info, resume_work);
     info->resume_bit = 1;
-#ifdef CONFIG_INPUT_PRESS_NDT
-	if (ndt_is_pressed() && aod_mode)
-		aod_mode = false;
-#endif
 #ifdef USE_NOISE_PARAM
 	readNoiseParameters(noise_params);
 #endif
@@ -3379,14 +3290,10 @@ static const struct file_operations fts_lockdown_info_ops = {
 static int fts_pm_suspend(struct device *dev)
 {
 	struct fts_ts_info *info = dev_get_drvdata(dev);
-#ifndef CONFIG_INPUT_PRESS_NDT
 	if (device_may_wakeup(dev) && info->gesture_enabled) {
 		log_error("%s enable touch irq wake\n", tag);
 		enable_irq_wake(info->client->irq);
 	}
-#else
-	enable_irq_wake(info->client->irq);
-#endif
 
 	return 0;
 
@@ -3396,14 +3303,11 @@ static int fts_pm_resume(struct device *dev)
 {
 	struct fts_ts_info *info = dev_get_drvdata(dev);
 
-#ifndef CONFIG_INPUT_PRESS_NDT
 	if (device_may_wakeup(dev) && info->gesture_enabled) {
 		log_error("%s disable touch irq wake\n", tag);
 		disable_irq_wake(info->client->irq);
 	}
-#else
-	disable_irq_wake(info->client->irq);
-#endif
+
 	return 0;
 }
 
@@ -3673,9 +3577,6 @@ static int fts_probe(struct i2c_client *client, const struct i2c_device_id *idp)
 	info->doubletap_distance = 80;
 	info->single_press_time_low = 30;
 	info->single_press_time_hi = 500;
-#endif
-#ifdef CONFIG_INPUT_PRESS_NDT
-	input_set_capability(info->input_dev, EV_KEY, KEY_INFO);
 #endif
 	mutex_init(&(info->input_report_mutex));
 	error = input_register_device(info->input_dev);
