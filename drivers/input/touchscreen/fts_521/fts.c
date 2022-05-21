@@ -57,6 +57,7 @@
 #include <linux/notifier.h>
 #ifdef CONFIG_DRM
 #include <drm/drm_notifier.h>
+#include <drm/drm_panel.h>
 #endif
 #include <linux/backlight.h>
 
@@ -2288,25 +2289,6 @@ static ssize_t fts_grip_area_store(struct device *dev,
 	return count;
 }
 
-static ssize_t fts_fod_status_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
-{
-	struct fts_ts_info *info = dev_get_drvdata(dev);
-
-	return snprintf(buf, TSP_BUF_SIZE, "%d\n", info->fod_status);
-}
-
-static ssize_t fts_fod_status_store(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf, size_t count)
-{
-	struct fts_ts_info *info = dev_get_drvdata(dev);
-
-	logError(1, " %s %s,buf:%s,count:%zu\n", tag, __func__, buf, count);
-	sscanf(buf, "%u", &info->fod_status);
-	return count;
-}
-
 #ifdef CONFIG_SECURE_TOUCH
 static void fts_secure_touch_notify (struct fts_ts_info *info)
 {
@@ -2623,10 +2605,6 @@ static struct attribute *fts_attr_group[] = {
 	&dev_attr_grip_area.attr,
 	NULL,
 };
-
-static DEVICE_ATTR(fod_status, (S_IRUGO | S_IWUSR | S_IWGRP),
-		   fts_fod_status_show, fts_fod_status_store);
-
 
 #ifdef CONFIG_SECURE_TOUCH
 DEVICE_ATTR(secure_touch_enable, (S_IRUGO | S_IWUSR | S_IWGRP), fts_secure_touch_enable_show,  fts_secure_touch_enable_store);
@@ -3212,7 +3190,7 @@ static void fts_gesture_event_handler(struct fts_ts_info *info,
 	if (event[0] == EVT_ID_USER_REPORT && event[1] == EVT_TYPE_USER_GESTURE) {
 		needCoords = 1;
 #ifdef CONFIG_INPUT_PRESS_NDT
-		if (event[2] == GEST_ID_LONG_PRESS && info->fod_status) {
+		if (event[2] == GEST_ID_LONG_PRESS && drm_panel_is_dozing()) {
 			fts_fod_status = true;
 			if (fts_is_in_fodarea(x, y)) {
 				if (!finger_report_flag) {
@@ -5598,12 +5576,6 @@ static int fts_probe(struct spi_device *client)
 
 	dev_set_drvdata(info->fts_touch_dev, info);
 
-	error =
-	    sysfs_create_file(&info->fts_touch_dev->kobj,
-			      &dev_attr_fod_status.attr);
-	if (error) {
-		logError(1, "%s ERROR: Failed to create fod_status sysfs group!\n", tag);
-	}
 	info->tp_lockdown_info_proc =
 	    proc_create("tp_lockdown_info", 0, NULL, &fts_lockdown_info_ops);
 	info->tp_selftest_proc =
