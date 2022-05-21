@@ -2720,7 +2720,7 @@ static void fts_enter_pointer_event_handler(struct fts_ts_info *info,
 	if (fts_is_in_fodarea(x, y)) {
 		z = ndt_get_pressure(1, x, y);
 		if (!finger_report_flag) {
-			logError(1, "%s  %s finger down in the fod area\n", tag, __func__);
+			logError(0, "%s  %s finger down in the fod area\n", tag, __func__);
 			finger_report_flag = true;
 		}
 		input_report_key(info->input_dev, BTN_INFO, 1);
@@ -2941,7 +2941,7 @@ static void fts_controller_ready_event_handler(struct fts_ts_info *info,
 					       unsigned char *event)
 {
 	int error;
-	logError(1,
+	logError(0,
 		 "%s %s Received event %02X %02X %02X %02X %02X %02X %02X %02X\n",
 		 tag, __func__, event[0], event[1], event[2], event[3],
 		 event[4], event[5], event[6], event[7]);
@@ -3208,7 +3208,7 @@ static void fts_gesture_event_handler(struct fts_ts_info *info,
 			fts_fod_status = true;
 			if (fts_is_in_fodarea(x, y)) {
 				if (!finger_report_flag) {
-					logError(1, "%s  %s finger down in the fod area\n", tag, __func__);
+					logError(0, "%s  %s finger down in the fod area\n", tag, __func__);
 					finger_report_flag = true;
 					sysfs_notify(&info->fts_touch_dev->kobj, NULL, "fp_state");
 				}
@@ -3945,27 +3945,24 @@ static int fts_mode_handler(struct fts_ts_info *info, int force)
 		res |= ret;
 #endif
 #ifdef CONFIG_INPUT_PRESS_NDT
-		logError(1, "%s %s,send long press and gesture cmd\n", tag, __func__);
+		logError(0, "%s %s, send long press and gesture cmd\n", tag, __func__);
 		res = fts_write_dma_safe(gesture_cmd, ARRAY_SIZE(gesture_cmd));
 		if (res < OK)
-				logError(1, "%s %s: enter gesture and longpress failed! ERROR %08X recovery in senseOff...\n",
-					 tag, __func__, res);
+			logError(1, "%s %s: enter gesture and longpress failed! ERROR %08X recovery in senseOff...\n", tag, __func__, res);
 		res = setScanMode(SCAN_MODE_LOW_POWER, 0);
 		res |= ret;
 		if (info->gesture_enabled == 1) {
 			res = fts_write_dma_safe(single_double_cmd, ARRAY_SIZE(single_double_cmd));
 			if (res < OK)
-					logError(1, "%s %s: set single and double tap delay time failed! ERROR %08X\n", tag, __func__, res);
+				logError(1, "%s %s: set single and double tap delay time failed! ERROR %08X\n", tag, __func__, res);
 		} else {
 			res = fts_write_dma_safe(single_only_cmd, ARRAY_SIZE(single_only_cmd));
 			if (res < OK)
-					logError(1, "%s %s: set single only delay time failed! ERROR %08X\n", tag, __func__, res);
+				logError(1, "%s %s: set single only delay time failed! ERROR %08X\n", tag, __func__, res);
 		}
 		ret = fts_enableInterrupt();
 		if (ret < OK)
 			logError(1, "%s enterGestureMode: fts_enableInterrupt ERROR %08X\n", tag, res | ERROR_ENABLE_INTER);
-		else
-			logError(1, "%s enterGestureMode: fts_enableInterrupt\n", tag);
 #else
 		if (info->gesture_enabled == 1) {
 			logError(0, "%s %s: enter in gesture mode ! \n", tag,
@@ -4195,25 +4192,22 @@ static int fts_drm_state_chg_callback(struct notifier_block *nb,
 	struct fb_event *evdata = data;
 	unsigned int blank;
 
-	logError(0, "%s %s: fts notifier begin!\n", tag, __func__);
-
 	if (evdata && evdata->data && info) {
 
 		blank = *(int *)(evdata->data);
-		logError(1, "%s %s: val:%lu,blank:%u\n", tag, __func__, val, blank);
 
 		flush_workqueue(info->event_wq);
 		if (val == DRM_EARLY_EVENT_BLANK && blank == DRM_BLANK_POWERDOWN) {
 			if (info->sensor_sleep)
 				return NOTIFY_OK;
 
-			logError(1, "%s %s: FB_BLANK_POWERDOWN\n", tag, __func__);
+			logError(0, "%s %s: DRM_BLANK_POWERDOWN\n", tag, __func__);
 			queue_work(info->event_wq, &info->suspend_work);
 		} else if (val == DRM_EVENT_BLANK && blank == DRM_BLANK_UNBLANK) {
 			if (!info->sensor_sleep)
 				return NOTIFY_OK;
-			logError(1, "%s %s: FB_BLANK_UNBLANK\n", tag, __func__);
 
+			logError(0, "%s %s: DRM_BLANK_UNBLANK\n", tag, __func__);
 			queue_work(info->event_wq, &info->resume_work);
 		}
 	}
@@ -4236,25 +4230,21 @@ static int fts_bl_state_chg_callback(struct notifier_block *nb,
 		return NOTIFY_OK;
 	if (data && info) {
 		blank = *(int *)(data);
-		logError(1, "%s %s: val:%lu,blank:%u\n", tag, __func__, val, blank);
+
 		flush_workqueue(info->event_wq);
 		if (blank == BACKLIGHT_OFF) {
 			if (info->sensor_sleep)
 				return NOTIFY_OK;
-			logError(1, "%s %s: BL_EVENT_BLANK\n", tag, __func__);
+			logError(0, "%s %s: BL_EVENT_BLANK\n", tag, __func__);
 			ret = fts_disableInterrupt();
 			if (ret < OK)
 				logError(1, "%s fts_disableInterrupt ERROR %08X\n", tag, ret | ERROR_ENABLE_INTER);
-			else
-				logError(1, "%s fts_disableInterrupt\n", tag, ret | ERROR_ENABLE_INTER);
 		} else if (blank == BACKLIGHT_ON) {
-			logError(1, "%s %s: BL_EVENT_UNBLANK\n", tag, __func__);
+			logError(0, "%s %s: BL_EVENT_UNBLANK\n", tag, __func__);
 			if (!info->sensor_sleep) {
 				ret = fts_enableInterrupt();
 				if (ret < OK)
 					logError(1, "%s fts_enableInterrupt ERROR %08X\n", tag, ret | ERROR_ENABLE_INTER);
-				else
-					logError(1, "%s fts_enableInterrupt\n", tag, ret | ERROR_ENABLE_INTER);
 			}
 		}
 	}
