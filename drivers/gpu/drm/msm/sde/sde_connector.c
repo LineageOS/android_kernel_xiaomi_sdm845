@@ -1234,10 +1234,6 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 	/* connector-specific property handling */
 	idx = msm_property_index(&c_conn->property_info, property);
 	switch (idx) {
-	case CONNECTOR_PROP_LP:
-		if (connector->dev)
-			connector->dev->doze_state = val;
-		break;
 	case CONNECTOR_PROP_OUT_FB:
 		/* clear old fb, if present */
 		if (c_state->out_fb)

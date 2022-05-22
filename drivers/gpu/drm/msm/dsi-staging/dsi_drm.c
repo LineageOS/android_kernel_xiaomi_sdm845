@@ -191,16 +191,8 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	int rc = 0;
 	struct dsi_bridge *c_bridge = to_dsi_bridge(bridge);
-	struct drm_device *dev = bridge->dev;
 	struct sde_connector *c_conn = to_sde_connector(c_bridge->display->drm_conn);
 	int event = 0;
-
-	if (dev->doze_state == DRM_BLANK_POWERDOWN) {
-		dev->doze_state = DRM_BLANK_UNBLANK;
-		pr_info("%s power on from power off\n", __func__);
-	}
-
-	event = dev->doze_state;
 
 	g_notify_data.data = &event;
 
@@ -220,13 +212,6 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 	if (c_bridge->display->is_prim_display && atomic_read(&prim_panel_is_on)) {
 		cancel_delayed_work_sync(&prim_panel_work);
 		__pm_relax(&prim_panel_wakelock);
-		if (dev->fp_quickon &&
-			(dev->doze_state == DRM_BLANK_LP1 || dev->doze_state == DRM_BLANK_LP2)) {
-			event = DRM_BLANK_POWERDOWN;
-			drm_notifier_call_chain(DRM_EARLY_EVENT_BLANK, &g_notify_data);
-			drm_notifier_call_chain(DRM_EVENT_BLANK, &g_notify_data);
-			dev->fp_quickon = false;
-		}
 		pr_info("%s panel already on\n", __func__);
 		return;
 	}
@@ -461,15 +446,7 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 {
 	int rc = 0;
 	struct dsi_bridge *c_bridge = to_dsi_bridge(bridge);
-	struct drm_device *dev = bridge->dev;
 	int event = 0;
-
-	if (dev->doze_state == DRM_BLANK_UNBLANK) {
-		dev->doze_state = DRM_BLANK_POWERDOWN;
-		pr_info("%s wrong doze state\n", __func__);
-	}
-
-	event = dev->doze_state;
 
 	g_notify_data.data = &event;
 
@@ -480,14 +457,6 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 
 	if (c_bridge->display->is_prim_display && !atomic_read(&prim_panel_is_on)) {
 		pr_err("%s Already power off\n", __func__);
-		return;
-	}
-
-	if (dev->doze_state == DRM_BLANK_LP1 || dev->doze_state == DRM_BLANK_LP2) {
-		pr_err("%s doze state can't power off panel\n", __func__);
-		event = DRM_BLANK_POWERDOWN;
-		drm_notifier_call_chain(DRM_EARLY_EVENT_BLANK, &g_notify_data);
-		drm_notifier_call_chain(DRM_EVENT_BLANK, &g_notify_data);
 		return;
 	}
 

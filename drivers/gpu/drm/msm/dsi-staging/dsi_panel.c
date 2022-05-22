@@ -1057,55 +1057,6 @@ static void dsi_panel_offon_mode_control(struct dsi_panel *panel, u32 bl_lvl)
 	return;
 }
 
-int dsi_panel_set_doze_backlight(struct dsi_display *display, u32 bl_lvl)
-{
-	int rc = 0;
-	struct dsi_panel *panel = NULL;
-	struct drm_device *drm_dev = NULL;
-
-	if (!display || !display->panel || !display->drm_dev) {
-		pr_err("invalid display/panel/drm_dev\n");
-		return -EINVAL;
-	}
-	panel = display->panel;
-	drm_dev = display->drm_dev;
-
-	mutex_lock(&panel->panel_lock);
-
-	if (panel->fod_hbm_enabled) {
-		pr_info("%s FOD HBM open, skip value:%u\n", __func__, bl_lvl);
-		mutex_unlock(&panel->panel_lock);
-		return rc;
-	}
-
-	if (bl_lvl > panel->doze_backlight_threshold) {
-		if (drm_dev->doze_brightness != DOZE_BRIGHTNESS_HBM) {
-			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_HBM);
-			if (rc)
-				pr_err("[%s] failed to send DSI_CMD_SET_DOZE_LBM cmd, rc=%d\n",
-					   panel->name, rc);
-			drm_dev->doze_brightness = DOZE_BRIGHTNESS_HBM;
-		}
-		panel->in_aod = true;
-	} else if (bl_lvl <= panel->doze_backlight_threshold && bl_lvl > 0) {
-		if (drm_dev->doze_brightness != DOZE_BRIGHTNESS_LBM) {
-			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_LBM);
-			if (rc)
-				pr_err("[%s] failed to send DSI_CMD_SET_DOZE_HBM cmd, rc=%d\n",
-				       panel->name, rc);
-			drm_dev->doze_brightness = DOZE_BRIGHTNESS_LBM;
-		}
-		panel->in_aod = true;
-	} else {
-		drm_dev->doze_brightness = DOZE_BRIGHTNESS_INVALID;
-	}
-
-	mutex_unlock(&panel->panel_lock);
-
-	pr_info("%s value:%u\n", __func__, drm_dev->doze_brightness);
-	return rc;
-}
-
 /*
 Name: bl_mapping;
 Function: map backlight value base on panel max backlight
@@ -1178,38 +1129,6 @@ void dsi_panel_backlight_consistency(struct dsi_panel *panel, u32 *bl_lvl)
 	}
 
 	return;
-}
-
-int dsi_panel_enable_doze_backlight(struct dsi_panel *panel, u32 bl_lvl)
-{
-	int rc = 0;
-	u32 bl_temp;
-	struct dsi_backlight_config *bl = &panel->bl_config;
-
-	pr_debug("enable doze backlight type:%d lvl:%d\n", bl->type, bl_lvl);
-
-	mutex_lock(&panel->panel_lock);
-
-	if (bl->doze_brightness_varible_flag) {
-		if (bl_lvl == 0 && panel->bl_config.bl_remap_flag
-				&& panel->bl_config.brightness_max_level
-				&& panel->bl_config.bl_max_level) {
-			bl_temp = (panel->bl_config.bl_max_level - panel->bl_config.bl_min_level)
-					* bl_lvl / panel->bl_config.brightness_max_level
-					+ panel->bl_config.bl_min_level;
-			rc = dsi_panel_update_backlight(panel, bl_temp);
-		}
-	} else {
-		rc = dsi_panel_update_backlight(panel, bl_lvl);
-	}
-
-	panel->last_bl_lvl = bl_lvl;
-	if (!bl_lvl && panel->hist_bl_offset)
-		panel->hist_bl_offset = 0;
-
-	mutex_unlock(&panel->panel_lock);
-
-	return rc;
 }
 
 int dsi_panel_update_doze(struct dsi_panel *panel) {
@@ -3027,9 +2946,6 @@ static int dsi_panel_parse_bl_config(struct dsi_panel *panel,
 	panel->bl_config.bl_remap_flag = of_property_read_bool(of_node,
 						"qcom,mdss-brightness-remap");
 
-	panel->bl_config.doze_brightness_varible_flag = of_property_read_bool(of_node,
-						"qcom,mdss-doze-brightness-variable");
-
 	rc = of_property_read_u32(of_node, "qcom,mdss-brightness-max-level",
 		&val);
 	if (rc) {
@@ -4070,15 +3986,6 @@ static int dsi_panel_parse_mi_config(struct dsi_panel *panel,
 		pr_info("Panel on dimming delay disabled\n");
 	} else {
 		pr_info("Panel on dimming delay %d ms\n", panel->panel_on_dimming_delay);
-	}
-
-	rc = of_property_read_u32(of_node,
-			"qcom,disp-doze-backlight-threshold", &panel->doze_backlight_threshold);
-	if (rc) {
-		panel->doze_backlight_threshold = DOZE_MIN_BRIGHTNESS_LEVEL;
-		pr_info("default doze backlight threshold is %d\n", DOZE_MIN_BRIGHTNESS_LEVEL);
-	} else {
-		pr_info("doze backlight threshold %d \n", panel->doze_backlight_threshold);
 	}
 
 	rc = of_property_read_u32(of_node,
