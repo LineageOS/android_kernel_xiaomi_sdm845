@@ -63,4 +63,6 @@ bool dp_connector_mode_needs_full_range(void *display);
 bool dp_connector_mode_is_cea_mode(void *display);
 enum sde_csc_type dp_connector_get_csc_type(struct drm_connector *conn,
 	void *data);
+int dp_display_set_power(struct drm_connector *connector,
+	int power_mode, void *display);
 #endif /* _DP_DISPLAY_H_ */
