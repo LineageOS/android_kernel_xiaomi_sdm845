@@ -2607,7 +2607,7 @@ sub process {
 					$qca_sign_off = 1;
 				} elsif ($line =~ /^\s*signed-off-by:.*codeaurora\.org/i) {
 					$codeaurora_sign_off = 1;
-				} elsif ($line =~ /^\s*signed-off-by:.*(quicinc|qualcomm)\.com/i) {
+				} elsif ($line =~ /^\s*signed-off-by:.*qualcomm\.com/i) {
 					WARN("BAD_SIGN_OFF",
 					     "invalid Signed-off-by identity\n" . $line );
 				}
@@ -2746,7 +2746,7 @@ sub process {
 
 #check the patch for invalid author credentials
 		if ($chk_author && !($line =~ /^From:.*qca\.qualcomm\.com/) &&
-		    $line =~ /^From:.*(quicinc|qualcomm)\.com/) {
+		    $line =~ /^From:.*qualcomm\.com/) {
 			WARN("BAD_AUTHOR", "invalid author identity\n" . $line );
 		}
 
