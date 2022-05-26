@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "6214fe3e_4a57c0cc",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 10
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 20225
+      },
+      "writtenOn": "2022-05-26T01:13:16Z",
+      "side": 1,
+      "message": "Not sure if there is a specific thing to check but can confirm dipper boots and seems to function fine with this change so far.",
+      "revId": "0e2f0b2e46a63abe2f9b144bce1d0be99c0d532f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
