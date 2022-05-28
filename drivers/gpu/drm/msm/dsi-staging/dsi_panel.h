@@ -38,8 +38,6 @@
 #define DSI_MODE_MAX 5
 #define BUF_LEN_MAX    256
 
-#define PANEL_BL_INFO_NUM    4
-
 #define HIST_BL_OFFSET_LIMIT 48
 
 enum dsi_panel_rotation {
@@ -117,7 +115,6 @@ struct dsi_backlight_config {
 
 	int en_gpio;
 	bool bl_remap_flag;
-	bool doze_brightness_varible_flag;
 	bool dcs_type_ss;
 	/* PWM params */
 	bool pwm_pmi_control;
@@ -235,9 +232,7 @@ struct dsi_panel {
 	bool te_using_watchdog_timer;
 
 	bool dispparam_enabled;
-	bool on_cmds_tuning;
 	bool panel_reset_skip;
-	u32 skip_dimmingon;
 
 	char dsc_pps_cmd[DSI_CMD_PPS_SIZE];
 	enum dsi_dms_mode dms_mode;
@@ -246,32 +241,15 @@ struct dsi_panel {
 
 	struct dsi_panel_exd_config exd_config;
 
-	u32 panel_on_dimming_delay;
-	u32 last_bl_lvl;
-	struct delayed_work cmds_work;
-
 	bool dsi_panel_off_mode;
 	/* check disable cabc when panel off */
 	bool onoff_mode_enabled;
-	bool disable_cabc;
 	bool off_keep_reset;
-	struct dsi_read_config brightness_cmds;
-	struct dsi_read_config xy_coordinate_cmds;
-	struct dsi_read_config max_luminance_cmds;
-	struct dsi_read_config max_luminance_valid_cmds;
 	struct dsi_read_config panel_ddic_id_cmds;
 	u8 panel_read_data[BUF_LEN_MAX];
-	u32 panel_bl_info[PANEL_BL_INFO_NUM];
 
-	u32 hist_bl_offset;
-
-	s32 backlight_delta;
 	bool fod_hbm_enabled;
-	bool in_aod;
-	u32 doze_backlight_threshold;
-	u32 dc_threshold;
 	ktime_t fod_hbm_off_time;
-	bool dc_enable;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
@@ -352,8 +330,6 @@ int dsi_panel_unprepare(struct dsi_panel *panel);
 int dsi_panel_post_unprepare(struct dsi_panel *panel);
 
 int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl);
-
-int dsi_panel_enable_doze_backlight(struct dsi_panel *panel, u32 bl_lvl);
 
 int dsi_panel_update_pps(struct dsi_panel *panel);
 
