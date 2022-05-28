@@ -464,6 +464,11 @@ static int dsi_panel_gpio_release(struct dsi_panel *panel)
 	return rc;
 }
 
+bool drm_panel_is_dozing(void)
+{
+	return g_panel && g_panel->doze_enabled;
+}
+
  void drm_panel_reset_skip_enable(bool enable)
 {
 	if (g_panel)
