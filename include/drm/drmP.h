@@ -761,16 +761,6 @@ struct drm_minor {
 };
 
 /**
-*AOD brightness, hight brightness level 60nit, low brightness level 5nit
-*/
-#define DOZE_MIN_BRIGHTNESS_LEVEL	5
-enum {
-	DOZE_BRIGHTNESS_INVALID = 0,
-	DOZE_BRIGHTNESS_HBM,
-	DOZE_BRIGHTNESS_LBM,
-};
-
-/**
  * DRM device structure. This structure represent a complete card that
  * may contain multiple heads.
  */
@@ -927,7 +917,6 @@ struct drm_device {
 	int doze_state;
 	bool fp_quickon;
 	int pre_state;
-	int doze_brightness;
 	int hbm_status;
 };
 

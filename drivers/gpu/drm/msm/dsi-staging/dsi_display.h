@@ -589,8 +589,6 @@ void dsi_display_enable_event(struct dsi_display *display,
 
 int dsi_display_set_backlight(void *display, u32 bl_lvl);
 
-int dsi_panel_set_doze_backlight(struct dsi_display *display, u32 bl_lvl);
-
 /**
  * dsi_display_check_status() - check if panel is dead or alive
  * @display:            Handle to display.
