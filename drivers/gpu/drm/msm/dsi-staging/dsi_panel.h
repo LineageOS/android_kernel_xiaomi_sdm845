@@ -117,7 +117,6 @@ struct dsi_backlight_config {
 
 	int en_gpio;
 	bool bl_remap_flag;
-	bool doze_brightness_varible_flag;
 	bool dcs_type_ss;
 	/* PWM params */
 	bool pwm_pmi_control;
@@ -253,7 +252,6 @@ struct dsi_panel {
 	bool dsi_panel_off_mode;
 	/* check disable cabc when panel off */
 	bool onoff_mode_enabled;
-	bool disable_cabc;
 	bool off_keep_reset;
 	struct dsi_read_config brightness_cmds;
 	struct dsi_read_config xy_coordinate_cmds;
@@ -268,8 +266,6 @@ struct dsi_panel {
 	s32 backlight_delta;
 	bool fod_hbm_enabled;
 	bool in_aod;
-	u32 doze_backlight_threshold;
-	u32 dc_threshold;
 	ktime_t fod_hbm_off_time;
 	bool dc_enable;
 };
@@ -352,8 +348,6 @@ int dsi_panel_unprepare(struct dsi_panel *panel);
 int dsi_panel_post_unprepare(struct dsi_panel *panel);
 
 int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl);
-
-int dsi_panel_enable_doze_backlight(struct dsi_panel *panel, u32 bl_lvl);
 
 int dsi_panel_update_pps(struct dsi_panel *panel);
 
