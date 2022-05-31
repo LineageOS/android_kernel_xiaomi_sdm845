@@ -902,7 +902,7 @@ static struct ce_ops ce_service_srng = {
 #endif
 };
 
-struct ce_ops *ce_services_srng()
+struct ce_ops *ce_services_srng(void)
 {
 	return &ce_service_srng;
 }
