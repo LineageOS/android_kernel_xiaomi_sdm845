@@ -289,7 +289,7 @@ struct wlan_cfg_dp_pdev_ctxt {
  *
  * Return: wlan_cfg_ctx - Handle to Configuration context
  */
-struct wlan_cfg_dp_soc_ctxt *wlan_cfg_soc_attach()
+struct wlan_cfg_dp_soc_ctxt *wlan_cfg_soc_attach(void)
 {
 	int i = 0;
 
