@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e80c8f63_666057b7",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 20225
+      },
+      "writtenOn": "2022-06-07T01:06:22Z",
+      "side": 1,
+      "message": "Out of my depth here but one or all of these commits cause a microphone feedback issue for some dipper devices.",
+      "revId": "ea27cfe5cc00849141776fac569845304b89b633",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
