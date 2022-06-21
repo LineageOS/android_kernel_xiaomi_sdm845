@@ -16,6 +16,24 @@
       "message": "A more complete commit is https://review.lineageos.org/c/LineageOS/android_kernel_qcom_sdm845/+/333146",
       "revId": "4a84761d8f780f64692a7c70ae8d64ee54b61c5d",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "3500f80e_1d7b84ce",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2022-06-21T12:41:52Z",
+      "side": 1,
+      "message": "Thanks, Mike.",
+      "parentUuid": "5c625c42_9773ae20",
+      "revId": "4a84761d8f780f64692a7c70ae8d64ee54b61c5d",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
