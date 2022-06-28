@@ -21,6 +21,17 @@ config INITRAMFS_SOURCE
 
 	  If you are not sure, leave it blank.
 
+config INITRAMFS_IGNORE_SKIP_FLAG
+	bool "Force initramfs even when skip_initramfs is set"
+	default n
+	help
+	  Ignore skip_initramfs cmdline flag.
+
+	  This should only be used if you have no control over cmdline
+	  passed by your bootloader yet you can't use CMDLINE_FORCE.
+
+	  If unsure say N.
+
 config INITRAMFS_ROOT_UID
 	int "User ID to map to 0 (user root)"
 	depends on INITRAMFS_SOURCE!=""
