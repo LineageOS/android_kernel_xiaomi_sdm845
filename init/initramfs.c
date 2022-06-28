@@ -613,7 +613,7 @@ static int __init skip_initramfs_param(char *str)
 {
 	if (*str)
 		return 0;
-	do_skip_initramfs = 1;
+	do_skip_initramfs = !IS_ENABLED(CONFIG_INITRAMFS_IGNORE_SKIP_FLAG);
 	return 1;
 }
 __setup("skip_initramfs", skip_initramfs_param);
