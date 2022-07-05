@@ -15,3 +15,11 @@ config TOUCHSCREEN_ST_DEBUG_FS
           Say Y here to enable  touch debugfs functionality.
 
           If unsure, say N.
+
+config I2C_BY_DMA
+	bool "I2C by DMA"
+	depends on TOUCHSCREEN_ST_FTS_V521
+
+config SECURE_TOUCH
+	bool "Secure Touch support for ST FTS V521 Touchscreen"
+	depends on TOUCHSCREEN_ST_FTS_V521

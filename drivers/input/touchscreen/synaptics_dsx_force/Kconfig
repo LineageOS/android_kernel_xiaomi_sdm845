@@ -114,6 +114,16 @@ config TOUCHSCREEN_SYNAPTICS_DSX_VIDEO_FORCE
 	  To compile this driver as a module, choose M here: the
 	  module will be called synaptics_dsx_video.
 
+config SECURE_TOUCH
+	bool "Secure Touch support for Synaptics DSX Touchscreen"
+	depends on TOUCHSCREEN_SYNAPTICS_DSX_I2C_FORCE
+	help
+	  Say Y here
+	  -Synaptics DSX touch driver is connected
+	  -To enable secure touch for Synaptics DSX touch driver
+
+	  If unsure, say N.
+
 config TOUCH_DEBUG_FS
 	bool "touch debugfs suport"
 	default n
