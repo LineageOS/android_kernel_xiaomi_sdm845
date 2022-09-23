@@ -16,6 +16,23 @@
       "message": "Backported from LA.VENDOR.1.0.r1-16800-WAIPIO.QSSI13.0",
       "revId": "b33939b4bdbaa8bd2d48e437ebcf730fecf5c51f",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ef4b00a0_a1f3f9fe",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2022-09-23T22:06:40Z",
+      "side": 1,
+      "message": "Puts an end to the infinite logspam:\n\n\u003e  09-23 22:57:35.346  1014  1014 E WifiHAL : get_wifi_interface_info: QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_INFO_TS_DUTY_CYCLE not found\n\u003e  09-23 22:57:35.346  1014  1014 E WifiHAL : nl80211: requestResponse-\u003enl_recvmsgs failed: -5\n",
+      "revId": "b33939b4bdbaa8bd2d48e437ebcf730fecf5c51f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
