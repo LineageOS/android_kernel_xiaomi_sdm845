@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "15fc417b_a904ad0b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2022-09-23T22:04:53Z",
+      "side": 1,
+      "message": "Backported from LA.VENDOR.1.0.r1-16800-WAIPIO.QSSI13.0",
+      "revId": "b33939b4bdbaa8bd2d48e437ebcf730fecf5c51f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
