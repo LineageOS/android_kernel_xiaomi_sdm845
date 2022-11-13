@@ -974,3 +974,28 @@
 		qcom,firmware-name = "slpi_ps";
 	};
 };
+
+
+
+&firmware {
+	android {
+		compatible = "android,firmware";
+		vbmeta {
+			compatible = "android,vbmeta";
+			parts = "vbmeta,boot,system,system_ext,vendor,dtbo,recovery";
+		};
+
+		fstab {
+			compatible = "android,fstab";
+			system {
+				status = "disabled";
+			};
+			system_ext {
+				status = "disabled";
+			};
+			vendor {
+				fsmgr_flags = "wait,avb";
+			};
+		};
+	};
+};
