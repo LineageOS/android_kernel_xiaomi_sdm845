@@ -28,9 +28,13 @@
 };
 
 &firmware {
-	android {
-		/delete-node/ vbmeta;
-
+		android {
+			compatible = "android,firmware";
+			vbmeta {
+				compatible = "android,vbmeta";
+				parts = "vbmeta,boot,system,system_ext,vendor,dtbo";
+			};
+			
 		fstab {
 			system {
 				compatible = "android,system";
