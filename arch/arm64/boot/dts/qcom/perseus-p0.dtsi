@@ -974,3 +974,35 @@
 		qcom,firmware-name = "slpi_ps";
 	};
 };
+
+&firmware {
+		android {
+			compatible = "android,firmware";
+			vbmeta {
+				compatible = "android,vbmeta";
+				parts = "vbmeta,boot,system,system_ext,vendor,dtbo";
+			};
+
+		fstab {
+			system {
+				compatible = "android,system";
+				dev = "/dev/block/platform/soc/1d84000.ufshc/by-name/system";
+				type = "ext4";
+				mnt_flags = "ro,barrier=1,discard";
+				fsmgr_flags = "wait";
+				status = "ok";
+			};
+			system_ext {
+				compatible = "android,system_ext";
+				dev = "/dev/block/platform/soc/1d84000.ufshc/by-name/cust";
+				type = "ext4";
+				mnt_flags = "ro,barrier=1,discard";
+				fsmgr_flags = "wait";
+				status = "ok";
+			};
+			vendor {
+				fsmgr_flags = "wait";
+			};
+		};
+	};
+};
