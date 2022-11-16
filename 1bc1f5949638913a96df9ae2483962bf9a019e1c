@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "11f8954f_317729e3",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 26313
+      },
+      "writtenOn": "2022-11-16T13:39:02Z",
+      "side": 1,
+      "message": "Move changes to a better place\nhttps://review.lineageos.org/c/LineageOS/android_kernel_xiaomi_sdm845/+/344332",
+      "revId": "1bc1f5949638913a96df9ae2483962bf9a019e1c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
