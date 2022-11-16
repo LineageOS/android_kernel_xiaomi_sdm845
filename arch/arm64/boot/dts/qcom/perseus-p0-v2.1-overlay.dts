@@ -26,6 +26,16 @@
 #include "perseus-p0.dtsi"
 #include "perseus-audio-overlay.dtsi"
 
+&firmware {
+		android {
+			compatible = "android,firmware";
+			vbmeta {
+				compatible = "android,vbmeta";
+				parts = "vbmeta,boot,system,system_ext,vendor,dtbo";
+			};
+	};
+};
+
 / {
 	model = "Xiaomi Technologies, Inc. Perseus P0 v2.1";
 	compatible = "qcom,sdm845-mtp", "qcom,sdm845", "qcom,mtp";
