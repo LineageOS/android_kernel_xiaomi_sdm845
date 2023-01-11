@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "1f97bd9d_1546bd1a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2023-01-11T19:37:50Z",
+      "side": 1,
+      "message": "Verified on beryllium and equuleus, devices still boot.\n\nI\u0027ll merge once you confirm that it solves perseus boot issue.",
+      "revId": "3a60083d515579c58dd33560e07f26d04fb95fe1",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
