@@ -106,6 +106,24 @@
       "parentUuid": "10712388_a564eff7",
       "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a3f62639_b30d3f7c",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 25732
+      },
+      "writtenOn": "2023-01-12T15:29:10Z",
+      "side": 1,
+      "message": "*fstab node in kernel, not first and second stage fstab",
+      "parentUuid": "e0a01ffa_95313994",
+      "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
