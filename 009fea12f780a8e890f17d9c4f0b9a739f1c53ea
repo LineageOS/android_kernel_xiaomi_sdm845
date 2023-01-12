@@ -52,6 +52,24 @@
       "parentUuid": "13351c4f_f55958ad",
       "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "1eeca1ea_84b12c7f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2023-01-12T15:20:54Z",
+      "side": 1,
+      "message": "There is no Xiaomi sdm845 A/B device.",
+      "parentUuid": "8a07fd06_8da2ddf5",
+      "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
