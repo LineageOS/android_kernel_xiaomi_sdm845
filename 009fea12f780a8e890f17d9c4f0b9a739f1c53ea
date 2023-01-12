@@ -88,6 +88,24 @@
       "parentUuid": "1eeca1ea_84b12c7f",
       "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e0a01ffa_95313994",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 25732
+      },
+      "writtenOn": "2023-01-12T15:27:19Z",
+      "side": 1,
+      "message": "Now that I think about it, non-dynamic A/B devices must be system as root (as in, no ramdisk) right?\n\nRegardless, that device can keep the fstab node in its dtsi and not bother other devices, fstab shouldn\u0027t be common at this point (even more if non-A/B vs A/B devices are involved)",
+      "parentUuid": "10712388_a564eff7",
+      "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
