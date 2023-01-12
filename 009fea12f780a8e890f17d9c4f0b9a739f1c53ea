@@ -70,6 +70,24 @@
       "parentUuid": "8a07fd06_8da2ddf5",
       "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "10712388_a564eff7",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2023-01-12T15:24:12Z",
+      "side": 1,
+      "message": "Hmmm, apparently Xiaomi BlackShark is a sdm845 device with A/B, but we don\u0027t have support for it in this kernel as of now.",
+      "parentUuid": "1eeca1ea_84b12c7f",
+      "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
