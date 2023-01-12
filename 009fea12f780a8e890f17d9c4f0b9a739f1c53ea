@@ -16,6 +16,24 @@
       "message": "I take that https://github.com/LineageOS/android_kernel_xiaomi_sdm845/commit/d008b4da43e6b52a7f01fe8f9c9985289abb3080#diff-d725d11400ab4bccfb5e41a61d016ca1ba45ec767ca38e9f9633670cba021d79R32 doesn\u0027t work well for you on perseus due to having dtbo. Is that right?\n\n@Seba: do you find any better option? The problem here is slotselect being set, but perseus is non_ab (all sdm845 family anyway).",
       "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "2e9d2e10_6ba846f9",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 26313
+      },
+      "writtenOn": "2023-01-12T15:15:38Z",
+      "side": 1,
+      "message": "Yes, seems it doesn\u0027t work for perseus\nIn recovery I see an error: [libfs_mgr]Error updating for slotselect\nBut it doesn\u0027t affect his work.",
+      "parentUuid": "13351c4f_f55958ad",
+      "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
