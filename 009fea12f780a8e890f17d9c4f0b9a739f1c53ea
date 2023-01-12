@@ -34,6 +34,24 @@
       "parentUuid": "13351c4f_f55958ad",
       "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "8a07fd06_8da2ddf5",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 25732
+      },
+      "writtenOn": "2023-01-12T15:19:06Z",
+      "side": 1,
+      "message": "The best thing to do is to totally remove fstab mounting from the kernel\nI didn\u0027t understand if there\u0027s a Xiaomi SDM845 A/B device or not, but I don\u0027t think specifying slotselect on first stage fstab is an issue\nIf there are no A/B device then slotselect must not be set",
+      "parentUuid": "13351c4f_f55958ad",
+      "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
