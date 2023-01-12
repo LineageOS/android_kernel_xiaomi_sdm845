@@ -124,6 +124,24 @@
       "parentUuid": "e0a01ffa_95313994",
       "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "64016321_d2f9812f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2023-01-12T15:32:54Z",
+      "side": 1,
+      "message": "So you mean we should do this, right?",
+      "parentUuid": "a3f62639_b30d3f7c",
+      "revId": "009fea12f780a8e890f17d9c4f0b9a739f1c53ea",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
