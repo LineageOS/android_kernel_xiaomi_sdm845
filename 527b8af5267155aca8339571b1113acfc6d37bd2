@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "b95eecbc_055f91b9",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 31365
+      },
+      "writtenOn": "2023-02-25T16:43:52Z",
+      "side": 1,
+      "message": "It would be pretty nice if you could merge this change to other sdm845 devices and possibly older Linage branches.",
+      "revId": "527b8af5267155aca8339571b1113acfc6d37bd2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
