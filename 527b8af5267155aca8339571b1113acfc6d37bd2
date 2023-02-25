@@ -16,6 +16,24 @@
       "message": "It would be pretty nice if you could merge this change to other sdm845 devices and possibly older Linage branches.",
       "revId": "527b8af5267155aca8339571b1113acfc6d37bd2",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f96b54f4_9bce3782",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 31365
+      },
+      "writtenOn": "2023-02-25T16:48:47Z",
+      "side": 1,
+      "message": "\u003e It would be pretty nice if you could merge this change to other sdm845 devices and possibly older Linage branches.\n\nI\u0027ve also backported the changes for sdm660 but I don\u0027t have such device to test it. Might also want to merge the change on sdm660 devices too.\nAs you might have noticed, the kernel no longer allows invalid values for SX_TLV controls. This messed up the audio on some devices, both the upstream Linux and audio-kernel were changed to use S8_TLV instead.",
+      "parentUuid": "b95eecbc_055f91b9",
+      "revId": "527b8af5267155aca8339571b1113acfc6d37bd2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
