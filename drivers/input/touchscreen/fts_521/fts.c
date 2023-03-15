@@ -2717,8 +2717,8 @@ static void fts_enter_pointer_event_handler(struct fts_ts_info *info,
 	distance = 0;
 
 #ifdef CONFIG_INPUT_PRESS_NDT
+	z = ndt_get_pressure(1, x, y);
 	if (fts_is_in_fodarea(x, y)) {
-		z = ndt_get_pressure(1, x, y);
 		if (!finger_report_flag) {
 			logError(0, "%s  %s finger down in the fod area\n", tag, __func__);
 			finger_report_flag = true;
