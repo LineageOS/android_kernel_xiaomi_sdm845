@@ -471,6 +471,160 @@ info_retry:
 }
 
 /*******************************************************
+Description:
+	Novatek touchscreen get OEM data function.
+
+return:
+	Executive outcomes. 0---success. -1---fail.
+*******************************************************/
+int32_t nvt_get_oem_data(uint8_t *data, uint32_t flash_address, int32_t size)
+{
+	uint8_t buf[64] = {0};
+	uint8_t tmp_data[512] = {0};
+	int32_t count_256 = 0;
+	uint32_t cur_flash_addr = 0;
+	uint32_t cur_sram_addr = 0;
+	uint16_t checksum_get = 0;
+	uint16_t checksum_cal = 0;
+	int32_t i = 0;
+	int32_t j = 0;
+	int32_t ret = 0;
+	int32_t retry = 0;
+
+	/* maximum 256 bytes each read */
+	if (size % 256)
+		count_256 = size / 256 + 1;
+	else
+		count_256 = size / 256;
+
+get_oem_data_retry:
+	nvt_sw_reset_idle();
+
+	nvt_stop_crc_reboot();
+
+	/* Step 1: Initial BootLoader */
+	ret = Init_BootLoader();
+	if (ret < 0)
+		goto get_oem_data_out;
+
+	/* Step 2: Resume PD */
+	ret = Resume_PD();
+	if (ret < 0)
+		goto get_oem_data_out;
+
+	/* Step 3: Unlock */
+	buf[0] = 0x00;
+	buf[1] = 0x35;
+	CTP_I2C_WRITE(ts->client, I2C_HW_Address, buf, 2);
+	msleep(10);
+
+	for (i = 0; i < count_256; i++) {
+		cur_flash_addr = flash_address + i * 256;
+		/* Step 4: Flash Read Command */
+		buf[0] = 0x00;
+		buf[1] = 0x03;
+		buf[2] = ((cur_flash_addr >> 16) & 0xFF);
+		buf[3] = ((cur_flash_addr >> 8) & 0xFF);
+		buf[4] = (cur_flash_addr & 0xFF);
+		buf[5] = 0x00;
+		buf[6] = 0xFF;
+		CTP_I2C_WRITE(ts->client, I2C_HW_Address, buf, 7);
+		msleep(10);
+		/* Check 0xAA (Read Command) */
+		buf[0] = 0x00;
+		buf[2] = 0x00;
+		CTP_I2C_READ(ts->client, I2C_HW_Address, buf, 2);
+		if (buf[1] != 0xAA) {
+			NVT_ERR("Check 0xAA error!! status=0x%02X\n", buf[1]);
+			ret = -1;
+			goto get_oem_data_out;
+		}
+		msleep(10);
+
+		/* Step 5: Read Data and Checksum */
+		for (j = 0; j < ((256 / 32) + 1); j++) {
+			cur_sram_addr
+				= ts->mmap->READ_FLASH_CHECKSUM_ADDR + j * 32;
+			buf[0] = 0xFF;
+			buf[1] = (cur_sram_addr >> 16) & 0xFF;
+			buf[2] = (cur_sram_addr  >> 8) & 0xFF;
+			CTP_I2C_WRITE(ts->client, I2C_BLDR_Address, buf, 3);
+
+			buf[0] = cur_sram_addr & 0xFF;
+			CTP_I2C_READ(ts->client, I2C_BLDR_Address, buf, 33);
+
+			memcpy(tmp_data + j * 32, buf + 1, 32);
+		}
+		/* get checksum of the 256 bytes data read */
+		checksum_get = (uint16_t)((tmp_data[1] << 8) | tmp_data[0]);
+		/* calculate checksum of of the 256 bytes data read */
+		checksum_cal = (uint16_t)((cur_flash_addr >> 16) & 0xFF) +
+		(uint16_t)((cur_flash_addr >> 8) & 0xFF) +
+		(cur_flash_addr & 0xFF) + 0x00 + 0xFF;
+
+		for (j = 0; j < 256; j++)
+			checksum_cal += tmp_data[j + 2];
+		checksum_cal = 65535 - checksum_cal + 1;
+
+		/* compare the checksum got and calculated */
+		if (checksum_get != checksum_cal) {
+			if (retry < 3) {
+				retry++;
+				goto get_oem_data_retry;
+			} else {
+				NVT_ERR("Checksum mismatch error! checksum_get=0x%04X, checksum_cal=0x%04X, i=%d\n",
+						checksum_get, checksum_cal, i);
+				ret = -2;
+				goto get_oem_data_out;
+			}
+		}
+
+		/* Step 6: Remapping (Remove 2 Bytes Checksum) */
+		if ((i + 1) * 256 > size)
+			memcpy(data + i * 256, tmp_data + 2, size - i * 256);
+		else
+			memcpy(data + i * 256, tmp_data + 2, 256);
+	}
+
+get_oem_data_out:
+	nvt_bootloader_reset();
+	nvt_check_fw_reset_state(RESET_STATE_INIT);
+
+	return ret;
+}
+
+int32_t nvt_get_lockdown_info(char *lockdata)
+{
+	uint8_t data_buf[NVT_LOCKDOWN_SIZE] = {0};
+	int ret = 0;
+
+	if (!lockdata)
+		return -ENOMEM;
+
+	if (mutex_lock_interruptible(&ts->lock))
+		return -ERESTARTSYS;
+
+#ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT
+	nvt_esd_check_enable(false);
+#endif /* ifdef CONFIG_TOUCHSCREEN_NT36XXX_ESD_PROTECT */
+
+	ret = nvt_get_oem_data(data_buf, 0x1E000, 8);
+
+	if (ret < 0) {
+		NVT_ERR("get OEM data failed!\n");
+		ret = -EINVAL;
+		goto end;
+	}
+
+	memcpy(lockdata, data_buf, NVT_LOCKDOWN_SIZE);
+
+end:
+	mutex_unlock(&ts->lock);
+
+	return ret;
+}
+
+/*******************************************************
   Create Device Node (Proc Entry)
 *******************************************************/
 #if NVT_TOUCH_PROC
@@ -1674,6 +1828,16 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 		pm_qos_add_request(&ts->pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
 				PM_QOS_DEFAULT_VALUE);
 	}
+
+	update_hardware_info(TYPE_TOUCH, 5);
+	ret = nvt_get_lockdown_info(ts->lockdown_info);
+	if (ret < 0)
+		NVT_ERR("can't get lockdown info\n");
+	else {
+		NVT_LOG("sucessfully retrieved lockdown info\n");
+		update_hardware_info(TYPE_TP_MAKER, ts->lockdown_info[0] - 0x30);
+	}
+
 	ts->fw_name = nvt_get_config(ts);
 
 #if WAKEUP_GESTURE
