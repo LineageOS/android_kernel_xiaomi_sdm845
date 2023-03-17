@@ -211,6 +211,5 @@ extern void nvt_stop_crc_reboot(void);
 
 extern int32_t Init_BootLoader(void);
 extern int32_t Resume_PD(void);
-extern int32_t nvt_get_lockdown_info(char *lockdata);
 
 #endif /* _LINUX_NVT_TOUCH_H */
