@@ -1674,6 +1674,15 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 		pm_qos_add_request(&ts->pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
 				PM_QOS_DEFAULT_VALUE);
 	}
+	update_hardware_info(TYPE_TOUCH, 5);
+
+	ret = nvt_get_lockdown_info(ts->lockdown_info);
+
+	if (ret < 0)
+		NVT_ERR("can't get lockdown info");
+	else
+		update_hardware_info(TYPE_TP_MAKER, ts->lockdown_info[0] - 0x30);
+
 	ts->fw_name = nvt_get_config(ts);
 
 #if WAKEUP_GESTURE
