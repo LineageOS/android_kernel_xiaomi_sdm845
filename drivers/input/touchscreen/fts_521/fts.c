@@ -3113,7 +3113,7 @@ static void fts_gesture_event_handler(struct fts_ts_info *info,
 	if (event[0] == EVT_ID_USER_REPORT && event[1] == EVT_TYPE_USER_GESTURE) {
 		needCoords = 1;
 #ifdef CONFIG_INPUT_PRESS_NDT
-		if (event[2] == GEST_ID_LONG_PRESS && drm_panel_is_dozing()) {
+		if (event[2] == GEST_ID_LONG_PRESS) {
 			fts_fod_status = true;
 			if (fts_is_in_fodarea(x, y)) {
 				if (!finger_report_flag) {
