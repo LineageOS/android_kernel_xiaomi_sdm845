@@ -52,6 +52,24 @@
       "parentUuid": "93f5a540_c42c28a9",
       "revId": "a4becdb125ad30c8192d4851be47be344128f607",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "db24b28f_787630f7",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 31365
+      },
+      "writtenOn": "2023-05-15T18:08:36Z",
+      "side": 1,
+      "message": "I was also the author of the previous temporary fix here https://review.lineageos.org/c/LineageOS/android_kernel_xiaomi_sdm845/+/333223",
+      "parentUuid": "4be4a148_8dafdeb2",
+      "revId": "a4becdb125ad30c8192d4851be47be344128f607",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
