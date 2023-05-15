@@ -34,6 +34,24 @@
       "parentUuid": "ad4f7ec7_99c33160",
       "revId": "a4becdb125ad30c8192d4851be47be344128f607",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "4be4a148_8dafdeb2",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 31365
+      },
+      "writtenOn": "2023-05-15T17:59:17Z",
+      "side": 1,
+      "message": "I can attest that. I helped fix the actual bug in the upstream Linux and thus in the audio-kernel too. The bug was that since the upstream ASoC started checking the ranges, it became apparent that both Cirrus and Qualcomm were using the wrong TLV types for their registers. The SX_TLV is not suitable for signed ranges since they use the other parameter, which cannot be negative, to determine the minimum value. I tried to find a compromise and modify SX_TLV methods such that they work with signed ranges too, this was because I thought that it would help prevent breaking devices with older techpacks, but they wanted to keep SX semantics the same, so the codecs were changed to use the S8_TLV instead.",
+      "parentUuid": "93f5a540_c42c28a9",
+      "revId": "a4becdb125ad30c8192d4851be47be344128f607",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
