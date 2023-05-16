@@ -70,6 +70,24 @@
       "parentUuid": "4be4a148_8dafdeb2",
       "revId": "a4becdb125ad30c8192d4851be47be344128f607",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "913b35f4_e9f15e1a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2023-05-16T19:26:17Z",
+      "side": 1,
+      "message": "So the original commit can be reverted after this one?",
+      "parentUuid": "db24b28f_787630f7",
+      "revId": "a4becdb125ad30c8192d4851be47be344128f607",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ],
   "submitRequirementResults": []
