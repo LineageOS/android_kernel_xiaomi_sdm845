@@ -16,6 +16,24 @@
       "message": "Is this compliant with wireless charging?",
       "revId": "3ffd20efce0f4d2ddd66ebec0dada5f3a77f05bb",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "4d92abf2_119b3385",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2023-05-24T13:14:23Z",
+      "side": 1,
+      "message": "\u003e Is this compliant with wireless charging?\n\nIt probably is, since it basically bypasses the battery",
+      "parentUuid": "1ecc1670_935b9a13",
+      "revId": "3ffd20efce0f4d2ddd66ebec0dada5f3a77f05bb",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
