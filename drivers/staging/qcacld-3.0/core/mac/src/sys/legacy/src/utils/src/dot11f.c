@@ -133,7 +133,7 @@ typedef struct sIEDefn {
 #define DOT11F_PARAMETER_CHECK2(pSrc, pBuf, nBuf, pnConsumed) \
 	do { \
 		if (!pSrc || IsBadReadPtr(pSrc, 4))\
-			eturn DOT11F_BAD_INPUT_BUFFER; \
+			return DOT11F_BAD_INPUT_BUFFER; \
 		if (!pBuf || IsBadWritePtr(pBuf, nBuf))\
 			return DOT11F_BAD_OUTPUT_BUFFER; \
 		if (!nBuf)\
