@@ -367,8 +367,7 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 	 * Similarly, if policy minimum set by the user is less than
 	 * the floor_frequency, then adjust the policy->min.
 	 */
-	if (policy->max > clipped_freq || policy->min < floor_freq)
-		cpufreq_verify_within_limits(policy, floor_freq, clipped_freq);
+	cpufreq_verify_within_limits(policy, floor_freq, clipped_freq);
 	mutex_unlock(&cooling_list_lock);
 
 	return NOTIFY_OK;
@@ -722,7 +721,6 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 {
 	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
 	unsigned int cpu = cpumask_any(&cpufreq_device->allowed_cpus);
-	struct cpumask policy_online_cpus;
 	unsigned int clip_freq;
 	unsigned long prev_state;
 	struct device *cpu_dev;
@@ -771,16 +769,9 @@ update_frequency:
 	 * can handle the CPU freq mitigation, if not, notify cpufreq
 	 * framework.
 	 */
-	if (cpufreq_device->plat_ops) {
-		if (cpufreq_device->plat_ops->ceil_limit)
-			cpufreq_device->plat_ops->ceil_limit(cpu,
-						clip_freq);
-	} else {
-		if (cpumask_and(&policy_online_cpus, cpu_online_mask,
-				cpufreq_device->policy->related_cpus))
-			cpufreq_update_policy(cpumask_first(
-						&policy_online_cpus));
-	}
+	get_online_cpus();
+	cpufreq_update_policy(cpufreq_device->policy->cpu);
+	put_online_cpus();
 
 	return 0;
 }
@@ -1173,7 +1164,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	mutex_unlock(&cooling_list_lock);
 
 	/* Register the notifier for first cpufreq cooling device */
-	if (!cpufreq_dev_count++ && !cpufreq_dev->plat_ops)
+	if (!cpufreq_dev_count++)
 		cpufreq_register_notifier(&thermal_cpufreq_notifier_block,
 					  CPUFREQ_POLICY_NOTIFIER);
 	if (!cpuhp_registered) {
@@ -1357,8 +1348,7 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	mutex_lock(&cooling_cpufreq_lock);
 	if (!--cpufreq_dev_count) {
 		unregister_pm_notifier(&cpufreq_cooling_pm_nb);
-		if (!cpufreq_dev->plat_ops)
-			cpufreq_unregister_notifier(
+		cpufreq_unregister_notifier(
 				&thermal_cpufreq_notifier_block,
 				CPUFREQ_POLICY_NOTIFIER);
 	}
