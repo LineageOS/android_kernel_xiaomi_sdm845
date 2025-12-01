@@ -16,6 +16,24 @@
       "message": "Because?",
       "revId": "9434769039b8b8455c4393210a0b14748d853774",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "df20bfad_16f97411",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 36297
+      },
+      "writtenOn": "2025-12-01T12:12:31Z",
+      "side": 1,
+      "message": "Under normal circumstances, the sdfat file system will not be used.",
+      "parentUuid": "61c5c3ed_0fa2d12b",
+      "revId": "9434769039b8b8455c4393210a0b14748d853774",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
