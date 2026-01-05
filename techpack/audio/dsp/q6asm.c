@@ -2312,7 +2312,9 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 		if (payload_size > UINT_MAX - sizeof(struct msm_adsp_event_data)) {
 			pr_err("%s: payload size = %d exceeds limit.\n",
 				__func__, payload_size);
-			spin_unlock(&(session[session_id].session_lock));
+			spin_unlock_irqrestore(
+					&(session[session_id].session_lock),
+					flags);
 			return -EINVAL;
 		}
 

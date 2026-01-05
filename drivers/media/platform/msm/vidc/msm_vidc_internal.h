@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -224,6 +225,13 @@ struct msm_vidc_efuse_data {
 	enum efuse_purpose purpose;
 };
 
+enum feature_config {
+	MAX_DEC_RESOLUTION = 0x1,
+	MAX_ENC_RESOLUTION = 0x2,
+	DEC_DYNAMIC_CROP = 0x4,
+	RESERVED = 0x08,
+};
+
 struct msm_vidc_platform_data {
 	struct msm_vidc_common_data *common_data;
 	unsigned int common_data_length;
@@ -233,7 +241,7 @@ struct msm_vidc_platform_data {
 	struct msm_vidc_efuse_data *efuse_data;
 	unsigned int efuse_data_length;
 	unsigned int sku_version;
-	bool enable_max_resolution;
+	unsigned int enable_feature_config;
 };
 
 struct msm_vidc_format {

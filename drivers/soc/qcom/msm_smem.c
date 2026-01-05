@@ -1013,7 +1013,7 @@ unsigned int smem_get_version(unsigned int idx)
 	int *version_array;
 	struct smem_shared *smem = smem_ram_base;
 
-	if (idx > 32) {
+	if (idx >= 32) {
 		pr_err("%s: invalid idx:%d\n", __func__, idx);
 		return 0;
 	}

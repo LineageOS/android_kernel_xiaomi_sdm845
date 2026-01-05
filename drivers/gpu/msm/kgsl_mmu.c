@@ -1,5 +1,5 @@
 /* Copyright (c) 2002,2007-2017,2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -505,6 +505,8 @@ kgsl_mmu_unmap(struct kgsl_pagetable *pagetable,
 		size = kgsl_memdesc_footprint(memdesc);
 
 		ret = pagetable->pt_ops->mmu_unmap(pagetable, memdesc);
+		if (ret)
+			return ret;
 
 		atomic_dec(&pagetable->stats.entries);
 		atomic_long_sub(size, &pagetable->stats.mapped);
