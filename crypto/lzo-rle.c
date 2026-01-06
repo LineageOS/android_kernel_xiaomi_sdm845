@@ -24,53 +24,51 @@
 #include <linux/lzo.h>
 #include <crypto/internal/scompress.h>
 
-struct lzo_ctx {
-	void *lzo_comp_mem;
+struct lzorle_ctx {
+	void *lzorle_comp_mem;
 };
 
-static void *lzo_alloc_ctx(void)
+static void *lzorle_alloc_ctx(void)
 {
 	void *ctx;
 
-	ctx = kmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL | __GFP_NOWARN);
-	if (!ctx)
-		ctx = vmalloc(LZO1X_MEM_COMPRESS);
+	ctx = kvmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
 	return ctx;
 }
 
-static int lzo_init(struct crypto_tfm *tfm)
+static int lzorle_init(struct crypto_tfm *tfm)
 {
-	struct lzo_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct lzorle_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	ctx->lzo_comp_mem = lzo_alloc_ctx();
-	if (IS_ERR(ctx->lzo_comp_mem))
+	ctx->lzorle_comp_mem = lzorle_alloc_ctx();
+	if (IS_ERR(ctx->lzorle_comp_mem))
 		return -ENOMEM;
 
 	return 0;
 }
 
-static void lzo_free_ctx(void *ctx)
+static void lzorle_free_ctx(void *ctx)
 {
 	kvfree(ctx);
 }
 
-static void lzo_exit(struct crypto_tfm *tfm)
+static void lzorle_exit(struct crypto_tfm *tfm)
 {
-	struct lzo_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct lzorle_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	lzo_free_ctx(ctx->lzo_comp_mem);
+	lzorle_free_ctx(ctx->lzorle_comp_mem);
 }
 
-static int __lzo_compress(const u8 *src, unsigned int slen,
+static int __lzorle_compress(const u8 *src, unsigned int slen,
 			  u8 *dst, unsigned int *dlen, void *ctx)
 {
 	size_t tmp_len = *dlen; /* size_t(ulong) <-> uint on 64 bit */
 	int err;
 
-	err = lzo1x_1_compress_safe(src, slen, dst, &tmp_len, ctx);
+	err = lzorle1x_1_compress_safe(src, slen, dst, &tmp_len, ctx);
 
 	if (err != LZO_E_OK)
 		return -EINVAL;
@@ -79,22 +77,22 @@ static int __lzo_compress(const u8 *src, unsigned int slen,
 	return 0;
 }
 
-static int lzo_compress(struct crypto_tfm *tfm, const u8 *src,
+static int lzorle_compress(struct crypto_tfm *tfm, const u8 *src,
 			unsigned int slen, u8 *dst, unsigned int *dlen)
 {
-	struct lzo_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct lzorle_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	return __lzo_compress(src, slen, dst, dlen, ctx->lzo_comp_mem);
+	return __lzorle_compress(src, slen, dst, dlen, ctx->lzorle_comp_mem);
 }
 
-static int lzo_scompress(struct crypto_scomp *tfm, const u8 *src,
+static int lzorle_scompress(struct crypto_scomp *tfm, const u8 *src,
 			 unsigned int slen, u8 *dst, unsigned int *dlen,
 			 void *ctx)
 {
-	return __lzo_compress(src, slen, dst, dlen, ctx);
+	return __lzorle_compress(src, slen, dst, dlen, ctx);
 }
 
-static int __lzo_decompress(const u8 *src, unsigned int slen,
+static int __lzorle_decompress(const u8 *src, unsigned int slen,
 			    u8 *dst, unsigned int *dlen)
 {
 	int err;
@@ -109,44 +107,44 @@ static int __lzo_decompress(const u8 *src, unsigned int slen,
 	return 0;
 }
 
-static int lzo_decompress(struct crypto_tfm *tfm, const u8 *src,
+static int lzorle_decompress(struct crypto_tfm *tfm, const u8 *src,
 			  unsigned int slen, u8 *dst, unsigned int *dlen)
 {
-	return __lzo_decompress(src, slen, dst, dlen);
+	return __lzorle_decompress(src, slen, dst, dlen);
 }
 
-static int lzo_sdecompress(struct crypto_scomp *tfm, const u8 *src,
+static int lzorle_sdecompress(struct crypto_scomp *tfm, const u8 *src,
 			   unsigned int slen, u8 *dst, unsigned int *dlen,
 			   void *ctx)
 {
-	return __lzo_decompress(src, slen, dst, dlen);
+	return __lzorle_decompress(src, slen, dst, dlen);
 }
 
 static struct crypto_alg alg = {
-	.cra_name		= "lzo",
+	.cra_name		= "lzo-rle",
 	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
-	.cra_ctxsize		= sizeof(struct lzo_ctx),
+	.cra_ctxsize		= sizeof(struct lzorle_ctx),
 	.cra_module		= THIS_MODULE,
-	.cra_init		= lzo_init,
-	.cra_exit		= lzo_exit,
+	.cra_init		= lzorle_init,
+	.cra_exit		= lzorle_exit,
 	.cra_u			= { .compress = {
-	.coa_compress		= lzo_compress,
-	.coa_decompress		= lzo_decompress } }
+	.coa_compress		= lzorle_compress,
+	.coa_decompress		= lzorle_decompress } }
 };
 
 static struct scomp_alg scomp = {
-	.alloc_ctx		= lzo_alloc_ctx,
-	.free_ctx		= lzo_free_ctx,
-	.compress		= lzo_scompress,
-	.decompress		= lzo_sdecompress,
+	.alloc_ctx		= lzorle_alloc_ctx,
+	.free_ctx		= lzorle_free_ctx,
+	.compress		= lzorle_scompress,
+	.decompress		= lzorle_sdecompress,
 	.base			= {
-		.cra_name	= "lzo",
-		.cra_driver_name = "lzo-scomp",
+		.cra_name	= "lzo-rle",
+		.cra_driver_name = "lzo-rle-scomp",
 		.cra_module	 = THIS_MODULE,
 	}
 };
 
-static int __init lzo_mod_init(void)
+static int __init lzorle_mod_init(void)
 {
 	int ret;
 
@@ -163,15 +161,15 @@ static int __init lzo_mod_init(void)
 	return ret;
 }
 
-static void __exit lzo_mod_fini(void)
+static void __exit lzorle_mod_fini(void)
 {
 	crypto_unregister_alg(&alg);
 	crypto_unregister_scomp(&scomp);
 }
 
-module_init(lzo_mod_init);
-module_exit(lzo_mod_fini);
+module_init(lzorle_mod_init);
+module_exit(lzorle_mod_fini);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("LZO Compression Algorithm");
-MODULE_ALIAS_CRYPTO("lzo");
+MODULE_DESCRIPTION("LZO-RLE Compression Algorithm");
+MODULE_ALIAS_CRYPTO("lzo-rle");
