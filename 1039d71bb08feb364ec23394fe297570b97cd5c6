@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "97bf58c5_5b01ff3b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-01-06T18:37:41Z",
+      "side": 1,
+      "message": "I appreciate your efforts, but this is not how we do things. I won\u0027t be merging anything from a third-party repository. When I told you that the proper thing to do was to merge the QCOM reference kernel I meant exactly that, a merge of: https://github.com/LineageOS/android_kernel_qcom_sdm845. If there\u0027s anything there that you think it should be added, then upload to that project for review, but for now we should focus on merging the QCOM referen kernel. I did that yesterday (https://review.lineageos.org/c/LineageOS/android_kernel_xiaomi_sdm845/+/467544) but still needs work as there were merge conflicts and still doesn\u0027t build.",
+      "revId": "1039d71bb08feb364ec23394fe297570b97cd5c6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
