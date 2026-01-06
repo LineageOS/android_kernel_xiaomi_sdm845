@@ -38,3 +38,24 @@ config ZRAM_MEMORY_TRACKING
 	  /sys/kernel/debug/zram/zramX/block_state.
 
 	  See Documentation/blockdev/zram.txt for more information.
+
+config ZRAM_DEFAULT_COMP_ALGORITHM
+	string "Default ZRAM compression algorithm"
+	default "lz4"
+
+config ZRAM_ENTROPY
+	bool "Use entropy optimization for zram"
+	depends on ZRAM
+	help
+	  With this feature, entropy will be calculated for each page.
+	  Pages above ZRAM_ENTROPY_THRESHOLD entropy will be
+	  stored uncompressed. Use this feature if you need a performance
+	  boost and a small loss in compression.
+
+config ZRAM_ENTROPY_THRESHOLD
+	int
+	depends on ZRAM && ZRAM_ENTROPY
+	default 100000
+	help
+	  Pages with entropy above ZRAM_ENTROPY_THRESHOLD will be stored
+	  uncompressed. The default value was chosen as a 
