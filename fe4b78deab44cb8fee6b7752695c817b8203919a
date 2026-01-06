@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "291f4432_6c97f99e",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-01-06T01:14:40Z",
+      "side": 1,
+      "message": "Mós of this changes could have been uploaded to QCOM sdm845 reference kernel and then you could have put some effort merging it into Xiaomi kernel instead.",
+      "revId": "fe4b78deab44cb8fee6b7752695c817b8203919a",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
