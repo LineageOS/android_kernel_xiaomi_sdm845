@@ -16,6 +16,23 @@
       "message": "What is this? Merge of which base?",
       "revId": "3dbce9f0cf1ab87d4c7372cab606862f139dc814",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "25c12059_8eefd8ed",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 13648
+      },
+      "writtenOn": "2026-01-06T14:57:28Z",
+      "side": 1,
+      "message": "This is a squash, not a merge...",
+      "revId": "3dbce9f0cf1ab87d4c7372cab606862f139dc814",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
