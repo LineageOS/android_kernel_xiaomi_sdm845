@@ -701,7 +701,6 @@ void apr_cb_func(void *buf, int len, void *priv)
 
 	if (unlikely(apr_cf_debug)) {
 		if (hdr->opcode == APR_BASIC_RSP_RESULT && data.payload) {
-			uint32_t *ptr = data.payload;
 
 			APR_PKT_INFO(
 			"Rx: src_addr[0x%X] dest_addr[0x%X] opcode[0x%X] token[0x%X] rc[0x%X]",

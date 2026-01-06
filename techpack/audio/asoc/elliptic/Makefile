@@ -1,4 +1,4 @@
-ccflags-y := -I$(src) -Wall -Werror
+ccflags-y := -I$(src) -Werror
 IO_MODULE := msm
 
 # EXTRA_CFLAGS += -DDEBUG
