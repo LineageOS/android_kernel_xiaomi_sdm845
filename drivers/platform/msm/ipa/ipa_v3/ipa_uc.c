@@ -536,7 +536,7 @@ send_cmd:
 				udelay(IPA_UC_POLL_SLEEP_USEC);
 			else
 				usleep_range(IPA_UC_POLL_SLEEP_USEC,
-					IPA_UC_POLL_SLEEP_USEC);
+					IPA_UC_POLL_SLEEP_USEC * 1.2);
 		}
 
 		if (index == IPA_UC_POLL_MAX_RETRY) {

@@ -1,4 +1,5 @@
 /* Copyright (c) 2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -390,6 +391,8 @@ void *vidc_get_drv_data(struct device *dev)
 	if (match)
 		driver_data = (struct msm_vidc_platform_data *)match->data;
 
+	driver_data->enable_feature_config = 0;
+
 	if (!of_find_property(dev->of_node, "sku-index", NULL) ||
 			!driver_data) {
 		goto exit;
@@ -416,7 +419,8 @@ void *vidc_get_drv_data(struct device *dev)
 			driver_data->common_data_length =
 			ARRAY_SIZE(sdm670_common_data_v1);
 		}
-		driver_data->enable_max_resolution = true;
+		driver_data->enable_feature_config =
+			MAX_ENC_RESOLUTION | DEC_DYNAMIC_CROP;
 	}
 
 exit:

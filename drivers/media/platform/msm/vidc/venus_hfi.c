@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2093,9 +2094,13 @@ static int venus_hfi_session_init(void *device, void *session_id,
 		void **new_session)
 {
 	struct hfi_cmd_sys_session_init_packet pkt;
-	struct hfi_cmd_sys_set_property_packet feature_pkt;
 	struct venus_hfi_device *dev;
 	struct hal_session *s;
+
+	// allocating minimum packet size for feature_pkt
+	u8 packet[VIDC_IFACEQ_VAR_SMALL_PKT_SIZE];
+	struct hfi_cmd_sys_set_property_packet *feature_pkt =
+		(struct hfi_cmd_sys_set_property_packet *) &packet;
 
 	if (!device || !new_session) {
 		dprintk(VIDC_ERR, "%s - invalid input\n", __func__);
@@ -2124,15 +2129,16 @@ static int venus_hfi_session_init(void *device, void *session_id,
 
 	__set_default_sys_properties(device);
 	if (dev->res) {
-		if (dev->res->enable_max_resolution) {
+		if (dev->res->enable_feature_config) {
 			if (call_hfi_pkt_op(dev, sys_feature_config,
-				&feature_pkt)) {
+				feature_pkt,
+				dev->res->enable_feature_config)) {
 				dprintk(VIDC_ERR,
 					"Failed to create feature config pkt\n");
 				goto err_session_init_fail;
 			}
 
-			if (__iface_cmdq_write(dev, &feature_pkt)) {
+			if (__iface_cmdq_write(dev, feature_pkt)) {
 				dprintk(VIDC_WARN,
 					"Failed to set max resolutionfeature in f/w\n");
 				goto err_session_init_fail;

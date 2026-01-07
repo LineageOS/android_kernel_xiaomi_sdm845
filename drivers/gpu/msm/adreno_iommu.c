@@ -1,5 +1,5 @@
 /* Copyright (c) 2002,2007-2017, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022,2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -963,6 +963,18 @@ int adreno_iommu_set_pt_ctx(struct adreno_ringbuffer *rb,
 		_set_ctxt_cpu(rb, drawctxt);
 	else
 		result = _set_ctxt_gpu(rb, drawctxt);
+
+	/*
+	 * In case ctxt switch fails, revert the pagetable back to the
+	 * original. Not reverting the pagetable will lead to incorrect
+	 * hardware state in the ringbuffer.
+	 */
+	if (result && (new_pt != cur_pt)) {
+		if (cpu_path)
+			result = _set_pagetable_cpu(rb, cur_pt);
+		else
+			result = _set_pagetable_gpu(rb, cur_pt);
+	}
 
 	return result;
 }

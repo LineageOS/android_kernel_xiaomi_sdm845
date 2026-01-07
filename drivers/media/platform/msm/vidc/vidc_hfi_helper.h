@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -462,18 +463,7 @@ struct hfi_debug_config {
 	u32 debug_mode;
 };
 struct hfi_feature_config {
-	/* Set 1 to enable max resolution (hardcoded in FW)
-	 * decoder support
-	 */
-	u32 enable_maxdec_resolution : 1;
-	/* Set 1 to enable max resolution (hardcoded in FW)
-	 * encoder support
-	 */
-	u32 enable_maxenc_resolution : 1;
-	/* Must be set to 0, otherwise other fields will
-	 * be ignored
-	 */
-	u32 reserved : 30;
+	u32 feature_config;
 };
 
 struct hfi_enable {
