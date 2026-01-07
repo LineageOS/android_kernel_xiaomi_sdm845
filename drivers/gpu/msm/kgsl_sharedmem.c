@@ -1,4 +1,5 @@
 /* Copyright (c) 2002,2007-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -479,6 +480,9 @@ done:
 
 static void kgsl_page_alloc_free(struct kgsl_memdesc *memdesc)
 {
+	if (memdesc->priv & KGSL_MEMDESC_MAPPED)
+		return;
+
 	kgsl_page_alloc_unmap_kernel(memdesc);
 	/* we certainly do not expect the hostptr to still be mapped */
 	BUG_ON(memdesc->hostptr);
@@ -581,6 +585,9 @@ static int kgsl_contiguous_vmfault(struct kgsl_memdesc *memdesc,
 static void kgsl_cma_coherent_free(struct kgsl_memdesc *memdesc)
 {
 	unsigned long attrs = 0;
+
+	if (memdesc->priv & KGSL_MEMDESC_MAPPED)
+		return;
 
 	if (memdesc->hostptr) {
 		if (memdesc->priv & KGSL_MEMDESC_SECURE) {

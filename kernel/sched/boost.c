@@ -202,8 +202,14 @@ int sched_boost_handler(struct ctl_table *table, int write,
 	if (verify_boost_params(old_val, *data)) {
 		_sched_set_boost(old_val, *data);
 	} else {
-		*data = old_val;
-		ret = -EINVAL;
+		/*
+		 * Only return error when switching from one boost type
+		 * to another.
+		 */
+		if (old_val != *data) {
+			*data = old_val;
+			ret = -EINVAL;
+		}
 	}
 
 done:

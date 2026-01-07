@@ -414,6 +414,7 @@ static int wlan_msg_process(struct ipa_msg_meta *meta, void *buff)
 		msg_dup = kzalloc(sizeof(struct ipa_push_msg), GFP_KERNEL);
 		if (msg_dup == NULL) {
 			IPAERR("fail to alloc ipa_msg container\n");
+			mutex_unlock(&ipa_ctx->msg_wlan_client_lock);
 			return -ENOMEM;
 		}
 		msg_dup->meta = *meta;
@@ -422,6 +423,7 @@ static int wlan_msg_process(struct ipa_msg_meta *meta, void *buff)
 			if (data_dup == NULL) {
 				IPAERR("fail to alloc data_dup container\n");
 				kfree(msg_dup);
+				mutex_unlock(&ipa_ctx->msg_wlan_client_lock);
 				return -ENOMEM;
 			}
 			memcpy(data_dup, buff, meta->msg_len);

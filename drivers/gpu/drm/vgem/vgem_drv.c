@@ -130,9 +130,10 @@ static struct drm_gem_object *vgem_gem_create(struct drm_device *dev,
 		goto err_free;
 
 	ret = drm_gem_handle_create(file, &obj->base, handle);
-	drm_gem_object_unreference_unlocked(&obj->base);
-	if (ret)
+	if (ret) {
+		drm_gem_object_unreference_unlocked(&obj->base);
 		goto err;
+	}
 
 	return &obj->base;
 
@@ -160,7 +161,9 @@ static int vgem_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 	args->size = gem_object->size;
 	args->pitch = pitch;
 
-	DRM_DEBUG_DRIVER("Created object of size %lld\n", size);
+	drm_gem_object_put_unlocked(gem_object);
+
+	DRM_DEBUG_DRIVER("Created object of size %llu\n", args->size);
 
 	return 0;
 }

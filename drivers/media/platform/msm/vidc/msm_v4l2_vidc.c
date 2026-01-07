@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2018, 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -506,8 +507,8 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 	core->platform_data = vidc_get_drv_data(&pdev->dev);
 	dev_set_drvdata(&pdev->dev, core);
 	if (core->platform_data) {
-		core->resources.enable_max_resolution =
-			core->platform_data->enable_max_resolution;
+		core->resources.enable_feature_config =
+			core->platform_data->enable_feature_config;
 	}
 	rc = msm_vidc_initialize_core(pdev, core);
 	if (rc) {
@@ -607,8 +608,10 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 	list_add_tail(&core->list, &vidc_driver->cores);
 	mutex_unlock(&vidc_driver->lock);
 
+#ifdef CONFIG_DEBUG_FS
 	core->debugfs_root = msm_vidc_debugfs_init_core(
 		core, vidc_driver->debugfs_root);
+#endif
 
 	vidc_driver->sku_version = core->resources.sku_version;
 
@@ -791,10 +794,13 @@ static int __init msm_vidc_init(void)
 
 	INIT_LIST_HEAD(&vidc_driver->cores);
 	mutex_init(&vidc_driver->lock);
+
+#ifdef CONFIG_DEBUG_FS
 	vidc_driver->debugfs_root = msm_vidc_debugfs_init_drv();
 	if (!vidc_driver->debugfs_root)
 		dprintk(VIDC_ERR,
 			"Failed to create debugfs for msm_vidc\n");
+#endif
 
 	rc = platform_driver_register(&msm_vidc_driver);
 	if (rc) {

@@ -775,7 +775,8 @@ int ll_inode_getattr(struct inode *inode, struct obdo *obdo,
 		     __u64 ioepoch, int sync);
 void ll_pack_inode2opdata(struct inode *inode, struct md_op_data *op_data,
 			  struct lustre_handle *fh);
-int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat);
+int ll_getattr(const struct path *path, struct kstat *stat,
+	       u32 request_mask, unsigned int flags);
 struct posix_acl *ll_get_acl(struct inode *inode, int type);
 int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 	       const char *name, int namelen);

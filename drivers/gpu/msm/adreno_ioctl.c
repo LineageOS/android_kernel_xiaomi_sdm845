@@ -177,7 +177,7 @@ static long adreno_ioctl_preemption_counters_query(
 		levels_to_copy = gpudev->num_prio_levels;
 
 	if (copy_to_user((void __user *) (uintptr_t) read->counters,
-			adreno_dev->preempt.counters.hostptr,
+			adreno_dev->preempt.scratch.hostptr,
 			levels_to_copy * size_level))
 		return -EFAULT;
 
