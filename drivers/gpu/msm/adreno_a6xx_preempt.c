@@ -1,5 +1,5 @@
 /* Copyright (c) 2017-2018,2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -342,8 +342,8 @@ void a6xx_preemption_trigger(struct adreno_device *adreno_dev)
 	kgsl_sharedmem_writel(device, &iommu->smmu_info,
 		PREEMPT_SMMU_RECORD(context_idr), contextidr);
 
-	kgsl_sharedmem_readq(&device->scratch, &gpuaddr,
-		SCRATCH_PREEMPTION_CTXT_RESTORE_ADDR_OFFSET(next->id));
+	kgsl_sharedmem_readq(&preempt->scratch, &gpuaddr,
+			next->id * sizeof(u64));
 
 	/*
 	 * Set a keepalive bit before the first preemption register write.
@@ -557,8 +557,8 @@ unsigned int a6xx_preemption_pre_ibsubmit(
 		 * preemption
 		 */
 		if (!adreno_dev->perfcounter) {
-			u64 kmd_postamble_addr =
-			PREEMPT_SCRATCH_ADDR(adreno_dev, KMD_POSTAMBLE_IDX);
+			u64 kmd_postamble_addr = SCRATCH_POSTAMBLE_ADDR
+						(KGSL_DEVICE(adreno_dev));
 
 			*cmds++ = cp_type7_packet(CP_SET_AMBLE, 3);
 			*cmds++ = lower_32_bits(kmd_postamble_addr);
@@ -739,7 +739,7 @@ static void a6xx_preemption_close(struct kgsl_device *device)
 	unsigned int i;
 
 	del_timer(&preempt->timer);
-	kgsl_free_global(device, &preempt->counters);
+	kgsl_free_global(device, &preempt->scratch);
 	a6xx_preemption_iommu_close(adreno_dev);
 
 	FOR_EACH_RINGBUFFER(adreno_dev, rb, i) {
@@ -769,15 +769,19 @@ int a6xx_preemption_init(struct adreno_device *adreno_dev)
 	setup_timer(&preempt->timer, _a6xx_preemption_timer,
 		(unsigned long) adreno_dev);
 
-	/* Allocate mem for storing preemption counters */
-	ret = kgsl_allocate_global(device, &preempt->counters,
-		adreno_dev->num_ringbuffers *
-		A6XX_CP_CTXRECORD_PREEMPTION_COUNTER_SIZE, 0, 0,
-		"preemption_counters");
+	/*
+	 * Allocate a scratch buffer to keep the below table:
+	 * Offset: What
+	 * 0x0: Context Record address
+	 * 0x10: Preemption Counters
+	 */
+	ret = kgsl_allocate_global(device, &preempt->scratch, PAGE_SIZE, 0, 0,
+			"preemption_scratch");
 	if (ret)
 		goto err;
 
-	addr = preempt->counters.gpuaddr;
+	addr = preempt->scratch.gpuaddr +
+		KGSL_PRIORITY_MAX_RB_LEVELS * sizeof(u64);
 
 	/* Allocate mem for storing preemption switch record */
 	FOR_EACH_RINGBUFFER(adreno_dev, rb, i) {
@@ -789,14 +793,15 @@ int a6xx_preemption_init(struct adreno_device *adreno_dev)
 	}
 
 	/*
-	 * First 8 dwords of the preemption scratch buffer is used to store the
-	 * address for CP to save/restore VPC data. Reserve 11 dwords in the
-	 * preemption scratch buffer from index KMD_POSTAMBLE_IDX for KMD
-	 * postamble pm4 packets
+	 * First 28 dwords of the device scratch buffer are used to store
+	 * shadow rb data. Reserve 11 dwords in the device scratch buffer
+	 * from SCRATCH_POSTAMBLE_OFFSET for KMD postamble pm4 packets.
+	 * This should be in *device->scratch* so that userspace cannot
+	 * access it.
 	 */
 	if (!adreno_dev->perfcounter) {
-		u32 *postamble = preempt->counters.hostptr +
-					(KMD_POSTAMBLE_IDX * sizeof(u64));
+		u32 *postamble = device->scratch.hostptr +
+				SCRATCH_POSTAMBLE_OFFSET;
 		u32 count = 0;
 
 		postamble[count++] = cp_type7_packet(CP_REG_RMW, 3);

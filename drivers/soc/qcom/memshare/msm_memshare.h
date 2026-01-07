@@ -1,4 +1,5 @@
 /* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -45,6 +46,8 @@ struct mem_blocks {
 	uint32_t client_request;
 	/* Size required for client */
 	uint32_t size;
+	/* Available memory size for client */
+	uint32_t init_size;
 	/*
 	 * start address of the memory block reserved by server memory
 	 * subsystem to client

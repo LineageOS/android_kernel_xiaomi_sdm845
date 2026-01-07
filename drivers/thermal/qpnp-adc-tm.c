@@ -3009,21 +3009,21 @@ int32_t qpnp_adc_tm_disable_chan_meas(struct qpnp_adc_tm_chip *chip,
 					QPNP_BTM_Mn_HIGH_THR_INT_EN, false);
 		if (rc < 0) {
 			pr_err("high thr disable err:%d\n", btm_chan_num);
-			return rc;
+			goto fail;
 		}
 
 		rc = qpnp_adc_tm_reg_update(chip, QPNP_BTM_Mn_EN(btm_chan_num),
 				QPNP_BTM_Mn_LOW_THR_INT_EN, false);
 		if (rc < 0) {
 			pr_err("low thr disable err:%d\n", btm_chan_num);
-			return rc;
+			goto fail;
 		}
 
 		rc = qpnp_adc_tm_reg_update(chip, QPNP_BTM_Mn_EN(btm_chan_num),
 				QPNP_BTM_Mn_MEAS_EN, false);
 		if (rc < 0) {
 			pr_err("multi measurement disable failed\n");
-			return rc;
+			goto fail;
 		}
 	}
 

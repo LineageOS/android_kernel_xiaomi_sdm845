@@ -318,7 +318,7 @@ static void kryo3xx_check_l3_scu_error(struct edac_device_ctl_info *edev_ctl)
 		if (l3_is_bus_error(errxstatus)) {
 			if (edev_ctl->panic_on_ue)
 				panic("Causing panic due to Bus Error\n");
-			return;
+			goto out;
 		}
 		if (KRYO3XX_ERRXSTATUS_UE(errxstatus)) {
 			edac_printk(KERN_CRIT, EDAC_CPU, "Detected L3 uncorrectable error\n");
@@ -332,6 +332,8 @@ static void kryo3xx_check_l3_scu_error(struct edac_device_ctl_info *edev_ctl)
 
 		clear_errxstatus_valid(errxstatus);
 	}
+
+out:
 	spin_unlock_irqrestore(&local_handler_lock, flags);
 }
 

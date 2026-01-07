@@ -1,4 +1,5 @@
 /* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -675,6 +676,11 @@ static void hpcm_copy_playback_data_from_queue(struct dai_data *dai_data,
 				struct hpcm_buf_node, list);
 		list_del(&buf_node->list);
 		*len = buf_node->frame.len;
+		if (*len > HPCM_MAX_VOC_PKT_SIZE) {
+			pr_err("%s: Playback data len %d overflow\n",
+					__func__, *len);
+			return;
+		}
 		memcpy((u8 *)dai_data->vocpcm_ion_buffer.kvaddr,
 		       &buf_node->frame.voc_pkt[0],
 		       buf_node->frame.len);
@@ -701,6 +707,12 @@ static void hpcm_copy_capture_data_to_queue(struct dai_data *dai_data,
 
 	if (dai_data->substream == NULL)
 		return;
+
+	if (len > HPCM_MAX_VOC_PKT_SIZE) {
+		pr_err("%s: Copy capture data len %d overflow\n",
+				__func__, len);
+		return;
+	}
 
 	/* Copy out buffer packet into free_queue */
 	spin_lock_irqsave(&dai_data->dsp_lock, dsp_flags);
@@ -741,6 +753,13 @@ void hpcm_notify_evt_processing(uint8_t *data, char *session,
 	if ((notify_evt->notify_mask & VSS_IVPCM_NOTIFY_MASK_TIMETICK) == 0) {
 		pr_err("%s: Error notification. mask=%d\n", __func__,
 			notify_evt->notify_mask);
+		return;
+	}
+
+	if (prtd->mixer_conf.sess_indx < VOICE_INDEX ||
+		prtd->mixer_conf.sess_indx >= MAX_SESSION) {
+		pr_err("%s:: Invalid session idx %d\n",
+			__func__, prtd->mixer_conf.sess_indx);
 		return;
 	}
 
