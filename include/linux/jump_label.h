@@ -136,6 +136,7 @@ extern struct jump_entry __start___jump_table[];
 extern struct jump_entry __stop___jump_table[];
 
 extern void jump_label_init(void);
+extern void jump_label_invalidate_initmem(void);
 extern void jump_label_lock(void);
 extern void jump_label_unlock(void);
 extern void arch_jump_label_transform(struct jump_entry *entry,
@@ -178,6 +179,8 @@ static __always_inline void jump_label_init(void)
 {
 	static_key_initialized = true;
 }
+
+static inline void jump_label_invalidate_initmem(void) {}
 
 static __always_inline bool static_key_false(struct static_key *key)
 {

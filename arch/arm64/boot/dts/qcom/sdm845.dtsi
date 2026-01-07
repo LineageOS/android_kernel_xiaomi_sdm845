@@ -481,7 +481,7 @@
 	};
 
 	chosen {
-		bootargs = "rcupdate.rcu_expedited=1";
+		bootargs = "rcupdate.rcu_expedited=1 cgroup.memory=nokmem,nosocket";
 	};
 
 	soc: soc { };

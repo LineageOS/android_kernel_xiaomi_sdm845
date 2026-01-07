@@ -19,7 +19,7 @@ config F2FS_FS
 
 config F2FS_STAT_FS
 	bool "F2FS Status Information"
-	depends on F2FS_FS && DEBUG_FS
+	depends on F2FS_FS
 	default y
 	help
 	  /sys/kernel/debug/f2fs/ contains information about all the partitions
@@ -63,7 +63,9 @@ config F2FS_FS_SECURITY
 	  Security Models (LSMs) accepted by AppArmor, SELinux, Smack and TOMOYO
 	  Linux. This option enables an extended attribute handler for file
 	  security labels in the f2fs filesystem, so that it requires enabling
-	  the extended attribute support in advance.
+	  the extended attribute support in advance. In particular you need this
+	  option if you use the setcap command to assign initial process capabi-
+	  lities to executables (the security.* extended attributes).
 
 	  If you are not using a security module, say N.
 

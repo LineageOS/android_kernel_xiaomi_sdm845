@@ -1355,8 +1355,10 @@ int slim_config_mgrports(struct slim_device *sb, u32 *ph, int nports,
 	for (i = 0; i < nports; i++) {
 		u8 pn = SLIM_HDL_TO_PORT(ph[i]);
 
-		if (ctrl->ports[pn].state == SLIM_P_CFG)
+		if (ctrl->ports[pn].state == SLIM_P_CFG) {
+			mutex_unlock(&ctrl->sched.m_reconf);
 			return -EISCONN;
+		}
 		ctrl->ports[pn].cfg = *cfg;
 	}
 	mutex_unlock(&ctrl->sched.m_reconf);

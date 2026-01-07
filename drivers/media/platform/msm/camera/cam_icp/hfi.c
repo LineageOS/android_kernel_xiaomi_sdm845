@@ -664,7 +664,8 @@ int cam_hfi_init(uint8_t event_driven_mode, struct hfi_mem_info *hfi_mem,
 
 	if (g_hfi->hfi_state != HFI_DEINIT) {
 		CAM_ERR(CAM_HFI, "hfi_init: invalid state");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto alloc_fail;
 	}
 
 	memcpy(&g_hfi->map, hfi_mem, sizeof(g_hfi->map));
