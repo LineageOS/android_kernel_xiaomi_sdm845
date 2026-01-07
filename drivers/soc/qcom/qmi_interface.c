@@ -1974,8 +1974,10 @@ int qmi_svc_event_notifier_register(uint32_t service_id,
 			svc_info_arr = kmalloc_array(num_servers,
 						sizeof(*svc_info_arr),
 						GFP_KERNEL);
-			if (!svc_info_arr)
-				return -ENOMEM;
+			if (!svc_info_arr) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			num_servers = msm_ipc_router_lookup_server_name(
 								&svc_name,
 								svc_info_arr,
@@ -1993,6 +1995,8 @@ int qmi_svc_event_notifier_register(uint32_t service_id,
 			spin_unlock_irqrestore(&temp->nb_lock, flags);
 		}
 	}
+
+out:
 	mutex_unlock(&temp->svc_addr_list_lock);
 
 	return ret;

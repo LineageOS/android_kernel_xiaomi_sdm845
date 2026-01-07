@@ -61,9 +61,7 @@ static inline unsigned long get_random_long(void)
 
 static inline unsigned long get_random_canary(void)
 {
-	unsigned long val = get_random_long();
-
-	return val & CANARY_MASK;
+	return get_random_long() & CANARY_MASK;
 }
 
 int __init random_init(const char *command_line);
