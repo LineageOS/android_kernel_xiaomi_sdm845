@@ -1,4 +1,5 @@
 /* Copyright (c) 2002,2007-2018,2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -629,8 +630,6 @@ int adreno_drawctxt_switch(struct adreno_device *adreno_dev,
 	if (drawctxt != NULL && kgsl_context_detached(&drawctxt->base))
 		return -ENOENT;
 
-	trace_adreno_drawctxt_switch(rb, drawctxt);
-
 	/* Get a refcount to the new instance */
 	if (drawctxt) {
 		if (!_kgsl_context_get(&drawctxt->base))
@@ -643,7 +642,7 @@ int adreno_drawctxt_switch(struct adreno_device *adreno_dev,
 	}
 	ret = adreno_ringbuffer_set_pt_ctx(rb, new_pt, drawctxt, flags);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (rb->drawctxt_active) {
 		/* Wait for the timestamp to expire */
@@ -654,6 +653,13 @@ int adreno_drawctxt_switch(struct adreno_device *adreno_dev,
 		}
 	}
 
+	trace_adreno_drawctxt_switch(rb, drawctxt);
+
 	rb->drawctxt_active = drawctxt;
+
 	return 0;
+err:
+	if (drawctxt)
+		kgsl_context_put(&drawctxt->base);
+	return ret;
 }

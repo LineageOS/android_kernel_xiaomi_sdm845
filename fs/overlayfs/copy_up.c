@@ -351,7 +351,8 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	ovl_path_upper(parent, &parentpath);
 	upperdir = parentpath.dentry;
 
-	err = vfs_getattr(&parentpath, &pstat);
+	err = vfs_getattr(&parentpath, &pstat,
+			  STATX_ATIME | STATX_MTIME, AT_STATX_SYNC_AS_STAT);
 	if (err)
 		return err;
 
@@ -415,7 +416,8 @@ int ovl_copy_up(struct dentry *dentry)
 		}
 
 		ovl_path_lower(next, &lowerpath);
-		err = vfs_getattr(&lowerpath, &stat);
+		err = vfs_getattr(&lowerpath, &stat,
+				  STATX_BASIC_STATS, AT_STATX_SYNC_AS_STAT);
 		if (!err)
 			err = ovl_copy_up_one(parent, next, &lowerpath, &stat);
 

@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -303,7 +304,8 @@ int create_pkt_cmd_sys_debug_config(
 	return 0;
 }
 static int create_pkt_cmd_sys_feature_config_packet(
-			struct hfi_cmd_sys_set_property_packet *pkt)
+			struct hfi_cmd_sys_set_property_packet *pkt,
+			u32 config)
 {
 	struct hfi_feature_config *hfi;
 
@@ -317,9 +319,7 @@ static int create_pkt_cmd_sys_feature_config_packet(
 	pkt->rg_property_data[0] = HFI_PROPERTY_SYS_FEATURE_CONFIG;
 
 	hfi = (struct hfi_feature_config *) &pkt->rg_property_data[1];
-	hfi->enable_maxdec_resolution = 0;
-	hfi->enable_maxenc_resolution = 1;
-	hfi->reserved = 0;
+	hfi->feature_config = config;
 	return 0;
 }
 int create_pkt_cmd_sys_coverage_config(

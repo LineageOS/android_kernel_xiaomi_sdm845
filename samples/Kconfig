@@ -105,4 +105,10 @@ config SAMPLE_BLACKFIN_GPTIMERS
 	help
 	  Build samples of blackfin gptimers sample module.
 
+config SAMPLE_STATX
+	bool "Build example extended-stat using code"
+	depends on BROKEN
+	help
+	  Build example userspace program to use the new extended-stat syscall.
+
 endif # SAMPLES

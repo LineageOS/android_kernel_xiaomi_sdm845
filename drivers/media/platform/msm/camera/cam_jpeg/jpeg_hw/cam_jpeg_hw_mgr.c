@@ -1084,8 +1084,6 @@ static int cam_jpeg_mgr_release_hw(void *hw_mgr_priv, void *release_hw_args)
 		cam_cdm_release(hw_mgr->cdm_info[dev_type][0].cdm_handle);
 	}
 
-	mutex_unlock(&hw_mgr->hw_mgr_mutex);
-
 	rc = cam_jpeg_mgr_release_ctx(hw_mgr, ctx_data);
 	if (rc) {
 		mutex_unlock(&hw_mgr->hw_mgr_mutex);
@@ -1096,6 +1094,7 @@ static int cam_jpeg_mgr_release_hw(void *hw_mgr_priv, void *release_hw_args)
 		return -EINVAL;
 	}
 
+	mutex_unlock(&hw_mgr->hw_mgr_mutex);
 	kfree(ctx_data->cdm_cmd);
 	ctx_data->cdm_cmd = NULL;
 	CAM_DBG(CAM_JPEG, "handle %llu", ctx_data);

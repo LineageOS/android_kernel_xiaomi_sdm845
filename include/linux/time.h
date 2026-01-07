@@ -6,6 +6,8 @@
 # include <linux/math64.h>
 # include <linux/time64.h>
 
+#define TIMER_LOCK_TIGHT_LOOP_DELAY_NS	350
+
 extern struct timezone sys_tz;
 
 #define TIME_T_MAX	(time_t)((1UL << ((sizeof(time_t) << 3) - 1)) - 1)
