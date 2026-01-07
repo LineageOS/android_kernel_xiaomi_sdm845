@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "206d51e8_b400046a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 25732
+      },
+      "writtenOn": "2026-01-07T22:09:00Z",
+      "side": 1,
+      "message": "I don\u0027t remember if it\u0027s from qcom/sdm845 or an out-of-tree import, regardless, can\u0027t you just disable it instead of deleting the code?",
+      "revId": "08418301f052b87f6e091094d95e8b3b692fdbdd",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
