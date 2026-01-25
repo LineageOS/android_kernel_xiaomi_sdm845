@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "88773c39_1aaf2dd7",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 36297
+      },
+      "writtenOn": "2026-01-25T03:32:06Z",
+      "side": 1,
+      "message": "Enabling it will consume a lot of memory during the compilation phase, so we should only enable it when necessary.",
+      "revId": "1d2e0ea0f8e5dde0eb32344f80c3b1c8d1f67067",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
