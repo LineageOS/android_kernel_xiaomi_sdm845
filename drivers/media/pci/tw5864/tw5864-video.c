@@ -1397,7 +1397,6 @@ static void tw5864_handle_frame(struct tw5864_h264_frame *frame)
 		return;
 	}
 
-	v4l2_buf = to_vb2_v4l2_buffer(&vb->vb.vb2_buf);
 
 	/*
 	 * Check for space.
@@ -1409,6 +1408,8 @@ static void tw5864_handle_frame(struct tw5864_h264_frame *frame)
 			     input->buf_cur_space_left, frame_len);
 		return;
 	}
+
+	v4l2_buf = to_vb2_v4l2_buffer(&vb->vb.vb2_buf);
 
 	for (i = 0; i < 8 - input->tail_nb_bits; i++)
 		vlc_mask |= 1 << i;
