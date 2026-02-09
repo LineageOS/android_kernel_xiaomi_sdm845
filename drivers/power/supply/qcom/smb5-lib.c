@@ -981,6 +981,9 @@ int smblib_set_icl_current(struct smb_charger *chg, int icl_ua)
 	if (icl_ua == INT_MAX)
 		goto set_mode;
 
+	if (icl_ua > chg->param.usb_icl.max_u)
+		icl_ua = chg->param.usb_icl.max_u;
+
 	/* configure current */
 	if (chg->real_charger_type == POWER_SUPPLY_TYPE_USB
 		&& (chg->typec_legacy
